@@ -1,0 +1,66 @@
+// ─── Interfaces ─────────────────────────────────────────────────────────────
+
+export interface Level { id: string; name: string; number: number; status?: string }
+export interface Group { id: string; name: string; levelId: string; status?: string }
+export interface LevelWithGroups extends Level { groups: Group[] }
+export interface ChurchItem { id: string; name: string; nameAr?: string; country?: string; city?: string; isActive?: boolean }
+
+export interface Student {
+  id: string; studentCode: string; firstName: string; lastName: string
+  firstNameAr?: string; lastNameAr?: string; dateOfBirth: string; gender: string
+  churchName?: string; schoolGrade?: string; photoUrl?: string
+  levelId: string; groupId: string; status: string; enrollmentDate: string
+  level: { id: string; name: string; number: number }
+  group: { id: string; name: string }
+  metadata?: { phone?: string; email?: string; address?: string; notes?: string; churchToolId?: string }
+  parentEmail?: string
+}
+
+export interface PaginatedResponse {
+  data: Student[]
+  pagination: { page: number; limit: number; total: number; totalPages: number }
+}
+
+export interface StudentStats {
+  total: number; active: number; inactive: number; graduated: number
+  male: number; female: number
+  gradeDistribution: { grade: string; count: number }[]
+}
+
+// ─── Form ────────────────────────────────────────────────────────────────────
+export const emptyForm = {
+  name: '', firstNameAr: '', lastNameAr: '', dateOfBirth: '', gender: 'male',
+  churchName: '', schoolGrade: '', levelId: '', groupId: '', photoUrl: '',
+  status: 'active', phone: '', email: '', address: '', notes: '', churchToolId: '', parentEmail: '',
+}
+export type StudentForm = typeof emptyForm
+
+// ─── Constants ───────────────────────────────────────────────────────────────
+export const GRADE_OPTIONS = [
+  'Grade 1','Grade 2','Grade 3','Grade 4','Grade 5','Grade 6','Grade 7',
+  'Grade 8','Grade 9','Grade 10','Grade 11','Grade 12','Grade 13','Adult',
+]
+
+export const STATUS_STYLE: Record<string, { variant: 'success' | 'danger' | 'warning' | 'info'; bar: string }> = {
+  active:    { variant: 'success', bar: 'border-l-green-400' },
+  inactive:  { variant: 'danger',  bar: 'border-l-red-400'   },
+  graduated: { variant: 'warning', bar: 'border-l-amber-400' },
+}
+
+// ─── Utils ───────────────────────────────────────────────────────────────────
+export function photoSrc(url: string | undefined | null): string {
+  const base = process.env.NEXT_PUBLIC_UPLOADS_URL || 'http://localhost:3001'
+  if (!url) return ''
+  if (url.startsWith('blob:')) return url
+  if (url.startsWith('/uploads/')) return `${base}${url}`
+  return url
+}
+
+export function calcAge(dob: string): number {
+  const d = new Date(dob)
+  if (isNaN(d.getTime())) return 0
+  const now = new Date()
+  let a = now.getFullYear() - d.getFullYear()
+  if (now.getMonth() < d.getMonth() || (now.getMonth() === d.getMonth() && now.getDate() < d.getDate())) a--
+  return a
+}

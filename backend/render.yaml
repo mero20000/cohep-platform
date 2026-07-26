@@ -1,0 +1,35 @@
+# Render Blueprint — NiAngelos backend (NestJS + Postgres)
+# Use this render.yaml when the repo contains ONLY the backend
+# (i.e. the contents of the backend/ folder are at the repo root).
+
+databases:
+  - name: niangelos-db
+    databaseName: niangelos
+    user: niangelos
+    plan: free
+    postgresMajorVersion: 15
+
+services:
+  - type: web
+    name: niangelos-backend
+    runtime: node
+    rootDir: .
+    plan: free
+    region: oregon
+    buildCommand: mkdir -p uploads && npm install && npm run build
+    # Free tier has no pre-deploy hook, so run migrations + seed on every start.
+    # Idempotent: migrate applies only new migrations, seed upserts roles/admin.
+    startCommand: npx prisma migrate deploy && npm run seed && npm run start:prod
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: niangelos-db
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+      - key: FRONTEND_URL
+        value: https://cohe-eight.vercel.app
+      # Render injects PORT automatically; main.ts listens on process.env.PORT.

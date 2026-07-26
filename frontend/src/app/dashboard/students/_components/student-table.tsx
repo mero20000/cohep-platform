@@ -1,0 +1,180 @@
+'use client'
+import Image from 'next/image'
+import { Loader2, AlertCircle, User, ArrowUpDown, Eye, Pencil, Trash2, RefreshCw } from 'lucide-react'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Pagination } from '@/components/ui/pagination'
+import { STATUS_STYLE, photoSrc, calcAge, type Student } from './student-types'
+import { PhoneLink } from './phone-link'
+import { usePermission } from '@/lib/use-permission'
+
+interface Pag { page: number; limit: number; total: number; totalPages: number }
+interface Props {
+  students: Student[]; loading: boolean; fetchError: boolean
+  selectedIds: Set<string>; allSelected: boolean
+  toggleId: (id: string, shiftKey?: boolean) => void; toggleAll: () => void
+  sortKey: string; sortDir: 'asc'|'desc'; toggleSort: (k: string) => void
+  onView: (s: Student) => void; onEdit: (s: Student) => void; onDelete: (s: Student) => void
+  onRetry: () => void; hasActiveFilters: boolean; onClearFilters: () => void; onOpenCreate: () => void
+  pagination: Pag; onPageChange: (p: number) => void
+  onPreviewPhoto: (url: string) => void; lang: 'en'|'ar'
+}
+const COLS = [
+  ['name','Student','الطالب'],['code','Student Code','رمز الطالب'],['gender','Gender','الجنس'],
+  ['phone','Phone','رقم الهاتف'],['level','Level','المستوى'],['group','Group','المجموعة'],
+  ['age','Age','العمر'],['church','Church','الكنيسة'],['grade','Grade','المرحلة'],['status','Status','الحالة'],
+] as const
+
+export function StudentTable({ students, loading, fetchError, selectedIds, allSelected, toggleId, toggleAll, sortKey, sortDir, toggleSort, onView, onEdit, onDelete, onRetry, hasActiveFilters, onClearFilters, onOpenCreate, pagination, onPageChange, onPreviewPhoto, lang }: Props) {
+  const t = (en: string, ar: string) => lang === 'ar' ? ar : en
+  if (loading) return (
+    <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
+      <div className="animate-pulse">
+        <div className="h-12 bg-gray-100 border-b border-gray-200" />
+        {Array.from({ length: 6 }).map((_, i) => (
+          <div key={i} className="flex items-center gap-4 px-4 py-3 border-b border-gray-50">
+            <div className="h-4 w-4 bg-gray-200 rounded" />
+            <div className="h-8 w-8 bg-gray-200 rounded-full" />
+            <div className="flex-1 space-y-2">
+              <div className="h-3 w-32 bg-gray-200 rounded" />
+              <div className="h-2.5 w-20 bg-gray-100 rounded" />
+            </div>
+            <div className="h-5 w-16 bg-gray-200 rounded-full" />
+            <div className="h-5 w-12 bg-gray-200 rounded" />
+            <div className="h-5 w-12 bg-gray-200 rounded" />
+            <div className="h-5 w-12 bg-gray-200 rounded" />
+            <div className="h-5 w-12 bg-gray-200 rounded" />
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+  if (fetchError) return (
+    <div className="rounded-xl border border-gray-200 bg-white flex flex-col items-center justify-center py-16">
+      <AlertCircle className="h-12 w-12 text-red-300" />
+      <p className="mt-3 text-sm font-medium text-red-600">{t('Failed to load students','تعذر تحميل الطلاب')}</p>
+      <Button onClick={onRetry} variant="outline" className="mt-4 inline-flex items-center gap-1.5">
+        <RefreshCw className="h-4 w-4" /> {t('Retry','إعادة المحاولة')}
+      </Button>
+    </div>
+  )
+  if (students.length === 0) return (
+    <div className="rounded-xl border border-gray-200 bg-white flex flex-col items-center justify-center py-16">
+      <User className="h-12 w-12 text-gray-300" />
+      {hasActiveFilters ? (
+        <>
+          <p className="mt-3 text-sm font-medium text-gray-700">{t('No students match your filters','لا يوجد طلاب يطابقون الفلتر')}</p>
+          <p className="mt-1 text-xs text-gray-400">{t('Try adjusting your search or filter criteria','حاول تعديل معايير البحث أو الفلتر')}</p>
+          <Button onClick={onClearFilters} className="mt-4 inline-flex items-center gap-1.5">{t('Clear filters','مسح الفلتر')}</Button>
+        </>
+      ) : (
+        <>
+          <p className="mt-3 text-sm font-medium text-gray-700">{t('No students enrolled yet','لا يوجد طلاب مسجلين بعد')}</p>
+          <p className="mt-1 text-xs text-gray-400">{t('Start by adding your first student to get going','ابدأ بإضافة أول طالب للمتابعة')}</p>
+          <Button onClick={onOpenCreate} className="mt-4 inline-flex items-center gap-1.5">{t('Add first student','إضافة أول طالب')}</Button>
+        </>
+      )}
+    </div>
+  )
+  return (
+    <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
+      {/* Mobile */}
+      <div className="md:hidden divide-y divide-gray-100">
+        {students.map(s => (
+          <div key={s.id} className={`px-4 py-3 border-l-4 ${STATUS_STYLE[s.status]?.bar || 'border-l-transparent'}`}>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3 min-w-0 flex-1">
+                <input type="checkbox" checked={selectedIds.has(s.id)} onChange={e => toggleId(s.id,(e.nativeEvent as MouseEvent).shiftKey)} className="h-4 w-4 rounded border-gray-300 text-gold-500 shrink-0" />
+                <AvatarCell s={s} size={36} onPreview={onPreviewPhoto} />
+                <div className="min-w-0">
+                  <div className="text-sm font-medium text-gray-900 truncate">{s.firstName} {s.lastName}</div>
+                  <div className="flex items-center gap-1.5 mt-0.5">
+                    <span className="text-[11px] text-gray-500">#{s.studentCode}</span>
+                    <StatusBadge status={s.status} lang={lang} />
+                  </div>
+                </div>
+              </div>
+              <Actions s={s} onView={onView} onEdit={onEdit} onDelete={onDelete} lang={lang} />
+            </div>
+            <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-500 ml-10">
+              {s.level?.name && <span>{s.level.name}{s.group?.name ? ` · ${s.group.name}` : ''}</span>}
+              {s.gender && <span>{s.gender === 'female' ? t('Female','أنثى') : t('Male','ذكر')}</span>}
+              {s.schoolGrade && <span>{s.schoolGrade}</span>}
+              {s.churchName && <span className="truncate max-w-[120px]">{s.churchName}</span>}
+              {calcAge(s.dateOfBirth) > 0 && <span>{calcAge(s.dateOfBirth)} {t('yrs','سنة')}</span>}
+            </div>
+          </div>
+        ))}
+      </div>
+      {/* Desktop */}
+      <div className="hidden md:block overflow-x-auto">
+        <table className="w-full">
+          <thead>
+            <tr className="border-b border-gray-100 bg-gray-50/50">
+              <th className="px-2 py-3 w-10">
+                <input type="checkbox" checked={allSelected} onChange={toggleAll} className="h-4 w-4 rounded border-gray-300 text-gold-500" />
+              </th>
+              {COLS.map(([key, en, ar]) => (
+                <th key={key} scope="col" onClick={() => toggleSort(key)}
+                  className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer select-none hover:text-gray-700 ${key!=='name'&&key!=='status'?'hidden md:table-cell':''}`}>
+                  <span className="inline-flex items-center gap-1">
+                    {lang==='ar'?ar:en}
+                    <ArrowUpDown className={`h-3 w-3 transition-opacity ${sortKey===key?'opacity-100 text-gold-500':'opacity-30'}`} />
+                  </span>
+                </th>
+              ))}
+              <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">{lang==='ar'?'الإجراءات':'Actions'}</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-100">
+            {students.map(s => (
+              <tr key={s.id} className={`hover:bg-gray-100 transition-colors border-l-4 cursor-pointer ${STATUS_STYLE[s.status]?.bar||'border-l-transparent'}`}>
+                <td className="px-2 py-3"><input type="checkbox" checked={selectedIds.has(s.id)} onChange={e=>toggleId(s.id,(e.nativeEvent as MouseEvent).shiftKey)} className="h-4 w-4 rounded border-gray-300 text-gold-500" /></td>
+                <td className="px-4 py-3">
+                  <div className="flex items-center gap-3">
+                    <AvatarCell s={s} size={36} onPreview={onPreviewPhoto} />
+                    <div className="min-w-0">
+                      <div className="text-sm font-medium text-gray-900 truncate">{s.firstName} {s.lastName}</div>
+                      {s.firstNameAr && <div className="text-xs text-gray-400 truncate">{s.firstNameAr} {s.lastNameAr}</div>}
+                    </div>
+                  </div>
+                </td>
+                <td className="hidden md:table-cell px-4 py-3 text-sm text-gray-600 font-mono">{s.studentCode}</td>
+                <td className="hidden md:table-cell px-4 py-3"><span className={`inline-flex items-center text-xs font-medium px-2 py-0.5 rounded-full ${s.gender==='female'?'bg-pink-100 text-pink-700':'bg-blue-100 text-blue-700'}`}>{s.gender==='female'?t('Female','أنثى'):t('Male','ذكر')}</span></td>
+                <td className="hidden md:table-cell px-4 py-3"><PhoneLink phone={s.metadata?.phone||''} lang={lang} /></td>
+                <td className="hidden md:table-cell px-4 py-3 text-sm text-gray-900">{s.level?.name||'—'}</td>
+                <td className="hidden md:table-cell px-4 py-3 text-sm text-gray-900">{s.group?.name||'—'}</td>
+                <td className="hidden md:table-cell px-4 py-3 text-sm text-gray-600">{calcAge(s.dateOfBirth)}</td>
+                <td className="hidden md:table-cell px-4 py-3 text-sm text-gray-600 max-w-[120px] truncate">{s.churchName||'—'}</td>
+                <td className="hidden md:table-cell px-4 py-3 text-sm text-gray-900">{s.schoolGrade||'—'}</td>
+                <td className="px-4 py-3"><StatusBadge status={s.status} lang={lang} /></td>
+                <td className="px-4 py-3 text-right"><Actions s={s} onView={onView} onEdit={onEdit} onDelete={onDelete} lang={lang} /></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <div className="border-t border-gray-100">
+        <Pagination page={pagination.page} totalPages={pagination.totalPages} total={pagination.total} onPageChange={onPageChange} />
+      </div>
+    </div>
+  )
+}
+function AvatarCell({ s, size, onPreview }: { s: Student; size: number; onPreview: (u: string) => void }) {
+  if (s.photoUrl) return <Button type="button" variant="ghost" size="icon" onClick={() => onPreview(photoSrc(s.photoUrl))} className="flex-shrink-0"><Image src={photoSrc(s.photoUrl)} alt="" width={size} height={size} className="rounded-full object-cover border border-gray-200 cursor-pointer hover:ring-2 hover:ring-gold-400" style={{width:size,height:size}} /></Button>
+  return <div className={`flex items-center justify-center rounded-full text-sm font-bold flex-shrink-0 ${s.gender==='female'?'bg-pink-100 text-pink-700':'bg-blue-100 text-blue-700'}`} style={{width:size,height:size}}>{s.firstName[0]}{s.lastName?.[0]??''}</div>
+}
+function StatusBadge({ status, lang }: { status: string; lang: 'en'|'ar' }) {
+  const label = status==='active'?(lang==='ar'?'نشط':'Active'):status==='inactive'?(lang==='ar'?'غير نشط':'Inactive'):status==='graduated'?(lang==='ar'?'متخرج':'Graduated'):status
+  return <Badge variant={STATUS_STYLE[status]?.variant||'default'}>{label}</Badge>
+}
+function Actions({ s, onView, onEdit, onDelete, lang }: { s: Student; onView: (s:Student)=>void; onEdit: (s:Student)=>void; onDelete: (s:Student)=>void; lang: 'en'|'ar' }) {
+  const { can } = usePermission()
+  return (
+    <div className="flex items-center justify-end gap-1">
+      <Button variant="ghost" size="icon" onClick={() => onView(s)} aria-label={`${lang==='ar'?'عرض':'View'} ${s.firstName}`}><Eye className="h-4 w-4" /></Button>
+      {can('student:edit')&&<Button variant="ghost" size="icon" onClick={() => onEdit(s)} aria-label={`${lang==='ar'?'تعديل':'Edit'} ${s.firstName}`}><Pencil className="h-4 w-4" /></Button>}
+      {can('student:delete')&&<Button variant="ghost" size="icon" onClick={() => onDelete(s)} aria-label={`${lang==='ar'?'حذف':'Delete'} ${s.firstName}`}><Trash2 className="h-4 w-4" /></Button>}
+    </div>
+  )
+}

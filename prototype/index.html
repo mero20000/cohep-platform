@@ -1,0 +1,1128 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NiAngelos – School for Hymns and Praises</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        :root {
+            --gold: #D4A843; --gold-hover: #B8912A; --gold-light: #FFF9E6;
+            --blue: #2563EB; --blue-hover: #1D4ED8; --blue-light: #EFF6FF;
+            --red: #EF4444; --red-light: #FEF2F2;
+            --green: #22C55E; --green-light: #F0FDF4;
+            --orange: #F59E0B; --orange-light: #FFFBEB;
+            --gray-50: #F9FAFB; --gray-100: #F3F4F6; --gray-200: #E5E7EB;
+            --gray-300: #D1D5DB; --gray-400: #9CA3AF; --gray-500: #6B7280;
+            --gray-600: #4B5563; --gray-700: #374151; --gray-800: #1F2937;
+            --gray-900: #111827; --white: #FFFFFF;
+            --sidebar-width: 260px; --sidebar-collapsed: 72px;
+            --header-height: 64px; --radius: 8px; --radius-lg: 12px;
+            --shadow-sm: 0 1px 3px rgba(0,0,0,0.08);
+            --shadow-md: 0 4px 6px rgba(0,0,0,0.07);
+            --shadow-lg: 0 10px 15px rgba(0,0,0,0.08);
+            --transition: 0.2s ease;
+        }
+        html { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; font-size: 16px; color: var(--gray-900); background: var(--gray-50); }
+        body { min-height: 100vh; }
+        a { text-decoration: none; color: inherit; }
+        button { cursor: pointer; border: none; background: none; font: inherit; }
+        img { max-width: 100%; display: block; }
+        .hidden { display: none !important; }
+
+        /* ===== LANDING PAGE ===== */
+        #landing { min-height: 100vh; background: var(--white); }
+        .landing-header { display: flex; align-items: center; justify-content: space-between; padding: 16px 32px; border-bottom: 1px solid var(--gray-200); position: sticky; top: 0; background: rgba(255,255,255,0.95); backdrop-filter: blur(10px); z-index: 100; }
+        .logo { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 20px; }
+        .logo-icon { width: 36px; height: 36px; background: var(--gold); border-radius: 8px; display: flex; align-items: center; justify-content: center; color: white; font-size: 18px; }
+        .nav-links { display: flex; gap: 32px; font-size: 14px; font-weight: 500; color: var(--gray-600); }
+        .nav-links a:hover { color: var(--gray-900); }
+        .nav-actions { display: flex; gap: 12px; align-items: center; }
+        .hero { padding: 80px 32px 60px; text-align: center; max-width: 800px; margin: 0 auto; }
+        .hero h1 { font-size: 48px; font-weight: 800; line-height: 1.1; margin-bottom: 16px; background: linear-gradient(135deg, var(--gray-900), var(--gray-700)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .hero h1 span { background: linear-gradient(135deg, var(--gold), var(--gold-hover)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .hero p { font-size: 18px; color: var(--gray-500); max-width: 500px; margin: 0 auto 32px; line-height: 1.6; }
+        .hero-buttons { display: flex; gap: 12px; justify-content: center; }
+        .hero-visual { margin-top: 60px; background: linear-gradient(135deg, var(--gold-light), var(--blue-light)); border-radius: 16px; padding: 40px; max-width: 700px; margin-left: auto; margin-right: auto; }
+        .hero-visual-inner { background: white; border-radius: 12px; box-shadow: var(--shadow-lg); padding: 24px; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+        .hero-stat { text-align: center; padding: 16px; }
+        .hero-stat-icon { font-size: 24px; margin-bottom: 8px; }
+        .hero-stat-value { font-size: 24px; font-weight: 700; color: var(--gray-900); }
+        .hero-stat-label { font-size: 12px; color: var(--gray-500); margin-top: 4px; }
+
+        /* ===== BUTTONS ===== */
+        .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; font-weight: 500; border-radius: var(--radius); transition: all var(--transition); white-space: nowrap; }
+        .btn-sm { padding: 8px 16px; font-size: 13px; height: 32px; }
+        .btn-md { padding: 10px 20px; font-size: 14px; height: 40px; }
+        .btn-lg { padding: 12px 24px; font-size: 15px; height: 44px; }
+        .btn-primary { background: var(--gold); color: white; }
+        .btn-primary:hover { background: var(--gold-hover); transform: translateY(-1px); box-shadow: var(--shadow-md); }
+        .btn-secondary { background: white; color: var(--gold); border: 1px solid var(--gold); }
+        .btn-secondary:hover { background: var(--gold-light); }
+        .btn-ghost { color: var(--gray-600); }
+        .btn-ghost:hover { background: var(--gray-100); color: var(--gray-900); }
+        .btn-blue { background: var(--blue); color: white; }
+        .btn-blue:hover { background: var(--blue-hover); }
+        .btn-danger { background: var(--red); color: white; }
+        .btn-danger:hover { opacity: 0.9; }
+        .btn-icon { width: 40px; height: 40px; padding: 0; border-radius: 50%; }
+        .btn-icon:hover { background: var(--gray-100); }
+
+        /* ===== APP LAYOUT ===== */
+        #app { display: none; min-height: 100vh; }
+        .app-header { position: fixed; top: 0; left: 0; right: 0; height: var(--header-height); background: white; border-bottom: 1px solid var(--gray-200); display: flex; align-items: center; padding: 0 24px; z-index: 200; }
+        .header-left { display: flex; align-items: center; gap: 16px; flex: 1; }
+        .menu-toggle { display: none; width: 36px; height: 36px; align-items: center; justify-content: center; border-radius: 8px; font-size: 20px; }
+        .menu-toggle:hover { background: var(--gray-100); }
+        .search-bar { flex: 1; max-width: 480px; position: relative; }
+        .search-bar input { width: 100%; padding: 10px 16px 10px 40px; border: 1px solid var(--gray-200); border-radius: var(--radius); font-size: 14px; background: var(--gray-50); transition: all var(--transition); }
+        .search-bar input:focus { outline: none; border-color: var(--gold); box-shadow: 0 0 0 3px rgba(212,168,67,0.1); background: white; }
+        .search-bar .search-icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--gray-400); font-size: 16px; }
+        .search-bar .search-shortcut { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); background: var(--gray-200); padding: 2px 8px; border-radius: 4px; font-size: 11px; color: var(--gray-500); font-weight: 500; }
+        .header-right { display: flex; align-items: center; gap: 8px; }
+        .notification-btn { position: relative; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; border-radius: 50%; font-size: 18px; }
+        .notification-btn:hover { background: var(--gray-100); }
+        .notification-badge { position: absolute; top: 4px; right: 4px; width: 18px; height: 18px; background: var(--red); color: white; border-radius: 50%; font-size: 10px; display: flex; align-items: center; justify-content: center; font-weight: 600; border: 2px solid white; }
+        .lang-toggle { padding: 6px 12px; border-radius: var(--radius); font-size: 13px; font-weight: 500; color: var(--gray-600); }
+        .lang-toggle:hover { background: var(--gray-100); }
+        .user-menu { display: flex; align-items: center; gap: 10px; padding: 4px 8px 4px 4px; border-radius: var(--radius); cursor: pointer; }
+        .user-menu:hover { background: var(--gray-100); }
+        .user-avatar { width: 32px; height: 32px; border-radius: 50%; background: var(--gold); color: white; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 600; }
+        .user-info { font-size: 13px; font-weight: 500; }
+        .user-role { font-size: 11px; color: var(--gray-500); }
+
+        /* ===== SIDEBAR ===== */
+        .sidebar { position: fixed; left: 0; top: var(--header-height); bottom: 0; width: var(--sidebar-width); background: white; border-right: 1px solid var(--gray-200); overflow-y: auto; z-index: 150; transition: transform 0.3s ease; }
+        .sidebar-section { padding: 16px 12px 8px; }
+        .sidebar-label { font-size: 11px; font-weight: 600; color: var(--gray-400); text-transform: uppercase; letter-spacing: 0.05em; padding: 0 12px 8px; }
+        .sidebar-item { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: var(--radius); font-size: 14px; font-weight: 500; color: var(--gray-600); transition: all var(--transition); cursor: pointer; }
+        .sidebar-item:hover { background: var(--gray-100); color: var(--gray-900); }
+        .sidebar-item.active { background: var(--gold-light); color: var(--gold-hover); font-weight: 600; }
+        .sidebar-item .icon { width: 20px; text-align: center; font-size: 16px; }
+        .sidebar-item .badge { margin-left: auto; background: var(--red); color: white; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; }
+        .sidebar-divider { height: 1px; background: var(--gray-200); margin: 8px 12px; }
+        .sidebar-footer { padding: 12px; border-top: 1px solid var(--gray-200); }
+        .sidebar-user { display: flex; align-items: center; gap: 12px; padding: 10px; border-radius: var(--radius); }
+        .sidebar-user:hover { background: var(--gray-100); }
+
+        /* ===== MAIN CONTENT ===== */
+        .main-content { margin-left: var(--sidebar-width); margin-top: var(--header-height); padding: 24px; min-height: calc(100vh - var(--header-height)); }
+
+        /* ===== DASHBOARD ===== */
+        .welcome-banner { background: linear-gradient(135deg, var(--gold), #C49A3A); color: white; padding: 24px 32px; border-radius: var(--radius-lg); margin-bottom: 24px; }
+        .welcome-banner h2 { font-size: 24px; font-weight: 700; margin-bottom: 4px; }
+        .welcome-banner p { opacity: 0.9; font-size: 14px; }
+        .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
+        .stat-card { background: white; border: 1px solid var(--gray-200); border-radius: var(--radius-lg); padding: 20px; transition: all var(--transition); }
+        .stat-card:hover { box-shadow: var(--shadow-md); transform: translateY(-2px); }
+        .stat-card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+        .stat-card-icon { width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 18px; }
+        .stat-card-icon.gold { background: var(--gold-light); }
+        .stat-card-icon.blue { background: var(--blue-light); }
+        .stat-card-icon.green { background: var(--green-light); }
+        .stat-card-icon.orange { background: var(--orange-light); }
+        .stat-card-value { font-size: 28px; font-weight: 700; color: var(--gray-900); }
+        .stat-card-label { font-size: 13px; color: var(--gray-500); margin-top: 4px; }
+        .stat-card-change { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 600; margin-top: 8px; padding: 2px 8px; border-radius: 20px; }
+        .stat-card-change.up { color: var(--green); background: var(--green-light); }
+        .stat-card-change.down { color: var(--red); background: var(--red-light); }
+
+        .content-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 24px; }
+        .content-card { background: white; border: 1px solid var(--gray-200); border-radius: var(--radius-lg); overflow: hidden; }
+        .content-card-header { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; border-bottom: 1px solid var(--gray-200); }
+        .content-card-header h3 { font-size: 16px; font-weight: 600; }
+        .content-card-body { padding: 20px; }
+
+        /* ===== CHART PLACEHOLDER ===== */
+        .chart-placeholder { height: 200px; background: linear-gradient(135deg, var(--gray-50), var(--gray-100)); border-radius: var(--radius); display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--gray-400); }
+        .chart-placeholder .chart-icon { font-size: 32px; margin-bottom: 8px; }
+
+        /* ===== ACTIVITY LIST ===== */
+        .activity-item { display: flex; align-items: flex-start; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--gray-100); }
+        .activity-item:last-child { border-bottom: none; }
+        .activity-icon { width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; }
+        .activity-icon.green { background: var(--green-light); color: var(--green); }
+        .activity-icon.blue { background: var(--blue-light); color: var(--blue); }
+        .activity-icon.gold { background: var(--gold-light); color: var(--gold); }
+        .activity-icon.orange { background: var(--orange-light); color: var(--orange); }
+        .activity-text { font-size: 14px; color: var(--gray-700); line-height: 1.5; }
+        .activity-text strong { color: var(--gray-900); }
+        .activity-time { font-size: 12px; color: var(--gray-400); margin-top: 2px; }
+
+        /* ===== PROGRESS BAR ===== */
+        .progress-bar { height: 8px; background: var(--gray-100); border-radius: 4px; overflow: hidden; }
+        .progress-bar-fill { height: 100%; border-radius: 4px; transition: width 0.5s ease; }
+        .progress-bar-fill.gold { background: linear-gradient(90deg, var(--gold), var(--gold-hover)); }
+        .progress-bar-fill.green { background: var(--green); }
+        .progress-bar-fill.blue { background: var(--blue); }
+
+        /* ===== PROGRESS RING ===== */
+        .progress-ring { position: relative; display: inline-flex; align-items: center; justify-content: center; }
+        .progress-ring svg { transform: rotate(-90deg); }
+        .progress-ring .ring-bg { fill: none; stroke: var(--gray-100); }
+        .progress-ring .ring-fill { fill: none; stroke: var(--gold); stroke-linecap: round; transition: stroke-dashoffset 0.5s ease; }
+        .progress-ring .ring-text { position: absolute; font-size: 14px; font-weight: 700; color: var(--gray-900); }
+
+        /* ===== LESSON CARD ===== */
+        .lesson-card { background: white; border: 1px solid var(--gray-200); border-radius: var(--radius-lg); overflow: hidden; transition: all var(--transition); }
+        .lesson-card:hover { box-shadow: var(--shadow-md); transform: translateY(-2px); }
+        .lesson-card-cover { height: 140px; background: linear-gradient(135deg, var(--gold-light), var(--blue-light)); display: flex; align-items: center; justify-content: center; font-size: 48px; }
+        .lesson-card-body { padding: 16px; }
+        .lesson-card-title { font-size: 16px; font-weight: 600; margin-bottom: 4px; }
+        .lesson-card-subtitle { font-size: 13px; color: var(--gray-500); margin-bottom: 12px; }
+        .lesson-card-meta { display: flex; gap: 12px; font-size: 12px; color: var(--gray-500); }
+        .lesson-card-footer { padding: 12px 16px; border-top: 1px solid var(--gray-100); display: flex; align-items: center; justify-content: space-between; }
+
+        /* ===== ATTENDANCE GRID ===== */
+        .attendance-grid { display: grid; gap: 12px; }
+        .attendance-row { display: flex; align-items: center; gap: 12px; padding: 12px; background: white; border: 1px solid var(--gray-200); border-radius: var(--radius); transition: all var(--transition); }
+        .attendance-row:hover { border-color: var(--gold); }
+        .attendance-student { display: flex; align-items: center; gap: 12px; flex: 1; }
+        .attendance-student-avatar { width: 40px; height: 40px; border-radius: 50%; background: var(--gray-200); display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 14px; color: var(--gray-600); }
+        .attendance-student-name { font-size: 14px; font-weight: 500; }
+        .attendance-student-detail { font-size: 12px; color: var(--gray-500); }
+        .attendance-actions { display: flex; gap: 4px; }
+        .attendance-btn { width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 14px; border: 1px solid var(--gray-200); transition: all var(--transition); }
+        .attendance-btn:hover { border-color: var(--gray-300); background: var(--gray-50); }
+        .attendance-btn.selected { border-color: transparent; color: white; }
+        .attendance-btn.present.selected { background: var(--green); }
+        .attendance-btn.late.selected { background: var(--orange); }
+        .attendance-btn.absent.selected { background: var(--red); }
+        .attendance-btn.excused.selected { background: var(--blue); }
+
+        /* ===== BADGE CARD ===== */
+        .badge-card { display: flex; flex-direction: column; align-items: center; padding: 20px; text-align: center; }
+        .badge-icon { width: 64px; height: 64px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 28px; margin-bottom: 12px; }
+        .badge-icon.gold { background: linear-gradient(135deg, var(--gold), #C49A3A); color: white; }
+        .badge-icon.blue { background: linear-gradient(135deg, var(--blue), var(--blue-hover)); color: white; }
+        .badge-icon.green { background: linear-gradient(135deg, var(--green), #16A34A); color: white; }
+        .badge-name { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
+        .badge-desc { font-size: 12px; color: var(--gray-500); }
+
+        /* ===== AUDIO PLAYER ===== */
+        .audio-player { background: var(--gray-50); border-radius: var(--radius); padding: 16px; }
+        .audio-player-header { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+        .audio-player-title { font-size: 14px; font-weight: 500; }
+        .audio-player-subtitle { font-size: 12px; color: var(--gray-500); }
+        .audio-player-controls { display: flex; align-items: center; gap: 12px; }
+        .audio-play-btn { width: 40px; height: 40px; border-radius: 50%; background: var(--gold); color: white; display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0; }
+        .audio-play-btn:hover { background: var(--gold-hover); }
+        .audio-progress { flex: 1; display: flex; flex-direction: column; gap: 4px; }
+        .audio-progress-bar { height: 4px; background: var(--gray-200); border-radius: 2px; overflow: hidden; cursor: pointer; }
+        .audio-progress-fill { height: 100%; background: var(--gold); border-radius: 2px; width: 35%; }
+        .audio-time { display: flex; justify-content: space-between; font-size: 11px; color: var(--gray-500); }
+        .audio-volume { display: flex; align-items: center; gap: 8px; }
+        .audio-volume-bar { width: 60px; height: 4px; background: var(--gray-200); border-radius: 2px; overflow: hidden; }
+        .audio-volume-fill { height: 100%; background: var(--gray-500); width: 70%; border-radius: 2px; }
+
+        /* ===== TABLE ===== */
+        .data-table { width: 100%; border-collapse: collapse; }
+        .data-table th { text-align: left; padding: 12px 16px; font-size: 12px; font-weight: 600; color: var(--gray-500); text-transform: uppercase; letter-spacing: 0.05em; background: var(--gray-50); border-bottom: 1px solid var(--gray-200); }
+        .data-table td { padding: 12px 16px; font-size: 14px; border-bottom: 1px solid var(--gray-100); }
+        .data-table tr:hover td { background: var(--gray-50); }
+        .data-table .student-cell { display: flex; align-items: center; gap: 12px; }
+        .data-table .student-avatar { width: 32px; height: 32px; border-radius: 50%; background: var(--gray-200); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; color: var(--gray-600); }
+
+        /* ===== BADGES ===== */
+        .badge { display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 500; }
+        .badge-success { background: var(--green-light); color: var(--green); }
+        .badge-warning { background: var(--orange-light); color: var(--orange); }
+        .badge-danger { background: var(--red-light); color: var(--red); }
+        .badge-info { background: var(--blue-light); color: var(--blue); }
+        .badge-gold { background: var(--gold-light); color: var(--gold-hover); }
+
+        /* ===== TOAST ===== */
+        .toast { position: fixed; bottom: 24px; right: 24px; background: var(--gray-900); color: white; padding: 14px 20px; border-radius: var(--radius); font-size: 14px; box-shadow: var(--shadow-lg); z-index: 9999; display: flex; align-items: center; gap: 10px; transform: translateY(100px); opacity: 0; transition: all 0.3s ease; }
+        .toast.show { transform: translateY(0); opacity: 1; }
+        .toast-icon { font-size: 18px; }
+
+        /* ===== MODAL ===== */
+        .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); backdrop-filter: blur(4px); z-index: 1000; display: flex; align-items: center; justify-content: center; opacity: 0; pointer-events: none; transition: opacity 0.2s ease; }
+        .modal-overlay.show { opacity: 1; pointer-events: auto; }
+        .modal { background: white; border-radius: 12px; width: 90%; max-width: 480px; max-height: 90vh; overflow: auto; transform: scale(0.95); transition: transform 0.2s ease; }
+        .modal-overlay.show .modal { transform: scale(1); }
+        .modal-header { display: flex; align-items: center; justify-content: space-between; padding: 20px 24px; border-bottom: 1px solid var(--gray-200); }
+        .modal-header h3 { font-size: 18px; font-weight: 600; }
+        .modal-body { padding: 24px; }
+        .modal-footer { display: flex; justify-content: flex-end; gap: 8px; padding: 16px 24px; border-top: 1px solid var(--gray-200); }
+
+        /* ===== TABS ===== */
+        .tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--gray-200); margin-bottom: 20px; }
+        .tab { padding: 10px 16px; font-size: 14px; font-weight: 500; color: var(--gray-500); border-bottom: 2px solid transparent; transition: all var(--transition); }
+        .tab:hover { color: var(--gray-700); }
+        .tab.active { color: var(--gold-hover); border-bottom-color: var(--gold); }
+
+        /* ===== FORM ELEMENTS ===== */
+        .form-group { margin-bottom: 16px; }
+        .form-label { display: block; font-size: 14px; font-weight: 500; color: var(--gray-700); margin-bottom: 6px; }
+        .form-input { width: 100%; padding: 10px 14px; border: 1px solid var(--gray-300); border-radius: var(--radius); font-size: 14px; transition: all var(--transition); }
+        .form-input:focus { outline: none; border-color: var(--gold); box-shadow: 0 0 0 3px rgba(212,168,67,0.1); }
+        .form-select { width: 100%; padding: 10px 14px; border: 1px solid var(--gray-300); border-radius: var(--radius); font-size: 14px; background: white; cursor: pointer; }
+
+        /* ===== SECTION HEADER ===== */
+        .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+        .section-header h2 { font-size: 20px; font-weight: 700; }
+        .section-header p { font-size: 14px; color: var(--gray-500); margin-top: 4px; }
+
+        /* ===== FILTER BAR ===== */
+        .filter-bar { display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; align-items: center; }
+        .filter-bar .form-select { width: auto; min-width: 140px; }
+
+        /* ===== RESPONSIVE ===== */
+        @media (max-width: 1024px) {
+            .stats-grid { grid-template-columns: repeat(2, 1fr); }
+            .content-grid { grid-template-columns: 1fr; }
+        }
+        @media (max-width: 768px) {
+            .sidebar { transform: translateX(-100%); }
+            .sidebar.open { transform: translateX(0); box-shadow: var(--shadow-lg); }
+            .main-content { margin-left: 0; padding: 16px; }
+            .menu-toggle { display: flex; }
+            .nav-links { display: none; }
+            .hero h1 { font-size: 32px; }
+            .hero-buttons { flex-direction: column; }
+            .hero-visual-inner { grid-template-columns: 1fr; }
+            .stats-grid { grid-template-columns: 1fr; }
+            .header-right .user-info, .header-right .user-role { display: none; }
+            .search-bar { display: none; }
+            .attendance-row { flex-direction: column; align-items: stretch; }
+            .attendance-actions { justify-content: flex-end; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- ===== LANDING PAGE ===== -->
+<div id="landing">
+    <header class="landing-header">
+        <div class="logo">
+            <div class="logo-icon">✝</div>
+            <span>NiAngelos</span>
+        </div>
+        <nav class="nav-links">
+            <a href="#">Features</a>
+            <a href="#">Curriculum</a>
+            <a href="#">Pricing</a>
+            <a href="#">About</a>
+        </nav>
+        <div class="nav-actions">
+            <button class="btn btn-ghost btn-md" onclick="showPage('app')">Sign In</button>
+            <button class="btn btn-primary btn-md" onclick="showPage('app')">Get Started</button>
+        </div>
+    </header>
+    <section class="hero">
+        <h1>Learn. Grow. <span>Praise.</span></h1>
+        <p>The modern platform for Coptic hymn education. Structured curriculum, progress tracking, and gamified learning.</p>
+        <div class="hero-buttons">
+            <button class="btn btn-primary btn-lg" onclick="showPage('app')">Get Started Free →</button>
+            <button class="btn btn-secondary btn-lg">Watch Demo</button>
+        </div>
+        <p style="font-size:13px;color:var(--gray-400);margin-top:16px;">✨ No credit card required · Free for small churches</p>
+        <div class="hero-visual">
+            <div class="hero-visual-inner">
+                <div class="hero-stat">
+                    <div class="hero-stat-icon">📚</div>
+                    <div class="hero-stat-value">500+</div>
+                    <div class="hero-stat-label">Lessons</div>
+                </div>
+                <div class="hero-stat">
+                    <div class="hero-stat-icon">👥</div>
+                    <div class="hero-stat-value">2,500+</div>
+                    <div class="hero-stat-label">Students</div>
+                </div>
+                <div class="hero-stat">
+                    <div class="hero-stat-icon">🏆</div>
+                    <div class="hero-stat-value">15,000+</div>
+                    <div class="hero-stat-label">Badges Earned</div>
+                </div>
+            </div>
+        </div>
+    </section>
+</div>
+
+<!-- ===== APP (Dashboard) ===== -->
+<div id="app">
+    <header class="app-header">
+        <div class="header-left">
+            <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
+            <div class="logo">
+                <div class="logo-icon" style="width:32px;height:32px;font-size:14px;">✝</div>
+                <span style="font-size:16px;">NiAngelos</span>
+            </div>
+            <div class="search-bar">
+                <span class="search-icon">🔍</span>
+                <input type="text" placeholder="Search students, lessons, hymns...">
+                <span class="search-shortcut">⌘K</span>
+            </div>
+        </div>
+        <div class="header-right">
+            <button class="notification-btn" onclick="showToast('No new notifications')">
+                🔔
+                <span class="notification-badge">3</span>
+            </button>
+            <button class="lang-toggle" onclick="toggleLanguage()">EN / AR</button>
+            <div class="user-menu" onclick="showToast('Profile menu')">
+                <div class="user-avatar">MA</div>
+                <div>
+                    <div class="user-info">Servant Mariam</div>
+                    <div class="user-role">Level 5-6 Servant</div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-section">
+            <div class="sidebar-label">Main</div>
+            <div class="sidebar-item active" onclick="showSection('dashboard')">
+                <span class="icon">🏠</span> Dashboard
+            </div>
+            <div class="sidebar-item" onclick="showSection('students')">
+                <span class="icon">👥</span> Students
+            </div>
+            <div class="sidebar-item" onclick="showSection('curriculum')">
+                <span class="icon">📚</span> Curriculum
+            </div>
+            <div class="sidebar-item" onclick="showSection('attendance')">
+                <span class="icon">📝</span> Attendance
+            </div>
+            <div class="sidebar-item" onclick="showSection('assessments')">
+                <span class="icon">✏️</span> Assessments
+            </div>
+            <div class="sidebar-item" onclick="showSection('progress')">
+                <span class="icon">📈</span> Progress
+            </div>
+        </div>
+        <div class="sidebar-divider"></div>
+        <div class="sidebar-section">
+            <div class="sidebar-label">Communicate</div>
+            <div class="sidebar-item">
+                <span class="icon">💬</span> Messages <span class="badge">3</span>
+            </div>
+            <div class="sidebar-item">
+                <span class="icon">📢</span> Announcements
+            </div>
+            <div class="sidebar-item">
+                <span class="icon">📅</span> Events
+            </div>
+        </div>
+        <div class="sidebar-divider"></div>
+        <div class="sidebar-section">
+            <div class="sidebar-label">Tools</div>
+            <div class="sidebar-item">
+                <span class="icon">📋</span> Reports
+            </div>
+            <div class="sidebar-item">
+                <span class="icon">🏆</span> Achievements
+            </div>
+        </div>
+        <div class="sidebar-divider"></div>
+        <div class="sidebar-section">
+            <div class="sidebar-label">Admin</div>
+            <div class="sidebar-item">
+                <span class="icon">⚙️</span> Settings
+            </div>
+            <div class="sidebar-item">
+                <span class="icon">👤</span> User Management
+            </div>
+        </div>
+    </aside>
+
+    <main class="main-content">
+        <!-- DASHBOARD SECTION -->
+        <div id="section-dashboard">
+            <div class="welcome-banner">
+                <h2>Good morning, Servant Mariam! 👋</h2>
+                <p>Here's what's happening at your school today, Sunday July 13.</p>
+            </div>
+
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-card-header">
+                        <div class="stat-card-icon gold">👥</div>
+                    </div>
+                    <div class="stat-card-value">245</div>
+                    <div class="stat-card-label">Total Students</div>
+                    <div class="stat-card-change up">↑ 12% from last month</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-card-header">
+                        <div class="stat-card-icon green">📊</div>
+                    </div>
+                    <div class="stat-card-value">94%</div>
+                    <div class="stat-card-label">Attendance Rate</div>
+                    <div class="stat-card-change up">↑ 2% from last week</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-card-header">
+                        <div class="stat-card-icon blue">📈</div>
+                    </div>
+                    <div class="stat-card-value">87%</div>
+                    <div class="stat-card-label">Average Score</div>
+                    <div class="stat-card-change up">↑ 3% improvement</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-card-header">
+                        <div class="stat-card-icon orange">🏆</div>
+                    </div>
+                    <div class="stat-card-value">42</div>
+                    <div class="stat-card-label">Badges Earned</div>
+                    <div class="stat-card-change up">↑ 8 this week</div>
+                </div>
+            </div>
+
+            <div class="content-grid">
+                <div class="content-card">
+                    <div class="content-card-header">
+                        <h3>Attendance Trends</h3>
+                        <button class="btn btn-ghost btn-sm">View Details</button>
+                    </div>
+                    <div class="content-card-body">
+                        <div class="chart-placeholder">
+                            <div class="chart-icon">📊</div>
+                            <span>Attendance Chart - Last 8 Weeks</span>
+                            <div style="display:flex;gap:4px;margin-top:12px;">
+                                <div style="width:40px;height:80px;background:var(--gold);border-radius:4px;"></div>
+                                <div style="width:40px;height:70px;background:var(--gold);border-radius:4px;opacity:0.8;"></div>
+                                <div style="width:40px;height:85px;background:var(--gold);border-radius:4px;"></div>
+                                <div style="width:40px;height:75px;background:var(--gold);border-radius:4px;opacity:0.9;"></div>
+                                <div style="width:40px;height:90px;background:var(--gold);border-radius:4px;"></div>
+                                <div style="width:40px;height:82px;background:var(--gold);border-radius:4px;opacity:0.85;"></div>
+                                <div style="width:40px;height:88px;background:var(--gold);border-radius:4px;"></div>
+                                <div style="width:40px;height:92px;background:var(--green);border-radius:4px;"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="content-card">
+                    <div class="content-card-header">
+                        <h3>Recent Activity</h3>
+                        <button class="btn btn-ghost btn-sm">View All</button>
+                    </div>
+                    <div class="content-card-body" style="padding:12px 20px;">
+                        <div class="activity-item">
+                            <div class="activity-icon green">✅</div>
+                            <div>
+                                <div class="activity-text"><strong>Malak Ahmed</strong> completed Lesson 5</div>
+                                <div class="activity-time">2 hours ago</div>
+                            </div>
+                        </div>
+                        <div class="activity-item">
+                            <div class="activity-icon blue">📝</div>
+                            <div>
+                                <div class="activity-text"><strong>Peter Soliman</strong> submitted Quiz</div>
+                                <div class="activity-time">3 hours ago</div>
+                            </div>
+                        </div>
+                        <div class="activity-item">
+                            <div class="activity-icon gold">🎵</div>
+                            <div>
+                                <div class="activity-text"><strong>Sarah Mourad</strong> uploaded practice audio</div>
+                                <div class="activity-time">5 hours ago</div>
+                            </div>
+                        </div>
+                        <div class="activity-item">
+                            <div class="activity-icon orange">🏆</div>
+                            <div>
+                                <div class="activity-text"><strong>Michael Girgis</strong> earned Star Student badge</div>
+                                <div class="activity-time">Yesterday</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- STUDENTS SECTION -->
+        <div id="section-students" class="hidden">
+            <div class="section-header">
+                <div>
+                    <h2>Students</h2>
+                    <p>Manage all students in your school</p>
+                </div>
+                <button class="btn btn-primary btn-md" onclick="showModal()">+ Add Student</button>
+            </div>
+
+            <div class="filter-bar">
+                <select class="form-select">
+                    <option>All Levels</option>
+                    <option>Level 1</option>
+                    <option>Level 2</option>
+                    <option selected>Level 3</option>
+                    <option>Level 4</option>
+                    <option>Level 5</option>
+                </select>
+                <select class="form-select">
+                    <option>All Groups</option>
+                    <option>Group 1</option>
+                    <option selected>Group 2</option>
+                    <option>Group 3</option>
+                </select>
+                <select class="form-select">
+                    <option>All Status</option>
+                    <option selected>Active</option>
+                    <option>Inactive</option>
+                    <option>Graduated</option>
+                </select>
+                <div style="flex:1;"></div>
+                <button class="btn btn-ghost btn-sm">Export ↓</button>
+            </div>
+
+            <div class="content-card">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Student</th>
+                            <th>Level</th>
+                            <th>Group</th>
+                            <th>Attendance</th>
+                            <th>Avg Score</th>
+                            <th>Status</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><div class="student-cell"><div class="student-avatar" style="background:var(--gold-light);color:var(--gold-hover);">MA</div><div><strong>Malak Ahmed</strong><br><span style="font-size:12px;color:var(--gray-500);">malak@email.com</span></div></div></td>
+                            <td>Level 3</td><td>Group 2</td>
+                            <td><span class="badge badge-success">95%</span></td>
+                            <td><strong>88%</strong></td>
+                            <td><span class="badge badge-success">Active</span></td>
+                            <td><button class="btn btn-ghost btn-sm">View</button></td>
+                        </tr>
+                        <tr>
+                            <td><div class="student-cell"><div class="student-avatar" style="background:var(--blue-light);color:var(--blue);">PS</div><div><strong>Peter Soliman</strong><br><span style="font-size:12px;color:var(--gray-500);">peter@email.com</span></div></div></td>
+                            <td>Level 3</td><td>Group 2</td>
+                            <td><span class="badge badge-danger">65%</span></td>
+                            <td><strong>58%</strong></td>
+                            <td><span class="badge badge-warning">At Risk</span></td>
+                            <td><button class="btn btn-ghost btn-sm">View</button></td>
+                        </tr>
+                        <tr>
+                            <td><div class="student-cell"><div class="student-avatar" style="background:var(--green-light);color:var(--green);">SM</div><div><strong>Sarah Mourad</strong><br><span style="font-size:12px;color:var(--gray-500);">sarah@email.com</span></div></div></td>
+                            <td>Level 5</td><td>Group 1</td>
+                            <td><span class="badge badge-success">92%</span></td>
+                            <td><strong>91%</strong></td>
+                            <td><span class="badge badge-success">Active</span></td>
+                            <td><button class="btn btn-ghost btn-sm">View</button></td>
+                        </tr>
+                        <tr>
+                            <td><div class="student-cell"><div class="student-avatar" style="background:var(--orange-light);color:var(--orange);">MG</div><div><strong>Michael Girgis</strong><br><span style="font-size:12px;color:var(--gray-500);">michael@email.com</span></div></div></td>
+                            <td>Level 5</td><td>Group 1</td>
+                            <td><span class="badge badge-success">88%</span></td>
+                            <td><strong>85%</strong></td>
+                            <td><span class="badge badge-success">Active</span></td>
+                            <td><button class="btn btn-ghost btn-sm">View</button></td>
+                        </tr>
+                        <tr>
+                            <td><div class="student-cell"><div class="student-avatar" style="background:var(--gold-light);color:var(--gold-hover);">JG</div><div><strong>John Girgis</strong><br><span style="font-size:12px;color:var(--gray-500);">john@email.com</span></div></div></td>
+                            <td>Level 7</td><td>Group 3</td>
+                            <td><span class="badge badge-success">78%</span></td>
+                            <td><strong>82%</strong></td>
+                            <td><span class="badge badge-success">Active</span></td>
+                            <td><button class="btn btn-ghost btn-sm">View</button></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- CURRICULUM SECTION -->
+        <div id="section-curriculum" class="hidden">
+            <div class="section-header">
+                <div>
+                    <h2>Curriculum</h2>
+                    <p>Manage levels, subjects, lessons, and resources</p>
+                </div>
+                <button class="btn btn-primary btn-md" onclick="showToast('Lesson creation wizard')">+ Create Lesson</button>
+            </div>
+
+            <div class="tabs">
+                <div class="tab active">All Levels</div>
+                <div class="tab">Level 1</div>
+                <div class="tab">Level 2</div>
+                <div class="tab">Level 3</div>
+                <div class="tab">Level 4</div>
+                <div class="tab">Level 5</div>
+            </div>
+
+            <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;">
+                <div class="lesson-card">
+                    <div class="lesson-card-cover">🎵</div>
+                    <div class="lesson-card-body">
+                        <div class="lesson-card-title">Tenouchi Hymn (First Part)</div>
+                        <div class="lesson-card-subtitle">Coptic Hymns · Level 3</div>
+                        <div style="margin-bottom:12px;">
+                            <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px;">
+                                <span style="color:var(--gray-500);">Progress</span>
+                                <span style="font-weight:600;">80%</span>
+                            </div>
+                            <div class="progress-bar"><div class="progress-bar-fill gold" style="width:80%;"></div></div>
+                        </div>
+                        <div class="lesson-card-meta">
+                            <span>📄 3 Sessions</span>
+                            <span>📎 5 Resources</span>
+                        </div>
+                    </div>
+                    <div class="lesson-card-footer">
+                        <span class="badge badge-success">Published</span>
+                        <div style="display:flex;gap:4px;">
+                            <button class="btn btn-ghost btn-sm">View</button>
+                            <button class="btn btn-ghost btn-sm">Edit</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="lesson-card">
+                    <div class="lesson-card-cover" style="background:linear-gradient(135deg, var(--blue-light), #DBEAFE);">🎵</div>
+                    <div class="lesson-card-body">
+                        <div class="lesson-card-title">Tenouchi Hymn (Second Part)</div>
+                        <div class="lesson-card-subtitle">Coptic Hymns · Level 3</div>
+                        <div style="margin-bottom:12px;">
+                            <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px;">
+                                <span style="color:var(--gray-500);">Progress</span>
+                                <span style="font-weight:600;">67%</span>
+                            </div>
+                            <div class="progress-bar"><div class="progress-bar-fill blue" style="width:67%;"></div></div>
+                        </div>
+                        <div class="lesson-card-meta">
+                            <span>📄 3 Sessions</span>
+                            <span>📎 4 Resources</span>
+                        </div>
+                    </div>
+                    <div class="lesson-card-footer">
+                        <span class="badge badge-success">Published</span>
+                        <div style="display:flex;gap:4px;">
+                            <button class="btn btn-ghost btn-sm">View</button>
+                            <button class="btn btn-ghost btn-sm">Edit</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="lesson-card">
+                    <div class="lesson-card-cover" style="background:linear-gradient(135deg, var(--green-light), #DCFCE7);">📖</div>
+                    <div class="lesson-card-body">
+                        <div class="lesson-card-title">Psalmody Introduction</div>
+                        <div class="lesson-card-subtitle">Coptic Rites · Level 3</div>
+                        <div style="margin-bottom:12px;">
+                            <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px;">
+                                <span style="color:var(--gray-500);">Progress</span>
+                                <span style="font-weight:600;">45%</span>
+                            </div>
+                            <div class="progress-bar"><div class="progress-bar-fill green" style="width:45%;"></div></div>
+                        </div>
+                        <div class="lesson-card-meta">
+                            <span>📄 4 Sessions</span>
+                            <span>📎 8 Resources</span>
+                        </div>
+                    </div>
+                    <div class="lesson-card-footer">
+                        <span class="badge badge-warning">Draft</span>
+                        <div style="display:flex;gap:4px;">
+                            <button class="btn btn-ghost btn-sm">View</button>
+                            <button class="btn btn-ghost btn-sm">Edit</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="lesson-card">
+                    <div class="lesson-card-cover" style="background:linear-gradient(135deg, var(--orange-light), #FEF3C7);">🔤</div>
+                    <div class="lesson-card-body">
+                        <div class="lesson-card-title">Coptic Alphabet - Lesson 5</div>
+                        <div class="lesson-card-subtitle">Coptic Language · Level 3</div>
+                        <div style="margin-bottom:12px;">
+                            <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px;">
+                                <span style="color:var(--gray-500);">Progress</span>
+                                <span style="font-weight:600;">90%</span>
+                            </div>
+                            <div class="progress-bar"><div class="progress-bar-fill gold" style="width:90%;"></div></div>
+                        </div>
+                        <div class="lesson-card-meta">
+                            <span>📄 2 Sessions</span>
+                            <span>📎 6 Resources</span>
+                        </div>
+                    </div>
+                    <div class="lesson-card-footer">
+                        <span class="badge badge-success">Published</span>
+                        <div style="display:flex;gap:4px;">
+                            <button class="btn btn-ghost btn-sm">View</button>
+                            <button class="btn btn-ghost btn-sm">Edit</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ATTENDANCE SECTION -->
+        <div id="section-attendance" class="hidden">
+            <div class="section-header">
+                <div>
+                    <h2>Mark Attendance</h2>
+                    <p>Record attendance for today's class</p>
+                </div>
+                <button class="btn btn-primary btn-md" onclick="showToast('Attendance saved successfully!')">💾 Save Attendance</button>
+            </div>
+
+            <div class="filter-bar">
+                <select class="form-select">
+                    <option>Level 3</option>
+                    <option>Level 5</option>
+                    <option>Level 7</option>
+                </select>
+                <select class="form-select">
+                    <option>Group 2</option>
+                    <option>Group 1</option>
+                    <option>Group 3</option>
+                </select>
+                <input type="date" class="form-input" style="width:auto;" value="2026-07-13">
+                <div style="flex:1;"></div>
+                <button class="btn btn-ghost btn-sm" onclick="markAllPresent()">Mark All Present</button>
+            </div>
+
+            <div class="attendance-grid">
+                <div class="attendance-row">
+                    <div class="attendance-student">
+                        <div class="attendance-student-avatar" style="background:var(--gold-light);color:var(--gold-hover);">MA</div>
+                        <div>
+                            <div class="attendance-student-name">Malak Ahmed</div>
+                            <div class="attendance-student-detail">Level 3 · Group 2</div>
+                        </div>
+                    </div>
+                    <div class="attendance-actions">
+                        <button class="attendance-btn present selected" onclick="selectAttendance(this, 'present')" title="Present">✅</button>
+                        <button class="attendance-btn late" onclick="selectAttendance(this, 'late')" title="Late">⏰</button>
+                        <button class="attendance-btn absent" onclick="selectAttendance(this, 'absent')" title="Absent">❌</button>
+                        <button class="attendance-btn excused" onclick="selectAttendance(this, 'excused')" title="Excused">📝</button>
+                    </div>
+                </div>
+                <div class="attendance-row">
+                    <div class="attendance-student">
+                        <div class="attendance-student-avatar" style="background:var(--blue-light);color:var(--blue);">PS</div>
+                        <div>
+                            <div class="attendance-student-name">Peter Soliman</div>
+                            <div class="attendance-student-detail">Level 3 · Group 2</div>
+                        </div>
+                    </div>
+                    <div class="attendance-actions">
+                        <button class="attendance-btn present" onclick="selectAttendance(this, 'present')" title="Present">✅</button>
+                        <button class="attendance-btn late selected" onclick="selectAttendance(this, 'late')" title="Late">⏰</button>
+                        <button class="attendance-btn absent" onclick="selectAttendance(this, 'absent')" title="Absent">❌</button>
+                        <button class="attendance-btn excused" onclick="selectAttendance(this, 'excused')" title="Excused">📝</button>
+                    </div>
+                </div>
+                <div class="attendance-row">
+                    <div class="attendance-student">
+                        <div class="attendance-student-avatar" style="background:var(--green-light);color:var(--green);">SM</div>
+                        <div>
+                            <div class="attendance-student-name">Sarah Mourad</div>
+                            <div class="attendance-student-detail">Level 3 · Group 2</div>
+                        </div>
+                    </div>
+                    <div class="attendance-actions">
+                        <button class="attendance-btn present selected" onclick="selectAttendance(this, 'present')" title="Present">✅</button>
+                        <button class="attendance-btn late" onclick="selectAttendance(this, 'late')" title="Late">⏰</button>
+                        <button class="attendance-btn absent" onclick="selectAttendance(this, 'absent')" title="Absent">❌</button>
+                        <button class="attendance-btn excused" onclick="selectAttendance(this, 'excused')" title="Excused">📝</button>
+                    </div>
+                </div>
+                <div class="attendance-row">
+                    <div class="attendance-student">
+                        <div class="attendance-student-avatar" style="background:var(--orange-light);color:var(--orange);">MG</div>
+                        <div>
+                            <div class="attendance-student-name">Michael Girgis</div>
+                            <div class="attendance-student-detail">Level 3 · Group 2</div>
+                        </div>
+                    </div>
+                    <div class="attendance-actions">
+                        <button class="attendance-btn present" onclick="selectAttendance(this, 'present')" title="Present">✅</button>
+                        <button class="attendance-btn late" onclick="selectAttendance(this, 'late')" title="Late">⏰</button>
+                        <button class="attendance-btn absent selected" onclick="selectAttendance(this, 'absent')" title="Absent">❌</button>
+                        <button class="attendance-btn excused" onclick="selectAttendance(this, 'excused')" title="Excused">📝</button>
+                    </div>
+                </div>
+                <div class="attendance-row">
+                    <div class="attendance-student">
+                        <div class="attendance-student-avatar" style="background:#F3E8FF;color:#7C3AED;">AG</div>
+                        <div>
+                            <div class="attendance-student-name">Anna Girgis</div>
+                            <div class="attendance-student-detail">Level 3 · Group 2</div>
+                        </div>
+                    </div>
+                    <div class="attendance-actions">
+                        <button class="attendance-btn present selected" onclick="selectAttendance(this, 'present')" title="Present">✅</button>
+                        <button class="attendance-btn late" onclick="selectAttendance(this, 'late')" title="Late">⏰</button>
+                        <button class="attendance-btn absent" onclick="selectAttendance(this, 'absent')" title="Absent">❌</button>
+                        <button class="attendance-btn excused" onclick="selectAttendance(this, 'excused')" title="Excused">📝</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ASSESSMENTS SECTION -->
+        <div id="section-assessments" class="hidden">
+            <div class="section-header">
+                <div>
+                    <h2>Assessments</h2>
+                    <p>Create and grade student assessments</p>
+                </div>
+                <button class="btn btn-primary btn-md" onclick="showToast('Assessment wizard')">+ Create Assessment</button>
+            </div>
+
+            <div class="tabs">
+                <div class="tab active">Pending Grading</div>
+                <div class="tab">Published</div>
+                <div class="tab">Drafts</div>
+            </div>
+
+            <div style="display:grid;gap:16px;">
+                <div class="content-card">
+                    <div class="content-card-body" style="display:flex;align-items:center;gap:16px;">
+                        <div style="width:48px;height:48px;background:var(--blue-light);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:20px;">📝</div>
+                        <div style="flex:1;">
+                            <div style="font-weight:600;font-size:16px;">Level 3 - Tenouchi Quiz</div>
+                            <div style="font-size:13px;color:var(--gray-500);">Coptic Hymns · 15 submissions pending · Due: July 15</div>
+                        </div>
+                        <span class="badge badge-warning">15 Pending</span>
+                        <button class="btn btn-primary btn-sm" onclick="showToast('Opening grading interface...')">Grade Now</button>
+                    </div>
+                </div>
+                <div class="content-card">
+                    <div class="content-card-body" style="display:flex;align-items:center;gap:16px;">
+                        <div style="width:48px;height:48px;background:var(--green-light);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:20px;">🎵</div>
+                        <div style="flex:1;">
+                            <div style="font-weight:600;font-size:16px;">Practical Hymn Assessment</div>
+                            <div style="font-size:13px;color:var(--gray-500);">Level 5 · 8 audio submissions · Due: July 18</div>
+                        </div>
+                        <span class="badge badge-warning">8 Pending</span>
+                        <button class="btn btn-primary btn-sm" onclick="showToast('Opening grading interface...')">Grade Now</button>
+                    </div>
+                </div>
+                <div class="content-card">
+                    <div class="content-card-body" style="display:flex;align-items:center;gap:16px;">
+                        <div style="width:48px;height:48px;background:var(--gold-light);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:20px;">📖</div>
+                        <div style="flex:1;">
+                            <div style="font-weight:600;font-size:16px;">Coptic Language Mid-Term</div>
+                            <div style="font-size:13px;color:var(--gray-500);">All Levels · Written exam · 12 submissions</div>
+                        </div>
+                        <span class="badge badge-warning">12 Pending</span>
+                        <button class="btn btn-primary btn-sm" onclick="showToast('Opening grading interface...')">Grade Now</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- PROGRESS SECTION -->
+        <div id="section-progress" class="hidden">
+            <div class="section-header">
+                <div>
+                    <h2>Student Progress</h2>
+                    <p>Track student learning and promotion readiness</p>
+                </div>
+                <button class="btn btn-primary btn-md" onclick="showToast('Generating report...')">Export Report</button>
+            </div>
+
+            <div class="stats-grid" style="margin-bottom:24px;">
+                <div class="stat-card">
+                    <div class="stat-card-value">75%</div>
+                    <div class="stat-card-label">Average Progress</div>
+                    <div style="margin-top:12px;">
+                        <div class="progress-bar"><div class="progress-bar-fill gold" style="width:75%;"></div></div>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-card-value" style="color:var(--green);">18</div>
+                    <div class="stat-card-label">Ready for Promotion</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-card-value" style="color:var(--orange);">5</div>
+                    <div class="stat-card-label">At Risk</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-card-value" style="color:var(--red);">2</div>
+                    <div class="stat-card-label">Needs Improvement</div>
+                </div>
+            </div>
+
+            <div class="content-card">
+                <div class="content-card-header">
+                    <h3>Promotion Readiness - Level 3</h3>
+                </div>
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Student</th>
+                            <th>Attendance</th>
+                            <th>Avg Score</th>
+                            <th>Lessons Done</th>
+                            <th>Status</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>Malak Ahmed</strong></td>
+                            <td><span class="badge badge-success">95%</span></td>
+                            <td><strong>88%</strong></td>
+                            <td>12/16</td>
+                            <td><span class="badge badge-success">✅ Ready</span></td>
+                            <td><button class="btn btn-ghost btn-sm">Promote</button></td>
+                        </tr>
+                        <tr>
+                            <td><strong>Peter Soliman</strong></td>
+                            <td><span class="badge badge-danger">65%</span></td>
+                            <td><strong>58%</strong></td>
+                            <td>8/16</td>
+                            <td><span class="badge badge-danger">⚠️ Not Ready</span></td>
+                            <td><button class="btn btn-ghost btn-sm">View Plan</button></td>
+                        </tr>
+                        <tr>
+                            <td><strong>Sarah Mourad</strong></td>
+                            <td><span class="badge badge-success">92%</span></td>
+                            <td><strong>91%</strong></td>
+                            <td>14/16</td>
+                            <td><span class="badge badge-success">✅ Ready</span></td>
+                            <td><button class="btn btn-ghost btn-sm">Promote</button></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast">
+    <span class="toast-icon">✅</span>
+    <span id="toast-message">Action completed</span>
+</div>
+
+<!-- MODAL -->
+<div class="modal-overlay" id="modal" onclick="if(event.target===this)hideModal()">
+    <div class="modal">
+        <div class="modal-header">
+            <h3>Add New Student</h3>
+            <button class="btn btn-icon" onclick="hideModal()">✕</button>
+        </div>
+        <div class="modal-body">
+            <div class="form-group">
+                <label class="form-label">First Name *</label>
+                <input type="text" class="form-input" placeholder="Enter first name">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Last Name *</label>
+                <input type="text" class="form-input" placeholder="Enter last name">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Date of Birth *</label>
+                <input type="date" class="form-input">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Gender *</label>
+                <select class="form-select">
+                    <option>Select gender</option>
+                    <option>Male</option>
+                    <option>Female</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Parent Email *</label>
+                <input type="email" class="form-input" placeholder="parent@email.com">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Level *</label>
+                <select class="form-select">
+                    <option>Select level</option>
+                    <option>Level 1</option>
+                    <option>Level 2</option>
+                    <option selected>Level 3</option>
+                    <option>Level 4</option>
+                </select>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-ghost btn-md" onclick="hideModal()">Cancel</button>
+            <button class="btn btn-primary btn-md" onclick="hideModal();showToast('Student added successfully!')">Add Student</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Page navigation
+    function showPage(page) {
+        document.getElementById('landing').classList.add('hidden');
+        document.getElementById('app').style.display = 'block';
+    }
+
+    // Section navigation
+    function showSection(section) {
+        document.querySelectorAll('[id^="section-"]').forEach(el => el.classList.add('hidden'));
+        document.getElementById('section-' + section).classList.remove('hidden');
+        document.querySelectorAll('.sidebar-item').forEach(el => el.classList.remove('active'));
+        event.currentTarget.classList.add('active');
+    }
+
+    // Sidebar toggle (mobile)
+    function toggleSidebar() {
+        document.getElementById('sidebar').classList.toggle('open');
+    }
+
+    // Attendance selection
+    function selectAttendance(btn, status) {
+        const row = btn.closest('.attendance-row');
+        row.querySelectorAll('.attendance-btn').forEach(b => b.classList.remove('selected'));
+        btn.classList.add('selected');
+    }
+
+    function markAllPresent() {
+        document.querySelectorAll('.attendance-row').forEach(row => {
+            row.querySelectorAll('.attendance-btn').forEach(b => b.classList.remove('selected'));
+            row.querySelector('.attendance-btn.present').classList.add('selected');
+        });
+        showToast('All students marked as present');
+    }
+
+    // Toast notification
+    function showToast(message) {
+        const toast = document.getElementById('toast');
+        document.getElementById('toast-message').textContent = message;
+        toast.classList.add('show');
+        setTimeout(() => toast.classList.remove('show'), 3000);
+    }
+
+    // Modal
+    function showModal() {
+        document.getElementById('modal').classList.add('show');
+    }
+    function hideModal() {
+        document.getElementById('modal').classList.remove('show');
+    }
+
+    // Language toggle (placeholder)
+    function toggleLanguage() {
+        showToast('Language toggled (EN/AR)');
+    }
+
+    // Tab switching
+    document.querySelectorAll('.tabs').forEach(tabGroup => {
+        tabGroup.querySelectorAll('.tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                tabGroup.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+            });
+        });
+    });
+
+    // Keyboard shortcut for search
+    document.addEventListener('keydown', (e) => {
+        if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+            e.preventDefault();
+            const searchInput = document.querySelector('.search-bar input');
+            if (searchInput) searchInput.focus();
+        }
+    });
+</script>
+</body>
+</html>

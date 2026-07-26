@@ -1,0 +1,1445 @@
+'use client'
+
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
+import { useLanguage } from '@/lib/use-language'
+import Image from 'next/image'
+import Link from 'next/link'
+import { motion, useScroll, useTransform, useSpring, useReducedMotion } from 'framer-motion'
+import {
+ Users, BookOpen, Calendar, Trophy, Layers, ClipboardCheck,
+ TrendingUp, Clock, Loader2, UserCheck,
+ Award, ChevronRight, Sparkles, Sun, Target, BarChart3,
+ ArrowUpRight, Zap, GraduationCap, Star,
+ CalendarPlus, User, Shield, Crown, Heart, CalendarClock, UserCog,
+ ListChecks, Flame, Info, XCircle, Baby, ChevronDown
+} from 'lucide-react'
+import { StatCard } from '@/components/ui/stat-card'
+import { Button } from '@/components/ui/button'
+import { CardSkeleton } from '@/components/ui/skeleton'
+import { EmptyState } from '@/components/ui/empty-state'
+import { ErrorBoundary } from '@/components/ui/error-boundary'
+import { useToast } from '@/components/ui/toast'
+import { http } from '@/lib/http-client'
+import { getSchoolId } from '@/lib/school'
+import { useActiveRole, roleCategory } from '@/lib/use-active-role'
+
+interface GradeDistItem { grade: string; count: number }
+interface StudentsPerLevel { levelName: string; count: number }
+interface StudentsByStatus { status: string; count: number }
+interface AssessmentStatItem { gradedCount: number; passCount: number; passRate: number; avgGradeScore: number }
+interface AssessmentsByStatus { status: string; count: number }
+interface RecentGrade { id: string; studentName: string; studentPhotoUrl: string | null; assessmentTitle: string; assessmentId: string; score: number; maxScore: number; passed: boolean; gradedAt: string }
+
+interface DashboardData {
+ totalStudents: number; totalLevels: number; totalLessons: number; totalAllocations: number;
+ totalChurches: number; totalUsers: number; totalBadges: number; activeStudents: number;
+ publishedAssessments: number; totalAssessments: number; attendanceRate: number;
+ completedSessions: number; gradeDistribution: GradeDistItem[]; studentsPerLevel: StudentsPerLevel[];
+ studentsByStatus: StudentsByStatus[]; studentsWithoutGrade: number;
+ assessmentsByStatus: AssessmentsByStatus[]; assessmentStats: AssessmentStatItem;
+ recentGrades: RecentGrade[]; recentActivity: ActivityItem[];
+ upcomingSessions: UpcomingSession[]; topStudents: TopStudent[]; weeklyStats: WeeklyStat[];
+ school: { name: string; nameAr: string; logoUrl: string | null } | null
+}
+
+interface ActivityItem { id: string; action: string; entityType: string; createdAt: string; user?: { firstName: string; lastName: string } | null }
+interface UpcomingSession { id: string; scheduledDate: string; status: string; level: { name: string; number?: number }; servant: { firstName: string; lastName: string } }
+interface TopStudent { rank: number; id: string; firstName: string; lastName: string; photoUrl: string | null; level: number; levelName: string; xp: number; badgeCount: number }
+interface WeeklyStat { scheduledDate: string; status: string; _count: { attendanceRecords: number } }
+
+interface PrimaryData {
+  stats: DashboardData
+  churchLogo: string | null
+  churchName: string
+}
+
+interface ServantCounts {
+ total: number
+ servants: number
+ groupLeaders: number
+ levelLeaders: number
+}
+
+const EMPTY_STATS: DashboardData = {
+ totalStudents: 0, totalLevels: 0, totalLessons: 0, totalAllocations: 0,
+ totalChurches: 0, totalUsers: 0, totalBadges: 0, activeStudents: 0,
+ publishedAssessments: 0, totalAssessments: 0, attendanceRate: 0,
+ completedSessions: 0, gradeDistribution: [], studentsPerLevel: [],
+ studentsByStatus: [], studentsWithoutGrade: 0, assessmentsByStatus: [],
+ assessmentStats: { gradedCount: 0, passCount: 0, passRate: 0, avgGradeScore: 0 },
+ recentGrades: [], recentActivity: [], upcomingSessions: [], topStudents: [],
+ weeklyStats: [], school: null,
+}
+
+function formatDate(dateStr: string, locale = 'en-GB') { return new Date(dateStr).toLocaleDateString(locale, { day: '2-digit', month: 'short', year: 'numeric' }) }
+function formatTime(dateStr: string, locale = 'en-GB') { return new Date(dateStr).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' }) }
+function relativeTime(dateStr: string | null | undefined, locale = 'en') {
+ if (!dateStr) return locale === 'ar' ? 'غير معروف' : 'Unknown'
+ const diff = Date.now() - new Date(dateStr).getTime()
+ if (isNaN(diff)) return locale === 'ar' ? 'غير معروف' : 'Unknown'
+ const mins = Math.floor(diff / 60000)
+ if (locale === 'ar') {
+  if (mins < 1) return 'الآن'
+  if (mins < 60) return `منذ ${mins} د`
+  const hrs = Math.floor(mins / 60)
+  if (hrs < 24) return `منذ ${hrs} س`
+  const days = Math.floor(hrs / 24)
+  return `منذ ${days} ي`
+ }
+ if (mins < 1) return 'Just now'
+ if (mins < 60) return `${mins}m ago`
+ const hrs = Math.floor(mins / 60)
+ if (hrs < 24) return `${hrs}h ago`
+ const days = Math.floor(hrs / 24)
+ return `${days}d ago`
+}
+function getGreeting() { const h = new Date().getHours(); if (h < 12) return 'Good morning'; if (h < 17) return 'Good afternoon'; return 'Good evening' }
+function getGreetingAr() { const h = new Date().getHours(); if (h < 12) return 'صباح الخير'; if (h < 17) return 'مساء الخير'; return 'مساء الخير' }
+function getDayName() { return new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) }
+function getDayNameAr() { return new Date().toLocaleDateString('ar-EG', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) }
+
+function AnimatedCounter({ value, suffix = '' }: { value: number; suffix?: string }) {
+ const [display, setDisplay] = useState(0)
+ const raf = useRef<number | null>(null)
+ useEffect(() => {
+  if (raf.current) cancelAnimationFrame(raf.current)
+  const start = performance.now()
+  const from = display
+  const to = value
+  const duration = 800
+  function tick(now: number) {
+   const elapsed = now - start
+   const progress = Math.min(elapsed / duration, 1)
+   const eased = 1 - Math.pow(1 - progress, 3)
+   setDisplay(Math.round(from + (to - from) * eased))
+   if (progress < 1) raf.current = requestAnimationFrame(tick)
+  }
+  raf.current = requestAnimationFrame(tick)
+  return () => { if (raf.current) cancelAnimationFrame(raf.current) }
+ }, [value])
+ return <>{display}{suffix}</>
+}
+
+const QUICK_ACTIONS = [
+  { label: 'Add Student', labelAr: 'إضافة طالب', icon: Users, href: '/dashboard/students', color: 'from-gold-500 to-gold-600', shadow: 'shadow-gold-200' },
+  { label: 'Manage Servants', labelAr: 'إدارة الخدام', icon: UserCheck, href: '/dashboard/servants', color: 'from-gold-500 to-gold-600', shadow: 'shadow-gold-200' },
+  { label: 'New Assessment', labelAr: 'تقييم جديد', icon: ClipboardCheck, href: '/dashboard/assessments', color: 'from-gold-500 to-gold-600', shadow: 'shadow-gold-200' },
+  { label: 'Schedule Class', labelAr: 'جدولة فصل', icon: CalendarPlus, href: '/dashboard/curriculum', color: 'from-gold-500 to-gold-600', shadow: 'shadow-gold-200' },
+  { label: 'Take Attendance', labelAr: 'تسجيل الحضور', icon: UserCheck, href: '/dashboard/attendance', color: 'from-gold-500 to-gold-600', shadow: 'shadow-gold-200' },
+]
+
+const ACTIVITY_ICONS: Record<string, typeof Users> = {
+ created: Sparkles, updated: TrendingUp, deleted: Target, graded: Award,
+ attended: UserCheck, enrolled: GraduationCap, assigned: Calendar,
+}
+const ACTIVITY_COLORS: Record<string, string> = {
+ created: 'bg-gradient-to-br from-green-100 to-green-50 text-green-600',
+ updated: 'bg-gradient-to-br from-blue-100 to-blue-50 text-blue-600',
+ deleted: 'bg-gradient-to-br from-red-100 to-red-50 text-red-600',
+ graded: 'bg-gradient-to-br from-purple-100 to-purple-50 text-purple-600',
+ attended: 'bg-gradient-to-br from-emerald-100 to-emerald-50 text-emerald-600',
+ enrolled: 'bg-gradient-to-br from-indigo-100 to-indigo-50 text-indigo-600',
+ assigned: 'bg-gradient-to-br from-amber-100 to-amber-50 text-amber-600',
+}
+
+const fadeUp = {
+ initial: { opacity: 0, y: 24 },
+ animate: { opacity: 1, y: 0 },
+}
+
+const stagger = {
+ animate: { transition: { staggerChildren: 0.06 } },
+}
+
+// ── Data fetching helpers ──────────────────────────────────────────
+
+ function fetchPrimaryData(): Promise<PrimaryData> {
+  return http.get<DashboardData>(`/dashboard/stats?schoolId=${getSchoolId()}`)
+   .then(async (stats) => {
+    let churchLogo: string | null = null
+    let churchName = ''
+    try {
+     const school = await http.get<any>('/users/schools/me')
+     churchName = school?.church?.name || school?.church?.schoolNameEn || ''
+     if (school?.church?.logoUrl) {
+      churchLogo = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api').replace('/api', '') + school.church.logoUrl
+     }
+    } catch {}
+    return { stats, churchLogo, churchName }
+   })
+ }
+
+function fetchServantCounts(): Promise<ServantCounts> {
+ const SERVANT_ROLES = ['servant', 'group_leader', 'level_leader']
+ return http.get<any[]>('/users', { schoolId: getSchoolId() })
+  .then(users => {
+   const list = Array.isArray(users) ? users : []
+   const servants = list.filter((u: any) => u.userRoles?.some((ur: any) => SERVANT_ROLES.includes(ur.role.name)))
+   return {
+    total: servants.length,
+    servants: servants.filter((u: any) => u.userRoles?.some((ur: any) => ur.role.name === 'servant')).length,
+    groupLeaders: servants.filter((u: any) => u.userRoles?.some((ur: any) => ur.role.name === 'group_leader')).length,
+    levelLeaders: servants.filter((u: any) => u.userRoles?.some((ur: any) => ur.role.name === 'level_leader')).length,
+   }
+  })
+}
+
+function useAsync<T>(fetcher: () => Promise<T>, deps: React.DependencyList): { data: T | null; loading: boolean; error: boolean } {
+ const [data, setData] = useState<T | null>(null)
+ const [loading, setLoading] = useState(true)
+ const [error, setError] = useState(false)
+ useEffect(() => {
+  let cancelled = false
+  setLoading(true)
+  setError(false)
+  fetcher()
+   .then(d => { if (!cancelled) { setData(d); setLoading(false) } })
+   .catch(() => { if (!cancelled) { setError(true); setLoading(false) } })
+  return () => { cancelled = true }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+ }, deps)
+ return { data, loading, error }
+}
+
+// ── Fallback components ────────────────────────────────────────────
+
+function HeroFallback() {
+ return (
+  <div className="rounded-2xl bg-[var(--hymn-navy)] p-6 sm:p-8 animate-pulse">
+   <div className="h-4 w-32 bg-white/10 rounded mb-3" />
+   <div className="h-8 w-64 bg-white/10 rounded mb-2" />
+   <div className="h-4 w-48 bg-white/10 rounded" />
+   <div className="mt-6 grid grid-cols-2 sm:grid-cols-5 gap-3">
+    {Array.from({ length: 5 }).map((_, i) => (
+     <div key={i} className="rounded-xl bg-white/5 border border-white/10 px-4 py-3">
+      <div className="h-3 w-16 bg-white/10 rounded mb-2" />
+      <div className="h-6 w-12 bg-white/10 rounded" />
+     </div>
+    ))}
+   </div>
+  </div>
+ )
+}
+
+function SectionFallback({ height = 'h-48' }: { height?: string }) {
+  return (
+   <div className={`rounded-xl border border-[var(--hymn-border)] bg-[var(--hymn-surface)] p-5 ${height}`}>
+    <div className="h-4 w-32 bg-gray-200 rounded mb-4 animate-pulse" />
+    <div className="space-y-3 animate-pulse">
+     <div className="h-3 w-full bg-gray-100 rounded" />
+     <div className="h-3 w-3/4 bg-gray-100 rounded" />
+     <div className="h-3 w-5/6 bg-gray-100 rounded" />
+    </div>
+   </div>
+  )
+}
+
+function ServantSectionFallback() {
+ return (
+  <div className="rounded-xl border border-[var(--hymn-border)] bg-[var(--hymn-surface)]">
+   <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--hymn-border)]">
+    <div className="h-5 w-24 bg-gray-200 rounded" />
+    <div className="h-3 w-12 bg-gray-200 rounded" />
+   </div>
+   <div className="flex items-center justify-center py-8">
+    <Loader2 className="h-5 w-5 animate-spin text-gold-400" />
+   </div>
+  </div>
+ )
+}
+
+// ── Section components ─────────────────────────────────────────────
+
+function HeroSection({ stats, churchLogo, churchName, loading }: { stats: DashboardData | null; churchLogo: string | null; churchName: string; loading: boolean }) {
+  const lang = useLanguage()
+  const reduce = useReducedMotion()
+  const { scrollY } = useScroll()
+  const springConfig = { stiffness: 80, damping: 20, mass: 0.5 }
+  const orb1Y = useSpring(useTransform(scrollY, [0, 400], [0, reduce ? 0 : -15]), springConfig)
+  const orb2Y = useSpring(useTransform(scrollY, [0, 400], [0, reduce ? 0 : 20]), springConfig)
+  const curveY = useSpring(useTransform(scrollY, [0, 400], [0, reduce ? 0 : -6]), springConfig)
+  if (loading && !stats) return <HeroFallback />
+  const s = stats ?? EMPTY_STATS
+  return (
+   <div className="relative overflow-hidden rounded-b-[2rem] bg-[var(--hymn-navy)] p-6 sm:p-8">
+    <motion.div className="absolute -top-6 left-1/2 -translate-x-1/2 w-[120%] h-12 rounded-[50%] bg-blue-500/5" style={{ y: curveY }} />
+    <motion.div className="absolute top-0 left-1/4 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl" style={{ y: orb1Y }} />
+    <motion.div className="absolute bottom-0 right-1/4 w-48 h-48 bg-blue-500/10 rounded-full blur-3xl" style={{ y: orb2Y }} />
+    <div className="absolute inset-0 opacity-[0.03] bg-[radial-gradient(circle_at_center,_white_1px,_transparent_1px)] bg-[length:20px_20px]" />
+   <div className="relative flex items-start justify-between">
+     <div>
+      <div className="flex items-center gap-2 text-gold-400 text-sm font-medium mb-2">
+       <Sun className="h-4 w-4" />
+       <span>{lang === 'ar' ? getGreetingAr() : getGreeting()}</span>
+      </div>
+      <h1 className="text-2xl sm:text-3xl font-bold text-white">
+       {s.school?.name || (lang === 'ar' ? 'منصة تعليم التراتيل الكنسية' : 'Coptic Orthodox Hymn Education Platform')}
+      </h1>
+      <div className="flex items-center gap-2 mt-1.5">
+       {churchName && (
+        <span className="inline-flex items-center gap-1 rounded-lg bg-white/10 px-2 py-0.5 text-xs font-medium text-white/80">
+         {churchName}
+        </span>
+       )}
+       <p className="text-gray-400 text-sm">{lang === 'ar' ? getDayNameAr() : getDayName()}</p>
+      </div>
+     </div>
+    <div className="flex items-center gap-4">
+     {churchLogo && (
+      <div className="relative shrink-0">
+       <div className="absolute inset-0 rounded-2xl bg-white/10 blur-xl" />
+       <Image src={churchLogo} alt="Church Logo" width={100} height={100}
+        className="relative h-24 w-24 rounded-2xl border-2 border-white/20 bg-white/10 object-cover shadow-xl"  />
+      </div>
+     )}
+     {s.school?.logoUrl && (
+      <div className="relative shrink-0">
+       <div className="absolute inset-0 rounded-2xl bg-white/10 blur-xl" />
+       <Image src={(process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api').replace('/api', '') + s.school.logoUrl}
+        alt="School Logo" width={100} height={100}
+        className="relative h-24 w-24 rounded-2xl border-2 border-white/20 bg-white/10 object-cover shadow-xl"  />
+      </div>
+     )}
+    </div>
+   </div>
+   <div className="relative mt-6 grid grid-cols-2 sm:grid-cols-5 gap-3">
+    {([
+     { label: 'Active Students', labelAr: 'الطلاب النشطون', value: s.activeStudents ?? 0, icon: Users },
+     { label: 'Attendance', labelAr: 'الحضور', value: s.attendanceRate ?? 0, suffix: '%', icon: UserCheck },
+     { label: 'Levels', labelAr: 'المستويات', value: s.totalLevels ?? 0, icon: Layers },
+     { label: 'Assessments', labelAr: 'التقييمات', value: s.publishedAssessments ?? 0, icon: ClipboardCheck },
+     { label: 'Pass Rate', labelAr: 'نسبة النجاح', value: s.assessmentStats?.passRate ?? 0, suffix: '%', icon: TrendingUp },
+    ] as const).map((item) => (
+     <div key={item.label} className="group rounded-xl bg-white/5 border border-white/10 backdrop-blur-sm px-4 py-3 hover:bg-white/10 hover:border-white/20 transition-all duration-300">
+      <div className="flex items-center gap-2 mb-1">
+       <item.icon className="h-3.5 w-3.5 text-gold-400 group-hover:scale-110 group-active:scale-110 transition-transform duration-300" />
+       <span className="text-[11px] text-gray-400">{lang === 'ar' ? (item as any).labelAr : item.label}</span>
+      </div>
+      <div className="text-xl font-bold text-white tracking-wider group-hover:text-gold-300 transition-colors">
+       <AnimatedCounter value={item.value} suffix={'suffix' in item ? (item as any).suffix || '' : ''} />
+      </div>
+     </div>
+    ))}
+   </div>
+  </div>
+ )
+}
+
+function ServantSection({ counts, loading }: { counts: ServantCounts | null; loading: boolean }) {
+ const lang = useLanguage()
+ if (loading && !counts) return <ServantSectionFallback />
+ if (!counts || !counts.total) return null
+ const items = [
+  { label: 'Servants', labelAr: 'خدام', value: counts.servants, color: 'text-blue-600', bg: 'from-blue-50 to-blue-100', icon: User },
+  { label: 'Group Leaders', labelAr: 'قادة مجموعات', value: counts.groupLeaders, color: 'text-amber-600', bg: 'from-amber-50 to-amber-100', icon: Shield },
+  { label: 'Level Leaders', labelAr: 'قادة مستويات', value: counts.levelLeaders, color: 'text-purple-600', bg: 'from-purple-50 to-purple-100', icon: Crown },
+ ]
+ return (
+  <div className="rounded-xl border border-gray-200/60 bg-white overflow-hidden">
+    <div className="flex items-center justify-between px-5 py-4 bg-[var(--hymn-surface-header)] border-b border-[var(--hymn-border)]">
+    <div className="flex items-center gap-2">
+     <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[var(--hymn-surface-header)] text-blue-700 ring-1 ring-gold-200/50">
+      <Shield className="h-4 w-4" />
+     </div>
+     <h2 className="font-semibold text-gray-900">{lang === 'ar' ? 'الخدام' : 'Servants'}</h2>
+    </div>
+    <Link href="/dashboard/servants" className="text-xs text-blue-700 font-medium hover:text-blue-800 flex items-center gap-0.5 group">
+     {lang === 'ar' ? 'إدارة' : 'Manage'} <ChevronRight className="h-3 w-3 group-hover:translate-x-0.5 transition-transform" />
+    </Link>
+   </div>
+   <div className="grid grid-cols-3 divide-x divide-gray-100">
+    {items.map((r, i) => (
+     <motion.div key={i} whileHover={{ y: -2 }} whileTap={{ y: -1 }} className="px-5 py-4 text-center group">
+      <div className={`inline-flex items-center justify-center h-11 w-11 rounded-xl bg-gradient-to-br ${r.bg} ${r.color} mb-2 shadow-sm group-hover:shadow-md group-hover:scale-110 group-active:shadow-md group-active:scale-110 transition-transform duration-300`}>
+       <r.icon className="h-5 w-5" />
+      </div>
+      <div className="text-2xl font-bold text-gray-900">{r.value}</div>
+      <div className="text-xs text-gray-500">{lang === 'ar' ? r.labelAr : r.label}</div>
+     </motion.div>
+    ))}
+   </div>
+  </div>
+ )
+}
+
+function StatsSection({ stats, loading }: { stats: DashboardData | null; loading: boolean }) {
+ const lang = useLanguage()
+ if (loading && !stats) return <CardSkeleton count={4} />
+ const s = stats ?? EMPTY_STATS
+ return (
+  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4" role="region" aria-label="Dashboard statistics">
+   <motion.div whileHover={{ y: -4, transition: { duration: 0.2 } }} whileTap={{ y: -2 }}>
+    <StatCard label={lang === 'ar' ? 'إجمالي الطلاب' : 'Total Students'} value={s.totalStudents ?? 0} icon={Users} iconBg="bg-gradient-to-br from-blue-50 to-blue-100" iconColor="text-blue-600"
+     subtitle={lang === 'ar' ? `${s.activeStudents ?? 0} نشط · ${s.studentsByStatus?.find(x => x.status === 'inactive')?.count ?? 0} غير نشط` : `${s.activeStudents ?? 0} active · ${s.studentsByStatus?.find(x => x.status === 'inactive')?.count ?? 0} inactive`} />
+   </motion.div>
+   <motion.div whileHover={{ y: -4, transition: { duration: 0.2 } }} whileTap={{ y: -2 }}>
+    <StatCard label={lang === 'ar' ? 'الحضور' : 'Attendance'} value={`${s.attendanceRate ?? 0}%`} icon={UserCheck} iconBg="bg-gradient-to-br from-emerald-50 to-emerald-100" iconColor="text-emerald-600"
+     subtitle={lang === 'ar' ? `${s.completedSessions ?? 0} جلسة مكتملة` : `${s.completedSessions ?? 0} sessions completed`} />
+   </motion.div>
+   <motion.div whileHover={{ y: -4, transition: { duration: 0.2 } }} whileTap={{ y: -2 }}>
+    <StatCard label={lang === 'ar' ? 'نسبة النجاح' : 'Pass Rate'} value={`${s.assessmentStats?.passRate ?? 0}%`} icon={TrendingUp} iconBg="bg-gradient-to-br from-purple-50 to-purple-100" iconColor="text-purple-600"
+     subtitle={lang === 'ar' ? `${s.assessmentStats?.gradedCount ?? 0} مصحح` : `${s.assessmentStats?.gradedCount ?? 0} graded`} />
+   </motion.div>
+   <motion.div whileHover={{ y: -4, transition: { duration: 0.2 } }} whileTap={{ y: -2 }}>
+    <StatCard label={lang === 'ar' ? 'الشارات المكتسبة' : 'Badges Earned'} value={s.totalBadges ?? 0} icon={Award} iconBg="bg-gradient-to-br from-amber-50 to-amber-100" iconColor="text-amber-600"
+     subtitle={lang === 'ar' ? `عبر ${s.totalLevels ?? 0} مستوى` : `Across ${s.totalLevels ?? 0} levels`} />
+   </motion.div>
+  </div>
+ )
+}
+
+function AttendanceChartSection({ stats, loading }: { stats: DashboardData | null; loading: boolean }) {
+ const lang = useLanguage()
+ if (loading && !stats) return <SectionFallback />
+ const s = stats ?? EMPTY_STATS
+ if (!s.weeklyStats?.length) return null
+
+ const dayLocale = lang === 'ar' ? 'ar-EG' : 'en-GB'
+ const dayMap = new Map<string, number>()
+ s.weeklyStats.forEach(item => {
+  const d = new Date(item.scheduledDate).toLocaleDateString(dayLocale, { weekday: 'short' })
+  dayMap.set(d, (dayMap.get(d) || 0) + item._count.attendanceRecords)
+ })
+ const days = Array.from(dayMap.keys())
+ const counts = Array.from(dayMap.values())
+ const max = Math.max(...counts, 1)
+
+ const chartRef = (el: HTMLDivElement | null) => {
+  if (!el) return
+  const bars = el.querySelectorAll('[data-bar]')
+  const observer = new IntersectionObserver(
+   (entries) => entries.forEach(e => { if (e.isIntersecting) (e.target as HTMLElement).style.opacity = '1' }),
+   { threshold: 0.3 }
+  )
+  bars.forEach(b => observer.observe(b))
+  return () => observer.disconnect()
+ }
+
+ return (
+  <div className="p-5">
+   <div ref={chartRef} className="flex items-end gap-2 h-40">
+    {days.map((day, i) => (
+     <div key={day} className="flex-1 flex flex-col items-center gap-1.5 group">
+      <span className="text-xs font-medium text-gray-500 opacity-0 group-hover:opacity-100 transition-opacity">{counts[i]}</span>
+      <div className="w-full bg-gray-100 rounded-xl relative overflow-hidden" style={{ height: '120px' }}>
+       <motion.div data-bar
+        initial={{ height: 0, opacity: 0 }}
+        animate={{ height: `${(counts[i] / max) * 100}%`, opacity: 1 }}
+        transition={{ delay: 0.1 * i, duration: 0.6, ease: 'easeOut' }}
+        className="absolute bottom-0 w-full rounded-xl bg-gradient-to-t from-gold-600 via-gold-400 to-gold-300 group-hover:from-blue-500 group-hover:to-gold-200 transition-all duration-300"
+        style={{ boxShadow: '0 0 12px rgba(201,160,48,0.3)' }} />
+      </div>
+      <span className="text-xs text-gray-400 font-medium">{day}</span>
+     </div>
+    ))}
+   </div>
+   <div className="mt-4 flex items-center justify-between text-xs text-gray-500 border-t border-gray-100 pt-3">
+    <span className="flex items-center gap-1"><Zap className="h-3 w-3 text-gold-400" />{lang === 'ar' ? 'إجمالي السجلات:' : 'Total records:'} {s.weeklyStats.reduce((a, item) => a + item._count.attendanceRecords, 0)}</span>
+    <span className="bg-blue-50 text-blue-700 font-semibold px-2 py-0.5 rounded-full">{s.weeklyStats.filter(item => item.status === 'completed').length} {lang === 'ar' ? 'جلسات' : 'sessions'}</span>
+   </div>
+  </div>
+ )
+}
+
+function LeaderboardSection({ stats, loading }: { stats: DashboardData | null; loading: boolean }) {
+ const lang = useLanguage()
+ if (loading && !stats) return <SectionFallback />
+ const s = stats ?? EMPTY_STATS
+ const topStudents = s.topStudents ?? []
+ if (!topStudents.length) return null
+
+ const maxXp = Math.max(...topStudents.map(st => st.xp), 1)
+
+ return (
+  <div className="divide-y divide-gray-100">
+   {topStudents.slice(0, 5).map((student, i) => {
+    const pct = (student.xp / maxXp) * 100
+    return (
+     <motion.div key={student.id || i} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.05 }}
+      className="px-5 py-3.5 hover:bg-gradient-to-r hover:from-blue-50/30 hover:to-transparent transition-all duration-300 group">
+      <div className="flex items-center gap-3">
+       <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-bold transition-transform duration-300 group-hover:scale-110 ${
+        i === 0 ? 'bg-gradient-to-br from-gold-400 via-gold-500 to-gold-600 text-white shadow-lg shadow-blue-200' :
+        i === 1 ? 'bg-gradient-to-br from-gray-300 to-gray-400 text-white shadow-md' :
+        i === 2 ? 'bg-gradient-to-br from-orange-400 to-orange-500 text-white shadow-md' :
+        'bg-gray-100 text-gray-600'
+       }`}>
+        {i === 0 ? <Crown className="h-4 w-4" /> : i + 1}
+       </div>
+       <div className="flex-1 min-w-0">
+        <div className="text-sm font-semibold text-gray-900 truncate">{student.firstName} {student.lastName}</div>
+        <div className="text-xs text-gray-500">{student.levelName || (lang === 'ar' ? `المستوى ${student.level}` : `Level ${student.level}`)} · <Star className="h-3 w-3 inline text-gold-400" /> {student.badgeCount} {lang === 'ar' ? 'شارات' : 'badges'}</div>
+       </div>
+       <div className="text-right">
+        <div className="text-sm font-bold text-gray-900">{student.xp.toLocaleString()}</div>
+        <div className="text-[10px] text-gray-400 font-medium">{lang === 'ar' ? 'نقاط' : 'XP'}</div>
+       </div>
+      </div>
+      <div className="mt-2 h-1.5 w-full rounded-full bg-gray-100 overflow-hidden">
+       <motion.div
+        initial={{ width: 0 }}
+        animate={{ width: `${pct}%` }}
+        transition={{ delay: 0.2 + i * 0.05, duration: 0.8, ease: 'easeOut' }}
+        className="h-full rounded-full bg-gradient-to-r from-gold-400 to-gold-600"
+        style={{ boxShadow: '0 0 6px rgba(201,160,48,0.4)' }} />
+      </div>
+     </motion.div>
+    )
+   })}
+  </div>
+ )
+}
+
+function AssessmentSection({ stats, loading }: { stats: DashboardData | null; loading: boolean }) {
+ const lang = useLanguage()
+ if (loading && !stats) return <SectionFallback />
+ const s = stats ?? EMPTY_STATS
+ return (
+  <div className="p-5 space-y-4">
+   <div className="flex items-center justify-center gap-8">
+    <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ delay: 0.2, type: 'spring', stiffness: 200 }}
+     className="relative flex items-center justify-center">
+     <svg width="120" height="120" viewBox="0 0 110 110" className="-rotate-90">
+      <circle cx="55" cy="55" r="45" fill="none" stroke="#f3f4f6" strokeWidth="10" />
+      {s.assessmentStats && s.assessmentStats.gradedCount > 0 && (
+       <motion.circle
+        initial={{ strokeDasharray: '0 282.7' }}
+        animate={{ strokeDasharray: `${(s.assessmentStats.passRate / 100) * 282.7} 282.7` }}
+        transition={{ delay: 0.4, duration: 1, ease: 'easeOut' }}
+        cx="55" cy="55" r="45" fill="none" stroke="url(#goldGradient)" strokeWidth="10"
+        strokeLinecap="round" className="drop-shadow-lg" />
+      )}
+      <defs>
+       <linearGradient id="goldGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+        <stop offset="0%" stopColor="#F59E0B" />
+        <stop offset="100%" stopColor="#D97706" />
+       </linearGradient>
+      </defs>
+     </svg>
+     <div className="absolute text-center">
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.6 }}
+       className="text-2xl font-bold text-gray-900">{s.assessmentStats?.passRate ?? 0}%</motion.div>
+      <div className="text-xs text-gray-500">{lang === 'ar' ? 'ناجح' : 'Pass'}</div>
+     </div>
+    </motion.div>
+    <div className="space-y-3">
+     {[
+      { color: 'bg-green-500', label: 'Passed', labelAr: 'ناجح', value: s.assessmentStats?.passCount ?? 0 },
+      { color: 'bg-red-400', label: 'Failed', labelAr: 'راسب', value: (s.assessmentStats?.gradedCount ?? 0) - (s.assessmentStats?.passCount ?? 0) },
+      { color: 'bg-blue-400', label: 'Avg Score', labelAr: 'متوسط الدرجات', value: s.assessmentStats?.avgGradeScore ?? 0 },
+     ].map((item) => (
+      <div key={item.label} className="flex items-center gap-2">
+       <div className={`h-3 w-3 rounded-full ${item.color} shadow-sm ${item.color === 'bg-green-500' ? 'animate-[softPulse_2s_ease-in-out_infinite]' : ''}`} />
+       <span className="text-sm text-gray-600">{lang === 'ar' ? item.labelAr : item.label}: <strong className="text-gray-900">{item.value}</strong></span>
+      </div>
+     ))}
+    </div>
+   </div>
+   {s.assessmentsByStatus?.length > 0 && (
+    <div className="border-t border-gray-100 pt-3 flex flex-wrap gap-2">
+     {s.assessmentsByStatus.map(st => (
+      <div key={st.status} className="rounded-lg bg-[var(--hymn-surface-header)] px-3 py-1.5 text-xs border border-gray-100">
+       <span className="capitalize text-gray-500">{st.status}: </span>
+       <span className="font-semibold text-gray-900">{st.count}</span>
+      </div>
+     ))}
+    </div>
+   )}
+  </div>
+ )
+}
+
+const ACTION_LABELS: Record<string, string> = {
+ created: 'تم الإنشاء', updated: 'تم التحديث', deleted: 'تم الحذف',
+ graded: 'تم التصحيح', attended: 'تم الحضور', enrolled: 'تم التسجيل', assigned: 'تم التعيين',
+}
+const ACTION_LABELS_EN: Record<string, string> = {
+ created: 'created', updated: 'updated', deleted: 'deleted',
+ graded: 'graded', attended: 'attended', enrolled: 'enrolled', assigned: 'assigned',
+}
+
+function ActivitySection({ stats, loading }: { stats: DashboardData | null; loading: boolean }) {
+ const lang = useLanguage()
+ if (loading && !stats) return <SectionFallback />
+ const s = stats ?? EMPTY_STATS
+ const activity = s.recentActivity ?? []
+ if (!activity.length) return <EmptyState icon={Clock} title={lang === 'ar' ? 'لا يوجد نشاط حديث' : 'No recent activity'} description={lang === 'ar' ? 'سيظهر النشاط هنا.' : 'Activity will appear here.'} />
+ return (
+  <div className="divide-y divide-gray-100 max-h-80 overflow-y-auto">
+   {activity.slice(0, 8).map((a, i) => {
+    const IconComp = ACTIVITY_ICONS[a.action] || TrendingUp
+    const colorClass = ACTIVITY_COLORS[a.action] || 'bg-gradient-to-br from-gray-100 to-gray-50 text-gray-600'
+    return (
+     <motion.div key={a.id} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.03 }}
+      className="flex items-center gap-3 px-5 py-3 hover:bg-gradient-to-r hover:from-gray-50 hover:to-transparent transition-all duration-200">
+      <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${colorClass} shadow-sm`}>
+       <IconComp className="h-4 w-4" />
+      </div>
+      <div className="flex-1 min-w-0">
+       <div className="text-sm font-medium text-gray-900 truncate">
+        {a.user ? `${a.user.firstName} ${a.user.lastName}` : 'System'}
+       </div>
+       <div className="text-xs text-gray-500 truncate">{(lang === 'ar' ? ACTION_LABELS[a.action] : ACTION_LABELS_EN[a.action]) || a.action} — {a.entityType}</div>
+      </div>
+       <time dateTime={a.createdAt ?? undefined} className="text-[11px] text-gray-400 shrink-0 bg-gray-50 px-2 py-0.5 rounded-full">{relativeTime(a.createdAt, lang === 'ar' ? 'ar' : 'en')}</time>
+     </motion.div>
+    )
+   })}
+  </div>
+ )
+}
+
+function UpcomingSection({ stats, loading }: { stats: DashboardData | null; loading: boolean }) {
+ const lang = useLanguage()
+ if (loading && !stats) return <SectionFallback />
+ const s = stats ?? EMPTY_STATS
+ const sessions = s.upcomingSessions ?? []
+ if (!sessions.length) return <EmptyState icon={Calendar} title={lang === 'ar' ? 'لا توجد جلسات قادمة' : 'No upcoming sessions'} description={lang === 'ar' ? 'قم بجدولة الفصول من المنهج.' : 'Schedule classes from Curriculum.'} />
+ return (
+  <div className="divide-y divide-gray-100">
+   {sessions.slice(0, 5).map((sess, i) => (
+    <motion.div key={sess.id} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.05 }}
+     className="flex items-center gap-3 px-5 py-3.5 hover:bg-gradient-to-r hover:from-blue-50/30 hover:to-transparent transition-all duration-200 group">
+     <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-blue-50 to-blue-100 text-blue-700 shadow-sm group-hover:shadow-md group-hover:scale-110 group-active:shadow-md group-active:scale-110 transition-transform duration-300">
+      <Calendar className="h-5 w-5" />
+     </div>
+     <div className="flex-1 min-w-0">
+      <div className="flex items-center gap-2">
+       <span className="text-sm font-semibold text-gray-900">{sess.level.name}</span>
+       <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 uppercase border border-emerald-200">{sess.status}</span>
+      </div>
+      <div className="text-xs text-gray-500 mt-0.5 flex items-center gap-1">
+       <User className="h-3 w-3 inline" /> {sess.servant.firstName} {sess.servant.lastName} · {formatDate(sess.scheduledDate, lang === 'ar' ? 'ar-EG' : 'en-GB')} <span className="text-gold-500 font-medium">{formatTime(sess.scheduledDate, lang === 'ar' ? 'ar-EG' : 'en-GB')}</span>
+      </div>
+     </div>
+     <ChevronRight className="h-4 w-4 text-gray-300 group-hover:text-gold-500 group-hover:translate-x-0.5 transition-all" />
+    </motion.div>
+   ))}
+  </div>
+ )
+}
+
+function RecentGradesSection({ stats, loading }: { stats: DashboardData | null; loading: boolean }) {
+ const lang = useLanguage()
+ if (loading && !stats) return <SectionFallback />
+ const s = stats ?? EMPTY_STATS
+ const grades = s.recentGrades ?? []
+ if (!grades.length) return null
+ return (
+  <>
+   <div className="hidden sm:block overflow-x-auto">
+    <table className="min-w-full text-sm">
+     <thead className="bg-gray-50/50 border-b border-[var(--hymn-border)]">
+      <tr>
+       <th className="px-5 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{lang === 'ar' ? 'الطالب' : 'Student'}</th>
+       <th className="px-5 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{lang === 'ar' ? 'التقييم' : 'Assessment'}</th>
+       <th className="px-5 py-2.5 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">{lang === 'ar' ? 'الدرجة' : 'Score'}</th>
+       <th className="px-5 py-2.5 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">{lang === 'ar' ? 'الحالة' : 'Status'}</th>
+       <th className="px-5 py-2.5 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">{lang === 'ar' ? 'التاريخ' : 'Date'}</th>
+      </tr>
+     </thead>
+     <tbody className="divide-y divide-gray-100">
+      {grades.slice(0, 5).map((g, i) => (
+       <motion.tr key={g.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: i * 0.05 }}
+        className="hover:bg-gradient-to-r hover:from-blue-50/20 hover:to-transparent transition-all duration-200">
+        <td className="px-5 py-3">
+         <div className="flex items-center gap-2.5">
+          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-blue-100 to-blue-50 text-xs font-bold text-blue-700 shadow-sm">
+           {g.studentName.split(' ').map(n => n[0]).join('')}
+          </div>
+          <span className="font-medium text-gray-900">{g.studentName}</span>
+         </div>
+        </td>
+        <td className="px-5 py-3 text-gray-600">{g.assessmentTitle}</td>
+        <td className="px-5 py-3 text-center">
+         <span className="font-semibold text-gray-900">{g.score}</span>
+         <span className="text-gray-400">/{g.maxScore}</span>
+        </td>
+        <td className="px-5 py-3 text-center">
+         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border ${
+          g.passed ? 'bg-green-50 text-green-700 border-green-200' : 'bg-red-50 text-red-700 border-red-200'
+         }`}>
+          {lang === 'ar' ? (g.passed ? 'ناجح' : 'راسب') : (g.passed ? 'Passed' : 'Failed')}
+         </span>
+        </td>
+        <td className="px-5 py-3 text-right text-xs text-gray-500">{formatDate(g.gradedAt, lang === 'ar' ? 'ar-EG' : 'en-GB')}</td>
+       </motion.tr>
+      ))}
+     </tbody>
+    </table>
+   </div>
+   <div className="block sm:hidden divide-y divide-[var(--hymn-border)]">
+    {grades.slice(0, 5).map((g, i) => (
+     <div key={g.id} className="px-4 py-3 space-y-1.5">
+      <div className="flex items-center justify-between">
+       <div className="flex items-center gap-2 min-w-0">
+        <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-blue-100 to-blue-50 text-[10px] font-bold text-blue-700">
+         {g.studentName.split(' ').map(n => n[0]).join('')}
+        </div>
+        <span className="text-sm font-medium text-gray-900 truncate">{g.studentName}</span>
+       </div>
+       <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold border shrink-0 ${
+        g.passed ? 'bg-green-50 text-green-700 border-green-200' : 'bg-red-50 text-red-700 border-red-200'
+       }`}>
+        {g.score}/{g.maxScore} · {lang === 'ar' ? (g.passed ? 'ناجح' : 'راسب') : (g.passed ? 'Passed' : 'Failed')}
+       </span>
+      </div>
+      <div className="flex items-center justify-between text-xs text-gray-500">
+       <span className="truncate">{g.assessmentTitle}</span>
+       <span className="shrink-0">{formatDate(g.gradedAt, lang === 'ar' ? 'ar-EG' : 'en-GB')}</span>
+      </div>
+     </div>
+    ))}
+   </div>
+  </>
+ )
+}
+
+// ── Main dashboard page ────────────────────────────────────────────
+
+function MineFallback() {
+ return (
+  <div className="space-y-6">
+   <div className="rounded-2xl bg-[var(--hymn-navy)] p-6 sm:p-8 animate-pulse h-44" />
+   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+    {Array.from({ length: 4 }).map((_, i) => <div key={i} className="h-20 rounded-xl bg-gray-100 animate-pulse" />)}
+   </div>
+   <div className="rounded-xl border border-[var(--hymn-border)] bg-[var(--hymn-surface)] h-48 flex items-center justify-center">
+    <Loader2 className="h-5 w-5 animate-spin text-gold-400" />
+   </div>
+  </div>
+ )
+}
+
+function RetryCard({ onRetry, lang }: { onRetry: () => void; lang: string }) {
+ return (
+  <div className="rounded-xl border border-[var(--hymn-border)] bg-[var(--hymn-surface)] p-8 text-center">
+   <p className="text-sm text-gray-500 mb-3">{lang === 'ar' ? 'تعذر تحميل البيانات' : 'Failed to load data'}</p>
+    <Button onClick={onRetry}>
+     {lang === 'ar' ? 'إعادة المحاولة' : 'Retry'}
+    </Button>
+  </div>
+ )
+}
+
+const ROLE_LABELS: Record<string, { en: string; ar: string }> = {
+ servant: { en: 'Servant', ar: 'خادم' },
+ group_leader: { en: 'Group Leader', ar: 'رئيس مجموعة' },
+ level_leader: { en: 'Level Leader', ar: 'رئيس مرحلة' },
+ assistant_servant: { en: 'Assistant Servant', ar: 'خادم مساعد' },
+}
+function RoleBadge({ role, lang }: { role: string; lang: string }) {
+ const l = ROLE_LABELS[role] || { en: role, ar: role }
+ return (
+  <span className="inline-flex items-center gap-1.5 rounded-full bg-white/10 border border-white/20 px-3 py-1 text-xs font-semibold text-white backdrop-blur">
+   <Heart className="h-3.5 w-3.5 text-rose-300" />
+   {lang === 'ar' ? l.ar : l.en}
+  </span>
+ )
+}
+
+function MinistryDashboard({ data, loading, error, onRetry }: { data: any; loading: boolean; error: boolean; onRetry: () => void }) {
+ const lang = useLanguage()
+ if (loading && !data) return <MineFallback />
+ if (error) return <RetryCard onRetry={onRetry} lang={lang} />
+ const d = data || {}
+ const sessions: any[] = d.sessions || []
+ const groups: any[] = d.groups || []
+ const recentGrades: any[] = d.recentGrades || []
+
+ return (
+  <>
+<title>{lang === 'ar' ? 'خدمتي' : 'My Ministry'} — Coptic Orthodox Hymn Education Platform (COHEP)</title>
+    <meta name="description" content="Coptic Orthodox Hymn Education Platform (COHEP) ministry dashboard" />
+   <motion.div className="space-y-6" initial="initial" animate="animate" variants={stagger}>
+    <div className="relative overflow-hidden rounded-b-[2rem] bg-[var(--hymn-green)] p-6 sm:p-8">
+     <div className="absolute -top-6 left-1/2 -translate-x-1/2 w-[120%] h-12 rounded-[50%] bg-blue-500/5" />
+     <div className="absolute top-0 left-1/4 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl" />
+     <div className="absolute bottom-0 right-1/4 w-48 h-48 bg-emerald-500/10 rounded-full blur-3xl" />
+     <div className="absolute inset-0 opacity-[0.03] bg-[radial-gradient(circle_at_center,_white_1px,_transparent_1px)] bg-[length:20px_20px]" />
+     <div className="relative flex items-start justify-between">
+      <div>
+       <div className="flex items-center gap-2 text-gold-400 text-sm font-medium mb-2">
+        <Sun className="h-4 w-4" /><span>{lang === 'ar' ? getGreetingAr() : getGreeting()}</span>
+       </div>
+       <h1 className="text-2xl sm:text-3xl font-bold text-white tracking-wider">{lang === 'ar' ? 'لوحة خدمتك' : 'Your Ministry'}</h1>
+       <p className="text-white/60 text-sm mt-1">{lang === 'ar' ? getDayNameAr() : getDayName()}</p>
+       <div className="mt-3"><RoleBadge role={d.role || 'servant'} lang={lang} /></div>
+      </div>
+     </div>
+     <div className="relative mt-6 grid grid-cols-2 sm:grid-cols-4 gap-3">
+      {([
+       { label: 'My Students', labelAr: 'طلابي', value: d.studentsCount ?? 0, icon: Users },
+       { label: 'My Groups', labelAr: 'مجموعاتي', value: groups.length, icon: UserCog },
+       { label: 'Attendance', labelAr: 'الحضور', value: d.attendanceRate ?? 0, suffix: '%', icon: UserCheck },
+       { label: 'Sessions to Run', labelAr: 'جلسات للتشغيل', value: sessions.length, icon: CalendarClock },
+      ] as const).map((item) => (
+       <div key={item.label} className="rounded-xl bg-white/5 border border-white/10 px-4 py-3">
+        <div className="flex items-center gap-2 mb-1">
+         <item.icon className="h-3.5 w-3.5 text-gold-400" />
+         <span className="text-[11px] text-white/60">{lang === 'ar' ? (item as any).labelAr : item.label}</span>
+        </div>
+        <div className="text-xl font-bold text-white tracking-wider">
+         <AnimatedCounter value={item.value} suffix={'suffix' in item ? (item as any).suffix || '' : ''} />
+        </div>
+       </div>
+      ))}
+     </div>
+    </div>
+
+    {!d.scoped && (
+     <div className="flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+      <Info className="h-4 w-4 shrink-0" />
+      <span>{lang === 'ar' ? 'أنت غير معيَّن لمجموعة بعد — يتم عرض نشاط المدرسة كاملاً.' : 'You are not assigned to a group yet — showing school-wide activity.'}</span>
+     </div>
+    )}
+
+    <motion.div variants={fadeUp} className="rounded-xl border border-gray-200/60 bg-white overflow-hidden">
+      <div className="flex items-center justify-between border-b border-[var(--hymn-border)] px-5 py-4 bg-[var(--hymn-surface-header)]">
+       <div className="flex items-center gap-2">
+        <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[var(--hymn-surface-header)] text-emerald-600 ring-1 ring-emerald-200/50"><CalendarClock className="h-4 w-4" /></div>
+        <h2 className="font-semibold text-gray-900">{lang === 'ar' ? 'الجلسات للتشغيل' : 'Sessions to Run'}</h2>
+      </div>
+      <Link href="/dashboard/attendance" className="text-xs text-emerald-600 font-medium hover:text-emerald-700">{lang === 'ar' ? 'الحضور' : 'Attendance'}</Link>
+     </div>
+     <div className="divide-y divide-gray-100">
+      {sessions.length === 0 ? (
+       <div className="px-5 py-8"><EmptyState icon={CalendarClock} title={lang === 'ar' ? 'لا توجد جلسات مجدولة' : 'No scheduled sessions'} description={lang === 'ar' ? 'ستظهر جلساتك هنا.' : 'Your sessions will appear here.'} /></div>
+      ) : sessions.map((s) => (
+       <Link key={s.id} href="/dashboard/attendance" className="flex items-center gap-4 px-5 py-3.5 hover:bg-gray-50 active:bg-gray-100 transition-colors group">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600"><CalendarClock className="h-5 w-5" /></div>
+        <div className="min-w-0 flex-1">
+         <div className="text-sm font-medium text-gray-900 truncate">{s.levelName} · {s.groupName}</div>
+         <div className="text-xs text-gray-500">{formatDate(s.scheduledDate, lang === 'ar' ? 'ar-EG' : 'en-GB')}</div>
+        </div>
+        <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700 group-hover:bg-emerald-100">{lang === 'ar' ? 'تسجيل الحضور' : 'Take Attendance'}</span>
+       </Link>
+      ))}
+     </div>
+    </motion.div>
+
+    <motion.div variants={fadeUp} className="rounded-xl border border-gray-200/60 bg-white overflow-hidden">
+      <div className="flex items-center justify-between border-b border-[var(--hymn-border)] px-5 py-4 bg-[var(--hymn-surface-header)]">
+       <div className="flex items-center gap-2">
+        <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[var(--hymn-surface-header)] text-blue-700 ring-1 ring-gold-200/50"><UserCog className="h-4 w-4" /></div>
+        <h2 className="font-semibold text-gray-900">{lang === 'ar' ? 'مجموعاتي' : 'My Groups'}</h2>
+      </div>
+     </div>
+     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 p-4">
+      {groups.length === 0 ? (
+       <div className="col-span-full px-1 py-6"><EmptyState icon={UserCog} title={lang === 'ar' ? 'لا مجموعات' : 'No groups'} /></div>
+      ) : groups.map((g) => (
+       <div key={g.id} className="rounded-xl border border-[var(--hymn-border)] bg-[var(--hymn-surface)] p-4 hover:border-blue-200 hover:shadow-md transition-all">
+        <div className="flex items-center justify-between">
+         <h3 className="font-semibold text-gray-900">{g.name}</h3>
+         <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-medium text-blue-700">{g.levelName}</span>
+        </div>
+        <div className="mt-3 flex items-center gap-2 text-sm text-gray-500">
+         <Users className="h-4 w-4" /><span>{g.studentCount} {lang === 'ar' ? 'طالب' : 'students'}</span>
+        </div>
+       </div>
+      ))}
+     </div>
+    </motion.div>
+
+    <motion.div variants={fadeUp} className="rounded-xl border border-gray-200/60 bg-white overflow-hidden">
+      <div className="flex items-center justify-between border-b border-[var(--hymn-border)] px-5 py-4 bg-[var(--hymn-surface-header)]">
+       <div className="flex items-center gap-2">
+        <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[var(--hymn-surface-header)] text-purple-600 ring-1 ring-purple-200/50"><Award className="h-4 w-4" /></div>
+        <h2 className="font-semibold text-gray-900">{lang === 'ar' ? 'أحدث الدرجات' : 'Recent Grades'}</h2>
+      </div>
+      <Link href="/dashboard/assessments" className="text-xs text-blue-700 font-medium hover:text-blue-800 flex items-center gap-0.5 group">{lang === 'ar' ? 'عرض الكل' : 'View all'}<ChevronRight className="h-3 w-3 group-hover:translate-x-0.5 transition-transform" /></Link>
+     </div>
+     <div className="divide-y divide-gray-100">
+      {recentGrades.length === 0 ? (
+       <div className="px-5 py-8"><EmptyState icon={Award} title={lang === 'ar' ? 'لا توجد درجات بعد' : 'No grades yet'} /></div>
+      ) : recentGrades.map((g) => (
+       <div key={g.id} className="flex items-center gap-3 px-5 py-3">
+        <div className="min-w-0 flex-1">
+         <div className="text-sm font-medium text-gray-900 truncate">{g.studentName}</div>
+         <div className="text-xs text-gray-500 truncate">{g.assessmentTitle}</div>
+        </div>
+        <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${g.passed ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>{g.score}/{g.maxScore}</span>
+       </div>
+      ))}
+     </div>
+    </motion.div>
+   </motion.div>
+  </>
+ )
+}
+
+function ProgressRing({ percent, size = 64, stroke = 6 }: { percent: number; size?: number; stroke?: number }) {
+ const r = (size - stroke) / 2
+ const circ = 2 * Math.PI * r
+ const offset = circ * (1 - Math.min(100, Math.max(0, percent)) / 100)
+ return (
+  <div className="relative flex items-center justify-center" style={{ width: size, height: size }}>
+   <svg width={size} height={size} className="-rotate-90">
+    <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="#eef2f7" strokeWidth={stroke} />
+    <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="#d4af37" strokeWidth={stroke} strokeLinecap="round" strokeDasharray={circ} strokeDashoffset={offset} className="transition-all duration-700" />
+   </svg>
+   <span className="absolute text-[13px] font-bold text-gray-800">{Math.round(percent)}%</span>
+  </div>
+ )
+}
+
+function ChildCard({ child, lang }: { child: any; lang: string }) {
+ const [showMore, setShowMore] = useState(false)
+ const API = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api').replace('/api', '')
+ const p = child.progress
+ const initials = `${child.firstName?.[0] || ''}${child.lastName?.[0] || ''}`
+ const gradePill = child.schoolGrade
+  ? (child.schoolGrade.toLowerCase().startsWith('grade') ? child.schoolGrade : `${lang === 'ar' ? 'المرحلة' : 'Grade'} ${child.schoolGrade}`)
+  : (child.levelName || '')
+ const atRisk = p && (p.attendancePercent < 80 || p.averageScore < 60)
+ const streakNudge = p && p.currentStreak >= 3
+ const wc = child.weeklyComparison || {}
+ const attChange = wc.attendanceThisWeek != null && wc.attendanceLastWeek != null ? wc.attendanceThisWeek - wc.attendanceLastWeek : 0
+ const xpChange = wc.xpThisWeek != null && wc.xpLastWeek != null ? wc.xpThisWeek - wc.xpLastWeek : 0
+ const curLesson = child.currentLesson
+ const primaryTiles = [
+  { label: lang === 'ar' ? 'الحضور' : 'Attendance', value: p ? `${p.attendancePercent}%` : '—', icon: UserCheck, color: 'text-emerald-600', bg: 'bg-emerald-50', bar: p ? p.attendancePercent : null, barColor: 'from-emerald-400 to-emerald-500' },
+  { label: lang === 'ar' ? 'متوسط الدرجات' : 'Avg Score', value: p ? `${p.averageScore}%` : '—', icon: Award, color: 'text-purple-600', bg: 'bg-purple-50', bar: p ? p.averageScore : null, barColor: 'from-purple-400 to-purple-500' },
+  { label: lang === 'ar' ? 'النقاط' : 'Points', value: child.totalPoints ?? 0, icon: Trophy, color: 'text-amber-600', bg: 'bg-amber-50', bar: null, barColor: '' },
+ ]
+ const secondaryTiles = [
+  { label: lang === 'ar' ? 'السلسلة' : 'Streak', value: p ? `${p.currentStreak}` : '—', icon: Flame, color: 'text-orange-600', bg: 'bg-orange-50', bar: null, barColor: '' },
+  { label: lang === 'ar' ? 'الشارات' : 'Badges', value: child.badges ?? 0, icon: Star, color: 'text-blue-700', bg: 'bg-blue-50', bar: null, barColor: '' },
+ ]
+ return (
+  <motion.div variants={fadeUp} className="rounded-2xl border border-[var(--hymn-border)] bg-[var(--hymn-surface)] overflow-hidden hover:shadow-xl hover:shadow-gold-500/10 transition-all duration-300">
+   {/* At-risk banner */}
+   {atRisk && (
+    <div className="flex items-center gap-2 bg-red-50 px-5 py-2 border-b border-red-100">
+     <XCircle className="h-4 w-4 text-red-500 shrink-0" />
+     <span className="text-xs font-medium text-red-700">
+      {lang === 'ar' ? 'بحاجة للدعم — مستوى الحضور أو الدرجات يحتاج لانتباه' : 'Needs support — attendance or grades need attention'}
+     </span>
+    </div>
+   )}
+   {/* Header */}
+   <div className="relative p-5 bg-[var(--hymn-surface)] border-b border-[var(--hymn-border)]">
+    <div className="flex items-center gap-4">
+     {child.photoUrl ? (
+      <Image src={API + child.photoUrl} alt="" width={56} height={56} className="h-14 w-14 rounded-2xl object-cover border border-white shadow-sm"  />
+     ) : (
+      <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-gold-400 to-blue-500 text-white font-bold text-lg shadow-sm">{initials}</div>
+     )}
+     <div className="min-w-0">
+      <h3 className="text-lg font-bold text-[#1A2744] truncate">{child.firstName} {child.lastName}</h3>
+      <div className="mt-1 flex flex-wrap items-center gap-1.5">
+       {gradePill && <span className="rounded-full bg-indigo-100 px-2 py-0.5 text-[11px] font-semibold text-indigo-700">{gradePill}</span>}
+       {child.levelName && <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[11px] font-semibold text-blue-700">{child.levelName}</span>}
+       {child.groupName && <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-medium text-gray-600">{child.groupName}</span>}
+       {streakNudge && (
+        <span className="rounded-full bg-orange-100 px-2 py-0.5 text-[11px] font-semibold text-orange-700">
+         🔥 {lang === 'ar' ? 'سلسلة {p.currentStreak}' : `Streak ${p.currentStreak}`}
+        </span>
+       )}
+      </div>
+     </div>
+     {p && (
+      <div className="ml-auto">
+       <ProgressRing percent={p.progressPercent} />
+      </div>
+     )}
+    </div>
+    {p && (
+     <div className="mt-4">
+      <div className="mb-1 flex items-center justify-between text-[11px] font-medium text-gray-500">
+       <span>{lang === 'ar' ? 'التقدم العام' : 'Overall Progress'}</span>
+       <span>{p.completedLessons}/{p.totalLessons} {lang === 'ar' ? 'درس' : 'lessons'}</span>
+      </div>
+      <div className="h-2.5 w-full rounded-full bg-gray-100 overflow-hidden">
+       <div className="h-full rounded-full bg-gradient-to-r from-gold-400 to-blue-500 transition-all duration-700" style={{ width: `${Math.min(100, p.progressPercent)}%` }} />
+      </div>
+     </div>
+    )}
+    {/* Current lesson */}
+    {curLesson && (
+     <div className="mt-3 flex items-center gap-2 rounded-lg bg-indigo-50 px-3 py-2">
+      <BookOpen className="h-3.5 w-3.5 text-indigo-500 shrink-0" />
+      <span className="text-[11px] font-medium text-indigo-700 truncate">
+       {lang === 'ar' ? 'يتعلم الآن:' : 'Now learning:'} {lang === 'ar' && curLesson.titleAr ? curLesson.titleAr : curLesson.title}
+      </span>
+     </div>
+    )}
+   </div>
+   {/* Tiles */}
+   <div className="grid grid-cols-3 gap-3 p-5">
+    {primaryTiles.map((t) => (
+     <div key={t.label} className="rounded-xl border border-gray-100 bg-gradient-to-b from-white to-gray-50 p-3 text-center">
+      <div className={`mx-auto mb-1.5 flex h-9 w-9 items-center justify-center rounded-xl ${t.bg} ${t.color}`}><t.icon className="h-4 w-4" /></div>
+      <div className="text-base font-bold text-gray-900">{t.value}</div>
+      <div className="text-[11px] text-gray-400">{t.label}</div>
+      {t.bar != null && (
+       <div className="mt-1.5 h-1 w-full rounded-full bg-gray-100 overflow-hidden">
+        <div className={`h-full rounded-full bg-gradient-to-r ${t.barColor}`} style={{ width: `${Math.min(100, t.bar)}%` }} />
+       </div>
+      )}
+     </div>
+    ))}
+   </div>
+   {/* Secondary tiles (collapsible) */}
+   {showMore && (
+    <div className="grid grid-cols-2 gap-3 px-5 pb-3">
+     {secondaryTiles.map((t) => (
+      <div key={t.label} className="rounded-xl border border-gray-100 bg-gradient-to-b from-white to-gray-50 p-3 text-center">
+       <div className={`mx-auto mb-1.5 flex h-9 w-9 items-center justify-center rounded-xl ${t.bg} ${t.color}`}><t.icon className="h-4 w-4" /></div>
+       <div className="text-base font-bold text-gray-900">{t.value}</div>
+       <div className="text-[11px] text-gray-400">{t.label}</div>
+      </div>
+     ))}
+    </div>
+   )}
+    <Button variant="ghost" size="sm" onClick={() => setShowMore(!showMore)}
+     className="w-full justify-center gap-1 py-4 text-[11px] font-medium text-blue-700 hover:text-blue-800 hover:bg-blue-50/30 transition-colors border-t border-gray-100 rounded-none">
+     {showMore ? (lang === 'ar' ? 'عرض أقل' : 'Show less') : (lang === 'ar' ? 'عرض المزيد' : `Show more (${secondaryTiles.length} more)`)}
+     <ChevronDown className={`h-3 w-3 transition-transform ${showMore ? 'rotate-180' : ''}`} />
+    </Button>
+   {/* Weekly comparison + recent badges */}
+   <div className="px-5 pb-3 flex flex-wrap items-center gap-3">
+    {wc.xpThisWeek != null && (
+     <div className={`flex items-center gap-1 text-[11px] font-medium ${xpChange >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+      <Zap className="h-3 w-3" />
+      <span>{lang === 'ar' ? 'نقاط هذا الأسبوع:' : 'XP this week:'} {wc.xpThisWeek}</span>
+      {xpChange > 0 && <ArrowUpRight className="h-3 w-3" />}
+      {xpChange < 0 && <ArrowUpRight className="h-3 w-3 rotate-90" />}
+     </div>
+    )}
+    {wc.attendanceThisWeek != null && (
+     <div className={`flex items-center gap-1 text-[11px] font-medium ${attChange >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+      <UserCheck className="h-3 w-3" />
+      <span>{lang === 'ar' ? 'حضور هذا الأسبوع:' : 'Att this week:'} {wc.attendanceThisWeek}%</span>
+      {attChange > 0 && <ArrowUpRight className="h-3 w-3" />}
+      {attChange < 0 && <ArrowUpRight className="h-3 w-3 rotate-90" />}
+     </div>
+    )}
+    {/* Recent badges */}
+    {child.recentBadges?.length > 0 && (
+     <div className="flex flex-wrap items-center gap-1.5">
+      {child.recentBadges.map((b: any) => (
+       <span key={b.id} className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-medium text-blue-700 border border-gold-100">
+        <span className="text-xs">{b.iconUrl || '🏅'}</span>
+        {b.name}
+       </span>
+      ))}
+     </div>
+    )}
+   </div>
+   {/* Upcoming sessions */}
+   {child.upcomingSessions?.length > 0 && (
+    <div className="px-5 pb-3">
+     <h5 className="text-[11px] font-semibold text-gray-500 mb-1.5">{lang === 'ar' ? 'الجلسات القادمة' : 'Upcoming Sessions'}</h5>
+     <div className="flex flex-wrap gap-2">
+      {child.upcomingSessions.map((sess: any) => (
+       <div key={sess.id} className="flex items-center gap-1.5 rounded-lg bg-gray-50 px-2.5 py-1.5 text-[11px] text-gray-600 border border-gray-100">
+        <Calendar className="h-3 w-3 text-gray-400" />
+        <span>{new Date(sess.scheduledDate).toLocaleDateString(lang === 'ar' ? 'ar-EG' : 'en-GB')}</span>
+        {sess.title && <span className="text-gray-400">· {sess.title}</span>}
+       </div>
+      ))}
+     </div>
+    </div>
+   )}
+   {/* Recent Grades */}
+   <div className="px-5 pb-5">
+    <div className="flex items-center justify-between mb-2">
+     <h4 className="text-sm font-semibold text-gray-700">{lang === 'ar' ? 'أحدث الدرجات' : 'Recent Grades'}</h4>
+     <Link href="/dashboard/assessments" className="text-xs text-blue-700 font-medium hover:underline">{lang === 'ar' ? 'عرض الكل' : 'View all'}</Link>
+    </div>
+    {child.recentGrades?.length ? (
+     <div className="flex flex-wrap gap-2">
+      {child.recentGrades.map((g: any) => (
+       <div key={g.id} className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium ${g.passed ? 'bg-green-50 text-green-700 border border-green-100' : 'bg-red-50 text-red-700 border border-red-100'}`}>
+        <span className="truncate max-w-[160px] sm:max-w-[120px]">{g.assessmentTitle}</span>
+        <span className="font-bold">{g.score}/{g.maxScore}</span>
+       </div>
+      ))}
+     </div>
+    ) : (
+     <p className="text-xs text-gray-400">{lang === 'ar' ? 'لا توجد درجات بعد' : 'No grades yet'}</p>
+    )}
+   </div>
+  </motion.div>
+ )
+}
+
+function ParentDashboard({ data, loading, error, onRetry }: { data: any; loading: boolean; error: boolean; onRetry: () => void }) {
+ const lang = useLanguage()
+ const schoolId = getSchoolId()
+ const [leaderboard, setLeaderboard] = useState<any[]>([])
+ const [lbLoading, setLbLoading] = useState(false)
+
+ useEffect(() => {
+  if (!schoolId) return
+  setLbLoading(true)
+  http.get<any>(`/dashboard/leaderboard?schoolId=${schoolId}&limit=10`)
+   .then((res) => setLeaderboard(res?.leaderboard || []))
+   .catch(() => {})
+   .finally(() => setLbLoading(false))
+ }, [schoolId])
+
+ if (loading && !data) return <MineFallback />
+ if (error) return <RetryCard onRetry={onRetry} lang={lang} />
+ const d = data || {}
+ const children: any[] = d.children || []
+
+ const withP = children.filter((c: any) => c.progress)
+ const avgAtt = withP.length ? Math.round(withP.reduce((s: number, c: any) => s + (c.progress.attendancePercent || 0), 0) / withP.length) : 0
+ const totalXp = children.reduce((s: number, c: any) => s + (c.progress?.totalXp || 0), 0)
+ const totalBadges = children.reduce((s: number, c: any) => s + (c.badges || 0), 0)
+ // This week aggregates
+ const xpThisWeek = children.reduce((s: number, c: any) => s + (c.weeklyComparison?.xpThisWeek || 0), 0)
+ const attThisWeek = withP.length ? Math.round(withP.reduce((s: number, c: any) => s + (c.weeklyComparison?.attendanceThisWeek || 0), 0) / withP.length) : 0
+ const attLastWeek = withP.length ? Math.round(withP.reduce((s: number, c: any) => s + (c.weeklyComparison?.attendanceLastWeek || 0), 0) / withP.length) : 0
+ const attTrendUp = attThisWeek >= attLastWeek
+ const xpMilestoneNext = 2000
+ const xpProgress = Math.min(100, Math.round((totalXp / xpMilestoneNext) * 100))
+
+ const topStreak = Math.max(...withP.map((c: any) => c.progress.currentStreak || 0), 0)
+
+ return (
+  <>
+<title>{lang === 'ar' ? 'أولادي' : 'My Children'} — Coptic Orthodox Hymn Education Platform (COHEP)</title>
+    <meta name="description" content="Coptic Orthodox Hymn Education Platform (COHEP) parent dashboard" />
+   <motion.div className="space-y-6" initial="initial" animate="animate" variants={stagger}>
+    {/* Hero */}
+    <div className="relative overflow-hidden rounded-b-[2rem] bg-[var(--hymn-indigo)] p-6 sm:p-8">
+     <div className="absolute -top-6 left-1/2 -translate-x-1/2 w-[120%] h-12 rounded-[50%] bg-blue-500/5" />
+     <div className="absolute top-0 left-1/4 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl" />
+     <div className="absolute bottom-0 right-1/4 w-48 h-48 bg-indigo-500/10 rounded-full blur-3xl" />
+     <div className="absolute inset-0 opacity-[0.03] bg-[radial-gradient(circle_at_center,_white_1px,_transparent_1px)] bg-[length:20px_20px]" />
+     <div className="relative flex items-center gap-3">
+      <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/10 border border-white/20"><Baby className="h-6 w-6 text-gold-300" /></div>
+      <div>
+       <div className="flex items-center gap-2 text-gold-400 text-sm font-medium mb-1">
+        <Sun className="h-4 w-4" /><span>{lang === 'ar' ? getGreetingAr() : getGreeting()}</span>
+       </div>
+       <h1 className="text-2xl sm:text-3xl font-bold text-white tracking-wider">{lang === 'ar' ? 'أولادي' : 'My Children'}</h1>
+       <p className="text-white/60 text-sm mt-1">{lang === 'ar' ? getDayNameAr() : getDayName()}</p>
+      </div>
+     </div>
+    </div>
+
+    {/* Aggregate summary */}
+    {children.length > 0 && (
+     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      {[
+       { label: lang === 'ar' ? 'الأبناء' : 'Children', value: children.length, icon: Users, color: 'text-indigo-600', bg: 'bg-indigo-50' },
+       { label: lang === 'ar' ? 'متوسط الحضور' : 'Avg Attendance', value: `${avgAtt}%`, icon: UserCheck, color: 'text-emerald-600', bg: 'bg-emerald-50' },
+       { label: lang === 'ar' ? 'إجمالي النقاط' : 'Total XP', value: totalXp, icon: Zap, color: 'text-amber-600', bg: 'bg-amber-50' },
+       { label: lang === 'ar' ? 'إجمالي الشارات' : 'Total Badges', value: totalBadges, icon: Star, color: 'text-blue-700', bg: 'bg-blue-50' },
+      ].map((s) => (
+       <motion.div key={s.label} variants={fadeUp} className="flex items-center gap-3 border-t border-[var(--hymn-border)] p-3.5">
+        <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${s.bg} ${s.color}`}><s.icon className="h-5 w-5" /></div>
+        <div>
+         <h3 className="text-lg font-bold text-gray-900 leading-none">{s.value}</h3>
+         <div className="text-[11px] text-gray-400 mt-1">{s.label}</div>
+        </div>
+       </motion.div>
+      ))}
+     </div>
+    )}
+
+    {/* This Week at a Glance */}
+    {children.length > 0 && (
+     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <motion.div variants={fadeUp} className="rounded-xl border border-[var(--hymn-border)] bg-[var(--hymn-surface)] p-4 flex items-center gap-4">
+       <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-amber-50 to-amber-100 text-amber-600">
+        <TrendingUp className="h-6 w-6" />
+       </div>
+       <div>
+        <div className="text-xs text-gray-400 mb-0.5">{lang === 'ar' ? 'نقاط هذا الأسبوع' : 'XP This Week'}</div>
+        <div className="text-xl font-bold text-gray-900">{xpThisWeek}</div>
+        <div className="flex items-center gap-1 text-xs text-gray-500">
+         <div className={`h-2 w-full max-w-[80px] rounded-full bg-gray-100 overflow-hidden`}>
+          <div className="h-full rounded-full bg-gradient-to-r from-amber-400 to-amber-500" style={{ width: `${xpProgress}%` }} />
+         </div>
+         <span>{totalXp}/{xpMilestoneNext}</span>
+        </div>
+       </div>
+      </motion.div>
+      <motion.div variants={fadeUp} className="rounded-xl border border-[var(--hymn-border)] bg-[var(--hymn-surface)] p-4 flex items-center gap-4">
+       <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-50 to-emerald-100 text-emerald-600">
+        <UserCheck className="h-6 w-6" />
+       </div>
+       <div>
+        <div className="text-xs text-gray-400 mb-0.5">{lang === 'ar' ? 'الحضور هذا الأسبوع' : 'Attendance Trend'}</div>
+        <div className="text-xl font-bold text-gray-900">{attThisWeek}%</div>
+        <div className="flex items-center gap-1 text-xs mt-0.5">
+         {attTrendUp ? (
+          <span className="text-emerald-600 flex items-center gap-0.5"><ArrowUpRight className="h-3 w-3" />{lang === 'ar' ? 'تحسن عن الأسبوع الماضي' : 'Up from last week'}</span>
+         ) : (
+          <span className="text-red-500 flex items-center gap-0.5"><ArrowUpRight className="h-3 w-3 rotate-90" />{lang === 'ar' ? 'انخفاض عن الأسبوع الماضي' : 'Down from last week'}</span>
+         )}
+        </div>
+       </div>
+      </motion.div>
+      <motion.div variants={fadeUp} className="rounded-xl border border-[var(--hymn-border)] bg-[var(--hymn-surface)] p-4 flex items-center gap-4">
+       <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-orange-50 to-orange-100 text-orange-600">
+        <Flame className="h-6 w-6" />
+       </div>
+       <div>
+        <div className="text-xs text-gray-400 mb-0.5">{lang === 'ar' ? 'أفضل سلسلة حضور' : 'Best Streak'}</div>
+        <div className="text-xl font-bold text-gray-900">{topStreak} {lang === 'ar' ? 'أسابيع' : 'weeks'}</div>
+        <div className="text-xs mt-0.5">
+         {topStreak >= 3 ? (
+          <span className="text-orange-600 font-medium">{lang === 'ar' ? '🔥 استمر في السلسلة!' : '🔥 Keep the chain going!'}</span>
+         ) : (
+          <span className="text-gray-400">{lang === 'ar' ? 'ابنِ سلسلة حضور الآن' : 'Build your streak now'}</span>
+         )}
+        </div>
+       </div>
+      </motion.div>
+     </div>
+    )}
+
+    {/* Leaderboard */}
+    {leaderboard.length > 0 && (
+     <motion.div variants={fadeUp} className="rounded-xl border border-gray-200/60 bg-white overflow-hidden">
+       <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--hymn-border)] bg-[var(--hymn-surface-header)]">
+        <div className="flex items-center gap-2">
+         <Trophy className="h-5 w-5 text-blue-700" />
+         <h2 className="font-semibold text-gray-900">{lang === 'ar' ? 'لوحة الشرف' : 'Leaderboard'}</h2>
+       </div>
+       <span className="text-[11px] text-gray-400">{lang === 'ar' ? 'أفضل الطلاب' : 'Top Students'}</span>
+      </div>
+      <div className="divide-y divide-gray-50">
+       {leaderboard.map((s: any, i: number) => (
+        <div key={s.studentId} className="flex items-center gap-3 px-5 py-2.5 hover:bg-gray-50 active:bg-gray-100 transition-colors">
+          <div className={`flex h-7 w-7 items-center justify-center rounded-full text-[11px] font-bold ${i < 3 ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600'}`}>{s.rank}</div>
+         <div className="min-w-0 flex-1">
+          <div className="text-sm font-medium text-gray-900 truncate">{s.firstName} {s.lastName}</div>
+          <div className="text-[10px] text-gray-400">{s.schoolGrade || s.levelName || ''}</div>
+         </div>
+         <div className="flex items-center gap-1 text-sm font-semibold text-amber-600">
+          <Zap className="h-3.5 w-3.5" />{s.totalXp}
+         </div>
+        </div>
+       ))}
+      </div>
+     </motion.div>
+    )}
+
+    {d.isDemo && (
+     <div className="flex items-center gap-2 rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-3 text-sm text-indigo-800">
+      <Info className="h-4 w-4 shrink-0" />
+      <span>{lang === 'ar' ? 'معاينة: لا يوجد أبناء مرتبطون بحسابك — يتم عرض طلاب نموذجيين.' : 'Preview: no children are linked to your account — showing sample students.'}</span>
+     </div>
+    )}
+
+    {children.length === 0 ? (
+     <div className="rounded-xl border border-[var(--hymn-border)] bg-[var(--hymn-surface)] p-10"><EmptyState icon={Baby} title={lang === 'ar' ? 'لا يوجد أبناء مرتبطون' : 'No children linked'} description={lang === 'ar' ? 'اربط أبناءك من إعدادات الحساب.' : 'Link your children from account settings.'} /></div>
+    ) : (
+     <div className="grid gap-6 lg:grid-cols-2">
+      {children.map((c) => <ChildCard key={c.id} child={c} lang={lang} />)}
+     </div>
+    )}
+   </motion.div>
+  </>
+ )
+}
+
+export default function DashboardPage() {
+ const { toast } = useToast()
+ const [refreshKey, setRefreshKey] = useState(0)
+ const lang = useLanguage()
+
+ const { effectiveRole, ready } = useActiveRole()
+ const category = roleCategory(effectiveRole)
+ const [mine, setMine] = useState<any>(null)
+ const [mineLoading, setMineLoading] = useState(false)
+ const [mineError, setMineError] = useState(false)
+
+ const primary = useAsync<PrimaryData>(
+  () => (ready && category === 'management'
+   ? fetchPrimaryData()
+    : Promise.resolve({ stats: EMPTY_STATS, churchLogo: null, churchName: '' })),
+  [refreshKey, category, ready],
+ )
+ const servants = useAsync<ServantCounts>(
+  () => (ready && category === 'management'
+   ? fetchServantCounts()
+   : Promise.resolve({ total: 0, servants: 0, groupLeaders: 0, levelLeaders: 0 })),
+  [refreshKey, category, ready],
+ )
+
+ useEffect(() => {
+  if (category === 'management') return
+  let cancelled = false
+  setMineLoading(true)
+  setMineError(false)
+  http.get(`/dashboard/mine?schoolId=${getSchoolId()}&viewRole=${effectiveRole}`)
+   .then((d: any) => { if (!cancelled) { setMine(d); setMineLoading(false) } })
+   .catch(() => { if (!cancelled) { setMineError(true); setMineLoading(false) } })
+  return () => { cancelled = true }
+ }, [category, effectiveRole, refreshKey])
+
+ const poll = useCallback(() => setRefreshKey(k => k + 1), [])
+
+ useEffect(() => {
+  const interval = setInterval(poll, 120000)
+  return () => clearInterval(interval)
+ }, [poll])
+
+ const handleRetry = useCallback(() => setRefreshKey(k => k + 1), [])
+
+ if (category === 'parent') {
+  return <ParentDashboard data={mine} loading={mineLoading} error={mineError} onRetry={handleRetry} />
+ }
+ if (category === 'ministry') {
+  return <MinistryDashboard data={mine} loading={mineLoading} error={mineError} onRetry={handleRetry} />
+ }
+
+ return (
+  <>
+<title>Dashboard — Coptic Orthodox Hymn Education Platform (COHEP)</title>
+    <meta name="description" content="Coptic Orthodox Hymn Education Platform (COHEP) management dashboard — students, servants, attendance, assessments, and more." />
+
+   <motion.div className="space-y-6" initial="initial" animate="animate" variants={stagger}>
+    {/* Hero */}
+    <ErrorBoundary onRetry={handleRetry}>
+     <HeroSection stats={primary.data?.stats ?? null} churchLogo={primary.data?.churchLogo ?? null} churchName={primary.data?.churchName ?? ''} loading={primary.loading} />
+    </ErrorBoundary>
+
+    {/* Quick Actions */}
+    <motion.div variants={fadeUp} className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+     {QUICK_ACTIONS.map((a) => (
+      <motion.div key={a.label} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+        <Link href={a.href}
+         className="group flex items-center gap-3 rounded-xl px-4 py-3.5 transition-all duration-300 hover:bg-gray-50 hover:-translate-y-0.5 relative overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-br from-transparent via-transparent to-blue-50/30 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+        <div className={`relative flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br ${a.color} text-white shadow-lg ${a.shadow} group-hover:shadow-xl group-hover:scale-110 group-active:scale-110 transition-transform duration-300`}
+         style={{ transformStyle: 'preserve-3d', perspective: '400px' }}>
+         <a.icon className="h-5 w-5" />
+        </div>
+        <div className="relative">
+         <div className="text-sm font-semibold text-gray-900 group-hover:text-blue-700 transition-colors">{lang === 'ar' ? a.labelAr : a.label}</div>
+         <div className="text-[11px] text-gray-400 flex items-center gap-0.5">
+          {lang === 'ar' ? 'فتح' : 'Open'} <ArrowUpRight className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-all duration-300 group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+         </div>
+        </div>
+       </Link>
+      </motion.div>
+     ))}
+    </motion.div>
+
+    {/* Stats Cards */}
+    <ErrorBoundary onRetry={handleRetry}>
+     <StatsSection stats={primary.data?.stats ?? null} loading={primary.loading} />
+    </ErrorBoundary>
+
+    {/* Servants */}
+    <ErrorBoundary onRetry={handleRetry}>
+     <ServantSection counts={servants.data} loading={servants.loading} />
+    </ErrorBoundary>
+
+    {/* Main Grid: Charts + Leaderboard */}
+    <motion.div variants={fadeUp} className="grid gap-6 lg:grid-cols-3">
+     {/* Weekly Attendance Chart */}
+      <div className="lg:col-span-2 rounded-xl border border-gray-200/60 bg-white overflow-hidden">
+      <div className="flex items-center justify-between border-b border-[var(--hymn-border)] px-5 py-4 bg-[var(--hymn-surface-header)]">
+       <div className="flex items-center gap-2">
+        <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[var(--hymn-surface-header)] text-blue-700 ring-1 ring-gold-200/50">
+         <BarChart3 className="h-4 w-4" />
+        </div>
+        <h2 className="font-semibold text-gray-900">{lang === 'ar' ? 'الحضور هذا الأسبوع' : 'Weekly Attendance'}</h2>
+       </div>
+       <span className="text-xs text-gray-500 bg-gray-50 px-2 py-1 rounded-full">{lang === 'ar' ? 'نظرة عامة على 7 أيام' : '7-day overview'}</span>
+      </div>
+      <ErrorBoundary onRetry={handleRetry}>
+       <AttendanceChartSection stats={primary.data?.stats ?? null} loading={primary.loading} />
+      </ErrorBoundary>
+     </div>
+
+     {/* Top Students Leaderboard */}
+      <div className="rounded-xl border border-gray-200/60 bg-white overflow-hidden">
+       <div className="flex items-center justify-between border-b border-[var(--hymn-border)] px-5 py-4 bg-[var(--hymn-surface-header)]">
+        <div className="flex items-center gap-2">
+         <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[var(--hymn-surface-header)] text-blue-700 ring-1 ring-gold-200/50">
+          <Trophy className="h-4 w-4" />
+         </div>
+         <h2 className="font-semibold text-gray-900">{lang === 'ar' ? 'أفضل الطلاب' : 'Top Students'}</h2>
+       </div>
+       <Link href="/dashboard/gamification" className="text-xs text-blue-700 font-medium hover:text-blue-800 flex items-center gap-0.5 group">
+        {lang === 'ar' ? 'عرض الكل' : 'View all'} <ChevronRight className="h-3 w-3 group-hover:translate-x-0.5 transition-transform" />
+       </Link>
+      </div>
+      <ErrorBoundary onRetry={handleRetry}>
+       <LeaderboardSection stats={primary.data?.stats ?? null} loading={primary.loading} />
+      </ErrorBoundary>
+     </div>
+    </motion.div>
+
+    {/* Bottom Row: Assessments, Activity, Upcoming */}
+    <motion.div variants={fadeUp} className="grid gap-6 lg:grid-cols-3">
+     {/* Assessment Performance */}
+      <div className="rounded-xl border border-gray-200/60 bg-white">
+       <div className="flex items-center justify-between border-b border-[var(--hymn-border)] px-5 py-4 bg-[var(--hymn-surface-header)]">
+        <div className="flex items-center gap-2">
+         <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[var(--hymn-surface-header)] text-blue-700 ring-1 ring-gold-200/50">
+          <ClipboardCheck className="h-4 w-4" />
+         </div>
+         <h2 className="font-semibold text-gray-900">{lang === 'ar' ? 'أداء التقييمات' : 'Assessment Performance'}</h2>
+       </div>
+      </div>
+      <ErrorBoundary onRetry={handleRetry}>
+       <AssessmentSection stats={primary.data?.stats ?? null} loading={primary.loading} />
+      </ErrorBoundary>
+     </div>
+
+     {/* Recent Activity */}
+      <div className="rounded-xl border border-gray-200/60 bg-white">
+       <div className="flex items-center justify-between border-b border-[var(--hymn-border)] px-5 py-4 bg-[var(--hymn-surface-header)]">
+        <div className="flex items-center gap-2">
+         <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[var(--hymn-surface-header)] text-blue-700 ring-1 ring-gold-200/50">
+          <Clock className="h-4 w-4" />
+         </div>
+         <h2 className="font-semibold text-gray-900">{lang === 'ar' ? 'النشاط الأخير' : 'Recent Activity'}</h2>
+       </div>
+      </div>
+      <ErrorBoundary onRetry={handleRetry}>
+       <ActivitySection stats={primary.data?.stats ?? null} loading={primary.loading} />
+      </ErrorBoundary>
+     </div>
+
+     {/* Upcoming Sessions */}
+      <div className="rounded-xl border border-gray-200/60 bg-white">
+       <div className="flex items-center justify-between border-b border-[var(--hymn-border)] px-5 py-4 bg-[var(--hymn-surface-header)]">
+        <div className="flex items-center gap-2">
+         <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[var(--hymn-surface-header)] text-blue-700 ring-1 ring-gold-200/50">
+          <Calendar className="h-4 w-4" />
+         </div>
+         <h2 className="font-semibold text-gray-900">{lang === 'ar' ? 'الفصول القادمة' : 'Upcoming Classes'}</h2>
+       </div>
+       <span className="text-xs bg-gray-50 text-gray-500 px-2 py-1 rounded-full">{/* count handled inside */}</span>
+      </div>
+      <ErrorBoundary onRetry={handleRetry}>
+       <UpcomingSection stats={primary.data?.stats ?? null} loading={primary.loading} />
+      </ErrorBoundary>
+     </div>
+    </motion.div>
+
+    {/* Recent Grades */}
+    <ErrorBoundary onRetry={handleRetry}>
+      <div className="rounded-xl border border-gray-200/60 bg-white overflow-hidden">
+       <div className="flex items-center justify-between border-b border-[var(--hymn-border)] px-5 py-4 bg-[var(--hymn-surface-header)]">
+        <div className="flex items-center gap-2">
+         <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[var(--hymn-surface-header)] text-blue-700 ring-1 ring-gold-200/50">
+          <Award className="h-4 w-4" />
+         </div>
+         <h2 className="font-semibold text-gray-900">{lang === 'ar' ? 'الدرجات الأخيرة' : 'Recent Grades'}</h2>
+       </div>
+       <Link href="/dashboard/assessments" className="text-xs text-blue-700 font-medium hover:text-blue-800 flex items-center gap-0.5 group">
+        {lang === 'ar' ? 'عرض الكل' : 'View all'} <ChevronRight className="h-3 w-3 group-hover:translate-x-0.5 transition-transform" />
+       </Link>
+      </div>
+      <RecentGradesSection stats={primary.data?.stats ?? null} loading={primary.loading} />
+     </div>
+    </ErrorBoundary>
+   </motion.div>
+  </>
+ )
+}

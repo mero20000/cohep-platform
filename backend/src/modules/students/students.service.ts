@@ -1,0 +1,568 @@
+import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
+import { PrismaService } from '../../database/prisma.service';
+import { AuditService } from '../audit/audit.service';
+import { SchoolResolver } from '../../common/utils/school-resolver';
+import { CreateStudentDto } from './dto/create-student.dto';
+import { UpdateStudentDto } from './dto/update-student.dto';
+import { QueryStudentDto } from './dto/query-student.dto';
+import { BulkImportStudentDto } from './dto/bulk-import-student.dto';
+
+@Injectable()
+export class StudentsService {
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly audit: AuditService,
+    private readonly schoolResolver: SchoolResolver,
+  ) {}
+
+  async findAll(queryDto: QueryStudentDto, schoolIdentifier: string) {
+    const schoolId = await this.schoolResolver.resolve(schoolIdentifier);
+    const { levelId, groupId, status, churchName, schoolGrade, gender, search, page = 1, limit: rawLimit = 20 } = queryDto;
+    const limit = Math.min(rawLimit, 100);
+
+    const where: any = {
+      schoolId,
+      deletedAt: null,
+    };
+
+    if (levelId) where.levelId = levelId;
+    if (groupId) where.groupId = groupId;
+    if (status) where.status = status;
+    if (churchName) where.churchName = churchName;
+    if (schoolGrade) where.schoolGrade = schoolGrade;
+    if (gender) where.gender = gender;
+
+    if (search) {
+      where.OR = [
+        { firstName: { contains: search, mode: 'insensitive' } },
+        { lastName: { contains: search, mode: 'insensitive' } },
+        { studentCode: { contains: search, mode: 'insensitive' } },
+      ];
+    }
+
+    const [students, total] = await Promise.all([
+      this.prisma.student.findMany({
+        where,
+        include: {
+          level: { select: { id: true, name: true, number: true } },
+          group: { select: { id: true, name: true } },
+          profile: true,
+        },
+        skip: (page - 1) * limit,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+      }),
+      this.prisma.student.count({ where }),
+    ]);
+
+    return {
+      data: students,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
+  }
+
+  async findOne(id: string, schoolIdentifier: string) {
+    const schoolId = await this.schoolResolver.resolve(schoolIdentifier);
+    const student = await this.prisma.student.findFirst({
+      where: {
+        id,
+        schoolId,
+        deletedAt: null,
+      },
+      include: {
+        level: true,
+        group: true,
+        profile: true,
+        studentParents: {
+          include: {
+            parent: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                email: true,
+                phone: true,
+                avatarUrl: true,
+              },
+            },
+          },
+        },
+        medicalNotes: {
+          where: { isActive: true },
+        },
+      },
+    });
+
+    if (!student) {
+      throw new NotFoundException('Student not found');
+    }
+
+    return student;
+  }
+
+  async create(createStudentDto: CreateStudentDto, schoolIdentifier: string) {
+    const schoolId = await this.schoolResolver.resolve(schoolIdentifier);
+    const studentCode = await this.generateStudentCode(schoolId);
+
+    let currentYear = await this.prisma.academicYear.findFirst({
+      where: { schoolId, isCurrent: true },
+    });
+    if (!currentYear) {
+      currentYear = await this.prisma.academicYear.findFirst({
+        where: { schoolId },
+        orderBy: { createdAt: 'desc' },
+      });
+    }
+    if (!currentYear) {
+      throw new NotFoundException('No academic year found. Create one in Settings > Calendar first.');
+    }
+
+    const metadata: Record<string, string> = {};
+    if (createStudentDto.phone) metadata.phone = createStudentDto.phone;
+    if (createStudentDto.email) metadata.email = createStudentDto.email;
+    if (createStudentDto.address) metadata.address = createStudentDto.address;
+    if (createStudentDto.notes) metadata.notes = createStudentDto.notes;
+    if (createStudentDto.churchToolId) metadata.churchToolId = createStudentDto.churchToolId;
+
+    const student = await this.prisma.student.create({
+      data: {
+        firstName: createStudentDto.firstName,
+        lastName: createStudentDto.lastName,
+        firstNameAr: createStudentDto.firstNameAr,
+        lastNameAr: createStudentDto.lastNameAr,
+        dateOfBirth: new Date(createStudentDto.dateOfBirth),
+        gender: createStudentDto.gender,
+        churchName: createStudentDto.churchName,
+        schoolGrade: createStudentDto.schoolGrade,
+        photoUrl: createStudentDto.photoUrl,
+        levelId: createStudentDto.levelId,
+        groupId: createStudentDto.groupId,
+        schoolId,
+        studentCode,
+        academicYearId: currentYear.id,
+        parentEmail: createStudentDto.parentEmail || undefined,
+        metadata: Object.keys(metadata).length > 0 ? metadata : undefined,
+        status: 'active',
+        enrollmentDate: new Date(),
+      },
+      include: {
+        level: true,
+        group: true,
+      },
+    });
+
+    await this.audit.log({
+      schoolId,
+      action: 'CREATE',
+      entityType: 'student',
+      entityId: student.id,
+      newValues: { firstName: student.firstName, lastName: student.lastName, levelId: student.levelId, groupId: student.groupId },
+    });
+
+    return student;
+  }
+
+  async update(id: string, updateStudentDto: UpdateStudentDto, schoolIdentifier: string) {
+    const schoolId = await this.schoolResolver.resolve(schoolIdentifier);
+    const student = await this.findOne(id, schoolId);
+
+    const data = { ...updateStudentDto } as any;
+    if (data.dateOfBirth) data.dateOfBirth = new Date(data.dateOfBirth);
+
+    // Merge contact fields into metadata
+    const existingMeta = (student as any).metadata || {};
+    const metaFields: (keyof typeof data)[] = ['phone', 'email', 'address', 'notes', 'churchToolId'];
+    const hasMetaUpdate = metaFields.some(f => data[f] !== undefined);
+    if (hasMetaUpdate) {
+      const newMeta: Record<string, string> = { ...existingMeta };
+      for (const f of metaFields) {
+        if (data[f] !== undefined) {
+          if (data[f]) newMeta[f as string] = data[f];
+          else delete newMeta[f as string];
+          delete data[f];
+        }
+      }
+      data.metadata = newMeta;
+    }
+
+    const updated = await this.prisma.student.update({
+      where: { id: student.id },
+      data,
+      include: {
+        level: true,
+        group: true,
+      },
+    });
+
+    await this.audit.log({
+      schoolId,
+      action: 'UPDATE',
+      entityType: 'student',
+      entityId: student.id,
+      oldValues: { firstName: student.firstName, lastName: student.lastName, levelId: student.levelId, groupId: student.groupId, status: student.status },
+      newValues: { firstName: updated.firstName, lastName: updated.lastName, levelId: updated.levelId, groupId: updated.groupId, status: updated.status },
+    });
+
+    return updated;
+  }
+
+  async remove(id: string, schoolIdentifier: string) {
+    const schoolId = await this.schoolResolver.resolve(schoolIdentifier);
+    const student = await this.findOne(id, schoolId);
+
+    await this.prisma.student.update({
+      where: { id: student.id },
+      data: { deletedAt: new Date() },
+    });
+
+    await this.audit.log({
+      schoolId,
+      action: 'DELETE',
+      entityType: 'student',
+      entityId: student.id,
+      oldValues: { firstName: student.firstName, lastName: student.lastName, studentCode: student.studentCode },
+    });
+
+    return { success: true };
+  }
+
+  async getAttendanceHistory(studentId: string, schoolIdentifier: string) {
+    const schoolId = await this.schoolResolver.resolve(schoolIdentifier);
+    await this.findOne(studentId, schoolId);
+
+    const records = await this.prisma.attendanceRecord.findMany({
+      where: {
+        studentId,
+        attendanceSession: { schoolId },
+      },
+      include: {
+        attendanceSession: {
+          include: {
+            level: { select: { name: true, number: true } },
+          },
+        },
+      },
+      orderBy: { recordedAt: 'desc' },
+    });
+
+    return records;
+  }
+
+  async getProgress(studentId: string, schoolIdentifier: string) {
+    const schoolId = await this.schoolResolver.resolve(schoolIdentifier);
+    await this.findOne(studentId, schoolId);
+
+    const progress = await this.prisma.studentProgress.findMany({
+      where: { studentId },
+      include: {
+        level: true,
+        academicYear: true,
+      },
+    });
+
+    return progress;
+  }
+
+  async bulkCreate(dto: BulkImportStudentDto, schoolIdentifier: string) {
+    const schoolId = await this.schoolResolver.resolve(schoolIdentifier);
+    let currentYear = await this.prisma.academicYear.findFirst({
+      where: { schoolId, isCurrent: true },
+    });
+    if (!currentYear) {
+      currentYear = await this.prisma.academicYear.findFirst({
+        where: { schoolId },
+        orderBy: { createdAt: 'desc' },
+      });
+    }
+    if (!currentYear) throw new NotFoundException('No academic year found. Create one in Settings > Calendar first.');
+
+    const levels = await this.prisma.level.findMany({ where: { schoolId, deletedAt: null } });
+    const groups = await this.prisma.group.findMany({
+      where: { levelId: { in: levels.map(l => l.id) }, deletedAt: null },
+    });
+    const levelMap = new Map<string, string>();
+    const groupMap = new Map<string, string>();
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    for (const l of levels) { levelMap.set(l.id, l.id); levelMap.set(l.name.toLowerCase(), l.id); }
+    for (const g of groups) { groupMap.set(g.id, g.id); groupMap.set(g.name.toLowerCase(), g.id); }
+
+    const count = await this.prisma.student.count({ where: { schoolId } });
+    const errors: { row: number; message: string }[] = [];
+
+    const studentData = dto.students.map((s, i) => {
+      const rowNum = i + 2;
+
+      const resolvedLevelId = levelMap.get(s.levelId.trim().toLowerCase()) || levelMap.get(s.levelId.trim());
+      if (!resolvedLevelId) errors.push({ row: rowNum, message: `Level "${s.levelId}" not found` });
+      const resolvedGroupId = groupMap.get(s.groupId.trim().toLowerCase()) || groupMap.get(s.groupId.trim());
+      if (!resolvedGroupId) errors.push({ row: rowNum, message: `Group "${s.groupId}" not found` });
+
+      let dob: Date;
+      const rawDate = s.dateOfBirth.trim();
+      if (/^\d{4}-\d{2}-\d{2}/.test(rawDate)) {
+        dob = new Date(rawDate);
+      } else if (/^\d{2}\/\d{2}\/\d{4}$/.test(rawDate)) {
+        const [d, m, y] = rawDate.split('/');
+        dob = new Date(`${y}-${m}-${d}`);
+      } else if (/^\d{2}\.\d{2}\.\d{4}$/.test(rawDate)) {
+        const [d, m, y] = rawDate.split('.');
+        dob = new Date(`${y}-${m}-${d}`);
+      } else {
+        dob = new Date(rawDate);
+      }
+      if (isNaN(dob.getTime())) errors.push({ row: rowNum, message: `Invalid date "${s.dateOfBirth}"` });
+
+      const metadata: Record<string, string> = {};
+      if (s.phone) metadata.phone = s.phone.replace(/[^+\d]/g, '');
+      if (s.email) metadata.email = s.email;
+      if (s.address) metadata.address = s.address;
+      if (s.notes) metadata.notes = s.notes;
+      if (s.churchToolId) metadata.churchToolId = s.churchToolId;
+
+      return {
+        firstName: s.firstName,
+        lastName: s.lastName,
+        firstNameAr: s.firstNameAr,
+        lastNameAr: s.lastNameAr,
+        dateOfBirth: dob,
+        gender: s.gender,
+        churchName: s.churchName,
+        schoolGrade: s.schoolGrade,
+        levelId: resolvedLevelId || '',
+        groupId: resolvedGroupId || '',
+        schoolId,
+        studentCode: `STU-${String(count + i + 1).padStart(5, '0')}`,
+        academicYearId: currentYear.id,
+        status: 'active',
+        enrollmentDate: new Date(),
+        metadata: Object.keys(metadata).length > 0 ? metadata : undefined,
+      };
+    });
+
+    if (errors.length > 0) {
+      throw new BadRequestException(
+        `Import failed:\n${errors.map(e => `Row ${e.row}: ${e.message}`).join('\n')}`
+      );
+    }
+
+    const results = await this.prisma.$transaction(
+      studentData.map(data =>
+        this.prisma.student.create({
+          data,
+          include: { level: true, group: true },
+        })
+      )
+    );
+
+    await this.audit.log({
+      schoolId,
+      action: 'BULK_CREATE',
+      entityType: 'student',
+      newValues: { count: results.length },
+    });
+
+    return { imported: results.length, students: results };
+  }
+
+  async bulkUpdate(ids: string[], data: Partial<UpdateStudentDto>, schoolIdentifier: string) {
+    const schoolId = await this.schoolResolver.resolve(schoolIdentifier);
+    if (!Array.isArray(ids) || ids.length === 0) throw new BadRequestException('ids are required');
+
+    const allowed = ['status', 'levelId', 'groupId', 'schoolGrade'] as const;
+    const updateData: any = {};
+    for (const key of allowed) {
+      if (data?.[key] !== undefined) updateData[key] = data[key];
+    }
+    if (Object.keys(updateData).length === 0) throw new BadRequestException('No supported fields to update');
+
+    const result = await this.prisma.student.updateMany({
+      where: { id: { in: ids }, schoolId, deletedAt: null },
+      data: updateData,
+    });
+
+    await this.audit.log({
+      schoolId,
+      action: 'BULK_UPDATE',
+      entityType: 'student',
+      newValues: { ids, data: updateData, count: result.count },
+    });
+
+    return { updated: result.count };
+  }
+
+  async bulkDelete(ids: string[], schoolIdentifier: string) {
+    const schoolId = await this.schoolResolver.resolve(schoolIdentifier);
+    if (!Array.isArray(ids) || ids.length === 0) throw new BadRequestException('ids are required');
+
+    const result = await this.prisma.student.updateMany({
+      where: { id: { in: ids }, schoolId, deletedAt: null },
+      data: { deletedAt: new Date() },
+    });
+
+    await this.audit.log({
+      schoolId,
+      action: 'BULK_DELETE',
+      entityType: 'student',
+      oldValues: { ids, count: result.count },
+    });
+
+    return { deleted: result.count };
+  }
+
+  async getLevels(schoolIdentifier: string) {
+    const schoolId = await this.schoolResolver.resolve(schoolIdentifier);
+    return this.prisma.level.findMany({
+      where: { schoolId, deletedAt: null },
+      select: { id: true, name: true, number: true },
+      orderBy: { number: 'asc' },
+    });
+  }
+
+  async getGroups(schoolIdentifier: string) {
+    const schoolId = await this.schoolResolver.resolve(schoolIdentifier);
+    const levels = await this.prisma.level.findMany({
+      where: { schoolId, deletedAt: null },
+      select: {
+        id: true,
+        name: true,
+        number: true,
+        status: true,
+        groups: {
+          where: { deletedAt: null },
+          select: { id: true, name: true, nameAr: true, description: true, levelId: true, orderIndex: true, status: true },
+          orderBy: { orderIndex: 'asc' },
+        },
+      },
+      orderBy: { number: 'asc' },
+    });
+    return levels;
+  }
+
+  async createGroup(schoolIdentifier: string, data: { name: string; nameAr?: string; description?: string }) {
+    const schoolId = await this.schoolResolver.resolve(schoolIdentifier);
+    const level = await this.prisma.level.findFirst({
+      where: { schoolId, deletedAt: null },
+      orderBy: { number: 'asc' },
+      select: { id: true },
+    });
+    if (!level) throw new Error('No level found. Create a level first.');
+    const existing = await this.prisma.group.findFirst({
+      where: { levelId: level.id, name: data.name, deletedAt: null },
+    });
+    if (existing) throw new BadRequestException(`Group "${data.name}" already exists in this level`);
+    const maxOrder = await this.prisma.group.findFirst({
+      where: { levelId: level.id },
+      orderBy: { orderIndex: 'desc' },
+      select: { orderIndex: true },
+    });
+    return this.prisma.group.create({
+      data: {
+        levelId: level.id,
+        name: data.name,
+        nameAr: data.nameAr || null,
+        description: data.description || null,
+        orderIndex: maxOrder ? maxOrder.orderIndex + 1 : 1,
+        status: 'active',
+      },
+    });
+  }
+
+  async updateGroup(id: string, data: { name?: string; nameAr?: string; description?: string; status?: string }) {
+    if (data.name !== undefined) {
+      const group = await this.prisma.group.findUnique({ where: { id }, select: { levelId: true } });
+      if (group) {
+        const existing = await this.prisma.group.findFirst({
+          where: { levelId: group.levelId, name: data.name, deletedAt: null, id: { not: id } },
+        });
+        if (existing) throw new BadRequestException(`Group "${data.name}" already exists in this level`);
+      }
+    }
+    return this.prisma.group.update({
+      where: { id },
+      data: {
+        ...(data.name !== undefined && { name: data.name }),
+        ...(data.nameAr !== undefined && { nameAr: data.nameAr }),
+        ...(data.description !== undefined && { description: data.description }),
+        ...(data.status !== undefined && { status: data.status }),
+      },
+    });
+  }
+
+  async deleteGroup(id: string) {
+    await this.prisma.group.update({
+      where: { id },
+      data: { deletedAt: new Date() },
+    });
+    return { success: true };
+  }
+
+  async deleteAllGroups(schoolIdentifier: string) {
+    const schoolId = await this.schoolResolver.resolve(schoolIdentifier);
+    const levels = await this.prisma.level.findMany({
+      where: { schoolId, deletedAt: null },
+      select: { id: true },
+    });
+    const levelIds = levels.map(l => l.id);
+    if (levelIds.length === 0) return { deletedCount: 0 };
+    const { count } = await this.prisma.group.updateMany({
+      where: {
+        levelId: { in: levelIds },
+        deletedAt: null,
+      },
+      data: { deletedAt: new Date() },
+    });
+    return { deletedCount: count };
+  }
+
+  async getStats(schoolIdentifier: string) {
+    const schoolId = await this.schoolResolver.resolve(schoolIdentifier);
+    const where = { deletedAt: null } as any;
+
+    const [total, active, inactive, graduated, male, female] = await Promise.all([
+      this.prisma.student.count({ where: { ...where, schoolId } }),
+      this.prisma.student.count({ where: { ...where, schoolId, status: 'active' } }),
+      this.prisma.student.count({ where: { ...where, schoolId, status: 'inactive' } }),
+      this.prisma.student.count({ where: { ...where, schoolId, status: 'graduated' } }),
+      this.prisma.student.count({ where: { ...where, schoolId, gender: 'male' } }),
+      this.prisma.student.count({ where: { ...where, schoolId, gender: 'female' } }),
+    ]);
+
+    const gradeGroups = await this.prisma.student.groupBy({
+      by: ['schoolGrade'],
+      where: { ...where, schoolId, schoolGrade: { not: null } },
+      _count: { id: true },
+      orderBy: { schoolGrade: 'asc' },
+    });
+
+    const studentsWithoutGrade = await this.prisma.student.count({
+      where: { ...where, schoolId, schoolGrade: null },
+    });
+
+    return { total, active, inactive, graduated, male, female, studentsWithoutGrade, gradeDistribution: gradeGroups.map(g => ({ grade: g.schoolGrade!, count: g._count.id })) };
+  }
+
+  private async generateStudentCode(schoolId: string): Promise<string> {
+    const count = await this.prisma.student.count({
+      where: { schoolId },
+    });
+
+    const code = `STU-${String(count + 1).padStart(5, '0')}`;
+
+    // Check if code already exists
+    const exists = await this.prisma.student.findFirst({
+      where: { schoolId, studentCode: code },
+    });
+
+    if (exists) {
+      // Try next number
+      return this.generateStudentCode(schoolId);
+    }
+
+    return code;
+  }
+}
