@@ -1,5 +1,4 @@
-# Render Blueprint — NiAngelos backend (NestJS + Postgres)
-# Repo root is the monorepo; the API lives in ./backend.
+# Render Blueprint — COHEP (NestJS backend + Next.js frontend + Postgres)
 
 databases:
   - name: niangelos-db
@@ -9,6 +8,7 @@ databases:
     postgresMajorVersion: 15
 
 services:
+  # ── Backend API (NestJS) ─────────────────────────────────────────────────
   - type: web
     name: niangelos-backend
     runtime: node
@@ -16,8 +16,6 @@ services:
     plan: free
     region: oregon
     buildCommand: mkdir -p uploads && npm install && npm run build
-    # Free tier has no pre-deploy hook, so run migrations + seed on every start
-    # (idempotent: migrate applies only new migrations, seed upserts roles/admin).
     startCommand: npx prisma migrate deploy && npm run seed && npm run start:prod
     healthCheckPath: /health
     envVars:
@@ -30,5 +28,23 @@ services:
       - key: JWT_SECRET
         generateValue: true
       - key: FRONTEND_URL
-        value: https://cohe-eight.vercel.app
-      # Render injects PORT automatically; main.ts listens on process.env.PORT.
+        value: https://niangelos-frontend.onrender.com
+
+  # ── Frontend (Next.js SSR) ───────────────────────────────────────────────
+  - type: web
+    name: niangelos-frontend
+    runtime: node
+    rootDir: frontend
+    plan: free
+    region: oregon
+    buildCommand: npm install && npm run build
+    startCommand: npm run start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NEXT_PUBLIC_API_URL
+        value: https://niangelos-backend.onrender.com/api
+      - key: NEXT_PUBLIC_UPLOADS_URL
+        value: https://niangelos-backend.onrender.com
+      - key: PORT
+        value: 3000
