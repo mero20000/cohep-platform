@@ -33,6 +33,7 @@ export function useAuth() {
   const login = useCallback(async (email: string, password: string, schoolIdentifier?: string) => {
     localStorage.removeItem('niangelos_active_school')
     localStorage.removeItem('user')
+    localStorage.removeItem('niangelos_token')
     const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'
     const body: Record<string, string> = { email, password }
     if (schoolIdentifier) {
@@ -49,6 +50,9 @@ export function useAuth() {
       throw new Error(err.message || 'Login failed')
     }
     const data = await res.json()
+    if (data.accessToken) {
+      localStorage.setItem('niangelos_token', data.accessToken)
+    }
     localStorage.setItem('user', JSON.stringify(data.user))
     setUser(data.user)
     return data
@@ -58,6 +62,7 @@ export function useAuth() {
     const baseUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api'
     void fetch(baseUrl + '/auth/logout', { method: 'POST', credentials: 'include' }).catch(() => {})
     localStorage.removeItem('user')
+    localStorage.removeItem('niangelos_token')
     localStorage.removeItem('niangelos_active_school')
     setUser(null)
     router.push('/auth/login')

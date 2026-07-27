@@ -63,8 +63,7 @@ export class AuthController {
   async login(@Body() loginDto: LoginDto, @Res({ passthrough: true }) res: Response) {
     const result = await this.authService.login(loginDto);
     this.setAuthCookies(res, result);
-    const { accessToken, refreshToken, ...body } = result;
-    return body;
+    return result;
   }
 
   @Post('refresh')
@@ -77,7 +76,7 @@ export class AuthController {
     const refreshToken = refreshTokenDto?.refreshToken || req.cookies?.refreshToken || this.readCookie(req.headers?.cookie, 'refreshToken');
     const result = await this.authService.refreshToken(refreshToken);
     this.setAuthCookies(res, result);
-    return { success: true };
+    return result;
   }
 
   @Post('logout')
