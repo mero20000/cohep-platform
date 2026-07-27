@@ -2,7 +2,6 @@
 
 import Link from 'next/link'
 import { useState, useRef, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { useAuth } from '@/hooks/use-auth'
 import {
@@ -21,7 +20,6 @@ const features = [
 ]
 
 export default function LoginPage() {
-  const router = useRouter()
   const { login } = useAuth()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -78,7 +76,7 @@ export default function LoginPage() {
       await login(email, password, schoolId || undefined)
       setShowSuccess(true)
       await new Promise((r) => setTimeout(r, 800))
-      router.push('/dashboard')
+      window.location.href = '/dashboard'
     } catch (err: any) {
       const msg = err?.message || ''
       if (msg.includes('429') || msg.includes('Too Many Requests') || msg.includes('ThrottlerException')) {
