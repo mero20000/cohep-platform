@@ -7,7 +7,7 @@ import { FormField } from '@/components/ui/form-field'
 import { http } from '@/lib/http-client'
 import { useLanguage } from '@/lib/use-language'
 
-const API_ORIGIN = 'http://localhost:3001'
+const API_ORIGIN = process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'http://localhost:3001'
 
 interface ProfileFields {
   firstName: string; lastName: string; firstNameAr?: string; lastNameAr?: string;
