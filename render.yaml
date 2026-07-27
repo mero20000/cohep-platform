@@ -15,8 +15,8 @@ services:
     rootDir: backend
     plan: free
     region: oregon
-    buildCommand: mkdir -p uploads && npm install && npm run build
-    startCommand: npx prisma migrate deploy && (npm run seed || echo "Seed skipped") && npm run start:prod
+    buildCommand: mkdir -p uploads && npm install && npm run build && npx prisma migrate deploy && npm run seed
+    startCommand: npm run start:prod
     healthCheckPath: /health
     envVars:
       - key: NODE_ENV
