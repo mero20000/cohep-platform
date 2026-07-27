@@ -25,6 +25,7 @@ export default function LoginPage() {
   const { login } = useAuth()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [schoolId, setSchoolId] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -74,7 +75,7 @@ export default function LoginPage() {
     }
 
     try {
-      await login(email, password)
+      await login(email, password, schoolId || undefined)
       setShowSuccess(true)
       await new Promise((r) => setTimeout(r, 800))
       router.push('/dashboard')
@@ -284,6 +285,21 @@ export default function LoginPage() {
                   At least 6 characters
                 </p>
               )}
+            </div>
+
+            <div>
+              <label htmlFor="schoolId" className="block text-sm font-semibold text-gray-700 mb-1.5">
+                School ID <span className="text-gray-400 font-normal">(optional — leave blank for super admin)</span>
+              </label>
+              <input
+                id="schoolId"
+                type="text"
+                value={schoolId}
+                onChange={(e) => setSchoolId(e.target.value)}
+                autoComplete="off"
+                className="block w-full rounded-lg border border-gray-200 bg-white px-4 py-3 min-h-[48px] text-sm shadow-sm placeholder:text-gray-400 focus:border-gold-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all"
+                placeholder="e.g. niangelos-main"
+              />
             </div>
 
             <div className="flex items-center justify-between min-h-[44px]">

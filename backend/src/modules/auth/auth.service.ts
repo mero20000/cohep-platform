@@ -127,23 +127,26 @@ export class AuthService {
   async login(loginDto: LoginDto) {
     const { email, password, schoolIdentifier } = loginDto;
 
-    const schoolId = await this.resolveSchool(schoolIdentifier);
+    let user;
 
-    // Find user
-    const user = await this.prisma.user.findFirst({
-      where: {
-        email,
-        schoolId,
-        deletedAt: null,
-      },
-      include: {
-        userRoles: {
-          include: {
-            role: true,
-          },
-        },
-      },
-    });
+    if (schoolIdentifier) {
+      const schoolId = await this.resolveSchool(schoolIdentifier);
+      user = await this.prisma.user.findFirst({
+        where: { email, schoolId, deletedAt: null },
+        include: { userRoles: { include: { role: true } } },
+      });
+    } else {
+      user = await this.prisma.user.findFirst({
+        where: { email, deletedAt: null },
+        include: { userRoles: { include: { role: true } } },
+      });
+      if (user) {
+        const isSuperAdmin = user.userRoles.some((ur) => ur.role.name === 'super_admin');
+        if (!isSuperAdmin) {
+          throw new BadRequestException('School identifier is required for this account');
+        }
+      }
+    }
 
     if (!user) {
       throw new UnauthorizedException('Invalid credentials');
@@ -153,24 +156,20 @@ export class AuthService {
       throw new UnauthorizedException('Account is deactivated');
     }
 
-    // Verify password
     const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
 
     if (!isPasswordValid) {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    // Update last login
     await this.prisma.user.update({
       where: { id: user.id },
       data: { lastLoginAt: new Date() },
     });
 
-    // Generate tokens
     const tokens = await this.generateTokens(user.id, email, user.schoolId);
     await this.storeRefreshToken(user.id, tokens.refreshToken);
 
-    // Get roles
     const roles = user.userRoles.map((ur) => ur.role.name);
 
     return {

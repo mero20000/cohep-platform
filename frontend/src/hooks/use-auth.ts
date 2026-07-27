@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { getBaseSchoolId } from '@/lib/school'
 
 export interface AuthUser {
   id: string
@@ -31,14 +30,18 @@ export function useAuth() {
     setLoading(false)
   }, [])
 
-  const login = useCallback(async (email: string, password: string, schoolIdentifier = getBaseSchoolId()) => {
+  const login = useCallback(async (email: string, password: string, schoolIdentifier?: string) => {
     localStorage.removeItem('niangelos_active_school')
     const baseUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api'
+    const body: Record<string, string> = { email, password }
+    if (schoolIdentifier) {
+      body.schoolIdentifier = schoolIdentifier
+    }
     const res = await fetch(baseUrl + '/auth/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
-      body: JSON.stringify({ email, password, schoolIdentifier }),
+      body: JSON.stringify(body),
     })
     if (!res.ok) {
       const err = await res.json().catch(() => ({ message: 'Login failed' }))
