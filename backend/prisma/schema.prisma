@@ -278,6 +278,8 @@ model Student {
   achievements          Achievement[]
   certificates          Certificate[]
   xpTransactions        XPTransaction[]
+  familyPractices       FamilyPractice[]
+  familyLiturgies       FamilyLiturgy[]
 
   @@unique([schoolId, studentCode])
   @@index([schoolId])
@@ -526,6 +528,7 @@ model Lesson {
   assessments           Assessment[]
   lessonProgress        LessonProgress[]
   curriculumAllocations CurriculumAllocation[]
+  familyPractices       FamilyPractice[]
 
   @@index([schoolId, levelId, subjectId])
   @@map("lessons")
@@ -1060,6 +1063,43 @@ model Event {
 
   @@index([schoolId, startDatetime])
   @@map("events")
+}
+
+// ============================================
+// FAMILY FEATURES (WOW)
+// ============================================
+
+model FamilyPractice {
+  id              String   @id @default(uuid())
+  studentId       String   @map("student_id")
+  lessonId        String   @map("lesson_id")
+  practicedAt     DateTime @default(now()) @map("practiced_at")
+  durationMinutes Int?     @map("duration_minutes")
+  source          String   @default("parent")
+
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  lesson  Lesson  @relation(fields: [lessonId], references: [id])
+
+  @@index([studentId, practicedAt])
+  @@map("family_practices")
+}
+
+model FamilyLiturgy {
+  id         String    @id @default(uuid())
+  studentId  String    @map("student_id")
+  date       DateTime  @map("date")
+  notedBy    String    @map("noted_by")
+  verifiedBy String?   @map("verified_by")
+  verifiedAt DateTime? @map("verified_at")
+  status     String    @default("pending")
+  notes      String?
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, date])
+  @@index([studentId, status])
+  @@map("family_liturgies")
 }
 
 // ============================================

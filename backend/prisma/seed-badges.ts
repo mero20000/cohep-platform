@@ -4,6 +4,16 @@ const prisma = new PrismaClient();
 
 const BADGES = [
   {
+    name: 'Faithful Worshipper',
+    nameAr: 'المُصَلّي الأمين',
+    description: 'Attended 10 liturgy sessions verified by servants',
+    descriptionAr: 'حضر 10 قداسات معتمدة من الخدام',
+    iconUrl: '⛪',
+    category: 'liturgy',
+    xpReward: 200,
+    criteria: { rule: 'liturgy_total', count: 10 },
+  },
+  {
     name: 'Perfect Week',
     nameAr: 'أسبوع كامل',
     description: 'Attend all sessions in a calendar week without absence',

@@ -168,10 +168,16 @@ export class GamificationService {
     });
     if (existing) throw new BadRequestException('Badge already awarded to this student');
 
-    return this.prisma.studentBadge.create({
+    const result = await this.prisma.studentBadge.create({
       data: { studentId, badgeId },
       include: { badge: true, student: { select: { id: true, firstName: true, lastName: true } } },
     });
+
+    if (badge.xpReward > 0) {
+      await this.addXp(studentId, badge.xpReward, 'badge_award', `Badge: ${badge.name}`);
+    }
+
+    return result;
   }
 
   async revokeBadge(studentBadgeId: string) {

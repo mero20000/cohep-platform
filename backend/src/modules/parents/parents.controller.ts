@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Delete, Param, Body, Req, UseGuards, HttpCode } from '@nestjs/common';
+import { Controller, Get, Post, Delete, Param, Body, Req, UseGuards, HttpCode, Query } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiParam } from '@nestjs/swagger';
 import { ParentsService } from './parents.service';
 import { LinkChildDto } from './dto/link-child.dto';
@@ -64,5 +64,79 @@ export class ParentsController {
   @ApiOperation({ summary: 'Get progress tracking for a specific child' })
   async getChildProgress(@Param('id') id: string, @Req() req: any) {
     return this.parentsService.getChildProgress(id, req.user.id);
+  }
+
+  @Get('me/children/:id/home')
+  @Roles('parent', 'admin')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get the full student home screen data — XP, streak, badges, journey, challenges' })
+  async getChildHome(@Param('id') id: string, @Req() req: any) {
+    return this.parentsService.getChildHome(id, req.user.id);
+  }
+
+  @Get('me/children/:id/current-lesson')
+  @Roles('parent', 'admin')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get the current lesson for practice together' })
+  async getCurrentLesson(@Param('id') id: string, @Req() req: any) {
+    return this.parentsService.getCurrentLesson(id, req.user.id);
+  }
+
+  @Post('me/children/:id/practice')
+  @Roles('parent', 'admin')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Log a practice session and award XP' })
+  async logPractice(@Param('id') id: string, @Body('lessonId') lessonId: string, @Req() req: any) {
+    return this.parentsService.logPractice(id, lessonId, req.user.id);
+  }
+
+  @Get('me/children/:id/practice-summary')
+  @Roles('parent', 'admin')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get practice summary for the week' })
+  async getPracticeSummary(@Param('id') id: string, @Req() req: any) {
+    return this.parentsService.getPracticeSummary(id, req.user.id);
+  }
+
+  @Post('me/children/:id/liturgy')
+  @Roles('parent', 'admin')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Log a liturgy attendance' })
+  async logLiturgy(
+    @Param('id') id: string,
+    @Body('date') date: string,
+    @Body('notes') notes: string | undefined,
+    @Req() req: any,
+  ) {
+    return this.parentsService.logLiturgy(id, date, notes, req.user.id);
+  }
+
+  @Get('me/children/:id/liturgy')
+  @Roles('parent', 'admin')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get liturgy records for a child' })
+  async getLiturgyRecords(@Param('id') id: string, @Req() req: any) {
+    return this.parentsService.getLiturgyRecords(id, req.user.id);
+  }
+
+  @Get('me/children/:id/milestones')
+  @Roles('parent', 'admin')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get spiritual milestones for a child' })
+  async getMilestones(@Param('id') id: string, @Req() req: any) {
+    return this.parentsService.getMilestones(id, req.user.id);
+  }
+
+  @Get('me/children/:id/term-report')
+  @Roles('parent', 'admin')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get term report summary' })
+  async getTermReport(
+    @Param('id') id: string,
+    @Query('term') term: string,
+    @Query('academicYearId') academicYearId: string | undefined,
+    @Req() req: any,
+  ) {
+    return this.parentsService.getTermReport(id, parseInt(term) || 1, academicYearId, req.user.id);
   }
 }

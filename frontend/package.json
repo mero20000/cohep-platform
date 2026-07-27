@@ -23,6 +23,7 @@
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.0",
     "framer-motion": "^12.42.2",
+    "html2pdf.js": "^0.14.0",
     "jquery": "^4.0.0",
     "jspdf": "^4.2.1",
     "jspdf-autotable": "^5.0.8",

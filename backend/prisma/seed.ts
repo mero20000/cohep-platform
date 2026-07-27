@@ -351,6 +351,22 @@ async function main() {
     console.log('Lessons already exist:', lessonsCount);
   }
 
+  // ── System Configs ──────────────────────────────────────────────────────
+  const configs = [
+    { key: 'practice_xp_reward', value: 20, description: 'XP earned per practice session' },
+    { key: 'practice_weekly_limit', value: 3, description: 'Max practice sessions per week per child' },
+    { key: 'liturgy_badge_threshold', value: 10, description: 'Verified liturgies needed for Faithful Worshipper badge' },
+    { key: 'liturgy_xp_reward', value: 30, description: 'XP earned per verified liturgy attendance' },
+  ];
+  for (const cfg of configs) {
+    await prisma.systemConfig.upsert({
+      where: { schoolId_key: { schoolId: school.id, key: cfg.key } },
+      update: { value: cfg.value },
+      create: { schoolId: school.id, key: cfg.key, value: cfg.value, description: cfg.description },
+    });
+  }
+  console.log('System configs ready');
+
   console.log('');
   console.log('─────────────────────────────────────────');
   console.log('Login credentials:');

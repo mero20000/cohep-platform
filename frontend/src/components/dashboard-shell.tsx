@@ -6,7 +6,7 @@ import { useLanguage } from '@/lib/use-language'
 import {
   LayoutDashboard, Users, BookOpen, Calendar, ClipboardCheck,
   Trophy, Settings, UserCheck, Baby, ClipboardList, Megaphone,
-  Crown, Shield, GraduationCap, Layers, Heart,
+  Crown, Shield, GraduationCap, Layers, Heart, Church,
 } from 'lucide-react'
 import { HelpButton } from './help-button'
 import { useDashboardHotkeys } from '@/hooks/use-hotkeys'
@@ -39,6 +39,7 @@ const navigation = [
 ]
 
 const secondaryNav = [
+  { name: 'Liturgy Verification', nameAr: 'التحقق من القداسات', href: '/dashboard/liturgy', icon: Church },
   { name: 'Settings', nameAr: 'الإعدادات', href: '/dashboard/settings', icon: Settings },
 ]
 

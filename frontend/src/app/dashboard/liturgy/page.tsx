@@ -1,0 +1,104 @@
+'use client'
+
+import { useState, useEffect, useCallback } from 'react'
+import { http } from '@/lib/http-client'
+import { useLanguage } from '@/lib/use-language'
+import { Church, CheckCircle, XCircle, Loader2 } from 'lucide-react'
+
+interface PendingLiturgy {
+  id: string
+  student: { id: string; firstName: string; lastName: string; firstNameAr: string; lastNameAr: string }
+  parent: { id: string; firstName: string; lastName: string } | null
+  date: string
+  notes: string | null
+  createdAt: string
+}
+
+export default function LiturgyVerificationPage() {
+  const language = useLanguage()
+  const t = (en: string, ar: string) => language === 'ar' ? ar : en
+  const [records, setRecords] = useState<PendingLiturgy[]>([])
+  const [loading, setLoading] = useState(true)
+  const [actionFeedback, setActionFeedback] = useState<string | null>(null)
+
+  const fetchPending = useCallback(async () => {
+    try {
+      const res = await http.get('/servants/liturgy-pending') as PendingLiturgy[]
+      setRecords(res || [])
+    } catch { /* ignore */ }
+    setLoading(false)
+  }, [])
+
+  useEffect(() => { fetchPending() }, [fetchPending])
+
+  const handleVerify = async (id: string) => {
+    try {
+      const res = await http.patch(`/servants/liturgy/${id}/verify`) as { badgeAwarded: boolean }
+      setRecords(prev => prev.filter(r => r.id !== id))
+      const msg = res.badgeAwarded
+        ? t('Verified! +30 XP & Faithful Worshipper badge awarded!', 'تم التحقق! +30 XP وتم منح شارة المُصَلّي الأمين!')
+        : t('Verified! +30 XP', 'تم التحقق! +30 XP')
+      setActionFeedback(msg)
+      setTimeout(() => setActionFeedback(null), 3000)
+    } catch {
+      setActionFeedback(t('Error verifying', 'خطأ في التحقق'))
+    }
+  }
+
+  const handleReject = async (id: string) => {
+    try {
+      await http.delete(`/servants/liturgy/${id}`)
+      setRecords(prev => prev.filter(r => r.id !== id))
+      setActionFeedback(t('Rejected', 'تم الرفض'))
+      setTimeout(() => setActionFeedback(null), 3000)
+    } catch {
+      setActionFeedback(t('Error rejecting', 'خطأ في الرفض'))
+    }
+  }
+
+  return (
+    <div className="p-6 max-w-4xl mx-auto">
+      <div className="flex items-center gap-3 mb-6">
+        <Church className="w-6 h-6 text-amber-700" />
+        <h1 className="text-2xl font-bold text-gray-900">{t('Liturgy Verification', 'التحقق من القداسات')}</h1>
+      </div>
+
+      {actionFeedback && (
+        <div className="mb-4 p-3 bg-green-50 text-green-700 rounded-lg text-sm font-medium animate-pulse">{actionFeedback}</div>
+      )}
+
+      {loading ? (
+        <div className="flex justify-center py-12"><Loader2 className="w-8 h-8 animate-spin text-gray-400" /></div>
+      ) : records.length === 0 ? (
+        <div className="text-center py-12 text-gray-500">{t('No pending liturgy verifications', 'لا توجد طلبات تحقق معلقة')}</div>
+      ) : (
+        <div className="space-y-3">
+          {records.map(r => (
+            <div key={r.id} className="flex items-center justify-between p-4 bg-white rounded-xl border border-gray-200">
+              <div>
+                <p className="font-medium text-gray-900">
+                  {language === 'ar' ? `${r.student.firstNameAr} ${r.student.lastNameAr}` : `${r.student.firstName} ${r.student.lastName}`}
+                </p>
+                <p className="text-xs text-gray-500 mt-1">
+                  {t('Reported by', 'تم الإبلاغ بواسطة')}: {r.parent ? `${r.parent.firstName} ${r.parent.lastName}` : '-'}
+                </p>
+                <p className="text-xs text-gray-500">
+                  {new Date(r.date).toLocaleDateString()}
+                  {r.notes && ` · ${r.notes}`}
+                </p>
+              </div>
+              <div className="flex gap-2">
+                <button onClick={() => handleVerify(r.id)} className="p-2 rounded-lg bg-green-50 text-green-600 hover:bg-green-100 transition-colors" title={t('Verify', 'تحقق')}>
+                  <CheckCircle className="w-5 h-5" />
+                </button>
+                <button onClick={() => handleReject(r.id)} className="p-2 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-colors" title={t('Reject', 'رفض')}>
+                  <XCircle className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}

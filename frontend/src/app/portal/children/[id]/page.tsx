@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
@@ -9,9 +9,10 @@ import { useLanguage } from '@/lib/use-language'
 import {
   Calendar, ClipboardCheck, TrendingUp, Loader2, ArrowLeft, User,
   CheckCircle2, Clock, XCircle, AlertCircle, Award, FileText,
-  Star, Crown, Cross
+  Star, Crown, Cross, Music, CheckCircle, Church, Plus, Sprout
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { TermReportModal } from '@/components/term-report-modal'
 
 const API_ORIGIN = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api').replace('/api', '')
 
@@ -42,6 +43,247 @@ const STATUS_COLORS: Record<string, string> = {
   absent: 'bg-red-100 text-red-700', excused: 'bg-gray-100 text-gray-600',
 }
 
+function LiturgySection({ childId, language }: { childId: string; language: string }) {
+  const t = (en: string, ar: string) => language === 'ar' ? ar : en
+  const [records, setRecords] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [logging, setLogging] = useState(false)
+  const [feedback, setFeedback] = useState<string | null>(null)
+  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0])
+
+  const fetchRecords = useCallback(async () => {
+    try {
+      const res = await http.get(`/parents/me/children/${childId}/liturgy`) as any[]
+      setRecords(res || [])
+    } catch { /* ignore */ }
+    setLoading(false)
+  }, [childId])
+
+  useEffect(() => { fetchRecords() }, [fetchRecords])
+
+  const handleLogLiturgy = async () => {
+    setLogging(true)
+    try {
+      await http.post(`/parents/me/children/${childId}/liturgy`, { date: selectedDate })
+      setFeedback(t('Logged! Awaiting verification.', 'تم التسجيل! في انتظار التحقق.'))
+      fetchRecords()
+      setTimeout(() => setFeedback(null), 3000)
+    } catch (err: any) {
+      if (err.status === 409) {
+        setFeedback(t('Already logged for this date', 'تم التسجيل مسبقًا لهذا التاريخ'))
+      } else {
+        setFeedback(t('Error logging liturgy', 'حدث خطأ في التسجيل'))
+      }
+      setTimeout(() => setFeedback(null), 3000)
+    }
+    setLogging(false)
+  }
+
+  const verifiedCount = records.filter(r => r.status === 'verified').length
+  const threshold = 10
+
+  return (
+    <div className="rounded-xl border border-amber-100 bg-gradient-to-br from-amber-50 to-white p-5 mb-6">
+      <div className="flex items-center gap-2 mb-4">
+        <Church className="w-5 h-5 text-amber-700" />
+        <h3 className="font-semibold text-lg text-gray-900">{t('Liturgy Attendance', 'حضور القداسات')}</h3>
+      </div>
+
+      <div className="flex items-center gap-3 mb-4">
+        <input
+          type="date"
+          value={selectedDate}
+          onChange={e => setSelectedDate(e.target.value)}
+          max={new Date().toISOString().split('T')[0]}
+          className="px-3 py-2 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
+        />
+        <button
+          onClick={handleLogLiturgy}
+          disabled={logging}
+          className="flex items-center gap-2 px-5 py-2 rounded-lg font-medium text-sm bg-amber-600 text-white hover:bg-amber-700 active:scale-95 transition-all disabled:opacity-50"
+        >
+          {logging ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+          {t('Log Liturgy', 'تسجيل القداس')}
+        </button>
+      </div>
+
+      {feedback && (
+        <p className="text-sm font-medium text-amber-700 mb-3 animate-pulse">{feedback}</p>
+      )}
+
+      <p className="text-xs text-gray-500 mb-3">
+        {verifiedCount} {t('verified liturgies', 'قداس معتمد')}
+        {verifiedCount < threshold && ` — ${threshold - verifiedCount} ${t('more for Faithful Worshipper badge', 'متبقي لشارة المُصلّي الأمين')}`}
+      </p>
+
+      {!loading && records.length > 0 && (
+        <div className="space-y-2 max-h-48 overflow-y-auto">
+          {records.map(r => (
+            <div key={r.id} className="flex items-center justify-between p-2 bg-white rounded-lg border border-gray-100">
+              <span className="text-sm text-gray-700">{new Date(r.date).toLocaleDateString()}</span>
+              <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+                r.status === 'verified' ? 'bg-green-100 text-green-700' :
+                r.status === 'rejected' ? 'bg-red-100 text-red-700' :
+                'bg-yellow-100 text-yellow-700'
+              }`}>
+                {r.status === 'verified' ? t('Verified', 'معتمد') :
+                 r.status === 'rejected' ? t('Rejected', 'مرفوض') :
+                 t('Pending', 'قيد الانتظار')}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function MilestonesSection({ childId, language }: { childId: string; language: string }) {
+  const t = (en: string, ar: string) => language === 'ar' ? ar : en
+  const [milestones, setMilestones] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await http.get(`/parents/me/children/${childId}/milestones`) as { milestones: any[] }
+        setMilestones(res?.milestones || [])
+      } catch { /* ignore */ }
+      setLoading(false)
+    })()
+  }, [childId])
+
+  const iconMap: Record<string, string> = { book: '📖', church: '⛪', award: '🏅' }
+
+  return (
+    <div className="rounded-xl border border-purple-100 bg-gradient-to-br from-purple-50 to-white p-5 mb-6">
+      <div className="flex items-center gap-2 mb-4">
+        <Sprout className="w-5 h-5 text-purple-700" />
+        <h3 className="font-semibold text-lg text-gray-900">{t('Spiritual Milestones', 'محطات النمو الروحي')}</h3>
+      </div>
+      {loading ? (
+        <div className="flex justify-center py-4"><Loader2 className="w-5 h-5 animate-spin text-gray-400" /></div>
+      ) : milestones.length === 0 ? (
+        <p className="text-sm text-gray-500">{t('No milestones yet. Keep learning!', 'لا توجد محطات بعد. استمر في التعلم!')}</p>
+      ) : (
+        <div className="space-y-3 max-h-64 overflow-y-auto">
+          {milestones.map((m: any, i: number) => (
+            <div key={i} className="flex items-start gap-3 p-2">
+              <span className="text-lg mt-0.5">{iconMap[m.icon] || '⭐'}</span>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm text-gray-800">{language === 'ar' ? m.label.ar : m.label.en}</p>
+                <p className="text-xs text-gray-400 mt-0.5">{new Date(m.date).toLocaleDateString()}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function PracticeTogetherCard({ childId, language }: { childId: string; language: string }) {
+  const t = (en: string, ar: string) => language === 'ar' ? ar : en
+  const [lesson, setLesson] = useState<any>(null)
+  const [summary, setSummary] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+  const [practicing, setPracticing] = useState(false)
+  const [xpFeedback, setXpFeedback] = useState<string | null>(null)
+
+  const fetchData = useCallback(async () => {
+    try {
+      const [lessonRes, summaryRes] = await Promise.all([
+        http.get(`/parents/me/children/${childId}/current-lesson`),
+        http.get(`/parents/me/children/${childId}/practice-summary`),
+      ])
+      setLesson(lessonRes)
+      setSummary(summaryRes)
+    } catch { /* no current lesson */ }
+    setLoading(false)
+  }, [childId])
+
+  useEffect(() => { fetchData() }, [fetchData])
+
+  const handlePractice = async () => {
+    if (!lesson || practicing) return
+    setPracticing(true)
+    try {
+      const res = await http.post(`/parents/me/children/${childId}/practice`, { lessonId: lesson.lesson.id }) as any
+      setXpFeedback(`+${res.xpAwarded} XP`)
+      setSummary({ weeklyCount: res.weeklyCount, weeklyLimit: res.weeklyLimit, lastPracticedAt: new Date().toISOString(), totalPractices: (summary?.totalPractices || 0) + 1 })
+      setTimeout(() => setXpFeedback(null), 3000)
+    } catch (err: any) {
+      if (err.status === 429) {
+        setXpFeedback(t('Weekly limit reached!', 'تم الوصول للحد الأسبوعي!'))
+        setTimeout(() => setXpFeedback(null), 3000)
+      }
+    }
+    setPracticing(false)
+  }
+
+  if (loading) return null
+  if (!lesson) return null
+
+  const limitReached = summary && summary.weeklyCount >= summary.weeklyLimit
+
+  return (
+    <div className="rounded-xl border border-indigo-100 bg-gradient-to-br from-indigo-50 to-white p-5 mb-6">
+      <div className="flex items-center gap-2 mb-4">
+        <Music className="w-5 h-5 text-indigo-600" />
+        <h3 className="font-semibold text-lg text-gray-900">{t('Practice Together', 'تدرب معًا')}</h3>
+      </div>
+
+      <p className="text-sm text-gray-600 mb-3">
+        {t('Current Lesson:', 'الدرس الحالي:')} <span className="font-medium text-gray-900">{language === 'ar' ? (lesson.lesson.titleAr || lesson.lesson.title) : lesson.lesson.title}</span>
+      </p>
+
+      {lesson.lesson.sessions?.map((s: any) => (
+        <details key={s.id} className="mb-2 group">
+          <summary className="flex items-center gap-2 cursor-pointer text-sm font-medium text-gray-700 hover:text-indigo-600">
+            <Music className="w-4 h-4 text-indigo-400" />
+            {language === 'ar' ? (s.titleAr || s.title) : s.title}
+          </summary>
+          <div className="mt-2 ml-6 p-3 bg-white rounded-lg border border-gray-100 text-sm space-y-2">
+            {s.contentCoptic && <p className="font-coptic text-lg text-gray-800" dir="ltr">{s.contentCoptic}</p>}
+            {s.contentEn && <p className="text-gray-600">{s.contentEn}</p>}
+            {s.contentAr && <p className="text-gray-600 text-right" dir="rtl">{s.contentAr}</p>}
+            <div className="mt-2 h-12 bg-gray-50 rounded flex items-center justify-center text-xs text-gray-400">
+              {t('Audio coming soon', 'التسجيل الصوتي قريبًا')} 🎧
+            </div>
+          </div>
+        </details>
+      ))}
+
+      <div className="mt-4 flex items-center gap-3">
+        <button
+          onClick={handlePractice}
+          disabled={limitReached || practicing}
+          className={`flex items-center gap-2 px-5 py-2 rounded-lg font-medium text-sm transition-all ${
+            limitReached
+              ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+              : 'bg-indigo-600 text-white hover:bg-indigo-700 active:scale-95'
+          }`}
+        >
+          {practicing ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
+          {limitReached ? t('Weekly limit reached', 'تم الوصول للحد الأسبوعي') : t("We practiced together!", 'تدربنا معًا!')}
+        </button>
+        {xpFeedback && (
+          <span className={`text-sm font-bold animate-pulse ${xpFeedback.includes('+') ? 'text-green-600' : 'text-amber-600'}`}>
+            {xpFeedback}
+          </span>
+        )}
+      </div>
+
+      {summary && (
+        <p className="mt-2 text-xs text-gray-500">
+          {t('Practiced', 'تم التدرب')} {summary.weeklyCount}x {t('this week', 'هذا الأسبوع')}
+          {summary.weeklyLimit > 0 && ` · ${t('Limit', 'الحد الأقصى')}: ${summary.weeklyLimit}`}
+        </p>
+      )}
+    </div>
+  )
+}
+
 export default function ChildDetailPage() {
   const { id } = useParams()
   const lang = useLanguage()
@@ -59,6 +301,7 @@ export default function ChildDetailPage() {
   const [assessments, setAssessments] = useState<AssessmentResult[]>([])
   const [progress, setProgress] = useState<ProgressData | null>(null)
   const [loading, setLoading] = useState(true)
+  const [showReportModal, setShowReportModal] = useState(false)
 
   useEffect(() => {
     if (!id) return
@@ -124,6 +367,12 @@ export default function ChildDetailPage() {
               <span>{t('Code', 'الكود')}: {student.studentCode}</span>
             </div>
           </div>
+          <div className="flex items-center gap-2">
+            <button onClick={() => setShowReportModal(true)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-amber-50 text-amber-700 hover:bg-amber-100 transition-colors border border-amber-200">
+              <FileText className="w-3.5 h-3.5" />
+              {t('Term Report', 'تقرير الفصل')}
+            </button>
+          </div>
         </div>
       )}
 
@@ -163,6 +412,10 @@ export default function ChildDetailPage() {
           </div>
         </div>
       )}
+
+      <PracticeTogetherCard childId={id as string} language={lang} />
+      <LiturgySection childId={id as string} language={lang} />
+      <MilestonesSection childId={id as string} language={lang} />
 
       <nav className="flex gap-6 border-b border-gray-200">
         {tabs.map(t => {
@@ -312,12 +565,13 @@ export default function ChildDetailPage() {
                       </span>
                     </div>
                   )
-                })}
+                  })}
               </div>
             )}
           </div>
         </div>
       )}
+      <TermReportModal childId={id as string} language={lang} open={showReportModal} onClose={() => setShowReportModal(false)} />
     </div>
   )
 }
