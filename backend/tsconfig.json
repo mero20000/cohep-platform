@@ -17,6 +17,7 @@
     "strictBindCallApply": false,
     "forceConsistentCasingInFileNames": false,
     "noFallthroughCasesInSwitch": false,
+    "types": ["node", "multer", "express"],
     "paths": {
       "@/*": ["src/*"],
       "@config/*": ["src/config/*"],
@@ -25,5 +26,11 @@
     }
   },
   "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist"]
+  "exclude": [
+    "node_modules",
+    "dist",
+    "**/*.spec.ts",
+    "**/*.test.ts",
+    "test/**/*"
+  ]
 }
