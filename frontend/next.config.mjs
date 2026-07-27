@@ -8,8 +8,7 @@ function parseUploadsUrl(value) {
 }
 
 const uploadsUrl = parseUploadsUrl(process.env.NEXT_PUBLIC_UPLOADS_URL)
-const apiUrl    = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
-// Strip trailing /api if present, we add it in the rewrite destination
+const apiUrl    = process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
 const apiBase   = apiUrl.replace(/\/api\/?$/, '')
 
 /** @type {import('next').NextConfig} */
@@ -17,10 +16,7 @@ const nextConfig = {
   reactStrictMode: true,
   outputFileTracingRoot: __dirname,
 
-  // In production (Vercel) the frontend calls the backend directly via
-  // NEXT_PUBLIC_API_URL; rewrites are only used in local dev.
   async rewrites() {
-    if (process.env.NODE_ENV === 'production') return []
     return [
       { source: '/api/:path*',     destination: `${apiBase}/api/:path*` },
       { source: '/uploads/:path*', destination: `${apiBase}/uploads/:path*` },
