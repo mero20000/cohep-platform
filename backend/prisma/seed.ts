@@ -5,7 +5,7 @@ const prisma = new PrismaClient();
 async function main() {
   console.log('Seeding database...');
 
-  // Create a church
+  // ── Church ─────────────────────────────────────────────────────────────
   const church = await prisma.church.upsert({
     where: { slug: 'st-mark' },
     update: {},
@@ -19,7 +19,7 @@ async function main() {
   });
   console.log('Church ready:', church.name);
 
-  // Create a school
+  // ── School ─────────────────────────────────────────────────────────────
   const school = await prisma.school.upsert({
     where: { slug: 'niangelos-main' },
     update: {},
@@ -37,75 +37,95 @@ async function main() {
   });
   console.log('School ready:', school.name);
 
-  // Create academic year
-  const academicYear = await prisma.academicYear.create({
-    data: {
-      schoolId: school.id,
-      name: '2026-2027',
-      startDate: new Date('2026-09-01'),
-      endDate: new Date('2027-06-30'),
-      isCurrent: true,
-    },
+  // ── Academic year ──────────────────────────────────────────────────────
+  let academicYear = await prisma.academicYear.findFirst({
+    where: { schoolId: school.id, name: '2026-2027' },
   });
-  console.log('Created academic year:', academicYear.name);
-
-  // Create levels
-  const levels: any[] = [];
-  for (let i = 1; i <= 10; i++) {
-    const level = await prisma.level.create({
+  if (!academicYear) {
+    academicYear = await prisma.academicYear.create({
       data: {
         schoolId: school.id,
-        number: i,
-        name: `Level ${i}`,
-        nameAr: `المستوى ${i}`,
-        description: `Hymn education level ${i}`,
-        orderIndex: i,
+        name: '2026-2027',
+        startDate: new Date('2026-09-01'),
+        endDate: new Date('2027-06-30'),
+        isCurrent: true,
       },
     });
+    console.log('Created academic year:', academicYear.name);
+  } else {
+    console.log('Academic year already exists:', academicYear.name);
+  }
+
+  // ── Levels ─────────────────────────────────────────────────────────────
+  const levels: any[] = [];
+  for (let i = 1; i <= 10; i++) {
+    let level = await prisma.level.findFirst({
+      where: { schoolId: school.id, number: i },
+    });
+    if (!level) {
+      level = await prisma.level.create({
+        data: {
+          schoolId: school.id,
+          number: i,
+          name: `Level ${i}`,
+          nameAr: `المستوى ${i}`,
+          description: `Hymn education level ${i}`,
+          orderIndex: i,
+        },
+      });
+    }
     levels.push(level);
   }
-  console.log('Created', levels.length, 'levels');
+  console.log('Levels ready:', levels.length);
 
-  // Create groups for each level
+  // ── Groups ─────────────────────────────────────────────────────────────
   for (const level of levels) {
     for (let g = 1; g <= 4; g++) {
-      await prisma.group.create({
+      const existing = await prisma.group.findFirst({
+        where: { levelId: level.id, name: `Group ${g}` },
+      });
+      if (!existing) {
+        await prisma.group.create({
+          data: {
+            levelId: level.id,
+            name: `Group ${g}`,
+            nameAr: `المجموعة ${g}`,
+            capacity: 30,
+            orderIndex: g,
+          },
+        });
+      }
+    }
+  }
+  console.log('Groups ready');
+
+  // ── Subjects ───────────────────────────────────────────────────────────
+  const subjectData = [
+    { name: 'Coptic Hymns', nameAr: 'التراتيل القبطية', nameCoptic: 'ⲛⲓϩⲱⲥ' },
+    { name: 'Coptic Rites', nameAr: 'الطقس القبطي', nameCoptic: 'ⲙⲛⲧⲁⲛⲟⲩ' },
+    { name: 'Coptic Language', nameAr: 'اللغة القبطية', nameCoptic: 'ⲣⲙⲛⲕⲏⲙⲉ' },
+  ];
+  for (let idx = 0; idx < subjectData.length; idx++) {
+    const s = subjectData[idx];
+    const existing = await prisma.subject.findFirst({
+      where: { schoolId: school.id, name: s.name },
+    });
+    if (!existing) {
+      await prisma.subject.create({
         data: {
-          levelId: level.id,
-          name: `Group ${g}`,
-          nameAr: `المجموعة ${g}`,
-          capacity: 30,
-          orderIndex: g,
+          schoolId: school.id,
+          name: s.name,
+          nameAr: s.nameAr,
+          nameCoptic: s.nameCoptic,
+          description: `${s.name} curriculum`,
+          orderIndex: idx + 1,
         },
       });
     }
   }
-  console.log('Created groups for all levels');
+  console.log('Subjects ready');
 
-  // Create subjects
-  const subjects: any[] = [];
-  const subjectData = [
-    { name: 'Coptic Hymns', nameAr: 'التراتيل القبطية', nameCoptic: ' nueste' },
-    { name: 'Coptic Rites', nameAr: 'الطقس القبطي', nameCoptic: 'ⲙⲛⲧⲁⲛⲟⲩ' },
-    { name: 'Coptic Language', nameAr: 'اللغة القبطية', nameCoptic: 'ⲣⲙⲛⲕⲏⲙⲉ' },
-  ];
-  for (const s of subjectData) {
-    const subject = await prisma.subject.create({
-      data: {
-        schoolId: school.id,
-        name: s.name,
-        nameAr: s.nameAr,
-        nameCoptic: s.nameCoptic,
-        description: `${s.name} curriculum`,
-        orderIndex: subjects.length + 1,
-      },
-    });
-    subjects.push(subject);
-  }
-  console.log('Created', subjects.length, 'subjects');
-
-  // Create roles
-  const roles: any[] = [];
+  // ── Roles ──────────────────────────────────────────────────────────────
   const roleData = [
     { name: 'super_admin', displayName: 'Super Admin', level: 0, isSystem: true },
     { name: 'admin', displayName: 'Admin', level: 1, isSystem: true },
@@ -119,6 +139,7 @@ async function main() {
     { name: 'parent', displayName: 'Parent', level: 9, isSystem: true },
     { name: 'guest', displayName: 'Guest', level: 10, isSystem: true },
   ];
+  const roles: any[] = [];
   for (const r of roleData) {
     const role = await prisma.role.upsert({
       where: { name: r.name },
@@ -127,9 +148,9 @@ async function main() {
     });
     roles.push(role);
   }
-  console.log('Upserted', roles.length, 'roles');
+  console.log('Roles ready:', roles.length);
 
-  // Create a test user (admin)
+  // ── Admin user ─────────────────────────────────────────────────────────
   const bcrypt = await import('bcrypt');
   const passwordHash = await bcrypt.hash('Admin123!', 10);
 
@@ -151,9 +172,11 @@ async function main() {
       },
     });
     console.log('Created admin user');
+  } else {
+    console.log('Admin user already exists');
   }
 
-  // Assign super_admin role
+  // ── Assign super_admin role ────────────────────────────────────────────
   const superAdminRole = roles.find((r) => r.name === 'super_admin')!;
   const existingRole = await prisma.userRole.findUnique({
     where: { userId_roleId: { userId: adminUser.id, roleId: superAdminRole.id } },
@@ -164,7 +187,13 @@ async function main() {
     });
   }
   console.log('Admin user ready:', adminUser.email);
-
+  console.log('');
+  console.log('─────────────────────────────────────────');
+  console.log('Login credentials:');
+  console.log('  Email:    admin@niangelos.app');
+  console.log('  Password: Admin123!');
+  console.log('  School:   niangelos-main');
+  console.log('─────────────────────────────────────────');
   console.log('Seeding completed successfully!');
 }
 
