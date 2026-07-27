@@ -2,9 +2,11 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import {
-  Trophy, Star, Flame, Medal, Award, Target, TrendingUp, Loader2, Plus, Pencil, Trash2, Search, Eye, Info,
-  CheckCheck, Mic, Church, Calendar, Zap, Gem, Crown, BookOpen, Music, Shield, Bell, Cross, Feather, Sparkles,
-  CircleDollarSign, Dumbbell, Baby,
+  Trophy, Star, Flame, Medal, Award, Target, TrendingUp, Loader2, Plus, Pencil, Trash2,
+  Search, Eye, Info, CheckCheck, Mic, Church, Calendar, Zap, Gem, Crown, BookOpen,
+  Music, Shield, Bell, Cross, Feather, Sparkles, CircleDollarSign, Dumbbell, Baby,
+  Users, Heart, ChevronRight, CheckCircle2, TrendingDown, BarChart3, UserCheck,
+  ArrowUp, ArrowDown, Minus,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { useToast } from '@/components/ui/toast'
@@ -21,60 +23,58 @@ import { CardSkeleton } from '@/components/ui/skeleton'
 import { getSchoolId } from '@/lib/school'
 import { http } from '@/lib/http-client'
 
+// ── Types ───────────────────────────────────────────────────────────────────
+
 interface LeaderboardEntry {
-  id: string
-  firstName: string
-  lastName: string
-  xp: number
-  level: number
-  streak: number
-  rank: number
-  badgeCount: number
+  id: string; firstName: string; lastName: string
+  xp: number; level: number; streak: number; rank: number; badgeCount: number
 }
 
 interface BadgeItem {
-  id: string
-  name: string
-  description: string | null
-  category: string
-  iconUrl: string
-  points: number
-  isActive: boolean
+  id: string; name: string; description: string | null
+  category: string; iconUrl: string; points: number; isActive: boolean
 }
 
-interface StatsResponse {
-  totalXp: number
+interface GrowthMirror {
+  studentId: string; levelNumber?: number; levelName?: string
+  totalXp: number; xpOneMonthAgo: number; xpGainedThisMonth: number; growthPercent: number
+  monthlyXp: { month: string; xp: number }[]
+  attendance: { thisMonth: number; lastMonth: number; improvement: number }
+  assessments: { passedThisMonth: number; passedLastMonth: number; improvement: number }
+  badgeTimeline: { badgeName: string; category: string; icon: string; earnedAt: string }[]
   totalBadges: number
-  totalStreaks: number
-  avgEngagement: number
 }
 
-const RANK_ICONS: Record<number, typeof Medal> = { 1: Medal, 2: Medal, 3: Medal }
-
-const TX_ICONS: Record<string, typeof Award> = {
-  badge_award: Award,
-  attendance_xp: Calendar,
-  behavior_bonus: Star,
-  participation_bonus: Mic,
-  liturgy_bonus: Church,
-  assessment: CheckCheck,
+interface GroupTrophy {
+  groupId: string; groupName: string; levelNumber?: number; levelName?: string
+  totalStudents: number; totalXp: number
+  achievedMilestones: number; totalMilestones: number; allMilestonesComplete: boolean
+  milestones: { id: string; title: string; titleAr: string; description: string; descriptionAr: string; icon: string; achieved: boolean; progress: number; current: number; target: number; suffix?: string }[]
+  students: { id: string; name: string; attendedThisMonth: boolean; hasBadge: boolean; passedAssessment: boolean }[]
 }
 
-const TX_LABELS: Record<string, string> = {
-  badge_award: 'Badge earned',
-  attendance_xp: 'Attendance XP',
-  behavior_bonus: 'Behavior bonus',
-  participation_bonus: 'Participation bonus',
-  liturgy_bonus: 'Liturgy attendance',
-  assessment: 'Assessment score',
+interface SeasonalInfo {
+  activeSeason: string | null; activeSeasonAr?: string
+  startDate?: string; endDate?: string; daysRemaining?: number
+  badge?: { name: string; nameAr: string; description: string; descriptionAr: string; icon: string; category: string; alreadyCreated: boolean; existingBadgeId: string | null }
+  message?: string
 }
+
+interface ServantMilestones {
+  servant: { id: string; name: string; yearsActive: number }
+  stats: { sessionsTaught: number; studentsAssessed: number; lessonsPlanned: number; yearsActive: number }
+  milestones: { id: string; threshold: number; current: number; unit: string; label: string; labelAr: string; achieved: boolean }[]
+  achievedCount: number
+  latestAchieved: any
+}
+
+// ── Constants ────────────────────────────────────────────────────────────────
 
 const ICON_MAP: Record<string, LucideIcon> = {
   Trophy, Star, Mic, Church, Calendar, Gem, CircleDollarSign, Zap, CheckCheck,
   Sparkles, TrendingUp, Award, Flame, Dumbbell, Target, Crown, BookOpen, Music,
-  Cross, Feather, Shield, Bell, Medal, Baby,
+  Cross, Feather, Shield, Bell, Medal, Baby, Users, Heart, UserCheck,
 }
-
 const ICON_OPTIONS = Object.keys(ICON_MAP)
 
 const CATEGORY_COLORS: Record<string, string> = {
@@ -97,29 +97,555 @@ const BADGE_CATEGORY_OPTIONS = [
   'behavior', 'liturgy', 'points', 'xp', 'improvement', 'academic', 'other',
 ]
 
-const emptyBadgeForm = {
-  name: '',
-  description: '',
-  category: 'participation',
-  iconUrl: '',
-  points: '',
+const emptyBadgeForm = { name: '', description: '', category: 'participation', iconUrl: '', points: '' }
+
+const TX_LABELS: Record<string, string> = {
+  badge_award: 'Badge earned', attendance_xp: 'Attendance XP', behavior_bonus: 'Behavior bonus',
+  participation_bonus: 'Participation bonus', liturgy_bonus: 'Liturgy attendance', assessment: 'Assessment score',
 }
 
 function friendlyError(err: any, lang: string): string {
-  if (!err) return lang === 'ar' ? 'حدث خطأ غير متوقع' : 'An unexpected error occurred'
   const msg = err?.message || ''
-  if (msg.includes('401') || msg.includes('Unauthorized')) return lang === 'ar' ? 'انتهت الجلسة — يرجى تسجيل الدخول مرة أخرى' : 'Session expired — please sign in again'
-  if (msg.includes('403') || msg.includes('Forbidden')) return lang === 'ar' ? 'ليس لديك صلاحية للقيام بهذا الإجراء' : 'You don\'t have permission to do that'
-  if (msg.includes('404') || msg.includes('Not found')) return lang === 'ar' ? 'العنصر غير موجود' : 'Item not found'
-  if (msg.includes('NetworkError') || msg.includes('Failed to fetch') || msg.includes('Network')) return lang === 'ar' ? 'تعذر الاتصال بالخادم — تحقق من اتصالك بالإنترنت' : 'Cannot reach server — check your connection'
-  if (msg.includes('429') || msg.includes('Too Many Requests')) return lang === 'ar' ? 'طلبات كثيرة جداً — انتظر لحظة ثم حاول مرة أخرى' : 'Too many requests — wait a moment and try again'
-  return lang === 'ar' ? 'حدث خطأ — يرجى المحاولة مرة أخرى' : 'Something went wrong — please try again'
+  if (msg.includes('401') || msg.includes('Unauthorized')) return lang === 'ar' ? 'انتهت الجلسة' : 'Session expired'
+  if (msg.includes('403') || msg.includes('Forbidden')) return lang === 'ar' ? 'ليس لديك صلاحية' : 'No permission'
+  if (msg.includes('NetworkError') || msg.includes('Failed to fetch')) return lang === 'ar' ? 'تعذر الاتصال بالخادم' : 'Cannot reach server'
+  return lang === 'ar' ? 'حدث خطأ' : 'Something went wrong'
 }
+
+// ── Sub-components ───────────────────────────────────────────────────────────
+
+function ImprovementPill({ value, suffix = '' }: { value: number; suffix?: string }) {
+  if (value > 0) return (
+    <span className="inline-flex items-center gap-0.5 rounded-full bg-green-50 px-2 py-0.5 text-xs font-semibold text-green-700">
+      <ArrowUp className="h-3 w-3" />+{value}{suffix}
+    </span>
+  )
+  if (value < 0) return (
+    <span className="inline-flex items-center gap-0.5 rounded-full bg-red-50 px-2 py-0.5 text-xs font-semibold text-red-600">
+      <ArrowDown className="h-3 w-3" />{value}{suffix}
+    </span>
+  )
+  return (
+    <span className="inline-flex items-center gap-0.5 rounded-full bg-gray-100 px-2 py-0.5 text-xs font-semibold text-gray-500">
+      <Minus className="h-3 w-3" />0{suffix}
+    </span>
+  )
+}
+
+function MiniBar({ value, max, color = 'bg-gold-400' }: { value: number; max: number; color?: string }) {
+  const pct = max > 0 ? Math.min(100, Math.round(value / max * 100)) : 0
+  return (
+    <div className="h-1.5 w-full rounded-full bg-gray-100 overflow-hidden">
+      <div className={`h-full rounded-full ${color} transition-all duration-700`} style={{ width: `${pct}%` }} />
+    </div>
+  )
+}
+
+// ── Growth Mirror Panel ──────────────────────────────────────────────────────
+
+function GrowthMirrorPanel({ entry, lang }: { entry: LeaderboardEntry; lang: string }) {
+  const [data, setData] = useState<GrowthMirror | null>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    http.get<GrowthMirror>(`/gamification/students/${entry.id}/growth`)
+      .then(d => { setData(d); setLoading(false) })
+      .catch(() => setLoading(false))
+  }, [entry.id])
+
+  if (loading) return <div className="flex justify-center py-8"><Loader2 className="h-5 w-5 animate-spin text-gold-500" /></div>
+  if (!data) return <p className="text-sm text-gray-400 text-center py-4">{lang === 'ar' ? 'لا توجد بيانات' : 'No data available'}</p>
+
+  const maxMonthlyXp = Math.max(...data.monthlyXp.map(m => m.xp), 1)
+
+  return (
+    <div className="space-y-5">
+      {/* XP trajectory */}
+      <div className="rounded-xl border border-gray-200 bg-white p-4">
+        <div className="flex items-center justify-between mb-3">
+          <h4 className="text-sm font-bold text-gray-900 flex items-center gap-1.5">
+            <TrendingUp className="h-4 w-4 text-gold-500" />
+            {lang === 'ar' ? 'مسار نقاط الخبرة' : 'XP Trajectory'}
+          </h4>
+          <ImprovementPill value={data.growthPercent} suffix="%" />
+        </div>
+        <div className="grid grid-cols-2 gap-3 mb-4">
+          <div className="rounded-lg bg-gray-50 p-3 text-center">
+            <div className="text-lg font-bold text-gray-900">{data.xpOneMonthAgo.toLocaleString()}</div>
+            <div className="text-xs text-gray-500">{lang === 'ar' ? 'منذ شهر' : 'A month ago'}</div>
+          </div>
+          <div className="rounded-lg bg-gold-50 p-3 text-center border border-gold-100">
+            <div className="text-lg font-bold text-gold-700">{data.totalXp.toLocaleString()}</div>
+            <div className="text-xs text-gold-600">{lang === 'ar' ? 'الآن' : 'Now'}</div>
+          </div>
+        </div>
+        {/* Monthly bars */}
+        {data.monthlyXp.length > 0 && (
+          <div className="space-y-1.5">
+            {data.monthlyXp.map(m => (
+              <div key={m.month} className="flex items-center gap-2">
+                <span className="text-[10px] text-gray-400 w-12 shrink-0">{m.month.slice(5)}</span>
+                <div className="flex-1 h-5 rounded-md bg-gray-100 overflow-hidden relative">
+                  <div
+                    className="h-full rounded-md bg-gradient-to-r from-gold-400 to-blue-500 transition-all duration-700"
+                    style={{ width: `${Math.max(4, m.xp / maxMonthlyXp * 100)}%` }}
+                  />
+                  <span className="absolute right-1.5 top-0.5 text-[10px] font-semibold text-gray-600">{m.xp}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Attendance & Assessments */}
+      <div className="grid grid-cols-2 gap-3">
+        <div className="rounded-xl border border-gray-200 bg-white p-4">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs font-semibold text-gray-700">{lang === 'ar' ? 'الحضور' : 'Attendance'}</span>
+            <ImprovementPill value={data.attendance.improvement} suffix="%" />
+          </div>
+          <div className="text-2xl font-black text-gray-900">{data.attendance.thisMonth}%</div>
+          <div className="text-[10px] text-gray-400">{lang === 'ar' ? 'الشهر الماضي:' : 'Last month:'} {data.attendance.lastMonth}%</div>
+          <MiniBar value={data.attendance.thisMonth} max={100} color="bg-green-400" />
+        </div>
+        <div className="rounded-xl border border-gray-200 bg-white p-4">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs font-semibold text-gray-700">{lang === 'ar' ? 'التقييمات' : 'Assessments'}</span>
+            <ImprovementPill value={data.assessments.improvement} />
+          </div>
+          <div className="text-2xl font-black text-gray-900">{data.assessments.passedThisMonth}</div>
+          <div className="text-[10px] text-gray-400">{lang === 'ar' ? 'الشهر الماضي:' : 'Last month:'} {data.assessments.passedLastMonth}</div>
+          <MiniBar value={data.assessments.passedThisMonth} max={Math.max(data.assessments.passedLastMonth + 2, data.assessments.passedThisMonth + 1)} color="bg-blue-400" />
+        </div>
+      </div>
+
+      {/* Badge timeline */}
+      {data.badgeTimeline.length > 0 && (
+        <div className="rounded-xl border border-gray-200 bg-white p-4">
+          <h4 className="text-xs font-bold text-gray-700 mb-3 flex items-center gap-1.5">
+            <Award className="h-3.5 w-3.5 text-gold-500" />
+            {lang === 'ar' ? 'رحلة الشارات' : 'Badge Journey'}
+            <span className="text-gray-400 font-normal">({data.totalBadges})</span>
+          </h4>
+          <div className="flex flex-wrap gap-2">
+            {data.badgeTimeline.map((b, i) => {
+              const Icon = ICON_MAP[b.icon]
+              return (
+                <div key={i} className={`flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs ${CATEGORY_COLORS[b.category] || CATEGORY_COLORS.default}`}>
+                  {Icon ? <Icon className="h-3.5 w-3.5" /> : <Award className="h-3.5 w-3.5" />}
+                  <span className="font-medium">{b.badgeName}</span>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      <p className="text-[11px] text-gray-400 text-center italic">
+        {lang === 'ar'
+          ? '✨ هذا تقدمك الخاص — لا مقارنة مع زملائك'
+          : '✨ This is your own journey — no comparison with peers'}
+      </p>
+    </div>
+  )
+}
+
+// ── Seasonal Badge Panel ─────────────────────────────────────────────────────
+
+function SeasonalBadgePanel({ lang, schoolId, onToast }: { lang: string; schoolId: string; onToast: (t: 'success'|'error', m: string) => void }) {
+  const [data, setData] = useState<SeasonalInfo | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [creating, setCreating] = useState(false)
+
+  const load = useCallback(() => {
+    setLoading(true)
+    http.get<SeasonalInfo>('/gamification/seasonal', { schoolId })
+      .then(d => { setData(d); setLoading(false) })
+      .catch(() => setLoading(false))
+  }, [schoolId])
+
+  useEffect(() => { load() }, [load])
+
+  const handleCreate = async () => {
+    setCreating(true)
+    try {
+      await http.post(`/gamification/seasonal/create?schoolId=${schoolId}`, {})
+      onToast('success', lang === 'ar' ? 'تم إنشاء شارة الموسم' : 'Seasonal badge created!')
+      load()
+    } catch (e: any) {
+      onToast('error', e.message || 'Failed')
+    }
+    setCreating(false)
+  }
+
+  if (loading) return <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-gold-500" /></div>
+
+  if (!data?.activeSeason) {
+    return (
+      <div className="rounded-2xl border border-dashed border-gray-200 bg-gray-50 p-10 text-center">
+        <Church className="mx-auto h-10 w-10 text-gray-300 mb-3" />
+        <h3 className="text-sm font-semibold text-gray-700 mb-1">
+          {lang === 'ar' ? 'لا يوجد موسم ليتورجي نشط' : 'No Active Liturgical Season'}
+        </h3>
+        <p className="text-xs text-gray-500 max-w-xs mx-auto">
+          {lang === 'ar'
+            ? 'الشارات الموسمية تظهر خلال المواسم الكنسية: كيهك، الصوم الكبير، أسبوع الآلام، الخمسين المقدسة، وصوم الرسل.'
+            : 'Seasonal badges appear during liturgical seasons: Kiahk, Great Lent, Holy Week, Great 50 Days, and the Fast of the Apostles.'}
+        </p>
+        <div className="mt-4 flex flex-wrap justify-center gap-2">
+          {['⭐ Kiahk Lantern', '✝ Fasting Lamp', '🕊 Holy Week Witness', '🌟 Resurrection Crown', '📜 Apostles Scroll'].map(s => (
+            <span key={s} className="rounded-full bg-indigo-50 border border-indigo-100 px-3 py-1 text-xs text-indigo-700">{s}</span>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
+  const badge = data.badge!
+  const Icon = ICON_MAP[badge.icon] || Star
+
+  return (
+    <div className="space-y-5">
+      {/* Active season banner */}
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-indigo-900 via-purple-900 to-indigo-900 p-6 text-white">
+        <div className="absolute inset-0 pointer-events-none">
+          <div className="absolute top-0 right-0 w-48 h-48 bg-indigo-400/20 rounded-full blur-3xl" />
+          <div className="absolute bottom-0 left-0 w-32 h-32 bg-purple-400/10 rounded-full blur-2xl" />
+        </div>
+        <div className="relative flex items-start gap-5">
+          <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-white/10 border border-white/20">
+            <Icon className="h-8 w-8 text-amber-300" />
+          </div>
+          <div className="flex-1">
+            <div className="flex items-center gap-2 mb-1">
+              <span className="rounded-full bg-white/10 border border-white/20 px-2.5 py-0.5 text-[11px] font-bold text-white/80 uppercase tracking-wider">
+                {lang === 'ar' ? 'موسم نشط' : 'Active Season'}
+              </span>
+              {data.daysRemaining !== undefined && (
+                <span className="text-[11px] text-white/50">{data.daysRemaining} {lang === 'ar' ? 'يوم متبقي' : 'days left'}</span>
+              )}
+            </div>
+            <h3 className="text-xl font-black text-white">{lang === 'ar' ? data.activeSeasonAr : data.activeSeason?.replace(/_/g, ' ')}</h3>
+            <p className="text-sm text-white/70 mt-0.5">{lang === 'ar' ? badge.descriptionAr : badge.description}</p>
+          </div>
+        </div>
+
+        <div className="relative mt-4 flex items-center justify-between rounded-xl bg-white/10 border border-white/15 px-4 py-3">
+          <div>
+            <div className="text-xs text-white/50 mb-0.5">{lang === 'ar' ? 'الشارة الموسمية' : 'Seasonal Badge'}</div>
+            <div className="font-bold text-white">{lang === 'ar' ? badge.nameAr : badge.name}</div>
+          </div>
+          {badge.alreadyCreated ? (
+            <UIBadge variant="success">{lang === 'ar' ? '✓ موجودة' : '✓ Created'}</UIBadge>
+          ) : (
+            <Button onClick={handleCreate} disabled={creating} size="sm" className="bg-amber-400 hover:bg-amber-500 text-gray-900 font-bold">
+              {creating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
+              {lang === 'ar' ? 'أنشئ الشارة' : 'Create Badge'}
+            </Button>
+          )}
+        </div>
+      </div>
+
+      {/* Explanation */}
+      <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+        <p className="font-semibold mb-1">
+          {lang === 'ar' ? '🎵 كيف تعمل الشارات الموسمية؟' : '🎵 How do seasonal badges work?'}
+        </p>
+        <p className="text-amber-700 text-xs leading-relaxed">
+          {lang === 'ar'
+            ? 'الشارات الموسمية لا تُكسب إلا خلال نافذة زمنية محددة مرتبطة بالتقويم الليتورجي. بمجرد انتهاء الموسم، تُغلق الشارة ولا يمكن لأي طالب كسبها مستقبلاً — مما يجعلها نادرة ومعبّرة روحياً.'
+            : 'Seasonal badges can only be earned during a specific window tied to the liturgical calendar. Once the season ends, the badge closes — no future student can earn it, making each one rare and spiritually meaningful.'}
+        </p>
+      </div>
+    </div>
+  )
+}
+
+// ── Group Trophy Panel ───────────────────────────────────────────────────────
+
+function GroupTrophyPanel({ lang, schoolId }: { lang: string; schoolId: string }) {
+  const [groups, setGroups] = useState<any[]>([])
+  const [selected, setSelected] = useState<string>('')
+  const [trophy, setTrophy] = useState<GroupTrophy | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [loadingGroups, setLoadingGroups] = useState(true)
+
+  useEffect(() => {
+    http.get<any>(`/students/groups?schoolId=${schoolId}`)
+      .then(d => { setGroups(Array.isArray(d) ? d : d?.groups || d?.data || []); setLoadingGroups(false) })
+      .catch(() => setLoadingGroups(false))
+  }, [schoolId])
+
+  const loadTrophy = async (groupId: string) => {
+    setSelected(groupId)
+    setLoading(true)
+    setTrophy(null)
+    try {
+      const d = await http.get<GroupTrophy>(`/gamification/groups/${groupId}/trophy`, { schoolId })
+      setTrophy(d)
+    } catch { /* ignore */ }
+    setLoading(false)
+  }
+
+  return (
+    <div className="space-y-5">
+      <div className="rounded-xl border border-blue-100 bg-blue-50 p-4 text-sm text-blue-800">
+        <p className="font-semibold">{lang === 'ar' ? '🏆 كأسات المجموعة' : '🏆 Group Trophies'}</p>
+        <p className="text-blue-700 text-xs mt-0.5 leading-relaxed">
+          {lang === 'ar'
+            ? 'عندما تحقق المجموعة بأكملها هدفاً مشتركاً، يحصل كل عضو على مكافأة. هذا يحوّل الإنجاز الفردي إلى احتفال جماعي.'
+            : 'When an entire group achieves a shared milestone, every member is rewarded. This turns individual achievement into community celebration.'}
+        </p>
+      </div>
+
+      {/* Group selector */}
+      {loadingGroups ? (
+        <div className="flex justify-center py-6"><Loader2 className="h-5 w-5 animate-spin text-gold-500" /></div>
+      ) : groups.length === 0 ? (
+        <EmptyState icon={Users} title={lang === 'ar' ? 'لا توجد مجموعات' : 'No groups found'} description={lang === 'ar' ? 'أنشئ مجموعات في قسم الطلاب أولاً' : 'Create groups in the Students section first'} />
+      ) : (
+        <div className="flex flex-wrap gap-2">
+          {groups.map((g: any) => (
+            <button
+              key={g.id}
+              onClick={() => loadTrophy(g.id)}
+              className={`rounded-xl border px-4 py-2 text-sm font-medium transition-all ${selected === g.id ? 'bg-gold-500 border-gold-500 text-white shadow-md' : 'bg-white border-gray-200 text-gray-700 hover:border-gold-300'}`}
+            >
+              {g.name} {g.level?.number ? `(L${g.level.number})` : ''}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Trophy display */}
+      {loading && <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-gold-500" /></div>}
+
+      {trophy && !loading && (
+        <div className="space-y-4">
+          {/* Header */}
+          <div className={`rounded-2xl border p-5 ${trophy.allMilestonesComplete ? 'bg-gradient-to-br from-amber-50 to-yellow-50 border-amber-200' : 'bg-white border-gray-200'}`}>
+            <div className="flex items-start justify-between gap-3 mb-4">
+              <div>
+                <div className="flex items-center gap-2">
+                  <Trophy className={`h-5 w-5 ${trophy.allMilestonesComplete ? 'text-amber-500' : 'text-gray-400'}`} />
+                  <h3 className="text-base font-bold text-gray-900">{trophy.groupName}</h3>
+                  {trophy.levelName && <UIBadge variant="info">Level {trophy.levelNumber}</UIBadge>}
+                </div>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  {trophy.totalStudents} {lang === 'ar' ? 'طالب' : 'students'} · {trophy.totalXp.toLocaleString()} XP {lang === 'ar' ? 'مجمّعة' : 'combined'}
+                </p>
+              </div>
+              <div className="text-right">
+                <div className="text-2xl font-black text-gray-900">{trophy.achievedMilestones}/{trophy.totalMilestones}</div>
+                <div className="text-[10px] text-gray-500">{lang === 'ar' ? 'إنجازات' : 'milestones'}</div>
+              </div>
+            </div>
+            {trophy.allMilestonesComplete && (
+              <div className="rounded-xl bg-amber-400/10 border border-amber-300/30 px-4 py-2.5 text-center">
+                <p className="text-sm font-bold text-amber-700">
+                  🎉 {lang === 'ar' ? 'المجموعة حققت جميع الأهداف! جهّز شهادة الكأس.' : 'Group achieved all milestones! Prepare the trophy certificate.'}
+                </p>
+              </div>
+            )}
+          </div>
+
+          {/* Milestones */}
+          <div className="space-y-3">
+            {trophy.milestones.map(m => {
+              const Icon = ICON_MAP[m.icon] || Target
+              return (
+                <div key={m.id} className={`rounded-xl border p-4 ${m.achieved ? 'bg-green-50 border-green-200' : 'bg-white border-gray-200'}`}>
+                  <div className="flex items-start gap-3">
+                    <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${m.achieved ? 'bg-green-100' : 'bg-gray-100'}`}>
+                      {m.achieved ? <CheckCircle2 className="h-5 w-5 text-green-600" /> : <Icon className="h-5 w-5 text-gray-400" />}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2">
+                        <h4 className={`text-sm font-semibold ${m.achieved ? 'text-green-800' : 'text-gray-900'}`}>
+                          {lang === 'ar' ? m.titleAr : m.title}
+                        </h4>
+                        <span className={`text-xs font-bold ${m.achieved ? 'text-green-600' : 'text-gray-500'}`}>
+                          {m.current}{m.suffix || ''}/{m.target}{m.suffix || ''}
+                        </span>
+                      </div>
+                      <p className="text-xs text-gray-500 mt-0.5">{lang === 'ar' ? m.descriptionAr : m.description}</p>
+                      <div className="mt-2">
+                        <MiniBar value={m.current} max={m.target} color={m.achieved ? 'bg-green-400' : 'bg-gold-400'} />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+
+          {/* Student breakdown */}
+          <div className="rounded-xl border border-gray-200 bg-white p-4">
+            <h4 className="text-xs font-bold text-gray-700 mb-3">{lang === 'ar' ? 'تفاصيل الطلاب' : 'Student Breakdown'}</h4>
+            <div className="grid grid-cols-1 gap-2 max-h-48 overflow-y-auto">
+              {trophy.students.map(s => (
+                <div key={s.id} className="flex items-center gap-3 rounded-lg bg-gray-50 px-3 py-2">
+                  <span className="text-sm font-medium text-gray-700 flex-1 truncate">{s.name}</span>
+                  <div className="flex items-center gap-1">
+                    <span title="Attended this month" className={`h-2 w-2 rounded-full ${s.attendedThisMonth ? 'bg-green-400' : 'bg-gray-200'}`} />
+                    <span title="Has a badge" className={`h-2 w-2 rounded-full ${s.hasBadge ? 'bg-amber-400' : 'bg-gray-200'}`} />
+                    <span title="Passed assessment" className={`h-2 w-2 rounded-full ${s.passedAssessment ? 'bg-blue-400' : 'bg-gray-200'}`} />
+                  </div>
+                </div>
+              ))}
+            </div>
+            <p className="mt-2 text-[10px] text-gray-400">
+              🟢 {lang === 'ar' ? 'حضر' : 'Attended'} · 🟡 {lang === 'ar' ? 'شارة' : 'Badge'} · 🔵 {lang === 'ar' ? 'اجتاز تقييماً' : 'Passed assessment'}
+            </p>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Servant Recognition Panel ────────────────────────────────────────────────
+
+function ServantRecognitionPanel({ lang, schoolId }: { lang: string; schoolId: string }) {
+  const [servants, setServants] = useState<any[]>([])
+  const [selected, setSelected] = useState<string>('')
+  const [data, setData] = useState<ServantMilestones | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [loadingServants, setLoadingServants] = useState(true)
+
+  useEffect(() => {
+    http.get<any>(`/users?schoolId=${schoolId}&role=servant`)
+      .then(d => { setServants(Array.isArray(d) ? d : d?.users || d?.data || []); setLoadingServants(false) })
+      .catch(() => setLoadingServants(false))
+  }, [schoolId])
+
+  const load = async (userId: string) => {
+    setSelected(userId)
+    setLoading(true)
+    setData(null)
+    try {
+      const d = await http.get<ServantMilestones>(`/gamification/servant/milestones?schoolId=${schoolId}&userId=${userId}`)
+      setData(d)
+    } catch { /* ignore */ }
+    setLoading(false)
+  }
+
+  return (
+    <div className="space-y-5">
+      <div className="rounded-xl border border-purple-100 bg-purple-50 p-4 text-sm text-purple-800">
+        <p className="font-semibold">{lang === 'ar' ? '✨ تقدير الخدام' : '✨ Servant Recognition'}</p>
+        <p className="text-purple-700 text-xs mt-0.5 leading-relaxed">
+          {lang === 'ar'
+            ? 'الخادم الذي علّم 100 طالب يستحق أن يُرى. هذه الإنجازات تُولَّد تلقائياً ويمكن طباعتها وتسليمها في الكنيسة.'
+            : 'A servant who has taught 100 students deserves to be seen. These milestones are auto-generated and can be printed for presentation in church.'}
+        </p>
+      </div>
+
+      {loadingServants ? (
+        <div className="flex justify-center py-6"><Loader2 className="h-5 w-5 animate-spin text-gold-500" /></div>
+      ) : servants.length === 0 ? (
+        <EmptyState icon={UserCheck} title={lang === 'ar' ? 'لا يوجد خدام' : 'No servants found'} description="" />
+      ) : (
+        <div className="flex flex-wrap gap-2">
+          {servants.map((s: any) => (
+            <button
+              key={s.id}
+              onClick={() => load(s.id)}
+              className={`rounded-xl border px-4 py-2 text-sm font-medium transition-all ${selected === s.id ? 'bg-purple-600 border-purple-600 text-white' : 'bg-white border-gray-200 text-gray-700 hover:border-purple-300'}`}
+            >
+              {s.firstName} {s.lastName}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {loading && <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-gold-500" /></div>}
+
+      {data && !loading && (
+        <div className="space-y-4">
+          {/* Stats summary */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {[
+              { label: lang === 'ar' ? 'جلسات التعليم' : 'Sessions Taught', value: data.stats.sessionsTaught, icon: Calendar, color: 'text-blue-600 bg-blue-50' },
+              { label: lang === 'ar' ? 'طلاب تم تقييمهم' : 'Students Assessed', value: data.stats.studentsAssessed, icon: Users, color: 'text-green-600 bg-green-50' },
+              { label: lang === 'ar' ? 'دروس مخططة' : 'Lessons Planned', value: data.stats.lessonsPlanned, icon: BookOpen, color: 'text-amber-600 bg-amber-50' },
+              { label: lang === 'ar' ? 'سنوات الخدمة' : 'Years Active', value: data.stats.yearsActive, icon: Star, color: 'text-purple-600 bg-purple-50' },
+            ].map(stat => {
+              const Icon = stat.icon
+              return (
+                <div key={stat.label} className="rounded-xl border border-gray-200 bg-white p-3 text-center">
+                  <div className={`mx-auto mb-2 flex h-9 w-9 items-center justify-center rounded-lg ${stat.color}`}>
+                    <Icon className="h-4.5 w-4.5" />
+                  </div>
+                  <div className="text-xl font-black text-gray-900">{stat.value.toLocaleString()}</div>
+                  <div className="text-[10px] text-gray-500">{stat.label}</div>
+                </div>
+              )
+            })}
+          </div>
+
+          {/* Milestones */}
+          <div className="rounded-xl border border-gray-200 bg-white p-4">
+            <h4 className="text-sm font-bold text-gray-900 mb-3 flex items-center gap-1.5">
+              <Medal className="h-4 w-4 text-gold-500" />
+              {lang === 'ar' ? 'الإنجازات' : 'Milestones'}
+              <span className="text-gray-400 font-normal text-xs">({data.achievedCount}/{data.milestones.length})</span>
+            </h4>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              {data.milestones.map(m => (
+                <div key={m.id} className={`flex items-center gap-3 rounded-xl border p-3 ${m.achieved ? 'bg-purple-50 border-purple-200' : 'bg-gray-50 border-gray-100'}`}>
+                  <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-black ${m.achieved ? 'bg-purple-100 text-purple-700' : 'bg-gray-200 text-gray-400'}`}>
+                    {m.achieved ? '✓' : m.threshold.toLocaleString().slice(0, 3)}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className={`text-xs font-semibold ${m.achieved ? 'text-purple-800' : 'text-gray-500'}`}>
+                      {lang === 'ar' ? m.labelAr : m.label}
+                    </p>
+                    {!m.achieved && (
+                      <p className="text-[10px] text-gray-400">{m.current}/{m.threshold} {m.unit}</p>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Print certificate */}
+          {data.achievedCount > 0 && (
+            <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 flex items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-semibold text-amber-800">
+                  {lang === 'ar' ? '🖨 جاهز للطباعة' : '🖨 Ready to Print'}
+                </p>
+                <p className="text-xs text-amber-700">
+                  {lang === 'ar'
+                    ? `${data.servant.name} حقق ${data.achievedCount} إنجازات — يمكن طباعة شهادة للتسليم في الكنيسة`
+                    : `${data.servant.name} has earned ${data.achievedCount} milestones — print a certificate for church presentation`}
+                </p>
+              </div>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => window.print()}
+                className="shrink-0 border-amber-300 text-amber-800 hover:bg-amber-100"
+              >
+                {lang === 'ar' ? 'طباعة' : 'Print'}
+              </Button>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Main Page ────────────────────────────────────────────────────────────────
 
 export default function GamificationPage() {
   const { toast } = useToast()
   const lang = useLanguage()
-  const pageRef = useRef<HTMLDivElement>(null)
+  const t = (en: string, ar: string) => lang === 'ar' ? ar : en
 
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([])
   const [leaderboardLoading, setLeaderboardLoading] = useState(true)
@@ -129,9 +655,9 @@ export default function GamificationPage() {
   const [badgesLoading, setBadgesLoading] = useState(true)
   const [badgeSearch, setBadgeSearch] = useState('')
 
-  const [activeTab, setActiveTab] = useState('leaderboard')
+  const [activeTab, setActiveTab] = useState('growth')
 
-  const [stats, setStats] = useState<StatsResponse | null>(null)
+  const [stats, setStats] = useState<{ totalXp: number; totalBadges: number; totalStreaks: number; avgEngagement: number } | null>(null)
   const [statsLoading, setStatsLoading] = useState(true)
 
   const [showBadgeForm, setShowBadgeForm] = useState(false)
@@ -153,39 +679,39 @@ export default function GamificationPage() {
   const [resetConfirmText, setResetConfirmText] = useState('')
   const [resettingLeaderboard, setResettingLeaderboard] = useState(false)
 
+  const [growthStudent, setGrowthStudent] = useState<LeaderboardEntry | null>(null)
+
+  // Transactions drill-down (kept for detailed view)
   const [drillDownStudent, setDrillDownStudent] = useState<LeaderboardEntry | null>(null)
   const [transactions, setTransactions] = useState<any[]>([])
   const [transactionsTotal, setTransactionsTotal] = useState(0)
-  const [transactionsSkip, setTransactionsSkip] = useState(0)
   const [transactionsLoading, setTransactionsLoading] = useState(false)
   const [transactionsLoadingMore, setTransactionsLoadingMore] = useState(false)
+
+  const schoolId = getSchoolId()
 
   const fetchLeaderboard = useCallback(async () => {
     setLeaderboardLoading(true)
     try {
-      const data = await http.get<LeaderboardEntry[]>('/gamification/leaderboard', { schoolId: getSchoolId() })
+      const data = await http.get<LeaderboardEntry[]>('/gamification/leaderboard', { schoolId })
       setLeaderboard(data)
-    } catch (e: any) {
-      toast('error', friendlyError(e, lang))
-    }
+    } catch (e: any) { toast('error', friendlyError(e, lang)) }
     setLeaderboardLoading(false)
-  }, [toast, lang])
+  }, [schoolId, toast, lang])
 
   const fetchBadges = useCallback(async () => {
     setBadgesLoading(true)
     try {
-      const data = await http.get<BadgeItem[]>('/gamification/badges', { schoolId: getSchoolId() })
+      const data = await http.get<BadgeItem[]>('/gamification/badges', { schoolId })
       setBadges(data.map((b: any) => ({ ...b, points: b.xpReward ?? b.points ?? 0 })))
-    } catch (e: any) {
-      toast('error', lang === 'ar' ? 'فشل تحميل الشارات' : 'Failed to load badges')
-    }
+    } catch { /* ignore */ }
     setBadgesLoading(false)
-  }, [toast, lang])
+  }, [schoolId])
 
   const fetchStats = useCallback(async () => {
     setStatsLoading(true)
     try {
-      const data: LeaderboardEntry[] = await http.get<LeaderboardEntry[]>('/gamification/leaderboard', { schoolId: getSchoolId() })
+      const data = await http.get<LeaderboardEntry[]>('/gamification/leaderboard', { schoolId })
       const activeWithXp = data.filter(e => e.xp > 0).length
       setStats({
         totalXp: data.reduce((sum, e) => sum + e.xp, 0),
@@ -193,141 +719,18 @@ export default function GamificationPage() {
         totalStreaks: data.filter(e => e.streak > 0).length,
         avgEngagement: data.length ? Math.round((activeWithXp / data.length) * 100) : 0,
       })
-    } catch (e: any) {
-      toast('error', friendlyError(e, lang))
-    }
+    } catch { /* ignore */ }
     setStatsLoading(false)
-  }, [toast, lang])
+  }, [schoolId])
 
-  useEffect(() => {
-    fetchLeaderboard()
-    fetchBadges()
-    fetchStats()
-  }, [fetchLeaderboard, fetchBadges, fetchStats])
-
-  // Keyboard shortcuts
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return
-      if (e.key === 'l' || e.key === 'L') { setActiveTab('leaderboard') }
-      if (e.key === 'b' || e.key === 'B') { setActiveTab('badges') }
-      if (e.key === 'n' || e.key === 'N') { if (activeTab === 'badges') openBadgeForm() }
-    }
-    window.addEventListener('keydown', handler)
-    return () => window.removeEventListener('keydown', handler)
-  }, [activeTab])
-
-  // Badge CRUD
-
-  const openBadgeForm = () => {
-    setBadgeForm(emptyBadgeForm)
-    setBadgeFormError('')
-    setShowBadgeForm(true)
-  }
-
-  const handleCreateBadge = async () => {
-    setBadgeFormError('')
-    if (!badgeForm.name.trim()) {
-      setBadgeFormError(lang === 'ar' ? 'الاسم مطلوب' : 'Name is required')
-      return
-    }
-    const pts = Number(badgeForm.points)
-    if (!pts || pts <= 0 || !Number.isInteger(pts)) {
-      setBadgeFormError(lang === 'ar' ? 'يجب أن تكون النقاط رقماً صحيحاً موجباً' : 'Points must be a positive whole number')
-      return
-    }
-    setSavingBadge(true)
-    try {
-      await http.post('/gamification/badges', {
-        name: badgeForm.name.trim(),
-        description: badgeForm.description.trim(),
-        category: badgeForm.category,
-        iconUrl: badgeForm.iconUrl || undefined,
-        points: pts,
-      })
-      setShowBadgeForm(false)
-      fetchBadges()
-      fetchStats()
-      toast('success', lang === 'ar' ? 'تم إنشاء الشارة' : 'Badge created')
-    } catch (e: any) {
-      setBadgeFormError(friendlyError(e, lang))
-      toast('error', friendlyError(e, lang))
-    }
-    setSavingBadge(false)
-  }
-
-  const openEditBadge = (badge: BadgeItem) => {
-    setBadgeToEdit(badge)
-    setEditBadgeForm({
-      name: badge.name,
-      description: badge.description || '',
-      category: badge.category,
-      iconUrl: badge.iconUrl || '',
-      points: String(badge.points),
-    })
-    setEditBadgeFormError('')
-    setShowEditBadge(true)
-  }
-
-  const handleEditBadge = async () => {
-    if (!badgeToEdit) return
-    setEditBadgeFormError('')
-    if (!editBadgeForm.name.trim()) { setEditBadgeFormError(lang === 'ar' ? 'الاسم مطلوب' : 'Name is required'); return }
-    const pts = Number(editBadgeForm.points)
-    if (!pts || pts <= 0 || !Number.isInteger(pts)) { setEditBadgeFormError(lang === 'ar' ? 'يجب أن تكون النقاط رقماً صحيحاً موجباً' : 'Points must be a positive whole number'); return }
-    setSavingEditBadge(true)
-    try {
-      await http.put(`/gamification/badges/${badgeToEdit.id}`, {
-        name: editBadgeForm.name.trim(),
-        description: editBadgeForm.description.trim() || undefined,
-        category: editBadgeForm.category,
-        iconUrl: editBadgeForm.iconUrl || undefined,
-        points: pts,
-      })
-      setShowEditBadge(false)
-      fetchBadges()
-      fetchStats()
-      toast('success', lang === 'ar' ? 'تم تحديث الشارة' : 'Badge updated')
-    } catch (e: any) {
-      setEditBadgeFormError(friendlyError(e, lang))
-      toast('error', friendlyError(e, lang))
-    }
-    setSavingEditBadge(false)
-  }
-
-  const openDeleteBadge = (badge: BadgeItem) => {
-    setBadgeToDelete(badge)
-    setShowDeleteBadge(true)
-  }
-
-  const handleDeleteBadge = async () => {
-    if (!badgeToDelete) return
-    setDeletingBadge(true)
-    try {
-      await http.delete(`/gamification/badges/${badgeToDelete.id}`)
-      setShowDeleteBadge(false)
-      fetchBadges()
-      fetchStats()
-      toast('success', lang === 'ar' ? 'تم حذف الشارة' : 'Badge deleted')
-    } catch (e: any) {
-      toast('error', friendlyError(e, lang))
-    }
-    setDeletingBadge(false)
-  }
-
-  // Drill-down
+  useEffect(() => { fetchLeaderboard(); fetchBadges(); fetchStats() }, [fetchLeaderboard, fetchBadges, fetchStats])
 
   const openDrillDown = async (entry: LeaderboardEntry) => {
     setDrillDownStudent(entry)
-    setTransactions([])
-    setTransactionsTotal(0)
-    setTransactionsSkip(0)
-    setTransactionsLoading(true)
+    setTransactions([]); setTransactionsTotal(0); setTransactionsLoading(true)
     try {
       const data = await http.get<any>(`/gamification/students/${entry.id}/transactions`)
-      setTransactions(data.items || [])
-      setTransactionsTotal(data.total || 0)
-      setTransactionsSkip(data.skip || 0)
+      setTransactions(data.items || []); setTransactionsTotal(data.total || 0)
     } catch { /* ignore */ }
     setTransactionsLoading(false)
   }
@@ -335,574 +738,340 @@ export default function GamificationPage() {
   const loadMoreTransactions = async () => {
     if (!drillDownStudent) return
     setTransactionsLoadingMore(true)
-    const nextSkip = transactionsSkip + (transactions.length || 0)
     try {
-      const data = await http.get<any>(`/gamification/students/${drillDownStudent.id}/transactions?skip=${nextSkip}&take=50`)
+      const data = await http.get<any>(`/gamification/students/${drillDownStudent.id}/transactions?skip=${transactions.length}&take=50`)
       setTransactions(prev => [...prev, ...(data.items || [])])
       setTransactionsTotal(data.total || 0)
     } catch { /* ignore */ }
     setTransactionsLoadingMore(false)
   }
 
-  // Reset
+  const handleCreateBadge = async () => {
+    setBadgeFormError('')
+    if (!badgeForm.name.trim()) { setBadgeFormError(t('Name is required', 'الاسم مطلوب')); return }
+    const pts = Number(badgeForm.points)
+    if (!pts || pts <= 0 || !Number.isInteger(pts)) { setBadgeFormError(t('Points must be a positive whole number', 'يجب أن تكون النقاط رقماً صحيحاً موجباً')); return }
+    setSavingBadge(true)
+    try {
+      await http.post('/gamification/badges', { name: badgeForm.name.trim(), description: badgeForm.description.trim(), category: badgeForm.category, iconUrl: badgeForm.iconUrl || undefined, points: pts })
+      setShowBadgeForm(false); fetchBadges(); fetchStats()
+      toast('success', t('Badge created', 'تم إنشاء الشارة'))
+    } catch (e: any) { setBadgeFormError(friendlyError(e, lang)) }
+    setSavingBadge(false)
+  }
+
+  const handleEditBadge = async () => {
+    if (!badgeToEdit) return
+    setEditBadgeFormError('')
+    if (!editBadgeForm.name.trim()) { setEditBadgeFormError(t('Name is required', 'الاسم مطلوب')); return }
+    const pts = Number(editBadgeForm.points)
+    if (!pts || pts <= 0 || !Number.isInteger(pts)) { setEditBadgeFormError(t('Points must be positive', 'يجب أن تكون النقاط موجبة')); return }
+    setSavingEditBadge(true)
+    try {
+      await http.put(`/gamification/badges/${badgeToEdit.id}`, { name: editBadgeForm.name.trim(), description: editBadgeForm.description.trim() || undefined, category: editBadgeForm.category, iconUrl: editBadgeForm.iconUrl || undefined, points: pts })
+      setShowEditBadge(false); fetchBadges(); fetchStats()
+      toast('success', t('Badge updated', 'تم تحديث الشارة'))
+    } catch (e: any) { setEditBadgeFormError(friendlyError(e, lang)) }
+    setSavingEditBadge(false)
+  }
+
+  const handleDeleteBadge = async () => {
+    if (!badgeToDelete) return
+    setDeletingBadge(true)
+    try {
+      await http.delete(`/gamification/badges/${badgeToDelete.id}`)
+      setShowDeleteBadge(false); fetchBadges(); fetchStats()
+      toast('success', t('Badge deleted', 'تم حذف الشارة'))
+    } catch (e: any) { toast('error', friendlyError(e, lang)) }
+    setDeletingBadge(false)
+  }
 
   const handleResetLeaderboard = async () => {
     setResettingLeaderboard(true)
     try {
-      await http.delete('/gamification/leaderboard', { schoolId: getSchoolId() })
-      setShowResetConfirm(false)
-      setResetConfirmText('')
-      fetchLeaderboard()
-      fetchStats()
-      toast('success', lang === 'ar' ? 'تم إعادة تعيين لوحة المتصدرين' : 'Leaderboard reset')
-    } catch (e: any) {
-      toast('error', friendlyError(e, lang))
-    }
+      await http.delete('/gamification/leaderboard', { schoolId })
+      setShowResetConfirm(false); setResetConfirmText('')
+      fetchLeaderboard(); fetchStats()
+      toast('success', t('Leaderboard reset', 'تم إعادة تعيين لوحة المتصدرين'))
+    } catch (e: any) { toast('error', friendlyError(e, lang)) }
     setResettingLeaderboard(false)
   }
 
-  // Derived
-
-  const top3 = leaderboard.slice(0, 3)
   const filteredLeaderboard = leaderboardSearch.trim()
-    ? leaderboard.filter(s =>
-        `${s.firstName} ${s.lastName}`.toLowerCase().includes(leaderboardSearch.toLowerCase()))
+    ? leaderboard.filter(s => `${s.firstName} ${s.lastName}`.toLowerCase().includes(leaderboardSearch.toLowerCase()))
     : leaderboard
+
   const filteredBadges = badgeSearch.trim()
     ? badges.filter(b => b.name.toLowerCase().includes(badgeSearch.toLowerCase()))
     : badges
 
-  const hasMoreTransactions = transactions.length < transactionsTotal
+  const categoryLabel = (cat: string) => lang === 'ar'
+    ? ({ attendance:'حضور',assessment:'تقييم',participation:'مشاركة',streak:'تتابع',mastery:'إتقان',behavior:'سلوك',liturgy:'قداس',points:'نقاط',xp:'خبرة',improvement:'تحسن',academic:'أكاديمي',other:'أخرى' } as Record<string,string>)[cat] || cat
+    : cat
 
   return (
-    <div className="space-y-6" ref={pageRef}>
-      <title>{lang === 'ar' ? 'التلعيب — Coptic Orthodox Hymn Education Platform (COHEP)' : 'Gamification — Coptic Orthodox Hymn Education Platform (COHEP)'}</title>
+    <div className="space-y-6">
+      <title>{t('Gamification — COHEP', 'التلعيب — كوهيب')}</title>
 
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">{lang === 'ar' ? 'التلعيب' : 'Gamification'}</h1>
-          <p className="text-sm text-gray-500">{lang === 'ar' ? 'الشارات، نقاط الخبرة، وتتبع مشاركة الطلاب' : 'Badges, XP, and student engagement tracking'}</p>
-        </div>
-        <div className="hidden sm:flex items-center gap-1 text-xs text-gray-400">
-          <span className="rounded bg-gray-100 px-1.5 py-0.5 font-mono">L</span><span>{lang === 'ar' ? 'المتصدرين' : 'Leaderboard'}</span>
-          <span className="rounded bg-gray-100 px-1.5 py-0.5 font-mono ml-2">B</span><span>{lang === 'ar' ? 'الشارات' : 'Badges'}</span>
-          <span className="rounded bg-gray-100 px-1.5 py-0.5 font-mono ml-2">N</span><span>{lang === 'ar' ? 'شارة جديدة' : 'New badge'}</span>
+          <h1 className="text-2xl font-bold text-gray-900">{t('Gamification', 'التلعيب')}</h1>
+          <p className="text-sm text-gray-500">{t('Personal growth, group milestones, seasonal badges, and servant recognition', 'النمو الشخصي، إنجازات المجموعة، الشارات الموسمية، وتقدير الخدام')}</p>
         </div>
       </div>
 
       {/* Stats */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {statsLoading ? (
-          <CardSkeleton count={4} />
-        ) : (
+        {statsLoading ? <CardSkeleton count={4} /> : (
           <>
-            <StatCard label={lang === 'ar' ? 'إجمالي نقاط الخبرة الممنوحة' : 'Total XP Awarded'} value={stats?.totalXp?.toLocaleString() ?? '0'} icon={Star} iconBg="bg-blue-50" iconColor="text-blue-700" />
-            <StatCard label={lang === 'ar' ? 'الشارات المكتسبة' : 'Badges Earned'} value={stats?.totalBadges?.toLocaleString() ?? '0'} icon={Trophy} iconBg="bg-green-50" iconColor="text-green-600" />
-            <StatCard label={lang === 'ar' ? 'التتابعات النشطة' : 'Active Streaks'} value={stats?.totalStreaks?.toLocaleString() ?? '0'} icon={Flame} iconBg="bg-orange-50" iconColor="text-orange-600" />
-            <div className="relative group rounded-xl border border-gray-200 bg-white p-4 flex items-center gap-3">
-              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-50 text-blue-600 shrink-0">
-                <Target className="h-5 w-5" />
-              </div>
-              <div>
-                <div className="flex items-center gap-1.5">
-                  <div className="text-lg font-bold text-gray-900">{stats?.avgEngagement ?? 0}%</div>
-                  <Info className="h-3.5 w-3.5 text-gray-300 cursor-help" />
-                </div>
-                <div className="text-xs text-gray-500">{lang === 'ar' ? 'الطلاب النشطون' : 'Active Students'}</div>
-              </div>
-              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-1.5 rounded-lg bg-gray-900 text-white text-xs whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none shadow-lg z-10">
-                {lang === 'ar' ? 'نسبة الطلاب الذين حصلوا على نقاط خبرة على الإطلاق' : '% of students who have ever earned XP'}
-              </div>
-            </div>
+            <StatCard label={t('Total XP Awarded', 'إجمالي نقاط الخبرة')} value={stats?.totalXp?.toLocaleString() ?? '0'} icon={Star} iconBg="bg-blue-50" iconColor="text-blue-700" />
+            <StatCard label={t('Badges Earned', 'الشارات المكتسبة')} value={stats?.totalBadges?.toLocaleString() ?? '0'} icon={Trophy} iconBg="bg-green-50" iconColor="text-green-600" />
+            <StatCard label={t('Active Streaks', 'التتابعات النشطة')} value={stats?.totalStreaks?.toLocaleString() ?? '0'} icon={Flame} iconBg="bg-orange-50" iconColor="text-orange-600" />
+            <StatCard label={t('Active Students %', 'نسبة الطلاب النشطين')} value={`${stats?.avgEngagement ?? 0}%`} icon={Target} iconBg="bg-blue-50" iconColor="text-blue-600" />
           </>
         )}
-      </div>
-
-      {/* Top 3 Podium */}
-      {!statsLoading && top3.length > 0 && (
-        <div className="grid gap-4 sm:grid-cols-3">
-          {top3.map((s) => (
-            <div key={s.id} className={`rounded-xl border bg-white p-5 text-center transition-all hover:shadow-md ${
-              s.rank === 1 ? 'border-blue-300 ring-1 ring-gold-200' : 'border-gray-200'
-            }`}>
-              <div className="flex justify-center">
-                {s.rank <= 3 ? <Medal className={`h-8 w-8 ${s.rank === 1 ? 'text-yellow-500' : s.rank === 2 ? 'text-gray-400' : 'text-amber-700'}`} /> : <span className="text-3xl font-bold text-gray-400">#{s.rank}</span>}
-              </div>
-              <div className="mt-2 text-lg font-bold text-gray-900">{s.firstName} {s.lastName}</div>
-              <div className="text-sm text-gray-500">{lang === 'ar' ? 'المستوى' : 'Level'} {s.level}</div>
-              <div className="mt-2 text-xl font-bold text-blue-700">{s.xp.toLocaleString()} {lang === 'ar' ? 'ن.خ' : 'XP'}</div>
-              <div className="mt-1 flex items-center justify-center gap-1 text-xs text-gray-500">
-                <Award className="h-3 w-3" /> {s.badgeCount} {lang === 'ar' ? 'شارات' : 'badges'}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* How XP Works */}
-      <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 flex items-start gap-2.5">
-        <Info className="h-4 w-4 mt-0.5 shrink-0" />
-        <p>
-          {lang === 'ar'
-            ? 'نقاط الخبرة (XP) تُكتسب من: الحضور المنتظم، السلوك الممتاز، المشاركة الفعالة، حضور القداس، والشارات. يتقدم الطالب إلى المستوى التالي كل 100 نقطة خبرة.'
-            : 'XP is earned through: consistent attendance, excellent behavior, active participation, liturgy attendance, and earning badges. Students level up every 100 XP.'}
-        </p>
       </div>
 
       {/* Tabs */}
       <Tabs
         tabs={[
-          { id: 'leaderboard', label: lang === 'ar' ? 'لوحة المتصدرين' : 'Leaderboard', icon: Trophy, count: leaderboard.length },
-          { id: 'badges', label: lang === 'ar' ? 'الشارات' : 'Badges', icon: Award, count: badges.length },
+          { id: 'growth',    label: t('Growth Mirror', 'مرآة النمو'),      icon: TrendingUp,  count: leaderboard.length },
+          { id: 'group',     label: t('Group Trophy', 'كأس المجموعة'),     icon: Trophy },
+          { id: 'seasonal',  label: t('Seasonal Badges', 'الشارات الموسمية'), icon: Star },
+          { id: 'servants',  label: t('Servant Awards', 'جوائز الخدام'),    icon: Medal },
+          { id: 'badges',    label: t('Badges', 'الشارات'),                icon: Award,       count: badges.length },
         ]}
         activeTab={activeTab}
         onChange={setActiveTab}
       />
 
-      {/* Leaderboard Tab */}
-      {activeTab === 'leaderboard' && (
-        <div role="tabpanel" id="panel-leaderboard" aria-labelledby="tab-leaderboard">
-          <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
-            {leaderboardLoading ? (
-              <div className="flex items-center justify-center py-16">
-                <Loader2 className="h-6 w-6 animate-spin text-gold-500" />
-              </div>
-            ) : leaderboard.length === 0 ? (
-              <EmptyState icon={Trophy} title={lang === 'ar' ? 'لا يوجد طلاب بعد' : 'No students yet'} description={lang === 'ar' ? 'سيظهر الطلاب هنا بمجرد حصولهم على نقاط الخبرة.' : 'Students will appear here once they earn XP.'} />
-            ) : (
-              <>
-                <div className="flex items-center justify-between px-4 py-2 border-b border-gray-100 gap-3">
-                  <div className="relative flex-1 max-w-xs">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                    <input
-                      value={leaderboardSearch}
-                      onChange={e => setLeaderboardSearch(e.target.value)}
-                      placeholder={lang === 'ar' ? 'ابحث باسم طالب...' : 'Search by name...'}
-                      className="w-full rounded-lg border border-gray-200 bg-white pl-9 pr-3 py-1.5 text-sm focus:border-gold-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-                      aria-label={lang === 'ar' ? 'بحث في لوحة المتصدرين' : 'Search leaderboard'}
-                    />
-                  </div>
-                  <Button variant="outline" size="sm" onClick={() => setShowResetConfirm(true)}
-                    className="text-red-600 border-red-200 hover:bg-red-50 shrink-0"
-                    aria-describedby="reset-desc">
-                    {lang === 'ar' ? 'إعادة تعيين' : 'Reset'}
-                  </Button>
+      {/* ── Growth Mirror Tab ── */}
+      {activeTab === 'growth' && (
+        <div className="space-y-4">
+          <div className="rounded-xl border border-blue-100 bg-blue-50 p-4 flex items-start gap-3">
+            <Info className="h-4 w-4 text-blue-600 mt-0.5 shrink-0" />
+            <p className="text-sm text-blue-800">
+              <span className="font-semibold">{t('No rankings here.', 'لا تصنيفات هنا.')}</span>{' '}
+              {t('Select a student to see their personal growth trajectory — their journey compared only to themselves, never to peers.',
+                 'اختر طالباً لعرض مسار نموه الشخصي — رحلته مقارنةً بنفسه فقط، لا بأقرانه.')}
+            </p>
+          </div>
+
+          <div className="flex flex-col gap-4 lg:flex-row">
+            {/* Student list */}
+            <div className="w-full lg:w-72 shrink-0">
+              <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
+                <div className="flex items-center gap-2 border-b border-gray-100 p-3">
+                  <Search className="h-4 w-4 text-gray-400" />
+                  <input
+                    value={leaderboardSearch}
+                    onChange={e => setLeaderboardSearch(e.target.value)}
+                    placeholder={t('Search student...', 'ابحث عن طالب...')}
+                    className="flex-1 text-sm bg-transparent focus:outline-none"
+                  />
                 </div>
-                <p id="reset-desc" className="sr-only">{lang === 'ar' ? 'إعادة تعيين لوحة المتصدرين — هذا الإجراء نهائي' : 'Reset leaderboard — this action is permanent'}</p>
-                <div className="overflow-x-auto table-to-cards">
-                  <table className="w-full" role="table">
-                    <thead>
-                      <tr className="border-b border-gray-100 bg-gray-50/50">
-                        <th scope="col" className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 w-20">{lang === 'ar' ? 'الترتيب' : 'Rank'}</th>
-                        <th scope="col" className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">{lang === 'ar' ? 'الطالب' : 'Student'}</th>
-                        <th scope="col" className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">{lang === 'ar' ? 'ن.خ' : 'XP'}</th>
-                        <th scope="col" className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">{lang === 'ar' ? 'الشارات' : 'Badges'}</th>
-                        <th scope="col" className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">{lang === 'ar' ? 'المستوى' : 'Level'}</th>
-                        <th scope="col" className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 w-16">{lang === 'ar' ? 'التفاصيل' : 'Details'}</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-100">
-                      {filteredLeaderboard.map((s) => (
-                        <tr key={s.id} className="hover:bg-blue-50/50 transition-colors">
-                          <td className="px-4 py-3" data-label="Rank">
-                            <div className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-bold ${
-                              s.rank <= 3 ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600'
-                            }`}>
-                              {s.rank <= 3 ? <Medal className={`h-4 w-4 ${s.rank === 1 ? 'text-yellow-500' : s.rank === 2 ? 'text-gray-400' : 'text-amber-700'}`} /> : s.rank}
-                            </div>
-                          </td>
-                          <td className="px-4 py-3" data-label="Student">
-                            <div className="text-sm font-medium text-gray-900">{s.firstName} {s.lastName}</div>
-                          </td>
-                          <td className="px-4 py-3 text-right" data-label="XP">
-                            <div className="text-sm font-semibold text-gray-900">{s.xp.toLocaleString()}</div>
-                          </td>
-                          <td className="px-4 py-3 text-right" data-label="Badges">
-                            <div className="inline-flex items-center gap-1 text-sm text-gray-600">
-                              <Award className="h-3.5 w-3.5" /> {s.badgeCount}
-                            </div>
-                          </td>
-                          <td className="px-4 py-3 text-right" data-label="Level">
-                            <UIBadge variant="info">{lang === 'ar' ? 'مستوى' : 'Lv'} {s.level}</UIBadge>
-                          </td>
-                          <td className="px-4 py-3 text-right" data-label="Details">
-                            <Button variant="outline" size="sm"
-                              onClick={() => openDrillDown(s)}
-                              className="text-gray-600 hover:bg-blue-50 hover:border-blue-200 hover:text-blue-700 shrink-0"
-                              aria-label={lang === 'ar' ? `عرض تفاصيل ${s.firstName} ${s.lastName}` : `View details for ${s.firstName} ${s.lastName}`}
-                            >
-                              <Eye className="h-3 w-3" />
-                              {lang === 'ar' ? 'عرض' : 'View'}
-                            </Button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-                {filteredLeaderboard.length === 0 && leaderboardSearch.trim() && (
-                  <div className="px-4 py-8 text-center text-sm text-gray-400">
-                    {lang === 'ar' ? `لا توجد نتائج لـ "${leaderboardSearch}"` : `No results for "${leaderboardSearch}"`}
+                {leaderboardLoading ? (
+                  <div className="flex justify-center py-8"><Loader2 className="h-5 w-5 animate-spin text-gold-500" /></div>
+                ) : (
+                  <div className="max-h-[460px] overflow-y-auto divide-y divide-gray-50">
+                    {filteredLeaderboard.map(s => (
+                      <button
+                        key={s.id}
+                        onClick={() => setGrowthStudent(s)}
+                        className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-blue-50 transition-colors ${growthStudent?.id === s.id ? 'bg-blue-50 border-r-2 border-gold-500' : ''}`}
+                      >
+                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gray-100 text-xs font-bold text-gray-600">
+                          {s.firstName[0]}{s.lastName[0]}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="text-sm font-medium text-gray-900 truncate">{s.firstName} {s.lastName}</div>
+                          <div className="text-xs text-gray-400">{s.xp} XP · {s.badgeCount} {t('badges', 'شارات')}</div>
+                        </div>
+                        <ChevronRight className="h-4 w-4 text-gray-300 shrink-0 rtl:rotate-180" />
+                      </button>
+                    ))}
+                    {filteredLeaderboard.length === 0 && (
+                      <p className="text-center text-sm text-gray-400 py-8">{t('No students yet', 'لا يوجد طلاب بعد')}</p>
+                    )}
                   </div>
                 )}
-              </>
-            )}
+              </div>
+            </div>
+
+            {/* Growth detail */}
+            <div className="flex-1">
+              {growthStudent ? (
+                <div>
+                  <div className="flex items-center gap-3 mb-4 rounded-xl border border-gray-200 bg-white p-4">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gold-100 text-gold-700 font-bold">
+                      {growthStudent.firstName[0]}{growthStudent.lastName[0]}
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-gray-900">{growthStudent.firstName} {growthStudent.lastName}</h3>
+                      <p className="text-xs text-gray-500">{growthStudent.xp.toLocaleString()} XP · Level {growthStudent.level} · {growthStudent.badgeCount} {t('badges', 'شارات')}</p>
+                    </div>
+                    <div className="ml-auto flex gap-2">
+                      <Button variant="outline" size="sm" onClick={() => openDrillDown(growthStudent)}>
+                        <Eye className="h-3.5 w-3.5" /> {t('XP Log', 'سجل XP')}
+                      </Button>
+                    </div>
+                  </div>
+                  <GrowthMirrorPanel entry={growthStudent} lang={lang} />
+                </div>
+              ) : (
+                <div className="flex h-64 items-center justify-center rounded-xl border border-dashed border-gray-200 bg-gray-50">
+                  <div className="text-center">
+                    <TrendingUp className="mx-auto h-10 w-10 text-gray-300 mb-3" />
+                    <p className="text-sm text-gray-500">{t('Select a student to view their growth', 'اختر طالباً لعرض نموه')}</p>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}
 
-      {/* Badges Tab */}
+      {/* ── Group Trophy Tab ── */}
+      {activeTab === 'group' && <GroupTrophyPanel lang={lang} schoolId={schoolId} />}
+
+      {/* ── Seasonal Badges Tab ── */}
+      {activeTab === 'seasonal' && <SeasonalBadgePanel lang={lang} schoolId={schoolId} onToast={(t, m) => toast(t, m)} />}
+
+      {/* ── Servant Awards Tab ── */}
+      {activeTab === 'servants' && <ServantRecognitionPanel lang={lang} schoolId={schoolId} />}
+
+      {/* ── Badges Tab ── */}
       {activeTab === 'badges' && (
-        <div role="tabpanel" id="panel-badges" aria-labelledby="tab-badges">
+        <div>
           <div className="flex items-center justify-between mb-4 gap-3">
             <div className="relative flex-1 max-w-xs">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-              <input
-                value={badgeSearch}
-                onChange={e => setBadgeSearch(e.target.value)}
-                placeholder={lang === 'ar' ? 'ابحث عن شارة...' : 'Search badges...'}
-                className="w-full rounded-lg border border-gray-200 bg-white pl-9 pr-3 py-2 text-sm focus:border-gold-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-                aria-label={lang === 'ar' ? 'بحث في الشارات' : 'Search badges'}
-              />
+              <input value={badgeSearch} onChange={e => setBadgeSearch(e.target.value)} placeholder={t('Search badges...', 'ابحث عن شارة...')}
+                className="w-full rounded-lg border border-gray-200 bg-white pl-9 pr-3 py-2 text-sm focus:border-gold-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
             </div>
-            <Button
-              onClick={openBadgeForm}
-              className="shrink-0"
-              aria-label={lang === 'ar' ? 'إضافة شارة جديدة' : 'Add new badge'}
-            >
-              <Plus className="h-4 w-4" /> {lang === 'ar' ? 'إضافة شارة' : 'Add Badge'}
+            <Button onClick={() => { setBadgeForm(emptyBadgeForm); setBadgeFormError(''); setShowBadgeForm(true) }}>
+              <Plus className="h-4 w-4" /> {t('Add Badge', 'إضافة شارة')}
             </Button>
           </div>
 
           {badgesLoading ? (
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-              <CardSkeleton count={8} />
-            </div>
-          ) : badges.length === 0 ? (
-            <div className="rounded-xl border border-gray-200 bg-white">
-              <EmptyState
-                icon={Award}
-                title={lang === 'ar' ? 'لا توجد شارات بعد' : 'No badges yet'}
-                description={lang === 'ar' ? 'أنشئ شارات لمكافأة إنجازات الطلاب.' : 'Create badges to reward student achievements.'}
-                action={
-                  <Button onClick={openBadgeForm}>
-                    <Plus className="h-4 w-4" /> {lang === 'ar' ? 'إنشاء أول شارة' : 'Create First Badge'}
-                  </Button>
-                }
-              />
-            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4"><CardSkeleton count={8} /></div>
           ) : filteredBadges.length === 0 ? (
-            <div className="rounded-xl border border-gray-200 bg-white p-8 text-center text-sm text-gray-400">
-              {lang === 'ar' ? `لا توجد شارات تطابق "${badgeSearch}"` : `No badges match "${badgeSearch}"`}
+            <div className="rounded-xl border border-gray-200 bg-white">
+              <EmptyState icon={Award} title={t('No badges yet', 'لا توجد شارات بعد')}
+                description={t('Create badges to reward student achievements.', 'أنشئ شارات لمكافأة إنجازات الطلاب.')}
+                action={<Button onClick={() => setShowBadgeForm(true)}><Plus className="h-4 w-4" /> {t('Create First Badge', 'إنشاء أول شارة')}</Button>} />
             </div>
           ) : (
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-              {filteredBadges.map((badge) => (
-                <div
-                  key={badge.id}
-                  className={`rounded-xl border p-4 transition-all hover:shadow-sm ${CATEGORY_COLORS[badge.category] || CATEGORY_COLORS.default}`}
-                >
-                  <div className="flex items-start justify-between">
-                    <div className="text-2xl">{(() => { const Icon = ICON_MAP[badge.iconUrl]; return Icon ? <Icon className="h-7 w-7" /> : (badge.iconUrl || '🏅') })()}</div>
-                    <div className="flex items-center gap-1">
-                      <Button
-                        variant="ghost" size="icon"
-                        onClick={() => openEditBadge(badge)}
-                        aria-label={lang === 'ar' ? `تحرير ${badge.name}` : `Edit ${badge.name}`}
-                        className="text-gray-400 hover:bg-amber-50 hover:text-amber-600"
-                      >
-                        <Pencil className="h-3.5 w-3.5" />
-                      </Button>
-                      <Button
-                        variant="ghost" size="icon"
-                        onClick={() => openDeleteBadge(badge)}
-                        aria-label={lang === 'ar' ? `حذف ${badge.name}` : `Delete ${badge.name}`}
-                        className="text-gray-400 hover:bg-red-50 hover:text-red-600"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
+              {filteredBadges.map(badge => {
+                const Icon = ICON_MAP[badge.iconUrl]
+                return (
+                  <div key={badge.id} className={`rounded-xl border p-4 transition-all hover:shadow-sm ${CATEGORY_COLORS[badge.category] || CATEGORY_COLORS.default}`}>
+                    <div className="flex items-start justify-between">
+                      <div className="text-2xl">{Icon ? <Icon className="h-7 w-7" /> : (badge.iconUrl || '🏅')}</div>
+                      <div className="flex items-center gap-1">
+                        <Button variant="ghost" size="icon" onClick={() => { setBadgeToEdit(badge); setEditBadgeForm({ name: badge.name, description: badge.description || '', category: badge.category, iconUrl: badge.iconUrl || '', points: String(badge.points) }); setEditBadgeFormError(''); setShowEditBadge(true) }} className="text-gray-400 hover:bg-amber-50 hover:text-amber-600"><Pencil className="h-3.5 w-3.5" /></Button>
+                        <Button variant="ghost" size="icon" onClick={() => { setBadgeToDelete(badge); setShowDeleteBadge(true) }} className="text-gray-400 hover:bg-red-50 hover:text-red-600"><Trash2 className="h-3.5 w-3.5" /></Button>
+                      </div>
+                    </div>
+                    <h3 className="mt-2 text-sm font-semibold text-gray-900">{badge.name}</h3>
+                    <p className="mt-0.5 text-xs text-gray-500 line-clamp-2">{badge.description}</p>
+                    <div className="mt-2 flex items-center justify-between">
+                      <UIBadge variant="outline" size="sm">{categoryLabel(badge.category)}</UIBadge>
+                      <span className="text-xs font-semibold text-gray-600">{badge.points} pts</span>
                     </div>
                   </div>
-                  <h3 className="mt-2 text-sm font-semibold text-gray-900">{badge.name}</h3>
-                  <p className="mt-0.5 text-xs text-gray-500 line-clamp-2">{badge.description}</p>
-                  <div className="mt-2 flex items-center justify-between">
-                    <UIBadge variant="outline" size="sm">{lang === 'ar'
-                      ? ({ attendance: 'حضور', assessment: 'تقييم', participation: 'مشاركة', streak: 'تتابع', mastery: 'إتقان', behavior: 'سلوك', liturgy: 'قداس', points: 'نقاط', xp: 'خبرة', improvement: 'تحسن', academic: 'أكاديمي', other: 'أخرى' } as Record<string, string>)[badge.category] || badge.category
-                      : badge.category}</UIBadge>
-                    <span className="text-xs font-semibold text-gray-600">{badge.points} {lang === 'ar' ? 'نقطة' : 'pts'}</span>
-                  </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
           )}
         </div>
       )}
 
-      {/* Create Badge Modal */}
-      <Modal
-        open={showBadgeForm}
-        onClose={() => setShowBadgeForm(false)}
-        title={lang === 'ar' ? 'إنشاء شارة جديدة' : 'Create New Badge'}
-        description={lang === 'ar' ? 'تعريف شارة جديدة لإنجازات الطلاب.' : 'Define a new badge for student achievements.'}
-        footer={
-          <>
-            <Button variant="outline" onClick={() => setShowBadgeForm(false)}>{lang === 'ar' ? 'إلغاء' : 'Cancel'}</Button>
-            <Button onClick={handleCreateBadge} disabled={savingBadge}
-              >
-              {savingBadge && <Loader2 className="h-4 w-4 animate-spin" />}
-              {lang === 'ar' ? 'إنشاء شارة' : 'Create Badge'}
-            </Button>
-          </>
-        }
-      >
+      {/* ── Badge Modals ── */}
+      <Modal open={showBadgeForm} onClose={() => setShowBadgeForm(false)} title={t('Create New Badge', 'إنشاء شارة جديدة')}
+        footer={<><Button variant="outline" onClick={() => setShowBadgeForm(false)}>{t('Cancel', 'إلغاء')}</Button><Button onClick={handleCreateBadge} disabled={savingBadge}>{savingBadge && <Loader2 className="h-4 w-4 animate-spin" />}{t('Create Badge', 'إنشاء')}</Button></>}>
         <div className="space-y-4">
-          {badgeFormError && (
-            <div className="rounded-lg bg-red-50 border border-red-200 p-3 text-sm text-red-700" role="alert">{badgeFormError}</div>
-          )}
-          <FormField
-            label={lang === 'ar' ? 'الاسم' : 'Name'}
-            required
-            value={badgeForm.name}
-            onChange={e => setBadgeForm({ ...badgeForm, name: e.target.value })}
-            placeholder={lang === 'ar' ? 'مثال: ترنيمة' : 'e.g. Hymn Master'}
-          />
-          <FormField
-            label={lang === 'ar' ? 'الوصف' : 'Description'}
-            as="textarea"
-            value={badgeForm.description}
-            onChange={e => setBadgeForm({ ...badgeForm, description: e.target.value })}
-            placeholder={lang === 'ar' ? 'صف ما تكافئه هذه الشارة' : 'Describe what this badge rewards'}
-          />
+          {badgeFormError && <div className="rounded-lg bg-red-50 border border-red-200 p-3 text-sm text-red-700">{badgeFormError}</div>}
+          <FormField label={t('Name', 'الاسم')} required value={badgeForm.name} onChange={e => setBadgeForm({ ...badgeForm, name: e.target.value })} placeholder={t('e.g. Hymn Master', 'مثال: ترنيمة')} />
+          <FormField label={t('Description', 'الوصف')} as="textarea" value={badgeForm.description} onChange={e => setBadgeForm({ ...badgeForm, description: e.target.value })} />
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">{lang === 'ar' ? 'الأيقونة' : 'Icon'}</label>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">{t('Icon', 'الأيقونة')}</label>
             <div className="grid grid-cols-8 gap-1.5 mb-2">
-              {ICON_OPTIONS.map(name => {
-                const Icon = ICON_MAP[name]
-                return (
-                  <button key={name} type="button"
-                    onClick={() => setBadgeForm({ ...badgeForm, iconUrl: name })}
-                    className={`flex items-center justify-center p-2 rounded-lg border ${badgeForm.iconUrl === name ? 'border-gold-500 bg-blue-50 ring-1 ring-gold-200' : 'border-gray-200 hover:border-gray-300'}`}
-                    aria-label={name}
-                  >
-                    <Icon className="h-5 w-5" />
-                  </button>
-                )
-              })}
+              {ICON_OPTIONS.map(name => { const Icon = ICON_MAP[name]; return <button key={name} type="button" onClick={() => setBadgeForm({ ...badgeForm, iconUrl: name })} className={`flex items-center justify-center p-2 rounded-lg border ${badgeForm.iconUrl === name ? 'border-gold-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300'}`}><Icon className="h-5 w-5" /></button> })}
             </div>
-            <input
-              value={badgeForm.iconUrl}
-              onChange={e => setBadgeForm({ ...badgeForm, iconUrl: e.target.value })}
-              placeholder={lang === 'ar' ? 'أو اكتب اسم الأيقونة' : 'Or type an icon name'}
-              className="block w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:border-gold-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-            />
           </div>
           <div className="grid grid-cols-2 gap-4">
-            <FormField
-              label={lang === 'ar' ? 'التصنيف' : 'Category'}
-              as="select"
-              value={badgeForm.category}
-              onChange={e => setBadgeForm({ ...badgeForm, category: e.target.value })}
-            >
-              {BADGE_CATEGORY_OPTIONS.map(c => <option key={c} value={c}>{lang === 'ar'
-                ? ({ attendance: 'حضور', assessment: 'تقييم', participation: 'مشاركة', streak: 'تتابع', mastery: 'إتقان', behavior: 'سلوك', liturgy: 'قداس', points: 'نقاط', xp: 'خبرة', improvement: 'تحسن', academic: 'أكاديمي', other: 'أخرى' } as Record<string, string>)[c] || c
-                : c}</option>)}
+            <FormField label={t('Category', 'التصنيف')} as="select" value={badgeForm.category} onChange={e => setBadgeForm({ ...badgeForm, category: e.target.value })}>
+              {BADGE_CATEGORY_OPTIONS.map(c => <option key={c} value={c}>{categoryLabel(c)}</option>)}
             </FormField>
-            <FormField
-              label={lang === 'ar' ? 'النقاط' : 'Points'}
-              required
-              type="number"
-              min={1}
-              step={1}
-              value={badgeForm.points}
-              onChange={e => setBadgeForm({ ...badgeForm, points: e.target.value })}
-              placeholder={lang === 'ar' ? 'مثال: 100' : 'e.g. 100'}
-            />
+            <FormField label={t('Points (XP)', 'النقاط')} required type="number" min={1} step={1} value={badgeForm.points} onChange={e => setBadgeForm({ ...badgeForm, points: e.target.value })} placeholder="100" />
           </div>
         </div>
       </Modal>
 
-      {/* Edit Badge Modal */}
-      <Modal
-        open={showEditBadge}
-        onClose={() => setShowEditBadge(false)}
-        title={lang === 'ar' ? 'تحرير الشارة' : 'Edit Badge'}
-        description={lang === 'ar' ? `تحديث "${badgeToEdit?.name}"` : `Update "${badgeToEdit?.name}"`}
-        footer={
-          <>
-            <Button variant="outline" onClick={() => setShowEditBadge(false)}
-              >{lang === 'ar' ? 'إلغاء' : 'Cancel'}</Button>
-            <Button onClick={handleEditBadge} disabled={savingEditBadge}
-              >
-              {savingEditBadge && <Loader2 className="h-4 w-4 animate-spin" />}
-              {lang === 'ar' ? 'حفظ التغييرات' : 'Save Changes'}
-            </Button>
-          </>
-        }
-      >
+      <Modal open={showEditBadge} onClose={() => setShowEditBadge(false)} title={t('Edit Badge', 'تحرير الشارة')}
+        footer={<><Button variant="outline" onClick={() => setShowEditBadge(false)}>{t('Cancel', 'إلغاء')}</Button><Button onClick={handleEditBadge} disabled={savingEditBadge}>{savingEditBadge && <Loader2 className="h-4 w-4 animate-spin" />}{t('Save', 'حفظ')}</Button></>}>
         <div className="space-y-4">
-          {editBadgeFormError && (
-            <div className="rounded-lg bg-red-50 border border-red-200 p-3 text-sm text-red-700" role="alert">{editBadgeFormError}</div>
-          )}
-          <FormField
-            label={lang === 'ar' ? 'الاسم' : 'Name'}
-            required
-            value={editBadgeForm.name}
-            onChange={e => setEditBadgeForm({ ...editBadgeForm, name: e.target.value })}
-            placeholder={lang === 'ar' ? 'مثال: ترنيمة' : 'e.g. Hymn Master'}
-          />
-          <FormField
-            label={lang === 'ar' ? 'الوصف' : 'Description'}
-            as="textarea"
-            value={editBadgeForm.description}
-            onChange={e => setEditBadgeForm({ ...editBadgeForm, description: e.target.value })}
-            placeholder={lang === 'ar' ? 'صف ما تكافئه هذه الشارة' : 'Describe what this badge rewards'}
-          />
+          {editBadgeFormError && <div className="rounded-lg bg-red-50 border border-red-200 p-3 text-sm text-red-700">{editBadgeFormError}</div>}
+          <FormField label={t('Name', 'الاسم')} required value={editBadgeForm.name} onChange={e => setEditBadgeForm({ ...editBadgeForm, name: e.target.value })} />
+          <FormField label={t('Description', 'الوصف')} as="textarea" value={editBadgeForm.description} onChange={e => setEditBadgeForm({ ...editBadgeForm, description: e.target.value })} />
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">{lang === 'ar' ? 'الأيقونة' : 'Icon'}</label>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">{t('Icon', 'الأيقونة')}</label>
             <div className="grid grid-cols-8 gap-1.5 mb-2">
-              {ICON_OPTIONS.map(name => {
-                const Icon = ICON_MAP[name]
-                return (
-                  <button key={name} type="button"
-                    onClick={() => setEditBadgeForm({ ...editBadgeForm, iconUrl: name })}
-                    className={`flex items-center justify-center p-2 rounded-lg border ${editBadgeForm.iconUrl === name ? 'border-gold-500 bg-blue-50 ring-1 ring-gold-200' : 'border-gray-200 hover:border-gray-300'}`}
-                    aria-label={name}
-                  >
-                    <Icon className="h-5 w-5" />
-                  </button>
-                )
-              })}
+              {ICON_OPTIONS.map(name => { const Icon = ICON_MAP[name]; return <button key={name} type="button" onClick={() => setEditBadgeForm({ ...editBadgeForm, iconUrl: name })} className={`flex items-center justify-center p-2 rounded-lg border ${editBadgeForm.iconUrl === name ? 'border-gold-500 bg-blue-50' : 'border-gray-200'}`}><Icon className="h-5 w-5" /></button> })}
             </div>
-            <input
-              value={editBadgeForm.iconUrl}
-              onChange={e => setEditBadgeForm({ ...editBadgeForm, iconUrl: e.target.value })}
-              placeholder={lang === 'ar' ? 'أو اكتب اسم الأيقونة' : 'Or type an icon name'}
-              className="block w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:border-gold-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-            />
           </div>
           <div className="grid grid-cols-2 gap-4">
-            <FormField
-              label={lang === 'ar' ? 'التصنيف' : 'Category'}
-              as="select"
-              value={editBadgeForm.category}
-              onChange={e => setEditBadgeForm({ ...editBadgeForm, category: e.target.value })}
-            >
-              {BADGE_CATEGORY_OPTIONS.map(c => <option key={c} value={c}>{lang === 'ar'
-                ? ({ attendance: 'حضور', assessment: 'تقييم', participation: 'مشاركة', streak: 'تتابع', mastery: 'إتقان', behavior: 'سلوك', liturgy: 'قداس', points: 'نقاط', xp: 'خبرة', improvement: 'تحسن', academic: 'أكاديمي', other: 'أخرى' } as Record<string, string>)[c] || c
-                : c}</option>)}
+            <FormField label={t('Category', 'التصنيف')} as="select" value={editBadgeForm.category} onChange={e => setEditBadgeForm({ ...editBadgeForm, category: e.target.value })}>
+              {BADGE_CATEGORY_OPTIONS.map(c => <option key={c} value={c}>{categoryLabel(c)}</option>)}
             </FormField>
-            <FormField
-              label={lang === 'ar' ? 'النقاط' : 'Points'}
-              required
-              type="number"
-              min={1}
-              step={1}
-              value={editBadgeForm.points}
-              onChange={e => setEditBadgeForm({ ...editBadgeForm, points: e.target.value })}
-              placeholder={lang === 'ar' ? 'مثال: 100' : 'e.g. 100'}
-            />
+            <FormField label={t('Points', 'النقاط')} required type="number" min={1} step={1} value={editBadgeForm.points} onChange={e => setEditBadgeForm({ ...editBadgeForm, points: e.target.value })} />
           </div>
         </div>
       </Modal>
 
-      {/* Drill-down: XP Sources */}
-      <Modal
-        open={!!drillDownStudent}
-        onClose={() => setDrillDownStudent(null)}
+      {/* XP drill-down */}
+      <Modal open={!!drillDownStudent} onClose={() => setDrillDownStudent(null)} size="lg"
         title={drillDownStudent ? `${drillDownStudent.firstName} ${drillDownStudent.lastName}` : ''}
-        description={drillDownStudent
-          ? (lang === 'ar'
-            ? `${drillDownStudent.xp.toLocaleString()} إجمالي نقاط الخبرة · المستوى ${drillDownStudent.level} · ${drillDownStudent.badgeCount} شارات`
-            : `${drillDownStudent.xp.toLocaleString()} total XP · Level ${drillDownStudent.level} · ${drillDownStudent.badgeCount} badges`)
-          : ''}
-        size="lg"
-      >
-        {transactionsLoading ? (
-          <div className="flex items-center justify-center py-10">
-            <Loader2 className="h-6 w-6 animate-spin text-gold-500" />
-          </div>
-        ) : transactions.length === 0 ? (
-          <p className="py-10 text-center text-sm text-gray-400">{lang === 'ar' ? 'لم يتم العثور على معاملات نقاط خبرة.' : 'No XP transactions found.'}</p>
-        ) : (
-          <>
-            <div className="max-h-[55vh] overflow-y-auto divide-y divide-gray-100">
+        description={drillDownStudent ? `${drillDownStudent.xp.toLocaleString()} XP · Level ${drillDownStudent.level} · ${drillDownStudent.badgeCount} ${t('badges', 'شارات')}` : ''}>
+        {transactionsLoading ? <div className="flex justify-center py-10"><Loader2 className="h-6 w-6 animate-spin text-gold-500" /></div>
+          : transactions.length === 0 ? <p className="py-10 text-center text-sm text-gray-400">{t('No XP transactions found.', 'لا توجد معاملات نقاط خبرة.')}</p>
+          : <div className="max-h-[55vh] overflow-y-auto divide-y divide-gray-100">
               {transactions.map((tx: any) => (
                 <div key={tx.id} className="flex items-center justify-between py-3">
                   <div>
-                    <div className="text-sm font-medium text-gray-900">
-                      {(() => { const Icon = TX_ICONS[tx.type]; return Icon ? <><Icon className="h-4 w-4 inline mr-1 text-gold-500" />{TX_LABELS[tx.type]}</> : null })() || tx.description || (lang === 'ar' ? 'نقاط خبرة' : 'XP')}
-                    </div>
+                    <div className="text-sm font-medium text-gray-900">{TX_LABELS[tx.type] || tx.description || 'XP'}</div>
                     <div className="text-xs text-gray-500">{new Date(tx.createdAt).toLocaleString()}</div>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <span className="text-sm font-semibold text-blue-700">+{tx.amount} {lang === 'ar' ? 'ن.خ' : 'XP'}</span>
-                    <span className="text-xs text-gray-400">{lang === 'ar' ? 'الرصيد:' : 'Bal:'} {tx.balanceAfter}</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-semibold text-blue-700">+{tx.amount} XP</span>
+                    <span className="text-xs text-gray-400">{t('Bal:', 'الرصيد:')} {tx.balanceAfter}</span>
                   </div>
                 </div>
               ))}
+              {transactions.length < transactionsTotal && (
+                <div className="pt-3 text-center">
+                  <Button variant="outline" onClick={loadMoreTransactions} disabled={transactionsLoadingMore}>
+                    {transactionsLoadingMore && <Loader2 className="h-4 w-4 animate-spin" />}
+                    {t(`Load more (${transactions.length}/${transactionsTotal})`, `تحميل المزيد (${transactions.length}/${transactionsTotal})`)}
+                  </Button>
+                </div>
+              )}
             </div>
-            {hasMoreTransactions && (
-              <div className="pt-3 text-center">
-                <Button variant="outline"
-                  onClick={loadMoreTransactions}
-                  disabled={transactionsLoadingMore}
-                >
-                  {transactionsLoadingMore ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : null}
-                  {lang === 'ar'
-                    ? `عرض المزيد (${transactions.length} من ${transactionsTotal})`
-                    : `Load more (${transactions.length} of ${transactionsTotal})`}
-                </Button>
-              </div>
-            )}
-          </>
-        )}
+        }
       </Modal>
 
-      {/* Reset Leaderboard Confirmation */}
-      <ConfirmDialog
-        open={showResetConfirm}
-        onClose={() => { setShowResetConfirm(false); setResetConfirmText('') }}
-        onConfirm={handleResetLeaderboard}
-        title={lang === 'ar' ? 'إعادة تعيين لوحة المتصدرين' : 'Reset Leaderboard'}
-        message={
-          <div className="space-y-3">
-            <p className="text-sm text-gray-600">
-              {lang === 'ar'
-                ? 'سيؤدي هذا إلى حذف جميع معاملات نقاط الخبرة لجميع الطلاب في هذه المدرسة نهائيًا. لا يمكن التراجع عن هذا الإجراء.'
-                : 'This will permanently delete all XP transactions for all students in this school. This action cannot be undone.'}
-            </p>
-            <div>
-              <label className="block text-sm font-semibold text-red-700 mb-1">
-                {lang === 'ar' ? `اكتب "إعادة تعيين" لتأكيد الحذف` : `Type "RESET" to confirm`}
-              </label>
-              <input
-                value={resetConfirmText}
-                onChange={e => setResetConfirmText(e.target.value)}
-                placeholder="RESET"
-                className="block w-full rounded-lg border border-red-300 bg-white px-3 py-2 text-sm focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-500/20"
-                autoFocus
-              />
-            </div>
-          </div>
-        }
-        confirmLabel={lang === 'ar' ? 'إعادة تعيين' : 'Reset'}
-        confirmDisabled={resetConfirmText !== 'RESET'}
-        loading={resettingLeaderboard}
-        variant="danger"
-      />
+      {/* Reset confirm */}
+      <ConfirmDialog open={showResetConfirm} onClose={() => { setShowResetConfirm(false); setResetConfirmText('') }}
+        onConfirm={handleResetLeaderboard} title={t('Reset Leaderboard', 'إعادة تعيين')}
+        message={<div className="space-y-3"><p className="text-sm text-gray-600">{t('This permanently deletes all XP transactions for all students. Cannot be undone.', 'سيحذف جميع معاملات نقاط الخبرة نهائياً.')}</p><input value={resetConfirmText} onChange={e => setResetConfirmText(e.target.value)} placeholder="RESET" className="block w-full rounded-lg border border-red-300 bg-white px-3 py-2 text-sm focus:outline-none" autoFocus /></div>}
+        confirmLabel={t('Reset', 'إعادة تعيين')} confirmDisabled={resetConfirmText !== 'RESET'} loading={resettingLeaderboard} variant="danger" />
 
-      {/* Delete Badge Confirmation */}
-      <ConfirmDialog
-        open={showDeleteBadge}
-        onClose={() => setShowDeleteBadge(false)}
-        onConfirm={handleDeleteBadge}
-        title={lang === 'ar' ? 'حذف الشارة' : 'Delete Badge'}
-        message={lang === 'ar' ? `هل أنت متأكد أنك تريد حذف "${badgeToDelete?.name}"؟ لا يمكن التراجع عن هذا الإجراء.` : `Are you sure you want to delete "${badgeToDelete?.name}"? This action cannot be undone.`}
-        confirmLabel={lang === 'ar' ? 'حذف' : 'Delete'}
-        loading={deletingBadge}
-      />
+      <ConfirmDialog open={showDeleteBadge} onClose={() => setShowDeleteBadge(false)} onConfirm={handleDeleteBadge}
+        title={t('Delete Badge', 'حذف الشارة')} message={t(`Delete "${badgeToDelete?.name}"? Cannot be undone.`, `حذف "${badgeToDelete?.name}"؟ لا يمكن التراجع.`)}
+        confirmLabel={t('Delete', 'حذف')} loading={deletingBadge} />
     </div>
   )
 }

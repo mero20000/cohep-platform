@@ -4,14 +4,15 @@ import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useLanguage } from '@/lib/use-language'
 import Image from 'next/image'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { motion, useScroll, useTransform, useSpring, useReducedMotion } from 'framer-motion'
 import {
  Users, BookOpen, Calendar, Trophy, Layers, ClipboardCheck,
  TrendingUp, Clock, Loader2, UserCheck,
  Award, ChevronRight, Sparkles, Sun, Target, BarChart3,
  ArrowUpRight, Zap, GraduationCap, Star,
- CalendarPlus, User, Shield, Crown, Heart, CalendarClock, UserCog,
- ListChecks, Flame, Info, XCircle, Baby, ChevronDown
+  CalendarPlus, User, Shield, Crown, Heart, CalendarClock, UserCog,
+  ListChecks, Flame, Info, XCircle, Baby, ChevronDown, Church
 } from 'lucide-react'
 import { StatCard } from '@/components/ui/stat-card'
 import { Button } from '@/components/ui/button'
@@ -738,6 +739,126 @@ function RoleBadge({ role, lang }: { role: string; lang: string }) {
  )
 }
 
+function StartClassCard({ lang }: { lang: string }) {
+  const [starting, setStarting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const { toast } = useToast()
+  const router = useRouter()
+
+  const handleStart = async () => {
+    setStarting(true)
+    setError(null)
+    try {
+      const res = await http.post('/attendance/start-class') as any
+      if (res.requiresGroupPick) {
+        toast('info', lang === 'ar' ? 'اختر المجموعة من صفحة الحضور' : 'Pick your group from the attendance page')
+        router.push('/dashboard/attendance')
+        return
+      }
+      toast('success', lang === 'ar' ? 'تم بدء الفصل!' : 'Class started!')
+      router.push(`/dashboard/attendance?sessionId=${res.session.id}&mode=exceptions`)
+    } catch {
+      setError(lang === 'ar' ? 'فشل بدء الفصل' : 'Failed to start class')
+      setTimeout(() => setError(null), 3000)
+    }
+    setStarting(false)
+  }
+
+  return (
+    <div className="rounded-xl border border-emerald-100 bg-gradient-to-br from-emerald-50 to-white p-5">
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="font-semibold text-gray-900">{lang === 'ar' ? 'بدء الفصل' : 'Start Class'}</h3>
+          <p className="text-sm text-gray-500 mt-1">{lang === 'ar' ? 'اضغط لبدء الفصل — سيتم تسجيل جميع الطلاب كحاضرين مسبقًا' : 'One tap — all students pre-marked present. Fix exceptions only.'}</p>
+        </div>
+        <button onClick={handleStart} disabled={starting}
+          className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-sm bg-emerald-600 text-white hover:bg-emerald-700 active:scale-95 transition-all disabled:opacity-50 shadow-lg shadow-emerald-200">
+          {starting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
+          {starting ? (lang === 'ar' ? 'جاري البدء...' : 'Starting...') : (lang === 'ar' ? 'بدء الفصل' : 'Start Class')}
+        </button>
+      </div>
+      {error && <p className="text-sm text-red-600 mt-2">{error}</p>}
+    </div>
+  )
+}
+
+function LiturgyHeatmapCard({ lang }: { lang: string }) {
+  const [data, setData] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await http.get('/attendance/liturgy-heatmap', { schoolId: getSchoolId() }) as any
+        setData(res)
+      } catch { /* ignore */ }
+      setLoading(false)
+    })()
+  }, [])
+
+  if (loading) return null
+  if (!data || data.students?.length === 0) return null
+
+  const heatClass = (status: string, liturgy: boolean) => {
+    if (status === 'present' && liturgy) return 'bg-green-500'
+    if (status === 'present' || status === 'late') return 'bg-amber-400'
+    if (status === 'absent') return 'bg-red-300'
+    return 'bg-gray-100'
+  }
+
+  const regular = data.students.filter((s: any) => s.liturgyCount >= Math.ceil(data.weeks.length * 0.5)).length
+  const classOnly = data.students.filter((s: any) => s.liturgyCount === 0 && s.classCount > 0).length
+
+  return (
+    <div className="rounded-xl border border-gray-200/60 bg-white overflow-hidden">
+      <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4">
+        <div className="flex items-center gap-2">
+          <div className="flex h-7 w-7 items-center justify-center rounded-full bg-amber-50 text-amber-700"><Church className="h-4 w-4" /></div>
+          <h2 className="font-semibold text-gray-900">{lang === 'ar' ? 'خريطة القداسات الحرارية' : 'Liturgy Heatmap'}</h2>
+        </div>
+        <div className="flex items-center gap-3 text-[11px]">
+          <span className="flex items-center gap-1"><span className="h-2.5 w-2.5 rounded bg-green-500" />{lang === 'ar' ? 'قداس+حضور' : 'Liturgy+Class'}</span>
+          <span className="flex items-center gap-1"><span className="h-2.5 w-2.5 rounded bg-amber-400" />{lang === 'ar' ? 'حضور فقط' : 'Class only'}</span>
+          <span className="flex items-center gap-1"><span className="h-2.5 w-2.5 rounded bg-red-300" />{lang === 'ar' ? 'غائب' : 'Absent'}</span>
+        </div>
+      </div>
+      <div className="p-4">
+        <div className="flex gap-4 mb-4 text-sm">
+          <span className="text-green-700 font-medium">🕊 {regular} {lang === 'ar' ? 'يقدس بانتظام' : 'regularly attend liturgy'}</span>
+          <span className="text-amber-700 font-medium">📖 {classOnly} {lang === 'ar' ? 'يحضرون الفصل فقط' : 'class only'}</span>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-xs">
+            <thead>
+              <tr>
+                <th className="text-left text-gray-500 font-medium pr-3 pb-2 sticky left-0 bg-white">{lang === 'ar' ? 'الطالب' : 'Student'}</th>
+                {data.weeks.map((w: string) => (
+                  <th key={w} className="text-center text-gray-400 font-normal pb-2 px-1">{w.slice(-5)}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {data.students.map((s: any) => (
+                <tr key={s.name}>
+                  <td className="text-gray-700 pr-3 py-1 sticky left-0 bg-white whitespace-nowrap">{lang === 'ar' && s.nameAr ? s.nameAr : s.name}</td>
+                  {data.weeks.map((w: string) => {
+                    const cell = s.weeks[w]
+                    return (
+                      <td key={w} className="px-1 py-1">
+                        <div className={`h-4 w-4 rounded ${cell ? heatClass(cell.classStatus, cell.liturgy) : 'bg-gray-100'}`} title={cell ? `${s.name}: ${cell.classStatus}${cell.liturgy ? ' + liturgy' : ''}` : ''} />
+                      </td>
+                    )
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function MinistryDashboard({ data, loading, error, onRetry }: { data: any; loading: boolean; error: boolean; onRetry: () => void }) {
  const lang = useLanguage()
  if (loading && !data) return <MineFallback />
@@ -746,6 +867,14 @@ function MinistryDashboard({ data, loading, error, onRetry }: { data: any; loadi
  const sessions: any[] = d.sessions || []
  const groups: any[] = d.groups || []
  const recentGrades: any[] = d.recentGrades || []
+ const school = d.school || {}
+ const churchName = school?.church?.name || ''
+ const churchLogo = school?.church?.logoUrl
+  ? ((process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api').replace('/api', '') + school.church.logoUrl)
+  : null
+ const schoolLogo = school?.logoUrl
+  ? ((process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api').replace('/api', '') + school.logoUrl)
+  : null
 
  return (
   <>
@@ -762,9 +891,34 @@ function MinistryDashboard({ data, loading, error, onRetry }: { data: any; loadi
        <div className="flex items-center gap-2 text-gold-400 text-sm font-medium mb-2">
         <Sun className="h-4 w-4" /><span>{lang === 'ar' ? getGreetingAr() : getGreeting()}</span>
        </div>
-       <h1 className="text-2xl sm:text-3xl font-bold text-white tracking-wider">{lang === 'ar' ? 'لوحة خدمتك' : 'Your Ministry'}</h1>
-       <p className="text-white/60 text-sm mt-1">{lang === 'ar' ? getDayNameAr() : getDayName()}</p>
-       <div className="mt-3"><RoleBadge role={d.role || 'servant'} lang={lang} /></div>
+       <h1 className="text-2xl sm:text-3xl font-bold text-white">
+        {school?.name || (lang === 'ar' ? 'منصة تعليم التراتيل الكنسية' : 'Coptic Orthodox Hymn Education Platform')}
+       </h1>
+       <div className="flex items-center gap-2 mt-1.5">
+        {churchName && (
+         <span className="inline-flex items-center gap-1 rounded-lg bg-white/10 px-2 py-0.5 text-xs font-medium text-white/80">
+          {churchName}
+         </span>
+        )}
+        <p className="text-white/60 text-sm">{lang === 'ar' ? getDayNameAr() : getDayName()}</p>
+       </div>
+       <div className="mt-2"><RoleBadge role={d.role || 'servant'} lang={lang} /></div>
+      </div>
+      <div className="flex items-center gap-4">
+       {churchLogo && (
+        <div className="relative shrink-0">
+         <div className="absolute inset-0 rounded-2xl bg-white/10 blur-xl" />
+         <Image src={churchLogo} alt="Church Logo" width={100} height={100}
+          className="relative h-24 w-24 rounded-2xl border-2 border-white/20 bg-white/10 object-cover shadow-xl" />
+        </div>
+       )}
+       {schoolLogo && (
+        <div className="relative shrink-0">
+         <div className="absolute inset-0 rounded-2xl bg-white/10 blur-xl" />
+         <Image src={schoolLogo} alt="School Logo" width={100} height={100}
+          className="relative h-24 w-24 rounded-2xl border-2 border-white/20 bg-white/10 object-cover shadow-xl" />
+        </div>
+       )}
       </div>
      </div>
      <div className="relative mt-6 grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -785,9 +939,14 @@ function MinistryDashboard({ data, loading, error, onRetry }: { data: any; loadi
        </div>
       ))}
      </div>
-    </div>
+     </div>
 
-    {!d.scoped && (
+     {/* Start Class button */}
+     <motion.div variants={fadeUp}>
+       <StartClassCard lang={lang} />
+     </motion.div>
+
+     {!d.scoped && (
      <div className="flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
       <Info className="h-4 w-4 shrink-0" />
       <span>{lang === 'ar' ? 'أنت غير معيَّن لمجموعة بعد — يتم عرض نشاط المدرسة كاملاً.' : 'You are not assigned to a group yet — showing school-wide activity.'}</span>
@@ -863,8 +1022,12 @@ function MinistryDashboard({ data, loading, error, onRetry }: { data: any; loadi
        </div>
       ))}
      </div>
+     </motion.div>
+
+     <motion.div variants={fadeUp}>
+       <LiturgyHeatmapCard lang={lang} />
+     </motion.div>
     </motion.div>
-   </motion.div>
   </>
  )
 }

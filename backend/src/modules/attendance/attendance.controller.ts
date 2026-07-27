@@ -1,5 +1,5 @@
 import {
-  Controller, Get, Post, Put, Delete, Body, Param, Query,
+  Controller, Get, Post, Put, Delete, Body, Param, Query, Req,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { Roles, STAFF_ROLES } from '../../common/decorators/roles.decorator';
@@ -100,5 +100,20 @@ export class AttendanceController {
   @ApiOperation({ summary: 'Generate attendance sessions from active days' })
   async generateSessions(@Query('schoolId') schoolId: string = '') {
     return this.attendanceService.generateSessions(schoolId);
+  }
+
+  @Post('start-class')
+  @ApiOperation({ summary: 'Start class for today — auto-detect group, pre-fill all present' })
+  async startClass(@Req() req: any) {
+    return this.attendanceService.startClass(req.user.id);
+  }
+
+  @Get('liturgy-heatmap')
+  @ApiOperation({ summary: 'Get liturgy vs class attendance heatmap data' })
+  async liturgyHeatmap(
+    @Query('schoolId') schoolId: string = '',
+    @Query('groupId') groupId?: string,
+  ) {
+    return this.attendanceService.liturgyHeatmap(schoolId, groupId);
   }
 }

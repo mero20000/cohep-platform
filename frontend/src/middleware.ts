@@ -25,22 +25,6 @@ export function middleware(request: NextRequest) {
   if (PUBLIC_PATHS.includes(pathname)) return NextResponse.next()
 
   // Auth is enforced client-side via API 401 responses.
-  // Middleware only handles role-based access controls (servant restriction).
-  const token = request.cookies.get('token')?.value
-
-  if (token) {
-    const payload = decodeJwtPayload(token)
-    const roles = (payload?.roles as string[]) || []
-    if (roles.includes('servant') && !roles.some(r => ['admin', 'superadmin', 'staff', 'director'].includes(r))) {
-      // Servants can only access /dashboard/servants and /dashboard/curriculum (read-only)
-      const allowed = ['/dashboard/servants', '/dashboard/curriculum', '/portal']
-      const isAllowed = allowed.some(a => pathname.startsWith(a))
-      if (!isAllowed && pathname.startsWith('/dashboard')) {
-        return NextResponse.redirect(new URL('/dashboard/servants', request.url))
-      }
-    }
-  }
-
   return NextResponse.next()
 }
 

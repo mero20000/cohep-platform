@@ -3,6 +3,8 @@ import { PrismaService } from '../../database/prisma.service';
 import { SchoolResolver } from '../../common/utils/school-resolver';
 import { AuditService } from '../audit/audit.service';
 import { GamificationService } from '../gamification/gamification.service';
+import { NotificationsService } from '../notifications/notifications.service';
+import { MailService } from '../mail/mail.service';
 import { CreateAttendanceSessionDto } from './dto/create-attendance-session.dto';
 import { MarkAttendanceDto } from './dto/mark-attendance.dto';
 
@@ -14,6 +16,8 @@ export class AttendanceService {
     private readonly audit: AuditService,
     @Inject(forwardRef(() => GamificationService))
     private readonly gamification: GamificationService,
+    private readonly notifications: NotificationsService,
+    private readonly mail: MailService,
   ) {}
 
   async getSessions(schoolIdentifier: string, filters: {
@@ -197,7 +201,219 @@ export class AttendanceService {
       this.gamification.computeBadgesForStudent(sid).catch(() => {});
     }
 
+    // Absence cascade: check for 3 consecutive absences
+    for (const record of dto.records) {
+      if (record.status === 'absent') {
+        this.checkAbsenceCascade(record.studentId, session.schoolId, recordedBy).catch(() => {});
+      }
+    }
+
     return this.getSessionById(sessionId);
+  }
+
+  private async checkAbsenceCascade(studentId: string, schoolId: string, servantId: string) {
+    const recent = await this.prisma.attendanceRecord.findMany({
+      where: { studentId, status: { in: ['present', 'late', 'absent'] } },
+      include: {
+        attendanceSession: { select: { scheduledDate: true } },
+        student: { select: { firstName: true, lastName: true, firstNameAr: true, lastNameAr: true, parentEmail: true } },
+      },
+      orderBy: { attendanceSession: { scheduledDate: 'desc' } },
+      take: 3,
+    });
+
+    if (recent.length < 3) return;
+    const allAbsent = recent.every(r => r.status === 'absent');
+    if (!allAbsent) return;
+
+    const student = recent[0].student;
+    const studentName = `${student.firstName} ${student.lastName}`;
+    const studentNameAr = student.firstNameAr && student.lastNameAr ? `${student.firstNameAr} ${student.lastNameAr}` : studentName;
+
+    const group = await this.prisma.attendanceSession.findFirst({
+      where: { attendanceRecords: { some: { studentId } } },
+      include: { group: { select: { name: true } } },
+      orderBy: { scheduledDate: 'desc' },
+    });
+    const groupName = group?.group?.name || 'class';
+
+    // Notify parent in-app
+    const parentLink = await this.prisma.studentParent.findFirst({ where: { studentId } });
+    if (parentLink) {
+      await this.notifications.createNotification({
+        schoolId,
+        userId: parentLink.parentId,
+        type: 'attendance',
+        title: 'Missing in class',
+        titleAr: 'غائب عن الفصل',
+        body: `${studentName} hasn't attended ${groupName} for 3 consecutive sessions. We miss them!`,
+        bodyAr: `${studentNameAr} لم يحضر ${groupName} لمدة 3 جلسات متتالية. نحن نفتقدهم!`,
+        channels: ['in_app'],
+      });
+    }
+
+    // Email parent
+    if (student.parentEmail) {
+      try {
+        await this.mail.sendAttendanceAlert(student.parentEmail, studentName, studentNameAr, groupName);
+      } catch {
+        // email is best-effort
+      }
+    }
+
+    // Notify servant
+    await this.notifications.createNotification({
+      schoolId,
+      userId: servantId,
+      type: 'attendance',
+      title: 'Absence alert',
+      titleAr: 'تنبيه غياب',
+      body: `${studentName} hasn't attended for 3 consecutive sessions. You may want to check in.`,
+      bodyAr: `${studentNameAr} لم يحضر لمدة 3 جلسات متتالية. قد ترغب في التواصل.`,
+      channels: ['in_app'],
+    });
+  }
+
+  async startClass(servantId: string) {
+    const servant = await this.prisma.user.findUnique({ where: { id: servantId }, select: { schoolId: true } });
+    if (!servant) throw new NotFoundException('Servant not found');
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    // Find existing session for today
+    const existing = await this.prisma.attendanceSession.findFirst({
+      where: {
+        servantId,
+        scheduledDate: { gte: today, lt: tomorrow },
+        deletedAt: null,
+      },
+      include: {
+        group: { select: { id: true, name: true } },
+        level: { select: { id: true, name: true } },
+        attendanceRecords: { include: { student: { select: { id: true, firstName: true, lastName: true, firstNameAr: true, lastNameAr: true } } } },
+      },
+    });
+    if (existing) return { session: existing, created: false };
+
+    // Find servant's group(s) from their recent sessions
+    const recentSessions = await this.prisma.attendanceSession.findMany({
+      where: { servantId, deletedAt: null },
+      include: { group: { select: { id: true, name: true } }, level: { select: { id: true, name: true, number: true } } },
+      orderBy: { scheduledDate: 'desc' },
+      take: 1,
+    });
+
+    if (recentSessions.length === 0) {
+      throw new BadRequestException('No groups assigned. Ask your admin to set up your schedule.');
+    }
+
+    const ref = recentSessions[0];
+    const groups = await this.prisma.group.findMany({
+      where: { level: { schoolId: servant.schoolId }, levelId: ref.levelId },
+      include: { level: { select: { id: true, name: true, number: true } } },
+    });
+
+    let groupId: string;
+    let levelId: string;
+
+    if (groups.length === 1) {
+      groupId = groups[0].id;
+      levelId = groups[0].levelId;
+    } else {
+      // Multiple groups — return them for the client to pick
+      return { groups: groups.map(g => ({ id: g.id, name: g.name, level: g.level })), requiresGroupPick: true };
+    }
+
+    const session = await this.prisma.attendanceSession.create({
+      data: {
+        schoolId: servant.schoolId,
+        servantId,
+        levelId,
+        groupId,
+        scheduledDate: new Date(),
+        scheduledTime: new Date().toTimeString().slice(0, 5),
+        status: 'in_progress',
+      },
+    });
+
+    // Pre-mark all students as present
+    const students = await this.prisma.student.findMany({
+      where: { groupId, levelId, schoolId: servant.schoolId, deletedAt: null, status: 'active' },
+      select: { id: true },
+    });
+    if (students.length > 0) {
+      await this.prisma.attendanceRecord.createMany({
+        data: students.map(s => ({
+          attendanceSessionId: session.id,
+          studentId: s.id,
+          status: 'present',
+          recordedBy: servantId,
+          recordedAt: new Date(),
+        })),
+      });
+    }
+
+    const full = await this.getSessionById(session.id);
+    return { session: full, created: true };
+  }
+
+  async liturgyHeatmap(schoolIdentifier: string, groupId?: string) {
+    const schoolId = await this.schoolResolver.resolve(schoolIdentifier);
+
+    const sessions = await this.prisma.attendanceSession.findMany({
+      where: {
+        schoolId,
+        ...(groupId ? { groupId } : {}),
+        status: 'completed',
+        deletedAt: null,
+      },
+      include: {
+        attendanceRecords: {
+          include: { student: { select: { id: true, firstName: true, lastName: true, firstNameAr: true, lastNameAr: true } } },
+        },
+        group: { select: { id: true, name: true } },
+      },
+      orderBy: { scheduledDate: 'desc' },
+      take: 52,
+    });
+
+    // Group by ISO week
+    const weekMap = new Map<string, typeof sessions>();
+    for (const s of sessions) {
+      const week = getISOWeeks(s.scheduledDate);
+      if (!weekMap.has(week)) weekMap.set(week, []);
+      weekMap.get(week)!.push(s);
+    }
+    const weeks = [...weekMap.keys()].sort().slice(-12);
+
+    // Collect unique students across all weeks
+    const studentMap = new Map<string, { name: string; nameAr: string; liturgyCount: number; classCount: number; weeks: Record<string, { classStatus: string; liturgy: boolean }> }>();
+    for (const week of weeks) {
+      const weekSessions = weekMap.get(week) || [];
+      for (const s of weekSessions) {
+        for (const r of s.attendanceRecords) {
+          const st = r.student;
+          if (!studentMap.has(st.id)) {
+            studentMap.set(st.id, { name: `${st.firstName} ${st.lastName}`, nameAr: st.firstNameAr && st.lastNameAr ? `${st.firstNameAr} ${st.lastNameAr}` : '', liturgyCount: 0, classCount: 0, weeks: {} });
+          }
+          const entry = studentMap.get(st.id)!;
+          entry.classCount++;
+          if (r.attendedLiturgy) entry.liturgyCount++;
+          if (!entry.weeks[week] || entry.weeks[week].classStatus === 'absent') {
+            entry.weeks[week] = { classStatus: r.status, liturgy: r.attendedLiturgy || false };
+          }
+        }
+      }
+    }
+
+    return {
+      totalStudents: studentMap.size,
+      weeks,
+      students: [...studentMap.values()].sort((a, b) => b.classCount - a.classCount),
+    };
   }
 
   async getSessionStats(schoolIdentifier: string) {
@@ -491,4 +707,12 @@ export class AttendanceService {
     });
     return { deleted: true };
   }
+}
+
+function getISOWeeks(date: Date): string {
+  const d = new Date(date);
+  d.setHours(0, 0, 0, 0);
+  d.setDate(d.getDate() + 3 - ((d.getDay() + 6) % 7));
+  const week = Math.ceil(((d.getTime() - new Date(d.getFullYear(), 0, 4).getTime()) / 86400000 + 1) / 7);
+  return `${d.getFullYear()}-W${String(week).padStart(2, '0')}`;
 }

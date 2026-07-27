@@ -50,4 +50,21 @@ export class MailService {
     });
     await this.sendMail(adminEmail, `New Registration: ${data.churchName}`, html);
   }
+
+  async sendAttendanceAlert(to: string, studentName: string, studentNameAr: string, groupName: string) {
+    const html = emailTemplate({
+      title: 'We Miss Your Child in Class',
+      content: `
+        ${emailParagraph(`We've noticed that ${studentName} hasn't attended ${groupName} for the past 3 weeks. We miss them and hope everything is okay!`)}
+        ${emailParagraph(`لاحظنا أن ${studentNameAr || studentName} لم يحضر ${groupName} خلال الأسابيع الثلاثة الماضية. نحن نفتقدهم ونأمل أن يكون كل شيء على ما يرام!`)}
+        <table style="width:100%;border-collapse:collapse;font-size:14px;">
+          ${emailKeyValueRow('Student', studentName)}
+          ${emailKeyValueRow('Group', groupName)}
+        </table>
+        ${emailParagraph('If there is anything we can help with, please reach out to your child\'s servant.')}
+      `,
+      cta: { text: 'View Attendance', url: '/portal' },
+    });
+    await this.sendMail(to, `We miss ${studentName} in class`, html);
+  }
 }

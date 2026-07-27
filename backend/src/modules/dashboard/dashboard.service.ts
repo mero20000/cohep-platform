@@ -247,7 +247,7 @@ export class DashboardService {
 
     const school = await this.prisma.school.findUnique({
       where: { id: resolvedId },
-      select: { name: true, nameAr: true, logoUrl: true },
+      select: { name: true, nameAr: true, logoUrl: true, church: { select: { name: true, logoUrl: true } } },
     });
 
     if (category === 'parent') return this.getParentView(user, resolvedId, roleToUse, school);

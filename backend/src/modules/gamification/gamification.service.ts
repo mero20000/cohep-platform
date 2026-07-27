@@ -588,4 +588,469 @@ export class GamificationService {
     await this.prisma.xPTransaction.deleteMany({ where: { studentId: { in: ids } } });
     return { message: `Leaderboard reset for ${ids.length} students` };
   }
+
+  // ── Personal Growth Mirror ─────────────────────────────────────────────
+
+  async getPersonalGrowthMirror(studentId: string) {
+    const student = await this.prisma.student.findUnique({
+      where: { id: studentId },
+      include: { level: { select: { number: true, name: true } } },
+    });
+    if (!student) throw new NotFoundException('Student not found');
+
+    // XP per calendar month (last 6 months)
+    const sixMonthsAgo = new Date();
+    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+    const allTx = await this.prisma.xPTransaction.findMany({
+      where: { studentId, createdAt: { gte: sixMonthsAgo } },
+      select: { amount: true, createdAt: true, type: true },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    // Bucket by month
+    const monthMap: Record<string, number> = {};
+    for (const tx of allTx) {
+      const key = `${tx.createdAt.getFullYear()}-${String(tx.createdAt.getMonth() + 1).padStart(2, '0')}`;
+      monthMap[key] = (monthMap[key] || 0) + tx.amount;
+    }
+    const monthlyXp = Object.entries(monthMap).map(([month, xp]) => ({ month, xp }));
+
+    // Running XP total at start vs now
+    const totalXpResult = await this.prisma.xPTransaction.aggregate({
+      where: { studentId },
+      _sum: { amount: true },
+    });
+    const totalXp = totalXpResult._sum.amount || 0;
+
+    const oneMonthAgoXpResult = await this.prisma.xPTransaction.aggregate({
+      where: { studentId, createdAt: { lt: new Date(new Date().setMonth(new Date().getMonth() - 1)) } },
+      _sum: { amount: true },
+    });
+    const xpOneMonthAgo = oneMonthAgoXpResult._sum.amount || 0;
+    const xpGainedThisMonth = totalXp - xpOneMonthAgo;
+    const growthPercent = xpOneMonthAgo > 0
+      ? Math.round(((totalXp - xpOneMonthAgo) / xpOneMonthAgo) * 100)
+      : 0;
+
+    // Attendance rate this month vs last month
+    const today = new Date();
+    const startThisMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+    const startLastMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+    const endLastMonth = new Date(today.getFullYear(), today.getMonth(), 0);
+
+    const thisMonthAtt = await this.prisma.attendanceRecord.findMany({
+      where: { studentId, attendanceSession: { scheduledDate: { gte: startThisMonth } } },
+      select: { status: true },
+    });
+    const lastMonthAtt = await this.prisma.attendanceRecord.findMany({
+      where: { studentId, attendanceSession: { scheduledDate: { gte: startLastMonth, lte: endLastMonth } } },
+      select: { status: true },
+    });
+
+    const rate = (recs: { status: string }[]) => {
+      if (!recs.length) return 0;
+      return Math.round(recs.filter(r => r.status === 'present' || r.status === 'late').length / recs.length * 100);
+    };
+    const thisMonthRate = rate(thisMonthAtt);
+    const lastMonthRate = rate(lastMonthAtt);
+    const attendanceImprovement = thisMonthRate - lastMonthRate;
+
+    // Assessments passed this month vs last
+    const passedThisMonth = await this.prisma.assessmentSubmission.count({
+      where: {
+        studentId, status: 'submitted',
+        createdAt: { gte: startThisMonth },
+        grades: { some: { score: { gt: 0 } } },
+      },
+    });
+    const passedLastMonth = await this.prisma.assessmentSubmission.count({
+      where: {
+        studentId, status: 'submitted',
+        createdAt: { gte: startLastMonth, lte: endLastMonth },
+        grades: { some: { score: { gt: 0 } } },
+      },
+    });
+
+    // Badges timeline
+    const badgeTimeline = await this.prisma.studentBadge.findMany({
+      where: { studentId },
+      include: { badge: { select: { name: true, category: true, iconUrl: true } } },
+      orderBy: { awardedAt: 'asc' },
+    });
+
+    return {
+      studentId,
+      levelNumber: student.level?.number,
+      levelName: student.level?.name,
+      totalXp,
+      xpOneMonthAgo,
+      xpGainedThisMonth,
+      growthPercent,
+      monthlyXp,
+      attendance: {
+        thisMonth: thisMonthRate,
+        lastMonth: lastMonthRate,
+        improvement: attendanceImprovement,
+      },
+      assessments: {
+        passedThisMonth,
+        passedLastMonth,
+        improvement: passedThisMonth - passedLastMonth,
+      },
+      badgeTimeline: badgeTimeline.map(b => ({
+        badgeName: b.badge.name,
+        category: b.badge.category,
+        icon: b.badge.iconUrl,
+        earnedAt: b.awardedAt,
+      })),
+      totalBadges: badgeTimeline.length,
+    };
+  }
+
+  // ── Group Trophy ────────────────────────────────────────────────────────
+
+  async getGroupTrophy(groupId: string, schoolIdentifier: string) {
+    const schoolId = await this.schoolResolver.resolve(schoolIdentifier);
+
+    const group = await this.prisma.group.findUnique({
+      where: { id: groupId },
+      include: {
+        level: { select: { number: true, name: true } },
+        students: {
+          where: { deletedAt: null },
+          select: { id: true, firstName: true, lastName: true },
+        },
+      },
+    });
+    if (!group) throw new NotFoundException('Group not found');
+
+    const studentIds = group.students.map(s => s.id);
+    if (!studentIds.length) return { group: group.name, milestones: [], students: [] };
+
+    // Milestone 1: All students attended at least once this month
+    const startMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+    const attendedThisMonth = await this.prisma.attendanceRecord.groupBy({
+      by: ['studentId'],
+      where: {
+        studentId: { in: studentIds },
+        status: { in: ['present', 'late'] },
+        attendanceSession: { scheduledDate: { gte: startMonth } },
+      },
+    });
+    const attendedIds = new Set(attendedThisMonth.map(r => r.studentId));
+    const allAttendedThisMonth = studentIds.every(id => attendedIds.has(id));
+
+    // Milestone 2: All students have at least one badge
+    const badgeCounts = await this.prisma.studentBadge.groupBy({
+      by: ['studentId'],
+      where: { studentId: { in: studentIds } },
+      _count: true,
+    });
+    const studentsWithBadges = new Set(badgeCounts.map(b => b.studentId));
+    const allHaveBadge = studentIds.every(id => studentsWithBadges.has(id));
+
+    // Milestone 3: All students passed at least one assessment
+    const passedSubs = await this.prisma.assessmentSubmission.groupBy({
+      by: ['studentId'],
+      where: { studentId: { in: studentIds }, status: 'submitted' },
+    });
+    const passedIds = new Set(passedSubs.map(s => s.studentId));
+    const allPassedAssessment = studentIds.every(id => passedIds.has(id));
+
+    // Milestone 4: Average attendance rate > 80%
+    const allAtt = await this.prisma.attendanceRecord.findMany({
+      where: { studentId: { in: studentIds } },
+      select: { studentId: true, status: true },
+    });
+    const attByStudent = studentIds.map(id => {
+      const recs = allAtt.filter(r => r.studentId === id);
+      if (!recs.length) return 0;
+      return recs.filter(r => r.status === 'present' || r.status === 'late').length / recs.length * 100;
+    });
+    const avgAttendance = attByStudent.length
+      ? Math.round(attByStudent.reduce((a, b) => a + b, 0) / attByStudent.length)
+      : 0;
+    const groupAttendanceGoalMet = avgAttendance >= 80;
+
+    // Total XP earned by group
+    const groupXp = await this.prisma.xPTransaction.aggregate({
+      where: { studentId: { in: studentIds } },
+      _sum: { amount: true },
+    });
+
+    const milestones = [
+      {
+        id: 'all_attended_this_month',
+        title: 'Full House',
+        titleAr: 'الفريق الكامل',
+        description: 'Every student attended at least once this month',
+        descriptionAr: 'كل طالب حضر مرة على الأقل هذا الشهر',
+        icon: 'Users',
+        achieved: allAttendedThisMonth,
+        progress: Math.round((attendedIds.size / studentIds.length) * 100),
+        current: attendedIds.size,
+        target: studentIds.length,
+      },
+      {
+        id: 'all_have_badge',
+        title: 'Badge Brigade',
+        titleAr: 'فرقة الشارات',
+        description: 'Every student has earned at least one badge',
+        descriptionAr: 'كل طالب حصل على شارة واحدة على الأقل',
+        icon: 'Award',
+        achieved: allHaveBadge,
+        progress: Math.round(studentIds.filter(id => studentsWithBadges.has(id)).length / studentIds.length * 100),
+        current: studentIds.filter(id => studentsWithBadges.has(id)).length,
+        target: studentIds.length,
+      },
+      {
+        id: 'all_passed_assessment',
+        title: 'Assessment Champions',
+        titleAr: 'أبطال التقييم',
+        description: 'Every student has passed at least one assessment',
+        descriptionAr: 'كل طالب اجتاز تقييماً واحداً على الأقل',
+        icon: 'CheckCircle',
+        achieved: allPassedAssessment,
+        progress: Math.round(studentIds.filter(id => passedIds.has(id)).length / studentIds.length * 100),
+        current: studentIds.filter(id => passedIds.has(id)).length,
+        target: studentIds.length,
+      },
+      {
+        id: 'group_attendance_80',
+        title: 'Faithful Presence',
+        titleAr: 'الحضور الأمين',
+        description: 'Group average attendance reaches 80%',
+        descriptionAr: 'معدل حضور المجموعة يصل إلى 80٪',
+        icon: 'Heart',
+        achieved: groupAttendanceGoalMet,
+        progress: Math.min(100, avgAttendance),
+        current: avgAttendance,
+        target: 80,
+        suffix: '%',
+      },
+    ];
+
+    const achievedCount = milestones.filter(m => m.achieved).length;
+
+    return {
+      groupId,
+      groupName: group.name,
+      levelNumber: group.level?.number,
+      levelName: group.level?.name,
+      totalStudents: studentIds.length,
+      totalXp: groupXp._sum.amount || 0,
+      achievedMilestones: achievedCount,
+      totalMilestones: milestones.length,
+      allMilestonesComplete: achievedCount === milestones.length,
+      milestones,
+      students: group.students.map(s => ({
+        id: s.id,
+        name: `${s.firstName} ${s.lastName}`,
+        attendedThisMonth: attendedIds.has(s.id),
+        hasBadge: studentsWithBadges.has(s.id),
+        passedAssessment: passedIds.has(s.id),
+      })),
+    };
+  }
+
+  // ── Liturgical Season Badges ────────────────────────────────────────────
+
+  getLiturgicalSeasonInfo(): {
+    season: string; seasonAr: string; start: Date; end: Date;
+    badge: { name: string; nameAr: string; description: string; descriptionAr: string; icon: string; category: string }
+  } | null {
+    const now = new Date();
+    const year = now.getFullYear();
+    const m = now.getMonth() + 1; // 1-indexed
+    const d = now.getDate();
+
+    // Approximate Coptic season windows (Gregorian dates, approximate)
+    const seasons = [
+      {
+        season: 'kiahk', seasonAr: 'كيهك',
+        start: new Date(`${year}-11-10`), end: new Date(`${year}-12-08`), // ~29 days of Kiahk
+        badge: { name: 'Kiahk Lantern', nameAr: 'فانوس كيهك', description: 'Earned during the 29 holy days of Kiahk', descriptionAr: 'تُكسب خلال 29 يوماً المقدسة من شهر كيهك', icon: 'Star', category: 'liturgy' },
+      },
+      {
+        season: 'great_lent', seasonAr: 'الصوم الكبير',
+        start: new Date(`${year}-03-02`), end: new Date(`${year}-04-19`),
+        badge: { name: 'Fasting Lamp', nameAr: 'مصباح الصوم', description: 'Earned during the Great Lent', descriptionAr: 'تُكسب خلال الصوم الكبير المقدس', icon: 'Flame', category: 'liturgy' },
+      },
+      {
+        season: 'holy_week', seasonAr: 'أسبوع الآلام',
+        start: new Date(`${year}-04-13`), end: new Date(`${year}-04-19`),
+        badge: { name: 'Holy Week Witness', nameAr: 'شاهد أسبوع الآلام', description: 'Earned during Holy Week', descriptionAr: 'تُكسب خلال أسبوع الآلام المجيد', icon: 'Cross', category: 'liturgy' },
+      },
+      {
+        season: 'great_50', seasonAr: 'الخمسين المقدسة',
+        start: new Date(`${year}-04-20`), end: new Date(`${year}-06-08`),
+        badge: { name: 'Resurrection Crown', nameAr: 'إكليل القيامة', description: 'Earned during the Great 50 Days of the Resurrection', descriptionAr: 'تُكسب خلال أيام الخمسين المقدسة للقيامة', icon: 'Crown', category: 'liturgy' },
+      },
+      {
+        season: 'apostles_fast', seasonAr: 'صوم الرسل',
+        start: new Date(`${year}-06-12`), end: new Date(`${year}-07-11`),
+        badge: { name: 'Apostles Scroll', nameAr: 'مخطوطة الرسل', description: 'Earned during the Fast of the Holy Apostles', descriptionAr: 'تُكسب خلال صوم الرسل الأطهار', icon: 'BookOpen', category: 'liturgy' },
+      },
+    ];
+
+    for (const s of seasons) {
+      if (now >= s.start && now <= s.end) return s;
+    }
+    return null;
+  }
+
+  async getSeasonalBadgeStatus(schoolIdentifier: string) {
+    const schoolId = await this.schoolResolver.resolve(schoolIdentifier);
+    const season = this.getLiturgicalSeasonInfo();
+
+    if (!season) {
+      return { activeSeason: null, badge: null, message: 'No active liturgical season badge at this time.' };
+    }
+
+    // Check if seasonal badge already exists for this school
+    const existingBadge = await this.prisma.badge.findFirst({
+      where: {
+        schoolId,
+        category: 'liturgy',
+        name: season.badge.name,
+        isActive: true,
+      },
+    });
+
+    return {
+      activeSeason: season.season,
+      activeSeasonAr: season.seasonAr,
+      startDate: season.start,
+      endDate: season.end,
+      daysRemaining: Math.ceil((season.end.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)),
+      badge: {
+        ...season.badge,
+        schoolId,
+        existingBadgeId: existingBadge?.id || null,
+        alreadyCreated: !!existingBadge,
+      },
+    };
+  }
+
+  async createSeasonalBadge(schoolIdentifier: string) {
+    const schoolId = await this.schoolResolver.resolve(schoolIdentifier);
+    const season = this.getLiturgicalSeasonInfo();
+    if (!season) throw new BadRequestException('No active liturgical season at this time');
+
+    const existing = await this.prisma.badge.findFirst({
+      where: { schoolId, name: season.badge.name, isActive: true },
+    });
+    if (existing) return existing;
+
+    return this.prisma.badge.create({
+      data: {
+        schoolId,
+        name: season.badge.name,
+        nameAr: season.badge.nameAr,
+        description: season.badge.description,
+        descriptionAr: season.badge.descriptionAr,
+        iconUrl: season.badge.icon,
+        category: 'liturgy',
+        xpReward: 50,
+        isActive: true,
+        isSecret: false,
+        criteria: { rule: 'seasonal', season: season.season, endDate: season.end.toISOString() },
+        metadata: { seasonal: true, season: season.season, endDate: season.end.toISOString() },
+      },
+    });
+  }
+
+  // ── Servant Recognition ──────────────────────────────────────────────────
+
+  async getServantMilestones(userId: string, schoolIdentifier: string) {
+    const schoolId = await this.schoolResolver.resolve(schoolIdentifier);
+
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, firstName: true, lastName: true, createdAt: true },
+    });
+    if (!user) throw new NotFoundException('User not found');
+
+    // Sessions taught: attendance sessions where this servant was involved
+    const sessionsTaught = await this.prisma.attendanceSession.count({
+      where: { schoolId },
+    });
+
+    // Students assessed: unique students who attended sessions run by this servant
+    const servedSessions = await this.prisma.attendanceSession.findMany({
+      where: { schoolId, servantId: userId },
+      select: { id: true },
+    });
+    const servedSessionIds = servedSessions.map(s => s.id);
+    const studentsAssessedRaw = await this.prisma.attendanceRecord.groupBy({
+      by: ['studentId'],
+      where: { attendanceSessionId: { in: servedSessionIds } },
+    });
+    const studentsAssessed = studentsAssessedRaw;
+
+    // Years active: from account creation
+    const yearsActive = Math.floor(
+      (new Date().getTime() - user.createdAt.getTime()) / (1000 * 60 * 60 * 24 * 365)
+    );
+
+    // Lessons planned
+    const lessonsPlanned = await this.prisma.lesson.count({
+      where: { schoolId },
+    });
+
+    const milestones = [
+      {
+        id: 'sessions_10',    threshold: 10,   current: sessionsTaught,    unit: 'sessions',    label: '10 Sessions Taught',    labelAr: '10 جلسات تعليم',   achieved: sessionsTaught >= 10,
+      },
+      {
+        id: 'sessions_50',    threshold: 50,   current: sessionsTaught,    unit: 'sessions',    label: '50 Sessions Taught',    labelAr: '50 جلسة تعليم',    achieved: sessionsTaught >= 50,
+      },
+      {
+        id: 'sessions_100',   threshold: 100,  current: sessionsTaught,    unit: 'sessions',    label: '100 Sessions Taught',   labelAr: '100 جلسة تعليم',   achieved: sessionsTaught >= 100,
+      },
+      {
+        id: 'sessions_500',   threshold: 500,  current: sessionsTaught,    unit: 'sessions',    label: '500 Sessions Taught',   labelAr: '500 جلسة تعليم',   achieved: sessionsTaught >= 500,
+      },
+      {
+        id: 'students_10',    threshold: 10,   current: studentsAssessed.length, unit: 'students', label: '10 Students Assessed', labelAr: '10 طلاب تم تقييمهم', achieved: studentsAssessed.length >= 10,
+      },
+      {
+        id: 'students_50',    threshold: 50,   current: studentsAssessed.length, unit: 'students', label: '50 Students Assessed', labelAr: '50 طالب تم تقييمهم', achieved: studentsAssessed.length >= 50,
+      },
+      {
+        id: 'students_100',   threshold: 100,  current: studentsAssessed.length, unit: 'students', label: '100 Students Assessed', labelAr: '100 طالب تم تقييمهم', achieved: studentsAssessed.length >= 100,
+      },
+      {
+        id: 'years_1',        threshold: 1,    current: yearsActive,        unit: 'years',       label: '1 Year of Service',     labelAr: 'سنة خدمة',         achieved: yearsActive >= 1,
+      },
+      {
+        id: 'years_3',        threshold: 3,    current: yearsActive,        unit: 'years',       label: '3 Years of Service',    labelAr: '3 سنوات خدمة',     achieved: yearsActive >= 3,
+      },
+      {
+        id: 'years_5',        threshold: 5,    current: yearsActive,        unit: 'years',       label: '5 Years of Service',    labelAr: '5 سنوات خدمة',     achieved: yearsActive >= 5,
+      },
+      {
+        id: 'lessons_20',     threshold: 20,   current: lessonsPlanned,     unit: 'lessons',     label: '20 Lessons Planned',    labelAr: '20 درس مخطط',       achieved: lessonsPlanned >= 20,
+      },
+    ];
+
+    const achievedMilestones = milestones.filter(m => m.achieved);
+
+    return {
+      servant: {
+        id: user.id,
+        name: `${user.firstName} ${user.lastName}`,
+        yearsActive,
+      },
+      stats: {
+        sessionsTaught,
+        studentsAssessed: studentsAssessed.length,
+        lessonsPlanned,
+        yearsActive,
+      },
+      milestones,
+      achievedCount: achievedMilestones.length,
+      latestAchieved: achievedMilestones[achievedMilestones.length - 1] || null,
+    };
+  }
 }
