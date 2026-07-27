@@ -153,6 +153,7 @@ async function main() {
   // ── Admin user ─────────────────────────────────────────────────────────
   const bcrypt = await import('bcrypt');
   const passwordHash = await bcrypt.hash('Admin123!', 10);
+  const servantPw = await bcrypt.hash('Servant123!', 10);
 
   let adminUser = await prisma.user.findFirst({
     where: { email: 'admin@niangelos.app', schoolId: school.id },
@@ -186,12 +187,181 @@ async function main() {
       data: { userId: adminUser.id, roleId: superAdminRole.id },
     });
   }
+
+  const adminUserId = adminUser.id;
   console.log('Admin user ready:', adminUser.email);
+
+  // ── Servant (teacher) users ────────────────────────────────────────────
+  const servantData = [
+    { firstName: 'Mina', lastName: 'Girgis', email: 'mina.girgis@niangelos.app' },
+    { firstName: 'Mariam', lastName: 'Iskander', email: 'mariam.iskander@niangelos.app' },
+    { firstName: 'Bishoy', lastName: 'Nabil', email: 'bishoy.nabil@niangelos.app' },
+  ];
+  const servantRole = roles.find((r) => r.name === 'servant')!;
+  const servantUsers: any[] = [];
+  for (const s of servantData) {
+    let user = await prisma.user.findFirst({
+      where: { email: s.email, schoolId: school.id },
+    });
+    if (!user) {
+      user = await prisma.user.create({
+        data: {
+          schoolId: school.id,
+          email: s.email,
+          passwordHash: servantPw,
+          firstName: s.firstName,
+          lastName: s.lastName,
+          isActive: true,
+          emailVerifiedAt: new Date(),
+        },
+      });
+      await prisma.userRole.upsert({
+        where: { userId_roleId: { userId: user.id, roleId: servantRole.id } },
+        update: {},
+        create: { userId: user.id, roleId: servantRole.id, assignedBy: adminUserId },
+      });
+      console.log('Created servant:', s.email);
+    }
+    servantUsers.push(user);
+  }
+
+  // ── Sample Students ────────────────────────────────────────────────────
+  const studentsCount = await prisma.student.count({ where: { schoolId: school.id } });
+  if (studentsCount === 0) {
+    const firstNames = ['Peter', 'John', 'Mary', 'David', 'Sarah', 'Mark', 'Esther', 'Joseph', 'Rebecca', 'Samuel', 'Rita', 'George', 'Veronica', 'James', 'Martha'];
+    const lastNames = ['Ibrahim', 'Youssef', 'Michael', 'Hanna', 'Soliman', 'Ayoub', 'Fam', 'Ghattas', 'Henein', 'Barsoum'];
+    const firstNamesAr = ['بيتر', 'يوحنا', 'مريم', 'داود', 'سارة', 'مرقس', 'استير', 'يوسف', 'رفقة', 'صموئيل', 'ريتا', 'جرجس', 'فيرونيكا', 'يعقوب', 'مرثا'];
+    const lastNamesAr = ['إبراهيم', 'يوسف', 'ميخائيل', 'حنا', 'سليمان', 'أيوب', 'فام', 'غطاس', 'حنين', 'برسوم'];
+    const genders = ['male', 'male', 'female', 'male', 'female', 'male', 'female', 'male', 'female', 'male', 'female', 'male', 'female', 'male', 'female'];
+
+    const allGroups = await prisma.group.findMany({
+      where: { levelId: { in: levels.map((l: any) => l.id) }, deletedAt: null },
+      orderBy: [{ levelId: 'asc' }, { orderIndex: 'asc' }],
+    });
+
+    let studentIdx = 0;
+    const studentData: any[] = [];
+    for (let levelIdx = 0; levelIdx < Math.min(levels.length, 5); levelIdx++) {
+      const level = levels[levelIdx];
+      const levelGroups = allGroups.filter((g: any) => g.levelId === level.id);
+      const studentsPerLevel = 3;
+
+      for (let i = 0; i < studentsPerLevel && studentIdx < firstNames.length; i++) {
+        const group = levelGroups[i % levelGroups.length];
+        const nameIdx = studentIdx % firstNames.length;
+        studentData.push({
+          firstName: firstNames[nameIdx],
+          lastName: lastNames[(studentIdx * 3 + levelIdx) % lastNames.length],
+          firstNameAr: firstNamesAr[nameIdx],
+          lastNameAr: lastNamesAr[(studentIdx * 3 + levelIdx) % lastNames.length],
+          dateOfBirth: new Date(2012 + studentIdx, 0, 15),
+          gender: genders[studentIdx % genders.length],
+          churchName: 'St. Mary Church',
+          schoolGrade: `${3 + (studentIdx % 6)}`,
+          levelId: level.id,
+          groupId: group.id,
+          schoolId: school.id,
+          studentCode: `STU-${String(2026001 + studentIdx).padStart(5, '0')}`,
+          academicYearId: academicYear.id,
+          parentEmail: `parent${studentIdx + 1}@email.com`,
+          status: 'active',
+          enrollmentDate: new Date('2026-09-01'),
+        });
+        studentIdx++;
+      }
+    }
+
+    await prisma.student.createMany({ data: studentData });
+    console.log(`Created ${studentData.length} students`);
+  } else {
+    console.log('Students already exist:', studentsCount);
+  }
+
+  // ── Subjects → Level assignment ──────────────────────────────────────
+  const allSubjects = await prisma.subject.findMany({ where: { schoolId: school.id } });
+  for (const level of levels.slice(0, 5)) {
+    const existing = await prisma.levelSubject.findFirst({
+      where: { levelId: level.id },
+    });
+    if (!existing) {
+      for (const subject of allSubjects) {
+        await prisma.levelSubject.create({
+          data: {
+            levelId: level.id,
+            subjectId: subject.id,
+            isRequired: true,
+            orderIndex: 1,
+          },
+        });
+      }
+      console.log(`Assigned subjects to ${level.name}`);
+    }
+  }
+
+  // ── Lessons & Sessions ──────────────────────────────────────────────
+  const lessonsCount = await prisma.lesson.count({ where: { schoolId: school.id } });
+  if (lessonsCount === 0) {
+    const lessonNames = [
+      { title: 'Introduction to Coptic Hymns', titleAr: 'مقدمة في التراتيل القبطية' },
+      { title: 'Basic Melodies (Nabrubol)', titleAr: 'الألحان الأساسية (نبروبول)' },
+      { title: 'The Liturgy of St. Basil', titleAr: 'قداس القديس باسيليوس' },
+      { title: 'Responses of the Deacons', titleAr: 'ردود الشمامسة' },
+      { title: 'The Coptic Alphabet', titleAr: 'الأبجدية القبطية' },
+    ];
+    const subjects = await prisma.subject.findMany({ where: { schoolId: school.id } });
+
+    for (let i = 0; i < lessonNames.length; i++) {
+      const level = levels[i % 5];
+      const subject = subjects[i % subjects.length];
+      const lesson = await prisma.lesson.create({
+        data: {
+          schoolId: school.id,
+          levelId: level.id,
+          subjectId: subject.id,
+          title: lessonNames[i].title,
+          titleAr: lessonNames[i].titleAr,
+          description: `Lesson covering ${lessonNames[i].title}`,
+          objectives: [{ en: 'Understand the basics', ar: 'فهم الأساسيات' }],
+          orderIndex: i + 1,
+          status: 'published',
+          publishedAt: new Date(),
+          createdBy: adminUserId,
+          estimatedDurationMinutes: 45,
+          sessionsCount: 3,
+        },
+      });
+
+      for (let s = 1; s <= 3; s++) {
+        await prisma.session.create({
+          data: {
+            lessonId: lesson.id,
+            title: `Session ${s}: ${lessonNames[i].title}`,
+            titleAr: `الجلسة ${s}: ${lessonNames[i].titleAr}`,
+            description: `Session ${s} of ${lessonNames[i].title}`,
+            orderIndex: s,
+            estimatedDurationMinutes: 15,
+            contentEn: `<h2>Session ${s}</h2><p>Content for ${lessonNames[i].title}</p>`,
+            contentAr: `<h2>الجلسة ${s}</h2><p>محتوى ${lessonNames[i].titleAr}</p>`,
+          },
+        });
+      }
+    }
+    console.log('Created lessons with sessions:', lessonNames.length);
+  } else {
+    console.log('Lessons already exist:', lessonsCount);
+  }
+
   console.log('');
   console.log('─────────────────────────────────────────');
   console.log('Login credentials:');
-  console.log('  Email:    admin@niangelos.app');
-  console.log('  Password: Admin123!');
+  console.log('  Admin:');
+  console.log('    Email:    admin@niangelos.app');
+  console.log('    Password: Admin123!');
+  console.log('  Servants:');
+  console.log('    Email:    mina.girgis@niangelos.app');
+  console.log('    Password: Servant123!');
+  console.log('    Email:    mariam.iskander@niangelos.app');
+  console.log('    Password: Servant123!');
   console.log('  School:   niangelos-main');
   console.log('─────────────────────────────────────────');
   console.log('Seeding completed successfully!');
