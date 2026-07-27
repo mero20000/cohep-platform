@@ -45,4 +45,4 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
   CMD node -e "require('http').get('http://localhost:3001/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
 
 # Start application (run migrations + seed on every start — idempotent)
-CMD npx prisma migrate resolve --rolled-back "20260727200000_add_all_remaining_missing_columns" && npx prisma migrate deploy && npm run seed && dumb-init node dist/main.js
+CMD npx prisma migrate resolve --applied "20260727200000_add_all_remaining_missing_columns" && npx prisma migrate deploy && npm run seed && dumb-init node dist/main.js
