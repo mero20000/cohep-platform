@@ -33,7 +33,7 @@ export function useAuth() {
   const login = useCallback(async (email: string, password: string, schoolIdentifier?: string) => {
     localStorage.removeItem('niangelos_active_school')
     localStorage.removeItem('user')
-    const baseUrl = process.env.NEXT_PUBLIC_API_URL || '/api'
+    const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'
     const body: Record<string, string> = { email, password }
     if (schoolIdentifier) {
       body.schoolIdentifier = schoolIdentifier

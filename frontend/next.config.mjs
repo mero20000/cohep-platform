@@ -17,6 +17,7 @@ const nextConfig = {
   outputFileTracingRoot: __dirname,
 
   async rewrites() {
+    if (process.env.NODE_ENV === 'production') return []
     return [
       { source: '/api/:path*',     destination: `${apiBase}/api/:path*` },
       { source: '/uploads/:path*', destination: `${apiBase}/uploads/:path*` },
