@@ -70,15 +70,7 @@ export function DashboardSidebar({
         <div className="flex h-7 w-7 items-center justify-center rounded-md bg-blue-600 text-white flex-shrink-0">
           <Cross className="h-3.5 w-3.5" />
         </div>
-        <span className="text-sm font-bold tracking-tight text-gray-900 flex-shrink-0">COHEP</span>
-        {schoolName ? (
-          <>
-            <span className="text-gray-300 text-xs hidden sm:inline">/</span>
-            <span className="text-xs text-gray-500 truncate min-w-0 hidden sm:block">
-              {language === 'ar' && schoolNameAr ? schoolNameAr : schoolName}
-            </span>
-          </>
-        ) : null}
+        <span className="text-sm font-bold tracking-tight text-gray-900 flex-1 truncate">COHEP</span>
         <Button variant="ghost" size="icon" onClick={() => onSetSidebarOpen(false)} aria-label={language === 'ar' ? 'إغلاق' : 'Close sidebar'} className={`lg:hidden text-gray-400 hover:text-gray-600 h-7 w-7 flex-shrink-0 ${language === 'ar' ? 'mr-auto' : 'ml-auto'}`}>
           <X className="h-4 w-4" />
         </Button>
