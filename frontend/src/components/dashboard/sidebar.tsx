@@ -67,18 +67,25 @@ export function DashboardSidebar({
           className={`absolute top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-gold-300/50 active:bg-blue-400/50 z-50 ${language === 'ar' ? 'left-0' : 'right-0'}`}
         />
       )}
-      <div className="flex h-16 items-center gap-2.5 border-b border-gray-200 px-5">
-        {schoolLogo ? (
-          <Image src={schoolLogo} alt={language === 'ar' && schoolNameAr ? schoolNameAr : schoolName} width={36} height={36} className="rounded-lg object-cover border border-gray-200 flex-shrink-0" />
-        ) : (
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-500 text-white flex-shrink-0">
-            <Cross className="h-5 w-5" />
+      <div className="border-b border-gray-200">
+        <div className="flex items-center gap-2.5 px-5 pt-3 pb-1">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-600 text-white flex-shrink-0">
+            <Cross className="h-4 w-4" />
           </div>
-        )}
-        <span className="text-lg font-bold tracking-tight truncate">{language === 'ar' && schoolNameAr ? schoolNameAr : schoolName}</span>
-        <Button variant="ghost" size="icon" onClick={() => onSetSidebarOpen(false)} aria-label={language === 'ar' ? 'إغلاق' : 'Close sidebar'} className={`lg:hidden text-gray-400 hover:text-gray-600 h-8 w-8 ${language === 'ar' ? 'mr-auto' : 'ml-auto'}`}>
-          <X className="h-5 w-5" />
-        </Button>
+          <div className="flex flex-col min-w-0">
+            <span className="text-sm font-bold tracking-tight truncate">COHEP</span>
+            <span className="text-[10px] text-gray-500 truncate leading-tight">Coptic Orthodox Hymn Education Platform</span>
+          </div>
+          <Button variant="ghost" size="icon" onClick={() => onSetSidebarOpen(false)} aria-label={language === 'ar' ? 'إغلاق' : 'Close sidebar'} className={`lg:hidden text-gray-400 hover:text-gray-600 h-7 w-7 ${language === 'ar' ? 'mr-auto' : 'ml-auto'}`}>
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
+        <div className="flex items-center gap-2 px-5 pb-3">
+          {schoolLogo ? (
+            <Image src={schoolLogo} alt={language === 'ar' && schoolNameAr ? schoolNameAr : schoolName} width={18} height={18} className="rounded object-cover border border-gray-200 flex-shrink-0" />
+          ) : null}
+          <span className="text-xs font-medium text-gray-600 truncate">{language === 'ar' && schoolNameAr ? schoolNameAr : schoolName}</span>
+        </div>
       </div>
 
       <div className="flex flex-col h-[calc(100vh-4rem)] overflow-y-auto">
