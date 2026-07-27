@@ -1,7 +1,6 @@
 'use client'
 
 import Link from 'next/link'
-import Image from 'next/image'
 import { X, Cross, LogOut, PanelLeftClose, PanelLeft } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
@@ -67,25 +66,22 @@ export function DashboardSidebar({
           className={`absolute top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-gold-300/50 active:bg-blue-400/50 z-50 ${language === 'ar' ? 'left-0' : 'right-0'}`}
         />
       )}
-      <div className="border-b border-gray-200">
-        <div className="flex items-center gap-2.5 px-5 pt-3 pb-1">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-600 text-white flex-shrink-0">
-            <Cross className="h-4 w-4" />
-          </div>
-          <div className="flex flex-col min-w-0">
-            <span className="text-sm font-bold tracking-tight truncate">COHEP</span>
-            <span className="text-[10px] text-gray-500 truncate leading-tight">Coptic Orthodox Hymn Education Platform</span>
-          </div>
-          <Button variant="ghost" size="icon" onClick={() => onSetSidebarOpen(false)} aria-label={language === 'ar' ? 'إغلاق' : 'Close sidebar'} className={`lg:hidden text-gray-400 hover:text-gray-600 h-7 w-7 ${language === 'ar' ? 'mr-auto' : 'ml-auto'}`}>
-            <X className="h-4 w-4" />
-          </Button>
+      <div className="flex items-center gap-2.5 border-b border-gray-200 px-4 h-14">
+        <div className="flex h-7 w-7 items-center justify-center rounded-md bg-blue-600 text-white flex-shrink-0">
+          <Cross className="h-3.5 w-3.5" />
         </div>
-        <div className="flex items-center gap-2 px-5 pb-3">
-          {schoolLogo ? (
-            <Image src={schoolLogo} alt={language === 'ar' && schoolNameAr ? schoolNameAr : schoolName} width={18} height={18} className="rounded object-cover border border-gray-200 flex-shrink-0" />
-          ) : null}
-          <span className="text-xs font-medium text-gray-600 truncate">{language === 'ar' && schoolNameAr ? schoolNameAr : schoolName}</span>
-        </div>
+        <span className="text-sm font-bold tracking-tight text-gray-900 flex-shrink-0">COHEP</span>
+        {schoolName ? (
+          <>
+            <span className="text-gray-300 text-xs hidden sm:inline">/</span>
+            <span className="text-xs text-gray-500 truncate min-w-0 hidden sm:block">
+              {language === 'ar' && schoolNameAr ? schoolNameAr : schoolName}
+            </span>
+          </>
+        ) : null}
+        <Button variant="ghost" size="icon" onClick={() => onSetSidebarOpen(false)} aria-label={language === 'ar' ? 'إغلاق' : 'Close sidebar'} className={`lg:hidden text-gray-400 hover:text-gray-600 h-7 w-7 flex-shrink-0 ${language === 'ar' ? 'mr-auto' : 'ml-auto'}`}>
+          <X className="h-4 w-4" />
+        </Button>
       </div>
 
       <div className="flex flex-col h-[calc(100vh-4rem)] overflow-y-auto">
