@@ -16,9 +16,26 @@ async function bootstrap() {
   // Serve static uploads
   app.useStaticAssets(join(__dirname, '..', 'uploads'), { prefix: '/uploads' });
 
-  // CORS
+  // CORS — allow all configured frontend origins
+  const allowedOrigins = [
+    'http://localhost:3000',
+    'http://localhost:3001',
+    process.env.FRONTEND_URL,
+    process.env.FRONTEND_URL_2,
+  ].filter(Boolean) as string[]
+
   app.enableCors({
-    origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+    origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
+      if (!origin) return callback(null, true)
+      if (
+        allowedOrigins.includes(origin) ||
+        /\.vercel\.app$/.test(origin) ||
+        /\.onrender\.com$/.test(origin)
+      ) {
+        return callback(null, true)
+      }
+      callback(new Error(`CORS: origin ${origin} not allowed`))
+    },
     credentials: true,
   });
 
