@@ -315,14 +315,20 @@ export default function PortalPage() {
                   </div>
                 )}
               </Link>
-              <div className="px-5 pb-3 flex justify-end">
+              <div className="px-5 pb-4 flex items-center justify-between gap-2">
+                <Link href={`/portal/children/${s.id}/home`} className="flex-1">
+                  <button className="w-full flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-indigo-200/50 transition-all active:scale-95">
+                    <span>🎵</span>
+                    <span>{lang === 'ar' ? `عرض ${s.firstNameAr || s.firstName}` : `${s.firstName}'s View`}</span>
+                  </button>
+                </Link>
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={(e) => { e.preventDefault(); setUnlinkConfirm({ id: s.id, name: primaryName }) }}
-                  className="text-xs text-gray-400 hover:text-red-600"
+                  className="text-xs text-gray-400 hover:text-red-600 shrink-0"
                 >
-                  <Trash2 className="h-3 w-3" /> {t('Unlink', 'فك الربط')}
+                  <Trash2 className="h-3 w-3" />
                 </Button>
               </div>
             </div>

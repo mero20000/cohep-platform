@@ -448,3 +448,19 @@
     transform: none !important;
   }
 }
+
+/* Student home animations */
+@keyframes bounce-slow {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+@keyframes pulse-slow {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+.animate-bounce-slow { animation: bounce-slow 2s ease-in-out infinite; }
+.animate-pulse-slow  { animation: pulse-slow 2.5s ease-in-out infinite; }
+
+/* bg-white/8 and bg-white/12 Tailwind doesn't generate by default */
+.bg-white\/8  { background-color: rgba(255,255,255,0.08); }
+.bg-white\/12 { background-color: rgba(255,255,255,0.12); }
