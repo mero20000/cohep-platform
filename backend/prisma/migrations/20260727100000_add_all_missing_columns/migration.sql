@@ -3,7 +3,8 @@
 -- Every statement uses IF NOT EXISTS so this is safe to re-run.
 
 -- academic_years
-ALTER TABLE "academic_years" ADD COLUMN IF NOT EXISTS "status" TEXT NOT NULL DEFAULT 'active';
+ALTER TABLE "academic_years" ADD COLUMN IF NOT EXISTS "status" TEXT NOT NULL DEFAULT 'pending';
+ALTER TABLE "academic_years" ADD COLUMN IF NOT EXISTS "active_days" JSONB;
 
 -- students
 ALTER TABLE "students" ADD COLUMN IF NOT EXISTS "status" TEXT NOT NULL DEFAULT 'active';
