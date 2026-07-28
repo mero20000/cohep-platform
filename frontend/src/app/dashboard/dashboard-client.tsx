@@ -13,7 +13,7 @@ import {
   ArrowUpRight, Zap, GraduationCap, Star,
    CalendarPlus, User, Shield, Crown, Heart, CalendarClock, UserCog,
    ListChecks, Flame, Info, XCircle, Baby, ChevronDown, Church,
-   BookMarked, AlertTriangle, CheckCircle
+   BookMarked, AlertTriangle, CheckCircle, Bell, Moon, PlayCircle, Music, ArrowUp, ArrowDown, Minus
 } from 'lucide-react'
 import { StatCard } from '@/components/ui/stat-card'
 import { Button } from '@/components/ui/button'
@@ -860,6 +860,263 @@ function LiturgyHeatmapCard({ lang }: { lang: string }) {
   )
 }
 
+
+// ── Servant Wellbeing Panel ────────────────────────────────────────────────
+
+interface DigestData {
+  generatedAt: string
+  servant: { id: string; firstName: string; lastName: string }
+  studentStory: { studentId: string; firstName: string; lastName: string; firstNameAr?: string; lastNameAr?: string; streak?: number; storyEn: string; storyAr: string } | null
+  classTrend: { thisWeekRate: number; lastWeekRate: number; improvement: number; trendEn: string; trendAr: string } | null
+  milestone: { totalSessions: number; nextMilestone?: number; messageEn: string; messageAr: string; isFresh: boolean; value?: number } | null
+  absenceAlerts: Array<{ studentId: string; firstName: string; lastName: string; firstNameAr?: string; lastNameAr?: string; consecutiveAbsences: number; messageEn: string; messageAr: string }>
+  nextSession: { id: string; scheduledDate: string; levelId: string; levelName?: string; levelNumber?: number; groupId: string; groupName?: string } | null
+}
+
+function ServantWellbeingPanel({ lang, schoolId }: { lang: string; schoolId: string }) {
+  const [digest, setDigest] = useState<DigestData | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [sabbathMode, setSabbathMode] = useState(false)
+  const [startingClass, setStartingClass] = useState(false)
+  const t = (en: string, ar: string) => lang === 'ar' ? ar : en
+  const router = useRouter()
+
+  useEffect(() => {
+    // Load sabbath mode preference from localStorage (client-only preference)
+    const stored = typeof window !== 'undefined' ? localStorage.getItem('cohep_sabbath_mode') : null
+    if (stored === 'true') setSabbathMode(true)
+  }, [])
+
+  useEffect(() => {
+    http.get<DigestData>(`/dashboard/servant-digest?schoolId=${schoolId}`)
+      .then(d => { setDigest(d); setLoading(false) })
+      .catch(() => setLoading(false))
+  }, [schoolId])
+
+  const toggleSabbath = () => {
+    const next = !sabbathMode
+    setSabbathMode(next)
+    if (typeof window !== 'undefined') localStorage.setItem('cohep_sabbath_mode', String(next))
+  }
+
+  const handleStartClass = async () => {
+    if (!digest?.nextSession) return
+    setStartingClass(true)
+    // Navigate to attendance for this session with pre-fill param
+    router.push(`/dashboard/attendance?sessionId=${digest.nextSession.id}&prefill=present`)
+    setStartingClass(false)
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Header row */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <div className="flex h-7 w-7 items-center justify-center rounded-full bg-purple-50">
+            <Bell className="h-4 w-4 text-purple-600" />
+          </div>
+          <h2 className="text-sm font-semibold text-gray-900">{t('Servant Digest', 'ملخص الخادم')}</h2>
+        </div>
+        {/* Sabbath mode toggle */}
+        <button
+          onClick={toggleSabbath}
+          className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition-all ${
+            sabbathMode ? 'border-indigo-300 bg-indigo-50 text-indigo-700' : 'border-gray-200 bg-white text-gray-500 hover:border-gray-300'
+          }`}
+          title={t('Sabbath Mode silences notifications Saturday evening to Monday morning', 'وضع السبت يوقف الإشعارات من مساء السبت إلى صباح الإثنين')}
+        >
+          <Moon className="h-3 w-3" />
+          {sabbathMode ? t('Sabbath ON', 'وضع السبت: تشغيل') : t('Sabbath Mode', 'وضع السبت')}
+        </button>
+      </div>
+
+      {loading ? (
+        <div className="grid gap-3 sm:grid-cols-3">
+          {[1,2,3].map(i => <div key={i} className="h-28 rounded-xl bg-gray-100 animate-pulse" />)}
+        </div>
+      ) : !digest ? null : (
+        <>
+          {/* Sabbath mode banner */}
+          {sabbathMode && (() => {
+            const now = new Date()
+            const day = now.getDay() // 0=Sun,6=Sat
+            const isSabbath = day === 0 || day === 6 || (day === 5 && now.getHours() >= 18)
+            return isSabbath ? (
+              <div className="flex items-center gap-3 rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-3">
+                <Moon className="h-4 w-4 text-indigo-600 shrink-0" />
+                <p className="text-sm text-indigo-800">
+                  <span className="font-semibold">{t('Sabbath Mode is active.', 'وضع السبت نشط.')}</span>{' '}
+                  {t('Notifications are paused until Monday morning. Rest well.', 'الإشعارات متوقفة حتى صباح الإثنين. استرح جيداً.')}
+                </p>
+              </div>
+            ) : null
+          })()}
+
+          {/* Arrival Tap */}
+          {digest.nextSession && (
+            <div className="relative overflow-hidden rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 p-4">
+              <div className="absolute inset-0 opacity-10 bg-[radial-gradient(circle_at_top_right,_white_1px,_transparent_1px)] bg-[length:16px_16px]" />
+              <div className="relative flex items-center justify-between gap-4">
+                <div>
+                  <p className="text-xs font-semibold text-emerald-100 uppercase tracking-wide mb-0.5">
+                    {t('Next Session', 'الجلسة القادمة')}
+                  </p>
+                  <p className="text-base font-bold text-white">
+                    {digest.nextSession.groupName || t('Your Group', 'مجموعتك')}
+                    {digest.nextSession.levelNumber ? ` · L${digest.nextSession.levelNumber}` : ''}
+                  </p>
+                  <p className="text-xs text-emerald-100 mt-0.5">
+                    {new Date(digest.nextSession.scheduledDate).toLocaleDateString(lang === 'ar' ? 'ar-EG' : 'en-GB', { weekday: 'long', day: 'numeric', month: 'short' })}
+                  </p>
+                </div>
+                <button
+                  onClick={handleStartClass}
+                  disabled={startingClass}
+                  className="flex shrink-0 items-center gap-2 rounded-xl bg-white px-5 py-3 text-sm font-bold text-emerald-700 shadow-lg active:scale-95 transition-all hover:bg-emerald-50 disabled:opacity-60"
+                >
+                  {startingClass ? <Loader2 className="h-4 w-4 animate-spin" /> : <PlayCircle className="h-4 w-4" />}
+                  {t('Start Class', 'ابدأ الفصل')}
+                </button>
+              </div>
+              <p className="relative mt-2 text-[10px] text-emerald-200">
+                {t('Attendance opens pre-filled with all present — fix exceptions only.', 'الحضور يُفتح مع تسجيل الجميع حاضرين — صحّح الغائبين فقط.')}
+              </p>
+            </div>
+          )}
+
+          {/* Three digest cards */}
+          <div className="grid gap-3 sm:grid-cols-3">
+            {/* Student story */}
+            <div className="rounded-xl border border-purple-100 bg-purple-50 p-4">
+              <div className="flex items-center gap-1.5 mb-2">
+                <Music className="h-3.5 w-3.5 text-purple-600" />
+                <span className="text-[10px] font-bold uppercase tracking-wider text-purple-600">
+                  {t('Student Story', 'قصة الطالب')}
+                </span>
+              </div>
+              {digest.studentStory ? (
+                <>
+                  <p className="text-sm text-gray-800 leading-relaxed">
+                    {lang === 'ar' ? digest.studentStory.storyAr : digest.studentStory.storyEn}
+                  </p>
+                  {digest.studentStory.streak && (
+                    <div className="mt-2 flex items-center gap-1.5">
+                      <Flame className="h-3.5 w-3.5 text-orange-400" />
+                      <span className="text-xs font-semibold text-orange-600">{digest.studentStory.streak} {t('sessions in a row', 'جلسات متتالية')}</span>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <p className="text-xs text-gray-400">{t('No notable student activity this week yet.', 'لا يوجد نشاط طلابي بارز هذا الأسبوع بعد.')}</p>
+              )}
+            </div>
+
+            {/* Class trend */}
+            <div className="rounded-xl border border-blue-100 bg-blue-50 p-4">
+              <div className="flex items-center gap-1.5 mb-2">
+                <TrendingUp className="h-3.5 w-3.5 text-blue-600" />
+                <span className="text-[10px] font-bold uppercase tracking-wider text-blue-600">
+                  {t('Class Trend', 'اتجاه الفصل')}
+                </span>
+              </div>
+              {digest.classTrend ? (
+                <>
+                  <p className="text-sm text-gray-800 leading-relaxed">
+                    {lang === 'ar' ? digest.classTrend.trendAr : digest.classTrend.trendEn}
+                  </p>
+                  <div className="mt-2 flex items-center gap-1.5">
+                    {digest.classTrend.improvement > 0 ? (
+                      <span className="inline-flex items-center gap-0.5 rounded-full bg-green-100 px-2 py-0.5 text-[10px] font-bold text-green-700">
+                        <ArrowUp className="h-2.5 w-2.5" />+{digest.classTrend.improvement}%
+                      </span>
+                    ) : digest.classTrend.improvement < 0 ? (
+                      <span className="inline-flex items-center gap-0.5 rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-bold text-red-600">
+                        <ArrowDown className="h-2.5 w-2.5" />{digest.classTrend.improvement}%
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-0.5 rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-bold text-gray-500">
+                        <Minus className="h-2.5 w-2.5" />0%
+                      </span>
+                    )}
+                  </div>
+                </>
+              ) : (
+                <p className="text-xs text-gray-400">{t('No session data yet for this week.', 'لا توجد بيانات جلسات لهذا الأسبوع بعد.')}</p>
+              )}
+            </div>
+
+            {/* Milestone */}
+            <div className={`rounded-xl border p-4 ${digest.milestone?.isFresh ? 'border-amber-200 bg-amber-50' : 'border-gray-200 bg-gray-50'}`}>
+              <div className="flex items-center gap-1.5 mb-2">
+                <Trophy className={`h-3.5 w-3.5 ${digest.milestone?.isFresh ? 'text-amber-600' : 'text-gray-500'}`} />
+                <span className={`text-[10px] font-bold uppercase tracking-wider ${digest.milestone?.isFresh ? 'text-amber-600' : 'text-gray-500'}`}>
+                  {t('Your Milestone', 'إنجازك')}
+                </span>
+              </div>
+              {digest.milestone ? (
+                <>
+                  {digest.milestone.isFresh && (
+                    <div className="mb-1.5 text-base">🎉</div>
+                  )}
+                  <p className={`text-sm leading-relaxed ${digest.milestone.isFresh ? 'text-amber-900 font-medium' : 'text-gray-700'}`}>
+                    {lang === 'ar' ? digest.milestone.messageAr : digest.milestone.messageEn}
+                  </p>
+                  {!digest.milestone.isFresh && digest.milestone.nextMilestone && (
+                    <div className="mt-2">
+                      <div className="flex justify-between text-[10px] text-gray-400 mb-1">
+                        <span>{digest.milestone.totalSessions}</span>
+                        <span>{digest.milestone.nextMilestone}</span>
+                      </div>
+                      <div className="h-1.5 rounded-full bg-gray-200 overflow-hidden">
+                        <div
+                          className="h-full rounded-full bg-gold-400 transition-all duration-700"
+                          style={{ width: `${Math.min(100, (digest.milestone.totalSessions / digest.milestone.nextMilestone) * 100)}%` }}
+                        />
+                      </div>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <p className="text-xs text-gray-400">{t('Start teaching sessions to track your journey.', 'ابدأ الجلسات لتتبع رحلتك.')}</p>
+              )}
+            </div>
+          </div>
+
+          {/* Absence alerts */}
+          {digest.absenceAlerts.length > 0 && (
+            <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0" />
+                <h3 className="text-sm font-semibold text-amber-800">
+                  {t('Students to check in on', 'طلاب يستحقون متابعة')}
+                </h3>
+                <span className="ml-auto rounded-full bg-amber-200 px-2 py-0.5 text-[10px] font-bold text-amber-800">
+                  {digest.absenceAlerts.length}
+                </span>
+              </div>
+              <div className="space-y-2">
+                {digest.absenceAlerts.map(alert => (
+                  <div key={alert.studentId} className="flex items-start gap-3 rounded-lg bg-white border border-amber-100 px-3 py-2.5">
+                    <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-amber-100 text-[11px] font-bold text-amber-700">
+                      {alert.firstName[0]}{alert.lastName[0]}
+                    </div>
+                    <p className="text-xs text-gray-700 leading-relaxed flex-1">
+                      {lang === 'ar' ? alert.messageAr : alert.messageEn}
+                    </p>
+                  </div>
+                ))}
+              </div>
+              <p className="mt-2 text-[10px] text-amber-600 italic">
+                {t('Parents have been notified automatically. No action required.', 'تم إبلاغ الأهالي تلقائياً. لا حاجة لأي إجراء.')}
+              </p>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  )
+}
+
 function MinistryDashboard({ data, loading, error, onRetry }: { data: any; loading: boolean; error: boolean; onRetry: () => void }) {
  const lang = useLanguage()
  if (loading && !data) return <MineFallback />
@@ -1031,7 +1288,7 @@ function MinistryDashboard({ data, loading, error, onRetry }: { data: any; loadi
 
      {/* Servant Digest */}
      <motion.div variants={fadeUp}>
-       <ServantDigestCard lang={lang} />
+       <ServantWellbeingPanel lang={lang} schoolId={getSchoolId()} />
      </motion.div>
 
      {/* Practice Counters */}
