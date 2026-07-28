@@ -586,4 +586,385 @@ export class DashboardService {
     });
     return { leaderboard };
   }
+
+  // ── Servant Digest ────────────────────────────────────────────────────────
+
+  async getServantDigest(user: any, schoolIdentifier: string) {
+    const schoolId = await this.schoolResolver.resolve(schoolIdentifier);
+
+    // Find groups this servant teaches
+    const ownSessions = await this.prisma.attendanceSession.findMany({
+      where: { schoolId, servantId: user.id },
+      select: { groupId: true, levelId: true },
+    });
+    const groupIds = [...new Set(ownSessions.map((s: any) => s.groupId).filter(Boolean))] as string[];
+    const levelIds = [...new Set(ownSessions.map((s: any) => s.levelId).filter(Boolean))] as string[];
+
+    const studentIds = groupIds.length > 0
+      ? (await this.prisma.student.findMany({
+          where: { groupId: { in: groupIds }, deletedAt: null },
+          select: { id: true },
+        })).map((s: any) => s.id)
+      : [];
+
+    // ── ONE STUDENT STORY ────────────────────────────────────────────────
+    // Find a student with a recent positive milestone in the last 7 days
+    const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    let studentStory: any = null;
+
+    // Best story: a student with the longest consecutive attendance streak
+    if (studentIds.length > 0) {
+      const recentRecords = await this.prisma.attendanceRecord.findMany({
+        where: {
+          studentId: { in: studentIds },
+          attendanceSession: { scheduledDate: { gte: weekAgo } },
+          status: { in: ['present', 'late'] },
+        },
+        include: { student: { select: { id: true, firstName: true, lastName: true, firstNameAr: true, lastNameAr: true } } },
+        orderBy: { createdAt: 'desc' },
+      });
+
+      // Count streaks per student
+      const allRecords = await this.prisma.attendanceRecord.findMany({
+        where: { studentId: { in: studentIds } },
+        orderBy: { createdAt: 'desc' },
+        select: { studentId: true, status: true, createdAt: true },
+      });
+      const streakMap: Record<string, number> = {};
+      for (const id of studentIds) {
+        const recs = allRecords.filter((r: any) => r.studentId === id);
+        let streak = 0;
+        for (const r of recs) {
+          if (r.status === 'present' || r.status === 'late') streak++;
+          else break;
+        }
+        streakMap[id] = streak;
+      }
+      // Find student with best streak
+      const bestStudentId = Object.entries(streakMap)
+        .sort(([, a], [, b]) => b - a)
+        .find(([, streak]) => streak >= 2)?.[0];
+
+      if (bestStudentId) {
+        const student = await this.prisma.student.findUnique({
+          where: { id: bestStudentId },
+          select: { id: true, firstName: true, lastName: true, firstNameAr: true, lastNameAr: true },
+        });
+        if (student) {
+          studentStory = {
+            studentId: bestStudentId,
+            firstName: student.firstName,
+            lastName: student.lastName,
+            firstNameAr: student.firstNameAr,
+            lastNameAr: student.lastNameAr,
+            streak: streakMap[bestStudentId],
+            storyEn: `${student.firstName} has attended ${streakMap[bestStudentId]} sessions in a row — their longest streak this term.`,
+            storyAr: `${student.firstNameAr || student.firstName} حضر ${streakMap[bestStudentId]} جلسات متتالية — أطول تتابع له هذا الفصل.`,
+          };
+        }
+      }
+
+      // Fallback: first student who earned a badge this week
+      if (!studentStory) {
+        const recentBadge = await this.prisma.studentBadge.findFirst({
+          where: { studentId: { in: studentIds }, awardedAt: { gte: weekAgo } },
+          include: {
+            student: { select: { firstName: true, lastName: true, firstNameAr: true, lastNameAr: true } },
+            badge: { select: { name: true, nameAr: true } },
+          },
+          orderBy: { awardedAt: 'desc' },
+        });
+        if (recentBadge) {
+          studentStory = {
+            studentId: recentBadge.studentId,
+            firstName: recentBadge.student.firstName,
+            lastName: recentBadge.student.lastName,
+            storyEn: `${recentBadge.student.firstName} earned the "${recentBadge.badge.name}" badge this week.`,
+            storyAr: `${recentBadge.student.firstNameAr || recentBadge.student.firstName} حصل على شارة "${recentBadge.badge.nameAr || recentBadge.badge.name}" هذا الأسبوع.`,
+          };
+        }
+      }
+    }
+
+    // ── ONE CLASS TREND ──────────────────────────────────────────────────
+    let classTrend: any = null;
+    if (groupIds.length > 0) {
+      const twoWeeksAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
+      const [thisWeekSessions, lastWeekSessions] = await Promise.all([
+        this.prisma.attendanceSession.findMany({
+          where: { groupId: { in: groupIds }, scheduledDate: { gte: weekAgo } },
+          include: { attendanceRecords: { select: { status: true } } },
+        }),
+        this.prisma.attendanceSession.findMany({
+          where: { groupId: { in: groupIds }, scheduledDate: { gte: twoWeeksAgo, lt: weekAgo } },
+          include: { attendanceRecords: { select: { status: true } } },
+        }),
+      ]);
+      const rate = (sessions: any[]) => {
+        const all = sessions.flatMap((s: any) => s.attendanceRecords);
+        if (!all.length) return 0;
+        return Math.round(all.filter((r: any) => r.status === 'present' || r.status === 'late').length / all.length * 100);
+      };
+      const thisRate = rate(thisWeekSessions);
+      const lastRate = rate(lastWeekSessions);
+      const diff = thisRate - lastRate;
+      const groups = await this.prisma.group.findMany({ where: { id: { in: groupIds } }, select: { name: true } });
+      const groupName = groups[0]?.name || 'your group';
+      classTrend = {
+        thisWeekRate: thisRate,
+        lastWeekRate: lastRate,
+        improvement: diff,
+        trendEn: diff > 0
+          ? `${groupName}'s attendance improved from ${lastRate}% to ${thisRate}% this week — up ${diff}%.`
+          : diff < 0
+          ? `${groupName}'s attendance dropped from ${lastRate}% to ${thisRate}% this week.`
+          : `${groupName}'s attendance held steady at ${thisRate}% this week.`,
+        trendAr: diff > 0
+          ? `تحسّن حضور ${groupName} من ${lastRate}٪ إلى ${thisRate}٪ هذا الأسبوع — ارتفع ${diff}٪.`
+          : diff < 0
+          ? `انخفض حضور ${groupName} من ${lastRate}٪ إلى ${thisRate}٪ هذا الأسبوع.`
+          : `ثبت حضور ${groupName} على ${thisRate}٪ هذا الأسبوع.`,
+      };
+    }
+
+    // ── ONE MILESTONE ────────────────────────────────────────────────────
+    const totalSessionsTaught = await this.prisma.attendanceSession.count({
+      where: { schoolId, servantId: user.id, deletedAt: null },
+    });
+    const MILESTONES = [10, 25, 50, 100, 200, 500];
+    const nextMilestone = MILESTONES.find(m => m > totalSessionsTaught) || null;
+    const lastMilestone = [...MILESTONES].reverse().find(m => m <= totalSessionsTaught) || null;
+    let milestone: any = null;
+    if (lastMilestone !== null && totalSessionsTaught >= lastMilestone && totalSessionsTaught - lastMilestone < 3) {
+      milestone = {
+        value: lastMilestone,
+        totalSessions: totalSessionsTaught,
+        messageEn: `You just reached ${lastMilestone} sessions taught. That is ${lastMilestone} hours poured into the next generation.`,
+        messageAr: `لقد وصلت للتو إلى ${lastMilestone} جلسة تعليم. هذه ${lastMilestone} ساعة مستثمرة في الجيل القادم.`,
+        isFresh: true,
+      };
+    } else {
+      milestone = {
+        totalSessions: totalSessionsTaught,
+        nextMilestone,
+        messageEn: nextMilestone
+          ? `You have taught ${totalSessionsTaught} sessions. ${nextMilestone - totalSessionsTaught} more to reach your next milestone.`
+          : `You have taught ${totalSessionsTaught} sessions. An extraordinary contribution to the Church.`,
+        messageAr: nextMilestone
+          ? `علّمت ${totalSessionsTaught} جلسة. ${nextMilestone - totalSessionsTaught} جلسات أخرى للوصول إلى الإنجاز التالي.`
+          : `علّمت ${totalSessionsTaught} جلسة. مساهمة استثنائية في الكنيسة.`,
+        isFresh: false,
+      };
+    }
+
+    // ── ABSENCE ALERTS ───────────────────────────────────────────────────
+    const absenceAlerts: any[] = [];
+    if (studentIds.length > 0) {
+      for (const studentId of studentIds) {
+        const lastSessions = await this.prisma.attendanceRecord.findMany({
+          where: { studentId },
+          orderBy: { createdAt: 'desc' },
+          take: 3,
+          select: { status: true },
+        });
+        if (lastSessions.length >= 3 && lastSessions.every((r: any) => r.status === 'absent')) {
+          const student = await this.prisma.student.findUnique({
+            where: { id: studentId },
+            select: { firstName: true, lastName: true, firstNameAr: true, lastNameAr: true },
+          });
+          if (student) {
+            absenceAlerts.push({
+              studentId,
+              firstName: student.firstName,
+              lastName: student.lastName,
+              firstNameAr: student.firstNameAr,
+              lastNameAr: student.lastNameAr,
+              consecutiveAbsences: lastSessions.length,
+              messageEn: `${student.firstName} has missed the last 3 sessions. A gentle check-in may help.`,
+              messageAr: `${student.firstNameAr || student.firstName} تغيّب عن آخر 3 جلسات. قد يساعد التواصل الودي معه.`,
+            });
+          }
+        }
+      }
+    }
+
+    // ── NEXT SESSION ────────────────────────────────────────────────────
+    const nextSession = await this.prisma.attendanceSession.findFirst({
+      where: {
+        schoolId,
+        servantId: user.id,
+        status: 'scheduled',
+        scheduledDate: { gte: new Date() },
+      },
+      orderBy: { scheduledDate: 'asc' },
+      include: {
+        level: { select: { id: true, name: true, number: true } },
+        group: { select: { id: true, name: true } },
+      },
+    });
+
+    return {
+      generatedAt: new Date(),
+      servant: { id: user.id, firstName: user.firstName, lastName: user.lastName },
+      studentStory,
+      classTrend,
+      milestone,
+      absenceAlerts,
+      nextSession: nextSession ? {
+        id: nextSession.id,
+        scheduledDate: nextSession.scheduledDate,
+        levelId: nextSession.levelId,
+        levelName: (nextSession as any).level?.name,
+        levelNumber: (nextSession as any).level?.number,
+        groupId: nextSession.groupId,
+        groupName: (nextSession as any).group?.name,
+      } : null,
+    };
+  }
+
+  // ── Absence Cascade ───────────────────────────────────────────────────────
+
+  async runAbsenceCascade(schoolIdentifier: string, notificationsService: any) {
+    const schoolId = await this.schoolResolver.resolve(schoolIdentifier);
+
+    const students = await this.prisma.student.findMany({
+      where: { schoolId, deletedAt: null },
+      select: { id: true, firstName: true, lastName: true, firstNameAr: true, lastNameAr: true, parentEmail: true, groupId: true },
+    });
+
+    const cascaded: string[] = [];
+
+    for (const student of students) {
+      // Get last 3 attendance records ordered by date
+      const lastRecords = await this.prisma.attendanceRecord.findMany({
+        where: { studentId: student.id },
+        orderBy: { createdAt: 'desc' },
+        take: 3,
+        select: { status: true },
+      });
+
+      if (lastRecords.length < 3) continue;
+      if (!lastRecords.every((r: any) => r.status === 'absent')) continue;
+
+      // Find parent users
+      const parents = await this.prisma.studentParent.findMany({
+        where: { studentId: student.id },
+        select: { parentId: true },
+      });
+      const parentByEmail = student.parentEmail
+        ? await this.prisma.user.findFirst({ where: { email: student.parentEmail, schoolId }, select: { id: true } })
+        : null;
+
+      const parentIds = new Set([
+        ...parents.map((p: any) => p.parentId),
+        ...(parentByEmail ? [parentByEmail.id] : []),
+      ]);
+
+      const name = student.firstName;
+      const nameAr = student.firstNameAr || student.firstName;
+
+      // Notify parents
+      for (const parentId of parentIds) {
+        // Check if already notified this week
+        const existing = await this.prisma.notification.findFirst({
+          where: {
+            schoolId, userId: parentId, type: 'absence_cascade',
+            createdAt: { gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) },
+            data: { path: ['studentId'], equals: student.id },
+          },
+        });
+        if (existing) continue;
+
+        await notificationsService.createNotification({
+          schoolId,
+          userId: parentId,
+          type: 'absence_cascade',
+          title: `We miss ${name} in class`,
+          titleAr: `نشتاق إلى ${nameAr} في الفصل`,
+          body: `${name} hasn\'t been to class for the last 3 sessions. We hope everything is alright and look forward to seeing them soon.`,
+          bodyAr: `${nameAr} لم يحضر الفصل في آخر 3 جلسات. نأمل أن يكون كل شيء على ما يرام ونتطلع إلى رؤيته قريباً.`,
+          data: { studentId: student.id, type: 'absence_cascade' },
+          channels: ['in_app'],
+        });
+      }
+
+      // Find and notify servant
+      if (student.groupId) {
+        const servantSession = await this.prisma.attendanceSession.findFirst({
+          where: { groupId: student.groupId, schoolId },
+          orderBy: { scheduledDate: 'desc' },
+          select: { servantId: true },
+        });
+        if (servantSession?.servantId) {
+          const existingServant = await this.prisma.notification.findFirst({
+            where: {
+              schoolId, userId: servantSession.servantId, type: 'absence_cascade_servant',
+              createdAt: { gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) },
+              data: { path: ['studentId'], equals: student.id },
+            },
+          });
+          if (!existingServant) {
+            await notificationsService.createNotification({
+              schoolId,
+              userId: servantSession.servantId,
+              type: 'absence_cascade_servant',
+              title: `${name} hasn\'t attended in 3 sessions`,
+              titleAr: `${nameAr} لم يحضر منذ 3 جلسات`,
+              body: `${name} has missed the last 3 sessions. No action required — just in case you want to check in.`,
+              bodyAr: `${nameAr} تغيّب عن آخر 3 جلسات. لا حاجة لأي إجراء — فقط للعلم، في حال أردت التواصل.`,
+              data: { studentId: student.id, type: 'absence_cascade_servant' },
+              channels: ['in_app'],
+            });
+          }
+        }
+      }
+
+      cascaded.push(student.id);
+    }
+
+    return { processed: students.length, cascaded: cascaded.length, studentIds: cascaded };
+  }
+
+  // ── Practice Stats ───────────────────────────────────────────────────────
+
+  async getPracticeStats(user: any, schoolIdentifier: string) {
+    const schoolId = await this.schoolResolver.resolve(schoolIdentifier);
+
+    const ownSessions = await this.prisma.attendanceSession.findMany({
+      where: { schoolId, servantId: user.id },
+      select: { groupId: true },
+    });
+    const groupIds = [...new Set(ownSessions.map((s: any) => s.groupId).filter(Boolean))] as string[];
+
+    const students = await this.prisma.student.findMany({
+      where: { groupId: { in: groupIds }, deletedAt: null },
+      select: { id: true, firstName: true, lastName: true, firstNameAr: true, lastNameAr: true },
+      orderBy: { firstName: 'asc' },
+    });
+
+    const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+
+    const practices = await this.prisma.familyPractice.groupBy({
+      by: ['studentId'],
+      where: { studentId: { in: students.map((s: any) => s.id) }, practicedAt: { gte: weekAgo } },
+      _count: { id: true },
+    });
+
+    const practiceMap = new Map<string, number>();
+    for (const p of practices) {
+      practiceMap.set(p.studentId, p._count.id);
+    }
+
+    return {
+      weekStart: weekAgo,
+      students: students.map((s: any) => ({
+        id: s.id,
+        firstName: s.firstName,
+        lastName: s.lastName,
+        firstNameAr: s.firstNameAr,
+        lastNameAr: s.lastNameAr,
+        practiceCount: practiceMap.get(s.id) || 0,
+      })),
+    };
+  }
 }

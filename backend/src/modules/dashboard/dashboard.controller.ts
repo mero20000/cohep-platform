@@ -1,14 +1,21 @@
-import { Controller, Get, Query } from '@nestjs/common';
+import { Controller, Get, Post, Query, Body, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { Roles, STAFF_ROLES } from '../../common/decorators/roles.decorator';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { DashboardService } from './dashboard.service';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @ApiTags('dashboard')
+@UseGuards(JwtAuthGuard, RolesGuard)
 @Roles(...STAFF_ROLES)
 @Controller('dashboard')
 export class DashboardController {
-  constructor(private service: DashboardService) {}
+  constructor(
+    private service: DashboardService,
+    private notificationsService: NotificationsService,
+  ) {}
 
   @Get('stats')
   @ApiOperation({ summary: 'Get dashboard stats' })
@@ -35,5 +42,34 @@ export class DashboardController {
     @Query('limit') limit: string = '10',
   ) {
     return this.service.getParentLeaderboard(schoolId, Math.min(parseInt(limit, 10) || 10, 50));
+  }
+
+  @Get('servant-digest')
+  @Roles(...STAFF_ROLES)
+  @ApiOperation({ summary: 'Get the servant Monday morning digest — student story, class trend, milestone, absence alerts' })
+  async getServantDigest(
+    @CurrentUser() user: any,
+    @Query('schoolId') schoolId: string = '',
+  ) {
+    return this.service.getServantDigest(user, schoolId);
+  }
+
+  @Get('practice-stats')
+  @Roles(...STAFF_ROLES)
+  @ApiOperation({ summary: 'Get weekly FamilyPractice counts per student for the servant groups' })
+  async getPracticeStats(
+    @CurrentUser() user: any,
+    @Query('schoolId') schoolId: string = '',
+  ) {
+    return this.service.getPracticeStats(user, schoolId);
+  }
+
+  @Post('absence-cascade')
+  @Roles('admin', 'principal', 'super_admin')
+  @ApiOperation({ summary: 'Run absence cascade — notify parents and servants of students with 3+ consecutive absences' })
+  async runAbsenceCascade(
+    @Query('schoolId') schoolId: string = '',
+  ) {
+    return this.service.runAbsenceCascade(schoolId, this.notificationsService);
   }
 }

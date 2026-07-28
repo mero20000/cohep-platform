@@ -7,12 +7,13 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { motion, useScroll, useTransform, useSpring, useReducedMotion } from 'framer-motion'
 import {
- Users, BookOpen, Calendar, Trophy, Layers, ClipboardCheck,
- TrendingUp, Clock, Loader2, UserCheck,
- Award, ChevronRight, Sparkles, Sun, Target, BarChart3,
- ArrowUpRight, Zap, GraduationCap, Star,
-  CalendarPlus, User, Shield, Crown, Heart, CalendarClock, UserCog,
-  ListChecks, Flame, Info, XCircle, Baby, ChevronDown, Church
+  Users, BookOpen, Calendar, Trophy, Layers, ClipboardCheck,
+  TrendingUp, Clock, Loader2, UserCheck,
+  Award, ChevronRight, Sparkles, Sun, Target, BarChart3,
+  ArrowUpRight, Zap, GraduationCap, Star,
+   CalendarPlus, User, Shield, Crown, Heart, CalendarClock, UserCog,
+   ListChecks, Flame, Info, XCircle, Baby, ChevronDown, Church,
+   BookMarked, AlertTriangle, CheckCircle
 } from 'lucide-react'
 import { StatCard } from '@/components/ui/stat-card'
 import { Button } from '@/components/ui/button'
@@ -1027,9 +1028,196 @@ function MinistryDashboard({ data, loading, error, onRetry }: { data: any; loadi
      <motion.div variants={fadeUp}>
        <LiturgyHeatmapCard lang={lang} />
      </motion.div>
+
+     {/* Servant Digest */}
+     <motion.div variants={fadeUp}>
+       <ServantDigestCard lang={lang} />
+     </motion.div>
+
+     {/* Practice Counters */}
+     <motion.div variants={fadeUp}>
+       <PracticeCountersSection lang={lang} />
+     </motion.div>
     </motion.div>
   </>
  )
+}
+
+function ServantDigestCard({ lang }: { lang: string }) {
+  const [data, setData] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await http.get('/dashboard/servant-digest', { schoolId: getSchoolId() }) as any
+        setData(res)
+      } catch { /* ignore */ }
+      setLoading(false)
+    })()
+  }, [])
+
+  if (loading) return null
+  if (!data) return null
+
+  return (
+    <div className="rounded-xl border border-gray-200/60 bg-white overflow-hidden">
+      <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4 bg-[var(--hymn-surface-header)]">
+        <div className="flex items-center gap-2">
+          <div className="flex h-7 w-7 items-center justify-center rounded-full bg-amber-50 text-amber-700"><BookMarked className="h-4 w-4" /></div>
+          <h2 className="font-semibold text-gray-900">{lang === 'ar' ? 'ملخص الخدمة' : 'Servant Digest'}</h2>
+        </div>
+        <span className="text-[11px] text-gray-400">{lang === 'ar' ? 'نظرة سريعة على خدمتك' : 'Your ministry at a glance'}</span>
+      </div>
+      <div className="divide-y divide-gray-100">
+        {/* Student Story */}
+        {data.studentStory && (
+          <div className="px-5 py-4">
+            <div className="flex items-start gap-3">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-green-50 text-green-600"><CheckCircle className="h-5 w-5" /></div>
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-gray-900">
+                  {lang === 'ar' ? (data.studentStory.firstNameAr || data.studentStory.firstName) : `${data.studentStory.firstName} ${data.studentStory.lastName}`}
+                </p>
+                <p className="text-sm text-gray-600 mt-1">{lang === 'ar' ? data.studentStory.storyAr : data.studentStory.storyEn}</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Class Trend */}
+        {data.classTrend && (
+          <div className="px-5 py-4">
+            <div className="flex items-start gap-3">
+              <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${data.classTrend.improvement >= 0 ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-500'}`}>
+                <TrendingUp className="h-5 w-5" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-sm text-gray-600">{lang === 'ar' ? data.classTrend.trendAr : data.classTrend.trendEn}</p>
+                <div className="flex items-center gap-3 mt-2 text-xs">
+                  <span className="text-gray-400">{lang === 'ar' ? 'الأسبوع الماضي' : 'Last week'}: <strong className="text-gray-700">{data.classTrend.lastWeekRate}%</strong></span>
+                  <span className="text-gray-400">{lang === 'ar' ? 'هذا الأسبوع' : 'This week'}: <strong className="text-gray-700">{data.classTrend.thisWeekRate}%</strong></span>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Milestone */}
+        {data.milestone && (
+          <div className="px-5 py-4">
+            <div className="flex items-start gap-3">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gold-50 text-amber-600"><Award className="h-5 w-5" /></div>
+              <div className="min-w-0">
+                <p className="text-sm text-gray-600">{lang === 'ar' ? data.milestone.messageAr : data.milestone.messageEn}</p>
+                <div className="mt-2 flex items-center gap-2 text-xs">
+                  <span className="rounded-full bg-amber-50 px-2 py-0.5 font-medium text-amber-700">{data.milestone.totalSessions} {lang === 'ar' ? 'جلسة' : 'sessions'}</span>
+                  {data.milestone.nextMilestone && (
+                    <span className="text-gray-400">{lang === 'ar' ? 'التالي:' : 'Next:'} {data.milestone.nextMilestone}</span>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Absence Alerts */}
+        {data.absenceAlerts?.length > 0 && (
+          <div className="px-5 py-4">
+            <div className="flex items-start gap-3">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-red-50 text-red-500"><AlertTriangle className="h-5 w-5" /></div>
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-red-700">{lang === 'ar' ? 'تنبيهات الغياب' : 'Absence Alerts'}</p>
+                <div className="mt-2 space-y-1">
+                  {data.absenceAlerts.map((a: any, i: number) => (
+                    <p key={i} className="text-xs text-red-600">
+                      {lang === 'ar' ? a.messageAr : a.messageEn}
+                    </p>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Next Session */}
+        {data.nextSession && (
+          <div className="rounded-b-xl bg-gradient-to-r from-blue-50 to-white px-5 py-3">
+            <div className="flex items-center gap-2 text-sm">
+              <CalendarClock className="h-4 w-4 text-blue-600 shrink-0" />
+              <span className="font-medium text-gray-900">
+                {lang === 'ar' ? 'الجلسة القادمة:' : 'Next session:'}
+              </span>
+              <span className="text-gray-600">
+                {data.nextSession.groupName} — {data.nextSession.levelName}
+              </span>
+              <span className="text-xs text-gray-400 ml-auto">
+                {formatDate(data.nextSession.scheduledDate, lang === 'ar' ? 'ar-EG' : 'en-GB')}
+              </span>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function PracticeCountersSection({ lang }: { lang: string }) {
+  const [data, setData] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await http.get('/dashboard/practice-stats', { schoolId: getSchoolId() }) as any
+        setData(res)
+      } catch { /* ignore */ }
+      setLoading(false)
+    })()
+  }, [])
+
+  if (loading) return null
+  if (!data || !data.students?.length) return null
+
+  const hasPractice = data.students.filter((s: any) => s.practiceCount > 0).length
+
+  return (
+    <div className="rounded-xl border border-gray-200/60 bg-white overflow-hidden">
+      <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4 bg-[var(--hymn-surface-header)]">
+        <div className="flex items-center gap-2">
+          <div className="flex h-7 w-7 items-center justify-center rounded-full bg-indigo-50 text-indigo-600"><BookOpen className="h-4 w-4" /></div>
+          <h2 className="font-semibold text-gray-900">{lang === 'ar' ? 'الممارسة العائلية هذا الأسبوع' : 'Weekly Practice'}</h2>
+        </div>
+        <span className="text-[11px] text-gray-400">
+          {hasPractice}/{data.students.length} {lang === 'ar' ? 'مارسوا' : 'practiced'}
+        </span>
+      </div>
+      <div className="divide-y divide-gray-100 max-h-72 overflow-y-auto">
+        {data.students.map((s: any) => (
+          <div key={s.id} className="flex items-center gap-3 px-5 py-2.5 hover:bg-gray-50 transition-colors">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gray-100 text-xs font-bold text-gray-600">
+              {s.firstName[0]}{s.lastName[0]}
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="text-sm font-medium text-gray-900 truncate">
+                {lang === 'ar' && s.firstNameAr ? `${s.firstNameAr} ${s.lastNameAr || ''}` : `${s.firstName} ${s.lastName}`}
+              </div>
+            </div>
+            <div className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold ${
+              s.practiceCount >= 3
+                ? 'bg-green-50 text-green-700'
+                : s.practiceCount >= 1
+                  ? 'bg-amber-50 text-amber-700'
+                  : 'bg-gray-50 text-gray-400'
+            }`}>
+              <BookMarked className="h-3 w-3" />
+              {s.practiceCount}x
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
 }
 
 function ProgressRing({ percent, size = 64, stroke = 6 }: { percent: number; size?: number; stroke?: number }) {
