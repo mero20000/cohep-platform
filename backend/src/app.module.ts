@@ -21,6 +21,7 @@ import { MailModule } from './modules/mail/mail.module';
 import { AdminModule } from './modules/admin/admin.module';
 import { NewsletterModule } from './modules/newsletter/newsletter.module';
 import { ServantsModule } from './modules/servants/servants.module';
+import { ReportsModule } from './modules/reports/reports.module';
 import { JwtAuthGuard } from './modules/auth/guards/jwt-auth.guard';
 import { RolesGuard } from './modules/auth/guards/roles.guard';
 
@@ -61,6 +62,7 @@ import { RolesGuard } from './modules/auth/guards/roles.guard';
     AdminModule,
     NewsletterModule,
     ServantsModule,
+    ReportsModule,
   ],
   providers: [
     {
