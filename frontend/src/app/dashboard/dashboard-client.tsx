@@ -128,6 +128,7 @@ const QUICK_ACTIONS = [
   { label: 'New Assessment', labelAr: 'تقييم جديد', icon: ClipboardCheck, href: '/dashboard/assessments', color: 'from-gold-500 to-gold-600', shadow: 'shadow-gold-200' },
   { label: 'Schedule Class', labelAr: 'جدولة فصل', icon: CalendarPlus, href: '/dashboard/curriculum', color: 'from-gold-500 to-gold-600', shadow: 'shadow-gold-200' },
   { label: 'Take Attendance', labelAr: 'تسجيل الحضور', icon: UserCheck, href: '/dashboard/attendance', color: 'from-gold-500 to-gold-600', shadow: 'shadow-gold-200' },
+  { label: 'Reports', labelAr: 'التقارير', icon: BarChart3, href: '/dashboard/reports', color: 'from-gold-500 to-gold-600', shadow: 'shadow-gold-200' },
 ]
 
 const ACTIVITY_ICONS: Record<string, typeof Users> = {
