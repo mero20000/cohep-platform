@@ -294,4 +294,251 @@ export class ReportsService {
       },
     };
   }
+  // ── Diocese Dashboard ──────────────────────────────────────────────────────
+
+  async getDioceseDashboard(churchId: string) {
+    // Find all schools under this church
+    const schools = await this.prisma.school.findMany({
+      where: { churchId, deletedAt: null },
+      select: { id: true, name: true, nameAr: true, slug: true, isActive: true, createdAt: true },
+    });
+
+    const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+
+    const schoolStats = await Promise.all(schools.map(async (school: any) => {
+      const [totalStudents, activeStudents, atRiskCount, servantCount, sessionsThisWeek, xpThisWeek] = await Promise.all([
+        this.prisma.student.count({ where: { schoolId: school.id, deletedAt: null } }),
+        this.prisma.attendanceRecord.groupBy({
+          by: ['studentId'],
+          where: { student: { schoolId: school.id, deletedAt: null }, attendanceSession: { scheduledDate: { gte: weekAgo } }, status: { in: ['present', 'late'] } },
+        }).then((r: any[]) => r.length),
+        // at-risk: students with last 3 all absent
+        this.prisma.student.findMany({ where: { schoolId: school.id, deletedAt: null }, select: { id: true } })
+          .then(async (students: any[]) => {
+            let count = 0;
+            for (const s of students) {
+              const last3 = await this.prisma.attendanceRecord.findMany({
+                where: { studentId: s.id }, orderBy: { createdAt: 'desc' }, take: 3, select: { status: true },
+              });
+              if (last3.length >= 3 && last3.every((r: any) => r.status === 'absent')) count++;
+            }
+            return count;
+          }),
+        this.prisma.userRole.count({ where: { user: { schoolId: school.id }, role: { name: { in: ['servant', 'group_leader', 'level_leader', 'assistant_servant'] } } } }),
+        this.prisma.attendanceSession.findMany({
+          where: { schoolId: school.id, scheduledDate: { gte: weekAgo }, deletedAt: null },
+          include: { attendanceRecords: { select: { status: true } } },
+        }).then((sessions: any[]) => {
+          const all = sessions.flatMap((s: any) => s.attendanceRecords);
+          return { count: sessions.length, rate: all.length > 0 ? Math.round(all.filter((r: any) => r.status === 'present' || r.status === 'late').length / all.length * 100) : 0 };
+        }),
+        this.prisma.xPTransaction.aggregate({
+          where: { student: { schoolId: school.id, deletedAt: null }, createdAt: { gte: weekAgo } },
+          _sum: { amount: true },
+        }).then((r: any) => r._sum.amount || 0),
+      ]);
+
+      const healthScore = Math.min(100, Math.round(
+        (sessionsThisWeek.rate * 0.5) +
+        (atRiskCount === 0 ? 30 : Math.max(0, 30 - atRiskCount * 5)) +
+        (servantCount > 0 ? 20 : 5),
+      ));
+
+      return {
+        schoolId: school.id,
+        schoolName: school.name,
+        schoolNameAr: school.nameAr,
+        slug: school.slug,
+        isActive: school.isActive,
+        totalStudents,
+        activeStudentsThisWeek: activeStudents,
+        atRiskStudents: atRiskCount,
+        servantCount,
+        sessionsThisWeek: sessionsThisWeek.count,
+        attendanceRateThisWeek: sessionsThisWeek.rate,
+        xpThisWeek,
+        healthScore,
+        signals: [
+          atRiskCount > 0 ? { type: 'warning', messageEn: atRiskCount + ' student' + (atRiskCount > 1 ? 's' : '') + ' at risk', messageAr: atRiskCount + ' طالب' + (atRiskCount > 1 ? 'ون' : '') + ' في خطر' } : null,
+          sessionsThisWeek.rate < 60 && sessionsThisWeek.count > 0 ? { type: 'warning', messageEn: 'Low attendance: ' + sessionsThisWeek.rate + '%', messageAr: 'حضور منخفض: ' + sessionsThisWeek.rate + '٪' } : null,
+          sessionsThisWeek.rate >= 90 ? { type: 'success', messageEn: 'Excellent attendance: ' + sessionsThisWeek.rate + '%', messageAr: 'حضور ممتاز: ' + sessionsThisWeek.rate + '٪' } : null,
+        ].filter(Boolean),
+      };
+    }));
+
+    const church = await this.prisma.church.findUnique({ where: { id: churchId }, select: { name: true, nameAr: true } });
+    const totalStudentsAll = schoolStats.reduce((s: number, sc: any) => s + sc.totalStudents, 0);
+    const avgHealth = schoolStats.length > 0 ? Math.round(schoolStats.reduce((s: number, sc: any) => s + sc.healthScore, 0) / schoolStats.length) : 0;
+    const totalAtRisk = schoolStats.reduce((s: number, sc: any) => s + sc.atRiskStudents, 0);
+    const bestSchool = [...schoolStats].sort((a: any, b: any) => b.healthScore - a.healthScore)[0] || null;
+
+    return {
+      churchId,
+      churchName: church?.name || '',
+      churchNameAr: church?.nameAr || '',
+      totalSchools: schools.length,
+      totalStudents: totalStudentsAll,
+      avgHealthScore: avgHealth,
+      totalAtRisk,
+      bestPerforming: bestSchool ? { name: bestSchool.schoolName, score: bestSchool.healthScore } : null,
+      schools: schoolStats,
+    };
+  }
+
+
+  // ── Diocese Dashboard ─────────────────────────────────────────────────────
+
+  async getDioceseReport() {
+    const now = new Date();
+    const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const twoWeeksAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
+
+    const churches = await this.prisma.church.findMany({
+      where: { deletedAt: null, isActive: true },
+      include: {
+        schools: {
+          where: { deletedAt: null },
+          select: {
+            id: true, name: true, nameAr: true, slug: true,
+            isActive: true, createdAt: true,
+          },
+        },
+      },
+      orderBy: { name: 'asc' },
+    });
+
+    const calcRate = (sessions: any[]) => {
+      const all = sessions.flatMap((s: any) => s.attendanceRecords);
+      if (!all.length) return 0;
+      return Math.round(all.filter((r: any) => r.status === 'present' || r.status === 'late').length / all.length * 100);
+    };
+
+    const schoolStats = await Promise.all(
+      churches.flatMap((church: any) =>
+        church.schools.map(async (school: any) => {
+          const [
+            totalStudents, totalServants,
+            thisWeekSessions, lastWeekSessions,
+            pendingGrading, recentBadges,
+          ] = await Promise.all([
+            this.prisma.student.count({ where: { schoolId: school.id, deletedAt: null } }),
+
+            this.prisma.userRole.count({
+              where: {
+                user: { schoolId: school.id },
+                role: { name: { in: ['servant', 'group_leader', 'level_leader', 'assistant_servant'] } },
+              },
+            }),
+
+            this.prisma.attendanceSession.findMany({
+              where: { schoolId: school.id, scheduledDate: { gte: weekAgo }, deletedAt: null },
+              include: { attendanceRecords: { select: { status: true } } },
+            }),
+
+            this.prisma.attendanceSession.findMany({
+              where: { schoolId: school.id, scheduledDate: { gte: twoWeeksAgo, lt: weekAgo }, deletedAt: null },
+              include: { attendanceRecords: { select: { status: true } } },
+            }),
+
+            this.prisma.assessmentSubmission.count({
+              where: {
+                assessment: { schoolId: school.id, deletedAt: null },
+                status: 'submitted',
+                grades: { none: {} },
+              },
+            }),
+
+            this.prisma.studentBadge.count({
+              where: {
+                student: { schoolId: school.id },
+                awardedAt: { gte: weekAgo },
+              },
+            }),
+          ]);
+
+          const attendanceThisWeek = calcRate(thisWeekSessions);
+          const attendanceLastWeek = calcRate(lastWeekSessions);
+          const trend = attendanceThisWeek - attendanceLastWeek;
+
+          // At-risk students
+          const students = await this.prisma.student.findMany({
+            where: { schoolId: school.id, deletedAt: null },
+            select: { id: true },
+          });
+          let atRisk = 0;
+          for (const s of students) {
+            const last3 = await this.prisma.attendanceRecord.findMany({
+              where: { studentId: s.id },
+              orderBy: { createdAt: 'desc' },
+              take: 3,
+              select: { status: true },
+            });
+            if (last3.length >= 3 && last3.every((r: any) => r.status === 'absent')) atRisk++;
+          }
+
+          // Health score
+          const healthScore = Math.min(100, Math.round(
+            (attendanceThisWeek * 0.5) +
+            (pendingGrading === 0 ? 20 : Math.max(0, 20 - pendingGrading * 2)) +
+            (atRisk === 0 ? 20 : Math.max(0, 20 - atRisk * 4)) +
+            (recentBadges > 0 ? 10 : 0),
+          ));
+
+          const signals: string[] = [];
+          if (atRisk > 0) signals.push(atRisk + ' student' + (atRisk > 1 ? 's' : '') + ' at risk');
+          if (pendingGrading > 0) signals.push(pendingGrading + ' pending grade' + (pendingGrading > 1 ? 's' : ''));
+          if (trend >= 5) signals.push('+' + trend + '% attendance this week');
+
+          return {
+            churchId: church.id,
+            churchName: church.name,
+            churchNameAr: church.nameAr,
+            schoolId: school.id,
+            schoolName: school.name,
+            schoolNameAr: school.nameAr,
+            slug: school.slug,
+            isActive: school.isActive,
+            totalStudents,
+            totalServants,
+            attendanceThisWeek,
+            attendanceLastWeek,
+            trend,
+            pendingGrading,
+            studentsAtRisk: atRisk,
+            badgesThisWeek: recentBadges,
+            healthScore,
+            signals,
+          };
+        })
+      )
+    );
+
+    const totalStudents = schoolStats.reduce((s, c) => s + c.totalStudents, 0);
+    const totalServants = schoolStats.reduce((s, c) => s + c.totalServants, 0);
+    const avgAttendance = schoolStats.length
+      ? Math.round(schoolStats.reduce((s, c) => s + c.attendanceThisWeek, 0) / schoolStats.length)
+      : 0;
+    const totalAtRisk = schoolStats.reduce((s, c) => s + c.studentsAtRisk, 0);
+    const healthiest = [...schoolStats].sort((a, b) => b.healthScore - a.healthScore)[0] || null;
+    const needsAttention = schoolStats.filter(s => s.healthScore < 60);
+
+    return {
+      generatedAt: now,
+      summary: {
+        totalChurches: churches.length,
+        totalSchools: schoolStats.length,
+        totalStudents,
+        totalServants,
+        avgAttendance,
+        totalAtRisk,
+        dioceseHealthScore: schoolStats.length
+          ? Math.round(schoolStats.reduce((s, c) => s + c.healthScore, 0) / schoolStats.length)
+          : 0,
+      },
+      healthiest: healthiest ? { schoolName: healthiest.schoolName, churchName: healthiest.churchName, score: healthiest.healthScore } : null,
+      needsAttention: needsAttention.map(s => ({ schoolName: s.schoolName, churchName: s.churchName, score: s.healthScore, signals: s.signals })),
+      schools: schoolStats.sort((a, b) => b.healthScore - a.healthScore),
+    };
+  }
+
 }

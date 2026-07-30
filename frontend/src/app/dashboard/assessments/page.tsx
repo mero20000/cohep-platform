@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useLanguage } from '@/lib/use-language'
 import {
-  ClipboardCheck, Plus, Pencil, Trash2, Loader2,
+  ClipboardCheck, Plus, Pencil, Trash2, Loader2, ChevronRight, Zap,
   Calendar, FileText, Clock, Eye, Users, Check, Download, Printer, X, UserX, CheckCircle, XCircle,
 } from 'lucide-react'
 import { useToast } from '@/components/ui/toast'
@@ -152,6 +152,8 @@ export default function AssessmentsPage() {
   const [formDirty, setFormDirty] = useState(false)
 
   const [studentRows, setStudentRows] = useState<StudentRow[]>([])
+  const [batchMode, setBatchMode] = useState(false)
+  const [batchIndex, setBatchIndex] = useState(0)
   const [studentsLoading, setStudentsLoading] = useState(false)
   const [studentGradeFilter, setStudentGradeFilter] = useState('')
   const [savingMarks, setSavingMarks] = useState<Record<string, boolean>>({})
@@ -685,8 +687,101 @@ export default function AssessmentsPage() {
     },
   ]
 
+
+
+  // ── Batch Review logic ─────────────────────────────────────────────────
+  const ungradedStudents = visibleStudents.filter(r => r.assigned && r.submissionStatus !== 'completed')
+  const batchCurrent = batchMode ? (ungradedStudents[batchIndex] ?? null) : null
+  const batchEstimated = Math.ceil(ungradedStudents.length * 0.5)
+
+  const batchNext = () => {
+    if (batchIndex < ungradedStudents.length - 1) setBatchIndex(i => i + 1)
+    else { setBatchMode(false); setBatchIndex(0) }
+  }
+
+  const batchMark = async (pass: boolean) => {
+    if (!batchCurrent || !selectedAssessment) return
+    const maxScore = selectedAssessment ? Number(selectedAssessment.totalPoints) : 10
+    const score = pass ? maxScore : Math.floor(maxScore * 0.4)
+    await markStudent(batchCurrent, score, maxScore)
+    batchNext()
+  }
+  // ─────────────────────────────────────────────────────────────────────────
+
+  // ── Batch keyboard shortcuts ──────────────────────────────────────────────
+  useEffect(() => {
+    if (!batchMode) return
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'p' || e.key === 'P') { e.preventDefault(); batchMark(true) }
+      else if (e.key === 'f' || e.key === 'F') { e.preventDefault(); batchMark(false) }
+      else if (e.key === 'ArrowRight') { e.preventDefault(); batchNext() }
+      else if (e.key === 'Escape') { setBatchMode(false); setBatchIndex(0) }
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [batchMode, batchIndex, batchCurrent, selectedAssessment])
+  // ─────────────────────────────────────────────────────────────────────────
+
   return (
     <div className="space-y-6">
+      {/* ── Batch Review Modal ── */}
+      {batchMode && batchCurrent && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="w-full max-w-md rounded-2xl bg-white shadow-2xl overflow-hidden">
+            <div className="bg-indigo-600 px-5 py-4 flex items-center justify-between">
+              <div>
+                <p className="text-xs font-semibold text-indigo-200 uppercase tracking-wide">
+                  {lang === 'ar' ? 'وضع المراجعة السريعة' : 'Batch Review Mode'}
+                </p>
+                <p className="text-sm font-bold text-white mt-0.5">
+                  {batchIndex + 1} / {ungradedStudents.length} · ~{batchEstimated} {lang === 'ar' ? 'دقيقة' : 'min'}
+                </p>
+              </div>
+              <button onClick={() => { setBatchMode(false); setBatchIndex(0) }}
+                className="flex h-7 w-7 items-center justify-center rounded-full bg-white/20 text-white hover:bg-white/30 transition-colors text-lg font-bold">×</button>
+            </div>
+            <div className="h-1.5 bg-indigo-100">
+              <div className="h-full bg-indigo-500 transition-all duration-300" style={{ width: `${(batchIndex / Math.max(1, ungradedStudents.length)) * 100}%` }} />
+            </div>
+            <div className="p-5">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-indigo-50 text-indigo-700 font-bold text-sm shrink-0">
+                  {batchCurrent.firstName[0]}{batchCurrent.lastName[0]}
+                </div>
+                <div>
+                  <p className="text-base font-bold text-gray-900">{batchCurrent.firstName} {batchCurrent.lastName}</p>
+                  <p className="text-xs text-gray-400">{batchCurrent.studentCode}</p>
+                </div>
+              </div>
+              <div className="mb-5 rounded-lg bg-gray-50 border border-gray-100 px-3 py-2.5 text-xs text-gray-500 flex flex-wrap items-center gap-4">
+                <span><kbd className="rounded bg-white border border-gray-200 px-1.5 py-0.5 font-mono text-[10px]">P</kbd> {lang === 'ar' ? 'نجح' : 'Pass'}</span>
+                <span><kbd className="rounded bg-white border border-gray-200 px-1.5 py-0.5 font-mono text-[10px]">F</kbd> {lang === 'ar' ? 'راسب' : 'Fail'}</span>
+                <span><kbd className="rounded bg-white border border-gray-200 px-1.5 py-0.5 font-mono text-[10px]">→</kbd> {lang === 'ar' ? 'تخطي' : 'Skip'}</span>
+                <span><kbd className="rounded bg-white border border-gray-200 px-1.5 py-0.5 font-mono text-[10px]">Esc</kbd> {lang === 'ar' ? 'خروج' : 'Exit'}</span>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <button onClick={() => batchMark(true)}
+                  className="flex items-center justify-center gap-2 rounded-xl bg-green-500 hover:bg-green-600 active:scale-95 px-4 py-3.5 text-sm font-bold text-white transition-all shadow-md shadow-green-200">
+                  <CheckCircle className="h-5 w-5" />
+                  {lang === 'ar' ? 'نجح' : 'Pass'}
+                </button>
+                <button onClick={() => batchMark(false)}
+                  className="flex items-center justify-center gap-2 rounded-xl bg-red-500 hover:bg-red-600 active:scale-95 px-4 py-3.5 text-sm font-bold text-white transition-all shadow-md shadow-red-200">
+                  <XCircle className="h-5 w-5" />
+                  {lang === 'ar' ? 'راسب' : 'Fail'}
+                </button>
+              </div>
+              <button onClick={batchNext}
+                className="mt-3 w-full rounded-xl border border-gray-200 py-2.5 text-sm text-gray-500 hover:bg-gray-50 transition-colors flex items-center justify-center gap-1.5">
+                <ChevronRight className="h-4 w-4" />
+                {lang === 'ar' ? 'تخطي' : 'Skip'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
@@ -974,6 +1069,20 @@ export default function AssessmentsPage() {
                     {lang === 'ar' ? 'إلغاء تعيين الكل' : 'Deassign All'}
                   </Button>
                 )}
+                {(() => {
+                  const ungradedCount = visibleStudents.filter(r => r.assigned && r.submissionStatus !== 'completed').length
+                  const estimatedMinutes = Math.ceil(ungradedCount * 0.5)
+                  return ungradedCount > 0 ? (
+                    <Button
+                      size="sm"
+                      onClick={() => { setBatchMode(true); setBatchIndex(0) }}
+                      className="bg-indigo-600 hover:bg-indigo-700 text-white gap-1.5"
+                    >
+                      <Zap className="h-3.5 w-3.5" />
+                      {lang === 'ar' ? `مراجعة دُفعة (${ungradedCount}) ~${estimatedMinutes}د` : `Batch Review (${ungradedCount}) ~${estimatedMinutes}m`}
+                    </Button>
+                  ) : null
+                })()}
               </div>
 
               {studentsLoading ? (

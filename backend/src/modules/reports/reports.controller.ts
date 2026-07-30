@@ -29,4 +29,10 @@ export class ReportsController {
   async getServantContributions(@Query('schoolId') schoolId: string = '') {
     return this.reportsService.getServantContributions(schoolId);
   }
+
+  @Get('diocese')
+  @ApiOperation({ summary: 'Diocese dashboard — all schools under a church with health scores' })
+  async getDioceseDashboard(@Query('churchId') churchId: string = '') {
+    return this.reportsService.getDioceseReport();
+  }
 }

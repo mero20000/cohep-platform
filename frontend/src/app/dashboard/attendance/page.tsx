@@ -1,18 +1,20 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { useLanguage } from '@/lib/use-language'
 import {
   Calendar, Clock, CheckCircle2, XCircle, AlertCircle, Minus,
   Filter, Plus, Search, Loader2, ChevronDown, ChevronRight,
   Download, FileText, FileSpreadsheet, BarChart3, Users,
-  Eye, ArrowLeft, Save, UserCheck, UserX, X, Trash2, RotateCcw
+  Eye, ArrowLeft, Save, UserCheck, UserX, X, Trash2, RotateCcw, Play, QrCode
 } from 'lucide-react'
 import { useToast } from '@/components/ui/toast'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { DatePicker } from '@/components/ui/date-picker'
 import { StatCard } from '@/components/ui/stat-card'
+import { QrScanner } from '@/components/qr/qr-scanner'
 import { http } from '@/lib/http-client'
 import { getSchoolId } from '@/lib/school'
 
@@ -90,6 +92,9 @@ export default function AttendancePage() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [deleting, setDeleting] = useState(false)
 
+  const [showQrScanner, setShowQrScanner] = useState(false)
+  const [startingClass, setStartingClass] = useState(false)
+
   const [searchQuery, setSearchQuery] = useState('')
   const [studentResults, setStudentResults] = useState<{
     student: { id: string; studentCode: string; firstName: string; lastName: string; firstNameAr?: string; lastNameAr?: string };
@@ -98,6 +103,8 @@ export default function AttendancePage() {
   const [searching, setSearching] = useState(false)
 
   const schoolId = getSchoolId()
+  const [searchParams] = useSearchParams ? [useSearchParams()] : [null]
+  const arrivalTapHandled = useRef(false)
 
   const fetchSessions = useCallback(async () => {
     setLoading(true)
@@ -140,6 +147,24 @@ export default function AttendancePage() {
 
   useEffect(() => { fetchLevelsGroups() }, [fetchLevelsGroups])
   useEffect(() => { fetchSessions() }, [fetchSessions])
+
+  // ── Arrival Tap ───────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (arrivalTapHandled.current || loading) return
+    const sessionId = searchParams?.get('sessionId')
+    const prefill = searchParams?.get('prefill')
+    if (!sessionId) return
+    arrivalTapHandled.current = true
+    fetchSessionDetail(sessionId)
+    if (prefill === 'present') {
+      setTimeout(() => {
+        handleMarkAll('present')
+      }, 400)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, searchParams])
+  // ─────────────────────────────────────────────────────────────────────────
+
   useEffect(() => { if (tab === 'stats') fetchStats() }, [tab, fetchStats])
 
   const fetchSessionDetail = async (id: string) => {
@@ -199,6 +224,34 @@ export default function AttendancePage() {
       fetchSessions()
     } catch (e) { console.error(e) }
     setMarking(false)
+  }
+
+  const handleStartClass = async () => {
+    setStartingClass(true)
+    try {
+      const result = await http.post<{ session: SessionDetail; created: boolean } | { groups: { id: string; name: string }[]; requiresGroupPick: boolean }>('/attendance/start-class')
+      if ('requiresGroupPick' in result && result.requiresGroupPick) {
+        toast('warning', 'Select a group', 'Multiple groups found. Select one from the session list.')
+      } else if ('session' in result) {
+        fetchSessionDetail(result.session.id)
+        fetchSessions()
+        toast('success', 'Class started!', 'All students pre-marked as present.')
+      }
+    } catch (e: any) {
+      toast('error', 'Failed to start class', e?.message || 'Unknown error')
+    }
+    setStartingClass(false)
+  }
+
+  const handleQrCheckIn = async (studentId: string) => {
+    try {
+      const result = await http.post<{ record: any; message: string }>('/attendance/qr-checkin', { studentId })
+      const sid = result.record?.student?.id
+      if (sid) setTempMarks(prev => ({ ...prev, [sid]: 'present' }))
+      return { success: true, message: result.message }
+    } catch (e: any) {
+      return { success: false, message: e?.message || 'Check-in failed' }
+    }
   }
 
   const handleCreateSession = async () => {
@@ -321,6 +374,9 @@ export default function AttendancePage() {
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={exportAttendance}>
             <FileText className="h-3.5 w-3.5" />{lang === 'ar' ? 'تصدير PDF' : 'Export PDF'}
+          </Button>
+          <Button variant="outline" size="sm" onClick={handleStartClass} disabled={startingClass}>
+            <Play className="h-3.5 w-3.5" />{startingClass ? (lang === 'ar' ? '...جاري' : 'Starting...') : (lang === 'ar' ? 'بدء الفصل' : 'Start Class')}
           </Button>
           <Button variant="outline" size="sm" onClick={async () => {
             if (!confirm(lang === 'ar' ? 'هل تريد إنشاء جلسات حضور لجميع الأيام النشطة؟ سيتم إنشاء جلسات لكل مستوى ومجموعة في كل يوم نشط لا توجد فيه جلسة بعد.' : 'Generate attendance sessions for all active days? This will create sessions for every level and group on each active day where no session exists yet.')) return
@@ -478,12 +534,22 @@ export default function AttendancePage() {
                 <div className="text-xs text-gray-400">{new Date(selectedSession.scheduledDate).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })} {selectedSession.scheduledTime}</div>
               </div>
 
-              {!isCompleted && (
+              {showQrScanner && !isCompleted && (
+                <div className="px-5 py-3 border-b border-gray-100 bg-gray-50">
+                  <QrScanner onCheckIn={handleQrCheckIn} onClose={() => setShowQrScanner(false)} />
+                </div>
+              )}
+              {!isCompleted && !showQrScanner && (
                 <div className="flex items-center gap-2 px-5 py-2 border-b border-gray-100 bg-gray-50">
                   <span className="text-xs text-gray-500">{lang === 'ar' ? 'تحديد الكل:' : 'Mark all:'}</span>
                   <Button variant="ghost" size="sm" onClick={() => handleMarkAll('present')} className="bg-green-100 text-green-700 hover:bg-green-200">{lang === 'ar' ? 'الكل حاضر' : 'All Present'}</Button>
                   <Button variant="ghost" size="sm" onClick={() => handleMarkAll('late')} className="bg-amber-100 text-amber-700 hover:bg-amber-200">{lang === 'ar' ? 'الكل متأخر' : 'All Late'}</Button>
                   <Button variant="ghost" size="sm" onClick={() => handleMarkAll('absent')} className="bg-red-100 text-red-700 hover:bg-red-200">{lang === 'ar' ? 'الكل غائب' : 'All Absent'}</Button>
+                  <div className="ml-auto">
+                    <Button variant="outline" size="sm" onClick={() => setShowQrScanner(true)}>
+                      <QrCode className="h-3.5 w-3.5 mr-1" />{lang === 'ar' ? 'مسح QR' : 'QR Scan'}
+                    </Button>
+                  </div>
                 </div>
               )}
 

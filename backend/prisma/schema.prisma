@@ -79,6 +79,7 @@ model School {
   auditLogs          AuditLog[]
   fileUploads        FileUpload[]
   attendanceSessions AttendanceSession[]
+  hymnSessions       HymnPracticeSession[]
 
   @@index([churchId])
   @@map("schools")
@@ -280,6 +281,7 @@ model Student {
   xpTransactions        XPTransaction[]
   familyPractices       FamilyPractice[]
   familyLiturgies       FamilyLiturgy[]
+  hymns                 HymnPracticeSession[]
 
   @@unique([schoolId, studentCode])
   @@index([schoolId])
@@ -513,6 +515,7 @@ model Lesson {
   publishedAt              DateTime? @map("published_at")
   version                  Int       @default(1)
   metadata                 Json?
+  liturgicalTags           Json?     @map("liturgical_tags")
   createdBy                String    @map("created_by")
   createdAt                DateTime  @default(now()) @map("created_at")
   updatedAt                DateTime  @updatedAt @map("updated_at")
@@ -529,6 +532,7 @@ model Lesson {
   lessonProgress        LessonProgress[]
   curriculumAllocations CurriculumAllocation[]
   familyPractices       FamilyPractice[]
+  practiceSessions      HymnPracticeSession[]
 
   @@index([schoolId, levelId, subjectId])
   @@map("lessons")
@@ -778,15 +782,22 @@ model LessonProgress {
   lastAccessedAt    DateTime? @map("last_accessed_at")
   completedAt       DateTime? @map("completed_at")
   notes             String?
+  masteryStatus     String    @default("not_started") @map("mastery_status")
+  srEaseFactor      Float     @default(2.5) @map("sr_ease_factor")
+  srInterval        Int       @default(1) @map("sr_interval")
+  srRepetitions     Int       @default(0) @map("sr_repetitions")
+  nextReviewAt      DateTime? @map("next_review_at")
   metadata          Json?
   createdAt         DateTime  @default(now()) @map("created_at")
   updatedAt         DateTime  @updatedAt @map("updated_at")
 
-  student Student @relation(fields: [studentId], references: [id])
-  lesson  Lesson  @relation(fields: [lessonId], references: [id])
+  student          Student               @relation(fields: [studentId], references: [id])
+  lesson           Lesson                @relation(fields: [lessonId], references: [id])
+  practiceSessions HymnPracticeSession[]
 
   @@unique([studentId, lessonId])
   @@index([studentId])
+  @@index([studentId, nextReviewAt])
   @@map("lesson_progress")
 }
 
@@ -1036,6 +1047,21 @@ model Notification {
   @@map("notifications")
 }
 
+model PushSubscription {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  endpoint  String
+  p256dh    String
+  auth      String
+  userAgent String?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([userId, endpoint])
+  @@index([userId])
+  @@map("push_subscriptions")
+}
+
 model Event {
   id             String    @id @default(uuid())
   schoolId       String    @map("school_id")
@@ -1068,6 +1094,39 @@ model Event {
 // ============================================
 // FAMILY FEATURES (WOW)
 // ============================================
+
+
+// ============================================
+// HYMN LEARNING ENGINE
+// ============================================
+
+model HymnPracticeSession {
+  id               String    @id @default(uuid())
+  studentId        String    @map("student_id")
+  lessonId         String    @map("lesson_id")
+  progressId       String?   @map("progress_id")
+  schoolId         String    @map("school_id")
+  recordingUrl     String?   @map("recording_url")
+  durationSec      Int?      @map("duration_sec")
+  selfRating       Int?      @map("self_rating")
+  servantNote      String?   @map("servant_note")
+  servantReviewedAt DateTime? @map("servant_reviewed_at")
+  reviewedBy       String?   @map("reviewed_by")
+  servantRating    Int?      @map("servant_rating")
+  srQuality        Int?      @map("sr_quality")
+  metadata         Json?
+  createdAt        DateTime  @default(now()) @map("created_at")
+
+  student   Student          @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  lesson    Lesson           @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  progress  LessonProgress?  @relation(fields: [progressId], references: [id], onDelete: SetNull)
+  school    School           @relation(fields: [schoolId], references: [id])
+
+  @@index([studentId, lessonId])
+  @@index([studentId, createdAt])
+  @@index([reviewedBy])
+  @@map("hymn_practice_sessions")
+}
 
 model FamilyPractice {
   id              String   @id @default(uuid())

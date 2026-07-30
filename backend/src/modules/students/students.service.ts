@@ -519,6 +519,95 @@ export class StudentsService {
     return { deletedCount: count };
   }
 
+  async getPortalData(studentCode: string) {
+    const student = await this.prisma.student.findFirst({
+      where: { studentCode, deletedAt: null },
+      include: {
+        level: { select: { id: true, name: true, number: true, nameAr: true } },
+        group: { select: { id: true, name: true, nameAr: true } },
+      },
+    });
+    if (!student) throw new NotFoundException('Student not found');
+
+    const [attRecords, badges, xpResult, upcoming] = await Promise.all([
+      this.prisma.attendanceRecord.findMany({
+        where: { studentId: student.id },
+        include: { attendanceSession: { select: { scheduledDate: true, scheduledTime: true } } },
+        orderBy: { attendanceSession: { scheduledDate: 'desc' } },
+        take: 10,
+      }),
+      this.prisma.studentBadge.findMany({
+        where: { studentId: student.id },
+        include: { badge: { select: { id: true, name: true, nameAr: true, description: true, iconUrl: true } } },
+        orderBy: { awardedAt: 'desc' },
+        take: 20,
+      }),
+      this.prisma.xPTransaction.aggregate({
+        where: { studentId: student.id },
+        _sum: { amount: true },
+      }),
+      this.prisma.attendanceSession.findMany({
+        where: { groupId: student.groupId, scheduledDate: { gte: new Date() }, deletedAt: null },
+        orderBy: { scheduledDate: 'asc' },
+        take: 5,
+      }),
+    ]);
+
+    const attendanceSummary = {
+      present: attRecords.filter(r => r.status === 'present').length,
+      late: attRecords.filter(r => r.status === 'late').length,
+      absent: attRecords.filter(r => r.status === 'absent').length,
+      excused: attRecords.filter(r => r.status === 'excused').length,
+      total: attRecords.length,
+    };
+
+    const totalXp = xpResult._sum?.amount || 0;
+
+    const recentHomework = attRecords
+      .filter(r => r.homeworkStatus && r.homeworkStatus !== 'not_assigned')
+      .slice(0, 5)
+      .map(r => ({
+        date: r.attendanceSession.scheduledDate,
+        status: r.homeworkStatus,
+      }));
+
+    return {
+      student: {
+        id: student.id,
+        firstName: student.firstName,
+        lastName: student.lastName,
+        firstNameAr: student.firstNameAr,
+        lastNameAr: student.lastNameAr,
+        studentCode: student.studentCode,
+        level: student.level,
+        group: student.group,
+        photoUrl: student.photoUrl,
+      },
+      attendance: attendanceSummary,
+      recentAttendance: attRecords.map(r => ({
+        date: r.attendanceSession.scheduledDate,
+        time: r.attendanceSession.scheduledTime,
+        status: r.status,
+        homeworkStatus: r.homeworkStatus,
+      })),
+      badges: (badges as any[]).map(b => ({
+        id: b.id,
+        name: b.badge?.name,
+        nameAr: b.badge?.nameAr,
+        description: b.badge?.description,
+        iconUrl: b.badge?.iconUrl,
+        earnedAt: b.awardedAt,
+      })),
+      totalXp,
+      upcomingSessions: upcoming.map(s => ({
+        id: s.id,
+        date: s.scheduledDate,
+        time: s.scheduledTime,
+      })),
+      recentHomework,
+    };
+  }
+
   async getStats(schoolIdentifier: string) {
     const schoolId = await this.schoolResolver.resolve(schoolIdentifier);
     const where = { deletedAt: null } as any;

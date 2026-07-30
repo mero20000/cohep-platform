@@ -149,6 +149,31 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
   }, [fetchNotifications, isLoginPage])
 
   useEffect(() => {
+    if (isLoginPage || !user) return
+    const sub = async () => {
+      try {
+        const reg = await navigator.serviceWorker.ready
+        const existing = await reg.pushManager.getSubscription()
+        if (existing) return
+        const res = await fetch((process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api') + '/vapid-public-key')
+        const { key } = await res.json()
+        const sub = await reg.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: key,
+        })
+        const json = sub.toJSON()
+        const token = localStorage.getItem('niangelos_token')
+        await fetch((process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api') + '/push/subscribe', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+          body: JSON.stringify({ endpoint: json.endpoint, p256dh: json.keys!.p256dh, auth: json.keys!.auth }),
+        })
+      } catch {}
+    }
+    if ('serviceWorker' in navigator && 'PushManager' in window) sub()
+  }, [isLoginPage, user])
+
+  useEffect(() => {
     if (isLoginPage) return
     const dismissed = localStorage.getItem('niangelos_banner_dismissed')
     if (dismissed) setBannerDismissed(dismissed)

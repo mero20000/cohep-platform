@@ -274,6 +274,79 @@ export class AttendanceService {
     });
   }
 
+  async qrCheckIn(servantId: string, studentId: string) {
+    const servant = await this.prisma.user.findUnique({ where: { id: servantId }, select: { schoolId: true } });
+    if (!servant) throw new NotFoundException('Servant not found');
+
+    const student = await this.prisma.student.findUnique({ where: { id: studentId } });
+    if (!student) throw new NotFoundException('Student not found');
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    let session = await this.prisma.attendanceSession.findFirst({
+      where: {
+        servantId,
+        scheduledDate: { gte: today, lt: tomorrow },
+        deletedAt: null,
+      },
+    });
+
+    if (!session) {
+      session = await this.prisma.attendanceSession.findFirst({
+        where: { servantId, deletedAt: null },
+        orderBy: { scheduledDate: 'desc' },
+      });
+      if (!session) throw new BadRequestException('No session found. Start a class first.');
+    }
+
+    const record = await this.prisma.attendanceRecord.upsert({
+      where: { attendanceSessionId_studentId: { attendanceSessionId: session.id, studentId } },
+      create: {
+        attendanceSessionId: session.id,
+        studentId,
+        status: 'present',
+        recordedBy: servantId,
+        recordedAt: new Date(),
+      },
+      update: {
+        status: 'present',
+        recordedBy: servantId,
+        recordedAt: new Date(),
+      },
+      include: {
+        student: { select: { id: true, firstName: true, lastName: true, firstNameAr: true, lastNameAr: true } },
+        attendanceSession: { select: { id: true, group: { select: { name: true } } } },
+      },
+    });
+
+    this.gamification.computeBadgesForStudent(studentId).catch(() => {});
+
+    // Notify parents of arrival
+    const parentLinks = await this.prisma.studentParent.findMany({
+      where: { studentId },
+      include: { student: { select: { firstName: true, lastName: true } } },
+    });
+    const groupName = record.attendanceSession?.group?.name || 'class';
+    for (const link of parentLinks) {
+      this.notifications.createNotification({
+        schoolId: servant.schoolId,
+        userId: link.parentId,
+        type: 'attendance',
+        title: `${(record.student as any).firstName} has arrived!`,
+        titleAr: `وصل ${(record.student as any).firstNameAr || (record.student as any).firstName}!`,
+        body: `${(record.student as any).firstName} ${(record.student as any).lastName} checked in for ${groupName}.`,
+        bodyAr: `سجل ${(record.student as any).firstNameAr || (record.student as any).firstName} حضوره في ${groupName}.`,
+        channels: ['in_app', 'push'],
+        data: { url: '/portal' },
+      }).catch(() => {});
+    }
+
+    return { record, message: `${record.student.firstName} ${record.student.lastName} checked in!` };
+  }
+
   async startClass(servantId: string) {
     const servant = await this.prisma.user.findUnique({ where: { id: servantId }, select: { schoolId: true } });
     if (!servant) throw new NotFoundException('Servant not found');

@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1A2744"/>
+      <stop offset="100%" stop-color="#0F1A30"/>
+    </linearGradient>
+    <linearGradient id="gold" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#D4A843"/>
+      <stop offset="100%" stop-color="#B8912A"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="96" fill="url(#bg)"/>
+  <rect x="96" y="96" width="320" height="320" rx="64" fill="url(#gold)"/>
+  <!-- Cross -->
+  <rect x="228" y="136" width="56" height="240" rx="12" fill="#FFFFFF"/>
+  <rect x="136" y="228" width="240" height="56" rx="12" fill="#FFFFFF"/>
+  <!-- Book below cross -->
+  <rect x="176" y="380" width="160" height="48" rx="8" fill="#1A2744" opacity="0.9"/>
+  <rect x="176" y="380" width="160" height="4" rx="2" fill="#D4A843"/>
+  <!-- Music note left -->
+  <circle cx="164" cy="396" r="10" fill="#D4A843"/>
+  <rect x="172" y="396" width="3" height="24" rx="1.5" fill="#D4A843"/>
+  <path d="M172 416 Q172 406 180 404" stroke="#D4A843" stroke-width="3" fill="none" stroke-linecap="round"/>
+  <!-- Music note right -->
+  <circle cx="348" cy="396" r="10" fill="#D4A843"/>
+  <rect x="340" y="396" width="3" height="24" rx="1.5" fill="#D4A843"/>
+  <path d="M340 416 Q340 406 332 404" stroke="#D4A843" stroke-width="3" fill="none" stroke-linecap="round"/>
+</svg>

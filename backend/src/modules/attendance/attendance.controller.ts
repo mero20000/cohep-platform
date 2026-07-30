@@ -7,6 +7,7 @@ import { AttendanceService } from './attendance.service';
 import { CreateAttendanceSessionDto } from './dto/create-attendance-session.dto';
 import { UpdateAttendanceSessionDto } from './dto/update-attendance-session.dto';
 import { MarkAttendanceDto } from './dto/mark-attendance.dto';
+import { QrCheckInDto } from './dto/qr-checkin.dto';
 
 @ApiTags('attendance')
 @Roles(...STAFF_ROLES)
@@ -100,6 +101,12 @@ export class AttendanceController {
   @ApiOperation({ summary: 'Generate attendance sessions from active days' })
   async generateSessions(@Query('schoolId') schoolId: string = '') {
     return this.attendanceService.generateSessions(schoolId);
+  }
+
+  @Post('qr-checkin')
+  @ApiOperation({ summary: 'QR check-in — mark a student present by scanning their QR code' })
+  async qrCheckIn(@Req() req: any, @Body() dto: QrCheckInDto) {
+    return this.attendanceService.qrCheckIn(req.user.id, dto.studentId);
   }
 
   @Post('start-class')
