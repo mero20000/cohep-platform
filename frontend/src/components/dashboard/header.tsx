@@ -108,6 +108,7 @@ export function DashboardHeader({
   const language = lang
   const router = useRouter()
   const API_ORIGIN = process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'http://localhost:3001'
+  const [avatarError, setAvatarError] = useState(false)
 
   const notiIcon = (type: string) => {
     switch (type) {
@@ -307,8 +308,8 @@ export function DashboardHeader({
             aria-label={language === 'ar' ? 'قائمة المستخدم' : 'User menu'}
             className="gap-1.5 px-1.5 h-auto hover:bg-gray-100">
             <div className="flex h-7 w-7 items-center justify-center rounded-full bg-blue-100 overflow-hidden">
-              {user?.avatarUrl ? (
-                <img src={`${API_ORIGIN}${user.avatarUrl}`} alt="" className="h-full w-full object-cover" />
+              {user?.avatarUrl && !avatarError ? (
+                <img src={`${API_ORIGIN}${user.avatarUrl}`} alt="" onError={() => setAvatarError(true)} className="h-full w-full object-cover" />
               ) : (
                 <span className="text-xs font-bold text-blue-700">{initials}</span>
               )}
