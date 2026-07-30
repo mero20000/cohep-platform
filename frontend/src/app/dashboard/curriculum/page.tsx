@@ -266,14 +266,12 @@ function CurriculumContent() {
         </nav>
       </div>
 
-      {activeTab !== 'levels' && (
-        <div className="flex flex-wrap items-center gap-3">
-          <select value={selectedYear} onChange={e => setSelectedYear(e.target.value)}
-            className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
-            {academicYears.map(y => <option key={y.id} value={y.id}>{y.name} {y.isCurrent ? (lang === 'ar' ? '(الحالي)' : '(Current)') : ''}</option>)}
-          </select>
-        </div>
-      )}
+      <div className="flex flex-wrap items-center gap-3">
+        <select value={selectedYear} onChange={e => setSelectedYear(e.target.value)}
+          className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
+          {academicYears.map(y => <option key={y.id} value={y.id}>{y.name} {y.isCurrent ? (lang === 'ar' ? '(الحالي)' : '(Current)') : ''}</option>)}
+        </select>
+      </div>
 
       {activeTab === 'levels' && (
         <LevelsTab

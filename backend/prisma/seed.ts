@@ -298,6 +298,83 @@ async function main() {
     }
   }
 
+  // ── Subject Items ─────────────────────────────────────────────────────
+  const subjectItemsCount = await prisma.subjectItem.count({ where: { active: true } });
+  if (subjectItemsCount === 0) {
+    const allSubjects = await prisma.subject.findMany({ where: { schoolId: school.id } });
+    const hymnsSubject = allSubjects.find(s => s.name === 'Coptic Hymns')!;
+    const ritesSubject = allSubjects.find(s => s.name === 'Coptic Rites')!;
+    const langSubject = allSubjects.find(s => s.name === 'Coptic Language')!;
+
+    const itemData: { subjectId: string; name: string; nameAr: string; nameCoptic: string; levelNumber: number; orderIndex: number; sessionsGroup1: number; sessionsGroup2: number; sessionsGroup3: number; sessionsGroup4: number }[] = [
+      // Coptic Hymns
+      { subjectId: hymnsSubject.id, name: 'Tenħo (Doxology)', nameAr: 'تنحو (المدحة)', nameCoptic: 'Ⲧⲉⲛϩⲱ', levelNumber: 1, orderIndex: 1, sessionsGroup1: 3, sessionsGroup2: 3, sessionsGroup3: 3, sessionsGroup4: 3 },
+      { subjectId: hymnsSubject.id, name: 'Nabrubol (Basic Melodies)', nameAr: 'نبروبول (الألحان الأساسية)', nameCoptic: 'Ⲛⲁⲃⲣⲩⲃⲟⲗ', levelNumber: 1, orderIndex: 2, sessionsGroup1: 4, sessionsGroup2: 4, sessionsGroup3: 4, sessionsGroup4: 4 },
+      { subjectId: hymnsSubject.id, name: 'Piⲭeⲥ (The Pascha)', nameAr: 'بيخيس (أسبوع الآلام)', nameCoptic: 'Ⲡⲓⲭⲏⲥ', levelNumber: 2, orderIndex: 1, sessionsGroup1: 3, sessionsGroup2: 3, sessionsGroup3: 3, sessionsGroup4: 3 },
+      { subjectId: hymnsSubject.id, name: 'Efshin naf (Thanksgiving)', nameAr: 'إفشين ناف (الشكر)', nameCoptic: 'Ⲉϥϣⲓⲛ ⲛⲁϥ', levelNumber: 2, orderIndex: 2, sessionsGroup1: 3, sessionsGroup2: 3, sessionsGroup3: 3, sessionsGroup4: 3 },
+      { subjectId: hymnsSubject.id, name: 'Shere ⲡiⲣⲱmi (Son of Man)', nameAr: 'شيري بي رومي (ابن الإنسان)', nameCoptic: 'Ϣⲏⲣⲉ ⲡⲓⲣⲱⲙⲓ', levelNumber: 3, orderIndex: 1, sessionsGroup1: 4, sessionsGroup2: 4, sessionsGroup3: 4, sessionsGroup4: 4 },
+      { subjectId: hymnsSubject.id, name: 'Trisagion (Holy God)', nameAr: 'ثالوث القدوس (الله القدوس)', nameCoptic: 'Ⲑⲱⲟⲩⲁⲃ', levelNumber: 3, orderIndex: 2, sessionsGroup1: 3, sessionsGroup2: 3, sessionsGroup3: 3, sessionsGroup4: 3 },
+      { subjectId: hymnsSubject.id, name: 'Vespers Hymns', nameAr: 'ألحان العشية', nameCoptic: 'Ⲛⲓϩⲱⲥ ⲛ̀ⲣⲱϩⲓ', levelNumber: 4, orderIndex: 1, sessionsGroup1: 4, sessionsGroup2: 4, sessionsGroup3: 4, sessionsGroup4: 4 },
+      { subjectId: hymnsSubject.id, name: 'Gospel Responses', nameAr: 'ردود الإنجيل', nameCoptic: 'Ⲛⲓⲥⲁϫⲓ ⲛ̀ⲧⲉ ⲡⲓⲉⲩⲁⲅⲅⲉⲗⲓⲟⲛ', levelNumber: 4, orderIndex: 2, sessionsGroup1: 3, sessionsGroup2: 3, sessionsGroup3: 3, sessionsGroup4: 3 },
+      { subjectId: hymnsSubject.id, name: 'Kiahk Hymns', nameAr: 'ألحان شهر كيهك', nameCoptic: 'Ⲛⲓϩⲱⲥ ⲛ̀Ⲕⲓⲁϩⲕ', levelNumber: 5, orderIndex: 1, sessionsGroup1: 4, sessionsGroup2: 4, sessionsGroup3: 4, sessionsGroup4: 4 },
+      { subjectId: hymnsSubject.id, name: 'Holy Liturgy Hymns', nameAr: 'ألحان القداس الإلهي', nameCoptic: 'Ⲛⲓϩⲱⲥ ⲛ̀ⲧⲉ ⲫⲓⲉⲣⲟⲩⲣⲅⲓⲁ', levelNumber: 5, orderIndex: 2, sessionsGroup1: 4, sessionsGroup2: 4, sessionsGroup3: 4, sessionsGroup4: 4 },
+      // Coptic Rites
+      { subjectId: ritesSubject.id, name: 'Morning Raising of Incense', nameAr: 'رفع بخور باكر', nameCoptic: 'Ϯⲥ̀ϩⲏⲟⲩ ⲙ̀ⲡⲓⲟⲩⲉⲣϣⲓⲛⲓ', levelNumber: 1, orderIndex: 1, sessionsGroup1: 2, sessionsGroup2: 2, sessionsGroup3: 2, sessionsGroup4: 2 },
+      { subjectId: ritesSubject.id, name: 'Evening Raising of Incense', nameAr: 'رفع بخور عشية', nameCoptic: 'Ⲡⲓⲟⲩⲉⲣϣⲓⲛⲓ ⲛ̀ⲣⲱϩⲓ', levelNumber: 1, orderIndex: 2, sessionsGroup1: 2, sessionsGroup2: 2, sessionsGroup3: 2, sessionsGroup4: 2 },
+      { subjectId: ritesSubject.id, name: 'Liturgy of the Word', nameAr: 'قداس الكلمة', nameCoptic: 'Ⲫⲓⲉⲣⲟⲩⲣⲅⲓⲁ ⲛ̀ⲧⲉ ⲡⲓⲥⲁϫⲓ', levelNumber: 2, orderIndex: 1, sessionsGroup1: 3, sessionsGroup2: 3, sessionsGroup3: 3, sessionsGroup4: 3 },
+      { subjectId: ritesSubject.id, name: 'Liturgy of the Faithful', nameAr: 'قداس المؤمنين', nameCoptic: 'Ⲫⲓⲉⲣⲟⲩⲣⲅⲓⲁ ⲛ̀ⲧⲉ ⲛⲓⲡⲓⲥⲧⲟⲥ', levelNumber: 2, orderIndex: 2, sessionsGroup1: 3, sessionsGroup2: 3, sessionsGroup3: 3, sessionsGroup4: 3 },
+      { subjectId: ritesSubject.id, name: 'Great Lent Rites', nameAr: 'طقس الصوم الكبير', nameCoptic: 'Ⲫⲓⲟⲩⲉⲣϣⲓⲛⲓ ⲛ̀ⲧⲉ ⲡⲓⲛⲏⲥⲧⲓⲁ', levelNumber: 3, orderIndex: 1, sessionsGroup1: 4, sessionsGroup2: 4, sessionsGroup3: 4, sessionsGroup4: 4 },
+      { subjectId: ritesSubject.id, name: 'Holy Week Rites', nameAr: 'طقس أسبوع الآلام', nameCoptic: 'Ⲫⲓⲟⲩⲉⲣϣⲓⲛⲓ ⲛ̀ⲧⲉ ⲡⲓϫⲱⲕ', levelNumber: 3, orderIndex: 2, sessionsGroup1: 4, sessionsGroup2: 4, sessionsGroup3: 4, sessionsGroup4: 4 },
+      { subjectId: ritesSubject.id, name: 'Baptism Rite', nameAr: 'طقس المعمودية', nameCoptic: 'Ⲫⲓⲟⲩⲉⲣϣⲓⲛⲓ ⲛ̀ⲧⲉ ⲡⲓⲱⲙⲥ', levelNumber: 4, orderIndex: 1, sessionsGroup1: 3, sessionsGroup2: 3, sessionsGroup3: 3, sessionsGroup4: 3 },
+      { subjectId: ritesSubject.id, name: 'Marriage Rite', nameAr: 'طقس الزواج', nameCoptic: 'Ⲫⲓⲟⲩⲉⲣϣⲓⲛⲓ ⲛ̀ⲧⲉ ⲫⲓⲅⲁⲙⲟⲥ', levelNumber: 4, orderIndex: 2, sessionsGroup1: 3, sessionsGroup2: 3, sessionsGroup3: 3, sessionsGroup4: 3 },
+      { subjectId: ritesSubject.id, name: 'Priesthood Rites', nameAr: 'طقس الكهنوت', nameCoptic: 'Ⲫⲓⲟⲩⲉⲣϣⲓⲛⲓ ⲛ̀ⲧⲉ ⲡⲓⲟⲩⲏⲃ', levelNumber: 5, orderIndex: 1, sessionsGroup1: 3, sessionsGroup2: 3, sessionsGroup3: 3, sessionsGroup4: 3 },
+      { subjectId: ritesSubject.id, name: 'Consecration Rites', nameAr: 'طقس التكريس', nameCoptic: 'Ⲫⲓⲟⲩⲉⲣϣⲓⲛⲓ ⲛ̀ⲧⲉ ⲡⲓⲧⲟⲩⲃⲟ', levelNumber: 5, orderIndex: 2, sessionsGroup1: 3, sessionsGroup2: 3, sessionsGroup3: 3, sessionsGroup4: 3 },
+      // Coptic Language
+      { subjectId: langSubject.id, name: 'Coptic Alphabet', nameAr: 'الأبجدية القبطية', nameCoptic: 'Ⲛⲓⲥ̀ϧⲁⲓ ⲛ̀ⲣⲉⲙⲛ̀ⲕⲏⲙⲉ', levelNumber: 1, orderIndex: 1, sessionsGroup1: 4, sessionsGroup2: 4, sessionsGroup3: 4, sessionsGroup4: 4 },
+      { subjectId: langSubject.id, name: 'Basic Greetings', nameAr: 'التحيات الأساسية', nameCoptic: 'Ⲛⲓϩⲟⲗⲟⲕ', levelNumber: 1, orderIndex: 2, sessionsGroup1: 2, sessionsGroup2: 2, sessionsGroup3: 2, sessionsGroup4: 2 },
+      { subjectId: langSubject.id, name: 'Numbers 1-20', nameAr: 'الأرقام 1-20', nameCoptic: 'Ⲛⲓⲁⲣⲓⲑⲙⲟⲥ', levelNumber: 2, orderIndex: 1, sessionsGroup1: 2, sessionsGroup2: 2, sessionsGroup3: 2, sessionsGroup4: 2 },
+      { subjectId: langSubject.id, name: 'Basic Vocabulary - Family', nameAr: 'المفردات الأساسية - العائلة', nameCoptic: 'Ⲛⲓⲥⲁϫⲓ ⲛ̀ⲧⲉ ⲡⲓⲏⲓ', levelNumber: 2, orderIndex: 2, sessionsGroup1: 3, sessionsGroup2: 3, sessionsGroup3: 3, sessionsGroup4: 3 },
+      { subjectId: langSubject.id, name: 'Basic Vocabulary - Church', nameAr: 'المفردات الأساسية - الكنيسة', nameCoptic: 'Ⲛⲓⲥⲁϫⲓ ⲛ̀ⲧⲉ ϯⲉⲕⲕⲗⲏⲥⲓⲁ', levelNumber: 3, orderIndex: 1, sessionsGroup1: 3, sessionsGroup2: 3, sessionsGroup3: 3, sessionsGroup4: 3 },
+      { subjectId: langSubject.id, name: 'Simple Phrases', nameAr: 'الجمل البسيطة', nameCoptic: 'Ⲛⲓⲥⲁϫⲓ ⲉⲧⲟⲩⲟⲛϩ', levelNumber: 3, orderIndex: 2, sessionsGroup1: 3, sessionsGroup2: 3, sessionsGroup3: 3, sessionsGroup4: 3 },
+      { subjectId: langSubject.id, name: 'Reading Practice', nameAr: 'تمرين القراءة', nameCoptic: 'Ϯⲙⲉⲗⲉⲧⲏ ⲛ̀ⲟⲩⲱϣ', levelNumber: 4, orderIndex: 1, sessionsGroup1: 4, sessionsGroup2: 4, sessionsGroup3: 4, sessionsGroup4: 4 },
+      { subjectId: langSubject.id, name: 'Grammar Basics', nameAr: 'أساسيات القواعد', nameCoptic: 'Ⲛⲓⲥⲁϫⲓ ⲛ̀ⲧⲉ ϯⲅⲣⲁⲙⲙⲁⲧⲓⲕⲏ', levelNumber: 4, orderIndex: 2, sessionsGroup1: 3, sessionsGroup2: 3, sessionsGroup3: 3, sessionsGroup4: 3 },
+      { subjectId: langSubject.id, name: 'Verb Conjugation', nameAr: 'تصريف الأفعال', nameCoptic: 'Ⲡⲓⲥⲱⲧⲡ ⲛ̀ⲧⲉ ⲛⲓⲣⲏϯ', levelNumber: 5, orderIndex: 1, sessionsGroup1: 4, sessionsGroup2: 4, sessionsGroup3: 4, sessionsGroup4: 4 },
+      { subjectId: langSubject.id, name: 'Sentence Structure', nameAr: 'تركيب الجمل', nameCoptic: 'Ϯⲥⲙⲏ ⲛ̀ⲧⲉ ⲛⲓⲥⲁϫⲓ', levelNumber: 5, orderIndex: 2, sessionsGroup1: 3, sessionsGroup2: 3, sessionsGroup3: 3, sessionsGroup4: 3 },
+    ];
+
+    for (const item of itemData) {
+      const created = await prisma.subjectItem.create({
+        data: {
+          subjectId: item.subjectId,
+          name: item.name,
+          nameAr: item.nameAr,
+          nameCoptic: item.nameCoptic,
+          orderIndex: item.orderIndex,
+          sessionsGroup1: item.sessionsGroup1,
+          sessionsGroup2: item.sessionsGroup2,
+          sessionsGroup3: item.sessionsGroup3,
+          sessionsGroup4: item.sessionsGroup4,
+          metadata: {},
+          active: true,
+          status: 'published',
+          educationLanguages: ['coptic', 'arabic', 'english'],
+          whenLabel: `Year 1`,
+        },
+      });
+
+      await prisma.subjectItemLevel.create({
+        data: {
+          subjectItemId: created.id,
+          levelNumber: item.levelNumber,
+        },
+      });
+    }
+
+    console.log(`Created ${itemData.length} subject items with level assignments`);
+  } else {
+    console.log('Subject items already exist:', subjectItemsCount);
+  }
+
   // ── Lessons & Sessions ──────────────────────────────────────────────
   const lessonsCount = await prisma.lesson.count({ where: { schoolId: school.id } });
   if (lessonsCount === 0) {
