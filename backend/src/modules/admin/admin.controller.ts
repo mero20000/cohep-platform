@@ -1,5 +1,6 @@
-import { Controller, Get, Post, Param, UseGuards } from '@nestjs/common';
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { Controller, Get, Post, Param, Body, UseGuards, BadRequestException } from '@nestjs/common';
+import { ApiBearerAuth, ApiTags, ApiBody } from '@nestjs/swagger';
+import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../../database/prisma.service';
 import { MailService } from '../mail/mail.service';
 import { emailTemplate, emailParagraph } from '../mail/email-template';
@@ -110,5 +111,30 @@ export class AdminController {
     }
 
     return { message: 'Registration rejected' };
+  }
+
+  @Post('reset-password')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        email: { type: 'string', example: 'servant@test.com' },
+        newPassword: { type: 'string', example: 'Servant123!' },
+      },
+      required: ['email', 'newPassword'],
+    },
+  })
+  async resetPassword(@Body('email') email: string, @Body('newPassword') newPassword: string) {
+    if (!email || !newPassword) throw new BadRequestException('Email and newPassword are required');
+    const user = await this.prisma.user.findFirst({
+      where: { email, deletedAt: null },
+    });
+    if (!user) throw new BadRequestException('User not found');
+    const passwordHash = await bcrypt.hash(newPassword, 12);
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: { passwordHash },
+    });
+    return { message: `Password reset for ${email}` };
   }
 }
