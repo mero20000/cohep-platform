@@ -704,6 +704,8 @@ export class ParentsService {
         label: { en: `Memorized: ${lp.lesson.title}`, ar: `حفظ: ${lp.lesson.titleAr || lp.lesson.title}` },
         date: lp.completedAt!,
         icon: 'book',
+        milestonePhotoUrl: lp.milestonePhotoUrl,
+        milestoneCaption: lp.milestoneCaption,
       });
     });
 
@@ -713,6 +715,8 @@ export class ParentsService {
         label: { en: `Attended Divine Liturgy`, ar: `حضر القداس الإلهي` },
         date: r.date,
         icon: 'church',
+        photoUrl: r.photoUrl,
+        servantNote: r.servantNote,
       });
     });
 

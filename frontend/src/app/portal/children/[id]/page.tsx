@@ -13,6 +13,7 @@ import {
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { TermReportModal } from '@/components/term-report-modal'
+import { PhotoLightbox } from '@/components/photo-lightbox'
 
 const API_ORIGIN = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api').replace('/api', '')
 
@@ -142,6 +143,8 @@ function MilestonesSection({ childId, language }: { childId: string; language: s
   const t = (en: string, ar: string) => language === 'ar' ? ar : en
   const [milestones, setMilestones] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [lightboxSrc, setLightboxSrc] = useState<string | null>(null)
+  const [lightboxCaption, setLightboxCaption] = useState('')
 
   useEffect(() => {
     (async () => {
@@ -155,6 +158,18 @@ function MilestonesSection({ childId, language }: { childId: string; language: s
 
   const iconMap: Record<string, string> = { book: '📖', church: '⛪', award: '🏅' }
 
+  const photoUrl = (m: any) => {
+    if (m.milestonePhotoUrl) return m.milestonePhotoUrl
+    if (m.photoUrl) return m.photoUrl
+    return null
+  }
+
+  const photoCaption = (m: any) => {
+    if (m.milestoneCaption) return m.milestoneCaption
+    if (m.servantNote) return m.servantNote
+    return ''
+  }
+
   return (
     <div className="rounded-xl border border-purple-100 bg-gradient-to-br from-purple-50 to-white p-5 mb-6">
       <div className="flex items-center gap-2 mb-4">
@@ -166,17 +181,33 @@ function MilestonesSection({ childId, language }: { childId: string; language: s
       ) : milestones.length === 0 ? (
         <p className="text-sm text-gray-500">{t('No milestones yet. Keep learning!', 'لا توجد محطات بعد. استمر في التعلم!')}</p>
       ) : (
-        <div className="space-y-3 max-h-64 overflow-y-auto">
-          {milestones.map((m: any, i: number) => (
-            <div key={i} className="flex items-start gap-3 p-2">
-              <span className="text-lg mt-0.5">{iconMap[m.icon] || '⭐'}</span>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm text-gray-800">{language === 'ar' ? m.label.ar : m.label.en}</p>
-                <p className="text-xs text-gray-400 mt-0.5">{new Date(m.date).toLocaleDateString()}</p>
+        <div className="space-y-3 max-h-80 overflow-y-auto pr-1">
+          {milestones.map((m: any, i: number) => {
+            const img = photoUrl(m)
+            const cap = photoCaption(m)
+            return (
+              <div key={i} className="flex items-start gap-3 p-2 rounded-lg hover:bg-white/60 transition-colors">
+                <span className="text-lg mt-0.5 shrink-0">{iconMap[m.icon] || '⭐'}</span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm text-gray-800">{language === 'ar' ? m.label.ar : m.label.en}</p>
+                  <p className="text-xs text-gray-400 mt-0.5">{new Date(m.date).toLocaleDateString()}</p>
+                  {img && (
+                    <img
+                      src={img}
+                      alt={cap}
+                      className="mt-2 w-32 h-24 object-cover rounded-lg cursor-pointer hover:opacity-80 border border-gray-200"
+                      onClick={() => { setLightboxSrc(img); setLightboxCaption(cap) }}
+                    />
+                  )}
+                  {cap && <p className="text-xs text-gray-600 mt-1 italic">&ldquo;{cap}&rdquo;</p>}
+                </div>
               </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
+      )}
+      {lightboxSrc && (
+        <PhotoLightbox src={lightboxSrc} caption={lightboxCaption} onClose={() => setLightboxSrc(null)} />
       )}
     </div>
   )
