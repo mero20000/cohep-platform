@@ -734,6 +734,75 @@ export class ParentsService {
     return { milestones, totalCount: milestones.length };
   }
 
+  async getArchiveData(studentId: string, userId: string) {
+    await this.verifyParent(userId, studentId);
+
+    const [student, completedLessons, liturgies, badges] = await Promise.all([
+      this.prisma.student.findUnique({
+        where: { id: studentId },
+        select: { firstName: true, lastName: true, firstNameAr: true, lastNameAr: true, level: { select: { number: true, name: true } } },
+      }),
+      this.prisma.lessonProgress.findMany({
+        where: { studentId, status: 'completed', completedAt: { not: null } },
+        include: { lesson: { select: { id: true, title: true, titleAr: true } } },
+        orderBy: { completedAt: 'desc' },
+      }),
+      this.prisma.familyLiturgy.findMany({
+        where: { studentId, status: 'verified' },
+        orderBy: { date: 'desc' },
+      }),
+      this.prisma.studentBadge.findMany({
+        where: { studentId },
+        include: { badge: { select: { id: true, name: true, nameAr: true } } },
+        orderBy: { awardedAt: 'desc' },
+      }),
+    ]);
+
+    const milestones: any[] = [];
+    completedLessons.forEach(lp => {
+      milestones.push({
+        type: 'lesson',
+        title: lp.lesson.titleAr || lp.lesson.title,
+        date: lp.completedAt!,
+        milestonePhotoUrl: lp.milestonePhotoUrl,
+        milestoneCaption: lp.milestoneCaption,
+      });
+    });
+    liturgies.forEach(r => {
+      milestones.push({
+        type: 'liturgy',
+        title: 'Divine Liturgy',
+        date: r.date,
+        photoUrl: r.photoUrl,
+        servantNote: r.servantNote,
+      });
+    });
+    badges.forEach(sb => {
+      milestones.push({
+        type: 'badge',
+        title: sb.badge.nameAr || sb.badge.name,
+        date: sb.awardedAt,
+      });
+    });
+    milestones.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+    return {
+      student: {
+        name: student?.firstNameAr && student?.lastNameAr
+          ? `${student.firstNameAr} ${student.lastNameAr}`
+          : `${student?.firstName} ${student?.lastName}`,
+        nameEn: `${student?.firstName} ${student?.lastName}`,
+        level: student?.level ? `${student.level.name} (Level ${student.level.number})` : '',
+      },
+      stats: {
+        lessonsCount: completedLessons.length,
+        liturgiesCount: liturgies.length,
+        badgesCount: badges.length,
+      },
+      milestones,
+    };
+  }
+
   async getTermReport(studentId: string, term: number, academicYearId: string | undefined, userId: string) {
     await this.verifyParent(userId, studentId);
 

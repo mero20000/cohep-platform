@@ -127,6 +127,14 @@ export class ParentsController {
     return this.parentsService.getMilestones(id, req.user.id);
   }
 
+  @Get('me/children/:id/archive')
+  @Roles('parent', 'admin')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get formation archive data for PDF export' })
+  async getArchive(@Param('id') id: string, @Req() req: any) {
+    return this.parentsService.getArchiveData(id, req.user.id);
+  }
+
   @Get('me/children/:id/term-report')
   @Roles('parent', 'admin')
   @ApiBearerAuth()

@@ -13,6 +13,7 @@ import {
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { TermReportModal } from '@/components/term-report-modal'
+import { FormationArchiveModal } from '@/components/formation-archive-modal'
 import { PhotoLightbox } from '@/components/photo-lightbox'
 
 const API_ORIGIN = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api').replace('/api', '')
@@ -333,6 +334,7 @@ export default function ChildDetailPage() {
   const [progress, setProgress] = useState<ProgressData | null>(null)
   const [loading, setLoading] = useState(true)
   const [showReportModal, setShowReportModal] = useState(false)
+  const [showArchive, setShowArchive] = useState(false)
 
   useEffect(() => {
     if (!id) return
@@ -402,6 +404,10 @@ export default function ChildDetailPage() {
             <button onClick={() => setShowReportModal(true)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-amber-50 text-amber-700 hover:bg-amber-100 transition-colors border border-amber-200">
               <FileText className="w-3.5 h-3.5" />
               {t('Term Report', 'تقرير الفصل')}
+            </button>
+            <button onClick={() => setShowArchive(true)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors border border-blue-200">
+              <FileText className="w-3.5 h-3.5" />
+              {t('Formation Archive', 'أرشيف التكوين')}
             </button>
           </div>
         </div>
@@ -603,6 +609,7 @@ export default function ChildDetailPage() {
         </div>
       )}
       <TermReportModal childId={id as string} language={lang} open={showReportModal} onClose={() => setShowReportModal(false)} />
+      <FormationArchiveModal childId={id as string} childName={student ? (lang === 'ar' && student.firstNameAr ? `${student.firstNameAr} ${student.lastNameAr}` : `${student.firstName} ${student.lastName}`) : ''} open={showArchive} onClose={() => setShowArchive(false)} />
     </div>
   )
 }
