@@ -56,7 +56,8 @@ export class NotificationsService {
     data?: any;
     channels?: string[];
   }) {
-    return this.prisma.notification.create({
+    const channels = data.channels || ['in_app'];
+    const notification = await this.prisma.notification.create({
       data: {
         schoolId: data.schoolId,
         userId: data.userId,
@@ -66,11 +67,13 @@ export class NotificationsService {
         body: data.body,
         bodyAr: data.bodyAr,
         data: data.data || {},
-        channels: data.channels || ['in_app'],
+        channels,
         status: 'delivered',
         sentAt: new Date(),
         deliveredAt: new Date(),
       },
     });
+
+    return notification;
   }
 }
