@@ -1,5 +1,9 @@
-import { Controller, Get, Post, Put, Patch, Delete, Body, Param, Query } from '@nestjs/common';
-import { ApiTags, ApiOperation } from '@nestjs/swagger';
+import { Controller, Get, Post, Put, Patch, Delete, Body, Param, Query, UploadedFile, UseInterceptors, BadRequestException } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { diskStorage } from 'multer';
+import { extname } from 'path';
+import { v4 as uuidv4 } from 'uuid';
+import { ApiTags, ApiOperation, ApiConsumes } from '@nestjs/swagger';
 import { Roles, STAFF_ROLES } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { CurriculumService } from './curriculum.service';
@@ -206,6 +210,29 @@ export class CurriculumController {
   @ApiOperation({ summary: 'Update a lesson' })
   updateLesson(@Param('id') id: string, @Body() dto: UpdateLessonDto) {
     return this.curriculumService.updateLesson(id, dto);
+  }
+
+    @Patch('lessons/:id/audio')
+  @ApiOperation({ summary: 'Upload audio recording for a lesson' })
+  @ApiConsumes('multipart/form-data')
+  @UseInterceptors(FileInterceptor('audio', {
+    storage: diskStorage({
+      destination: './uploads/audio',
+      filename: (_req, file, cb) => {
+        cb(null, `${uuidv4()}${extname(file.originalname)}`)
+      },
+    }),
+    fileFilter: (_req, file, cb) => {
+      const allowed = ['.mp3', '.m4a', '.ogg']
+      const ext = extname(file.originalname).toLowerCase()
+      if (allowed.includes(ext)) cb(null, true)
+      else cb(new BadRequestException(`Invalid audio format. Allowed: ${allowed.join(', ')}`), false)
+    },
+    limits: { fileSize: 15 * 1024 * 1024 },
+  }))
+  uploadAudio(@Param('id') id: string, @UploadedFile() file: Express.Multer.File) {
+    const audioUrl = `/uploads/audio/${file.filename}`
+    return this.curriculumService.updateLesson(id, { audioUrl, audioOriginalName: file.originalname })
   }
 
     @Delete('lessons/:id')

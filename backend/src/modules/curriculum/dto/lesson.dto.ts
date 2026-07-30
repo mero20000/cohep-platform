@@ -210,4 +210,20 @@ export class UpdateLessonDto {
   @IsObject()
   @Type(() => PresentationDataDto)
   presentationData?: PresentationDataDto;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  audioUrl?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  audioOriginalName?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  audioDuration?: number;
 }

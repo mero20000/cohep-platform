@@ -4,6 +4,8 @@ import { CreateAllocationDto, UpdateAllocationDto, ReorderAllocationDto } from '
 import { SchoolResolver } from '../../common/utils/school-resolver';
 import { AuditService } from '../audit/audit.service';
 import { parseCopticChurchHtml } from './html-parser';
+import { join } from 'path';
+import { access, unlink } from 'fs/promises';
 
 @Injectable()
 export class CurriculumService {
@@ -542,8 +544,12 @@ export class CurriculumService {
   }
 
   async updateLesson(id: string, data: any) {
-    const old = await this.prisma.lesson.findUnique({ where: { id }, select: { schoolId: true, title: true } });
+    const old = await this.prisma.lesson.findUnique({ where: { id }, select: { schoolId: true, title: true, audioUrl: true } });
     if (!old) throw new NotFoundException('Lesson not found');
+    if (data.audioUrl && old.audioUrl && old.audioUrl !== data.audioUrl) {
+      const oldPath = join(process.cwd(), old.audioUrl)
+      try { await access(oldPath); await unlink(oldPath) } catch {}
+    }
     const updated = await this.prisma.lesson.update({
       where: { id },
       data: {
@@ -561,6 +567,9 @@ export class CurriculumService {
         ...(data.status !== undefined && { status: data.status }),
         ...(data.subjectItemId !== undefined && { subjectItemId: data.subjectItemId }),
         ...(data.presentationHtml !== undefined && { presentationUrl: data.presentationHtml }),
+        ...(data.audioUrl !== undefined && { audioUrl: data.audioUrl }),
+        ...(data.audioOriginalName !== undefined && { audioOriginalName: data.audioOriginalName }),
+        ...(data.audioDuration !== undefined && { audioDuration: data.audioDuration }),
         ...(data.presentationData !== undefined && { presentationData: data.presentationData }),
       },
     });
