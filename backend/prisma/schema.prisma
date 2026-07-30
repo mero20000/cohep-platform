@@ -516,6 +516,9 @@ model Lesson {
   version                  Int       @default(1)
   metadata                 Json?
   liturgicalTags           Json?     @map("liturgical_tags")
+  audioUrl                 String?   @map("audio_url")
+  audioOriginalName        String?   @map("audio_original_name")
+  audioDuration            Int?      @map("audio_duration")
   createdBy                String    @map("created_by")
   createdAt                DateTime  @default(now()) @map("created_at")
   updatedAt                DateTime  @updatedAt @map("updated_at")
@@ -787,9 +790,11 @@ model LessonProgress {
   srInterval        Int       @default(1) @map("sr_interval")
   srRepetitions     Int       @default(0) @map("sr_repetitions")
   nextReviewAt      DateTime? @map("next_review_at")
-  metadata          Json?
-  createdAt         DateTime  @default(now()) @map("created_at")
-  updatedAt         DateTime  @updatedAt @map("updated_at")
+  metadata            Json?
+  milestonePhotoUrl   String?  @map("milestone_photo_url")
+  milestoneCaption    String?  @map("milestone_caption")
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @updatedAt @map("updated_at")
 
   student          Student               @relation(fields: [studentId], references: [id])
   lesson           Lesson                @relation(fields: [lessonId], references: [id])
@@ -1152,6 +1157,8 @@ model FamilyLiturgy {
   verifiedAt DateTime? @map("verified_at")
   status     String    @default("pending")
   notes      String?
+  photoUrl   String?   @map("photo_url")
+  servantNote String?  @map("servant_note")
   createdAt  DateTime  @default(now()) @map("created_at")
 
   student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
