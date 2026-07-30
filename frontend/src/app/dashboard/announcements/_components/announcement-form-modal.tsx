@@ -1,6 +1,6 @@
 'use client'
 import { useState } from 'react'
-import { X, Loader2, Megaphone } from 'lucide-react'
+import { X, Loader2, Megaphone, Sparkles } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { http } from '@/lib/http-client'
 import { getSchoolId } from '@/lib/school'
@@ -25,6 +25,31 @@ export function AnnouncementFormModal({ announcement, onClose, onSuccess, lang }
   const [publishNow, setPublishNow] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [aiPrompt, setAiPrompt] = useState('')
+  const [aiLoading, setAiLoading] = useState(false)
+  const [showAi, setShowAi] = useState(false)
+
+  const handleAiDraft = async () => {
+    if (!aiPrompt.trim()) return
+    setAiLoading(true)
+    try {
+      const result = await http.post<{ title: string; titleAr?: string; body: string; bodyAr?: string; error?: string }>('/announcements/draft', { prompt: aiPrompt })
+      if (result.error) throw new Error(result.error)
+      setForm(prev => ({
+        ...prev,
+        title: result.title || '',
+        titleAr: result.titleAr || '',
+        body: result.body || '',
+        bodyAr: result.bodyAr || '',
+      }))
+      setShowAi(false)
+      setAiPrompt('')
+      toast('success', t('AI draft generated!', 'تم إنشاء المسودة بالذكاء الاصطناعي!'))
+    } catch (e: any) {
+      toast('error', t('AI draft failed', 'فشل إنشاء المسودة'), e?.message || '')
+    }
+    setAiLoading(false)
+  }
 
   const handleSubmit = async () => {
     if (!form.title.trim() || !form.body.trim()) {
@@ -69,6 +94,27 @@ export function AnnouncementFormModal({ announcement, onClose, onSuccess, lang }
           <Button variant="ghost" size="icon" type="button" onClick={onClose}><X className="h-5 w-5" /></Button>
         </div>
         <div className="px-6 py-5 space-y-4 overflow-y-auto flex-1">
+          {!announcement && (
+            <div className="rounded-lg border border-purple-200 bg-purple-50 p-3">
+              <button type="button" onClick={() => setShowAi(!showAi)}
+                className="flex items-center gap-2 text-sm font-medium text-purple-700 hover:text-purple-800">
+                <Sparkles className="h-4 w-4" />
+                {showAi ? t('Hide AI draft', 'إخفاء المسودة بالذكاء الاصطناعي') : t('Draft with AI', 'كتابة مسودة بالذكاء الاصطناعي')}
+              </button>
+              {showAi && (
+                <div className="mt-3 flex items-center gap-2">
+                  <input type="text" value={aiPrompt} onChange={e => setAiPrompt(e.target.value)}
+                    placeholder={t('Describe the announcement topic...', 'صف موضوع الإعلان...')}
+                    className="flex-1 rounded-lg border border-purple-300 bg-white px-3 py-2 text-sm focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500" />
+                  <Button type="button" size="sm" onClick={handleAiDraft} disabled={aiLoading || !aiPrompt.trim()}
+                    className="bg-purple-600 hover:bg-purple-700 text-white whitespace-nowrap">
+                    {aiLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                    {t('Generate', 'إنشاء')}
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
           {error && <div className="rounded-lg bg-red-50 border border-red-200 p-3 text-sm text-red-700">{error}</div>}
           <div>
             <label className="block text-sm font-medium text-gray-700">{t('Title *', 'العنوان *')}</label>

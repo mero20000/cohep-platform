@@ -22,6 +22,8 @@ import { AdminModule } from './modules/admin/admin.module';
 import { NewsletterModule } from './modules/newsletter/newsletter.module';
 import { ServantsModule } from './modules/servants/servants.module';
 import { ReportsModule } from './modules/reports/reports.module';
+import { PushNotificationsModule } from './modules/push-notifications/push-notifications.module';
+import { AnnouncementsModule } from './modules/announcements/announcements.module';
 import { JwtAuthGuard } from './modules/auth/guards/jwt-auth.guard';
 import { RolesGuard } from './modules/auth/guards/roles.guard';
 
@@ -63,6 +65,8 @@ import { RolesGuard } from './modules/auth/guards/roles.guard';
     NewsletterModule,
     ServantsModule,
     ReportsModule,
+    PushNotificationsModule,
+    AnnouncementsModule,
   ],
   providers: [
     {
