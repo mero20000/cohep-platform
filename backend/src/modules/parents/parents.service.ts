@@ -80,7 +80,7 @@ export class ParentsService {
       },
     });
     // Compute total points from attendance records
-    const [attRecords, pointConfig, badgeCount] = await Promise.all([
+    const [attRecords, pointConfig, badgeCount, currentLesson] = await Promise.all([
       this.prisma.attendanceRecord.findMany({
         where: { studentId: sp.student.id },
         select: { status: true, behavior: true, participation: true, attendedLiturgy: true },
@@ -90,6 +90,7 @@ export class ParentsService {
         select: { value: true },
       }),
       this.prisma.studentBadge.count({ where: { studentId: sp.student.id } }),
+      this.getChildrenCurrentLesson(sp.student.id),
     ]);
     const rules: any = (pointConfig?.value as any) || {};
     const presentPoints = rules.presentPoints ?? 5;
@@ -126,7 +127,46 @@ export class ParentsService {
           ? Math.round(((attCounts.present + attCounts.late) / attCounts.total) * 100)
           : 0,
       },
+      currentLesson,
     };
+  }
+
+  private async getChildrenCurrentLesson(studentId: string) {
+    const student = await this.prisma.student.findUnique({
+      where: { id: studentId },
+      select: { schoolId: true, levelId: true },
+    });
+    if (!student?.levelId) return null;
+
+    const academicYear = await this.prisma.academicYear.findFirst({
+      where: { schoolId: student.schoolId, isCurrent: true },
+    });
+    if (!academicYear) return null;
+
+    const now = new Date();
+    const yearStart = new Date(academicYear.startDate);
+    const yearEnd = new Date(academicYear.endDate);
+    const totalDays = (yearEnd.getTime() - yearStart.getTime()) / (1000 * 60 * 60 * 24);
+    const elapsed = (now.getTime() - yearStart.getTime()) / (1000 * 60 * 60 * 24);
+    const term = totalDays > 0 ? Math.min(Math.ceil((elapsed / totalDays) * 3), 3) : 1;
+
+    const allocation = await this.prisma.curriculumAllocation.findFirst({
+      where: {
+        academicYearId: academicYear.id,
+        levelId: student.levelId,
+        term,
+        scheduledDate: { lte: now },
+        status: 'active',
+      },
+      include: {
+        lesson: {
+          select: { id: true, title: true, titleAr: true, audioUrl: true, audioDuration: true },
+        },
+      },
+      orderBy: { scheduledDate: 'desc' },
+    });
+    if (!allocation?.lesson) return null;
+    return allocation.lesson;
   }
 
   async getChild(studentId: string, userId: string) {

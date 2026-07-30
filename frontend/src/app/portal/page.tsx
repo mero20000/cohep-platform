@@ -9,12 +9,14 @@ import { useToast } from '@/components/ui/toast'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { Users, Calendar, ClipboardCheck, TrendingUp, Loader2, ChevronRight, Cross, Baby, UserPlus, Link2, Search, AlertCircle, Crown, Star, Trash2, Award } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { AudioPlayer } from '@/components/audio-player'
 
 const API_ORIGIN = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api').replace('/api', '')
 
 interface ChildData {
   relationship: string
   isPrimary: boolean
+  currentLesson?: { id: string; title: string; titleAr?: string; audioUrl?: string; audioDuration?: number } | null
   student: {
     id: string
     studentCode: string
@@ -291,6 +293,18 @@ export default function PortalPage() {
                     <div className="text-[10px] text-purple-600">{t('Upcoming', 'قادم')}</div>
                   </div>
                 </div>
+
+                {child.currentLesson?.audioUrl && (
+                  <div className="mt-2 flex items-center gap-2 text-xs text-gray-500">
+                    <span className="shrink-0">{lang === 'ar' ? 'تسبيحة اليوم' : 'Current hymn'}:</span>
+                    <span className="truncate font-medium text-gray-700">{lang === 'ar' ? child.currentLesson.titleAr : child.currentLesson.title}</span>
+                  </div>
+                )}
+                {child.currentLesson?.audioUrl && (
+                  <div className="mt-1">
+                    <AudioPlayer src={`${API_ORIGIN}${child.currentLesson.audioUrl}`} duration={child.currentLesson.audioDuration || undefined} compact />
+                  </div>
+                )}
 
                 {(s.rank != null || s.totalPoints != null || s.badges != null) && (
                   <div className="mt-3 flex items-center gap-3 rounded-lg bg-gradient-to-r from-blue-50 to-amber-50 border border-gold-100 px-3 py-2">
