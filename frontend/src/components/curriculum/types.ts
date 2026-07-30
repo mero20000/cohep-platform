@@ -66,6 +66,8 @@ export interface LessonFormData {
   presentationHtml: string;
   presentationData?: PresentationData;
   subjectItemId?: string;
+  audioUrl?: string;
+  audioOriginalName?: string;
 }
 
 export interface PresentationData {

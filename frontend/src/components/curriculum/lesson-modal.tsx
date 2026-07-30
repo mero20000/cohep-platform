@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { X, Loader2, RefreshCw } from 'lucide-react'
 import { useLanguage } from '@/lib/use-language'
+import { useToast } from '@/components/ui/toast'
 import { SlideEditor } from './slide-editor'
 import { API, SCHOOL_ID } from './constants'
 import type { Level, Subject, Lesson, LessonFormData, PresentationData, SubjectItem } from './types'
@@ -30,8 +31,10 @@ export function LessonModal({ mode, lesson, levels, subjects, onSaveAdd, onSaveE
   const [levelId, setLevelId] = useState('')
   const [subjectId, setSubjectId] = useState('')
   const [saving, setSaving] = useState(false)
+  const [uploadingAudio, setUploadingAudio] = useState(false)
   const [subjectItems, setSubjectItems] = useState<SubjectItem[]>([])
   const [subjectItemsLoading, setSubjectItemsLoading] = useState(false)
+  const { toast } = useToast()
 
   useEffect(() => {
     if (mode === 'edit' && lesson) {
@@ -204,6 +207,32 @@ export function LessonModal({ mode, lesson, levels, subjects, onSaveAdd, onSaveE
                 className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-blue-500" />
             </div>
           </div>
+          {mode === 'edit' && (
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">{lang === 'ar' ? 'التسجيل الصوتي' : 'Audio Recording'}</label>
+              <input type="file" accept=".mp3,.m4a,.ogg" onChange={async e => {
+                const file = e.target.files?.[0]
+                if (!file || !lesson) return
+                setUploadingAudio(true)
+                try {
+                  const fd = new FormData()
+                  fd.append('audio', file)
+                  const res = await fetch(`${API}/curriculum/lessons/${lesson.id}/audio`, {
+                    method: 'PATCH', body: fd, credentials: 'include',
+                  })
+                  if (!res.ok) throw new Error('Upload failed')
+                  const data = await res.json()
+                  setForm(prev => ({ ...prev, audioUrl: data.audioUrl, audioOriginalName: data.audioOriginalName }))
+                } catch {
+                  toast('error', lang === 'ar' ? 'فشل رفع التسجيل' : 'Audio upload failed')
+                } finally { setUploadingAudio(false) }
+              }} className="block w-full text-sm" />
+              {form.audioUrl && (
+                <p className="text-xs text-green-600 mt-1">✓ {form.audioOriginalName || 'Audio uploaded'}</p>
+              )}
+              {uploadingAudio && <p className="text-xs text-blue-500 mt-1"><Loader2 className="h-3 w-3 inline animate-spin mr-1" />{lang === 'ar' ? 'جاري الرفع...' : 'Uploading...'}</p>}
+            </div>
+          )}
           <div className="border border-gray-200 rounded-lg p-4">
             <SlideEditor
               value={form.presentationData}
