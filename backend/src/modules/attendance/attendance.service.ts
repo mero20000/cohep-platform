@@ -761,7 +761,81 @@ export class AttendanceService {
       newValues: { status: updated.status, servantId: updated.servantId },
     });
 
+    // When session is completed, notify parents of present students with practice guide
+    if (dto.status === 'completed') {
+      this.sendPracticeGuideNotifications(id).catch(() => {});
+    }
+
     return updated;
+  }
+
+  private async sendPracticeGuideNotifications(sessionId: string) {
+    const records = await this.prisma.attendanceRecord.findMany({
+      where: { attendanceSessionId: sessionId, status: 'present' },
+    });
+    if (records.length === 0) return;
+
+    const session = await this.prisma.attendanceSession.findUnique({
+      where: { id: sessionId },
+      select: { schoolId: true },
+    });
+    if (!session) return;
+
+    for (const record of records) {
+      const student = await this.prisma.student.findUnique({
+        where: { id: record.studentId },
+        select: { id: true, firstName: true, levelId: true, schoolId: true },
+      });
+      if (!student?.levelId) continue;
+
+      const parentLinks = await this.prisma.studentParent.findMany({
+        where: { studentId: student.id },
+        select: { parentId: true },
+      });
+      if (parentLinks.length === 0) continue;
+
+      const now = new Date();
+      const academicYear = await this.prisma.academicYear.findFirst({
+        where: { schoolId: session.schoolId, isCurrent: true },
+        select: { id: true, startDate: true, endDate: true },
+      });
+      if (!academicYear) continue;
+
+      const totalDays = (academicYear.endDate.getTime() - academicYear.startDate.getTime()) / (1000 * 60 * 60 * 24);
+      const elapsed = (now.getTime() - academicYear.startDate.getTime()) / (1000 * 60 * 60 * 24);
+      const term = totalDays > 0 ? Math.min(Math.ceil((elapsed / totalDays) * 3), 3) : 1;
+
+      const allocation = await this.prisma.curriculumAllocation.findFirst({
+        where: {
+          academicYearId: academicYear.id,
+          levelId: student.levelId,
+          term,
+          scheduledDate: { lte: now },
+          status: 'active',
+        },
+        orderBy: { scheduledDate: 'desc' },
+        include: { lesson: { select: { id: true, title: true, titleAr: true, audioUrl: true } } },
+      });
+      if (!allocation?.lesson || !allocation?.lesson.audioUrl) continue;
+      const lesson = allocation.lesson;
+
+      for (const link of parentLinks) {
+        await this.notifications.createNotification({
+          schoolId: student.schoolId,
+          userId: link.parentId,
+          type: 'practice_guide',
+          title: `${student.firstName} practice guide for this week`,
+          body: `${student.firstName} learned ${lesson.titleAr || lesson.title} today`,
+          data: {
+            url: `/portal/children/${student.id}/practice-guide`,
+            lessonId: lesson.id,
+            audioUrl: lesson.audioUrl,
+            hymnName: lesson.titleAr || lesson.title,
+          },
+          channels: ['in_app'],
+        });
+      }
+    }
   }
 
   async deleteSession(id: string) {

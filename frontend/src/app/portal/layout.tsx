@@ -3,15 +3,17 @@
 import Link from 'next/link'
 import { useRouter, usePathname } from 'next/navigation'
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { Cross, LogOut, User, Home, Bell, Menu, X, ChevronDown, Globe, CheckCheck, Loader2, Info, Calendar, Award, ClipboardCheck, UserCheck, Settings, Megaphone } from 'lucide-react'
+import { Cross, LogOut, User, Home, Bell, Menu, X, ChevronDown, Globe, CheckCheck, Loader2, Info, Calendar, Award, ClipboardCheck, UserCheck, Settings, Megaphone, Music } from 'lucide-react'
 import { useLanguage } from '@/lib/use-language'
 import { http } from '@/lib/http-client'
 import { getSchoolId } from '@/lib/school'
 import { Button } from '@/components/ui/button'
+import { AudioPlayer } from '@/components/audio-player'
 
 interface NotificationItem {
   id: string; type: string; title: string; titleAr?: string; body: string; bodyAr?: string;
   isRead: boolean; createdAt: string;
+  data?: { url?: string; audioUrl?: string; lessonId?: string; hymnName?: string };
 }
 
 export default function PortalLayout({ children }: { children: React.ReactNode }) {
@@ -108,12 +110,15 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
     router.push('/portal/login')
   }
 
+  const API_ORIGIN = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api').replace('/api', '')
+
   const notiIcon = (type: string) => {
     switch (type) {
       case 'attendance': return Calendar
       case 'enrollment': return UserCheck
       case 'assessment': return ClipboardCheck
       case 'badge': return Award
+      case 'practice_guide': return Music
       default: return Info
     }
   }
@@ -303,6 +308,11 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
                               <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">
                                 {lang === 'ar' && n.bodyAr ? n.bodyAr : n.body}
                               </p>
+                              {n.type === 'practice_guide' && n.data?.audioUrl && (
+                                <div className="mt-2" onClick={e => e.stopPropagation()}>
+                                  <AudioPlayer src={`${API_ORIGIN}${n.data.audioUrl}`} compact />
+                                </div>
+                              )}
                               <time className="text-[10px] text-gray-400 mt-1 block">{relativeTime(n.createdAt)}</time>
                             </div>
                             {!n.isRead && <span className="h-2 w-2 rounded-full bg-blue-500 shrink-0 mt-2" />}
