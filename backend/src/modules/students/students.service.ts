@@ -443,13 +443,22 @@ export class StudentsService {
     return levels;
   }
 
-  async createGroup(schoolIdentifier: string, data: { name: string; nameAr?: string; description?: string }) {
+  async createGroup(schoolIdentifier: string, data: { name: string; nameAr?: string; description?: string; levelId?: string }) {
     const schoolId = await this.schoolResolver.resolve(schoolIdentifier);
-    const level = await this.prisma.level.findFirst({
-      where: { schoolId, deletedAt: null },
-      orderBy: { number: 'asc' },
-      select: { id: true },
-    });
+    let level: { id: string } | null = null;
+    if (data.levelId) {
+      level = await this.prisma.level.findFirst({
+        where: { id: data.levelId, schoolId, deletedAt: null },
+        select: { id: true },
+      });
+    }
+    if (!level) {
+      level = await this.prisma.level.findFirst({
+        where: { schoolId, deletedAt: null },
+        orderBy: { number: 'asc' },
+        select: { id: true },
+      });
+    }
     if (!level) throw new Error('No level found. Create a level first.');
     const existing = await this.prisma.group.findFirst({
       where: { levelId: level.id, name: data.name, deletedAt: null },

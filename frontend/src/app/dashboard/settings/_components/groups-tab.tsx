@@ -18,15 +18,24 @@ interface Group {
   description?: string
   orderIndex: number
   status: string
+  levelId?: string
 }
 
-const emptyForm = { name: '', nameAr: '', description: '' }
+interface LevelOption {
+  id: string
+  name: string
+  number: number
+  status?: string
+}
+
+const emptyForm = { name: '', nameAr: '', description: '', levelId: '' }
 
 export function GroupsTab() {
   const { toast } = useToast()
   const lang = useLanguage()
 
   const [groups, setGroups] = useState<Group[]>([])
+  const [levels, setLevels] = useState<LevelOption[]>([])
   const [loading, setLoading] = useState(true)
   const [toggling, setToggling] = useState<Record<string, boolean>>({})
 
@@ -54,7 +63,13 @@ export function GroupsTab() {
       .finally(() => setLoading(false))
   }
 
-  useEffect(() => { fetchGroups() }, [])
+  const fetchLevels = () => {
+    http.get<LevelOption[]>('/curriculum/levels', { schoolId: getSchoolId() })
+      .then((data) => setLevels(data.filter(l => l.status !== 'inactive')))
+      .catch(console.error)
+  }
+
+  useEffect(() => { fetchGroups(); fetchLevels() }, [])
 
   const toggleStatus = async (group: Group) => {
     const newStatus = group.status === 'active' ? 'inactive' : 'active'
@@ -72,7 +87,7 @@ export function GroupsTab() {
   const openCreate = () => {
     setMode('create')
     setEditingGroup(null)
-    setForm(emptyForm)
+    setForm({ ...emptyForm, levelId: levels[0]?.id || '' })
     setFormError('')
     setShowForm(true)
   }
@@ -80,7 +95,7 @@ export function GroupsTab() {
   const openEdit = (group: Group) => {
     setMode('edit')
     setEditingGroup(group)
-    setForm({ name: group.name, nameAr: group.nameAr || '', description: group.description || '' })
+    setForm({ name: group.name, nameAr: group.nameAr || '', description: group.description || '', levelId: group.levelId || levels[0]?.id || '' })
     setFormError('')
     setShowForm(true)
   }
@@ -94,6 +109,7 @@ export function GroupsTab() {
         name: form.name.trim(),
         nameAr: form.nameAr.trim() || undefined,
         description: form.description.trim() || undefined,
+        levelId: form.levelId || undefined,
       }
       if (mode === 'edit' && editingGroup) {
         await http.patch(`/students/groups/${editingGroup.id}`, payload)
@@ -268,6 +284,15 @@ export function GroupsTab() {
           <FormField label={lang === 'ar' ? 'اسم المجموعة' : 'Group Name'} required value={form.name}
             onChange={e => setForm({ ...form, name: e.target.value })}
             placeholder={lang === 'ar' ? 'مثال: المجموعة أ' : 'e.g. Group A'} />
+          {mode === 'create' && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700">{lang === 'ar' ? 'المستوى' : 'Level'}</label>
+              <select value={form.levelId} onChange={e => setForm({ ...form, levelId: e.target.value })}
+                className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
+                {levels.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
+              </select>
+            </div>
+          )}
           <FormField label={lang === 'ar' ? 'الاسم بالعربية' : 'Arabic Name'} value={form.nameAr}
             onChange={e => setForm({ ...form, nameAr: e.target.value })}
             placeholder={lang === 'ar' ? 'مثال: المجموعة أ' : 'e.g. المجموعة أ'} />

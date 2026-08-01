@@ -54,7 +54,7 @@ export class StudentsController {
 
     @Post('groups')
   @ApiOperation({ summary: 'Create a new group' })
-  async createGroup(@Body() body: { name: string; nameAr?: string; description?: string }, @Query('schoolId') schoolId: string = '') {
+  async createGroup(@Body() body: { name: string; nameAr?: string; description?: string; levelId?: string }, @Query('schoolId') schoolId: string = '') {
     return this.studentsService.createGroup(schoolId, body);
   }
 
