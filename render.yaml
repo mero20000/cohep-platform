@@ -29,6 +29,8 @@ services:
         generateValue: true
       - key: FRONTEND_URL
         value: https://niangelos-frontend.onrender.com
+      - key: GEMINI_MODEL
+        value: gemini-3.5-flash
 
   # ── Frontend (Next.js SSR) ───────────────────────────────────────────────
   - type: web
