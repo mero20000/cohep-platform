@@ -117,7 +117,7 @@ export class GamificationService {
   }
 
   async createBadge(data: CreateBadgeDto) {
-    if (!data.schoolId) throw new Error('schoolId is required to create a badge');
+    if (!data.schoolId) throw new BadRequestException('schoolId is required to create a badge');
     const schoolId = await this.schoolResolver.resolve(data.schoolId);
     return this.prisma.badge.create({
       data: {

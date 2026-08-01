@@ -757,14 +757,14 @@ model Grade {
   feedback     String?
   feedbackAr   String?  @map("feedback_ar")
   rubricScores Json?    @map("rubric_scores")
-  gradedBy     String   @map("graded_by")
+  gradedBy     String?  @map("graded_by")
   gradedAt     DateTime @default(now()) @map("graded_at")
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
 
   submission AssessmentSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
   question   AssessmentQuestion?  @relation(fields: [questionId], references: [id])
-  grader     User                 @relation(fields: [gradedBy], references: [id])
+  grader     User?                @relation(fields: [gradedBy], references: [id])
 
   @@index([submissionId])
   @@map("grades")

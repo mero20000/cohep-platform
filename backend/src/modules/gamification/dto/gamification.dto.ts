@@ -64,9 +64,6 @@ export class AwardBadgeDto {
 }
 
 export class AddXpDto {
-  @IsUUID()
-  studentId: string;
-
   @IsInt()
   amount: number;
 

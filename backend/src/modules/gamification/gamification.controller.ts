@@ -42,8 +42,13 @@ export class GamificationController {
 
   @Post('badges')
   @ApiOperation({ summary: 'Create a badge' })
-  async createBadge(@Body() dto: CreateBadgeDto) {
-    return this.gamificationService.createBadge(dto);
+  async createBadge(
+    @Req() req: any,
+    @Query('schoolId') querySchoolId: string = '',
+    @Body() dto: CreateBadgeDto,
+  ) {
+    const schoolId = dto.schoolId || querySchoolId || req.user?.schoolId || '';
+    return this.gamificationService.createBadge({ ...dto, schoolId });
   }
 
   @Put('badges/:id')

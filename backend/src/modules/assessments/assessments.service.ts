@@ -202,37 +202,41 @@ export class AssessmentsService {
       throw new BadRequestException('Assessment is not open for submission');
     }
 
-    const submission = await this.prisma.assessmentSubmission.create({
-      data: {
-        assessmentId,
-        studentId,
-        submissionType: 'online',
-        submissionContent: JSON.stringify(dto.answers),
-        status: 'submitted',
-      },
-    });
-
-    const gradePromises = dto.answers.map(async (answer) => {
-      const question = assessment.questions.find(q => q.id === answer.questionId);
-      if (!question) return null;
-
-      const isCorrect = question.correctAnswer
-        ? answer.answer.toLowerCase().trim() === question.correctAnswer.toLowerCase().trim()
-        : false;
-      const score = isCorrect ? Number(question.points) : 0;
-
-      return this.prisma.grade.create({
+    const submission = await this.prisma.$transaction(async (tx) => {
+      const sub = await tx.assessmentSubmission.create({
         data: {
-          submissionId: submission.id,
-          questionId: question.id,
-          score,
-          maxScore: Number(question.points),
-          gradedBy: 'system',
+          assessmentId,
+          studentId,
+          submissionType: 'online',
+          submissionContent: JSON.stringify(dto.answers),
+          status: 'submitted',
         },
       });
-    });
 
-    await Promise.all(gradePromises.filter(Boolean));
+      const gradeData = dto.answers
+        .map((answer) => {
+          const question = assessment.questions.find(q => q.id === answer.questionId);
+          if (!question) return null;
+          const isCorrect = question.correctAnswer
+            ? answer.answer.toLowerCase().trim() === question.correctAnswer.toLowerCase().trim()
+            : false;
+          const score = isCorrect ? Number(question.points) : 0;
+          return {
+            submissionId: sub.id,
+            questionId: question.id,
+            score,
+            maxScore: Number(question.points),
+            gradedBy: null,
+          };
+        })
+        .filter(Boolean);
+
+      if (gradeData.length > 0) {
+        await tx.grade.createMany({ data: gradeData as any });
+      }
+
+      return sub;
+    });
 
     return this.prisma.assessmentSubmission.findUnique({
       where: { id: submission.id },
@@ -328,7 +332,7 @@ export class AssessmentsService {
     });
   }
 
-  async markStudent(assessmentId: string, studentId: string, score: number, maxScore: number, feedback?: string, gradedBy?: string) {
+  async markStudent(assessmentId: string, studentId: string, score: number, maxScore: number, feedback?: string, gradedBy?: string | null) {
     const assessment = await this.prisma.assessment.findUnique({ where: { id: assessmentId } });
     if (!assessment || assessment.deletedAt) {
       throw new NotFoundException('Assessment not found');
@@ -351,7 +355,7 @@ export class AssessmentsService {
 
     if (!gradedBy) {
       const adminUser = await this.prisma.user.findFirst({ where: { deletedAt: null }, select: { id: true } });
-      gradedBy = adminUser?.id || '00000000-0000-0000-0000-000000000001';
+      gradedBy = adminUser?.id || null;
     }
 
     const existingGrade = await this.prisma.grade.findFirst({
