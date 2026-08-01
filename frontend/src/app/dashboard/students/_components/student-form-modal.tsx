@@ -9,6 +9,8 @@ import { getSchoolId } from '@/lib/school'
 import { useToast } from '@/components/ui/toast'
 import { usePermission } from '@/lib/use-permission'
 import { emptyForm, photoSrc, type Student, type StudentForm, type Level, type Group, type ChurchItem } from './student-types'
+import { gradeOptionsForLevel, resolveGroupId } from '@/lib/grade-groups'
+import { fetchGradeGroups } from '@/lib/school'
 
 interface Props {
   student: Student | null; activeLevels: Level[]; allGroups: Group[]
@@ -21,6 +23,7 @@ export function StudentFormModal({ student, activeLevels, allGroups, churches, g
   const { can } = usePermission()
   const [form, setForm] = useState<StudentForm>(emptyForm)
   const [formErrors, setFormErrors] = useState<Record<string,string>>({})
+  const [gradeGroups, setGradeGroups] = useState<Awaited<ReturnType<typeof fetchGradeGroups>>>([])
   const [photoFile, setPhotoFile] = useState<File|null>(null)
   const photoRef = useRef<HTMLInputElement>(null)
   const blobRef = useRef('')
@@ -28,11 +31,25 @@ export function StudentFormModal({ student, activeLevels, allGroups, churches, g
   const t = (en: string, ar: string) => lang==='ar'?ar:en
   const ic = (err?: string) => `mt-1 block w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-1 ${err?'border-red-300 focus:border-red-500 focus:ring-red-500':'border-gray-300 focus:border-gold-500 focus:ring-blue-500'}`
   const formGroups = form.levelId ? allGroups.filter(g => g.levelId === form.levelId||g.id===student?.groupId) : []
+  const comboGrades = form.levelId ? gradeOptionsForLevel(gradeGroups, form.levelId) : []
+  const mappedGrade = comboGrades.length > 0 ? comboGrades : gradeOptions
+
+  useEffect(() => {
+    fetchGradeGroups().then(setGradeGroups).catch(() => {})
+  }, [])
+
+  useEffect(() => {
+    if (student && gradeGroups.length > 0) {
+      const grade = student.schoolGrade || ''
+      const groupId = resolveGroupId(gradeGroups, student.levelId, grade) || student.groupId
+      setForm(prev => ({ ...prev, groupId }))
+    }
+  }, [student?.id, gradeGroups])
 
   useEffect(() => {
     revoke(); setPhotoFile(null); setFormErrors({})
     if (student) {
-      setForm({ name:`${student.firstName} ${student.lastName}`.trim(), firstNameAr:student.firstNameAr||'', lastNameAr:student.lastNameAr||'', dateOfBirth:student.dateOfBirth.split('T')[0], gender:student.gender, churchName:student.churchName||'', schoolGrade:student.schoolGrade||'', levelId:student.levelId, groupId:student.groupId, photoUrl:student.photoUrl||'', status:student.status, phone:student.metadata?.phone||'', email:student.metadata?.email||'', address:student.metadata?.address||'', notes:student.metadata?.notes||'', churchToolId:student.metadata?.churchToolId||'', parentEmail:student.parentEmail||'' })
+      setForm({ name:`${student.firstName} ${student.lastName}`.trim(), firstNameAr:student.firstNameAr||'', lastNameAr:student.lastNameAr||'', dateOfBirth:student.dateOfBirth.split('T')[0], gender:student.gender, churchName:student.churchName||'', schoolGrade:student.schoolGrade||'', levelId:student.levelId, groupId:student.groupId, groupName:student.group?.name||'', photoUrl:student.photoUrl||'', status:student.status, phone:student.metadata?.phone||'', email:student.metadata?.email||'', address:student.metadata?.address||'', notes:student.metadata?.notes||'', churchToolId:student.metadata?.churchToolId||'', parentEmail:student.parentEmail||'' })
     } else { setForm(emptyForm) }
   }, [student?.id])
   useEffect(() => () => revoke(), [])
@@ -101,24 +118,28 @@ export function StudentFormModal({ student, activeLevels, allGroups, churches, g
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700">{t('Level *','المستوى *')}</label>
-              <select value={form.levelId} onChange={e=>setField('levelId',e.target.value)} className={ic(formErrors.levelId)}>
+              <select value={form.levelId} onChange={e=>{setField('levelId',e.target.value);setForm(prev=>({...prev,levelId:e.target.value,schoolGrade:'',groupId:''}))}} className={ic(formErrors.levelId)}>
                 <option value="">{t('Select level','اختر المستوى')}</option>
                 {activeLevels.map(l=><option key={l.id} value={l.id}>{l.name}</option>)}
               </select>
               {formErrors.levelId&&<p className="mt-1 text-xs text-red-500">{formErrors.levelId}</p>}
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700">{t('Group *','المجموعة *')}</label>
-              <select value={form.groupId} onChange={e=>setField('groupId',e.target.value)} className={ic(formErrors.groupId)}>
-                <option value="">{t('Select group','اختر المجموعة')}</option>
-                {formGroups.map(g=><option key={g.id} value={g.id}>{g.name}</option>)}
-              </select>
-              {formErrors.groupId&&<p className="mt-1 text-xs text-red-500">{formErrors.groupId}</p>}
+              <label className="block text-sm font-medium text-gray-700">{t('Group','المجموعة')}</label>
+              <div className={`${ic()} flex items-center justify-between bg-gray-50`}>
+                <span className={form.groupId?'text-gray-900':'text-gray-400'}>
+                  {form.groupId ? (formGroups.find(g=>g.id===form.groupId)?.name || form.groupName || t('Auto','تلقائي')) : t('Auto from grade','من الصف تلقائياً')}
+                </span>
+                {form.groupId && <span className="text-xs text-green-600 font-medium">{t('Auto','تلقائي')}</span>}
+              </div>
             </div>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div><label className="block text-sm font-medium text-gray-700">{t('Church','الكنيسة')}</label><select value={form.churchName} onChange={e=>setForm({...form,churchName:e.target.value})} className={ic()}><option value="">{t('Select church','اختر الكنيسة')}</option>{churches.map(c=><option key={c.id} value={c.name}>{c.name}{c.city?`, ${c.city}`:''}</option>)}</select></div>
-            <div><label className="block text-sm font-medium text-gray-700">{t('Grade','المرحلة الدراسية')}</label><select value={form.schoolGrade} onChange={e=>setForm({...form,schoolGrade:e.target.value})} className={ic()}><option value="">{t('Select grade','اختر المرحلة')}</option>{gradeOptions.map(g=><option key={g} value={g}>{g}</option>)}</select></div>
+            <div><label className="block text-sm font-medium text-gray-700">{t('Grade','المرحلة الدراسية')}</label><select value={form.schoolGrade} onChange={e=>{const g=e.target.value;const combo=form.levelId?gradeGroups.find(c=>c.levelId===form.levelId&&c.status==='active'&&c.gradeName===g):undefined;setForm({...form,schoolGrade:g,groupId:combo?.groupId||'',groupName:combo?.groupName||''})}} className={ic()}><option value="">{t('Select grade','اختر المرحلة')}</option>{mappedGrade.map(g=>{
+              const combo = form.levelId ? gradeGroups.find(c=>c.levelId===form.levelId&&c.status==='active'&&c.gradeName===g) : undefined
+              return <option key={g} value={g}>{combo?`${g} + ${combo.groupName}`:g}</option>
+            })}</select>{comboGrades.length===0&&form.levelId&&<p className="mt-1 text-xs text-amber-600">{t('No grades mapped for this level yet — configure in Settings → Grades','لا توجد صفوف مربوطة بهذا المستوى بعد — قم بإعدادها من الإعدادات ← الصفوف')}</p>}</div>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div><label className="block text-sm font-medium text-gray-700">{t('Phone','رقم الهاتف')}</label><input type="tel" value={form.phone} onChange={e=>setForm({...form,phone:e.target.value})} className={ic()} /></div>

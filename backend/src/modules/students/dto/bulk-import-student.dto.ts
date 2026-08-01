@@ -7,7 +7,7 @@ class BulkStudentItem {
   @IsString() dateOfBirth: string;
   @IsString() gender: string;
   @IsString() levelId: string;
-  @IsString() groupId: string;
+  @IsOptional() @IsString() groupId?: string;
   @IsOptional() @IsString() firstNameAr?: string;
   @IsOptional() @IsString() lastNameAr?: string;
   @IsOptional() @IsString() churchName?: string;

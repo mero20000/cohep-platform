@@ -291,6 +291,20 @@ export class StudentsService {
     for (const l of levels) { levelMap.set(l.id, l.id); levelMap.set(l.name.toLowerCase(), l.id); }
     for (const g of groups) { groupMap.set(g.id, g.id); groupMap.set(g.name.toLowerCase(), g.id); }
 
+    const gradeGroupsConfig = await this.prisma.systemConfig.findUnique({
+      where: { schoolId_key: { schoolId, key: 'gradeGroups' } },
+    });
+    const gradeGroupMap = new Map<string, string>();
+    if (gradeGroupsConfig && Array.isArray((gradeGroupsConfig.value as any)?.combo ?? (gradeGroupsConfig.value as any))) {
+      const raw = Array.isArray(gradeGroupsConfig.value) ? gradeGroupsConfig.value : (gradeGroupsConfig.value as any).combo;
+      for (const c of raw as any[]) {
+        if (!c || c.status === 'inactive') continue;
+        if (c.levelId && c.gradeName && c.groupId) {
+          gradeGroupMap.set(`${c.levelId}|${c.gradeName.trim().toLowerCase()}`, c.groupId);
+        }
+      }
+    }
+
     const count = await this.prisma.student.count({ where: { schoolId } });
     const errors: { row: number; message: string }[] = [];
 
@@ -299,8 +313,11 @@ export class StudentsService {
 
       const resolvedLevelId = levelMap.get(s.levelId.trim().toLowerCase()) || levelMap.get(s.levelId.trim());
       if (!resolvedLevelId) errors.push({ row: rowNum, message: `Level "${s.levelId}" not found` });
-      const resolvedGroupId = groupMap.get(s.groupId.trim().toLowerCase()) || groupMap.get(s.groupId.trim());
-      if (!resolvedGroupId) errors.push({ row: rowNum, message: `Group "${s.groupId}" not found` });
+      let resolvedGroupId = s.groupId ? (groupMap.get(s.groupId.trim().toLowerCase()) || groupMap.get(s.groupId.trim())) : undefined;
+      if (!resolvedGroupId && resolvedLevelId && s.schoolGrade) {
+        resolvedGroupId = gradeGroupMap.get(`${resolvedLevelId}|${s.schoolGrade.trim().toLowerCase()}`);
+      }
+      if (!resolvedGroupId) errors.push({ row: rowNum, message: s.groupId ? `Group "${s.groupId}" not found` : `No group mapped for grade "${s.schoolGrade || ''}" in this level` });
 
       let dob: Date;
       const rawDate = s.dateOfBirth.trim();

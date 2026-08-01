@@ -30,7 +30,7 @@ export interface StudentStats {
 // ─── Form ────────────────────────────────────────────────────────────────────
 export const emptyForm = {
   name: '', firstNameAr: '', lastNameAr: '', dateOfBirth: '', gender: 'male',
-  churchName: '', schoolGrade: '', levelId: '', groupId: '', photoUrl: '',
+  churchName: '', schoolGrade: '', levelId: '', groupId: '', groupName: '', photoUrl: '',
   status: 'active', phone: '', email: '', address: '', notes: '', churchToolId: '', parentEmail: '',
 }
 export type StudentForm = typeof emptyForm
