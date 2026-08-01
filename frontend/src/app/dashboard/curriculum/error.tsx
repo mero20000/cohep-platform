@@ -2,6 +2,7 @@
 
 import { AlertCircle, RefreshCw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { ChunkErrorReloader } from '@/components/ui/chunk-error-reloader'
 
 export default function CurriculumError({
   error,
@@ -12,6 +13,7 @@ export default function CurriculumError({
 }) {
   return (
     <div className="flex flex-col items-center justify-center h-96 text-center">
+      <ChunkErrorReloader error={error} />
       <AlertCircle className="h-12 w-12 text-red-400 mb-4" />
       <h2 className="text-lg font-semibold text-gray-900 mb-1">Something went wrong</h2>
       <p className="text-sm text-gray-500 mb-4 max-w-md">

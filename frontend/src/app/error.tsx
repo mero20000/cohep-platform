@@ -1,8 +1,11 @@
 'use client'
 
+import { ChunkErrorReloader } from '@/components/ui/chunk-error-reloader'
+
 export default function RootError({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-50 p-8">
+      <ChunkErrorReloader error={error} />
       <div className="flex flex-col items-center text-center max-w-md">
         <div className="flex h-16 w-16 items-center justify-center rounded-full bg-red-100 mb-4">
           <span className="text-2xl">!</span>
