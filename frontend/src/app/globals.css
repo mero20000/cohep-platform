@@ -464,3 +464,29 @@
 /* bg-white/8 and bg-white/12 Tailwind doesn't generate by default */
 .bg-white\/8  { background-color: rgba(255,255,255,0.08); }
 .bg-white\/12 { background-color: rgba(255,255,255,0.12); }
+
+/* ─── Scroll reveal (progressive enhancement) ─────────────────────────────
+   Content is visible by default (no-JS safe, SSR safe). The `.js` class is
+   added synchronously by an inline script in layout.tsx before first paint;
+   only then do `.reveal` elements hide and animate in via IntersectionObserver.
+   Reduced-motion users always get fully visible content. */
+.js .reveal {
+  opacity: 0;
+  transform: translateY(28px);
+  transition: opacity 0.6s ease-out, transform 0.6s ease-out;
+  will-change: opacity, transform;
+}
+.js .reveal[data-variant="left"]  { transform: translateX(-40px); }
+.js .reveal[data-variant="right"] { transform: translateX(40px); }
+.js .reveal[data-variant="scale"] { transform: scale(0.93); }
+.js .reveal.reveal-visible {
+  opacity: 1;
+  transform: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .js .reveal {
+    opacity: 1 !important;
+    transform: none !important;
+    transition: none;
+  }
+}

@@ -45,6 +45,9 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-title" content="COHEP" />
         <link rel="apple-touch-icon" href="/icons/icon.svg" />
         <script dangerouslySetInnerHTML={{
+          __html: `document.documentElement.classList.add('js')`
+        }} />
+        <script dangerouslySetInnerHTML={{
           __html: `if('serviceWorker' in navigator){window.addEventListener('load',()=>{navigator.serviceWorker.register('/sw.js').catch(()=>{})})}`
         }} />
       </head>

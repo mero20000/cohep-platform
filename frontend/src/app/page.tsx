@@ -2,8 +2,9 @@
 
 import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
-import { motion, useInView, AnimatePresence, useReducedMotion } from 'framer-motion'
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
 import { Button } from '@/components/ui/button'
+import { cn } from '@/lib/utils'
 import { HeroCross3D } from '@/components/hero-cross-3d'
 import { HeroAlpha } from '@/components/hero-alpha-omega'
 import {
@@ -27,7 +28,7 @@ const content = {
       whyMatters: 'Why It Matters',
       curriculum: 'Curriculum',
       openSource: 'Open Source',
-      community: 'Community',
+      community: 'Features',
       signIn: 'Sign In',
       getStarted: 'Get Started',
     },
@@ -40,6 +41,14 @@ const content = {
       cta1: 'Register Your Church',
       cta2: 'Explore the Platform',
       trust: 'Free forever · Open-source · No credit card needed',
+    },
+    stats: {
+      items: [
+        { value: '255+', label: 'Hymns in the library' },
+        { value: '10', label: 'Levels of formation' },
+        { value: '1,700', label: 'Years of living tradition' },
+        { value: '100%', label: 'Free & open-source' },
+      ],
     },
     challenge: {
       eyebrow: 'The Challenge',
@@ -221,7 +230,7 @@ const content = {
       whyMatters: 'لماذا هذا مهم',
       curriculum: 'المنهج',
       openSource: 'مصدر مفتوح',
-      community: 'المجتمع',
+      community: 'المزايا',
       signIn: 'تسجيل الدخول',
       getStarted: 'ابدأ الآن',
     },
@@ -234,6 +243,14 @@ const content = {
       cta1: 'سجّل كنيستك',
       cta2: 'استكشف المنصة',
       trust: 'مجاني للأبد · مصدر مفتوح · بدون بطاقة ائتمان',
+    },
+    stats: {
+      items: [
+        { value: '+255', label: 'ترنيمة في المكتبة' },
+        { value: '10', label: 'مستويات من التكوين' },
+        { value: '1,700', label: 'عاماً من التراث الحي' },
+        { value: '100%', label: 'مجاني ومفتوح المصدر' },
+      ],
     },
     challenge: {
       eyebrow: 'التحدي',
@@ -410,21 +427,46 @@ const content = {
 
 // ─── SHARED UI COMPONENTS ───────────────────────────────────────────────────
 
-const entranceVariants = {
-  up:    { initial: { opacity: 0, y: 24 },       whileInView: { opacity: 1, y: 0 },    transition: { duration: 0.6, ease: 'easeOut' as const } },
-  left:  { initial: { opacity: 0, x: -40 },      whileInView: { opacity: 1, x: 0 },   transition: { duration: 0.6, ease: 'easeOut' as const } },
-  right: { initial: { opacity: 0, x: 40 },       whileInView: { opacity: 1, x: 0 },   transition: { duration: 0.6, ease: 'easeOut' as const } },
-  scale: { initial: { opacity: 0, scale: 0.93 }, whileInView: { opacity: 1, scale: 1 }, transition: { duration: 0.5, ease: 'easeOut' as const } },
-}
+type RevealVariant = 'up' | 'left' | 'right' | 'scale'
 
-function FadeIn({ children, delay = 0, className = '', variant = 'up' }: { children: React.ReactNode; delay?: number; className?: string; variant?: keyof typeof entranceVariants }) {
-  const v = entranceVariants[variant]
+// SSR / no-JS safe reveal: content is visible by default; the `.js` class
+// (added in layout.tsx) + CSS hide it only when we can animate it in.
+function FadeIn({ children, delay = 0, className = '', variant = 'up' }: { children: React.ReactNode; delay?: number; className?: string; variant?: RevealVariant }) {
   return (
-    <motion.div className={className} initial={v.initial} whileInView={v.whileInView} viewport={{ once: true, margin: '-80px' }} transition={{ ...v.transition, delay }}>
+    <div
+      className={cn('reveal', className)}
+      data-variant={variant}
+      style={delay ? { transitionDelay: `${delay}s` } : undefined}
+    >
       {children}
-    </motion.div>
+    </div>
   )
 }
+
+function useRevealOnScroll() {
+  useEffect(() => {
+    const els = Array.from(document.querySelectorAll<HTMLElement>('.reveal:not(.reveal-visible)'))
+    if (els.length === 0) return
+    if (typeof IntersectionObserver === 'undefined') {
+      els.forEach(el => el.classList.add('reveal-visible'))
+      return
+    }
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('reveal-visible')
+          io.unobserve(entry.target)
+        }
+      })
+    }, { rootMargin: '0px 0px -60px 0px', threshold: 0.08 })
+    els.forEach(el => io.observe(el))
+    return () => io.disconnect()
+  }, [])
+}
+
+const focusRingDark = 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-950'
+const ctaPrimaryClass = `flex items-center justify-center gap-2 px-8 py-3.5 bg-gradient-to-r from-gold-500 to-gold-600 hover:from-gold-600 hover:to-gold-700 text-white font-semibold rounded-xl shadow-xl shadow-gold-500/25 transition-all text-sm ${focusRingDark}`
+const ctaSecondaryClass = `px-8 py-3.5 border border-gray-700 text-gray-300 hover:bg-gray-800 hover:text-white font-medium rounded-xl transition-all text-sm ${focusRingDark}`
 
 function Eyebrow({ children, light = false }: { children: React.ReactNode; light?: boolean }) {
   return (
@@ -453,7 +495,7 @@ function GradientOrbs() {
   return (
     <div className="absolute inset-0 overflow-hidden pointer-events-none" aria-hidden="true">
       <div className="absolute -top-40 -left-40 w-[600px] h-[600px] bg-gold-500/8 rounded-full blur-3xl" />
-      <div className="absolute -bottom-40 -right-40 w-[500px] h-[500px] bg-blue-500/8 rounded-full blur-3xl" />
+      <div className="absolute -bottom-40 -right-40 w-[500px] h-[500px] bg-amber-400/8 rounded-full blur-3xl" />
     </div>
   )
 }
@@ -505,9 +547,10 @@ function PreviewCarousel({ isAr }: { isAr: boolean }) {
             <button
               key={tab.label}
               onClick={() => { prevTabRef.current = activeTab; setActiveTab(i) }}
+              aria-pressed={activeTab === i}
               className={`rounded-lg px-4 py-2 text-xs font-medium transition-all ${
                 activeTab === i ? 'bg-gold-500 text-white shadow-lg shadow-gold-200' : 'border border-gray-200 bg-white text-gray-600 hover:border-gold-300 hover:text-gold-700'
-              }`}
+              } focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500 focus-visible:ring-offset-2`}
             >
               {tab.label}
             </button>
@@ -694,12 +737,14 @@ export default function Home() {
   const [lang, setLang] = useState<'en' | 'ar'>('en')
   const [scrolled, setScrolled] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
-  const [openFaq, setOpenFaq] = useState<number | null>(null)
+  const [openFaq, setOpenFaq] = useState<number | null>(0)
   const [subscribeStatus, setSubscribeStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle')
   const [subscribeErrorMsg, setSubscribeErrorMsg] = useState('')
   const t = content[lang]
   const isAr = lang === 'ar'
   const reduce = useReducedMotion()
+
+  useRevealOnScroll()
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 50)
@@ -732,7 +777,7 @@ export default function Home() {
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
           <Link href="/" className="flex items-center gap-2.5 flex-shrink-0">
             <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gold-500 text-white shadow-lg shadow-gold-200/50">
-              <Cross className="h-4.5 w-4.5" />
+              <Cross className="h-4 w-4" />
             </div>
             <span className="text-base font-bold tracking-tight text-gray-900 hidden sm:block">COHEP</span>
           </Link>
@@ -742,7 +787,7 @@ export default function Home() {
               { href: '#why', label: t.nav.whyMatters },
               { href: '#curriculum', label: t.nav.curriculum },
               { href: '#open-source', label: t.nav.openSource },
-              { href: '#community', label: t.nav.community },
+              { href: '#features', label: t.nav.community },
             ].map(item => (
               <a key={item.href} href={item.href} className="rounded-lg px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-colors">
                 {item.label}
@@ -762,7 +807,7 @@ export default function Home() {
               <Button variant="ghost" size="sm" className="text-gray-600">{t.nav.signIn}</Button>
             </Link>
             <Link href="/auth/register" className="hidden sm:block">
-              <Button size="sm" className="shadow-lg shadow-gold-200/50">{t.nav.getStarted}</Button>
+              <Button size="sm" className="bg-gold-500 text-white hover:bg-gold-600 shadow-lg shadow-gold-200/50">{t.nav.getStarted}</Button>
             </Link>
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
@@ -783,7 +828,7 @@ export default function Home() {
                   { href: '#why', label: t.nav.whyMatters },
                   { href: '#curriculum', label: t.nav.curriculum },
                   { href: '#open-source', label: t.nav.openSource },
-                  { href: '#community', label: t.nav.community },
+                  { href: '#features', label: t.nav.community },
                 ].map(item => (
                   <a key={item.href} href={item.href} onClick={() => setMobileMenuOpen(false)} className="rounded-lg px-3 py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-100">{item.label}</a>
                 ))}
@@ -808,77 +853,83 @@ export default function Home() {
           <div className="relative mx-auto max-w-7xl px-4 py-24 sm:py-36 lg:px-8 w-full">
             <div className="max-w-3xl mx-auto text-center">
 
-              <motion.p
-                className="text-xs font-bold tracking-[0.2em] uppercase text-gold-400/80 mb-6"
-                initial={reduce ? {} : { opacity: 0, y: 16 }}
-                animate={reduce ? {} : { opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: 0.05 }}
+              <p
+                className="reveal text-xs font-bold tracking-[0.2em] uppercase text-gold-300 mb-6"
+                data-variant="up"
+                style={{ transitionDelay: '0.05s' }}
               >
                 {t.hero.eyebrow}
-              </motion.p>
+              </p>
 
-              <motion.h1
-                className="text-5xl sm:text-6xl lg:text-7xl font-bold tracking-tight text-white leading-[1.08] mb-6"
-                initial={reduce ? {} : { opacity: 0, y: 30 }}
-                animate={reduce ? {} : { opacity: 1, y: 0 }}
-                transition={{ duration: 0.8, delay: 0.15 }}
-                style={{ whiteSpace: 'pre-line' }}
+              <h1
+                className="reveal text-5xl sm:text-6xl lg:text-7xl font-bold tracking-tight text-white leading-[1.08] mb-6"
+                data-variant="up"
+                style={{ whiteSpace: 'pre-line', transitionDelay: '0.15s' }}
               >
                 {t.hero.headline}
-              </motion.h1>
+              </h1>
 
-              <motion.div
-                className="mb-7 border-l-2 border-gold-500/50 pl-4 text-left mx-auto max-w-xl"
-                style={{ direction: isAr ? 'rtl' : 'ltr', borderLeft: isAr ? 'none' : undefined, borderRight: isAr ? '2px solid rgba(214, 166, 75, 0.5)' : undefined, paddingLeft: isAr ? '0' : '1rem', paddingRight: isAr ? '1rem' : '0' }}
-                initial={reduce ? {} : { opacity: 0, x: -20 }}
-                animate={reduce ? {} : { opacity: 1, x: 0 }}
-                transition={{ duration: 0.8, delay: 0.3 }}
+              <div
+                className="reveal mb-7 border-l-2 border-gold-500/50 pl-4 text-left mx-auto max-w-xl"
+                data-variant="left"
+                style={{ direction: isAr ? 'rtl' : 'ltr', borderLeft: isAr ? 'none' : undefined, borderRight: isAr ? '2px solid rgba(214, 166, 75, 0.5)' : undefined, paddingLeft: isAr ? '0' : '1rem', paddingRight: isAr ? '1rem' : '0', transitionDelay: '0.3s' }}
               >
                 <p className="text-base sm:text-lg text-gold-300/90 italic leading-relaxed">{t.hero.quote}</p>
-                <p className="mt-1.5 text-xs text-gold-400/70 font-medium">{t.hero.quoteAttrib}</p>
-              </motion.div>
+                <p className="mt-1.5 text-xs text-gold-300/90 font-medium">{t.hero.quoteAttrib}</p>
+              </div>
 
-              <motion.p
-                className="text-base sm:text-lg text-gray-400 leading-relaxed max-w-2xl mx-auto mb-9"
-                initial={reduce ? {} : { opacity: 0, y: 20 }}
-                animate={reduce ? {} : { opacity: 1, y: 0 }}
-                transition={{ duration: 0.8, delay: 0.45 }}
+              <p
+                className="reveal text-base sm:text-lg text-gray-400 leading-relaxed max-w-2xl mx-auto mb-9"
+                data-variant="up"
+                style={{ transitionDelay: '0.45s' }}
               >
                 {t.hero.sub}
-              </motion.p>
+              </p>
 
-              <motion.div
-                className="flex flex-col sm:flex-row gap-3 justify-center mb-6"
-                initial={reduce ? {} : { opacity: 0, y: 20 }}
-                animate={reduce ? {} : { opacity: 1, y: 0 }}
-                transition={{ duration: 0.7, delay: 0.55 }}
+              <div
+                className="reveal flex flex-col sm:flex-row gap-3 justify-center mb-6"
+                data-variant="up"
+                style={{ transitionDelay: '0.55s' }}
               >
-                <Link href="/auth/register">
-                  <motion.button
-                    whileHover={reduce ? {} : { scale: 1.02 }}
-                    whileTap={reduce ? {} : { scale: 0.98 }}
-                    className="flex items-center justify-center gap-2 px-8 py-3.5 bg-gradient-to-r from-gold-500 to-gold-600 hover:from-gold-600 hover:to-gold-700 text-white font-semibold rounded-xl shadow-xl shadow-gold-500/25 transition-all text-sm"
-                  >
-                    {t.hero.cta1} <ArrowRight className="h-4 w-4 rtl-flip" />
-                  </motion.button>
-                </Link>
+                <motion.a
+                  href="/auth/register"
+                  whileHover={reduce ? {} : { scale: 1.02 }}
+                  whileTap={reduce ? {} : { scale: 0.98 }}
+                  className={ctaPrimaryClass}
+                >
+                  {t.hero.cta1} <ArrowRight className="h-4 w-4 rtl-flip" />
+                </motion.a>
                 <button
                   onClick={() => document.getElementById('platform-preview')?.scrollIntoView({ behavior: 'smooth' })}
-                  className="px-8 py-3.5 border border-gray-700 text-gray-300 hover:bg-gray-800 hover:text-white font-medium rounded-xl transition-all text-sm"
+                  className={ctaSecondaryClass}
                 >
                   {t.hero.cta2}
                 </button>
-              </motion.div>
+              </div>
 
-              <motion.p
-                className="text-xs text-gray-500"
-                initial={reduce ? {} : { opacity: 0 }}
-                animate={reduce ? {} : { opacity: 1 }}
-                transition={{ delay: 0.7 }}
+              <p
+                className="reveal text-xs text-gray-400"
+                data-variant="up"
+                style={{ transitionDelay: '0.7s' }}
               >
                 {t.hero.trust}
-              </motion.p>
+              </p>
             </div>
+          </div>
+        </section>
+
+        {/* ── KEY NUMBERS ───────────────────────────────────────────────── */}
+        <section aria-label={isAr ? 'أرقام رئيسية' : 'Key numbers'} className="bg-gray-50 py-14 sm:py-16">
+          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+            <dl className="grid grid-cols-2 gap-8 lg:grid-cols-4">
+              {t.stats.items.map((s, i) => (
+                <FadeIn key={s.label} delay={i * 0.06} className="text-center">
+                  <dt className="sr-only">{s.label}</dt>
+                  <dd className="text-3xl sm:text-4xl font-bold tracking-tight text-gold-600">{s.value}</dd>
+                  <p className="mt-1 text-xs sm:text-sm text-gray-500">{s.label}</p>
+                </FadeIn>
+              ))}
+            </dl>
           </div>
         </section>
 
@@ -915,15 +966,14 @@ export default function Home() {
                 ))}
               </div>
               <div className="mt-9">
-                <Link href="/auth/register">
-                  <motion.button
-                    whileHover={reduce ? {} : { scale: 1.02 }}
-                    whileTap={reduce ? {} : { scale: 0.98 }}
-                    className="inline-flex items-center gap-2 px-8 py-3.5 bg-gradient-to-r from-gold-500 to-gold-600 hover:from-gold-600 hover:to-gold-700 text-white font-semibold rounded-xl shadow-xl shadow-gold-500/25 transition-all text-sm"
-                  >
-                    {t.solution.cta} <ArrowRight className="h-4 w-4 rtl-flip" />
-                  </motion.button>
-                </Link>
+                <motion.button
+                  onClick={() => document.getElementById('platform-preview')?.scrollIntoView({ behavior: 'smooth' })}
+                  whileHover={reduce ? {} : { scale: 1.02 }}
+                  whileTap={reduce ? {} : { scale: 0.98 }}
+                  className={ctaPrimaryClass}
+                >
+                  {t.solution.cta} <ArrowRight className="h-4 w-4 rtl-flip" />
+                </motion.button>
               </div>
             </FadeIn>
           </div>
@@ -1115,19 +1165,22 @@ export default function Home() {
               ))}
             </div>
             <FadeIn className="text-center">
-              <a href="https://github.com/COHEP" target="_blank" rel="noopener noreferrer">
-                <button className="inline-flex items-center gap-2 rounded-xl border border-gold-500/30 px-6 py-3 text-sm font-medium text-gold-400 hover:bg-gold-500/10 transition-all">
-                  <GitBranch className="h-4 w-4" />
-                  {t.openSource.cta}
-                  <ArrowRight className="h-4 w-4 rtl-flip" />
-                </button>
+              <a
+                href="https://github.com/COHEP"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 rounded-xl border border-gold-500/30 px-6 py-3 text-sm font-medium text-gold-400 hover:bg-gold-500/10 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-950"
+              >
+                <GitBranch className="h-4 w-4" />
+                {t.openSource.cta}
+                <ArrowRight className="h-4 w-4 rtl-flip" />
               </a>
             </FadeIn>
           </div>
         </section>
 
         {/* ── FEATURES ──────────────────────────────────────────────────── */}
-        <section id="community" aria-labelledby="features-heading" className="py-20 sm:py-28 bg-gray-50">
+        <section id="features" aria-labelledby="features-heading" className="py-20 sm:py-28 bg-gray-50">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <FadeIn className="mx-auto max-w-2xl text-center mb-12" variant="up">
               <Eyebrow>{t.features.eyebrow}</Eyebrow>
@@ -1170,9 +1223,11 @@ export default function Home() {
                 <FadeIn key={item.q} delay={i * 0.04}>
                   <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
                     <button
+                      id={`faq-q-${i}`}
                       onClick={() => setOpenFaq(openFaq === i ? null : i)}
-                      className="flex w-full items-center justify-between p-5 text-sm font-semibold text-gray-900 text-left"
+                      className="flex w-full items-center justify-between p-5 text-sm font-semibold text-gray-900 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500 focus-visible:ring-offset-2"
                       aria-expanded={openFaq === i}
+                      aria-controls={`faq-panel-${i}`}
                     >
                       <span>{item.q}</span>
                       <ChevronRight className={`h-4 w-4 text-gray-400 flex-shrink-0 transition-transform duration-200 rtl-flip ml-3 ${openFaq === i ? 'rotate-90' : ''}`} aria-hidden="true" />
@@ -1181,6 +1236,9 @@ export default function Home() {
                       {openFaq === i && (
                         <motion.div
                           key="ans"
+                          id={`faq-panel-${i}`}
+                          role="region"
+                          aria-labelledby={`faq-q-${i}`}
                           initial={{ height: 0, opacity: 0 }}
                           animate={{ height: 'auto', opacity: 1 }}
                           exit={{ height: 0, opacity: 0 }}
@@ -1209,27 +1267,32 @@ export default function Home() {
               </h2>
               <p className="text-base text-gray-400 max-w-xl mx-auto mb-8">{t.cta.sub}</p>
               <div className="flex flex-col sm:flex-row gap-3 justify-center mb-5">
-                <Link href="/auth/register">
-                  <motion.button
-                    whileHover={reduce ? {} : { scale: 1.02 }}
-                    whileTap={reduce ? {} : { scale: 0.98 }}
-                    className="flex items-center justify-center gap-2 px-8 py-3.5 bg-gradient-to-r from-gold-500 to-gold-600 hover:from-gold-600 hover:to-gold-700 text-white font-semibold rounded-xl shadow-xl shadow-gold-500/25 transition-all text-sm"
-                  >
-                    {t.cta.btn1} <ArrowRight className="h-4 w-4 rtl-flip" />
-                  </motion.button>
-                </Link>
-                <Link href="/auth/register">
-                  <button className="px-8 py-3.5 border border-gray-600 text-gray-300 hover:bg-gray-800 hover:text-white font-medium rounded-xl transition-all text-sm">
-                    {t.cta.btn2}
-                  </button>
-                </Link>
-                <a href="https://github.com/COHEP" target="_blank" rel="noopener noreferrer">
-                  <button className="px-8 py-3.5 text-gray-500 hover:text-gray-300 font-medium rounded-xl transition-all text-sm">
-                    {t.cta.btn3}
-                  </button>
+                <motion.a
+                  href="/auth/register"
+                  whileHover={reduce ? {} : { scale: 1.02 }}
+                  whileTap={reduce ? {} : { scale: 0.98 }}
+                  className={ctaPrimaryClass}
+                >
+                  {t.cta.btn1} <ArrowRight className="h-4 w-4 rtl-flip" />
+                </motion.a>
+                <motion.button
+                  onClick={() => document.getElementById('platform-preview')?.scrollIntoView({ behavior: 'smooth' })}
+                  whileHover={reduce ? {} : { scale: 1.02 }}
+                  whileTap={reduce ? {} : { scale: 0.98 }}
+                  className={ctaSecondaryClass}
+                >
+                  {t.cta.btn2}
+                </motion.button>
+                <a
+                  href="https://github.com/COHEP"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-8 py-3.5 text-gray-400 hover:text-gray-200 font-medium rounded-xl transition-all text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-950"
+                >
+                  {t.cta.btn3}
                 </a>
               </div>
-              <p className="text-xs text-gray-500">{t.cta.trust}</p>
+              <p className="text-xs text-gray-400">{t.cta.trust}</p>
             </FadeIn>
           </div>
         </section>
@@ -1295,7 +1358,7 @@ export default function Home() {
               {subscribeStatus === 'error' && <p className="mt-1.5 text-xs text-red-500">{isAr ? 'حدث خطأ. حاول مجدداً.' : 'Something went wrong. Try again.'}</p>}
             </div>
           </div>
-          <div className="mt-10 border-t border-gray-200 pt-6 text-center text-xs text-gray-400">
+          <div className="mt-10 border-t border-gray-200 pt-6 text-center text-xs text-gray-500">
             {t.footer.copyright}
           </div>
         </div>
