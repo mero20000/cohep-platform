@@ -937,8 +937,7 @@ export default function Home() {
         <section id="why" aria-labelledby="challenge-heading" className="py-24 sm:py-32 bg-white relative">
           <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
             <FadeIn variant="up" className="text-center mb-12">
-              <Eyebrow>{t.challenge.eyebrow}</Eyebrow>
-              <h2 id="challenge-heading" className="mt-3 text-3xl sm:text-4xl font-bold tracking-tight text-gray-900 leading-tight">{t.challenge.headline}</h2>
+              <h2 id="challenge-heading" className="text-3xl sm:text-4xl font-bold tracking-tight text-gray-900 leading-tight">{t.challenge.headline}</h2>
             </FadeIn>
             <FadeIn variant="up" delay={0.1}>
               <div className="prose prose-gray max-w-none space-y-5">
@@ -958,8 +957,7 @@ export default function Home() {
           <GradientOrbs />
           <div className="relative mx-auto max-w-3xl px-4 sm:px-6 lg:px-8 text-center">
             <FadeIn variant="scale">
-              <Eyebrow light>{t.solution.eyebrow}</Eyebrow>
-              <h2 id="solution-heading" className="mt-3 text-3xl sm:text-4xl font-bold tracking-tight text-white leading-tight">{t.solution.headline}</h2>
+              <h2 id="solution-heading" className="text-3xl sm:text-4xl font-bold tracking-tight text-white leading-tight">{t.solution.headline}</h2>
               <div className="mt-6 space-y-4">
                 {t.solution.body.split('\n\n').map((p, i) => (
                   <p key={i} className="text-base sm:text-lg leading-relaxed text-gray-300">{p}</p>
@@ -983,8 +981,7 @@ export default function Home() {
         <section aria-labelledby="vision-heading" className="py-20 sm:py-28 bg-gray-50">
           <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8 text-center">
             <FadeIn variant="up">
-              <Eyebrow>{t.vision.eyebrow}</Eyebrow>
-              <h2 id="vision-heading" className="mt-3 text-2xl sm:text-3xl font-bold tracking-tight text-gray-900 leading-tight">{t.vision.headline}</h2>
+              <h2 id="vision-heading" className="text-2xl sm:text-3xl font-bold tracking-tight text-gray-900 leading-tight">{t.vision.headline}</h2>
               <div className="mt-5 space-y-4">
                 {t.vision.body.split('\n\n').map((p, i) => (
                   <p key={i} className="text-base leading-relaxed text-gray-600">{p}</p>
@@ -997,28 +994,31 @@ export default function Home() {
         {/* ── WHO WE SERVE ──────────────────────────────────────────────── */}
         <section aria-labelledby="audience-heading" className="py-20 sm:py-28 bg-white">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-            <FadeIn className="mx-auto max-w-2xl text-center mb-12" variant="up">
-              <Eyebrow>{t.audience.eyebrow}</Eyebrow>
-              <h2 id="audience-heading" className="mt-3 text-3xl sm:text-4xl font-bold tracking-tight text-gray-900">{t.audience.headline}</h2>
+            <FadeIn className="mx-auto max-w-2xl text-center mb-16" variant="up">
+              <h2 id="audience-heading" className="text-3xl sm:text-4xl font-bold tracking-tight text-gray-900">{t.audience.headline}</h2>
             </FadeIn>
-            <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="space-y-10 sm:space-y-16">
               {t.audience.cards.map((card, i) => (
-                <FadeIn key={card.title} delay={i * 0.08} className="h-full">
-                  <div className="h-full group rounded-2xl border border-gray-200 bg-white p-6 transition-all duration-300 hover:shadow-lg hover:-translate-y-1 flex flex-col">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-gold-400 to-gold-600 text-white shadow-lg shadow-gold-200/50 transition-transform duration-300 group-hover:scale-110">
-                      <card.icon className="h-6 w-6" />
+                <FadeIn key={card.title} delay={i * 0.05} className="h-full">
+                  <div className="grid items-center gap-8 lg:grid-cols-2 lg:gap-12">
+                    <div className={i % 2 === 1 ? 'lg:order-2' : ''}>
+                      <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-gold-400 to-gold-600 text-white shadow-lg shadow-gold-200/50">
+                        <card.icon className="h-7 w-7" />
+                      </div>
+                      <p className="mt-5 text-xs font-semibold uppercase tracking-wider text-gold-600">{card.sub}</p>
+                      <h3 className="mt-2 text-2xl sm:text-3xl font-bold tracking-tight text-gray-900">{card.title}</h3>
+                      <p className="mt-3 text-base leading-relaxed text-gray-600">{card.desc}</p>
                     </div>
-                    <p className="mt-4 text-xs font-semibold uppercase tracking-wider text-gold-600">{card.sub}</p>
-                    <h3 className="mt-1 text-base font-bold text-gray-900">{card.title}</h3>
-                    <p className="mt-2 text-sm leading-relaxed text-gray-600 flex-1">{card.desc}</p>
-                    <ul className="mt-4 space-y-1.5">
-                      {card.features.map(f => (
-                        <li key={f} className="flex items-center gap-2 text-xs text-gray-500">
-                          <CheckCircle2 className="h-3.5 w-3.5 text-gold-500 flex-shrink-0" />
-                          {f}
-                        </li>
-                      ))}
-                    </ul>
+                    <div className="rounded-2xl border border-gray-200 bg-gray-50 p-6 sm:p-8">
+                      <ul className="space-y-3.5">
+                        {card.features.map(f => (
+                          <li key={f} className="flex items-start gap-3 text-sm sm:text-base text-gray-700">
+                            <CheckCircle2 className="h-5 w-5 text-gold-500 flex-shrink-0 mt-0.5" />
+                            {f}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
                   </div>
                 </FadeIn>
               ))}
@@ -1050,8 +1050,7 @@ export default function Home() {
           <GradientOrbs />
           <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <FadeIn className="mx-auto max-w-2xl text-center mb-12" variant="up">
-              <Eyebrow light>{t.curriculum.eyebrow}</Eyebrow>
-              <h2 id="curriculum-heading" className="mt-3 text-3xl sm:text-4xl font-bold tracking-tight text-white">{t.curriculum.headline}</h2>
+              <h2 id="curriculum-heading" className="text-3xl sm:text-4xl font-bold tracking-tight text-white">{t.curriculum.headline}</h2>
               <p className="mt-3 text-base text-gray-400">{t.curriculum.sub}</p>
             </FadeIn>
 
@@ -1073,21 +1072,20 @@ export default function Home() {
 
             {/* Three pillars */}
             <FadeIn className="mx-auto max-w-2xl text-center mb-10" variant="up">
-              <Eyebrow light>{t.pillars.eyebrow}</Eyebrow>
-              <h2 className="mt-3 text-2xl sm:text-3xl font-bold tracking-tight text-white">{t.pillars.headline}</h2>
+              <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-white">{t.pillars.headline}</h2>
               <p className="mt-3 text-base text-gray-400">{t.pillars.sub}</p>
             </FadeIn>
 
             <div className="grid gap-5 lg:grid-cols-3">
               {t.pillars.items.map((p, i) => (
-                <FadeIn key={p.title} delay={i * 0.1} className="h-full">
-                  <div className="h-full rounded-2xl border border-gray-700 bg-gray-800/60 p-6 flex flex-col">
+                <FadeIn key={p.title} delay={i * 0.1} className={i === 0 ? 'lg:col-span-1 lg:row-span-2 h-full' : 'lg:col-span-2 h-full'}>
+                  <div className={`h-full rounded-2xl border flex flex-col ${i === 0 ? 'border-gold-500/30 bg-gradient-to-br from-gold-500/15 via-gray-800/60 to-gray-800/60 p-8' : 'border-gray-700 bg-gray-800/60 p-7'}`}>
                     <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-gold-400 to-gold-600 text-white shadow-lg shadow-gold-500/20 mb-4">
                       <p.icon className="h-6 w-6" />
                     </div>
-                    <h3 className="text-base font-bold text-white">{p.title}</h3>
+                    <h3 className={`font-bold text-white ${i === 0 ? 'text-xl' : 'text-lg'}`}>{p.title}</h3>
                     <p className="mt-2 text-sm leading-relaxed text-gray-400 flex-1">{p.desc}</p>
-                    <ul className="mt-4 space-y-1.5">
+                    <ul className={`mt-4 space-y-1.5 ${i === 0 ? '' : 'flex flex-wrap gap-x-6 gap-y-1.5'}`}>
                       {p.list.map(item => (
                         <li key={item} className="flex items-center gap-2 text-xs text-gray-400">
                           <CheckCircle2 className="h-3.5 w-3.5 text-gold-500 flex-shrink-0" />
@@ -1103,14 +1101,23 @@ export default function Home() {
         </section>
 
         {/* ── FORMATION ─────────────────────────────────────────────────── */}
-        <section aria-labelledby="formation-heading" className="py-24 sm:py-32 bg-white">
+        <section aria-labelledby="formation-heading" className="relative overflow-hidden bg-white py-28 sm:py-40">
           <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8 text-center">
             <FadeIn variant="scale">
-              <Eyebrow>{t.formation.eyebrow}</Eyebrow>
-              <h2 id="formation-heading" className="mt-3 text-2xl sm:text-3xl font-bold tracking-tight text-gray-900 leading-tight">{t.formation.headline}</h2>
-              <div className="mt-6 space-y-4">
+              <svg className="mx-auto h-4 w-24" viewBox="0 0 96 16" fill="none" aria-hidden="true">
+                <path d="M0 8h34M62 8h34" stroke="#C9A030" strokeWidth="1.5" strokeLinecap="round" />
+                <rect x="45" y="3" width="6" height="6" transform="rotate(45 48 6)" fill="#C9A030" />
+              </svg>
+              <h2 id="formation-heading" className="mt-8 text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight text-gray-900 leading-[1.15]">
+                {t.formation.headline}
+              </h2>
+              <div className="mt-8 max-w-2xl mx-auto">
                 {t.formation.body.split('\n\n').map((p, i) => (
-                  <p key={i} className="text-base sm:text-lg leading-relaxed text-gray-600">{p}</p>
+                  i === 0 ? (
+                    <p key={i} className="text-base sm:text-lg leading-relaxed text-gray-600">{p}</p>
+                  ) : (
+                    <p key={i} className="mt-8 text-lg sm:text-xl font-semibold leading-relaxed text-gold-600">{p}</p>
+                  )
                 ))}
               </div>
             </FadeIn>
@@ -1120,24 +1127,26 @@ export default function Home() {
         {/* ── HOW IT WORKS ──────────────────────────────────────────────── */}
         <section aria-labelledby="how-heading" className="py-20 sm:py-28 bg-gray-50">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-            <FadeIn className="mx-auto max-w-2xl text-center mb-14" variant="up">
-              <Eyebrow>{t.howItWorks.eyebrow}</Eyebrow>
-              <h2 id="how-heading" className="mt-3 text-3xl sm:text-4xl font-bold tracking-tight text-gray-900">{t.howItWorks.headline}</h2>
+            <FadeIn className="mx-auto max-w-2xl text-center mb-16" variant="up">
+              <h2 id="how-heading" className="text-3xl sm:text-4xl font-bold tracking-tight text-gray-900">{t.howItWorks.headline}</h2>
+              <p className="mt-3 text-base text-gray-600">{isAr ? 'أربع خطوات تفصل كنيستك عن التعلم الحي.' : 'Four steps stand between your church and living, lasting learning.'}</p>
             </FadeIn>
-            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="relative mx-auto max-w-2xl">
               {t.howItWorks.steps.map((step, i) => (
-                <FadeIn key={step.num} delay={i * 0.1} className="h-full">
-                  <div className="relative group rounded-2xl border border-gray-200 bg-white p-6 text-center shadow-sm transition-all hover:shadow-lg hover:-translate-y-1 h-full flex flex-col">
-                    <div className={`absolute -top-3 flex h-7 w-7 items-center justify-center rounded-full bg-gray-900 text-xs font-bold text-white ${isAr ? '-left-3' : '-right-3'}`}>
+                <div key={step.num} className="sticky top-4 sm:top-8 mb-5 sm:mb-8">
+                  <div className="relative overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-[0_18px_40px_-18px_rgba(0,0,0,0.18)]">
+                    <span className="pointer-events-none absolute -right-1 -top-7 select-none text-[7rem] font-bold leading-none text-gold-500/10" aria-hidden="true">
                       {step.num}
+                    </span>
+                    <div className="relative flex min-h-[48vh] sm:min-h-[55vh] flex-col justify-center p-8 sm:p-12">
+                      <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-gold-400 to-gold-600 text-white shadow-lg shadow-gold-200/50">
+                        <step.icon className="h-7 w-7" />
+                      </div>
+                      <h3 className="mt-6 text-2xl sm:text-3xl font-bold tracking-tight text-gray-900">{step.title}</h3>
+                      <p className="mt-3 max-w-md text-base sm:text-lg leading-relaxed text-gray-600">{step.desc}</p>
                     </div>
-                    <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-gold-400 to-gold-600 text-white shadow-lg shadow-gold-200/50 transition-transform group-hover:scale-110">
-                      <step.icon className="h-7 w-7" />
-                    </div>
-                    <h3 className="text-base font-bold text-gray-900">{step.title}</h3>
-                    <p className="mt-2 text-sm leading-relaxed text-gray-600">{step.desc}</p>
                   </div>
-                </FadeIn>
+                </div>
               ))}
             </div>
           </div>
@@ -1149,8 +1158,7 @@ export default function Home() {
           <GradientOrbs />
           <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <FadeIn className="mx-auto max-w-2xl text-center mb-12" variant="up">
-              <Eyebrow light>{t.openSource.eyebrow}</Eyebrow>
-              <h2 id="oss-heading" className="mt-3 text-3xl sm:text-4xl font-bold tracking-tight text-white">{t.openSource.headline}</h2>
+              <h2 id="oss-heading" className="text-3xl sm:text-4xl font-bold tracking-tight text-white">{t.openSource.headline}</h2>
               <p className="mt-3 text-base text-gray-400">{t.openSource.sub}</p>
             </FadeIn>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 max-w-5xl mx-auto mb-10">
@@ -1183,8 +1191,7 @@ export default function Home() {
         <section id="features" aria-labelledby="features-heading" className="py-20 sm:py-28 bg-gray-50">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <FadeIn className="mx-auto max-w-2xl text-center mb-12" variant="up">
-              <Eyebrow>{t.features.eyebrow}</Eyebrow>
-              <h2 id="features-heading" className="mt-3 text-3xl sm:text-4xl font-bold tracking-tight text-gray-900">{t.features.headline}</h2>
+              <h2 id="features-heading" className="text-3xl sm:text-4xl font-bold tracking-tight text-gray-900">{t.features.headline}</h2>
             </FadeIn>
             <div className="grid gap-6 lg:grid-cols-3">
               {t.features.groups.map((group, i) => (
