@@ -284,7 +284,7 @@
   --gold-neutral-50: #FFFAF0;
   --gold-neutral-100: #FFF5E6;
   --gold-neutral-200: #F0E8D6;
-  --gold-accent-line: var(--gold-400);
+  --gold-accent-line: rgb(var(--gold-400) / 1);
 }
 
 .bg-gold-neutral-50 { background-color: var(--gold-neutral-50); }
@@ -294,32 +294,32 @@
 /* ===== Accent Color Overrides ===== */
 /* Gold (default) */
 :root {
-  --gold-50: #FEF7E6; --gold-100: #FCEBC2; --gold-200: #FADC8C;
-  --gold-300: #F0C75E; --gold-400: #E0B042; --gold-500: #C9A030;
-  --gold-600: #B0892A; --gold-700: #8B6B1F; --gold-800: #5E4A12; --gold-900: #312608;
+  --gold-50: 254 247 230; --gold-100: 252 235 194; --gold-200: 250 220 140;
+  --gold-300: 240 199 94; --gold-400: 224 176 66; --gold-500: 201 160 48;
+  --gold-600: 176 137 42; --gold-700: 139 107 31; --gold-800: 94 74 18; --gold-900: 49 38 8;
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
   --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
 }
 
 /* Blue accent */
 .accent-blue {
-  --gold-50: #EFF6FF; --gold-100: #DBEAFE; --gold-200: #BFDBFE;
-  --gold-300: #93C5FD; --gold-400: #60A5FA; --gold-500: #3B82F6;
-  --gold-600: #2563EB; --gold-700: #1D4ED8; --gold-800: #1E40AF; --gold-900: #1E3A8A;
+  --gold-50: 239 246 255; --gold-100: 219 234 254; --gold-200: 191 219 254;
+  --gold-300: 147 197 253; --gold-400: 96 165 250; --gold-500: 59 130 246;
+  --gold-600: 37 99 235; --gold-700: 29 78 216; --gold-800: 30 64 175; --gold-900: 30 58 138;
 }
 
 /* Green accent */
 .accent-green {
-  --gold-50: #F0FDF4; --gold-100: #DCFCE7; --gold-200: #BBF7D0;
-  --gold-300: #86EFAC; --gold-400: #4ADE80; --gold-500: #22C55E;
-  --gold-600: #16A34A; --gold-700: #15803D; --gold-800: #166534; --gold-900: #14532D;
+  --gold-50: 240 253 244; --gold-100: 220 252 231; --gold-200: 187 247 208;
+  --gold-300: 134 239 172; --gold-400: 74 222 128; --gold-500: 34 197 94;
+  --gold-600: 22 163 74; --gold-700: 21 128 61; --gold-800: 22 101 52; --gold-900: 20 83 45;
 }
 
 /* Purple accent */
 .accent-purple {
-  --gold-50: #FAF5FF; --gold-100: #F3E8FF; --gold-200: #E9D5FF;
-  --gold-300: #D8B4FE; --gold-400: #C084FC; --gold-500: #A855F7;
-  --gold-600: #9333EA; --gold-700: #7E22CE; --gold-800: #6B21A8; --gold-900: #581C87;
+  --gold-50: 250 245 255; --gold-100: 243 232 255; --gold-200: 233 213 255;
+  --gold-300: 216 180 254; --gold-400: 192 132 252; --gold-500: 168 85 247;
+  --gold-600: 147 51 234; --gold-700: 126 34 206; --gold-800: 107 33 168; --gold-900: 88 28 135;
 }
 
 /* ===== Dark Mode Applied Styles ===== */
