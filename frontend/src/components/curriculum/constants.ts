@@ -32,6 +32,14 @@ export const STATUS_BADGE: Record<string, 'success' | 'danger' | 'default'> = {
   published: 'success', archived: 'danger', draft: 'default',
 }
 
+const KNOWN_ITEM_STATUSES = ['pending', 'allocated', 'in_progress', 'completed'] as const
+
+export function normalizeItemStatus(status?: string): 'pending' | 'allocated' | 'in_progress' | 'completed' {
+  return (KNOWN_ITEM_STATUSES as readonly string[]).includes(status ?? '')
+    ? status as 'pending' | 'allocated' | 'in_progress' | 'completed'
+    : 'pending'
+}
+
 export function toDateStr(date: Date): string {
   const y = date.getFullYear()
   const m = String(date.getMonth() + 1).padStart(2, '0')

@@ -5,7 +5,7 @@ import { Play, BookOpen, Languages, CheckCircle2, Circle, Clock, CalendarCheck, 
 import { useLanguage } from '@/lib/use-language'
 import { useToast } from '@/components/ui/toast'
 import { PresentationViewer } from './presentation-viewer'
-import { API } from './constants'
+import { API, normalizeItemStatus } from './constants'
 import { useUpdateItemStatusMutation } from './hooks'
 import type { SubjectItem, ItemStatus, Allocation, Lesson } from './types'
 
@@ -254,7 +254,7 @@ export function TeachingView({ items, subjects, levels, lessons = [], allocation
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
               {subjectItems.map(item => {
-                const sm = STATUS_META[item.status || 'pending']
+                const sm = STATUS_META[normalizeItemStatus(item.status)]
                 const StatIcon = sm.icon
                 const sessions = selectedGroup === 1 ? item.sessionsGroup1 : selectedGroup === 2 ? item.sessionsGroup2 : selectedGroup === 3 ? item.sessionsGroup3 : item.sessionsGroup4
                 const isCompleted = item.status === 'completed'
@@ -264,7 +264,7 @@ export function TeachingView({ items, subjects, levels, lessons = [], allocation
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2">
-                          <select value={item.status || 'pending'} onChange={e => {
+                          <select value={normalizeItemStatus(item.status)} onChange={e => {
                             const newStatus = e.target.value
                             updateStatus.mutate({ id: item.id, status: newStatus }, {
                               onError: () => toast('error', lang === 'ar' ? 'فشل تحديث الحالة' : 'Failed to update status'),

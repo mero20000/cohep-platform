@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { getSubjectStyle, toDateStr, formatDateFull, STATUS_BADGE } from './constants'
+import { getSubjectStyle, toDateStr, formatDateFull, STATUS_BADGE, normalizeItemStatus } from './constants'
 
 describe('getSubjectStyle', () => {
   it('returns Hymns style for Coptic Hymns', () => {
@@ -49,5 +49,24 @@ describe('STATUS_BADGE', () => {
     expect(STATUS_BADGE.published).toBe('success')
     expect(STATUS_BADGE.archived).toBe('danger')
     expect(STATUS_BADGE.draft).toBe('default')
+  })
+})
+
+describe('normalizeItemStatus', () => {
+  it('keeps known statuses', () => {
+    expect(normalizeItemStatus('pending')).toBe('pending')
+    expect(normalizeItemStatus('allocated')).toBe('allocated')
+    expect(normalizeItemStatus('in_progress')).toBe('in_progress')
+    expect(normalizeItemStatus('completed')).toBe('completed')
+  })
+
+  it('falls back to pending for undefined', () => {
+    expect(normalizeItemStatus(undefined)).toBe('pending')
+  })
+
+  it('falls back to pending for unknown statuses from the API', () => {
+    expect(normalizeItemStatus('published')).toBe('pending')
+    expect(normalizeItemStatus('draft')).toBe('pending')
+    expect(normalizeItemStatus('active')).toBe('pending')
   })
 })
