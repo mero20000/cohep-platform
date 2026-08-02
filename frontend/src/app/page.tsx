@@ -926,7 +926,7 @@ export default function Home() {
                 <FadeIn key={s.label} delay={i * 0.06} className="text-center">
                   <dt className="sr-only">{s.label}</dt>
                   <dd className="text-3xl sm:text-4xl font-bold tracking-tight text-gold-600">{s.value}</dd>
-                  <p className="mt-1 text-xs sm:text-sm text-gray-500">{s.label}</p>
+                  <p className="mt-1 text-xs sm:text-sm text-gray-600">{s.label}</p>
                 </FadeIn>
               ))}
             </dl>
@@ -1237,7 +1237,7 @@ export default function Home() {
                       aria-controls={`faq-panel-${i}`}
                     >
                       <span>{item.q}</span>
-                      <ChevronRight className={`h-4 w-4 text-gray-400 flex-shrink-0 transition-transform duration-200 rtl-flip ml-3 ${openFaq === i ? 'rotate-90' : ''}`} aria-hidden="true" />
+                      <ChevronRight className={`h-4 w-4 text-gray-500 flex-shrink-0 transition-transform duration-200 rtl-flip ml-3 ${openFaq === i ? 'rotate-90' : ''}`} aria-hidden="true" />
                     </button>
                     <AnimatePresence initial={false}>
                       {openFaq === i && (
@@ -1317,17 +1317,17 @@ export default function Home() {
                 </div>
                 <span className="font-bold text-sm text-gray-900">COHEP</span>
               </Link>
-              <p className="text-sm text-gray-500 leading-relaxed">{t.footer.tagline}</p>
+              <p className="text-sm text-gray-600 leading-relaxed">{t.footer.tagline}</p>
             </div>
             <div className="flex flex-col gap-2">
               <p className="text-sm font-semibold text-gray-900 mb-1">{isAr ? 'روابط' : 'Links'}</p>
               {t.footer.links.map(link => (
-                <Link key={link.href} href={link.href} className="text-sm text-gray-500 hover:text-gray-900 transition-colors">{link.label}</Link>
+                <Link key={link.href} href={link.href} className="text-sm text-gray-600 hover:text-gray-900 transition-colors">{link.label}</Link>
               ))}
             </div>
             <div>
               <p className="text-sm font-semibold text-gray-900 mb-1">{t.footer.newsletter}</p>
-              <p className="text-xs text-gray-500 mb-3">{t.footer.newsletterDesc}</p>
+              <p className="text-xs text-gray-600 mb-3">{t.footer.newsletterDesc}</p>
               <form
                 onSubmit={async (e) => {
                   e.preventDefault()
@@ -1365,7 +1365,7 @@ export default function Home() {
               {subscribeStatus === 'error' && <p className="mt-1.5 text-xs text-red-500">{isAr ? 'حدث خطأ. حاول مجدداً.' : 'Something went wrong. Try again.'}</p>}
             </div>
           </div>
-          <div className="mt-10 border-t border-gray-200 pt-6 text-center text-xs text-gray-500">
+          <div className="mt-10 border-t border-gray-200 pt-6 text-center text-xs text-gray-600">
             {t.footer.copyright}
           </div>
         </div>
