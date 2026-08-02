@@ -548,7 +548,7 @@ function PreviewCarousel({ isAr }: { isAr: boolean }) {
               key={tab.label}
               onClick={() => { prevTabRef.current = activeTab; setActiveTab(i) }}
               aria-pressed={activeTab === i}
-              className={`rounded-lg px-4 py-2 text-xs font-medium transition-all ${
+              className={`rounded-lg px-4 py-2.5 text-xs font-medium transition-all ${
                 activeTab === i ? 'bg-gold-500 text-white shadow-lg shadow-gold-200' : 'border border-gray-200 bg-white text-gray-600 hover:border-gold-300 hover:text-gold-700'
               } focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500 focus-visible:ring-offset-2`}
             >
@@ -789,7 +789,7 @@ export default function Home() {
               { href: '#open-source', label: t.nav.openSource },
               { href: '#features', label: t.nav.community },
             ].map(item => (
-              <a key={item.href} href={item.href} className="rounded-lg px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-colors">
+              <a key={item.href} href={item.href} className="rounded-lg px-3 py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-colors">
                 {item.label}
               </a>
             ))}
@@ -798,20 +798,20 @@ export default function Home() {
           <div className="flex items-center gap-2.5">
             <button
               onClick={() => setLang(lang === 'en' ? 'ar' : 'en')}
-              className="rounded-lg border border-gray-200 px-2.5 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50 transition-colors"
+              className="rounded-lg border border-gray-200 px-3 py-2.5 text-xs font-medium text-gray-600 hover:bg-gray-50 transition-colors"
               aria-label={lang === 'en' ? 'Switch to Arabic' : 'التبديل إلى الإنجليزية'}
             >
               {lang === 'en' ? 'عربي' : 'EN'}
             </button>
             <Link href="/auth/login" className="hidden sm:block">
-              <Button variant="ghost" size="sm" className="text-gray-600">{t.nav.signIn}</Button>
+              <Button variant="ghost" size="lg" className="text-gray-600">{t.nav.signIn}</Button>
             </Link>
             <Link href="/auth/register" className="hidden sm:block">
-              <Button size="sm" className="bg-gold-500 text-white hover:bg-gold-600 shadow-lg shadow-gold-200/50">{t.nav.getStarted}</Button>
+              <Button size="lg" className="bg-gold-500 text-white hover:bg-gold-600 shadow-lg shadow-gold-200/50">{t.nav.getStarted}</Button>
             </Link>
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="flex md:hidden h-9 w-9 items-center justify-center rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors"
+              className="flex md:hidden h-11 w-11 items-center justify-center rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors"
               aria-label={isAr ? 'فتح القائمة' : 'Open menu'}
               aria-expanded={mobileMenuOpen}
             >
@@ -823,18 +823,18 @@ export default function Home() {
 
           {mobileMenuOpen && (
             <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} className="absolute top-full left-0 right-0 border-b border-gray-200 bg-white shadow-lg md:hidden">
-              <nav className="flex flex-col gap-1 p-4">
+              <nav className="flex flex-col gap-1 p-4" aria-label={isAr ? 'التنقل الرئيسي' : 'Main navigation'}>
                 {[
                   { href: '#why', label: t.nav.whyMatters },
                   { href: '#curriculum', label: t.nav.curriculum },
                   { href: '#open-source', label: t.nav.openSource },
                   { href: '#features', label: t.nav.community },
                 ].map(item => (
-                  <a key={item.href} href={item.href} onClick={() => setMobileMenuOpen(false)} className="rounded-lg px-3 py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-100">{item.label}</a>
+                  <a key={item.href} href={item.href} onClick={() => setMobileMenuOpen(false)} className="rounded-lg px-3 py-3 text-sm font-medium text-gray-600 hover:bg-gray-100">{item.label}</a>
                 ))}
                 <hr className="my-1 border-gray-100" />
-                <Link href="/auth/login" onClick={() => setMobileMenuOpen(false)} className="rounded-lg px-3 py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-100">{t.nav.signIn}</Link>
-                <Link href="/auth/register" onClick={() => setMobileMenuOpen(false)} className="rounded-lg bg-gold-500 px-3 py-2.5 text-sm font-medium text-white text-center hover:bg-gold-600">{t.nav.getStarted}</Link>
+                <Link href="/auth/login" onClick={() => setMobileMenuOpen(false)} className="rounded-lg px-3 py-3 text-sm font-medium text-gray-600 hover:bg-gray-100">{t.nav.signIn}</Link>
+                <Link href="/auth/register" onClick={() => setMobileMenuOpen(false)} className="rounded-lg bg-gold-500 px-3 py-3 text-sm font-medium text-white text-center hover:bg-gold-600">{t.nav.getStarted}</Link>
               </nav>
             </motion.div>
           )}
@@ -1322,7 +1322,7 @@ export default function Home() {
             <div className="flex flex-col gap-2">
               <p className="text-sm font-semibold text-gray-900 mb-1">{isAr ? 'روابط' : 'Links'}</p>
               {t.footer.links.map(link => (
-                <Link key={link.href} href={link.href} className="text-sm text-gray-600 hover:text-gray-900 transition-colors">{link.label}</Link>
+                <Link key={link.href} href={link.href} className="inline-block py-1.5 text-sm text-gray-600 hover:text-gray-900 transition-colors">{link.label}</Link>
               ))}
             </div>
             <div>
@@ -1355,9 +1355,9 @@ export default function Home() {
                   type="email"
                   required
                   placeholder={t.footer.emailPlaceholder}
-                  className="min-w-0 flex-1 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:border-gold-500 focus:outline-none focus:ring-2 focus:ring-gold-500/20"
+                  className="min-w-0 flex-1 rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm focus:border-gold-500 focus:outline-none focus:ring-2 focus:ring-gold-500/20"
                 />
-                <button type="submit" disabled={subscribeStatus === 'loading'} className="shrink-0 rounded-lg bg-gold-500 hover:bg-gold-600 px-3 py-2 text-sm font-medium text-white transition-colors disabled:opacity-50">
+                <button type="submit" disabled={subscribeStatus === 'loading'} className="shrink-0 rounded-lg bg-gold-500 hover:bg-gold-600 px-3 py-2.5 text-sm font-medium text-white transition-colors disabled:opacity-50">
                   {subscribeStatus === 'loading' ? '…' : subscribeStatus === 'success' ? '✓' : t.footer.subscribeBtn}
                 </button>
               </form>
