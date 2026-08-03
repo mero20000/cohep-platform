@@ -860,7 +860,7 @@ export default function Home() {
       <main id="main-content">
 
         {/* ── HERO ──────────────────────────────────────────────────────── */}
-        <section className="relative overflow-hidden bg-gradient-to-b from-gray-950 via-gray-900 to-gray-900 min-h-[90vh] flex items-center">
+        <section className="relative overflow-hidden bg-gradient-to-b from-gray-950 via-gray-900 to-gray-900 min-h-[90dvh] flex items-center">
           <HeroAlpha />
           <HeroCross3D />
           <CrossPatternBg className="text-gold-500" />
@@ -1127,7 +1127,7 @@ export default function Home() {
                     <span className="pointer-events-none absolute -right-1 -top-7 select-none text-[7rem] font-bold leading-none text-gold-500/10" aria-hidden="true">
                       {step.num}
                     </span>
-                    <div className="relative flex min-h-[48vh] sm:min-h-[55vh] flex-col justify-center p-8 sm:p-12">
+                    <div className="relative flex min-h-[48dvh] sm:min-h-[55dvh] flex-col justify-center p-8 sm:p-12">
                       <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-gold-400 to-gold-600 text-white shadow-lg shadow-gold-200/50">
                         <step.icon className="h-7 w-7" />
                       </div>
