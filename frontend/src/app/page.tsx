@@ -1174,7 +1174,7 @@ export default function Home() {
             </div>
             <FadeIn className="text-center">
               <a
-                href="https://github.com/COHEP"
+                href="https://github.com/mero20000/cohep-platform"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-2 rounded-xl border border-gold-500/30 px-6 py-3 text-sm font-medium text-gold-400 hover:bg-gold-500/10 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-950"
@@ -1291,7 +1291,7 @@ export default function Home() {
                   {t.cta.btn2}
                 </motion.button>
                 <a
-                  href="https://github.com/COHEP"
+                  href="https://github.com/mero20000/cohep-platform"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="px-8 py-3.5 text-gray-400 hover:text-gray-200 font-medium rounded-xl transition-all text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-950"
