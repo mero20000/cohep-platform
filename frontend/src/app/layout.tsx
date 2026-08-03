@@ -7,13 +7,13 @@ const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
   title: {
-    default: 'COHEP — Free Coptic Orthodox Hymn Education Platform',
+    default: 'COHEP | Free Coptic Orthodox Hymn Education Platform',
     template: '%s | COHEP',
   },
-  description: 'COHEP is a free, open-source platform for Coptic Orthodox hymn education. Structured curriculum, gamified learning, parent portals, and servant tools — built by the community for the Church.',
+  description: 'COHEP is a free, open-source platform for Coptic Orthodox hymn education. Structured curriculum, gamified learning, parent portals, and servant tools, built by the community for the Church.',
   icons: {},
   openGraph: {
-    title: 'COHEP — Free Coptic Orthodox Hymn Education Platform',
+    title: 'COHEP | Free Coptic Orthodox Hymn Education Platform',
     description: 'Teach hymns, preserve heritage, and help children belong to the Church. Free, open-source Coptic Orthodox hymn education platform.',
     siteName: 'COHEP',
     type: 'website',
@@ -22,7 +22,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'COHEP — Free Coptic Orthodox Hymn Education Platform',
+    title: 'COHEP | Free Coptic Orthodox Hymn Education Platform',
     description: 'Teach hymns, preserve heritage, and help children belong to the Church. Free, open-source Coptic Orthodox hymn education platform.',
   },
 }

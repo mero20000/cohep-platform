@@ -21,7 +21,7 @@ import {
 const content = {
   en: {
     meta: {
-      title: 'COHEP — Coptic Orthodox Hymn Education Platform',
+      title: 'COHEP | Coptic Orthodox Hymn Education Platform',
       description: 'Free, open-source platform to teach Coptic hymns, track student progress, engage parents, and preserve 1,700 years of Coptic Orthodox heritage.',
     },
     nav: {
@@ -35,8 +35,8 @@ const content = {
     hero: {
       eyebrow: 'Free · Open-Source · Built for the Church',
       headline: 'Every child belongs\nin the Church.',
-      quote: '"Children must feel the Church considers them members — not merely their parents\' companions."',
-      quoteAttrib: '— H.G. Bishop Samuel',
+      quote: '"Children must feel the Church considers them members, not merely their parents\' companions."',
+      quoteAttrib: '- H.G. Bishop Samuel',
       sub: 'Every church can teach authentic Coptic hymns, track progress, engage parents, and pass 1,700 years of living tradition forward.',
       cta1: 'Register Your Church',
       cta2: 'Explore the Platform',
@@ -57,13 +57,13 @@ const content = {
     solution: {
       eyebrow: 'The Response',
       headline: 'That\'s why COHEP exists.',
-      body: 'COHEP is not software. It is a ministry. A free, open-source platform built by the Coptic Orthodox community to give every servant the tools they need — without cost, without complexity, without compromise.\n\nThe Church is the teacher. The servant is the hero. COHEP simply holds the records, tracks the progress, and keeps the threads from fraying.',
+      body: 'COHEP is not software. It is a ministry. A free, open-source platform built by the Coptic Orthodox community to give every servant the tools they need: without cost, without complexity, without compromise.\n\nThe Church is the teacher. The servant is the hero. COHEP simply holds the records, tracks the progress, and keeps the threads from fraying.',
       cta: 'Explore the Platform',
     },
     vision: {
       eyebrow: 'Vision',
       headline: 'One global community of churches, one living tradition.',
-      body: 'Imagine thousands of Coptic churches around the world — from Cairo to Sydney, from Los Angeles to London — sharing a single curriculum, collaborating on hymn recordings, and tracking the spiritual growth of an entire generation. Not as a corporation. As a Church.\n\nThat is what COHEP is building toward.',
+      body: 'Imagine thousands of Coptic churches around the world (from Cairo to Sydney, from Los Angeles to London) sharing a single curriculum, collaborating on hymn recordings, and tracking the spiritual growth of an entire generation. Not as a corporation. As a Church.\n\nThat is what COHEP is building toward.',
     },
     audience: {
       eyebrow: 'Who COHEP Serves',
@@ -80,7 +80,7 @@ const content = {
           icon: Users,
           title: 'Servants & Hymn Teachers',
           sub: 'For those who teach',
-          desc: 'Plan every lesson, mark attendance, assess students, and track progress — all in one place. Spend your energy on teaching, not on paperwork.',
+          desc: 'Plan every lesson, mark attendance, assess students, and track progress, all in one place. Spend your energy on teaching, not on paperwork.',
           features: ['Lesson planning', 'Attendance tracking', 'Oral & written assessments', 'Progress dashboards'],
         },
         {
@@ -102,23 +102,23 @@ const content = {
     curriculum: {
       eyebrow: 'Educational Journey',
       headline: '10 levels. A lifetime of worship.',
-      sub: 'From the Coptic alphabet to leading Tasbeha — a complete, structured journey from beginner to certified hymn teacher.',
+      sub: 'From the Coptic alphabet to leading Tasbeha: a complete, structured journey from beginner to certified hymn teacher.',
       levels: [
-        { range: '1–3', title: 'Foundation', desc: 'Basic hymns, Coptic alphabet, and liturgical introduction', icon: Music2 },
-        { range: '4–6', title: 'Intermediate', desc: 'Complex melodies, rites study, and Coptic grammar', icon: Music3 },
-        { range: '7–8', title: 'Advanced', desc: 'Liturgical analysis, advanced hymns, and theology', icon: FileMusic },
-        { range: '9–10', title: 'Mastery', desc: 'Leadership training, teaching methods, and certification', icon: Crown },
+        { range: '1-3', title: 'Foundation', desc: 'Basic hymns, Coptic alphabet, and liturgical introduction', icon: Music2 },
+        { range: '4-6', title: 'Intermediate', desc: 'Complex melodies, rites study, and Coptic grammar', icon: Music3 },
+        { range: '7-8', title: 'Advanced', desc: 'Liturgical analysis, advanced hymns, and theology', icon: FileMusic },
+        { range: '9-10', title: 'Mastery', desc: 'Leadership training, teaching methods, and certification', icon: Crown },
       ],
     },
     pillars: {
       eyebrow: 'What Every Child Deserves to Know',
       headline: 'Three pillars of Coptic heritage.',
-      sub: 'A complete curriculum covering hymns, rites, and language — the living foundation of 1,700 years of unbroken tradition.',
+      sub: 'A complete curriculum covering hymns, rites, and language: the living foundation of 1,700 years of unbroken tradition.',
       items: [
         {
           icon: Music,
           title: 'Coptic Hymns',
-          desc: '255+ hymns — Doxologies, Tasbeha, Liturgical Responses, and seasonal hymns — with Coptic script, transliteration, and audio guides.',
+          desc: '255+ hymns (Doxologies, Tasbeha, Liturgical Responses, and seasonal hymns) with Coptic script, transliteration, and audio guides.',
           list: ['Doxologies', 'Tasbeha hymns', 'Seasonal hymns', 'Liturgical responses'],
         },
         {
@@ -130,7 +130,7 @@ const content = {
         {
           icon: BookOpen,
           title: 'Coptic Language',
-          desc: 'From the alphabet to grammar to fluency — master the language that connects every believer to the original voice of the Church.',
+          desc: 'From the alphabet to grammar to fluency: master the language that connects every believer to the original voice of the Church.',
           list: ['Coptic alphabet', 'Grammar rules', 'Vocabulary', 'Reading practice'],
         },
       ],
@@ -153,14 +153,14 @@ const content = {
     openSource: {
       eyebrow: 'Free. Open. Ours. Forever.',
       headline: 'Built by the community, owned by the Church.',
-      sub: 'COHEP is open-source. Every line of code belongs to the Church. No investors, no paywalls, no vendor lock-in — ever.',
+      sub: 'COHEP is open-source. Every line of code belongs to the Church. No investors, no paywalls, no vendor lock-in, ever.',
       items: [
         { icon: Heart, title: 'Free forever', desc: 'No paywalls, no hidden costs, no credit card. Always free for every church, everywhere.' },
         { icon: Code2, title: 'Fully open-source', desc: 'Browse, audit, and contribute on GitHub. Transparency is built into every feature.' },
-        { icon: Shield, title: 'Your data stays yours', desc: 'Self-host or use our cloud — your data belongs to your church, not to us.' },
+        { icon: Shield, title: 'Your data stays yours', desc: 'Self-host or use our cloud. Your data belongs to your church, not to us.' },
         { icon: SlidersHorizontal, title: 'Fully customizable', desc: 'Adapt curricula, hymns, roles, and pacing to your church\'s specific tradition.' },
         { icon: Globe, title: 'Community-governed', desc: 'Built by Coptic developers, servants, and clergy worldwide. The community decides the roadmap.' },
-        { icon: GitBranch, title: 'Contribute freely', desc: 'Code, translations, hymn data, curriculum design — all contributions are welcome on GitHub.' },
+        { icon: GitBranch, title: 'Contribute freely', desc: 'Code, translations, hymn data, curriculum design: all contributions are welcome on GitHub.' },
       ],
       cta: 'View on GitHub',
     },
@@ -193,7 +193,7 @@ const content = {
       { q: 'Who maintains COHEP?', a: 'COHEP is maintained by a community of Coptic Orthodox developers, servants, and clergy. The roadmap is community-driven and transparent.' },
       { q: 'Can our diocese manage multiple churches?', a: 'Yes. COHEP has full multi-church support with diocese-level oversight, allowing bishops and administrators to manage multiple churches from one account.' },
       { q: 'What languages are supported?', a: 'English and Arabic are supported today. The architecture supports adding more languages, and we welcome translation contributions from the community.' },
-      { q: 'Does it work on phones and tablets?', a: 'Yes. COHEP works on any device — phone, tablet, or computer. The interface is fully responsive and designed to be used in the classroom.' },
+      { q: 'Does it work on phones and tablets?', a: 'Yes. COHEP works on any device: phone, tablet, or computer. The interface is fully responsive and designed to be used in the classroom.' },
     ],
     cta: {
       headline: 'The Church\'s heritage.\nYour children\'s future.',
@@ -226,7 +226,7 @@ const content = {
   },
   ar: {
     meta: {
-      title: 'كوهيب — منصة تعليم التراتيب القبطية الأرثوذكسية',
+      title: 'كوهيب | منصة تعليم التراتيب القبطية الأرثوذكسية',
       description: 'منصة مجانية مفتوحة المصدر لتعليم التراتيب القبطية، تتبع تقدم الطلاب، وإشراك الأهالي، والحفاظ على 1700 عام من التراث القبطي الأرثوذكسي.',
     },
     nav: {
@@ -241,7 +241,7 @@ const content = {
       eyebrow: 'مجاني · مصدر مفتوح · بُني للكنيسة',
       headline: 'كل طفل له\nمكانه في الكنيسة.',
       quote: '"الأطفال في حاجة إلى الشعور بأن الكنيسة تعتبرهم أعضاء فيها، وليس مجرد مرافقين لوالديهم."',
-      quoteAttrib: '— نيافة الأنبا صموئيل',
+      quoteAttrib: '- نيافة الأنبا صموئيل',
       sub: 'كوهيب تمكّن كل كنيسة من تعليم التراتيب الأصيلة، وتتبع التقدم، وإشراك الأهالي، ونقل 1700 عام من التراث الحي.',
       cta1: 'سجّل كنيستك',
       cta2: 'استكشف المنصة',
@@ -262,13 +262,13 @@ const content = {
     solution: {
       eyebrow: 'الاستجابة',
       headline: 'لهذا السبب وُجدت كوهيب.',
-      body: 'كوهيب ليست برنامجاً. إنها خدمة. منصة مجانية مفتوحة المصدر بناها مجتمع الكنيسة القبطية الأرثوذكسية لمنح كل خادم الأدوات التي يحتاجها — بدون تكلفة، بدون تعقيد، بدون تنازل.\n\nالكنيسة هي المعلم. الخادم هو البطل. كوهيب تحتفظ بالسجلات وتتابع التقدم وتمنع الخيوط من الانقطاع.',
+      body: 'كوهيب ليست برنامجاً. إنها خدمة. منصة مجانية مفتوحة المصدر بناها مجتمع الكنيسة القبطية الأرثوذكسية لمنح كل خادم الأدوات التي يحتاجها: بدون تكلفة، بدون تعقيد، بدون تنازل.\n\nالكنيسة هي المعلم. الخادم هو البطل. كوهيب تحتفظ بالسجلات وتتابع التقدم وتمنع الخيوط من الانقطاع.',
       cta: 'استكشف المنصة',
     },
     vision: {
       eyebrow: 'الرؤية',
       headline: 'مجتمع كنائس عالمي واحد، وتراث حي واحد.',
-      body: 'تخيّل آلاف الكنائس القبطية حول العالم — من القاهرة إلى سيدني، من لوس أنجلوس إلى لندن — تتشارك منهجاً واحداً، وتتعاون على تسجيلات التراتيب، وتتابع النمو الروحي لجيل كامل. لا كشركة. بل ككنيسة.\n\nهذا ما تسعى كوهيب إلى بنائه.',
+      body: 'تخيّل آلاف الكنائس القبطية حول العالم (من القاهرة إلى سيدني، من لوس أنجلوس إلى لندن) تتشارك منهجاً واحداً، وتتعاون على تسجيلات التراتيب، وتتابع النمو الروحي لجيل كامل. لا كشركة. بل ككنيسة.\n\nهذا ما تسعى كوهيب إلى بنائه.',
     },
     audience: {
       eyebrow: 'من تخدم كوهيب',
@@ -285,7 +285,7 @@ const content = {
           icon: Users,
           title: 'الخدام ومعلمو التراتيب',
           sub: 'لمن يُعلّمون',
-          desc: 'خطط لكل درس، وسجّل الحضور، وقيّم الطلاب، وتابع التقدم — كل ذلك في مكان واحد. أمضِ طاقتك في التعليم، لا في الأوراق.',
+          desc: 'خطط لكل درس، وسجّل الحضور، وقيّم الطلاب، وتابع التقدم، كل ذلك في مكان واحد. أمضِ طاقتك في التعليم، لا في الأوراق.',
           features: ['تخطيط الدروس', 'تتبع الحضور', 'التقييم الشفهي والكتابي', 'لوحات التقدم'],
         },
         {
@@ -307,23 +307,23 @@ const content = {
     curriculum: {
       eyebrow: 'الرحلة التعليمية',
       headline: '10 مستويات. عبادة مدى الحياة.',
-      sub: 'من الأبجدية القبطية إلى قيادة التسبحة — رحلة كاملة ومنظّمة من المبتدئ إلى معلم التراتيب المعتمد.',
+      sub: 'من الأبجدية القبطية إلى قيادة التسبحة: رحلة كاملة ومنظّمة من المبتدئ إلى معلم التراتيب المعتمد.',
       levels: [
-        { range: '1–3', title: 'الأساسيات', desc: 'التراتيب الأساسية والأبجدية القبطية والمقدمة الليتورجية', icon: Music2 },
-        { range: '4–6', title: 'المتوسط', desc: 'الألحان المعقدة ودراسة الطقوس والقواعد القبطية', icon: Music3 },
-        { range: '7–8', title: 'المتقدم', desc: 'التحليل الليتورجي والتراتيب المتقدمة واللاهوت', icon: FileMusic },
-        { range: '9–10', title: 'الإتقان', desc: 'تدريب القيادة وأساليب التدريس والاعتماد', icon: Crown },
+        { range: '1-3', title: 'الأساسيات', desc: 'التراتيب الأساسية والأبجدية القبطية والمقدمة الليتورجية', icon: Music2 },
+        { range: '4-6', title: 'المتوسط', desc: 'الألحان المعقدة ودراسة الطقوس والقواعد القبطية', icon: Music3 },
+        { range: '7-8', title: 'المتقدم', desc: 'التحليل الليتورجي والتراتيب المتقدمة واللاهوت', icon: FileMusic },
+        { range: '9-10', title: 'الإتقان', desc: 'تدريب القيادة وأساليب التدريس والاعتماد', icon: Crown },
       ],
     },
     pillars: {
       eyebrow: 'ما يستحقه كل طفل أن يعرفه',
       headline: 'ثلاث ركائز للتراث القبطي.',
-      sub: 'منهج شامل يغطي التراتيب والطقوس واللغة — الأساس الحي لـ 1700 عام من التقليد المتواصل.',
+      sub: 'منهج شامل يغطي التراتيب والطقوس واللغة: الأساس الحي لـ 1700 عام من التقليد المتواصل.',
       items: [
         {
           icon: Music,
           title: 'التراتيب القبطية',
-          desc: '+255 ترنيمة — الدوكسولوجيا والتسبحة والردود الليتورجية والتراتيب الموسمية — مع النص القبطي والتحويل الصوتي والأدلة الصوتية.',
+          desc: '+255 ترنيمة (الدوكسولوجيا والتسبحة والردود الليتورجية والتراتيب الموسمية) مع النص القبطي والتحويل الصوتي والأدلة الصوتية.',
           list: ['الدوكسولوجيا', 'تراتيب التسبحة', 'التراتيب الموسمية', 'الردود الليتورجية'],
         },
         {
@@ -335,7 +335,7 @@ const content = {
         {
           icon: BookOpen,
           title: 'اللغة القبطية',
-          desc: 'من الأبجدية إلى القواعد إلى الطلاقة — أتقن اللغة التي تربط كل مؤمن بالصوت الأصيل للكنيسة.',
+          desc: 'من الأبجدية إلى القواعد إلى الطلاقة: أتقن اللغة التي تربط كل مؤمن بالصوت الأصيل للكنيسة.',
           list: ['الأبجدية القبطية', 'القواعد النحوية', 'المفردات', 'ممارسة القراءة'],
         },
       ],
@@ -358,14 +358,14 @@ const content = {
     openSource: {
       eyebrow: 'مجاني. مفتوح. ملكنا. للأبد.',
       headline: 'بُني بواسطة المجتمع، يملكه الكنيسة.',
-      sub: 'كوهيب مصدر مفتوح. كل سطر برمجي مملوك للكنيسة. لا مستثمرين، لا جدران دفع، لا احتكار — أبداً.',
+      sub: 'كوهيب مصدر مفتوح. كل سطر برمجي مملوك للكنيسة. لا مستثمرين، لا جدران دفع، لا احتكار، أبداً.',
       items: [
         { icon: Heart, title: 'مجاني للأبد', desc: 'لا جدران دفع ولا تكاليف خفية ولا بطاقة ائتمان. مجاني دائماً لكل كنيسة في كل مكان.' },
         { icon: Code2, title: 'مصدر مفتوح بالكامل', desc: 'تصفح وراجع وساهم على GitHub. الشفافية مبنية في كل ميزة.' },
-        { icon: Shield, title: 'بياناتك تبقى لك', desc: 'استضف بنفسك أو استخدم سحابتنا — بياناتك مملوكة لكنيستك، ليس لنا.' },
+        { icon: Shield, title: 'بياناتك تبقى لك', desc: 'استضف بنفسك أو استخدم سحابتنا. بياناتك مملوكة لكنيستك، ليس لنا.' },
         { icon: SlidersHorizontal, title: 'قابل للتخصيص بالكامل', desc: 'كيّف المناهج والتراتيب والأدوار والوتيرة حسب تقاليد كنيستك.' },
         { icon: Globe, title: 'إدارة المجتمع', desc: 'بُني بواسطة مطورين وخدام وإكليروس أقباط حول العالم. المجتمع يقرر خارطة الطريق.' },
-        { icon: GitBranch, title: 'ساهم بحرية', desc: 'الكود والترجمات وبيانات التراتيب وتصميم المناهج — كل المساهمات مرحب بها على GitHub.' },
+        { icon: GitBranch, title: 'ساهم بحرية', desc: 'الكود والترجمات وبيانات التراتيب وتصميم المناهج: كل المساهمات مرحب بها على GitHub.' },
       ],
       cta: 'اعرض على GitHub',
     },
@@ -398,7 +398,7 @@ const content = {
       { q: 'من يصون كوهيب؟', a: 'كوهيب تتم صيانتها بواسطة مجتمع من المطورين والخدام والإكليروس الأقباط. خارطة الطريق يقودها المجتمع وبشفافية.' },
       { q: 'هل يمكن لأبرشيتنا إدارة كنائس متعددة؟', a: 'نعم. كوهيب تدعم الإشراف على مستوى الأبرشية بالكامل، مما يتيح للأساقفة والمديرين إدارة كنائس متعددة من حساب واحد.' },
       { q: 'ما اللغات المدعومة؟', a: 'اللغتان الإنجليزية والعربية مدعومتان حالياً. البنية تدعم إضافة المزيد من اللغات، ونرحب بمساهمات الترجمة من المجتمع.' },
-      { q: 'هل تعمل على الهواتف والأجهزة اللوحية؟', a: 'نعم. كوهيب تعمل على أي جهاز — هاتف أو حاسوب لوحي أو كمبيوتر. الواجهة متجاوبة بالكامل ومصممة للاستخدام في الفصل الدراسي.' },
+      { q: 'هل تعمل على الهواتف والأجهزة اللوحية؟', a: 'نعم. كوهيب تعمل على أي جهاز: هاتف أو حاسوب لوحي أو كمبيوتر. الواجهة متجاوبة بالكامل ومصممة للاستخدام في الفصل الدراسي.' },
     ],
     cta: {
       headline: 'تراث الكنيسة.\nمستقبل أطفالك.',
@@ -763,7 +763,7 @@ export default function Home() {
   const jsonLd = {
     '@context': 'https://schema.org',
     '@type': 'WebApplication',
-    name: 'COHEP — Coptic Orthodox Hymn Education Platform',
+    name: 'COHEP | Coptic Orthodox Hymn Education Platform',
     applicationCategory: 'EducationalApplication',
     operatingSystem: 'Web',
     description: 'Free, open-source platform for Coptic Orthodox hymn education.',
