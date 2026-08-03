@@ -6,7 +6,7 @@ import { useLanguage } from '@/lib/use-language'
 import { useToast } from '@/components/ui/toast'
 import { Button } from '@/components/ui/button'
 import { http } from '@/lib/http-client'
-import { motion } from 'framer-motion'
+import { motion } from 'motion/react'
 import {
   Baby, UserPlus, Link2, AlertCircle, Search, Users,
   CalendarClock, UserCheck, Crown, Trash2, Star,

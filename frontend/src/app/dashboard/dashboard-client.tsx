@@ -5,7 +5,7 @@ import { useLanguage } from '@/lib/use-language'
 import Image from 'next/image'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { motion, useScroll, useTransform, useSpring, useReducedMotion } from 'framer-motion'
+import { motion, useScroll, useTransform, useSpring, useReducedMotion } from 'motion/react'
 import {
   Users, BookOpen, Calendar, Trophy, Layers, ClipboardCheck,
   TrendingUp, Clock, Loader2, UserCheck,
