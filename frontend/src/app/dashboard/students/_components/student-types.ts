@@ -42,9 +42,9 @@ export const GRADE_OPTIONS = [
 ]
 
 export const STATUS_STYLE: Record<string, { variant: 'success' | 'danger' | 'warning' | 'info'; bar: string }> = {
-  active:    { variant: 'success', bar: 'border-l-green-400' },
-  inactive:  { variant: 'danger',  bar: 'border-l-red-400'   },
-  graduated: { variant: 'warning', bar: 'border-l-amber-400' },
+  active:    { variant: 'success', bar: 'border-s-green-400' },
+  inactive:  { variant: 'danger',  bar: 'border-s-red-400'   },
+  graduated: { variant: 'warning', bar: 'border-s-amber-400' },
 }
 
 // ─── Utils ───────────────────────────────────────────────────────────────────

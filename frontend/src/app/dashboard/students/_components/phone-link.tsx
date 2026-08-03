@@ -26,7 +26,7 @@ export function PhoneLink({ phone, lang }: Props) {
         <Phone className="h-3.5 w-3.5" />{phone}
       </button>
       {open && (
-        <div className="absolute left-0 top-full mt-1 z-50 flex gap-1 rounded-lg border border-gray-200 bg-white p-1 shadow-lg" onClick={() => setOpen(false)}>
+        <div className="absolute start-0 top-full mt-1 z-50 flex gap-1 rounded-lg border border-gray-200 bg-white p-1 shadow-lg" onClick={() => setOpen(false)}>
           <a href={`tel:${digits}`}
             className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium text-green-700 hover:bg-green-50 transition-colors">
             <Phone className="h-3.5 w-3.5" />{t('Call','اتصال')}

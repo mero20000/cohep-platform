@@ -1,5 +1,5 @@
 'use client'
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { X, Loader2, FileSpreadsheet, AlertCircle, CheckCircle2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { http } from '@/lib/http-client'
@@ -16,6 +16,7 @@ export function StudentImportModal({ onClose, onSuccess, levelNameMap, lang }: P
   const [importing, setImporting] = useState(false)
   const [result, setResult] = useState<{imported:number}|null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
+  const dialogRef = useRef<HTMLDivElement>(null)
   const t = (en: string, ar: string) => lang==='ar'?ar:en
   const [duplicateWarnings, setDuplicateWarnings] = useState<{name:string;reason:string}[]>([])
   const csvFields = (line:string) => {
@@ -76,6 +77,7 @@ export function StudentImportModal({ onClose, onSuccess, levelNameMap, lang }: P
   }
 
   const handleClose = () => { onClose(); setPreview([]); setFile(null); setResult(null); setError(''); setDuplicateWarnings([]) }
+  useEffect(() => { dialogRef.current?.focus() }, [])
   const downloadTemplate = () => {
     const h=['name','dateOfBirth','gender','levelId','schoolGrade','firstNameAr','lastNameAr','churchName','phone','email','address','notes','churchToolId']
     const s=['Malak Ahmed','2017-05-15','male','Level 1','Grade 4','ملك','أحمد','St. Mary Church','+201234567890','parent@example.com','123 Main St','Notes','CHR-12345']
@@ -86,7 +88,7 @@ export function StudentImportModal({ onClose, onSuccess, levelNameMap, lang }: P
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="w-full max-w-2xl rounded-2xl bg-white shadow-xl max-h-[90vh] flex flex-col">
+      <div ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-label={t('Import Students from CSV','استيراد الطلاب من ملف CSV')} className="w-full max-w-2xl rounded-2xl bg-white shadow-xl max-h-[90vh] flex flex-col outline-none">
         <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4 flex-shrink-0">
           <h2 className="text-lg font-semibold">{t('Import Students from CSV','استيراد الطلاب من ملف CSV')}</h2>
           <Button variant="ghost" size="icon" onClick={handleClose}><X className="h-5 w-5" /></Button>
@@ -108,7 +110,7 @@ export function StudentImportModal({ onClose, onSuccess, levelNameMap, lang }: P
             {preview.length>0&&(<div>
               {duplicateWarnings.length>0&&<div className="rounded-lg border border-amber-200 bg-amber-50 p-3 mb-3"><p className="text-xs font-medium text-amber-800">{t('Duplicate warnings:','تحذيرات التكرار:')}</p>{duplicateWarnings.map((w,i)=><p key={i} className="text-xs text-amber-700 mt-1">&bull; {w.name} — {w.reason}</p>)}</div>}
               <p className="text-sm font-medium text-gray-700 mb-2">{t(`Preview (${preview.length} rows):`,`معاينة (${preview.length} صف):`)}</p>
-              <div className="max-h-60 overflow-auto rounded-lg border border-gray-200"><table className="w-full text-xs"><thead><tr className="bg-gray-50 border-b border-gray-200">{[t('First','الاسم الأول'),t('Last','الأخير'),t('DOB','تاريخ الميلاد'),t('Gender','الجنس'),t('Level','المستوى'),t('Grade','المرحلة')].map(h=><th key={h} className="px-3 py-2 text-left font-medium text-gray-500">{h}</th>)}</tr></thead>
+              <div className="max-h-60 overflow-auto rounded-lg border border-gray-200"><table className="w-full text-xs"><thead><tr className="bg-gray-50 border-b border-gray-200">{[t('First','الاسم الأول'),t('Last','الأخير'),t('DOB','تاريخ الميلاد'),t('Gender','الجنس'),t('Level','المستوى'),t('Grade','المرحلة')].map(h=><th key={h} className="px-3 py-2 text-start font-medium text-gray-500">{h}</th>)}</tr></thead>
               <tbody className="divide-y divide-gray-100">{preview.slice(0,10).map((r,i)=><tr key={i} className="hover:bg-gray-50"><td className="px-3 py-1.5 text-gray-900">{r.firstname}</td><td className="px-3 py-1.5 text-gray-900">{r.lastname}</td><td className="px-3 py-1.5 text-gray-600">{r.dateofbirth}</td><td className="px-3 py-1.5 text-gray-600">{r.gender}</td><td className="px-3 py-1.5 text-gray-900">{levelNameMap[r.levelid]||<span className="text-gray-400 font-mono">{r.levelid?.slice(0,8)}…</span>}</td><td className="px-3 py-1.5 text-gray-900">{r.schoolgrade||<span className="text-gray-400">—</span>}</td></tr>)}</tbody>
               </table>{preview.length>10&&<p className="text-xs text-gray-500 text-center py-2">{t(`...and ${preview.length-10} more rows`,`...و ${preview.length-10} صفوف أخرى`)}</p>}</div></div>)}
           </>)}

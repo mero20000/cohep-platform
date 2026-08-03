@@ -114,7 +114,7 @@ export default function StudentsClient() {
   },[filterLevel,filterGroup])
   useEffect(()=>{
     const fn=(e:KeyboardEvent)=>{
-      if(e.key==='Escape'){setShowForm(false);setShowDetail(false);setShowDelete(false);setShowImport(false);return}
+      if(e.key==='Escape'){setShowForm(false);setShowDetail(false);setShowDelete(false);setShowImport(false);setBulkOpen({delete:false,status:false,level:false,grade:false});return}
       if((e.ctrlKey||e.metaKey)&&e.key==='n'){e.preventDefault();if(!showForm)openCreate()}
       if((e.ctrlKey||e.metaKey)&&e.key==='e'&&selectedIds.size===1){e.preventDefault();const s=optimisticStudents.find(st=>selectedIds.has(st.id));if(s&&!showForm)openEdit(s)}
     }
@@ -166,7 +166,7 @@ export default function StudentsClient() {
         <div className="flex items-center gap-3">
           {can('student:export')&&<Button variant="outline" size="sm" onClick={handleExport}><Download className="h-4 w-4"/>{t('Export','تصدير')}</Button>}
           {can('student:import')&&<Button variant="outline" size="sm" onClick={()=>setShowImport(true)}><Upload className="h-4 w-4"/>{t('Import','استيراد')}</Button>}
-          {can('student:create')&&<Button size="sm" onClick={openCreate}><Plus className="h-4 w-4"/>{t('Add Student','إضافة طالب')}</Button>}
+          {can('student:create')&&<Button size="sm" onClick={openCreate} title={t('Add Student (Ctrl+N)','إضافة طالب (Ctrl+N)')}><Plus className="h-4 w-4"/>{t('Add Student','إضافة طالب')}</Button>}
         </div>
       </div>
 
@@ -218,10 +218,10 @@ export default function StudentsClient() {
 
       {previewPhotoUrl&&(
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 p-4" onClick={()=>setPreviewPhotoUrl('')}>
-          <div className="relative max-w-lg max-h-[80vh]" onClick={e=>e.stopPropagation()}>
+          <div role="dialog" aria-modal="true" aria-label={t('Student Photo','صورة الطالب')} className="relative max-w-lg max-h-[80vh]" onClick={e=>e.stopPropagation()}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={previewPhotoUrl} alt={selectedStudent ? `${selectedStudent.firstName} ${selectedStudent.lastName}` : 'Student photo'} className="max-w-full max-h-[75vh] rounded-2xl shadow-2xl object-contain"/>
-            <Button variant="ghost" size="icon" onClick={()=>setPreviewPhotoUrl('')} className="absolute -top-3 -right-3 rounded-full bg-white p-1.5 shadow-lg hover:bg-gray-100"><X className="h-4 w-4 text-gray-600"/></Button>
+            <Button variant="ghost" size="icon" onClick={()=>setPreviewPhotoUrl('')} className="absolute -top-3 -end-3 rounded-full bg-white p-1.5 shadow-lg hover:bg-gray-100"><X className="h-4 w-4 text-gray-600"/></Button>
           </div>
         </div>
       )}

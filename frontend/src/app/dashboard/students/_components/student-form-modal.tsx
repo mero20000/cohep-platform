@@ -21,6 +21,7 @@ interface Props {
 export function StudentFormModal({ student, activeLevels, allGroups, churches, gradeOptions, onClose, onSuccess, currentPage, onOptimisticAdd, lang }: Props) {
   const { toast } = useToast()
   const { can } = usePermission()
+  const dialogRef = useRef<HTMLFormElement>(null)
   const [form, setForm] = useState<StudentForm>(emptyForm)
   const [formErrors, setFormErrors] = useState<Record<string,string>>({})
   const [gradeGroups, setGradeGroups] = useState<Awaited<ReturnType<typeof fetchGradeGroups>>>([])
@@ -36,6 +37,10 @@ export function StudentFormModal({ student, activeLevels, allGroups, churches, g
 
   useEffect(() => {
     fetchGradeGroups().then(setGradeGroups).catch(() => {})
+  }, [])
+
+  useEffect(() => {
+    dialogRef.current?.focus()
   }, [])
 
   useEffect(() => {
@@ -90,7 +95,7 @@ export function StudentFormModal({ student, activeLevels, allGroups, churches, g
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
-      <form className="w-full max-w-lg rounded-2xl bg-white shadow-xl max-h-[90vh] flex flex-col" onClick={e=>e.stopPropagation()}
+      <form ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-label={student?t('Edit Student','تعديل الطالب'):t('Add New Student','إضافة طالب جديد')} className="w-full max-w-lg rounded-2xl bg-white shadow-xl max-h-[90vh] flex flex-col outline-none" onClick={e=>e.stopPropagation()}
         onSubmit={e=>{e.preventDefault();startTransition(()=>saveAction({form,photoFile,editing:student}))}}>
         <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4 flex-shrink-0">
           <h2 className="text-lg font-semibold">{student?t('Edit Student','تعديل الطالب'):t('Add New Student','إضافة طالب جديد')}</h2>
@@ -99,34 +104,34 @@ export function StudentFormModal({ student, activeLevels, allGroups, churches, g
         <div className="px-6 py-5 space-y-4 overflow-y-auto flex-1">
           {formState.error&&<div className="rounded-lg bg-red-50 border border-red-200 p-3 text-sm text-red-700">{formState.error}</div>}
           <div>
-            <label className="block text-sm font-medium text-gray-700">{t('Name *','الاسم *')}</label>
-            <input type="text" value={form.name} onChange={e=>setField('name',e.target.value)} placeholder={t('Full name','الاسم الكامل')} className={ic(formErrors.name)} />
+            <label htmlFor="sf-name" className="block text-sm font-medium text-gray-700">{t('Name *','الاسم *')}</label>
+            <input id="sf-name" type="text" value={form.name} onChange={e=>setField('name',e.target.value)} placeholder={t('Full name','الاسم الكامل')} className={ic(formErrors.name)} />
             {formErrors.name&&<p className="mt-1 text-xs text-red-500">{formErrors.name}</p>}
           </div>
           <div className="grid grid-cols-2 gap-4">
-            <div><label className="block text-sm font-medium text-gray-700">{t('First Name (Arabic)','الاسم الأول (عربي)')}</label><input type="text" value={form.firstNameAr} onChange={e=>setForm({...form,firstNameAr:e.target.value})} className={ic()} /></div>
-            <div><label className="block text-sm font-medium text-gray-700">{t('Last Name (Arabic)','الاسم الأخير (عربي)')}</label><input type="text" value={form.lastNameAr} onChange={e=>setForm({...form,lastNameAr:e.target.value})} className={ic()} /></div>
+            <div><label htmlFor="sf-name-ar" className="block text-sm font-medium text-gray-700">{t('First Name (Arabic)','الاسم الأول (عربي)')}</label><input id="sf-name-ar" type="text" value={form.firstNameAr} onChange={e=>setForm({...form,firstNameAr:e.target.value})} className={ic()} /></div>
+            <div><label htmlFor="sf-last-ar" className="block text-sm font-medium text-gray-700">{t('Last Name (Arabic)','الاسم الأخير (عربي)')}</label><input id="sf-last-ar" type="text" value={form.lastNameAr} onChange={e=>setForm({...form,lastNameAr:e.target.value})} className={ic()} /></div>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700">{t('Date of Birth *','تاريخ الميلاد *')}</label>
-              <DatePicker value={form.dateOfBirth} onChange={v=>setField('dateOfBirth',v)} max={new Date().toISOString().split('T')[0]} className={ic(formErrors.dateOfBirth)} />
+              <label htmlFor="sf-dob" className="block text-sm font-medium text-gray-700">{t('Date of Birth *','تاريخ الميلاد *')}</label>
+              <DatePicker id="sf-dob" value={form.dateOfBirth} onChange={v=>setField('dateOfBirth',v)} max={new Date().toISOString().split('T')[0]} className={ic(formErrors.dateOfBirth)} />
               {formErrors.dateOfBirth&&<p className="mt-1 text-xs text-red-500">{formErrors.dateOfBirth}</p>}
             </div>
-            <div><label className="block text-sm font-medium text-gray-700">{t('Gender *','الجنس *')}</label><select value={form.gender} onChange={e=>setForm({...form,gender:e.target.value})} className={ic()}><option value="male">{t('Male','ذكر')}</option><option value="female">{t('Female','أنثى')}</option></select></div>
+            <div><label htmlFor="sf-gender" className="block text-sm font-medium text-gray-700">{t('Gender *','الجنس *')}</label><select id="sf-gender" value={form.gender} onChange={e=>setForm({...form,gender:e.target.value})} className={ic()}><option value="male">{t('Male','ذكر')}</option><option value="female">{t('Female','أنثى')}</option></select></div>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700">{t('Level *','المستوى *')}</label>
-              <select value={form.levelId} onChange={e=>{setField('levelId',e.target.value);setForm(prev=>({...prev,levelId:e.target.value,schoolGrade:'',groupId:''}))}} className={ic(formErrors.levelId)}>
+              <label htmlFor="sf-level" className="block text-sm font-medium text-gray-700">{t('Level *','المستوى *')}</label>
+              <select id="sf-level" value={form.levelId} onChange={e=>{setField('levelId',e.target.value);setForm(prev=>({...prev,levelId:e.target.value,schoolGrade:'',groupId:''}))}} className={ic(formErrors.levelId)}>
                 <option value="">{t('Select level','اختر المستوى')}</option>
                 {activeLevels.map(l=><option key={l.id} value={l.id}>{l.name}</option>)}
               </select>
               {formErrors.levelId&&<p className="mt-1 text-xs text-red-500">{formErrors.levelId}</p>}
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700">{t('Group','المجموعة')}</label>
-              <div className={`${ic()} flex items-center justify-between bg-gray-50`}>
+              <label htmlFor="sf-group" className="block text-sm font-medium text-gray-700">{t('Group','المجموعة')}</label>
+              <div id="sf-group" className={`${ic()} flex items-center justify-between bg-gray-50`}>
                 <span className={form.groupId?'text-gray-900':'text-gray-400'}>
                   {form.groupId ? (formGroups.find(g=>g.id===form.groupId)?.name || form.groupName || t('Auto','تلقائي')) : t('Auto from grade','من الصف تلقائياً')}
                 </span>
@@ -135,22 +140,22 @@ export function StudentFormModal({ student, activeLevels, allGroups, churches, g
             </div>
           </div>
           <div className="grid grid-cols-2 gap-4">
-            <div><label className="block text-sm font-medium text-gray-700">{t('Church','الكنيسة')}</label><select value={form.churchName} onChange={e=>setForm({...form,churchName:e.target.value})} className={ic()}><option value="">{t('Select church','اختر الكنيسة')}</option>{churches.map(c=><option key={c.id} value={c.name}>{c.name}{c.city?`, ${c.city}`:''}</option>)}</select></div>
-            <div><label className="block text-sm font-medium text-gray-700">{t('Grade','المرحلة الدراسية')}</label><select value={form.schoolGrade} onChange={e=>{const g=e.target.value;const combo=form.levelId?gradeGroups.find(c=>c.levelId===form.levelId&&c.status==='active'&&c.gradeName===g):undefined;setForm({...form,schoolGrade:g,groupId:combo?.groupId||'',groupName:combo?.groupName||''})}} className={ic()}><option value="">{t('Select grade','اختر المرحلة')}</option>{mappedGrade.map(g=>{
+            <div><label htmlFor="sf-church" className="block text-sm font-medium text-gray-700">{t('Church','الكنيسة')}</label><select id="sf-church" value={form.churchName} onChange={e=>setForm({...form,churchName:e.target.value})} className={ic()}><option value="">{t('Select church','اختر الكنيسة')}</option>{churches.map(c=><option key={c.id} value={c.name}>{c.name}{c.city?`, ${c.city}`:''}</option>)}</select></div>
+            <div><label htmlFor="sf-grade" className="block text-sm font-medium text-gray-700">{t('Grade','المرحلة الدراسية')}</label><select id="sf-grade" value={form.schoolGrade} onChange={e=>{const g=e.target.value;const combo=form.levelId?gradeGroups.find(c=>c.levelId===form.levelId&&c.status==='active'&&c.gradeName===g):undefined;setForm({...form,schoolGrade:g,groupId:combo?.groupId||'',groupName:combo?.groupName||''})}} className={ic()}><option value="">{t('Select grade','اختر المرحلة')}</option>{mappedGrade.map(g=>{
               const combo = form.levelId ? gradeGroups.find(c=>c.levelId===form.levelId&&c.status==='active'&&c.gradeName===g) : undefined
               return <option key={g} value={g}>{combo?`${g} + ${combo.groupName}`:g}</option>
             })}</select>{comboGrades.length===0&&form.levelId&&<p className="mt-1 text-xs text-amber-600">{t('No grades mapped for this level yet — configure in Settings → Grades','لا توجد صفوف مربوطة بهذا المستوى بعد — قم بإعدادها من الإعدادات ← الصفوف')}</p>}</div>
           </div>
           <div className="grid grid-cols-2 gap-4">
-            <div><label className="block text-sm font-medium text-gray-700">{t('Phone','رقم الهاتف')}</label><input type="tel" value={form.phone} onChange={e=>setForm({...form,phone:e.target.value})} className={ic()} /></div>
-            <div><label className="block text-sm font-medium text-gray-700">{t('Email','البريد الإلكتروني')}</label><input type="email" value={form.email} onChange={e=>setForm({...form,email:e.target.value})} className={ic()} /></div>
+            <div><label htmlFor="sf-phone" className="block text-sm font-medium text-gray-700">{t('Phone','رقم الهاتف')}</label><input id="sf-phone" type="tel" value={form.phone} onChange={e=>setForm({...form,phone:e.target.value})} className={ic()} /></div>
+            <div><label htmlFor="sf-email" className="block text-sm font-medium text-gray-700">{t('Email','البريد الإلكتروني')}</label><input id="sf-email" type="email" value={form.email} onChange={e=>setForm({...form,email:e.target.value})} className={ic()} /></div>
           </div>
-          <div><label className="block text-sm font-medium text-gray-700">{t('Address','العنوان')}</label><input type="text" value={form.address} onChange={e=>setForm({...form,address:e.target.value})} className={ic()} /></div>
-          <div><label className="block text-sm font-medium text-gray-700">{t('Notes','ملاحظات')}</label><textarea rows={2} value={form.notes} onChange={e=>setForm({...form,notes:e.target.value})} className={ic()} /></div>
-          {can('student:edit-sensitive')&&<><div><label className="block text-sm font-medium text-gray-700">{t('Church Tool ID','معرف أداة الكنيسة')}</label><input type="text" value={form.churchToolId} onChange={e=>setForm({...form,churchToolId:e.target.value})} placeholder={t('Optional external ID','معرف خارجي اختياري')} className={ic()} /></div>
+          <div><label htmlFor="sf-address" className="block text-sm font-medium text-gray-700">{t('Address','العنوان')}</label><input id="sf-address" type="text" value={form.address} onChange={e=>setForm({...form,address:e.target.value})} className={ic()} /></div>
+          <div><label htmlFor="sf-notes" className="block text-sm font-medium text-gray-700">{t('Notes','ملاحظات')}</label><textarea id="sf-notes" rows={2} value={form.notes} onChange={e=>setForm({...form,notes:e.target.value})} className={ic()} /></div>
+          {can('student:edit-sensitive')&&<><div><label htmlFor="sf-ctid" className="block text-sm font-medium text-gray-700">{t('Church Tool ID','معرف أداة الكنيسة')}</label><input id="sf-ctid" type="text" value={form.churchToolId} onChange={e=>setForm({...form,churchToolId:e.target.value})} placeholder={t('Optional external ID','معرف خارجي اختياري')} className={ic()} /></div>
           <div>
-            <label className="block text-sm font-medium text-gray-700">{t('Parent Email (link)','بريد ولي الأمر (رابط)')}</label>
-            <input type="email" value={form.parentEmail} onChange={e=>setForm({...form,parentEmail:e.target.value})} placeholder={t("Parent's login email",'بريد دخول ولي الأمر')} className={ic()} />
+            <label htmlFor="sf-parent" className="block text-sm font-medium text-gray-700">{t('Parent Email (link)','بريد ولي الأمر (رابط)')}</label>
+            <input id="sf-parent" type="email" value={form.parentEmail} onChange={e=>setForm({...form,parentEmail:e.target.value})} placeholder={t("Parent's login email",'بريد دخول ولي الأمر')} className={ic()} />
             <p className="mt-1 text-xs text-gray-500">{t('Any student with this email appears automatically on the parent dashboard','أي طالب يحمل هذا البريد يظهر تلقائياً في لوحة ولي الأمر')}</p>
           </div></>}
           {/* Photo */}
@@ -165,7 +170,7 @@ export function StudentFormModal({ student, activeLevels, allGroups, churches, g
                 <Button type="button" variant="outline" onClick={()=>photoRef.current?.click()} className="inline-flex items-center gap-1.5">
                   <Camera className="h-4 w-4" />{photoFile||form.photoUrl?t('Change Photo','تغيير الصورة'):t('Upload Photo','رفع صورة')}
                 </Button>
-                {(photoFile||form.photoUrl)&&<Button type="button" variant="ghost" size="sm" onClick={()=>{revoke();setPhotoFile(null);setForm({...form,photoUrl:''})}} className="ml-2 text-red-500 hover:text-red-700">{t('Remove','إزالة')}</Button>}
+                {(photoFile||form.photoUrl)&&<Button type="button" variant="ghost" size="sm" onClick={()=>{revoke();setPhotoFile(null);setForm({...form,photoUrl:''})}} className="ms-2 text-red-500 hover:text-red-700">{t('Remove','إزالة')}</Button>}
               </div>
             </div>
           </div>

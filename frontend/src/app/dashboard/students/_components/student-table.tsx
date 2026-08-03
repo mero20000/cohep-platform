@@ -81,22 +81,22 @@ export function StudentTable({ students, loading, fetchError, selectedIds, allSe
       {/* Mobile */}
       <div className="md:hidden divide-y divide-gray-100">
         {students.map(s => (
-          <div key={s.id} className={`px-4 py-3 border-l-4 ${STATUS_STYLE[s.status]?.bar || 'border-l-transparent'}`}>
+          <div key={s.id} onClick={() => onView(s)} className={`px-4 py-3 border-s-4 ${STATUS_STYLE[s.status]?.bar || 'border-s-transparent'} cursor-pointer hover:bg-gray-50`}>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3 min-w-0 flex-1">
-                <input type="checkbox" checked={selectedIds.has(s.id)} onChange={e => toggleId(s.id,(e.nativeEvent as MouseEvent).shiftKey)} className="h-4 w-4 rounded border-gray-300 text-gold-500 shrink-0" />
-                <AvatarCell s={s} size={36} onPreview={onPreviewPhoto} />
+                <input type="checkbox" checked={selectedIds.has(s.id)} onClick={e => e.stopPropagation()} onChange={e => toggleId(s.id,(e.nativeEvent as MouseEvent).shiftKey)} className="h-4 w-4 rounded border-gray-300 accent-gold-600 shrink-0" />
+                    <AvatarCell s={s} size={36} onPreview={onPreviewPhoto} lang={lang} />
                 <div className="min-w-0">
                   <div className="text-sm font-medium text-gray-900 truncate">{s.firstName} {s.lastName}</div>
                   <div className="flex items-center gap-1.5 mt-0.5">
-                    <span className="text-[11px] text-gray-500">#{s.studentCode}</span>
+                    <span className="text-xs text-gray-500">#{s.studentCode}</span>
                     <StatusBadge status={s.status} lang={lang} />
                   </div>
                 </div>
               </div>
-              <Actions s={s} onView={onView} onEdit={onEdit} onDelete={onDelete} lang={lang} />
+              <div onClick={e => e.stopPropagation()}><Actions s={s} onView={onView} onEdit={onEdit} onDelete={onDelete} lang={lang} /></div>
             </div>
-            <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-500 ml-10">
+            <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-500 ms-10">
               {s.level?.name && <span>{s.level.name}{s.group?.name ? ` · ${s.group.name}` : ''}</span>}
               {s.gender && <span>{s.gender === 'female' ? t('Female','أنثى') : t('Male','ذكر')}</span>}
               {s.schoolGrade && <span>{s.schoolGrade}</span>}
@@ -112,27 +112,30 @@ export function StudentTable({ students, loading, fetchError, selectedIds, allSe
           <thead>
             <tr className="border-b border-gray-100 bg-gray-50/50">
               <th className="px-2 py-3 w-10">
-                <input type="checkbox" checked={allSelected} onChange={toggleAll} className="h-4 w-4 rounded border-gray-300 text-gold-500" />
+                <input type="checkbox" checked={allSelected} onChange={toggleAll} className="h-4 w-4 rounded border-gray-300 accent-gold-600" />
               </th>
               {COLS.map(([key, en, ar]) => (
                 <th key={key} scope="col" onClick={() => toggleSort(key)}
-                  className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer select-none hover:text-gray-700 ${key!=='name'&&key!=='status'?'hidden md:table-cell':''}`}>
+                  onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleSort(key) } }}
+                  role="button" tabIndex={0}
+                  aria-sort={sortKey === key ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}
+                  className={`px-4 py-3 text-start text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer select-none hover:text-gray-700 ${key!=='name'&&key!=='status'?'hidden md:table-cell':''} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-inset`}>
                   <span className="inline-flex items-center gap-1">
                     {lang==='ar'?ar:en}
                     <ArrowUpDown className={`h-3 w-3 transition-opacity ${sortKey===key?'opacity-100 text-gold-500':'opacity-30'}`} />
                   </span>
                 </th>
               ))}
-              <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">{lang==='ar'?'الإجراءات':'Actions'}</th>
+              <th className="px-4 py-3 text-end text-xs font-medium uppercase tracking-wider text-gray-500">{lang==='ar'?'الإجراءات':'Actions'}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
             {students.map(s => (
-              <tr key={s.id} className={`hover:bg-gray-100 transition-colors border-l-4 cursor-pointer ${STATUS_STYLE[s.status]?.bar||'border-l-transparent'}`}>
-                <td className="px-2 py-3"><input type="checkbox" checked={selectedIds.has(s.id)} onChange={e=>toggleId(s.id,(e.nativeEvent as MouseEvent).shiftKey)} className="h-4 w-4 rounded border-gray-300 text-gold-500" /></td>
+              <tr key={s.id} onClick={() => onView(s)} className={`hover:bg-gray-100 transition-colors border-s-4 cursor-pointer ${STATUS_STYLE[s.status]?.bar||'border-s-transparent'}`}>
+                <td className="px-2 py-3" onClick={e => e.stopPropagation()}><input type="checkbox" checked={selectedIds.has(s.id)} onClick={e => e.stopPropagation()} onChange={e=>toggleId(s.id,(e.nativeEvent as MouseEvent).shiftKey)} className="h-4 w-4 rounded border-gray-300 accent-gold-600" /></td>
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-3">
-                    <AvatarCell s={s} size={36} onPreview={onPreviewPhoto} />
+                <AvatarCell s={s} size={36} onPreview={onPreviewPhoto} lang={lang} />
                     <div className="min-w-0">
                       <div className="text-sm font-medium text-gray-900 truncate">{s.firstName} {s.lastName}</div>
                       {s.firstNameAr && <div className="text-xs text-gray-400 truncate">{s.firstNameAr} {s.lastNameAr}</div>}
@@ -148,20 +151,20 @@ export function StudentTable({ students, loading, fetchError, selectedIds, allSe
                 <td className="hidden md:table-cell px-4 py-3 text-sm text-gray-600 max-w-[120px] truncate">{s.churchName||'—'}</td>
                 <td className="hidden md:table-cell px-4 py-3 text-sm text-gray-900">{s.schoolGrade||'—'}</td>
                 <td className="px-4 py-3"><StatusBadge status={s.status} lang={lang} /></td>
-                <td className="px-4 py-3 text-right"><Actions s={s} onView={onView} onEdit={onEdit} onDelete={onDelete} lang={lang} /></td>
+                <td className="px-4 py-3 text-end" onClick={e => e.stopPropagation()}><Actions s={s} onView={onView} onEdit={onEdit} onDelete={onDelete} lang={lang} /></td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
       <div className="border-t border-gray-100">
-        <Pagination page={pagination.page} totalPages={pagination.totalPages} total={pagination.total} onPageChange={onPageChange} />
+        <Pagination page={pagination.page} totalPages={pagination.totalPages} total={pagination.total} onPageChange={onPageChange} lang={lang} />
       </div>
     </div>
   )
 }
-function AvatarCell({ s, size, onPreview }: { s: Student; size: number; onPreview: (u: string) => void }) {
-  if (s.photoUrl) return <Button type="button" variant="ghost" size="icon" onClick={() => onPreview(photoSrc(s.photoUrl))} className="flex-shrink-0"><Image src={photoSrc(s.photoUrl)} alt="" width={size} height={size} className="rounded-full object-cover border border-gray-200 cursor-pointer hover:ring-2 hover:ring-gold-400" style={{width:size,height:size}} /></Button>
+function AvatarCell({ s, size, onPreview, lang }: { s: Student; size: number; onPreview: (u: string) => void; lang: 'en'|'ar' }) {
+  if (s.photoUrl) return <Button type="button" variant="ghost" size="icon" onClick={() => onPreview(photoSrc(s.photoUrl))} aria-label={`${lang==='ar'?'عرض صورة':'View photo'} ${s.firstName} ${s.lastName}`} className="flex-shrink-0"><Image src={photoSrc(s.photoUrl)} alt="" width={size} height={size} className="rounded-full object-cover border border-gray-200 cursor-pointer hover:ring-2 hover:ring-gold-400" style={{width:size,height:size}} /></Button>
   return <div className={`flex items-center justify-center rounded-full text-sm font-bold flex-shrink-0 ${s.gender==='female'?'bg-pink-100 text-pink-700':'bg-blue-100 text-blue-700'}`} style={{width:size,height:size}}>{s.firstName[0]}{s.lastName?.[0]??''}</div>
 }
 function StatusBadge({ status, lang }: { status: string; lang: 'en'|'ar' }) {

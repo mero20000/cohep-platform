@@ -30,8 +30,8 @@ export function AssignedServants({ servants, loading, show, onToggle, lang }: Pr
               <div className="flex-1 min-w-0">
                 <div className="text-sm font-medium text-gray-900 truncate">{s.firstName} {s.lastName}</div>
                 <div className="flex items-center gap-1.5 flex-wrap">
-                  <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full border ${roleBg}`}>{role?.role?.displayName||t('Servant','خادم')}</span>
-                  {subjects.slice(0,2).map((sub:string)=><span key={sub} className="text-[10px] text-gray-500 bg-white px-1.5 py-0.5 rounded border border-gray-200">{SUBJ[sub]?(lang==='ar'?SUBJ[sub].ar:SUBJ[sub].en):sub}</span>)}
+                  <span className={`text-[11px] font-medium px-1.5 py-0.5 rounded-full border ${roleBg}`}>{role?.role?.displayName||t('Servant','خادم')}</span>
+                  {subjects.slice(0,2).map((sub:string)=><span key={sub} className="text-[11px] text-gray-500 bg-white px-1.5 py-0.5 rounded border border-gray-200">{SUBJ[sub]?(lang==='ar'?SUBJ[sub].ar:SUBJ[sub].en):sub}</span>)}
                 </div>
               </div>
             </div>

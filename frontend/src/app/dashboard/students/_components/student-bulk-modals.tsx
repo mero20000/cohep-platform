@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Loader2, Trash2, AlertTriangle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { http } from '@/lib/http-client'
@@ -43,7 +43,7 @@ export function StudentBulkModals({ showBulkDelete, showBulkStatus, showBulkLeve
 
   return (
     <>
-      {showBulkDelete&&<M onClose={()=>{setConfirmText('');onClose('delete')}}>
+      {showBulkDelete&&<M label={t('Delete Students','حذف الطلاب')} onClose={()=>{setConfirmText('');onClose('delete')}}>
         <div className="flex h-12 w-12 items-center justify-center rounded-full bg-red-100 mx-auto"><Trash2 className="h-6 w-6 text-red-600"/></div>
         <h3 className="mt-4 text-lg font-semibold text-center text-gray-900">{t(`Delete ${ids.length} Students`,`حذف ${ids.length} طالب`)}</h3>
         <p className="mt-2 text-sm text-gray-500 text-center">{t('Are you sure you want to delete','هل أنت متأكد من حذف')} <strong>{ids.length}</strong> {t('students?','طالب؟')}</p>
@@ -72,13 +72,13 @@ export function StudentBulkModals({ showBulkDelete, showBulkStatus, showBulkLeve
         </div>
       </M>}
 
-      {showBulkStatus&&<M onClose={()=>onClose('status')}>
+      {showBulkStatus&&<M label={t('Change Status','تغيير الحالة')} onClose={()=>onClose('status')}>
         <h3 className="text-lg font-semibold text-gray-900">{t('Change Status','تغيير الحالة')}</h3>
         <p className="mt-1 text-sm text-gray-500">{ids.length} {t('students will be updated','طالب سيتم تحديثهم')}</p>
         <div className="mt-4 space-y-2">
           {(['active','inactive','graduated'] as const).map(st=>(
             <label key={st} className="flex items-center gap-3 rounded-lg border border-gray-200 p-3 cursor-pointer hover:bg-gray-50 has-[:checked]:border-gold-500 has-[:checked]:bg-blue-50">
-              <input type="radio" name="bulkStatus" value={st} checked={bulkStatus===st} onChange={()=>setBulkStatus(st)} className="h-4 w-4 text-gold-500 focus:ring-blue-500"/>
+              <input type="radio" name="bulkStatus" value={st} checked={bulkStatus===st} onChange={()=>setBulkStatus(st)} className="h-4 w-4 accent-gold-600 focus:ring-blue-500"/>
               <span className="text-sm font-medium text-gray-900">{st==='active'?t('Active','نشط'):st==='inactive'?t('Inactive','غير نشط'):t('Graduated','متخرج')}</span>
             </label>
           ))}
@@ -89,7 +89,7 @@ export function StudentBulkModals({ showBulkDelete, showBulkStatus, showBulkLeve
         </div>
       </M>}
 
-      {showBulkLevel&&<M onClose={()=>onClose('level')}>
+      {showBulkLevel&&<M label={t('Change Level / Group','تغيير المستوى / المجموعة')} onClose={()=>onClose('level')}>
         <h3 className="text-lg font-semibold text-gray-900">{t('Change Level / Group','تغيير المستوى / المجموعة')}</h3>
         <p className="mt-1 text-sm text-gray-500">{ids.length} {t('students will be updated','طالب سيتم تحديثهم')}</p>
         <div className="mt-4 space-y-4">
@@ -102,7 +102,7 @@ export function StudentBulkModals({ showBulkDelete, showBulkStatus, showBulkLeve
         </div>
       </M>}
 
-      {showBulkGrade&&<M onClose={()=>onClose('grade')}>
+      {showBulkGrade&&<M label={t('Change Grade','تغيير المرحلة الدراسية')} onClose={()=>onClose('grade')}>
         <h3 className="text-lg font-semibold text-gray-900">{t('Change Grade','تغيير المرحلة الدراسية')}</h3>
         <p className="mt-1 text-sm text-gray-500">{ids.length} {t('students will be updated','طالب سيتم تحديثهم')}</p>
         <div className="mt-4"><label className="block text-sm font-medium text-gray-700 mb-1">{t('School Grade','المرحلة الدراسية')}</label><select value={bulkGrade} onChange={e=>setBulkGrade(e.target.value)} className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gold-500 focus:outline-none"><option value="">{t('Select grade','اختر المرحلة')}</option>{gradeOptions.map(g=><option key={g} value={g}>{g}</option>)}</select></div>
@@ -114,6 +114,8 @@ export function StudentBulkModals({ showBulkDelete, showBulkStatus, showBulkLeve
     </>
   )
 }
-function M({ children, onClose }: { children: React.ReactNode; onClose: () => void }) {
-  return <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}><div className="w-full max-w-sm rounded-2xl bg-white shadow-xl p-6" onClick={e=>e.stopPropagation()}>{children}</div></div>
+function M({ children, onClose, label }: { children: React.ReactNode; onClose: () => void; label?: string }) {
+  const ref = useRef<HTMLDivElement>(null)
+  useEffect(() => { ref.current?.focus() }, [])
+  return <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}><div ref={ref} tabIndex={-1} role="dialog" aria-modal="true" aria-label={label} className="w-full max-w-sm rounded-2xl bg-white shadow-xl p-6 outline-none" onClick={e=>e.stopPropagation()}>{children}</div></div>
 }
