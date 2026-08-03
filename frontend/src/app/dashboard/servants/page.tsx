@@ -4,9 +4,10 @@ import Image from 'next/image'
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import {
   Search, Plus, Pencil, Trash2, X, Loader2, Upload, UserCheck,
-  User, Mail, Phone, Shield, Filter, GraduationCap, BookOpen,
+  User, Phone, Shield, GraduationCap,
 } from 'lucide-react'
 import { StatCard } from '@/components/ui/stat-card'
+import { EmptyState } from '@/components/ui/empty-state'
 import { useToast } from '@/components/ui/toast'
 import { Button } from '@/components/ui/button'
 import { Modal } from '@/components/ui/modal'
@@ -15,7 +16,7 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { http } from '@/lib/http-client'
 import { getSchoolId } from '@/lib/school'
 import { useLanguage } from '@/lib/use-language'
-import { SERVANT_ROLES, ROLES } from '@/lib/roles'
+import { SERVANT_ROLES } from '@/lib/roles'
 
 const API_ORIGIN = process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'http://localhost:3001'
 
@@ -47,10 +48,6 @@ const TEACHING_SUBJECTS = [
   { value: 'coptic_rites', label: 'Coptic Rites', arabicLabel: 'الطقوس القبطية' },
   { value: 'coptic_language', label: 'Coptic Language', arabicLabel: 'اللغة القبطية' },
 ]
-
-const ROLE_DISPLAY: Record<string, string> = Object.fromEntries(
-  ROLES.filter(r => SERVANT_ROLES.includes(r.value)).map(r => [r.value, r.label])
-)
 
 const ROLE_BADGE: Record<string, { bg: string; text: string }> = {
   servant: { bg: 'bg-blue-50', text: 'text-blue-700' },
@@ -137,7 +134,6 @@ export default function ServantsPage() {
 
   useEffect(() => {
     http.get<any>('/users/schools/me').then(s => {
-      const API_ORIGIN = process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'http://localhost:3001'
       const churchName = s?.church?.name || s?.church?.schoolNameEn || ''
       const name = s?.church?.schoolNameEn || s?.name || ''
       const nameAr = s?.church?.schoolNameAr || s?.nameAr || ''
@@ -212,11 +208,16 @@ export default function ServantsPage() {
     }
   }
 
+  const revokePhoto = () => {
+    if (previewUrl) URL.revokeObjectURL(previewUrl)
+    setPhotoFile(null)
+    setPreviewUrl(null)
+  }
+
   const openCreate = () => {
     setEditing(null)
     setForm({ firstName: '', lastName: '', firstNameAr: '', lastNameAr: '', email: '', phone: '', password: '', roleName: 'servant', levelId: '', groupId: '', teachingSubjects: [] })
-    setPhotoFile(null)
-    setPreviewUrl(null)
+    revokePhoto()
     setFormError('')
     setEmailError('')
     setDirty(false)
@@ -235,8 +236,7 @@ export default function ServantsPage() {
       groupId: meta.groupId || '',
       teachingSubjects: meta.teachingSubjects || [],
     })
-    setPhotoFile(null)
-    setPreviewUrl(null)
+    revokePhoto()
     setFormError('')
     setEmailError('')
     setDirty(false)
@@ -247,6 +247,7 @@ export default function ServantsPage() {
     if (dirty) {
       setShowDiscardConfirm(true)
     } else {
+      revokePhoto()
       setShowForm(false)
     }
   }
@@ -299,6 +300,7 @@ export default function ServantsPage() {
         toast('success', lang === 'ar' ? 'تم إنشاء الخادم' : 'Servant created')
       }
       setShowForm(false)
+      revokePhoto()
       fetchServants()
     } catch (err: any) {
       const msg = err?.message || (lang === 'ar' ? 'فشل الحفظ' : 'Failed to save')
@@ -372,33 +374,33 @@ export default function ServantsPage() {
       <div className="rounded-xl border border-gray-200 bg-white">
         <div className="flex flex-wrap items-center gap-3 px-6 py-3">
           <div className="relative flex-1 min-w-[200px] max-w-xs">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-            <input type="text" placeholder={lang === 'ar' ? 'بحث عن خدام...' : 'Search servants...'} value={search}
+            <Search className="absolute start-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500" />
+            <input type="text" aria-label={lang === 'ar' ? 'بحث عن خدام' : 'Search servants'} placeholder={lang === 'ar' ? 'بحث عن خدام...' : 'Search servants...'} value={search}
               onChange={e => setSearch(e.target.value)}
-              className="w-full rounded-lg border border-gray-300 pl-9 pr-3 py-2 text-sm focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-blue-500" />
+              className="w-full rounded-lg border border-gray-300 ps-9 pe-3 py-2 text-sm focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-blue-500" />
           </div>
-          <select value={filterRole} onChange={e => setFilterRole(e.target.value)}
+          <select aria-label={lang === 'ar' ? 'تصفية حسب الدور' : 'Filter by role'} value={filterRole} onChange={e => setFilterRole(e.target.value)}
             className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
             <option value="">{lang === 'ar' ? 'جميع الأدوار' : 'All Roles'}</option>
             {roles.map(r => (
               <option key={r.name} value={r.name}>{r.displayName}</option>
             ))}
           </select>
-          <select value={filterLevel} onChange={e => { setFilterLevel(e.target.value); setFilterGroup('') }}
+          <select aria-label={lang === 'ar' ? 'تصفية حسب المستوى' : 'Filter by level'} value={filterLevel} onChange={e => { setFilterLevel(e.target.value); setFilterGroup('') }}
             className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
             <option value="">{lang === 'ar' ? 'جميع المستويات' : 'All Levels'}</option>
             {levels.filter(l => l.status !== 'inactive').map(l => (
               <option key={l.id} value={l.id}>{l.name}</option>
             ))}
           </select>
-          <select value={filterGroup} onChange={e => setFilterGroup(e.target.value)} disabled={!filterLevel}
+          <select aria-label={lang === 'ar' ? 'تصفية حسب المجموعة' : 'Filter by group'} value={filterGroup} onChange={e => setFilterGroup(e.target.value)} disabled={!filterLevel}
             className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:opacity-50">
             <option value="">{lang === 'ar' ? 'جميع المجموعات' : 'All Groups'}</option>
             {filteredGroups.map(g => (
               <option key={g.id} value={g.id}>{g.name}</option>
             ))}
           </select>
-          <select value={filterSubject} onChange={e => setFilterSubject(e.target.value)}
+          <select aria-label={lang === 'ar' ? 'تصفية حسب المادة' : 'Filter by subject'} value={filterSubject} onChange={e => setFilterSubject(e.target.value)}
             className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
             <option value="">{lang === 'ar' ? 'جميع المواد' : 'All Subjects'}</option>
             {TEACHING_SUBJECTS.map(s => (
@@ -408,7 +410,7 @@ export default function ServantsPage() {
           {hasActiveFilters && (
             <Button variant="ghost" size="sm" onClick={() => { setSearch(''); setFilterRole(''); setFilterLevel(''); setFilterGroup(''); setFilterSubject('') }}
               >
-              <X className="h-4 w-4 inline mr-1" />{lang === 'ar' ? 'مسح' : 'Clear'}
+              <X className="h-4 w-4 inline ms-1" />{lang === 'ar' ? 'مسح' : 'Clear'}
             </Button>
           )}
         </div>
@@ -419,21 +421,36 @@ export default function ServantsPage() {
             <Loader2 className="h-6 w-6 animate-spin text-gold-500" />
           </div>
         ) : filteredServants.length === 0 ? (
-          <div className="px-6 py-12 text-center">
-            <UserCheck className="h-10 w-10 text-gray-300 mx-auto" />
-            <p className="mt-2 text-sm text-gray-500">{lang === 'ar' ? 'لم يتم العثور على خدام' : 'No servants found'}</p>
-          </div>
+          <EmptyState
+            size="md"
+            title={lang === 'ar' ? 'لم يتم العثور على خدام' : 'No servants found'}
+            description={servants.length === 0
+              ? (lang === 'ar' ? 'ابدأ بإضافة أول خادم إلى مدرستك.' : 'Start by adding your first servant.')
+              : (lang === 'ar' ? 'جرب تعديل معايير البحث أو مسح الفلاتر.' : 'Try adjusting your search or clearing the filters.')}
+            icon={UserCheck}
+            action={
+              hasActiveFilters ? (
+                <Button variant="outline" size="sm" onClick={() => { setSearch(''); setFilterRole(''); setFilterLevel(''); setFilterGroup(''); setFilterSubject('') }}>
+                  <X className="h-4 w-4 inline ms-1" />{lang === 'ar' ? 'مسح الفلاتر' : 'Clear Filters'}
+                </Button>
+              ) : (
+                <Button size="sm" onClick={openCreate}>
+                  <Plus className="h-4 w-4" />{lang === 'ar' ? 'إضافة خادم' : 'Add Servant'}
+                </Button>
+              )
+            }
+          />
         ) : (
           <div className="overflow-x-auto table-to-cards">
             <table className="w-full">
               <thead>
                 <tr className="border-t border-gray-100 bg-gray-50/50">
-                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">{lang === 'ar' ? 'الخادم' : 'Servant'}</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">{lang === 'ar' ? 'الدور' : 'Role'}</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 hidden md:table-cell">{lang === 'ar' ? 'المستوى / المجموعة' : 'Level / Group'}</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 hidden lg:table-cell">{lang === 'ar' ? 'التدريس' : 'Teaching'}</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 hidden lg:table-cell">{lang === 'ar' ? 'الاتصال' : 'Contact'}</th>
-                  <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">{lang === 'ar' ? 'الإجراءات' : 'Actions'}</th>
+                  <th className="px-6 py-3 text-start text-xs font-medium uppercase tracking-wider text-gray-500">{lang === 'ar' ? 'الخادم' : 'Servant'}</th>
+                  <th className="px-6 py-3 text-start text-xs font-medium uppercase tracking-wider text-gray-500">{lang === 'ar' ? 'الدور' : 'Role'}</th>
+                  <th className="px-6 py-3 text-start text-xs font-medium uppercase tracking-wider text-gray-500 hidden md:table-cell">{lang === 'ar' ? 'المستوى / المجموعة' : 'Level / Group'}</th>
+                  <th className="px-6 py-3 text-start text-xs font-medium uppercase tracking-wider text-gray-500 hidden lg:table-cell">{lang === 'ar' ? 'التدريس' : 'Teaching'}</th>
+                  <th className="px-6 py-3 text-start text-xs font-medium uppercase tracking-wider text-gray-500 hidden lg:table-cell">{lang === 'ar' ? 'الاتصال' : 'Contact'}</th>
+                  <th className="px-6 py-3 text-end text-xs font-medium uppercase tracking-wider text-gray-500">{lang === 'ar' ? 'الإجراءات' : 'Actions'}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
@@ -453,8 +470,11 @@ export default function ServantsPage() {
                             )}
                           </div>
                           <div>
-                            <div className="text-sm font-medium text-gray-900">{s.firstName} {s.lastName}</div>
-                            <div className="text-xs text-gray-400">{s.email}</div>
+                            <div className="flex items-center gap-2 text-sm font-medium text-gray-900">
+                              <span>{s.firstName} {s.lastName}</span>
+                              <span title={s.isActive ? (lang === 'ar' ? 'نشط' : 'Active') : (lang === 'ar' ? 'غير نشط' : 'Inactive')} className={`inline-block h-2 w-2 rounded-full flex-shrink-0 ${s.isActive ? 'bg-green-500' : 'bg-gray-300'}`} />
+                            </div>
+                            <div className="text-xs text-gray-500">{s.email}</div>
                           </div>
                         </div>
                       </td>
@@ -489,7 +509,7 @@ export default function ServantsPage() {
                           )}
                         </div>
                       </td>
-                      <td data-label="Actions" className="px-6 py-3.5 text-right">
+                      <td data-label="Actions" className="px-6 py-3.5 text-end">
                         <div className="flex items-center justify-end gap-1">
                           <Button variant="ghost" size="icon" onClick={() => openEdit(s)} aria-label={lang === 'ar' ? `تعديل ${s.firstName}` : `Edit ${s.firstName}`} title={lang === 'ar' ? 'تعديل' : 'Edit'}
                             >
@@ -532,7 +552,7 @@ export default function ServantsPage() {
           <div className="flex items-center gap-4">
             <div className="flex h-16 w-16 items-center justify-center rounded-full bg-blue-50 overflow-hidden border-2 border-dashed border-gray-300 flex-shrink-0">
               {photoFile ? (
-                <Image src={previewUrl || URL.createObjectURL(photoFile)} alt="" width={64} height={64} className="h-16 w-16 object-cover"  />
+                <Image src={previewUrl || ''} alt="" width={64} height={64} className="h-16 w-16 object-cover"  />
               ) : editing?.avatarUrl ? (
                 <Image src={`${API_ORIGIN}${editing.avatarUrl}`} alt="" width={64} height={64} className="h-16 w-16 object-cover"  />
               ) : (
@@ -552,7 +572,7 @@ export default function ServantsPage() {
                   setPreviewUrl(URL.createObjectURL(file))
                 }
               }} />
-              <p className="text-xs text-gray-400 mt-1">{lang === 'ar' ? 'JPG، PNG. حد أقصى 5 ميجابايت' : 'JPG, PNG. Max 5MB'}</p>
+              <p className="text-xs text-gray-500 mt-1">{lang === 'ar' ? 'JPG، PNG. حد أقصى 5 ميجابايت' : 'JPG, PNG. Max 5MB'}</p>
             </div>
           </div>
 
@@ -571,7 +591,7 @@ export default function ServantsPage() {
             <FormField label={lang === 'ar' ? 'الهاتف' : 'Phone'} type="tel" value={form.phone} onChange={e => updateField('phone', e.target.value)} />
           </div>
           {!editing && (
-            <FormField label={lang === 'ar' ? 'كلمة المرور' : 'Password'} type="password" value={form.password} onChange={e => updateField('password', e.target.value)} placeholder={lang === 'ar' ? 'القيمة الافتراضية: Password123!' : 'Default: Password123!'} />
+            <FormField label={lang === 'ar' ? 'كلمة المرور' : 'Password'} type="password" value={form.password} onChange={e => updateField('password', e.target.value)} hint={lang === 'ar' ? 'اتركه فارغاً لاستخدام كلمة المرور الافتراضية: Password123!' : 'Leave blank to use the default password: Password123!'} placeholder={lang === 'ar' ? 'أدخل كلمة مرور' : 'Enter a password'} />
           )}
 
           <div>
@@ -628,7 +648,7 @@ export default function ServantsPage() {
       <ConfirmDialog
         open={showDiscardConfirm}
         onClose={() => setShowDiscardConfirm(false)}
-        onConfirm={() => { setShowDiscardConfirm(false); setShowForm(false) }}
+        onConfirm={() => { setShowDiscardConfirm(false); revokePhoto(); setShowForm(false) }}
         title={lang === 'ar' ? 'تجاهل التغييرات' : 'Discard changes?'}
         message={lang === 'ar' ? 'لديك تغييرات غير محفوظة. هل تريد تجاهلها؟' : 'You have unsaved changes. Discard them?'}
         confirmLabel={lang === 'ar' ? 'تجاهل' : 'Discard'}
