@@ -49,21 +49,26 @@ const content = {
         { value: '100%', label: 'Free & open-source' },
       ],
     },
-    challenge: {
-      eyebrow: 'The Challenge',
-      headline: 'Faithful servants. Fragile systems.',
-      body: 'Every week, servants across the Coptic world teach hymns from memory, track students on paper, and rely on WhatsApp groups to keep parents informed. They are faithful. But the system was never built to support them.\n\nWhen a servant burns out, the knowledge goes with them. When a child falls behind, no one knows. When a parent cannot see what their child is learning, belonging is quietly lost.\n\nThis is not a failure of faith. It is a failure of infrastructure.',
-    },
-    solution: {
-      eyebrow: 'The Response',
-      headline: 'That\'s why COHEP exists.',
-      body: 'COHEP is not software. It is a ministry. A free, open-source platform built by the Coptic Orthodox community to give every servant the tools they need: without cost, without complexity, without compromise.\n\nThe Church is the teacher. The servant is the hero. COHEP simply holds the records, tracks the progress, and keeps the threads from fraying.',
+    why: {
+      headline: 'Why COHEP exists.',
+      beats: [
+        {
+          num: '01',
+          headline: 'Faithful servants. Fragile systems.',
+          body: 'Every week, servants across the Coptic world teach hymns from memory, track students on paper, and rely on WhatsApp groups to keep parents informed. They are faithful. But the system was never built to support them.\n\nWhen a servant burns out, the knowledge goes with them. When a child falls behind, no one knows. When a parent cannot see what their child is learning, belonging is quietly lost.\n\nThis is not a failure of faith. It is a failure of infrastructure.',
+        },
+        {
+          num: '02',
+          headline: 'The Church is the teacher. The servant is the hero.',
+          body: 'COHEP is not software. It is a ministry. A free, open-source platform built by the Coptic Orthodox community to give every servant the tools they need: without cost, without complexity, without compromise.\n\nCOHEP simply holds the records, tracks the progress, and keeps the threads from fraying.',
+        },
+        {
+          num: '03',
+          headline: 'One global community of churches, one living tradition.',
+          body: 'Imagine thousands of Coptic churches around the world (from Cairo to Sydney, from Los Angeles to London) sharing a single curriculum, collaborating on hymn recordings, and tracking the spiritual growth of an entire generation. Not as a corporation. As a Church.\n\nThat is what COHEP is building toward.',
+        },
+      ],
       cta: 'Explore the Platform',
-    },
-    vision: {
-      eyebrow: 'Vision',
-      headline: 'One global community of churches, one living tradition.',
-      body: 'Imagine thousands of Coptic churches around the world (from Cairo to Sydney, from Los Angeles to London) sharing a single curriculum, collaborating on hymn recordings, and tracking the spiritual growth of an entire generation. Not as a corporation. As a Church.\n\nThat is what COHEP is building toward.',
     },
     audience: {
       eyebrow: 'Who COHEP Serves',
@@ -254,21 +259,26 @@ const content = {
         { value: '100%', label: 'مجاني ومفتوح المصدر' },
       ],
     },
-    challenge: {
-      eyebrow: 'التحدي',
-      headline: 'خدام أوفياء. أنظمة هشة.',
-      body: 'في كل أسبوع، يُعلّم الخدام التراتيب من حفظهم، ويتابعون الطلاب على الورق، ويعتمدون على مجموعات واتساب للتواصل مع الأهالي. هم أوفياء. لكن النظام لم يُبنَ ليدعمهم.\n\nحين يحترق خادم، تذهب معه المعرفة. حين يتأخر طفل، لا أحد يعلم. حين لا يرى الأب ما يتعلمه طفله، يُفقد الانتماء بصمت.\n\nهذا ليس إخفاقاً في الإيمان. إنه إخفاق في البنية التحتية.',
-    },
-    solution: {
-      eyebrow: 'الاستجابة',
-      headline: 'لهذا السبب وُجدت كوهيب.',
-      body: 'كوهيب ليست برنامجاً. إنها خدمة. منصة مجانية مفتوحة المصدر بناها مجتمع الكنيسة القبطية الأرثوذكسية لمنح كل خادم الأدوات التي يحتاجها: بدون تكلفة، بدون تعقيد، بدون تنازل.\n\nالكنيسة هي المعلم. الخادم هو البطل. كوهيب تحتفظ بالسجلات وتتابع التقدم وتمنع الخيوط من الانقطاع.',
+    why: {
+      headline: 'لماذا وُجدت كوهيب.',
+      beats: [
+        {
+          num: '01',
+          headline: 'خدام أوفياء. أنظمة هشة.',
+          body: 'في كل أسبوع، يُعلّم الخدام التراتيب من حفظهم، ويتابعون الطلاب على الورق، ويعتمدون على مجموعات واتساب للتواصل مع الأهالي. هم أوفياء. لكن النظام لم يُبنَ ليدعمهم.\n\nحين يحترق خادم، تذهب معه المعرفة. حين يتأخر طفل، لا أحد يعلم. حين لا يرى الأب ما يتعلمه طفله، يُفقد الانتماء بصمت.\n\nهذا ليس إخفاقاً في الإيمان. إنه إخفاق في البنية التحتية.',
+        },
+        {
+          num: '02',
+          headline: 'الكنيسة هي المعلم. الخادم هو البطل.',
+          body: 'كوهيب ليست برنامجاً. إنها خدمة. منصة مجانية مفتوحة المصدر بناها مجتمع الكنيسة القبطية الأرثوذكسية لمنح كل خادم الأدوات التي يحتاجها: بدون تكلفة، بدون تعقيد، بدون تنازل.\n\nكوهيب تحتفظ بالسجلات وتتابع التقدم وتمنع الخيوط من الانقطاع.',
+        },
+        {
+          num: '03',
+          headline: 'مجتمع كنائس عالمي واحد، وتراث حي واحد.',
+          body: 'تخيّل آلاف الكنائس القبطية حول العالم (من القاهرة إلى سيدني، من لوس أنجلوس إلى لندن) تتشارك منهجاً واحداً، وتتعاون على تسجيلات التراتيب، وتتابع النمو الروحي لجيل كامل. لا كشركة. بل ككنيسة.\n\nهذا ما تسعى كوهيب إلى بنائه.',
+        },
+      ],
       cta: 'استكشف المنصة',
-    },
-    vision: {
-      eyebrow: 'الرؤية',
-      headline: 'مجتمع كنائس عالمي واحد، وتراث حي واحد.',
-      body: 'تخيّل آلاف الكنائس القبطية حول العالم (من القاهرة إلى سيدني، من لوس أنجلوس إلى لندن) تتشارك منهجاً واحداً، وتتعاون على تسجيلات التراتيب، وتتابع النمو الروحي لجيل كامل. لا كشركة. بل ككنيسة.\n\nهذا ما تسعى كوهيب إلى بنائه.',
     },
     audience: {
       eyebrow: 'من تخدم كوهيب',
@@ -931,60 +941,41 @@ export default function Home() {
           </div>
         </section>
 
-        {/* ── CHALLENGE ─────────────────────────────────────────────────── */}
-        <section id="why" aria-labelledby="challenge-heading" className="py-24 sm:py-32 bg-white relative">
-          <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
-            <FadeIn variant="up" className="text-center mb-12">
-              <h2 id="challenge-heading" className="text-3xl sm:text-4xl font-bold tracking-tight text-gray-900 leading-tight">{t.challenge.headline}</h2>
-            </FadeIn>
-            <FadeIn variant="up" delay={0.1}>
-              <div className="prose prose-gray max-w-none space-y-5">
-                {t.challenge.body.split('\n\n').map((p, i) => (
-                  <p key={i} className={`text-base sm:text-lg leading-relaxed ${i === 2 ? 'text-gray-900 font-medium border-l-4 border-gold-400 pl-4' : 'text-gray-600'}`}>
-                    {p}
-                  </p>
-                ))}
-              </div>
-            </FadeIn>
-          </div>
-        </section>
-
-        {/* ── SOLUTION ──────────────────────────────────────────────────── */}
-        <section aria-labelledby="solution-heading" className="py-24 sm:py-32 relative bg-gradient-to-b from-gray-950 to-gray-900">
+        {/* ── WHY ───────────────────────────────────────────────────────── */}
+        <section id="why" aria-labelledby="why-heading" className="py-24 sm:py-32 relative bg-gradient-to-b from-gray-950 to-gray-900 overflow-hidden">
           <CrossPatternBg className="text-gold-500" />
           <GradientOrbs />
-          <div className="relative mx-auto max-w-3xl px-4 sm:px-6 lg:px-8 text-center">
-            <FadeIn variant="scale">
-              <h2 id="solution-heading" className="text-3xl sm:text-4xl font-bold tracking-tight text-white leading-tight">{t.solution.headline}</h2>
-              <div className="mt-6 space-y-4">
-                {t.solution.body.split('\n\n').map((p, i) => (
-                  <p key={i} className="text-base sm:text-lg leading-relaxed text-gray-300">{p}</p>
-                ))}
-              </div>
-              <div className="mt-9">
-                <motion.button
-                  onClick={() => document.getElementById('platform-preview')?.scrollIntoView({ behavior: 'smooth' })}
-                  whileHover={reduce ? {} : { scale: 1.02 }}
-                  whileTap={reduce ? {} : { scale: 0.98 }}
-                  className={ctaPrimaryClass}
-                >
-                  {t.solution.cta} <ArrowRight className="h-4 w-4 rtl-flip" />
-                </motion.button>
-              </div>
+          <div className="relative mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
+            <FadeIn variant="up" className="text-center mb-14">
+              <h2 id="why-heading" className="text-3xl sm:text-4xl font-bold tracking-tight text-white leading-tight">{t.why.headline}</h2>
             </FadeIn>
-          </div>
-        </section>
-
-        {/* ── VISION ────────────────────────────────────────────────────── */}
-        <section aria-labelledby="vision-heading" className="py-20 sm:py-28 bg-gray-50">
-          <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8 text-center">
-            <FadeIn variant="up">
-              <h2 id="vision-heading" className="text-2xl sm:text-3xl font-bold tracking-tight text-gray-900 leading-tight">{t.vision.headline}</h2>
-              <div className="mt-5 space-y-4">
-                {t.vision.body.split('\n\n').map((p, i) => (
-                  <p key={i} className="text-base leading-relaxed text-gray-600">{p}</p>
-                ))}
-              </div>
+            <div className="relative space-y-12 sm:space-y-14">
+              {t.why.beats.map((beat, i) => (
+                <FadeIn key={beat.num} variant="up" delay={i * 0.08}>
+                  <div className="relative border-s-2 border-gray-700/70 ps-6 sm:ps-8">
+                    <span className="absolute -start-4 top-0.5 flex h-8 w-8 items-center justify-center rounded-full bg-gold-500 text-xs font-bold text-white shadow-lg shadow-gold-500/30">{beat.num}</span>
+                    <h3 className="text-xl sm:text-2xl font-bold tracking-tight text-white leading-tight">{beat.headline}</h3>
+                    <div className="mt-3 space-y-3">
+                      {beat.body.split('\n\n').map((p, j) => {
+                        const isPunchline = i === 0 && j === beat.body.split('\n\n').length - 1;
+                        return (
+                          <p key={j} className={`text-base sm:text-lg leading-relaxed ${isPunchline ? 'text-gold-300 font-medium' : 'text-gray-300'}`}>{p}</p>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </FadeIn>
+              ))}
+            </div>
+            <FadeIn variant="up" className="mt-14 text-center">
+              <motion.button
+                onClick={() => document.getElementById('platform-preview')?.scrollIntoView({ behavior: 'smooth' })}
+                whileHover={reduce ? {} : { scale: 1.02 }}
+                whileTap={reduce ? {} : { scale: 0.98 }}
+                className={ctaPrimaryClass}
+              >
+                {t.why.cta} <ArrowRight className="h-4 w-4 rtl-flip" />
+              </motion.button>
             </FadeIn>
           </div>
         </section>
