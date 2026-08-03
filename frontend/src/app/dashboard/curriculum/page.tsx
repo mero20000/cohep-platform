@@ -197,7 +197,7 @@ function CurriculumContent() {
     autoTable(doc, {
       startY: 35,
       head: [[lang === 'ar' ? '#' : '#', lang === 'ar' ? 'المستوى' : 'Level', lang === 'ar' ? 'قبطي' : 'Coptic', lang === 'ar' ? 'عربي' : 'Arabic', lang === 'ar' ? 'إنجليزي' : 'English', lang === 'ar' ? 'المدة' : 'Duration', lang === 'ar' ? 'الجلسات' : 'Sessions', lang === 'ar' ? 'الحالة' : 'Status']],
-      body: lessons.map((l, i) => [i + 1, `L${l.level.number}`, l.titleCoptic || '—', l.titleAr || '—', l.title, `${l.estimatedDurationMinutes || '—'}m`, `${l.sessionsCount}`, l.status]),
+      body: lessons.map((l, i) => [i + 1, `L${l.level.number}`, l.titleCoptic || '-', l.titleAr || '-', l.title, `${l.estimatedDurationMinutes || '-'}m`, `${l.sessionsCount}`, l.status]),
       styles: { fontSize: 8 }, headStyles: { fillColor: [212, 175, 55] },
     })
     doc.save('niangelos-coptic-hymns.pdf')
@@ -253,11 +253,30 @@ function CurriculumContent() {
       </div>
 
       <div className="border-b border-gray-200">
-        <nav className="-mb-px flex gap-6">
-          {mainTabs.map(tab => (
+        <nav className="-mb-px flex gap-6" role="tablist" aria-label={lang === 'ar' ? 'أقسام المنهج' : 'Curriculum sections'}>
+          {mainTabs.map((tab, i) => (
             <button key={tab.id} onClick={() => setActiveTab(tab.id)}
+              onKeyDown={e => {
+                if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+                  e.preventDefault()
+                  const dir = e.key === 'ArrowRight' ? 1 : -1
+                  const next = mainTabs[(i + dir + mainTabs.length) % mainTabs.length]
+                  setActiveTab(next.id)
+                  document.getElementById(`tab-${next.id}`)?.focus()
+                } else if (e.key === 'Home') {
+                  e.preventDefault()
+                  setActiveTab(mainTabs[0].id)
+                  document.getElementById(`tab-${mainTabs[0].id}`)?.focus()
+                } else if (e.key === 'End') {
+                  e.preventDefault()
+                  const last = mainTabs[mainTabs.length - 1]
+                  setActiveTab(last.id)
+                  document.getElementById(`tab-${last.id}`)?.focus()
+                }
+              }}
               role="tab" aria-selected={activeTab === tab.id} aria-controls={`panel-${tab.id}`} id={`tab-${tab.id}`}
-              className={`flex items-center gap-2 py-3 px-1 border-b-2 text-sm font-medium transition-colors ${
+              tabIndex={activeTab === tab.id ? 0 : -1}
+              className={`flex items-center gap-2 py-3 px-1 border-b-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500 focus-visible:ring-offset-2 ${
                 activeTab === tab.id ? 'border-gold-500 text-blue-700' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
               }`}>
               <tab.icon className="h-4 w-4" />{tab.label}
@@ -268,6 +287,7 @@ function CurriculumContent() {
 
       <div className="flex flex-wrap items-center gap-3">
         <select value={selectedYear} onChange={e => setSelectedYear(e.target.value)}
+          aria-label={lang === 'ar' ? 'السنة الدراسية' : 'Academic year'}
           className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
           {academicYears.map(y => <option key={y.id} value={y.id}>{y.name} {y.isCurrent ? (lang === 'ar' ? '(الحالي)' : '(Current)') : ''}</option>)}
         </select>

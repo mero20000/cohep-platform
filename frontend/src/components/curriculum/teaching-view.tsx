@@ -199,7 +199,7 @@ export function TeachingView({ items, subjects, levels, lessons = [], allocation
                 )}
               </div>
               <p className={`text-2xl font-bold mt-2 ${meta.color}`}>{count}</p>
-              <p className={`text-[11px] font-medium mt-0.5 ${meta.color}`}>
+              <p className={`text-xs font-medium mt-0.5 ${meta.color}`}>
                 {lang === 'ar' ? meta.labelAr : meta.label}
               </p>
               {key === 'completed' && stats.total > 0 && (
@@ -215,26 +215,29 @@ export function TeachingView({ items, subjects, levels, lessons = [], allocation
       {/* ─── Filters ─── */}
       <div className="flex flex-wrap items-center gap-3">
         <select value={levelNumber} onChange={e => onLevelChange(Number(e.target.value))}
-          className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gold-500 focus:outline-none">
+          aria-label={lang === 'ar' ? 'المستوى' : 'Level'}
+          className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
           {levels.sort((a, b) => a.number - b.number).map(l => (
-            <option key={l.id} value={l.number}>{l.name} (Level {l.number})</option>
+            <option key={l.id} value={l.number}>{lang === 'ar' ? `المستوى ${l.number} - ${l.name}` : `${l.name} (Level ${l.number})`}</option>
           ))}
         </select>
         <select value={selectedGroup} onChange={e => setSelectedGroup(Number(e.target.value))}
-          className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gold-500 focus:outline-none">
+          aria-label={lang === 'ar' ? 'المجموعة' : 'Group'}
+          className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
           {[1, 2, 3, 4].map(g => (
             <option key={g} value={g}>{lang === 'ar' ? `المجموعة ${g}` : `Group ${g}`}</option>
           ))}
         </select>
         <select value={showSubject} onChange={e => setShowSubject(e.target.value)}
-          className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gold-500 focus:outline-none">
+          aria-label={lang === 'ar' ? 'المادة' : 'Subject'}
+          className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
           <option value="all">{lang === 'ar' ? 'جميع المواد' : 'All Subjects'}</option>
           {subjects.map(s => (
             <option key={s.id} value={s.id}>{lang === 'ar' ? (s.nameAr || s.name) : s.name}</option>
           ))}
         </select>
         <button onClick={() => setHideCompleted(!hideCompleted)}
-          className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium border transition-colors ${hideCompleted ? 'bg-blue-50 border-blue-300 text-blue-700' : 'border-gray-200 text-gray-500 hover:bg-gray-50'}`}>
+          className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 ${hideCompleted ? 'bg-blue-50 border-blue-300 text-blue-700' : 'border-gray-200 text-gray-500 hover:bg-gray-50'}`}>
           {hideCompleted ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
           {hideCompleted
             ? (lang === 'ar' ? 'إظهار المكتمل' : 'Show Completed')
@@ -250,7 +253,7 @@ export function TeachingView({ items, subjects, levels, lessons = [], allocation
             <div className="flex items-center gap-2 mb-3">
               <div className="w-1 h-6 rounded-full" style={{ background: meta?.color || '#D4AF37' }} />
               <h3 className="text-lg font-semibold text-gray-800">{lang === 'ar' ? (meta?.nameAr || meta?.name || 'Subject') : (meta?.name || 'Subject')}</h3>
-              <span className="text-xs text-gray-400 ml-auto">{subjectItems.length} {lang === 'ar' ? 'عناصر' : 'items'}</span>
+              <span className="text-xs text-gray-500 ms-auto">{subjectItems.length} {lang === 'ar' ? 'عناصر' : 'items'}</span>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
               {subjectItems.map(item => {
@@ -272,27 +275,27 @@ export function TeachingView({ items, subjects, levels, lessons = [], allocation
                             })
                           }}
                             onClick={e => e.stopPropagation()}
-                            className={`text-[10px] font-medium rounded-md border px-1.5 py-0.5 ${sm.bg} ${sm.color} ${sm.border} focus:outline-none cursor-pointer`}>
+                            aria-label={lang === 'ar' ? 'حالة العنصر' : 'Item status'}
+                            className={`text-[11px] font-medium rounded-md border px-1.5 py-0.5 ${sm.bg} ${sm.color} ${sm.border} focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer`}>
                             {STATUS_ORDER.map(s => {
                               const m = STATUS_META[s]
                               return <option key={s} value={s}>{lang === 'ar' ? m.labelAr : m.label}</option>
                             })}
                           </select>
                           {allocatedItemIds.has(item.id) ? (
-                            <span className="inline-flex items-center gap-0.5 text-[10px] font-medium text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded-md border border-blue-200">{lang === 'ar' ? 'مخصص' : 'Alloc'} G{selectedGroup} ✓</span>
+                            <span className="inline-flex items-center gap-0.5 text-[11px] font-medium text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded-md border border-blue-200">{lang === 'ar' ? 'مخصص' : 'Alloc'} G{selectedGroup} ✓</span>
                           ) : (
-                            <span className="inline-flex items-center gap-0.5 text-[10px] font-medium text-gray-400 bg-gray-50 px-1.5 py-0.5 rounded-md border border-gray-200">{lang === 'ar' ? 'غير مخصص' : 'No alloc'} G{selectedGroup}</span>
+                            <span className="inline-flex items-center gap-0.5 text-[11px] font-medium text-gray-500 bg-gray-50 px-1.5 py-0.5 rounded-md border border-gray-200">{lang === 'ar' ? 'غير مخصص' : 'No alloc'} G{selectedGroup}</span>
                           )}
                           <p className={`font-medium truncate coptic-text ${isCompleted ? 'line-through text-gray-400' : 'text-gray-900'}`}>{item.name}</p>
                         </div>
                         {item.whenLabel && (
-                          <span className={`inline-block mt-1.5 px-2 py-0.5 rounded text-[10px] font-medium ${(WHEN_COLORS[item.whenLabel] || { bg: 'bg-amber-50', text: 'text-amber-700' }).bg} ${(WHEN_COLORS[item.whenLabel] || { bg: 'bg-amber-50', text: 'text-amber-700' }).text}`}>{item.whenLabel}</span>
+                          <span className={`inline-block mt-1.5 px-2 py-0.5 rounded text-[11px] font-medium ${(WHEN_COLORS[item.whenLabel] || { bg: 'bg-amber-50', text: 'text-amber-700' }).bg} ${(WHEN_COLORS[item.whenLabel] || { bg: 'bg-amber-50', text: 'text-amber-700' }).text}`}>{item.whenLabel}</span>
                         )}
                       </div>
                       {(item.presentationData || item.presentationUrl || item.hazzat) && (
                         <button onClick={() => setPresentItem(item)}
-                          className="flex-shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
-                          style={{ background: '#D4AF37', color: 'white' }}>
+                          className="flex-shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium text-gray-950 transition-colors bg-gradient-to-r from-gold-500 to-gold-600 hover:from-gold-400 hover:to-gold-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-600 focus-visible:ring-offset-2">
                           <Play className="h-3 w-3" />
                           {lang === 'ar' ? 'عرض' : 'Present'}
                         </button>
@@ -301,7 +304,7 @@ export function TeachingView({ items, subjects, levels, lessons = [], allocation
                     {item.descriptionAr && (
                       <p className={`mt-2 text-xs line-clamp-2 rtl ${isCompleted ? 'text-gray-400' : 'text-gray-500'}`}>{item.descriptionAr}</p>
                     )}
-                      <div className="flex items-center gap-2 mt-2 text-[10px] text-gray-400">
+                      <div className="flex items-center gap-2 mt-2 text-[11px] text-gray-500">
                         {sessions ? <span className="bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded">{sessions} {lang === 'ar' ? 'جلسات' : 'sessions'}</span> : null}
                         {item.levels?.map(l => (
                           <span key={l.levelNumber} className="bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded">L{l.levelNumber}</span>
@@ -320,8 +323,8 @@ export function TeachingView({ items, subjects, levels, lessons = [], allocation
       })}
 
       {Object.keys(filteredSubjects).length === 0 && (
-        <div className="text-center py-16 text-gray-400">
-          <BookOpen className="h-10 w-10 mx-auto mb-3 opacity-40" />
+        <div className="text-center py-16 text-gray-500">
+          <BookOpen className="h-10 w-10 mx-auto mb-3 opacity-50" />
           <p>{lang === 'ar' ? 'لا توجد عناصر لهذا المستوى' : 'No items found for this level'}</p>
         </div>
       )}

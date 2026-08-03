@@ -117,15 +117,15 @@ export function LessonModal({ mode, lesson, levels, subjects, onSaveAdd, onSaveE
           {mode === 'add' && (
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1">{lang === 'ar' ? 'المادة' : 'Subject'}</label>
-                <select value={subjectId} onChange={e => setSubjectId(e.target.value)}
+                <label htmlFor="lm-subject" className="block text-xs font-medium text-gray-500 mb-1">{lang === 'ar' ? 'المادة' : 'Subject'}</label>
+                <select id="lm-subject" value={subjectId} onChange={e => setSubjectId(e.target.value)}
                   className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
                   {subjects.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1">{lang === 'ar' ? 'الحالة' : 'Status'}</label>
-                <select value={form.status} onChange={e => handleFieldChange('status', e.target.value)}
+                <label htmlFor="lm-status" className="block text-xs font-medium text-gray-500 mb-1">{lang === 'ar' ? 'الحالة' : 'Status'}</label>
+                <select id="lm-status" value={form.status} onChange={e => handleFieldChange('status', e.target.value)}
                   className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
                   <option value="draft">{lang === 'ar' ? 'مسودة' : 'Draft'}</option><option value="published">{lang === 'ar' ? 'منشور' : 'Published'}</option><option value="archived">{lang === 'ar' ? 'مؤرشف' : 'Archived'}</option>
                 </select>
@@ -133,26 +133,26 @@ export function LessonModal({ mode, lesson, levels, subjects, onSaveAdd, onSaveE
             </div>
           )}
           <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">{lang === 'ar' ? 'المستوى' : 'Level'}</label>
-            <select value={levelId} onChange={e => setLevelId(e.target.value)}
+            <label htmlFor="lm-level" className="block text-xs font-medium text-gray-500 mb-1">{lang === 'ar' ? 'المستوى' : 'Level'}</label>
+            <select id="lm-level" value={levelId} onChange={e => setLevelId(e.target.value)}
               className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
               {mode === 'add' && <option value="">{lang === 'ar' ? 'اختر مستوى...' : 'Select level...'}</option>}
-              {levels.map(l => <option key={l.id} value={l.id}>{lang === 'ar' ? 'المستوى' : 'Level'} {l.number} — {l.name}</option>)}
+              {levels.map(l => <option key={l.id} value={l.id}>{lang === 'ar' ? 'المستوى' : 'Level'} {l.number} - {l.name}</option>)}
             </select>
           </div>
           {subjectId && (
             <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">
+              <label htmlFor="lm-subject-item" className="block text-xs font-medium text-gray-500 mb-1">
                 {lang === 'ar' ? 'عنصر المادة (اختياري)' : 'Subject Item (optional)'}
-                {subjectItemsLoading && <Loader2 className="h-3 w-3 inline ml-1 animate-spin" />}
+                {subjectItemsLoading && <Loader2 className="h-3 w-3 inline ms-1 animate-spin" />}
               </label>
               <div className="flex gap-2">
-                <select value={form.subjectItemId || ''} onChange={e => handleSelectSubjectItem(e.target.value)}
+                <select id="lm-subject-item" value={form.subjectItemId || ''} onChange={e => handleSelectSubjectItem(e.target.value)}
                   className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
-                  <option value="">{lang === 'ar' ? '— اختر عنصراً —' : '— Select item —'}</option>
+                  <option value="">{lang === 'ar' ? '- اختر عنصراً -' : '- Select item -'}</option>
                   {subjectItems.map(si => (
                     <option key={si.id} value={si.id}>
-                      {[si.nameCoptic, si.nameAr, si.name].filter(Boolean).join(' — ')} {si.presentationData ? '🎵' : ''}
+                      {[si.nameCoptic, si.nameAr, si.name].filter(Boolean).join(' - ')} {si.presentationData ? '🎵' : ''}
                     </option>
                   ))}
                 </select>
@@ -163,7 +163,8 @@ export function LessonModal({ mode, lesson, levels, subjects, onSaveAdd, onSaveE
                       setForm(prev => ({ ...prev, presentationData: item.presentationData }))
                     }
                   }}
-                    className="px-2 py-1 rounded-lg border border-gray-300 text-xs text-gray-500 hover:bg-gray-50"
+                    aria-label={lang === 'ar' ? 'نسخ المحتوى من العنصر' : 'Copy content from item'}
+                    className="px-2 py-1 rounded-lg border border-gray-300 text-xs text-gray-500 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
                     title={lang === 'ar' ? 'نسخ المحتوى من العنصر' : 'Copy content from item'}>
                     <RefreshCw className="h-3.5 w-3.5" />
                   </button>
@@ -172,24 +173,24 @@ export function LessonModal({ mode, lesson, levels, subjects, onSaveAdd, onSaveE
             </div>
           )}
           <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">{lang === 'ar' ? 'الاسم القبطي' : 'Coptic Name'}</label>
-            <input type="text" value={form.titleCoptic} onChange={e => handleFieldChange('titleCoptic', e.target.value)}
+            <label htmlFor="lm-title-coptic" className="block text-xs font-medium text-gray-500 mb-1">{lang === 'ar' ? 'الاسم القبطي' : 'Coptic Name'}</label>
+            <input id="lm-title-coptic" type="text" value={form.titleCoptic} onChange={e => handleFieldChange('titleCoptic', e.target.value)}
               className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-blue-500" />
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">{lang === 'ar' ? 'الاسم العربي' : 'Arabic Name'}</label>
-            <input type="text" value={form.titleAr} onChange={e => handleFieldChange('titleAr', e.target.value)} dir="rtl"
+            <label htmlFor="lm-title-ar" className="block text-xs font-medium text-gray-500 mb-1">{lang === 'ar' ? 'الاسم العربي' : 'Arabic Name'}</label>
+            <input id="lm-title-ar" type="text" value={form.titleAr} onChange={e => handleFieldChange('titleAr', e.target.value)} dir="rtl"
               className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-blue-500 arabic-text" />
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">{lang === 'ar' ? 'الاسم الإنجليزي' : 'English Name'}{mode === 'add' ? (lang === 'ar' ? ' *' : ' *') : ''}</label>
-            <input type="text" value={form.title} onChange={e => handleFieldChange('title', e.target.value)}
+            <label htmlFor="lm-title-en" className="block text-xs font-medium text-gray-500 mb-1">{lang === 'ar' ? 'الاسم الإنجليزي' : 'English Name'}{mode === 'add' ? (lang === 'ar' ? ' *' : ' *') : ''}</label>
+            <input id="lm-title-en" type="text" value={form.title} onChange={e => handleFieldChange('title', e.target.value)}
               className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-blue-500" />
           </div>
           {mode === 'edit' && (
             <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">{lang === 'ar' ? 'الحالة' : 'Status'}</label>
-              <select value={form.status} onChange={e => handleFieldChange('status', e.target.value)}
+              <label htmlFor="lm-status-edit" className="block text-xs font-medium text-gray-500 mb-1">{lang === 'ar' ? 'الحالة' : 'Status'}</label>
+              <select id="lm-status-edit" value={form.status} onChange={e => handleFieldChange('status', e.target.value)}
                 className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
                 <option value="draft">{lang === 'ar' ? 'مسودة' : 'Draft'}</option><option value="published">{lang === 'ar' ? 'منشور' : 'Published'}</option><option value="archived">{lang === 'ar' ? 'مؤرشف' : 'Archived'}</option>
               </select>
@@ -197,20 +198,20 @@ export function LessonModal({ mode, lesson, levels, subjects, onSaveAdd, onSaveE
           )}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">{lang === 'ar' ? 'المدة (دقيقة)' : 'Duration (min)'}</label>
-              <input type="number" value={form.estimatedDurationMinutes} onChange={e => handleFieldChange('estimatedDurationMinutes', Number(e.target.value))}
+              <label htmlFor="lm-duration" className="block text-xs font-medium text-gray-500 mb-1">{lang === 'ar' ? 'المدة (دقيقة)' : 'Duration (min)'}</label>
+              <input id="lm-duration" type="number" value={form.estimatedDurationMinutes} onChange={e => handleFieldChange('estimatedDurationMinutes', Number(e.target.value))}
                 className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-blue-500" />
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">{lang === 'ar' ? 'الجلسات' : 'Sessions'}</label>
-              <input type="number" value={form.sessionsCount} onChange={e => handleFieldChange('sessionsCount', Number(e.target.value))}
+              <label htmlFor="lm-sessions" className="block text-xs font-medium text-gray-500 mb-1">{lang === 'ar' ? 'الجلسات' : 'Sessions'}</label>
+              <input id="lm-sessions" type="number" value={form.sessionsCount} onChange={e => handleFieldChange('sessionsCount', Number(e.target.value))}
                 className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-blue-500" />
             </div>
           </div>
           {mode === 'edit' && (
             <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">{lang === 'ar' ? 'التسجيل الصوتي' : 'Audio Recording'}</label>
-              <input type="file" accept=".mp3,.m4a,.ogg" onChange={async e => {
+              <label htmlFor="lm-audio" className="block text-xs font-medium text-gray-500 mb-1">{lang === 'ar' ? 'التسجيل الصوتي' : 'Audio Recording'}</label>
+              <input id="lm-audio" type="file" accept=".mp3,.m4a,.ogg" onChange={async e => {
                 const file = e.target.files?.[0]
                 if (!file || !lesson) return
                 setUploadingAudio(true)
@@ -230,7 +231,7 @@ export function LessonModal({ mode, lesson, levels, subjects, onSaveAdd, onSaveE
               {form.audioUrl && (
                 <p className="text-xs text-green-600 mt-1">✓ {form.audioOriginalName || 'Audio uploaded'}</p>
               )}
-              {uploadingAudio && <p className="text-xs text-blue-500 mt-1"><Loader2 className="h-3 w-3 inline animate-spin mr-1" />{lang === 'ar' ? 'جاري الرفع...' : 'Uploading...'}</p>}
+              {uploadingAudio && <p className="text-xs text-blue-500 mt-1"><Loader2 className="h-3 w-3 inline animate-spin me-1" />{lang === 'ar' ? 'جاري الرفع...' : 'Uploading...'}</p>}
             </div>
           )}
           <div className="border border-gray-200 rounded-lg p-4">
@@ -240,8 +241,8 @@ export function LessonModal({ mode, lesson, levels, subjects, onSaveAdd, onSaveE
             />
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">{lang === 'ar' ? 'HTML العرض (النسخة الاحتياطية)' : 'Presentation HTML (Legacy)'}</label>
-            <textarea value={form.presentationHtml} onChange={e => handleFieldChange('presentationHtml', e.target.value)}
+            <label htmlFor="lm-html" className="block text-xs font-medium text-gray-500 mb-1">{lang === 'ar' ? 'HTML العرض (النسخة الاحتياطية)' : 'Presentation HTML (Legacy)'}</label>
+            <textarea id="lm-html" value={form.presentationHtml} onChange={e => handleFieldChange('presentationHtml', e.target.value)}
               placeholder={lang === 'ar' ? 'الصق محتوى الشرائح HTML هنا...' : 'Paste your HTML slide content here...'}
               rows={4}
               className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm font-mono focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-blue-500" />

@@ -5,6 +5,8 @@ import {
   ChevronRight, Loader2, Trash2, GripVertical, X, CalendarDays, Grid3x3,
 } from 'lucide-react'
 import { DatePicker } from '@/components/ui/date-picker'
+import { Modal } from '@/components/ui/modal'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { useLanguage } from '@/lib/use-language'
 import { API, SCHOOL_ID, TERM_SHORT, getSubjectStyle } from './constants'
 import type { Allocation, Lesson, Level, Subject, AcademicWeek, SubjectItem } from './types'
@@ -48,6 +50,7 @@ export function CalendarView({
   const [creatingAllocation, setCreatingAllocation] = useState(false)
   const [moveModal, setMoveModal] = useState<{ allocation: Allocation; date: string } | null>(null)
   const [moveDate, setMoveDate] = useState('')
+  const [deleteAllocTarget, setDeleteAllocTarget] = useState<Allocation | null>(null)
   const [selectedTerm, setSelectedTerm] = useState(1)
   const [selectedLevelId, setSelectedLevelId] = useState('')
   const [selectedSubject, setSelectedSubject] = useState<string>('all')
@@ -382,15 +385,17 @@ export function CalendarView({
         <div className="flex items-center justify-between px-5 py-3 border-b border-gray-200">
           <div className="flex items-center gap-2">
             <select value={selectedLevelId} onChange={e => setSelectedLevelId(e.target.value)}
-              className="rounded-lg border border-gray-300 px-2.5 py-1.5 text-xs focus:border-gold-500 focus:outline-none">
+              aria-label={lang === 'ar' ? 'المستوى' : 'Level'}
+              className="rounded-lg border border-gray-300 px-2.5 py-1.5 text-xs focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
               <option value="">{lang === 'ar' ? 'جميع المستويات' : 'All Levels'}</option>
               {sortedLevels.map(l => <option key={l.id} value={l.id}>{l.name} (L{l.number})</option>)}
             </select>
             {!selectedLevelId && (
-              <span className="text-[10px] text-gray-400 italic">{lang === 'ar' ? 'اختر مستوى لتفعيل التوزيع' : 'Select a level to enable allocation'}</span>
+              <span className="text-[11px] text-gray-500 italic">{lang === 'ar' ? 'اختر مستوى لتفعيل التوزيع' : 'Select a level to enable allocation'}</span>
             )}
             <select value={selectedGroup} onChange={e => setSelectedGroup(Number(e.target.value))}
-              className="rounded-lg border border-gray-300 px-2.5 py-1.5 text-xs focus:border-gold-500 focus:outline-none">
+              aria-label={lang === 'ar' ? 'المجموعة' : 'Group'}
+              className="rounded-lg border border-gray-300 px-2.5 py-1.5 text-xs focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
               {[1, 2, 3, 4].map(g => (
                 <option key={g} value={g}>{lang === 'ar' ? `المجموعة ${g}` : `Group ${g}`}</option>
               ))}
@@ -398,18 +403,18 @@ export function CalendarView({
             <span className="mx-1 text-xs text-gray-300">|</span>
             {[1, 2, 3].map(t => (
               <button key={t} onClick={() => jumpToTerm(t)}
-                className={`px-2.5 py-1 text-xs font-medium rounded transition-colors ${selectedTerm === t ? 'bg-blue-100 text-blue-700 font-semibold' : 'text-gray-500 hover:bg-gray-100'}`}>
+                className={`px-2.5 py-1 text-xs font-medium rounded transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${selectedTerm === t ? 'bg-blue-100 text-blue-700 font-semibold' : 'text-gray-500 hover:bg-gray-100'}`}>
                 {TERM_SHORT[t]}
               </button>
             ))}
           </div>
           <div className="flex items-center gap-2">
             <button onClick={() => onClearAllocations('all')} disabled={!selectedYear}
-              className="flex items-center gap-1 rounded-lg border border-red-200 px-2.5 py-1 text-xs font-medium text-red-600 hover:bg-red-50 disabled:opacity-40">
+              className="flex items-center gap-1 rounded-lg border border-red-200 px-2.5 py-1 text-xs font-medium text-red-600 hover:bg-red-50 disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-300">
               <Trash2 className="h-3 w-3" />{lang === 'ar' ? 'مسح' : 'Clear'}
             </button>
             <button onClick={() => setViewMode('month')}
-              className="flex items-center gap-1 rounded-lg border border-gray-200 px-2.5 py-1 text-xs font-medium text-gray-500 hover:bg-gray-50">
+              className="flex items-center gap-1 rounded-lg border border-gray-200 px-2.5 py-1 text-xs font-medium text-gray-500 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">
               <CalendarDays className="h-3 w-3" />{lang === 'ar' ? 'شهري' : 'Month'}
             </button>
           </div>
@@ -420,14 +425,14 @@ export function CalendarView({
           <table className="w-full border-collapse">
             <thead>
               <tr className="sticky top-0 z-10">
-                <th className="bg-gray-50 border-b border-r border-gray-200 px-3 py-2.5 text-left text-xs font-semibold text-gray-600 min-w-[150px]">
+                <th className="bg-gray-50 border-b border-e border-gray-200 px-3 py-2.5 text-start text-xs font-semibold text-gray-600 min-w-[150px]">
                   {lang === 'ar' ? 'الأسبوع' : 'Week'}
                 </th>
                 {subjectColumns.map(subj => {
                   const s = getSubjectStyle(subj.name)
                   return (
                     <th key={subj.id}
-                      className={`bg-gray-50 border-b border-r border-gray-200 px-2 py-2.5 text-center text-xs font-semibold ${s.text} min-w-[140px]`}>
+                      className={`bg-gray-50 border-b border-e border-gray-200 px-2 py-2.5 text-center text-xs font-semibold ${s.text} min-w-[140px]`}>
                       <span className={`inline-flex items-center gap-1`}>
                         <span className={`w-2 h-2 rounded-full ${s.dot}`} />
                         {subj.name}
@@ -450,15 +455,15 @@ export function CalendarView({
                 return (
                   <tr key={week.id}
                     className={`${isInactive ? 'bg-gray-50 opacity-60' : 'hover:bg-gray-50/50'} border-b border-gray-100 transition-colors`}>
-                    <td className={`px-3 py-3 border-r border-gray-100 align-top ${isInactive ? 'text-gray-400' : 'text-gray-700'}`}>
+                    <td className={`px-3 py-3 border-e border-gray-100 align-top ${isInactive ? 'text-gray-400' : 'text-gray-700'}`}>
                       <div className="text-sm font-semibold">W{week.weekNumber}</div>
-                      <div className="text-[10px] text-gray-400 mt-0.5">
+                      <div className="text-[11px] text-gray-500 mt-0.5">
                         {lang === 'ar' ? 'سبت' : 'Sat'}: {formatDate(satDate)}
                         {' | '}
                         {lang === 'ar' ? 'أحد' : 'Sun'}: {formatDate(sunDate)}
                       </div>
                       {isInactive && (
-                        <span className="inline-block mt-1 text-[10px] text-gray-400 italic">
+                        <span className="inline-block mt-1 text-[11px] text-gray-500 italic">
                           {lang === 'ar' ? 'غير نشط' : 'Inactive'}
                         </span>
                       )}
@@ -467,7 +472,7 @@ export function CalendarView({
                       const allocs = subjectAllocs?.get(subj.name) || []
                       return (
                         <td key={`${week.id}-${subj.id}`}
-                           className={`px-2 py-1.5 border-r border-gray-100 align-top ${isInactive ? '' : ''}`}
+                           className={`px-2 py-1.5 border-e border-gray-100 align-top ${isInactive ? '' : ''}`}
                           onDragOver={e => { if (!isInactive && selectedLevelId) { e.preventDefault() } }}
                           onDrop={e => { e.preventDefault(); if (!isInactive) handleCalendarDrop(week.weekNumber, subj.name) }}
                           style={isInactive ? { background: 'repeating-linear-gradient(45deg, transparent, transparent 4px, rgba(0,0,0,0.02) 4px, rgba(0,0,0,0.02) 8px)' } : {}}
@@ -484,22 +489,22 @@ export function CalendarView({
                                   draggedAllocation?.id === a.id ? 'opacity-50 ring-2 ring-gold-400' : ''
                                 } ${spanWeeks > 1 ? 'shadow-sm' : ''}`}
                                 style={spanWeeks > 1 ? { borderLeftWidth: '3px' } : {}}
-                                title={`${a.lesson.title} — L${a.level.number}`}>
+                                title={`${a.lesson.title} - L${a.level.number}`}>
                                 <div className="flex items-center gap-1.5">
                                   <span className={`w-1.5 h-1.5 rounded-full ${style.dot} flex-shrink-0`} />
                                   <span className="font-medium">L{a.level.number}</span>
                                   <span className="truncate flex-1 min-w-0">{a.lesson.title}</span>
                                   {spanWeeks > 1 && (
-                                    <span className="text-[9px] opacity-60 flex-shrink-0">{spanWeeks}{lang === 'ar' ? 'ج' : 'w'}</span>
+                                    <span className="text-[11px] opacity-60 flex-shrink-0">{spanWeeks}{lang === 'ar' ? 'ج' : 'w'}</span>
                                   )}
                                   <button onClick={e => { e.stopPropagation(); setMoveModal({ allocation: a, date: a.scheduledDate || '' }); setMoveDate(a.scheduledDate || '') }}
-                                    className="flex-shrink-0 opacity-0 group-hover:opacity-100 hover:bg-black/10 rounded transition-opacity ml-auto"
+                                    className="flex-shrink-0 opacity-0 group-hover:opacity-100 focus:opacity-100 hover:bg-black/10 rounded transition-opacity ms-auto"
                                     style={{ minWidth: '20px', minHeight: '20px' }}
                                     aria-label={lang === 'ar' ? 'نقل' : 'Move'}>
                                     <ChevronRight className="h-3 w-3 rotate-90" />
                                   </button>
-                                  <button onClick={e => { e.stopPropagation(); handleDeleteAlloc(a) }}
-                                    className="flex-shrink-0 opacity-0 group-hover:opacity-100 hover:bg-black/10 rounded transition-opacity"
+                                  <button onClick={e => { e.stopPropagation(); setDeleteAllocTarget(a) }}
+                                    className="flex-shrink-0 opacity-0 group-hover:opacity-100 focus:opacity-100 hover:bg-black/10 rounded transition-opacity"
                                     style={{ minWidth: '20px', minHeight: '20px' }}
                                     aria-label={lang === 'ar' ? 'إلغاء' : 'Unallocate'}>
                                     <X className="h-3 w-3" />
@@ -572,7 +577,7 @@ export function CalendarView({
               <div key={idx}
                 onDragOver={e => { e.preventDefault() }}
                 onDrop={e => { e.preventDefault(); handleMonthDrop(day.date) }}
-                className={`min-h-[100px] border-b border-r border-gray-100 p-1.5 transition-colors ${
+                className={`min-h-[100px] border-b border-e border-gray-100 p-1.5 transition-colors ${
                   day.isCurrentMonth ? 'bg-white' : 'bg-gray-50'
                 }`}>
                 <div className={`text-xs font-medium mb-1 ${
@@ -587,21 +592,21 @@ export function CalendarView({
                       <div key={a.id} draggable
                         onDragStart={() => setDraggedAllocation(a)}
                         onDragEnd={() => setDraggedAllocation(null)}
-                        className={`group text-[10px] px-1.5 py-0.5 rounded cursor-grab active:cursor-grabbing flex items-center gap-0.5 ${
+                        className={`group text-[11px] px-1.5 py-0.5 rounded cursor-grab active:cursor-grabbing flex items-center gap-0.5 ${
                           style.bg} ${style.text} border ${style.border} ${
                           draggedAllocation?.id === a.id ? 'opacity-50 ring-2 ring-gold-400' : ''
                         }`}
-                        title={`${a.lesson.title} — L${a.level.number}`}>
+                        title={`${a.lesson.title} - L${a.level.number}`}>
                         <span className={`w-1.5 h-1.5 rounded-full ${style.dot} flex-shrink-0`} />
                         <span className="font-medium flex-shrink-0">L{a.level.number}</span>
                         <span className="truncate">{a.lesson.title}</span>
                         <button onClick={e => { e.stopPropagation(); setMoveModal({ allocation: a, date: dateStr }); setMoveDate(dateStr) }}
-                          className="flex-shrink-0 opacity-0 group-hover:opacity-100 hover:bg-black/10 rounded transition-opacity"
+                          className="flex-shrink-0 opacity-0 group-hover:opacity-100 focus:opacity-100 hover:bg-black/10 rounded transition-opacity"
                           style={{ minWidth: '24px', minHeight: '24px' }}
                           aria-label={lang === 'ar' ? 'نقل' : 'Move'}>
                           <ChevronRight className="h-3 w-3 rotate-90" />
                         </button>
-                         <button onClick={e => { e.stopPropagation(); handleDeleteAlloc(a) }}
+                         <button onClick={e => { e.stopPropagation(); setDeleteAllocTarget(a) }}
                            className="flex-shrink-0 opacity-0 group-hover:opacity-100 hover:bg-black/10 rounded transition-opacity"
                            style={{ minWidth: '24px', minHeight: '24px' }}
                            aria-label={lang === 'ar' ? 'إلغاء' : 'Unallocate'}>
@@ -626,11 +631,13 @@ export function CalendarView({
         <div className="px-4 py-3 border-b border-gray-200 space-y-2">
           <h3 className="font-semibold text-gray-900 text-sm">{lang === 'ar' ? 'العناصر غير الموزعة' : 'Unallocated Items'}</h3>
           <select value={calendarSidebarLevel} onChange={e => setCalendarSidebarLevel(e.target.value)}
+            aria-label={lang === 'ar' ? 'المستوى' : 'Level'}
             className="w-full rounded-lg border border-gray-300 px-2.5 py-1.5 text-xs focus:border-gold-500 focus:ring-1 focus:ring-blue-500 focus:outline-none">
             <option value="">{lang === 'ar' ? 'جميع المستويات' : 'All Levels'}</option>
-            {levels.map(l => <option key={l.id} value={l.number.toString()}>{lang === 'ar' ? 'المستوى' : 'Level'} {l.number} — {l.name}</option>)}
+            {levels.map(l => <option key={l.id} value={l.number.toString()}>{lang === 'ar' ? 'المستوى' : 'Level'} {l.number} - {l.name}</option>)}
           </select>
           <select value={selectedSubject} onChange={e => setSelectedSubject(e.target.value)}
+            aria-label={lang === 'ar' ? 'المادة' : 'Subject'}
             className="w-full rounded-lg border border-gray-300 px-2.5 py-1.5 text-xs focus:border-gold-500 focus:ring-1 focus:ring-blue-500 focus:outline-none">
             <option value="all">{lang === 'ar' ? 'جميع المواد' : 'All Subjects'}</option>
             {subjects.map(s => (
@@ -638,6 +645,7 @@ export function CalendarView({
             ))}
           </select>
           <select value={selectedGroup} onChange={e => setSelectedGroup(Number(e.target.value))}
+            aria-label={lang === 'ar' ? 'المجموعة' : 'Group'}
             className="w-full rounded-lg border border-gray-300 px-2.5 py-1.5 text-xs focus:border-gold-500 focus:ring-1 focus:ring-blue-500 focus:outline-none">
             {[1, 2, 3, 4].map(g => (
               <option key={g} value={g}>{lang === 'ar' ? `المجموعة ${g}` : `Group ${g}`}</option>
@@ -651,7 +659,7 @@ export function CalendarView({
             </div>
           )}
           {unallocatedItems.length === 0 ? (
-            <div className="text-center text-xs text-gray-400 py-8">{lang === 'ar' ? 'جميع العناصر موزعة' : 'All items are allocated'}</div>
+            <div className="text-center text-xs text-gray-500 py-8">{lang === 'ar' ? 'جميع العناصر موزعة' : 'All items are allocated'}</div>
           ) : (
             unallocatedItems.map(item => {
               const relatedLesson = lessons.find(l => l.subjectItemId === item.id)
@@ -670,20 +678,20 @@ export function CalendarView({
                       ? 'bg-blue-50 border-blue-300 shadow-md opacity-70'
                       : 'bg-gray-50 border-gray-100 hover:border-blue-200 hover:bg-blue-50/30'
                   }`}
-                  title={`${item.name} — ${lang === 'ar' ? 'اسحب إلى التقويم' : 'drag to calendar'}`}>
+                  title={`${item.name} - ${lang === 'ar' ? 'اسحب إلى التقويم' : 'drag to calendar'}`}>
                   <GripVertical className={`h-3.5 w-3.5 mt-0.5 flex-shrink-0 ${relatedLesson ? 'text-gray-300 group-hover:text-gold-400' : 'text-gray-200'}`} />
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-1.5 flex-wrap">
-                        <span className={`inline-flex items-center rounded px-1.5 py-0.5 font-medium text-[10px] ${style.bg} ${style.text} border ${style.border}`}>
-                        <span className={`w-1.5 h-1.5 rounded-full ${style.dot} mr-0.5`} />
+                        <span className={`inline-flex items-center rounded px-1.5 py-0.5 font-medium text-[11px] ${style.bg} ${style.text} border ${style.border}`}>
+                        <span className={`w-1.5 h-1.5 rounded-full ${style.dot} ms-0.5`} />
                         {subjName || 'Item'}
                       </span>
                       {item.levels?.map(l => (
-                        <span key={l.levelNumber} className="inline-flex items-center rounded bg-blue-100 px-1.5 py-0.5 font-medium text-blue-700 text-[10px]">L{l.levelNumber}</span>
+                        <span key={l.levelNumber} className="inline-flex items-center rounded bg-blue-100 px-1.5 py-0.5 font-medium text-blue-700 text-[11px]">L{l.levelNumber}</span>
                       ))}
-                      <span className="truncate font-medium text-gray-800 text-[10px]">{item.name}</span>
+                      <span className="truncate font-medium text-gray-800 text-[11px]">{item.name}</span>
                     </div>
-                    <div className="flex items-center gap-2 mt-0.5 text-[10px] text-gray-400">
+                    <div className="flex items-center gap-2 mt-0.5 text-[11px] text-gray-500">
                       {item.whenLabel && <span>{item.whenLabel}</span>}
                       {(() => {
                         const sessions = selectedGroup === 1 ? item.sessionsGroup1 : selectedGroup === 2 ? item.sessionsGroup2 : selectedGroup === 3 ? item.sessionsGroup3 : item.sessionsGroup4
@@ -697,12 +705,50 @@ export function CalendarView({
             })
           )}
         </div>
-        <div className="px-4 py-2 border-t border-gray-100 text-[10px] text-gray-400">
+        <div className="px-4 py-2 border-t border-gray-100 text-[11px] text-gray-500">
           {unallocatedItems.length} {lang === 'ar' ? 'عنصر متاح' : 'item(s) available'}
         </div>
       </div>
 
       {viewMode === 'grid' ? renderGrid() : renderMonth()}
+
+      <Modal open={!!moveModal} onClose={() => setMoveModal(null)}
+        title={lang === 'ar' ? 'نقل التوزيع' : 'Move Allocation'} size="sm">
+        <div className="space-y-4">
+          <p className="text-sm text-gray-500">
+            {lang === 'ar' ? 'اختر تاريخاً جديداً للتوزيع.' : 'Choose a new date for this allocation.'}
+          </p>
+          <div>
+            <label htmlFor="move-date" className="block text-xs font-medium text-gray-500 mb-1">
+              {lang === 'ar' ? 'التاريخ' : 'Date'}
+            </label>
+            <DatePicker id="move-date" value={moveDate} onChange={setMoveDate} />
+          </div>
+        </div>
+        <div className="mt-6 flex items-center gap-3">
+          <button onClick={() => setMoveModal(null)}
+            className="flex-1 rounded-lg border border-gray-200 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 active:bg-gray-100">
+            {lang === 'ar' ? 'إلغاء' : 'Cancel'}
+          </button>
+          <button
+            onClick={() => moveModal && handleMoveAllocation(moveModal.allocation.id, moveDate)}
+            disabled={!moveDate}
+            className="flex-1 rounded-lg bg-blue-500 px-4 py-2.5 text-sm font-medium text-white hover:bg-blue-600 disabled:opacity-50">
+            {lang === 'ar' ? 'نقل' : 'Move'}
+          </button>
+        </div>
+      </Modal>
+
+      <ConfirmDialog
+        open={!!deleteAllocTarget}
+        onClose={() => setDeleteAllocTarget(null)}
+        onConfirm={() => { if (deleteAllocTarget) { handleDeleteAlloc(deleteAllocTarget); setDeleteAllocTarget(null) } }}
+        title={lang === 'ar' ? 'إلغاء التوزيع' : 'Remove Allocation'}
+        message={deleteAllocTarget ? (lang === 'ar' ? `إزالة التوزيع "${deleteAllocTarget.lesson.title}"؟ لا يمكن التراجع عن ذلك.` : `Remove allocation for "${deleteAllocTarget.lesson.title}"? This cannot be undone.`) : ''}
+        confirmLabel={lang === 'ar' ? 'إزالة' : 'Remove'}
+        cancelLabel={lang === 'ar' ? 'إلغاء' : 'Cancel'}
+        variant="danger"
+      />
     </div>
   )
 }

@@ -153,25 +153,25 @@ export function ImportModal({ levels, subjects, onImport, onClose }: ImportModal
             <div className="rounded-lg bg-red-50 border border-red-200 p-3 text-sm text-red-700" role="alert">{importError}</div>
           )}
           <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">{lang === 'ar' ? 'المستوى المستهدف' : 'Target Level'}</label>
-            <select value={importTargetLevel} onChange={e => setImportTargetLevel(e.target.value)}
+            <label htmlFor="im-level" className="block text-xs font-medium text-gray-500 mb-1">{lang === 'ar' ? 'المستوى المستهدف' : 'Target Level'}</label>
+            <select id="im-level" value={importTargetLevel} onChange={e => setImportTargetLevel(e.target.value)}
               className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
               <option value="">{lang === 'ar' ? 'اختر مستوى...' : 'Select a level...'}</option>
               {levels.map(l => <option key={l.id} value={l.id}>{lang === 'ar' ? 'المستوى' : 'Level'} {l.number}</option>)}
             </select>
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">{lang === 'ar' ? 'المادة' : 'Subject'}</label>
-            <select value={importSubjectId} onChange={e => setImportSubjectId(e.target.value)}
+            <label htmlFor="im-subject" className="block text-xs font-medium text-gray-500 mb-1">{lang === 'ar' ? 'المادة' : 'Subject'}</label>
+            <select id="im-subject" value={importSubjectId} onChange={e => setImportSubjectId(e.target.value)}
               className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
               <option value="">{lang === 'ar' ? 'اختر مادة...' : 'Select a subject...'}</option>
               {subjects.map(s => <option key={s.id} value={s.id}>{s.name}{s.nameAr ? ` (${s.nameAr})` : ''}</option>)}
             </select>
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">{lang === 'ar' ? 'ملف الاستيراد' : 'Import File'}</label>
-            <input ref={fileInputRef} type="file" accept=".csv,.xlsx,.xls" onChange={handleImportFile}
-              className="block w-full text-sm text-gray-500 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" />
+            <label htmlFor="im-file" className="block text-xs font-medium text-gray-500 mb-1">{lang === 'ar' ? 'ملف الاستيراد' : 'Import File'}</label>
+            <input id="im-file" ref={fileInputRef} type="file" accept=".csv,.xlsx,.xls" onChange={handleImportFile}
+              className="block w-full text-sm text-gray-500 file:me-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" />
             <p className="text-xs text-gray-400 mt-1">{lang === 'ar' ? 'الأعمدة المدعومة: العنوان، العنوان_عربي، العنوان_قبطي، الوصف، المدة، الجلسات' : 'Supported columns: title, titleAr, titleCoptic, description, duration, sessions'}</p>
           </div>
           {importData.length > 0 && (

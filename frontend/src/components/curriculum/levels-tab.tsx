@@ -50,6 +50,7 @@ export function LevelsTab({
   const [editSubject, setEditSubject] = useState<Subject | null>(null)
   const [subjectForm, setSubjectForm] = useState({ name: '', nameAr: '', description: '' })
   const [deleteSubjectTarget, setDeleteSubjectTarget] = useState<Subject | null>(null)
+  const [deleteLessonTarget, setDeleteLessonTarget] = useState<Lesson | null>(null)
   const [presentingLesson, setPresentingLesson] = useState<Lesson | null>(null)
 
 
@@ -82,11 +83,11 @@ export function LevelsTab({
     <div role="tabpanel" id="panel-levels" aria-labelledby="tab-levels" className="space-y-6">
       <div className="flex flex-wrap items-center gap-3">
         <div className="relative flex-1 max-w-xs">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-          <input type="text" value={search} onChange={e => setSearch(e.target.value)} placeholder={lang === 'ar' ? 'البحث في التسبائح...' : 'Search hymns...'}
-            className="w-full rounded-lg border border-gray-300 pl-9 pr-3 py-2 text-sm focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-blue-500" />
+          <Search className="absolute start-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+          <input type="text" value={search} onChange={e => setSearch(e.target.value)} placeholder={lang === 'ar' ? 'البحث في التسبائح...' : 'Search hymns...'} aria-label={lang === 'ar' ? 'البحث في التسبائح' : 'Search hymns'}
+            className="w-full rounded-lg border border-gray-300 ps-9 pe-3 py-2 text-sm focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-blue-500" />
         </div>
-        <div className="flex items-center gap-2 ml-auto">
+        <div className="flex items-center gap-2 ms-auto">
           <button onClick={() => { setEditSubject(null); setSubjectForm({ name: '', nameAr: '', description: '' }); setShowSubjectsModal(true) }}
             className="flex items-center gap-1.5 rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-white">
             <BookOpen className="h-3.5 w-3.5" />{lang === 'ar' ? 'إدارة المواد' : 'Manage Subjects'}
@@ -113,23 +114,26 @@ export function LevelsTab({
       <div className="border-b border-gray-200">
         <nav className="-mb-px flex gap-1 overflow-x-auto">
           {sortedLevels.map(l => (
-            <button key={l.id} onClick={() => onSelectLevel(l.id)}
-              className={`group whitespace-nowrap px-4 py-2.5 text-sm font-medium rounded-t-lg border-b-2 transition-colors ${
-                selectedLevelId === l.id
-                  ? 'border-gold-500 text-blue-700 bg-blue-50/50'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}>
-              {lang === 'ar' ? 'المستوى' : 'Level'} {l.number}
-              {l._count?.lessons ? <span className="ml-1.5 text-xs opacity-60">({l._count.lessons})</span> : null}
+            <div key={l.id} className="relative group">
+              <button onClick={() => onSelectLevel(l.id)}
+                className={`whitespace-nowrap px-4 py-2.5 text-sm font-medium rounded-t-lg border-b-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
+                  selectedLevelId === l.id
+                    ? 'border-gold-500 text-blue-700 bg-blue-50/50'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}>
+                {lang === 'ar' ? 'المستوى' : 'Level'} {l.number}
+                {l._count?.lessons ? <span className="ms-1.5 text-xs opacity-60">({l._count.lessons})</span> : null}
+              </button>
               {selectedLevelId === l.id && (
-                <span onClick={e => { e.stopPropagation(); setDeleteLevelId(l.id) }}
-                  className="ml-2 inline-flex opacity-0 group-hover:opacity-100 transition-opacity">
+                <button onClick={() => setDeleteLevelId(l.id)}
+                  aria-label={lang === 'ar' ? `حذف المستوى ${l.number}` : `Delete level ${l.number}`}
+                  className="absolute top-1/2 -translate-y-1/2 -end-2 inline-flex items-center justify-center opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity p-1 rounded hover:bg-red-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400">
                   <Trash2 className="h-3.5 w-3.5 text-red-400 hover:text-red-600" />
-                </span>
+                </button>
               )}
-            </button>
+            </div>
           ))}
-          {sortedLevels.length === 0 && <span className="px-4 py-2.5 text-sm text-gray-400">{lang === 'ar' ? 'لا توجد مستويات' : 'No levels configured'}</span>}
+          {sortedLevels.length === 0 && <span className="px-4 py-2.5 text-sm text-gray-500">{lang === 'ar' ? 'لا توجد مستويات' : 'No levels configured'}</span>}
         </nav>
       </div>
 
@@ -145,7 +149,7 @@ export function LevelsTab({
                 <div className={`flex items-center gap-2 px-4 py-3 ${style.bg} border-b ${style.border}`}>
                   <Icon className={`h-4 w-4 ${style.text}`} />
                   <span className={`text-sm font-semibold ${style.text}`}>{subject.name}</span>
-                  <span className={`text-xs ml-auto ${style.text} opacity-60`}>{subjectLessons.length}</span>
+                  <span className={`text-xs ms-auto ${style.text} opacity-60`}>{subjectLessons.length}</span>
                 </div>
                 <div className="divide-y divide-gray-100">
                   {subjectLessons.sort((a, b) => a.orderIndex - b.orderIndex).map((lesson, idx) => (
@@ -159,8 +163,8 @@ export function LevelsTab({
                             <span className="text-gray-500 text-xs">{lesson.title}</span>
                           </Link>
                         <div className="flex items-center gap-2 mt-0.5">
-                          <span className="flex items-center gap-0.5 text-[10px] text-gray-400"><Clock className="h-2.5 w-2.5" />{lesson.estimatedDurationMinutes || '—'}m</span>
-                          <span className="text-[10px] text-gray-400">{lesson.sessionsCount} {lang === 'ar' ? (lesson.sessionsCount === 1 ? 'جلسة' : 'جلسات') : lesson.sessionsCount > 1 ? 'sessions' : 'session'}</span>
+                          <span className="flex items-center gap-0.5 text-[11px] text-gray-500"><Clock className="h-2.5 w-2.5" />{lesson.estimatedDurationMinutes || '-'}m</span>
+                          <span className="text-[11px] text-gray-500">{lesson.sessionsCount} {lang === 'ar' ? (lesson.sessionsCount === 1 ? 'جلسة' : 'جلسات') : lesson.sessionsCount > 1 ? 'sessions' : 'session'}</span>
                           <Badge variant={STATUS_BADGE[lesson.status] || 'default'} size="sm">{lesson.status}</Badge>
                           {lesson.presentationData && (
                             <span className="flex items-center gap-0.5 text-[10px] text-purple-500" title={lang === 'ar' ? 'يوجد عرض' : 'Has presentation'}>
@@ -172,12 +176,15 @@ export function LevelsTab({
                       <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
                         {lesson.presentationData && (
                           <button onClick={() => setPresentingLesson(lesson)}
-                            className="p-1.5 rounded hover:bg-gray-200 text-gray-400 hover:text-purple-600 min-h-[32px] min-w-[32px]" title={lang === 'ar' ? 'عرض التسبيحة' : 'Present Hymn'}>
+                            aria-label={lang === 'ar' ? `عرض ${lesson.titleCoptic || lesson.title}` : `Present ${lesson.titleCoptic || lesson.title}`}
+                            className="p-1.5 rounded hover:bg-gray-200 text-gray-400 hover:text-purple-600 min-h-[32px] min-w-[32px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500" title={lang === 'ar' ? 'عرض التسبيحة' : 'Present Hymn'}>
                             <Presentation className="h-3.5 w-3.5" />
                           </button>
                         )}
-                        <button onClick={() => setEditLesson(lesson)} className="p-1.5 rounded hover:bg-gray-200 text-gray-400 hover:text-blue-700 min-h-[32px] min-w-[32px]" title={lang === 'ar' ? 'تعديل' : 'Edit'}><Pencil className="h-3.5 w-3.5" /></button>
-                        <button onClick={() => onDeleteLesson(lesson.id)} className="p-1.5 rounded hover:bg-red-100 text-gray-400 hover:text-red-500 min-h-[32px] min-w-[32px]" title={lang === 'ar' ? 'حذف' : 'Delete'}><Trash2 className="h-3.5 w-3.5" /></button>
+                        <button onClick={() => setEditLesson(lesson)} aria-label={lang === 'ar' ? 'تعديل' : 'Edit'}
+                          className="p-1.5 rounded hover:bg-gray-200 text-gray-400 hover:text-blue-700 min-h-[32px] min-w-[32px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500" title={lang === 'ar' ? 'تعديل' : 'Edit'}><Pencil className="h-3.5 w-3.5" /></button>
+                        <button onClick={() => setDeleteLessonTarget(lesson)} aria-label={lang === 'ar' ? 'حذف' : 'Delete'}
+                          className="p-1.5 rounded hover:bg-red-100 text-gray-400 hover:text-red-500 min-h-[32px] min-w-[32px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400" title={lang === 'ar' ? 'حذف' : 'Delete'}><Trash2 className="h-3.5 w-3.5" /></button>
                       </div>
                     </div>
                   ))}
@@ -186,11 +193,11 @@ export function LevelsTab({
             )
           })}
           {Object.keys(lessonsBySubject).length === 0 && (
-            <div className="col-span-3 text-center py-12 text-gray-400"><Music className="h-10 w-10 mx-auto mb-2 opacity-50" /><p className="text-sm">{lang === 'ar' ? 'لا توجد تسبائح لهذا المستوى' : 'No hymns found for this level'}</p></div>
+            <div className="col-span-3 text-center py-12 text-gray-500"><Music className="h-10 w-10 mx-auto mb-2 opacity-50" /><p className="text-sm">{lang === 'ar' ? 'لا توجد تسبائح لهذا المستوى' : 'No hymns found for this level'}</p></div>
           )}
         </div>
       ) : (
-        <div className="text-center py-16 text-gray-400">
+        <div className="text-center py-16 text-gray-500">
           <BookOpen className="h-12 w-12 mx-auto mb-3 opacity-40" />
           <p className="text-lg font-medium text-gray-500">{lang === 'ar' ? 'اختر مستوى لعرض المنهج' : 'Select a level to view curriculum'}</p>
           <p className="text-sm mt-1">{lang === 'ar' ? 'اختر علامة تبويب مستوى أعلاه لرؤية التسبائح المصنفة حسب الموضوع' : 'Choose a level tab above to see subject-grouped hymns'}</p>
@@ -290,6 +297,22 @@ export function LevelsTab({
           </div>
         </div>
       </Modal>
+
+      <ConfirmDialog
+        open={!!deleteLessonTarget}
+        onClose={() => setDeleteLessonTarget(null)}
+        onConfirm={async () => {
+          if (deleteLessonTarget) {
+            await onDeleteLesson(deleteLessonTarget.id)
+            setDeleteLessonTarget(null)
+          }
+        }}
+        title={lang === 'ar' ? 'حذف التسبيحة' : 'Delete Hymn'}
+        message={deleteLessonTarget ? (lang === 'ar' ? `حذف التسبيحة "${deleteLessonTarget.titleCoptic || deleteLessonTarget.title}"؟ لا يمكن التراجع عن ذلك.` : `Delete "${deleteLessonTarget.titleCoptic || deleteLessonTarget.title}"? This cannot be undone.`) : ''}
+        confirmLabel={lang === 'ar' ? 'حذف' : 'Delete'}
+        cancelLabel={lang === 'ar' ? 'إلغاء' : 'Cancel'}
+        variant="danger"
+      />
 
       <ConfirmDialog
         open={!!deleteSubjectTarget}
