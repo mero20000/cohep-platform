@@ -30,17 +30,16 @@ const content = {
       openSource: 'Open Source',
       community: 'Features',
       signIn: 'Sign In',
-      getStarted: 'Get Started',
+      getStarted: 'Register Your Church',
     },
     hero: {
       eyebrow: 'Free · Open-Source · Built for the Church',
       headline: 'Every child belongs\nin the Church.',
       quote: '"Children must feel the Church considers them members — not merely their parents\' companions."',
       quoteAttrib: '— H.G. Bishop Samuel',
-      sub: 'COHEP gives every church the tools to teach authentic Coptic hymns, track student progress, engage parents, and pass 1,700 years of living tradition to the next generation.',
+      sub: 'Every church can teach authentic Coptic hymns, track progress, engage parents, and pass 1,700 years of living tradition forward.',
       cta1: 'Register Your Church',
       cta2: 'Explore the Platform',
-      trust: 'Free forever · Open-source · No credit card needed',
     },
     stats: {
       items: [
@@ -199,9 +198,9 @@ const content = {
     cta: {
       headline: 'The Church\'s heritage.\nYour children\'s future.',
       sub: 'Join hundreds of servants already using COHEP to preserve Coptic heritage and form the next generation of faithful worshippers.',
-      btn1: 'Register Your Church — Free',
+      btn1: 'Register Your Church',
       btn2: 'Explore the Platform',
-      btn3: 'Contribute on GitHub',
+      btn3: 'View on GitHub',
       trust: 'Free forever · No credit card · Open-source',
     },
     footer: {
@@ -236,17 +235,16 @@ const content = {
       openSource: 'مصدر مفتوح',
       community: 'المزايا',
       signIn: 'تسجيل الدخول',
-      getStarted: 'ابدأ الآن',
+      getStarted: 'سجّل كنيستك',
     },
     hero: {
       eyebrow: 'مجاني · مصدر مفتوح · بُني للكنيسة',
       headline: 'كل طفل له\nمكانه في الكنيسة.',
       quote: '"الأطفال في حاجة إلى الشعور بأن الكنيسة تعتبرهم أعضاء فيها، وليس مجرد مرافقين لوالديهم."',
       quoteAttrib: '— نيافة الأنبا صموئيل',
-      sub: 'كوهيب تمنح كل كنيسة الأدوات اللازمة لتعليم التراتيب القبطية الأصيلة، وتتبع تقدم الطلاب، وإشراك الأهالي، ونقل 1700 عام من التراث الحي إلى الجيل القادم.',
+      sub: 'كوهيب تمكّن كل كنيسة من تعليم التراتيب الأصيلة، وتتبع التقدم، وإشراك الأهالي، ونقل 1700 عام من التراث الحي.',
       cta1: 'سجّل كنيستك',
       cta2: 'استكشف المنصة',
-      trust: 'مجاني للأبد · مصدر مفتوح · بدون بطاقة ائتمان',
     },
     stats: {
       items: [
@@ -405,9 +403,9 @@ const content = {
     cta: {
       headline: 'تراث الكنيسة.\nمستقبل أطفالك.',
       sub: 'انضم إلى مئات الخدام الذين يستخدمون كوهيب بالفعل للحفاظ على التراث القبطي وتكوين الجيل القادم من المؤمنين.',
-      btn1: 'سجّل كنيستك — مجاناً',
+      btn1: 'سجّل كنيستك',
       btn2: 'استكشف المنصة',
-      btn3: 'ساهم على GitHub',
+      btn3: 'اعرض على GitHub',
       trust: 'مجاني للأبد · بدون بطاقة ائتمان · مصدر مفتوح',
     },
     footer: {
@@ -914,14 +912,6 @@ export default function Home() {
                   {t.hero.cta2}
                 </button>
               </div>
-
-              <p
-                className="reveal text-xs text-gray-400"
-                data-variant="up"
-                style={{ transitionDelay: '0.7s' }}
-              >
-                {t.hero.trust}
-              </p>
             </div>
           </div>
         </section>
