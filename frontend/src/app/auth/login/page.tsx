@@ -177,7 +177,7 @@ export default function LoginPage() {
         <div className="mx-auto w-full max-w-sm">
           {/* Mobile logo */}
           <Link href="/" className="flex items-center gap-2 mb-8 lg:hidden">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-500 text-white">
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-gold-500 to-gold-600 text-white">
               <Cross className="h-5 w-5" />
             </div>
             <span className="text-xl font-bold">COHEP</span>
@@ -329,7 +329,7 @@ export default function LoginPage() {
 
             <Button
               type="submit"
-              className="w-full h-12 rounded-xl text-base font-semibold bg-gradient-to-r from-gold-500 to-gold-600 hover:from-gold-600 hover:to-gold-700 shadow-lg shadow-gold-200 transition-all hover:shadow-xl hover:shadow-gold-200"
+              className="w-full h-12 rounded-xl text-base font-semibold text-gray-950 bg-gradient-to-r from-gold-500 to-gold-600 hover:from-gold-400 hover:to-gold-500 shadow-lg shadow-gold-200 transition-all hover:shadow-xl hover:shadow-gold-200"
               size="lg"
               disabled={loading}
             >
