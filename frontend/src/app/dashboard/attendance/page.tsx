@@ -5,15 +5,16 @@ import { useSearchParams } from 'next/navigation'
 import { useLanguage } from '@/lib/use-language'
 import {
   Calendar, Clock, CheckCircle2, XCircle, AlertCircle, Minus,
-  Filter, Plus, Search, Loader2, ChevronDown, ChevronRight,
-  Download, FileText, FileSpreadsheet, BarChart3, Users,
-  Eye, ArrowLeft, Save, UserCheck, UserX, X, Trash2, RotateCcw, Play, QrCode
+  Plus, Search, Loader2,
+  FileText, BarChart3, Users,
+  ArrowLeft, Save, UserCheck, UserX, X, Trash2, RotateCcw, Play, QrCode
 } from 'lucide-react'
 import { useToast } from '@/components/ui/toast'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { DatePicker } from '@/components/ui/date-picker'
 import { StatCard } from '@/components/ui/stat-card'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { QrScanner } from '@/components/qr/qr-scanner'
 import { http } from '@/lib/http-client'
 import { getSchoolId } from '@/lib/school'
@@ -91,6 +92,8 @@ export default function AttendancePage() {
   const [saving, setSaving] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [showGenerateConfirm, setShowGenerateConfirm] = useState(false)
+  const [generating, setGenerating] = useState(false)
 
   const [showQrScanner, setShowQrScanner] = useState(false)
   const [startingClass, setStartingClass] = useState(false)
@@ -105,6 +108,23 @@ export default function AttendancePage() {
   const schoolId = getSchoolId()
   const [searchParams] = useSearchParams ? [useSearchParams()] : [null]
   const arrivalTapHandled = useRef(false)
+  const tabRefs = useRef<Record<string, HTMLButtonElement | null>>({})
+  const TAB_IDS = ['sessions', 'stats', 'students'] as const
+
+  const handleTabKeyDown = (e: React.KeyboardEvent<HTMLButtonElement>, activeId: string) => {
+    const idx = TAB_IDS.indexOf(activeId as (typeof TAB_IDS)[number])
+    let next: (typeof TAB_IDS)[number] | undefined
+    if (e.key === 'ArrowRight') next = TAB_IDS[(idx + 1) % TAB_IDS.length]
+    else if (e.key === 'ArrowLeft') next = TAB_IDS[(idx + TAB_IDS.length - 1) % TAB_IDS.length]
+    else if (e.key === 'Home') next = TAB_IDS[0]
+    else if (e.key === 'End') next = TAB_IDS[TAB_IDS.length - 1]
+    if (next) {
+      e.preventDefault()
+      setTab(next)
+      setSelectedSession(null)
+      requestAnimationFrame(() => tabRefs.current[next]?.focus())
+    }
+  }
 
   const fetchSessions = useCallback(async () => {
     setLoading(true)
@@ -332,7 +352,7 @@ export default function AttendancePage() {
       body: data, styles: { fontSize: 7 },
       headStyles: { fillColor: [212, 175, 55] },
     })
-    doc.save('niangelos-attendance.pdf')
+    doc.save('cohep-attendance.pdf')
   }
 
   const filteredSessions = sessions.filter(s => {
@@ -340,6 +360,17 @@ export default function AttendancePage() {
     const q = search.toLowerCase()
     return (s.level?.name || '').toLowerCase().includes(q) || (s.group?.name || '').toLowerCase().includes(q)
   })
+
+  const handleGenerateSessions = async () => {
+    setGenerating(true)
+    try {
+      const result = await http.post<{ created: number; skipped: number }>('/attendance/sessions/generate', undefined, { schoolId })
+      toast('success', lang === 'ar' ? `تم إنشاء ${result.created} جلسات (${result.skipped} موجودة مسبقًا)` : `Generated ${result.created} sessions (${result.skipped} already existed)`)
+      fetchSessions()
+    } catch { toast('error', lang === 'ar' ? 'فشل إنشاء الجلسات' : 'Failed to generate sessions') }
+    setGenerating(false)
+    setShowGenerateConfirm(false)
+  }
 
   const handleReopenAttendance = async () => {
     if (!selectedSession) return
@@ -378,14 +409,7 @@ export default function AttendancePage() {
           <Button variant="outline" size="sm" onClick={handleStartClass} disabled={startingClass}>
             <Play className="h-3.5 w-3.5" />{startingClass ? (lang === 'ar' ? '...جاري' : 'Starting...') : (lang === 'ar' ? 'بدء الفصل' : 'Start Class')}
           </Button>
-          <Button variant="outline" size="sm" onClick={async () => {
-            if (!confirm(lang === 'ar' ? 'هل تريد إنشاء جلسات حضور لجميع الأيام النشطة؟ سيتم إنشاء جلسات لكل مستوى ومجموعة في كل يوم نشط لا توجد فيه جلسة بعد.' : 'Generate attendance sessions for all active days? This will create sessions for every level and group on each active day where no session exists yet.')) return
-            try {
-              const result = await http.post<{ created: number; skipped: number }>('/attendance/sessions/generate', undefined, { schoolId })
-              toast('success', lang === 'ar' ? `تم إنشاء ${result.created} جلسات (${result.skipped} موجودة مسبقًا)` : `Generated ${result.created} sessions (${result.skipped} already existed)`)
-              fetchSessions()
-            } catch { toast('error', lang === 'ar' ? 'فشل إنشاء الجلسات' : 'Failed to generate sessions') }
-          }} className="flex items-center gap-1.5 rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-white">
+          <Button variant="outline" size="sm" onClick={() => setShowGenerateConfirm(true)} className="flex items-center gap-1.5 rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-white">
             <Calendar className="h-3.5 w-3.5" />{lang === 'ar' ? 'إنشاء' : 'Generate'}
           </Button>
           <Button onClick={() => setShowCreateModal(true)}>
@@ -402,8 +426,11 @@ export default function AttendancePage() {
             { id: 'stats' as const, label: lang === 'ar' ? 'الإحصائيات' : 'Statistics', icon: BarChart3 },
             { id: 'students' as const, label: lang === 'ar' ? 'بالطالب' : 'By Student', icon: Users },
           ].map(t => (
-            <button key={t.id} onClick={() => { setTab(t.id); setSelectedSession(null) }}
-              role="tab" aria-selected={tab === t.id} aria-controls={`panel-${t.id}`}
+            <button key={t.id} ref={el => { tabRefs.current[t.id] = el }}
+              onClick={() => { setTab(t.id); setSelectedSession(null) }}
+              onKeyDown={e => handleTabKeyDown(e, t.id)}
+              role="tab" id={`tab-${t.id}`} tabIndex={tab === t.id ? 0 : -1}
+              aria-selected={tab === t.id} aria-controls={`panel-${t.id}`}
               className={`flex items-center gap-2 py-3 px-1 border-b-2 text-sm font-medium transition-colors ${
                 tab === t.id ? 'border-gold-500 text-blue-700' : 'border-transparent text-gray-500 hover:text-gray-700'
               }`}>
@@ -438,14 +465,11 @@ export default function AttendancePage() {
 
       {/* Sessions Tab */}
       {tab === 'sessions' && (
-        <div role="tabpanel" id="panel-sessions" className="grid gap-6 lg:grid-cols-5">
+        <div role="tabpanel" id="panel-sessions" aria-labelledby="tab-sessions" className="grid gap-6 lg:grid-cols-5">
           {/* Sessions List */}
           <div className={`${selectedSession ? 'hidden lg:hidden' : 'lg:col-span-5'} rounded-xl border border-gray-200 bg-white transition-all`}>
             <div className="flex items-center justify-between border-b border-gray-100 px-5 py-3">
               <h2 className="font-semibold text-gray-900">{lang === 'ar' ? 'الجلسات' : 'Sessions'} ({filteredSessions.length})</h2>
-              <Button variant="ghost" size="sm" onClick={() => { setSelectedSession(null); setTab('sessions') }}>
-                <Filter className="h-3.5 w-3.5" />{lang === 'ar' ? 'تصفية' : 'Filters'}
-              </Button>
             </div>
             {/* Filters */}
             <div className="flex flex-wrap items-center gap-2 px-5 py-3 border-b border-gray-100 bg-gray-50">
@@ -470,20 +494,20 @@ export default function AttendancePage() {
               </select>
               <DatePicker value={filterDateFrom} onChange={setFilterDateFrom}
                 className="rounded-lg border border-gray-300 px-2 py-1.5 text-xs focus:border-gold-500 focus:outline-none" />
-              <span className="text-xs text-gray-400">{lang === 'ar' ? 'إلى' : 'to'}</span>
+              <span className="text-xs text-gray-500">{lang === 'ar' ? 'إلى' : 'to'}</span>
               <DatePicker value={filterDateTo} onChange={setFilterDateTo}
                 className="rounded-lg border border-gray-300 px-2 py-1.5 text-xs focus:border-gold-500 focus:outline-none" />
               <div className="relative flex-1 min-w-[140px]">
-                <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
+                <Search className="absolute start-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
                 <input type="text" value={search} onChange={e => setSearch(e.target.value)} placeholder={lang === 'ar' ? 'بحث...' : 'Search...'}
-                  className="w-full rounded-lg border border-gray-300 pl-7 pr-2 py-1.5 text-xs focus:border-gold-500 focus:outline-none" />
+                  className="w-full rounded-lg border border-gray-300 ps-8 pe-2 py-1.5 text-xs focus:border-gold-500 focus:outline-none" />
               </div>
             </div>
             <div className="divide-y divide-gray-100 max-h-[500px] overflow-y-auto">
               {filteredSessions.map(s => (
                 <button key={s.id} onClick={() => fetchSessionDetail(s.id)}
-                  className={`w-full flex items-center gap-3 px-5 py-3 text-left transition-colors hover:bg-gray-50 active:bg-gray-100 ${
-                    selectedSession?.id === s.id ? 'bg-blue-50/50 border-l-2 border-gold-500' : ''
+                  className={`w-full flex items-center gap-3 px-5 py-3 text-start transition-colors hover:bg-gray-50 active:bg-gray-100 ${
+                    selectedSession?.id === s.id ? 'bg-blue-50/50 border-s-2 border-gold-500' : ''
                   }`}>
                   <div className={`flex h-9 w-9 items-center justify-center rounded-lg ${
                     s.status === 'completed' ? 'bg-green-100 text-green-600' : s.status === 'scheduled' ? 'bg-blue-100 text-blue-600' : 'bg-amber-100 text-amber-600'
@@ -506,7 +530,7 @@ export default function AttendancePage() {
                 </button>
               ))}
               {filteredSessions.length === 0 && (
-                <div className="py-12 text-center text-gray-400"><Calendar className="h-10 w-10 mx-auto mb-2 opacity-50" /><p>{lang === 'ar' ? 'لم يتم العثور على جلسات' : 'No sessions found'}</p></div>
+                <div className="py-12 text-center text-gray-500"><Calendar className="h-10 w-10 mx-auto mb-2 opacity-50" /><p>{lang === 'ar' ? 'لم يتم العثور على جلسات' : 'No sessions found'}</p></div>
               )}
             </div>
           </div>
@@ -531,7 +555,7 @@ export default function AttendancePage() {
                   </div>
                 </div>
                 <div className="text-xs text-gray-500 mt-1">L{selectedSession.level?.number || '?'} &middot; {selectedSession.group?.name || '?'}</div>
-                <div className="text-xs text-gray-400">{new Date(selectedSession.scheduledDate).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })} {selectedSession.scheduledTime}</div>
+                <div className="text-xs text-gray-500">{new Date(selectedSession.scheduledDate).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })} {selectedSession.scheduledTime}</div>
               </div>
 
               {showQrScanner && !isCompleted && (
@@ -545,9 +569,9 @@ export default function AttendancePage() {
                   <Button variant="ghost" size="sm" onClick={() => handleMarkAll('present')} className="bg-green-100 text-green-700 hover:bg-green-200">{lang === 'ar' ? 'الكل حاضر' : 'All Present'}</Button>
                   <Button variant="ghost" size="sm" onClick={() => handleMarkAll('late')} className="bg-amber-100 text-amber-700 hover:bg-amber-200">{lang === 'ar' ? 'الكل متأخر' : 'All Late'}</Button>
                   <Button variant="ghost" size="sm" onClick={() => handleMarkAll('absent')} className="bg-red-100 text-red-700 hover:bg-red-200">{lang === 'ar' ? 'الكل غائب' : 'All Absent'}</Button>
-                  <div className="ml-auto">
+                  <div className="ms-auto">
                     <Button variant="outline" size="sm" onClick={() => setShowQrScanner(true)}>
-                      <QrCode className="h-3.5 w-3.5 mr-1" />{lang === 'ar' ? 'مسح QR' : 'QR Scan'}
+                      <QrCode className="h-3.5 w-3.5 ms-1" />{lang === 'ar' ? 'مسح QR' : 'QR Scan'}
                     </Button>
                   </div>
                 </div>
@@ -559,7 +583,7 @@ export default function AttendancePage() {
                 <span className="text-amber-600 font-medium">{lateCount} {lang === 'ar' ? 'متأخر' : 'Late'}</span>
                 <span className="text-red-600 font-medium">{absentCount} {lang === 'ar' ? 'غائب' : 'Absent'}</span>
                 <span className="text-gray-500 font-medium">{excusedCount} {lang === 'ar' ? 'معذور' : 'Excused'}</span>
-                <span className="text-gray-400 ml-auto">{totalStudents} {lang === 'ar' ? 'إجمالي' : 'total'}</span>
+                <span className="text-gray-500 ms-auto">{totalStudents} {lang === 'ar' ? 'إجمالي' : 'total'}</span>
               </div>
 
               {/* Student List */}
@@ -575,21 +599,22 @@ export default function AttendancePage() {
                       <div className="flex items-center gap-3">
                         <div className="min-w-0 flex-1">
                           <div className="text-sm font-medium text-gray-900 truncate">{record.student.firstName} {record.student.lastName}</div>
-                          <div className="text-[10px] text-gray-400">{record.student.studentCode}</div>
+                          <div className="text-xs text-gray-500">{record.student.studentCode}</div>
                         </div>
-                        <div className="flex items-center gap-0.5">
+                        <div className="flex items-center gap-1">
                           {(['present', 'late', 'absent', 'excused'] as const).map(s => {
                             const Icon = STATUS_ICONS[s]
+                            const statusLabel = s === 'present' ? (lang === 'ar' ? 'حاضر' : 'Present') : s === 'late' ? (lang === 'ar' ? 'متأخر' : 'Late') : s === 'absent' ? (lang === 'ar' ? 'غائب' : 'Absent') : (lang === 'ar' ? 'معذور' : 'Excused')
                             if (isCompleted) {
                               return (
-                                <div key={s} className={`rounded-lg p-1.5 ${status === s ? STATUS_COLORS[s] : 'text-gray-200'}`} title={s}>
+                                <div key={s} className={`rounded-lg p-1.5 ${status === s ? STATUS_COLORS[s] : 'text-gray-200'}`} aria-hidden="true">
                                   <Icon className="h-4 w-4" />
                                 </div>
                               )
                             }
                             return (
                               <button key={s} onClick={() => setTempMarks({ ...tempMarks, [record.student.id]: status === s ? 'unmarked' : s })}
-                                className={`rounded-lg p-1.5 transition-colors ${status === s ? STATUS_COLORS[s] : 'text-gray-300 hover:bg-gray-100'}`} title={s}>
+                                className={`rounded-lg p-1.5 transition-colors ${status === s ? STATUS_COLORS[s] : 'text-gray-300 hover:bg-gray-100'}`} title={statusLabel} aria-label={`${statusLabel} - ${record.student.firstName} ${record.student.lastName}`} aria-pressed={status === s}>
                                 <Icon className="h-4 w-4" />
                               </button>
                             )
@@ -600,7 +625,7 @@ export default function AttendancePage() {
                       <div className="flex flex-wrap items-center gap-4 mt-1.5">
                         {/* Behavior 0-5 */}
                         <div className="flex items-center gap-1.5">
-                          <span className="text-[11px] text-gray-500 font-medium whitespace-nowrap">{lang === 'ar' ? 'السلوك' : 'Behavior'}</span>
+                          <span className="text-xs text-gray-500 font-medium whitespace-nowrap">{lang === 'ar' ? 'السلوك' : 'Behavior'}</span>
                           <div className="flex gap-1">
                             {[1, 2, 3, 4, 5].map(v => {
                               const filled = b >= v
@@ -610,15 +635,15 @@ export default function AttendancePage() {
                                 )
                               }
                               return (
-                                <button key={v} onClick={() => setTempBehavior({ ...tempBehavior, [record.student.id]: filled && b === v ? 0 : v })}
-                                  className={`h-5 w-5 rounded-full transition-all ${filled ? 'bg-emerald-500 shadow-sm shadow-emerald-200' : 'bg-gray-100 border border-gray-200 hover:border-emerald-300 hover:bg-emerald-50'}`} title={`${v}/5`} />
+<button key={v} onClick={() => setTempBehavior({ ...tempBehavior, [record.student.id]: filled && b === v ? 0 : v })}
+                                className={`h-5 w-5 rounded-full transition-all ${filled ? 'bg-emerald-500 shadow-sm shadow-emerald-200' : 'bg-gray-100 border border-gray-200 hover:border-emerald-300 hover:bg-emerald-50'}`} title={`${v}/5`} aria-label={lang === 'ar' ? `السلوك ${v} من 5` : `Behavior ${v} of 5`} aria-pressed={filled} />
                               )
                             })}
                           </div>
                         </div>
                         {/* Participation 0-5 */}
                         <div className="flex items-center gap-1.5">
-                          <span className="text-[11px] text-gray-500 font-medium whitespace-nowrap">{lang === 'ar' ? 'المشاركة' : 'Participation'}</span>
+                          <span className="text-xs text-gray-500 font-medium whitespace-nowrap">{lang === 'ar' ? 'المشاركة' : 'Participation'}</span>
                           <div className="flex gap-1">
                             {[1, 2, 3, 4, 5].map(v => {
                               const filled = p >= v
@@ -628,8 +653,8 @@ export default function AttendancePage() {
                                 )
                               }
                               return (
-                                <button key={v} onClick={() => setTempParticipation({ ...tempParticipation, [record.student.id]: filled && p === v ? 0 : v })}
-                                  className={`h-5 w-5 rounded-full transition-all ${filled ? 'bg-blue-500 shadow-sm shadow-blue-200' : 'bg-gray-100 border border-gray-200 hover:border-blue-300 hover:bg-blue-50'}`} title={`${v}/5`} />
+<button key={v} onClick={() => setTempParticipation({ ...tempParticipation, [record.student.id]: filled && p === v ? 0 : v })}
+                                className={`h-5 w-5 rounded-full transition-all ${filled ? 'bg-blue-500 shadow-sm shadow-blue-200' : 'bg-gray-100 border border-gray-200 hover:border-blue-300 hover:bg-blue-50'}`} title={`${v}/5`} aria-label={lang === 'ar' ? `المشاركة ${v} من 5` : `Participation ${v} of 5`} aria-pressed={filled} />
                               )
                             })}
                           </div>
@@ -640,13 +665,13 @@ export default function AttendancePage() {
                             <div className={`h-4 w-4 rounded border flex items-center justify-center ${lit ? 'bg-blue-500 border-gold-500' : 'bg-gray-100 border-gray-200'}`}>
                               {lit && <svg className="h-3 w-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>}
                             </div>
-                            <span className={`text-[11px] font-medium ${lit ? 'text-blue-700' : 'text-gray-400'}`}>{lang === 'ar' ? 'القداس' : 'Liturgy'}</span>
+                            <span className={`text-xs font-medium ${lit ? 'text-blue-700' : 'text-gray-500'}`}>{lang === 'ar' ? 'القداس' : 'Liturgy'}</span>
                           </div>
                         ) : (
                           <label className="flex items-center gap-1.5 cursor-pointer select-none">
                             <input type="checkbox" checked={lit} onChange={e => setTempLiturgy({ ...tempLiturgy, [record.student.id]: e.target.checked })}
                               className="h-4 w-4 rounded border-gray-300 text-gold-500 focus:ring-blue-500" />
-                            <span className="text-[11px] text-gray-500 font-medium whitespace-nowrap">{lang === 'ar' ? 'القداس' : 'Liturgy'}</span>
+                            <span className="text-xs text-gray-500 font-medium whitespace-nowrap">{lang === 'ar' ? 'القداس' : 'Liturgy'}</span>
                           </label>
                         )}
                       </div>
@@ -684,8 +709,8 @@ export default function AttendancePage() {
           {/* Delete Confirmation */}
           {showDeleteConfirm && selectedSession && (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setShowDeleteConfirm(false)}>
-              <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm mx-4 p-6 text-center" onClick={e => e.stopPropagation()}>
-                <h3 className="font-semibold text-gray-900 mb-2">{lang === 'ar' ? 'حذف الجلسة' : 'Delete Session'}</h3>
+              <div role="dialog" aria-modal="true" aria-labelledby="delete-session-title" className="bg-white rounded-2xl shadow-xl w-full max-w-sm mx-4 p-6 text-center" onClick={e => e.stopPropagation()}>
+                <h3 id="delete-session-title" className="font-semibold text-gray-900 mb-2">{lang === 'ar' ? 'حذف الجلسة' : 'Delete Session'}</h3>
                 <p className="text-sm text-gray-500 mb-6">{lang === 'ar' ? 'هل أنت متأكد من حذف هذه الجلسة؟ سيتم أيضًا إزالة سجلات الحضور.' : 'Are you sure you want to delete this session? Attendance records will also be removed.'}</p>
                 <div className="flex items-center justify-center gap-3">
                   <Button variant="outline" onClick={() => setShowDeleteConfirm(false)}
@@ -704,7 +729,7 @@ export default function AttendancePage() {
 
       {/* Statistics Tab */}
       {tab === 'stats' && (
-        <div role="tabpanel" id="panel-stats" className="space-y-6">
+        <div role="tabpanel" id="panel-stats" aria-labelledby="tab-stats" className="space-y-6">
           {levelStats.length > 0 && (
             <div className="rounded-xl border border-gray-200 bg-white p-6">
               <h3 className="font-semibold text-gray-900 mb-4">{lang === 'ar' ? 'الحضور حسب المستوى' : 'Attendance by Grade'}</h3>
@@ -730,12 +755,12 @@ export default function AttendancePage() {
               <div className="overflow-x-auto table-to-cards">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="border-b border-gray-100 text-left text-xs text-gray-500">
+                    <tr className="border-b border-gray-100 text-start text-xs text-gray-500">
                       <th className="pb-2 font-medium">{lang === 'ar' ? 'المجموعة' : 'Group'}</th>
                       <th className="pb-2 font-medium">{lang === 'ar' ? 'المستوى' : 'Level'}</th>
-                      <th className="pb-2 font-medium text-right">{lang === 'ar' ? 'الجلسات' : 'Sessions'}</th>
-                      <th className="pb-2 font-medium text-right">{lang === 'ar' ? 'السجلات' : 'Records'}</th>
-                      <th className="pb-2 font-medium text-right">{lang === 'ar' ? 'النسبة' : 'Rate'}</th>
+                      <th className="pb-2 font-medium text-end">{lang === 'ar' ? 'الجلسات' : 'Sessions'}</th>
+                      <th className="pb-2 font-medium text-end">{lang === 'ar' ? 'السجلات' : 'Records'}</th>
+                      <th className="pb-2 font-medium text-end">{lang === 'ar' ? 'النسبة' : 'Rate'}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-50">
@@ -743,9 +768,9 @@ export default function AttendancePage() {
                       <tr key={g.groupId} className="hover:bg-gray-50 active:bg-gray-100">
                         <td data-label="Group" className="py-2.5 font-medium text-gray-900">{g.groupName}</td>
                         <td data-label="Level" className="py-2.5 text-gray-500">{lang === 'ar' ? `المستوى ${g.levelNumber}` : `Level ${g.levelNumber}`}</td>
-                        <td data-label="Sessions" className="py-2.5 text-right text-gray-700">{g.totalSessions}</td>
-                        <td data-label="Records" className="py-2.5 text-right text-gray-700">{g.totalRecords}</td>
-                        <td data-label="Rate" className="py-2.5 text-right">
+                        <td data-label="Sessions" className="py-2.5 text-end text-gray-700">{g.totalSessions}</td>
+                        <td data-label="Records" className="py-2.5 text-end text-gray-700">{g.totalRecords}</td>
+                        <td data-label="Rate" className="py-2.5 text-end">
                           <span className={`font-semibold ${g.attendanceRate >= 75 ? 'text-green-600' : g.attendanceRate >= 50 ? 'text-amber-600' : 'text-red-600'}`}>
                             {g.attendanceRate}%
                           </span>
@@ -762,10 +787,10 @@ export default function AttendancePage() {
               <h3 className="font-semibold text-gray-900 mb-4">{lang === 'ar' ? 'التوزيع العام' : 'Overall Distribution'}</h3>
               <div className="grid grid-cols-4 gap-4">
                 {[
-                  { label: lang === 'ar' ? 'حاضر' : 'Present', count: stats.presentCount, color: 'bg-green-500', pct: Math.round((stats.presentCount / stats.totalRecords) * 100) },
-                  { label: lang === 'ar' ? 'متأخر' : 'Late', count: stats.lateCount, color: 'bg-amber-500', pct: Math.round((stats.lateCount / stats.totalRecords) * 100) },
-                  { label: lang === 'ar' ? 'غائب' : 'Absent', count: stats.absentCount, color: 'bg-red-500', pct: Math.round((stats.absentCount / stats.totalRecords) * 100) },
-                  { label: lang === 'ar' ? 'معذور' : 'Excused', count: stats.excusedCount, color: 'bg-gray-400', pct: Math.round((stats.excusedCount / stats.totalRecords) * 100) },
+                  { label: lang === 'ar' ? 'حاضر' : 'Present', count: stats.presentCount, color: 'bg-green-500', pct: stats.totalRecords > 0 ? Math.round((stats.presentCount / stats.totalRecords) * 100) : 0 },
+                  { label: lang === 'ar' ? 'متأخر' : 'Late', count: stats.lateCount, color: 'bg-amber-500', pct: stats.totalRecords > 0 ? Math.round((stats.lateCount / stats.totalRecords) * 100) : 0 },
+                  { label: lang === 'ar' ? 'غائب' : 'Absent', count: stats.absentCount, color: 'bg-red-500', pct: stats.totalRecords > 0 ? Math.round((stats.absentCount / stats.totalRecords) * 100) : 0 },
+                  { label: lang === 'ar' ? 'معذور' : 'Excused', count: stats.excusedCount, color: 'bg-gray-400', pct: stats.totalRecords > 0 ? Math.round((stats.excusedCount / stats.totalRecords) * 100) : 0 },
                 ].map(item => (
                   <div key={item.label} className="text-center">
                     <div className="flex items-center justify-center mb-2">
@@ -785,7 +810,7 @@ export default function AttendancePage() {
 
       {/* By Student Tab */}
       {tab === 'students' && (
-        <div role="tabpanel" id="panel-students" className="rounded-xl border border-gray-200 bg-white">
+        <div role="tabpanel" id="panel-students" aria-labelledby="tab-students" className="rounded-xl border border-gray-200 bg-white">
           <div className="border-b border-gray-100 px-5 py-3">
             <h2 className="font-semibold text-gray-900">{lang === 'ar' ? 'سجل حضور الطلاب' : 'Student Attendance History'}</h2>
             <p className="text-xs text-gray-500">{lang === 'ar' ? 'عرض سجلات الحضور للطلاب بشكل فردي' : 'View attendance records for individual students'}</p>
@@ -814,11 +839,11 @@ export default function AttendancePage() {
                 <div key={student.id} className="px-5 py-3">
                   <div className="text-sm font-medium text-gray-900 mb-2">
                     {student.firstName} {student.lastName}
-                    {student.firstNameAr && <span className="text-gray-400 ml-2">{student.firstNameAr} {student.lastNameAr}</span>}
-                    <span className="text-gray-400 ml-2 text-xs">({student.studentCode})</span>
+                    {student.firstNameAr && <span className="text-gray-500 ms-2">{student.firstNameAr} {student.lastNameAr}</span>}
+                    <span className="text-gray-500 ms-2 text-xs">({student.studentCode})</span>
                   </div>
                   {records.length === 0 ? (
-                    <p className="text-xs text-gray-400">{lang === 'ar' ? 'لم يتم العثور على سجلات حضور' : 'No attendance records found'}</p>
+                    <p className="text-xs text-gray-500">{lang === 'ar' ? 'لم يتم العثور على سجلات حضور' : 'No attendance records found'}</p>
                   ) : (
                     <div className="space-y-1">
                       {records.map(r => (
@@ -830,13 +855,13 @@ export default function AttendancePage() {
                             L{r.attendanceSession?.level?.number} &bull; {new Date(r.recordedAt).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })}
                           </span>
                           {r.behavior != null && r.behavior > 0 && (
-                            <span className="text-[10px] text-emerald-600">Beh:{r.behavior}/5</span>
+                            <span className="text-xs text-emerald-600">Beh:{r.behavior}/5</span>
                           )}
                           {r.participation != null && r.participation > 0 && (
-                            <span className="text-[10px] text-blue-600">Part:{r.participation}/5</span>
+                            <span className="text-xs text-blue-600">Part:{r.participation}/5</span>
                           )}
                           {r.attendedLiturgy && (
-                            <span className="text-[10px] text-blue-700">{lang === 'ar' ? 'قداس' : 'Liturgy'}</span>
+                            <span className="text-xs text-blue-700">{lang === 'ar' ? 'قداس' : 'Liturgy'}</span>
                           )}
                         </div>
                       ))}
@@ -847,7 +872,7 @@ export default function AttendancePage() {
             </div>
           )}
           {studentResults.length === 0 && searchQuery && !searching && (
-            <div className="py-12 text-center text-gray-400"><p>{lang === 'ar' ? `لا توجد نتائج مطابقة "${searchQuery}"` : `No students found matching "${searchQuery}"`}</p></div>
+            <div className="py-12 text-center text-gray-500"><p>{lang === 'ar' ? `لا توجد نتائج مطابقة "${searchQuery}"` : `No students found matching "${searchQuery}"`}</p></div>
           )}
         </div>
       )}
@@ -855,9 +880,9 @@ export default function AttendancePage() {
       {/* Edit Session Modal */}
       {showEditModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setShowEditModal(false)}>
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[85vh] flex flex-col" onClick={e => e.stopPropagation()}>
+          <div role="dialog" aria-modal="true" aria-labelledby="edit-session-title" className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[85vh] flex flex-col" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 flex-shrink-0">
-              <h3 className="font-semibold text-gray-900">{lang === 'ar' ? 'تعديل الجلسة' : 'Edit Session'}</h3>
+              <h3 id="edit-session-title" className="font-semibold text-gray-900">{lang === 'ar' ? 'تعديل الجلسة' : 'Edit Session'}</h3>
               <Button variant="ghost" size="icon" onClick={() => setShowEditModal(false)} aria-label={lang === 'ar' ? 'إغلاق' : 'Close dialog'} className="p-1 hover:bg-gray-100 rounded"><X className="h-5 w-5" /></Button>
             </div>
             <div className="px-6 py-4 space-y-4 overflow-y-auto flex-1">
@@ -918,9 +943,9 @@ export default function AttendancePage() {
       {/* Create Session Modal */}
       {showCreateModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setShowCreateModal(false)}>
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[85vh] flex flex-col" onClick={e => e.stopPropagation()}>
+          <div role="dialog" aria-modal="true" aria-labelledby="create-session-title" className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[85vh] flex flex-col" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 flex-shrink-0">
-              <h3 className="font-semibold text-gray-900">{lang === 'ar' ? 'جلسة حضور جديدة' : 'New Attendance Session'}</h3>
+              <h3 id="create-session-title" className="font-semibold text-gray-900">{lang === 'ar' ? 'جلسة حضور جديدة' : 'New Attendance Session'}</h3>
               <Button variant="ghost" size="icon" onClick={() => setShowCreateModal(false)} aria-label={lang === 'ar' ? 'إغلاق' : 'Close dialog'} className="p-1 hover:bg-gray-100 rounded"><X className="h-5 w-5" /></Button>
             </div>
             <div className="px-6 py-4 space-y-4 overflow-y-auto flex-1">
@@ -979,6 +1004,18 @@ export default function AttendancePage() {
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        open={showGenerateConfirm}
+        onClose={() => setShowGenerateConfirm(false)}
+        onConfirm={handleGenerateSessions}
+        title={lang === 'ar' ? 'إنشاء الجلسات' : 'Generate Sessions'}
+        message={lang === 'ar' ? 'هل تريد إنشاء جلسات حضور لجميع الأيام النشطة؟ سيتم إنشاء جلسات لكل مستوى ومجموعة في كل يوم نشط لا توجد فيه جلسة بعد.' : 'Generate attendance sessions for all active days? This will create sessions for every level and group on each active day where no session exists yet.'}
+        confirmLabel={lang === 'ar' ? 'إنشاء' : 'Generate'}
+        cancelLabel={lang === 'ar' ? 'إلغاء' : 'Cancel'}
+        variant="warning"
+        loading={generating}
+      />
     </div>
   )
 }
