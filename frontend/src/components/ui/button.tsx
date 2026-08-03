@@ -7,12 +7,13 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        default: "bg-blue-500 text-white hover:bg-gold-600",
+        default: "bg-blue-500 text-white hover:bg-blue-600",
         destructive: "bg-red-500 text-white hover:bg-red-600",
         outline: "border border-gray-200 bg-white hover:bg-gray-50 active:bg-gray-100",
         secondary: "bg-gray-100 text-gray-900 hover:bg-gray-200",
         ghost: "hover:bg-gray-100",
         link: "text-gold-500 underline-offset-4 hover:underline",
+        gold: "bg-gradient-to-r from-gold-500 to-gold-600 text-gray-950 hover:from-gold-600 hover:to-gold-700",
       },
       size: {
         default: "h-10 px-4 py-2",
