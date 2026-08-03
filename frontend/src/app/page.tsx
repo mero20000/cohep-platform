@@ -481,12 +481,12 @@ function useRevealOnScroll() {
 }
 
 const focusRingDark = 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-950'
-const ctaPrimaryClass = `flex items-center justify-center gap-2 px-8 py-3.5 bg-gradient-to-r from-gold-500 to-gold-600 hover:from-gold-600 hover:to-gold-700 text-white font-semibold rounded-xl shadow-xl shadow-gold-500/25 transition-all text-sm ${focusRingDark}`
+const ctaPrimaryClass = `flex items-center justify-center gap-2 px-8 py-3.5 bg-gradient-to-r from-gold-500 to-gold-600 hover:from-gold-400 hover:to-gold-500 text-gray-950 font-semibold rounded-xl shadow-xl shadow-gold-500/25 transition-all text-sm ${focusRingDark}`
 const ctaSecondaryClass = `px-8 py-3.5 border border-gray-700 text-gray-300 hover:bg-gray-800 hover:text-white font-medium rounded-xl transition-all text-sm ${focusRingDark}`
 
 function Eyebrow({ children, light = false }: { children: React.ReactNode; light?: boolean }) {
   return (
-    <p className={`text-xs font-bold tracking-[0.15em] uppercase ${light ? 'text-gold-400' : 'text-gold-600'}`}>
+    <p className={`text-xs font-bold tracking-[0.15em] uppercase ${light ? 'text-gold-400' : 'text-gold-700'}`}>
       {children}
     </p>
   )
@@ -565,7 +565,7 @@ function PreviewCarousel({ isAr }: { isAr: boolean }) {
               onClick={() => { prevTabRef.current = activeTab; setActiveTab(i) }}
               aria-pressed={activeTab === i}
               className={`rounded-lg px-4 py-2.5 text-xs font-medium transition-all ${
-                activeTab === i ? 'bg-gold-500 text-white shadow-lg shadow-gold-200' : 'border border-gray-200 bg-white text-gray-600 hover:border-gold-300 hover:text-gold-700'
+                activeTab === i ? 'bg-gold-500 text-gray-950 shadow-lg shadow-gold-200' : 'border border-gray-200 bg-white text-gray-600 hover:border-gold-300 hover:text-gold-700'
               } focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500 focus-visible:ring-offset-2`}
             >
               {tab.label}
@@ -783,7 +783,7 @@ export default function Home() {
 
   return (
     <div className={`min-h-screen bg-white ${isAr ? 'rtl' : 'ltr'}`} dir={isAr ? 'rtl' : 'ltr'}>
-      <a href="#main-content" className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-[100] focus:rounded-lg focus:bg-gold-500 focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-white focus:shadow-lg">
+      <a href="#main-content" className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-[100] focus:rounded-lg focus:bg-gold-500 focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-gray-950 focus:shadow-lg">
         {isAr ? 'تخطي إلى المحتوى' : 'Skip to content'}
       </a>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
@@ -823,7 +823,7 @@ export default function Home() {
               <Button variant="ghost" size="lg" className="text-gray-600">{t.nav.signIn}</Button>
             </Link>
             <Link href="/auth/register" className="hidden sm:block">
-              <Button size="lg" className="bg-gold-500 text-white hover:bg-gold-600 shadow-lg shadow-gold-200/50">{t.nav.getStarted}</Button>
+              <Button size="lg" className="bg-gold-500 text-gray-950 hover:bg-gold-400 shadow-lg shadow-gold-200/50">{t.nav.getStarted}</Button>
             </Link>
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
@@ -850,7 +850,7 @@ export default function Home() {
                 ))}
                 <hr className="my-1 border-gray-100" />
                 <Link href="/auth/login" onClick={() => setMobileMenuOpen(false)} className="rounded-lg px-3 py-3 text-sm font-medium text-gray-600 hover:bg-gray-100">{t.nav.signIn}</Link>
-                <Link href="/auth/register" onClick={() => setMobileMenuOpen(false)} className="rounded-lg bg-gold-500 px-3 py-3 text-sm font-medium text-white text-center hover:bg-gold-600">{t.nav.getStarted}</Link>
+                <Link href="/auth/register" onClick={() => setMobileMenuOpen(false)} className="rounded-lg bg-gold-500 px-3 py-3 text-sm font-medium text-gray-950 text-center hover:bg-gold-400">{t.nav.getStarted}</Link>
               </nav>
             </motion.div>
           )}
@@ -866,7 +866,7 @@ export default function Home() {
           <CrossPatternBg className="text-gold-500" />
           <GradientOrbs />
 
-          <div className="relative mx-auto max-w-7xl px-4 py-24 sm:py-36 lg:px-8 w-full">
+          <div className="relative mx-auto max-w-7xl px-4 pt-20 pb-16 sm:pt-24 sm:pb-20 lg:px-8 w-full">
             <div className="max-w-3xl mx-auto text-center">
 
               <p
@@ -994,7 +994,7 @@ export default function Home() {
                       <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-gold-400 to-gold-600 text-white shadow-lg shadow-gold-200/50">
                         <card.icon className="h-7 w-7" />
                       </div>
-                      <p className="mt-5 text-xs font-semibold uppercase tracking-wider text-gold-600">{card.sub}</p>
+                      <p className="mt-5 text-xs font-semibold uppercase tracking-wider text-gold-700">{card.sub}</p>
                       <h3 className="mt-2 text-2xl sm:text-3xl font-bold tracking-tight text-gray-900">{card.title}</h3>
                       <p className="mt-3 text-base leading-relaxed text-gray-600">{card.desc}</p>
                     </div>
@@ -1002,7 +1002,7 @@ export default function Home() {
                       <ul className="space-y-3.5">
                         {card.features.map(f => (
                           <li key={f} className="flex items-start gap-3 text-sm sm:text-base text-gray-700">
-                            <CheckCircle2 className="h-5 w-5 text-gold-500 flex-shrink-0 mt-0.5" />
+                            <CheckCircle2 className="h-5 w-5 text-gold-700 flex-shrink-0 mt-0.5" />
                             {f}
                           </li>
                         ))}
@@ -1077,7 +1077,7 @@ export default function Home() {
                     <ul className={`mt-4 space-y-1.5 ${i === 0 ? '' : 'flex flex-wrap gap-x-6 gap-y-1.5'}`}>
                       {p.list.map(item => (
                         <li key={item} className="flex items-center gap-2 text-xs text-gray-400">
-                          <CheckCircle2 className="h-3.5 w-3.5 text-gold-500 flex-shrink-0" />
+                          <CheckCircle2 className="h-3.5 w-3.5 text-gold-700 flex-shrink-0" />
                           {item}
                         </li>
                       ))}
@@ -1105,7 +1105,7 @@ export default function Home() {
                   i === 0 ? (
                     <p key={i} className="text-base sm:text-lg leading-relaxed text-gray-600">{p}</p>
                   ) : (
-                    <p key={i} className="mt-8 text-lg sm:text-xl font-semibold leading-relaxed text-gold-600">{p}</p>
+                    <p key={i} className="mt-8 text-lg sm:text-xl font-semibold leading-relaxed text-gold-700">{p}</p>
                   )
                 ))}
               </div>
@@ -1195,7 +1195,7 @@ export default function Home() {
                     <ul className="space-y-2.5 flex-1">
                       {group.items.map(item => (
                         <li key={item} className="flex items-start gap-2.5 text-sm text-gray-600">
-                          <CheckCircle2 className="h-4 w-4 text-gold-500 flex-shrink-0 mt-0.5" />
+                          <CheckCircle2 className="h-4 w-4 text-gold-700 flex-shrink-0 mt-0.5" />
                           {item}
                         </li>
                       ))}
@@ -1344,9 +1344,9 @@ export default function Home() {
                   type="email"
                   required
                   placeholder={t.footer.emailPlaceholder}
-                  className="min-w-0 flex-1 rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm focus:border-gold-500 focus:outline-none focus:ring-2 focus:ring-gold-500/20"
+                  className="min-w-0 flex-1 rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-900 placeholder:text-gray-500 focus:border-gold-500 focus:outline-none focus:ring-2 focus:ring-gold-500/20"
                 />
-                <button type="submit" disabled={subscribeStatus === 'loading'} className="shrink-0 rounded-lg bg-gold-500 hover:bg-gold-600 px-3 py-2.5 text-sm font-medium text-white transition-colors disabled:opacity-50">
+                <button type="submit" disabled={subscribeStatus === 'loading'} className="shrink-0 rounded-lg bg-gold-500 hover:bg-gold-400 px-3 py-2.5 text-sm font-medium text-gray-950 transition-colors disabled:opacity-50">
                   {subscribeStatus === 'loading' ? '…' : subscribeStatus === 'success' ? '✓' : t.footer.subscribeBtn}
                 </button>
               </form>
