@@ -210,7 +210,11 @@ const content = {
       newsletter: 'Stay updated',
       newsletterDesc: 'Platform news, new hymns, and community updates.',
       emailPlaceholder: 'your@email.com',
+      emailLabel: 'Email address',
       subscribeBtn: 'Subscribe',
+      linksLabel: 'Links',
+      subscribeSuccess: 'Thanks for subscribing!',
+      subscribeError: 'Something went wrong. Try again.',
       links: [
         { label: 'Why It Matters', href: '#why' },
         { label: 'Curriculum', href: '#curriculum' },
@@ -412,7 +416,11 @@ const content = {
       newsletter: 'ابق على اطلاع',
       newsletterDesc: 'أخبار المنصة وتراتيب جديدة وتحديثات المجتمع.',
       emailPlaceholder: 'بريدك@الإلكتروني.com',
+      emailLabel: 'البريد الإلكتروني',
       subscribeBtn: 'اشتراك',
+      linksLabel: 'روابط',
+      subscribeSuccess: 'شكراً لاشتراكك!',
+      subscribeError: 'حدث خطأ. حاول مجدداً.',
       links: [
         { label: 'لماذا هذا مهم', href: '#why' },
         { label: 'المنهج', href: '#curriculum' },
@@ -1320,7 +1328,7 @@ export default function Home() {
               <p className="text-sm text-gray-600 leading-relaxed">{t.footer.tagline}</p>
             </div>
             <div className="flex flex-col gap-2">
-              <p className="text-sm font-semibold text-gray-900 mb-1">{isAr ? 'روابط' : 'Links'}</p>
+              <p className="text-sm font-semibold text-gray-900 mb-1">{t.footer.linksLabel}</p>
               {t.footer.links.map(link => (
                 <Link key={link.href} href={link.href} className="inline-block py-1.5 text-sm text-gray-600 hover:text-gray-900 transition-colors">{link.label}</Link>
               ))}
@@ -1348,7 +1356,7 @@ export default function Home() {
                 }}
                 className="flex gap-2"
               >
-                <label htmlFor="footer-email" className="sr-only">{isAr ? 'البريد الإلكتروني' : 'Email address'}</label>
+                <label htmlFor="footer-email" className="sr-only">{t.footer.emailLabel}</label>
                 <input
                   id="footer-email"
                   name="email"
@@ -1361,8 +1369,8 @@ export default function Home() {
                   {subscribeStatus === 'loading' ? '…' : subscribeStatus === 'success' ? '✓' : t.footer.subscribeBtn}
                 </button>
               </form>
-              {subscribeStatus === 'success' && <p className="mt-1.5 text-xs text-green-600">{isAr ? 'شكراً لاشتراكك!' : 'Thanks for subscribing!'}</p>}
-              {subscribeStatus === 'error' && <p className="mt-1.5 text-xs text-red-500">{isAr ? 'حدث خطأ. حاول مجدداً.' : 'Something went wrong. Try again.'}</p>}
+              {subscribeStatus === 'success' && <p className="mt-1.5 text-xs text-green-600">{t.footer.subscribeSuccess}</p>}
+              {subscribeStatus === 'error' && <p className="mt-1.5 text-xs text-red-500">{t.footer.subscribeError}</p>}
             </div>
           </div>
           <div className="mt-10 border-t border-gray-200 pt-6 text-center text-xs text-gray-600">
