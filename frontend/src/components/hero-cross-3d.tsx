@@ -9,7 +9,7 @@ export function HeroCross3D() {
 
   if (reduce) {
     return (
-      <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none">
+      <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none" aria-hidden="true">
         <CrossSVG className="w-[420px] h-[420px] opacity-[0.08]" />
       </div>
     )
@@ -19,6 +19,7 @@ export function HeroCross3D() {
     <motion.div
       className="absolute inset-0 flex items-center justify-center pointer-events-none select-none"
       style={{ y: parallaxY }}
+      aria-hidden="true"
     >
       <motion.div
         animate={{ rotateY: [0, 360] }}

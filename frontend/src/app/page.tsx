@@ -494,7 +494,7 @@ function Eyebrow({ children, light = false }: { children: React.ReactNode; light
 
 function CrossPatternBg({ className = '' }: { className?: string }) {
   return (
-    <div className={`absolute inset-0 opacity-[0.03] pointer-events-none ${className}`}>
+    <div className={`absolute inset-0 opacity-[0.03] pointer-events-none ${className}`} aria-hidden="true">
       <svg className="w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
         <defs>
           <pattern id="crossP" x="0" y="0" width="20" height="20" patternUnits="userSpaceOnUse">

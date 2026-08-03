@@ -9,7 +9,7 @@ export function HeroAlpha() {
 
   if (reduce) {
     return (
-      <div className="absolute inset-0 pointer-events-none select-none overflow-hidden">
+      <div className="absolute inset-0 pointer-events-none select-none overflow-hidden" aria-hidden="true">
         <AlphaSymbol className="absolute top-[15%] left-[8%] w-[140px] h-[140px] opacity-[0.09]" />
       </div>
     )
@@ -19,6 +19,7 @@ export function HeroAlpha() {
     <motion.div
       className="absolute inset-0 pointer-events-none select-none overflow-hidden"
       style={{ y: parallaxY }}
+      aria-hidden="true"
     >
       <motion.div
         className="absolute top-[15%] left-[8%]"
