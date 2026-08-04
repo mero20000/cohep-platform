@@ -1210,7 +1210,7 @@ export default function AssessmentsPage() {
             {assignedStudents.length === 0 ? (
               <p className="py-8 text-center text-sm text-gray-400">{lang === 'ar' ? 'لم يتم تعيين طلاب بعد.' : 'No students assigned yet.'}</p>
             ) : (
-              <div className="max-h-[45vh] overflow-y-auto border border-gray-200 rounded-lg">
+              <div className="max-h-[45vh] overflow-y-auto overflow-x-auto table-to-cards border border-gray-200 rounded-lg">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="bg-gray-50 border-b border-gray-200">
@@ -1228,17 +1228,17 @@ export default function AssessmentsPage() {
                       const isPass = r.mark !== null && r.mark >= reportStats.passThreshold
                       return (
                         <tr key={r.id} className={`hover:bg-gray-50/50 active:bg-gray-100/50 ${r.mark !== null ? (isPass ? 'bg-green-50/30' : 'bg-red-50/30') : ''}`}>
-                          <td className="px-3 py-2.5 text-xs text-gray-500 font-mono">{r.studentCode || '—'}</td>
-                          <td className="px-3 py-2.5 text-sm font-medium text-gray-900">{r.firstName} {r.lastName}</td>
-                          <td className="px-3 py-2.5 text-sm text-gray-600">{r.schoolGrade || '—'}</td>
-                          <td className="px-3 py-2.5">
+                          <td data-label={lang === 'ar' ? 'الكود' : 'Code'} className="px-3 py-2.5 text-xs text-gray-500 font-mono">{r.studentCode || '—'}</td>
+                          <td data-label={lang === 'ar' ? 'الطالب' : 'Student'} className="px-3 py-2.5 text-sm font-medium text-gray-900">{r.firstName} {r.lastName}</td>
+                          <td data-label={lang === 'ar' ? 'الصف' : 'Grade'} className="px-3 py-2.5 text-sm text-gray-600">{r.schoolGrade || '—'}</td>
+                          <td data-label={lang === 'ar' ? 'الحالة' : 'Status'} className="px-3 py-2.5">
                             <Badge variant={r.submissionStatus === 'completed' ? 'success' : r.submissionStatus === 'assigned' ? 'info' : 'default'} size="sm">
                               {r.submissionStatus === 'completed' ? (lang === 'ar' ? 'مكتمل' : 'completed') : r.submissionStatus === 'assigned' ? (lang === 'ar' ? 'تم التعيين' : 'assigned') : r.submissionStatus || '—'}
                             </Badge>
                           </td>
-                          <td className="px-3 py-2.5 text-sm text-right font-medium">{r.mark !== null ? r.mark : '—'}</td>
-                          <td className="px-3 py-2.5 text-sm text-right text-gray-500">{r.maxMark}</td>
-                          <td className="px-3 py-2.5 text-center">
+                                                    <td data-label={lang === 'ar' ? 'الدرجة' : 'Mark'} className="px-3 py-2.5 text-sm text-right font-medium">{r.mark !== null ? r.mark : '—'}</td>
+                          <td data-label={lang === 'ar' ? 'القصوى' : 'Max'} className="px-3 py-2.5 text-sm text-right text-gray-500">{r.maxMark}</td>
+                          <td data-label={lang === 'ar' ? 'النتيجة' : 'Result'} className="px-3 py-2.5 text-center">
                             {r.mark !== null ? (
                               <span className={`inline-flex items-center gap-1 text-xs font-bold ${isPass ? 'text-green-600' : 'text-red-600'}`}>
                                 {isPass ? <CheckCircle className="h-3.5 w-3.5" /> : <XCircle className="h-3.5 w-3.5" />}

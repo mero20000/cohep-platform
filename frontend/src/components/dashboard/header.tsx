@@ -240,7 +240,7 @@ export function DashboardHeader({
           <Button variant="ghost" size="icon" onClick={() => { onSetShowNotiPanel(!showNotiPanel); onSetShowUserMenu(false) }}
             aria-label={language === 'ar' ? 'الإشعارات' : 'Notifications'}
             className="relative h-9 w-9 text-gray-500 hover:text-gray-700">
-            <Bell className={`h-4 w-4 ${unreadCount > 0 ? 'animate-[wiggle_0.6s_ease-in-out_infinite]' : ''}`} />
+            <Bell className="h-4 w-4" />
             {unreadCount > 0 && (
               <span className={`absolute -top-0.5 ${language === 'ar' ? '-left-0.5' : '-right-0.5'} flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white`}>
                 {unreadCount}

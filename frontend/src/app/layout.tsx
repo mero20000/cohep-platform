@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
 import { Providers } from '@/components/providers'
+import { LangSync } from '@/components/lang-sync'
 import './globals.css'
 
 const inter = Inter({ subsets: ['latin'] })
@@ -51,7 +52,7 @@ export default function RootLayout({
           __html: `if('serviceWorker' in navigator){window.addEventListener('load',()=>{navigator.serviceWorker.register('/sw.js').catch(()=>{})})}`
         }} />
       </head>
-      <body className={inter.className}><Providers>{children}</Providers></body>
+      <body className={inter.className}><Providers><LangSync />{children}</Providers></body>
     </html>
   )
 }
