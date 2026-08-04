@@ -17,15 +17,18 @@ const STYLE_POOL: SubjectStyle[] = [
 ]
 
 const styleCache = new Map<string, SubjectStyle>()
-let styleIndex = 0
 
 export function getSubjectStyle(name: string): SubjectStyle {
   if (styleCache.has(name)) return styleCache.get(name)!
-  const style = STYLE_POOL[styleIndex % STYLE_POOL.length]
-  styleIndex++
-  const branded = { ...style, label: name }
-  styleCache.set(name, branded)
-  return branded
+  const n = (name || '').toLowerCase()
+  let style: SubjectStyle
+  if (n.includes('hymn')) style = STYLE_POOL[0]
+  else if (n.includes('rite')) style = STYLE_POOL[1]
+  else if (n.includes('language') || n.includes('coptic')) style = STYLE_POOL[2]
+  else if (n.includes('study') || n.includes('bible') || n.includes('doctrine')) style = STYLE_POOL[3]
+  else style = STYLE_POOL[0]
+  styleCache.set(name, style)
+  return style
 }
 
 export const STATUS_BADGE: Record<string, 'success' | 'danger' | 'default'> = {

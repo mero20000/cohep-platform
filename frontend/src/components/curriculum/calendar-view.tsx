@@ -450,7 +450,6 @@ export function CalendarView({
                 sunDate.setDate(satDate.getDate() + 1)
                 const weekKey = `W${week.weekNumber}`
                 const subjectAllocs = weekAllocations.get(weekKey)
-                let rowspanRemaining = 0
 
                 return (
                   <tr key={week.id}

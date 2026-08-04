@@ -1,5 +1,6 @@
 'use client'
 
+import Image from 'next/image'
 import { X } from 'lucide-react'
 import { useEffect } from 'react'
 
@@ -22,7 +23,15 @@ export function PhotoLightbox({ src, caption, onClose }: Props) {
         <button onClick={onClose} className="absolute -top-3 -right-3 z-10 w-8 h-8 rounded-full bg-white shadow flex items-center justify-center hover:bg-gray-100">
           <X className="w-4 h-4" />
         </button>
-        <img src={src} alt={caption || ''} className="max-w-full max-h-[80vh] rounded-lg" />
+        <Image
+          src={src}
+          alt={caption || ''}
+          width={1200}
+          height={900}
+          sizes="(max-width: 768px) 90vw, 768px"
+          priority
+          className="max-w-full max-h-[80vh] w-auto h-auto rounded-lg"
+        />
         {caption && <p className="text-white text-sm mt-2 text-center">{caption}</p>}
       </div>
     </div>

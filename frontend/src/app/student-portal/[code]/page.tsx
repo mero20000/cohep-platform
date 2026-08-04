@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useParams } from 'next/navigation'
+import Image from 'next/image'
 import { http } from '@/lib/http-client'
 import {
   Cross, Loader2, Calendar, CheckCircle2, XCircle, Clock, AlertCircle,
@@ -93,7 +94,7 @@ export default function StudentDashboard() {
           <div className="flex items-center gap-4">
             <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-white/15 backdrop-blur-sm text-2xl font-bold">
               {student.photoUrl ? (
-                <img src={student.photoUrl} alt="" className="h-full w-full object-cover rounded-2xl" />
+                <Image src={student.photoUrl} alt="" width={64} height={64} className="h-full w-full object-cover rounded-2xl" />
               ) : (
                 <Cross className="h-7 w-7" />
               )}

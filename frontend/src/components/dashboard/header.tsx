@@ -309,7 +309,7 @@ export function DashboardHeader({
             className="gap-1.5 px-1.5 h-auto hover:bg-gray-100">
             <div className="flex h-7 w-7 items-center justify-center rounded-full bg-blue-100 overflow-hidden">
               {user?.avatarUrl && !avatarError ? (
-                <img src={`${API_ORIGIN}${user.avatarUrl}`} alt="" onError={() => setAvatarError(true)} className="h-full w-full object-cover" />
+                <Image src={`${API_ORIGIN}${user.avatarUrl}`} alt="" width={28} height={28} onError={() => setAvatarError(true)} className="h-full w-full object-cover" />
               ) : (
                 <span className="text-xs font-bold text-blue-700">{initials}</span>
               )}

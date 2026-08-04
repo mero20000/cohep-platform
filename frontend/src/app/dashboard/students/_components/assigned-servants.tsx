@@ -1,4 +1,5 @@
 'use client'
+import Image from 'next/image'
 import { Loader2, Shield, ChevronDown } from 'lucide-react'
 import { photoSrc } from './student-types'
 
@@ -25,7 +26,7 @@ export function AssignedServants({ servants, loading, show, onToggle, lang }: Pr
             const roleBg=role?.role?.name==='level_leader'?'bg-purple-50 text-purple-700 border-purple-200':role?.role?.name==='group_leader'?'bg-amber-50 text-amber-700 border-amber-200':'bg-blue-50 text-blue-700 border-blue-200'
             return <div key={s.id} className="flex items-center gap-3 rounded-lg border border-gray-100 bg-gray-50/50 p-2.5">
               <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-50 overflow-hidden flex-shrink-0">
-                {s.avatarUrl?<img src={photoSrc(s.avatarUrl)} alt="" className="h-8 w-8 object-cover"/>:<span className="text-xs font-bold text-blue-700">{s.firstName?.[0]}{s.lastName?.[0]}</span>}
+                {s.avatarUrl?<Image src={photoSrc(s.avatarUrl)} alt="" width={32} height={32} className="h-8 w-8 object-cover"/>:<span className="text-xs font-bold text-blue-700">{s.firstName?.[0]}{s.lastName?.[0]}</span>}
               </div>
               <div className="flex-1 min-w-0">
                 <div className="text-sm font-medium text-gray-900 truncate">{s.firstName} {s.lastName}</div>

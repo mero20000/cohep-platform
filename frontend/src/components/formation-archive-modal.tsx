@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useRef } from 'react'
+import Image from 'next/image'
 import { http } from '@/lib/http-client'
 import { useLanguage } from '@/lib/use-language'
 import { X, Download, Loader2, FileText } from 'lucide-react'
@@ -113,10 +114,14 @@ export function FormationArchiveModal({ childId, childName, open, onClose }: Pro
                       <p className="text-sm font-medium text-gray-900">{m.title}</p>
                       <p className="text-xs text-gray-400">{new Date(m.date).toLocaleDateString()}</p>
                       {m.milestonePhotoUrl && (
-                        <img src={`${API_ORIGIN}${m.milestonePhotoUrl}`} alt="" className="mt-1 max-h-24 rounded border" />
+                        <div className="relative mt-1 h-24 w-40 overflow-hidden rounded border">
+                          <Image src={`${API_ORIGIN}${m.milestonePhotoUrl}`} alt="" fill sizes="160px" className="object-cover" />
+                        </div>
                       )}
                       {m.photoUrl && (
-                        <img src={`${API_ORIGIN}${m.photoUrl}`} alt="" className="mt-1 max-h-24 rounded border" />
+                        <div className="relative mt-1 h-24 w-40 overflow-hidden rounded border">
+                          <Image src={`${API_ORIGIN}${m.photoUrl}`} alt="" fill sizes="160px" className="object-cover" />
+                        </div>
                       )}
                       {m.milestoneCaption && <p className="text-xs text-gray-600 mt-1 italic">{m.milestoneCaption}</p>}
                       {m.servantNote && <p className="text-xs text-gray-600 mt-1 italic">{m.servantNote}</p>}

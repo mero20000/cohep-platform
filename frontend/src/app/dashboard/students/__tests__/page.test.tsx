@@ -8,6 +8,7 @@ import StudentsPage from '../page'
 vi.mock('next/image', () => ({
   default: (props: any) => {
     const { unoptimized, ...rest } = props
+    // eslint-disable-next-line @next/next/no-img-element
     return <img {...rest} />
   },
 }))
@@ -16,8 +17,11 @@ vi.mock('next/image', () => ({
 vi.mock('lucide-react', () => {
   const icons: Record<string, any> = {}
   const iconNames = [
-    'Search', 'Plus', 'Download', 'Pencil', 'Trash2', 'X', 'Loader2', 'Eye', 'Upload',
-    'User', 'Calendar', 'MapPin', 'FileSpreadsheet', 'AlertCircle', 'CheckCircle2', 'Camera',
+    'AlertCircle', 'AlertTriangle', 'ArrowUpDown', 'Award', 'Calendar', 'CalendarDays', 'Camera',
+    'Check', 'CheckCircle', 'ChevronDown', 'ChevronLeft', 'ChevronRight', 'Church', 'Download',
+    'Eye', 'FileSpreadsheet', 'GraduationCap', 'Layers', 'Loader', 'Loader2', 'Mail', 'MapPin',
+    'MessageCircle', 'Pencil', 'Phone', 'Plus', 'RefreshCw', 'Search', 'Shield', 'Trash', 'Trash2',
+    'Upload', 'User', 'UserCheck', 'Users', 'X',
   ]
   for (const name of iconNames) {
     icons[name] = (props: any) => <span data-testid={`icon-${name}`} {...props} />
@@ -118,14 +122,14 @@ const mockChurches = [
 
 function createFetchMock(empty = false) {
   return vi.fn((url: string | URL | RequestInfo, options?: any) => {
-    if (url === `${API}/students?page=1&limit=20`) {
+    if (url.toString().startsWith(`${API}/students?page=1&limit=20`)) {
       const data = empty ? { data: [], pagination: { page: 1, limit: 20, total: 0, totalPages: 0 } } : mockStudents
       return Promise.resolve({ ok: true, json: () => Promise.resolve(data) } as Response)
     }
-    if (url === `${API}/students/groups/all`) {
+    if (url.toString().startsWith(`${API}/students/groups/all`)) {
       return Promise.resolve({ ok: true, json: () => Promise.resolve(empty ? [] : mockLevels) } as Response)
     }
-    if (url === `${API}/churches`) {
+    if (url.toString().startsWith(`${API}/churches`)) {
       return Promise.resolve({ ok: true, json: () => Promise.resolve(empty ? [] : mockChurches) } as Response)
     }
     if (url.toString().startsWith(`${API}/students?`) && url.toString().includes('search=')) {
@@ -134,7 +138,7 @@ function createFetchMock(empty = false) {
         : { data: [], pagination: { page: 1, limit: 20, total: 0, totalPages: 0 } }
       return Promise.resolve({ ok: true, json: () => Promise.resolve(searched) } as Response)
     }
-    if (url === `${API}/students?limit=1000`) {
+    if (url.toString().startsWith(`${API}/students?limit=1000`)) {
       return Promise.resolve({ ok: true, json: () => Promise.resolve(mockStudents) } as Response)
     }
     if (url.toString().includes('/students/') && options?.method === 'POST') {
@@ -149,6 +153,15 @@ function createFetchMock(empty = false) {
     if (url.toString().includes('/students/') && options?.method === 'DELETE') {
       return Promise.resolve({ ok: true, json: () => Promise.resolve({ success: true }) } as Response)
     }
+    if (url.toString().startsWith(`${API}/users/schools/me`)) {
+      return Promise.resolve({ ok: true, json: () => Promise.resolve(empty ? {} : { church: { name: 'St. Mark' } }) } as Response)
+    }
+    if (url.toString().startsWith(`${API}/students/stats`)) {
+      return Promise.resolve({ ok: true, json: () => Promise.resolve({ total: 2, active: 2 }) } as Response)
+    }
+    if (url.toString().startsWith(`${API}/users?`)) {
+      return Promise.resolve({ ok: true, json: () => Promise.resolve([]) } as Response)
+    }
     return Promise.reject(new Error(`Unhandled fetch: ${url}`))
   })
 }
@@ -156,6 +169,8 @@ function createFetchMock(empty = false) {
 describe('StudentsPage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    localStorage.clear()
+    localStorage.setItem('user', JSON.stringify({ id: 'u1', roles: ['super_admin'] }))
     globalThis.fetch = createFetchMock()
   })
 
@@ -167,7 +182,8 @@ describe('StudentsPage', () => {
 
     it('shows loading state initially', () => {
       render(<StudentsPage />)
-      expect(screen.getByTestId('icon-Loader2')).toBeInTheDocument()
+      expect(screen.getByText('Students')).toBeInTheDocument()
+      expect(screen.queryByText('Malak Ahmed')).not.toBeInTheDocument()
     })
 
     it('renders Add Student button', async () => {
@@ -189,7 +205,7 @@ describe('StudentsPage', () => {
     it('renders filter dropdowns', async () => {
       render(<StudentsPage />)
       expect(await screen.findByText('All Levels')).toBeInTheDocument()
-      expect(await screen.findByText('All Groups')).toBeInTheDocument()
+      expect(await screen.findByText('Select level first')).toBeInTheDocument()
       expect(await screen.findByText('All Status')).toBeInTheDocument()
     })
   })
@@ -197,8 +213,8 @@ describe('StudentsPage', () => {
   describe('Student List', () => {
     it('displays students after loading', async () => {
       render(<StudentsPage />)
-      expect(await screen.findByText('Malak Ahmed')).toBeInTheDocument()
-      expect(await screen.findByText('John Doe')).toBeInTheDocument()
+      expect((await screen.findAllByText('Malak Ahmed')).length).toBeGreaterThan(0)
+      expect((await screen.findAllByText('John Doe')).length).toBeGreaterThan(0)
     })
 
     it('shows student codes', async () => {
@@ -221,7 +237,7 @@ describe('StudentsPage', () => {
       render(<StudentsPage />)
       const badges = await screen.findAllByTestId('badge')
       expect(badges.length).toBeGreaterThan(0)
-      expect(badges[0]).toHaveTextContent('active')
+      expect(badges[0]).toHaveTextContent('Active')
     })
 
     it('shows action buttons per student', async () => {
@@ -229,9 +245,9 @@ describe('StudentsPage', () => {
       const eyeButtons = await screen.findAllByLabelText(/View/)
       const editButtons = await screen.findAllByLabelText(/Edit/)
       const deleteButtons = await screen.findAllByLabelText(/Delete/)
-      expect(eyeButtons.length).toBe(2)
-      expect(editButtons.length).toBe(2)
-      expect(deleteButtons.length).toBe(2)
+      expect(eyeButtons.length).toBe(4)
+      expect(editButtons.length).toBe(4)
+      expect(deleteButtons.length).toBe(4)
     })
   })
 
@@ -271,12 +287,11 @@ describe('StudentsPage', () => {
 
       await user.click(await screen.findByText('Add Student'))
 
-      expect(await screen.findByText('First Name *')).toBeInTheDocument()
-      expect(await screen.findByText('Last Name *')).toBeInTheDocument()
+      expect(await screen.findByText('Name *')).toBeInTheDocument()
       expect(await screen.findByText('Date of Birth *')).toBeInTheDocument()
       expect(await screen.findByText('Gender *')).toBeInTheDocument()
       expect(await screen.findByText('Level *')).toBeInTheDocument()
-      expect(await screen.findByText('Group *')).toBeInTheDocument()
+      expect(screen.getAllByText('Group').length).toBeGreaterThan(0)
     })
 
     it('closes modal when clicking Cancel', async () => {
@@ -333,7 +348,7 @@ describe('StudentsPage', () => {
       globalThis.fetch = createFetchMock(true)
 
       render(<StudentsPage />)
-      expect(await screen.findByText('No students found')).toBeInTheDocument()
+      expect(await screen.findByText('No students enrolled yet')).toBeInTheDocument()
       expect(await screen.findByText('Add first student')).toBeInTheDocument()
     })
   })
@@ -351,8 +366,8 @@ describe('StudentsPage', () => {
 
     it('disables group filter when no level selected', async () => {
       render(<StudentsPage />)
-      const groupSelect = await screen.findByText('All Groups')
-      expect(groupSelect).toBeDisabled()
+      expect(await screen.findByText('Select level first')).toBeInTheDocument()
+      expect(screen.getByLabelText('Filter by group')).toBeDisabled()
     })
   })
 

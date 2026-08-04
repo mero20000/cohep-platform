@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
+import Image from 'next/image'
 import { Save, Loader2, Camera, X, AlertCircle, RefreshCw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { FormField } from '@/components/ui/form-field'
@@ -136,7 +137,7 @@ export function ProfileTab() {
           <div className="relative group">
             <div className="flex h-20 w-20 items-center justify-center rounded-full bg-blue-100 text-2xl font-bold text-blue-700 overflow-hidden">
               {avatarSrc ? (
-                <img src={avatarSrc} alt="Avatar" className="h-full w-full object-cover" />
+                <Image src={avatarSrc} alt="Avatar" width={80} height={80} className="h-full w-full object-cover" />
               ) : (
                 initials || '?'
               )}

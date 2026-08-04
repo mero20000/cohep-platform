@@ -439,7 +439,7 @@ function ServantContributionsSection({ schoolId, lang }: { schoolId: string; lan
                       </div>
                       {/* Appreciation message */}
                       <p className="mt-1.5 text-[11px] text-indigo-600 italic leading-relaxed">
-                        "{lang === 'ar' ? servant.appreciationAr : servant.appreciationEn}"
+                        &ldquo;{lang === 'ar' ? servant.appreciationAr : servant.appreciationEn}&rdquo;
                       </p>
                       {/* Bar + this month */}
                       <div className="mt-2 space-y-1">

@@ -7,10 +7,10 @@ import { Button } from '@/components/ui/button'
 import { ChildrenTab } from './_components/children-tab'
 import { NotificationPreferencesTab } from './_components/notification-preferences-tab'
 
-const ProfileTab = lazy(() => import('@/app/dashboard/settings/_components/profile-tab').then(m => ({ default: m.ProfileTab }))) as ComponentType<{}>
-const SecurityTab = lazy(() => import('@/app/dashboard/settings/_components/security-tab').then(m => ({ default: m.SecurityTab }))) as ComponentType<{}>
-const LanguageTab = lazy(() => import('@/app/dashboard/settings/_components/language-tab').then(m => ({ default: m.LanguageTab }))) as ComponentType<{}>
-const AppearanceTab = lazy(() => import('@/app/dashboard/settings/_components/appearance-tab').then(m => ({ default: m.AppearanceTab }))) as ComponentType<{}>
+const ProfileTab = lazy(() => import('@/app/dashboard/settings/_components/profile-tab').then(m => ({ default: m.ProfileTab }))) as ComponentType
+const SecurityTab = lazy(() => import('@/app/dashboard/settings/_components/security-tab').then(m => ({ default: m.SecurityTab }))) as ComponentType
+const LanguageTab = lazy(() => import('@/app/dashboard/settings/_components/language-tab').then(m => ({ default: m.LanguageTab }))) as ComponentType
+const AppearanceTab = lazy(() => import('@/app/dashboard/settings/_components/appearance-tab').then(m => ({ default: m.AppearanceTab }))) as ComponentType
 
 export default function PortalSettingsPage() {
   const lang = useLanguage()
