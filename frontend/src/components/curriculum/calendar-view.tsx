@@ -375,7 +375,7 @@ export function CalendarView({
           <div className="flex items-center gap-2">
             <select value={selectedLevelId} onChange={e => setSelectedLevelId(e.target.value)}
               aria-label={lang === 'ar' ? 'المستوى' : 'Level'}
-              className="rounded-lg border border-gray-300 px-2.5 py-1.5 text-xs focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
+              className="rounded-lg border border-gray-300 px-2.5 py-1.5 text-xs min-h-[40px] focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
               <option value="">{lang === 'ar' ? 'جميع المستويات' : 'All Levels'}</option>
               {sortedLevels.map(l => <option key={l.id} value={l.id}>{l.name} (L{l.number})</option>)}
             </select>
@@ -384,7 +384,7 @@ export function CalendarView({
             )}
             <select value={selectedGroup} onChange={e => setSelectedGroup(Number(e.target.value))}
               aria-label={lang === 'ar' ? 'المجموعة' : 'Group'}
-              className="rounded-lg border border-gray-300 px-2.5 py-1.5 text-xs focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
+              className="rounded-lg border border-gray-300 px-2.5 py-1.5 text-xs min-h-[40px] focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
               {[1, 2, 3, 4].map(g => (
                 <option key={g} value={g}>{lang === 'ar' ? `المجموعة ${g}` : `Group ${g}`}</option>
               ))}
@@ -620,13 +620,13 @@ export function CalendarView({
           <h3 className="font-semibold text-gray-900 text-sm">{lang === 'ar' ? 'العناصر غير الموزعة' : 'Unallocated Items'}</h3>
           <select value={calendarSidebarLevel} onChange={e => setCalendarSidebarLevel(e.target.value)}
             aria-label={lang === 'ar' ? 'المستوى' : 'Level'}
-            className="w-full rounded-lg border border-gray-300 px-2.5 py-1.5 text-xs focus:border-gold-500 focus:ring-1 focus:ring-blue-500 focus:outline-none">
+            className="w-full rounded-lg border border-gray-300 px-2.5 py-1.5 text-xs min-h-[40px] focus:border-gold-500 focus:ring-1 focus:ring-blue-500 focus:outline-none">
             <option value="">{lang === 'ar' ? 'جميع المستويات' : 'All Levels'}</option>
             {levels.map(l => <option key={l.id} value={l.number.toString()}>{lang === 'ar' ? 'المستوى' : 'Level'} {l.number} - {l.name}</option>)}
           </select>
           <select value={selectedSubject} onChange={e => setSelectedSubject(e.target.value)}
             aria-label={lang === 'ar' ? 'المادة' : 'Subject'}
-            className="w-full rounded-lg border border-gray-300 px-2.5 py-1.5 text-xs focus:border-gold-500 focus:ring-1 focus:ring-blue-500 focus:outline-none">
+            className="w-full rounded-lg border border-gray-300 px-2.5 py-1.5 text-xs min-h-[40px] focus:border-gold-500 focus:ring-1 focus:ring-blue-500 focus:outline-none">
             <option value="all">{lang === 'ar' ? 'جميع المواد' : 'All Subjects'}</option>
             {subjects.map(s => (
               <option key={s.id} value={s.id}>{lang === 'ar' ? (s.nameAr || s.name) : s.name}</option>
@@ -634,7 +634,7 @@ export function CalendarView({
           </select>
           <select value={selectedGroup} onChange={e => setSelectedGroup(Number(e.target.value))}
             aria-label={lang === 'ar' ? 'المجموعة' : 'Group'}
-            className="w-full rounded-lg border border-gray-300 px-2.5 py-1.5 text-xs focus:border-gold-500 focus:ring-1 focus:ring-blue-500 focus:outline-none">
+            className="w-full rounded-lg border border-gray-300 px-2.5 py-1.5 text-xs min-h-[40px] focus:border-gold-500 focus:ring-1 focus:ring-blue-500 focus:outline-none">
             {[1, 2, 3, 4].map(g => (
               <option key={g} value={g}>{lang === 'ar' ? `المجموعة ${g}` : `Group ${g}`}</option>
             ))}

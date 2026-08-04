@@ -470,17 +470,17 @@ export function AttendanceClient() {
             {/* Filters */}
             <div className="flex flex-wrap items-center gap-2 px-5 py-3 border-b border-gray-100 bg-gray-50">
               <select value={filterLevel} onChange={e => { setFilterLevel(e.target.value); setFilterGroup('') }}
-                className="rounded-lg border border-gray-300 px-2 py-1.5 text-xs focus:border-gold-500 focus:outline-none">
+                className="rounded-lg border border-gray-300 px-2 py-1.5 text-xs min-h-[40px] focus:border-gold-500 focus:outline-none">
                 <option value="">{lang === 'ar' ? 'جميع المستويات' : 'All Levels'}</option>
                 {levels.map(l => <option key={l.id} value={l.id}>{lang === 'ar' ? `المستوى ${l.number}` : `Level ${l.number}`}</option>)}
               </select>
               <select value={filterGroup} onChange={e => setFilterGroup(e.target.value)}
-                className="rounded-lg border border-gray-300 px-2 py-1.5 text-xs focus:border-gold-500 focus:outline-none">
+                className="rounded-lg border border-gray-300 px-2 py-1.5 text-xs min-h-[40px] focus:border-gold-500 focus:outline-none">
                 <option value="">{lang === 'ar' ? 'جميع المجموعات' : 'All Groups'}</option>
                 {groups.filter(g => !filterLevel || g.levelId === filterLevel).map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
               </select>
               <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)}
-                className="rounded-lg border border-gray-300 px-2 py-1.5 text-xs focus:border-gold-500 focus:outline-none">
+                className="rounded-lg border border-gray-300 px-2 py-1.5 text-xs min-h-[40px] focus:border-gold-500 focus:outline-none">
                 <option value="">{lang === 'ar' ? 'جميع الحالات' : 'All Status'}</option>
                 <option value="scheduled">{lang === 'ar' ? 'مجدول' : 'Scheduled'}</option>
                 <option value="in_progress">{lang === 'ar' ? 'قيد التنفيذ' : 'In Progress'}</option>
@@ -489,14 +489,14 @@ export function AttendanceClient() {
                 <option value="postponed">{lang === 'ar' ? 'مؤجل' : 'Postponed'}</option>
               </select>
               <DatePicker value={filterDateFrom} onChange={setFilterDateFrom}
-                className="rounded-lg border border-gray-300 px-2 py-1.5 text-xs focus:border-gold-500 focus:outline-none" />
+                className="rounded-lg border border-gray-300 px-2 py-1.5 text-xs min-h-[40px] focus:border-gold-500 focus:outline-none" />
               <span className="text-xs text-gray-500">{lang === 'ar' ? 'إلى' : 'to'}</span>
               <DatePicker value={filterDateTo} onChange={setFilterDateTo}
-                className="rounded-lg border border-gray-300 px-2 py-1.5 text-xs focus:border-gold-500 focus:outline-none" />
+                className="rounded-lg border border-gray-300 px-2 py-1.5 text-xs min-h-[40px] focus:border-gold-500 focus:outline-none" />
               <div className="relative flex-1 min-w-[140px]">
                 <Search className="absolute start-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
                 <input type="text" value={search} onChange={e => setSearch(e.target.value)} placeholder={lang === 'ar' ? 'بحث...' : 'Search...'}
-                  className="w-full rounded-lg border border-gray-300 ps-8 pe-2 py-1.5 text-xs focus:border-gold-500 focus:outline-none" />
+                  className="w-full rounded-lg border border-gray-300 ps-8 pe-2 py-1.5 text-xs min-h-[40px] focus:border-gold-500 focus:outline-none" />
               </div>
             </div>
             <div className="divide-y divide-gray-100 max-h-[500px] overflow-y-auto">
