@@ -7,7 +7,7 @@ import { useState, useEffect } from 'react'
 import {
   Menu, X, Cross, ChevronDown, Search, User, Globe, Loader2,
   Bell, LogOut, Settings, Crown, CheckCheck, Building2,
-  Calendar as CalendarIcon, Users, ClipboardCheck as ClipboardCheckIcon, Award, Info,
+  Calendar as CalendarIcon, Users, ClipboardCheck as ClipboardCheckIcon, Award, Info, GraduationCap,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
@@ -216,6 +216,19 @@ export function DashboardHeader({
                     </button>
                   )
                 })}
+                <div className="px-4 py-2 border-t border-gray-100">
+                  <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">{language === 'ar' ? 'البوابات' : 'Portals'}</p>
+                </div>
+                <Link href="/portal/login" onClick={() => onSetRoleOpen(false)}
+                  className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50 active:bg-gray-100">
+                  <Users className="h-4 w-4 text-gold-500 shrink-0" />
+                  <span className="truncate">{language === 'ar' ? 'بوابة ولي الأمر' : 'Parent Portal'}</span>
+                </Link>
+                <Link href="/student-portal/login" onClick={() => onSetRoleOpen(false)}
+                  className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50 active:bg-gray-100">
+                  <GraduationCap className="h-4 w-4 text-gold-500 shrink-0" />
+                  <span className="truncate">{language === 'ar' ? 'بوابة الطالب' : 'Student Portal'}</span>
+                </Link>
                 {isViewingAs && (
                   <button onClick={() => { onClearRole(); onSetRoleOpen(false) }}
                     className="flex w-full items-center gap-2 border-t border-gray-100 px-4 py-2.5 text-left text-sm text-gray-500 hover:bg-gray-50 active:bg-gray-100">
