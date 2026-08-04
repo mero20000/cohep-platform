@@ -26,7 +26,7 @@ async function refreshAccessToken(): Promise<boolean> {
   }
 }
 
-async function request<T>(url: string, method: string, body?: unknown): Promise<T> {
+export async function request<T>(url: string, method: string, body?: unknown): Promise<T> {
   let res = await fetch(url, {
     method,
     headers: { 'Content-Type': 'application/json', ...authHeaders() },

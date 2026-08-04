@@ -576,15 +576,15 @@ export default function ServantsPage() {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <FormField label={lang === 'ar' ? 'الاسم الأول' : 'First Name'} required value={form.firstName} onChange={e => updateField('firstName', e.target.value)} />
             <FormField label={lang === 'ar' ? 'الاسم الأخير' : 'Last Name'} required value={form.lastName} onChange={e => updateField('lastName', e.target.value)} />
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <FormField label={lang === 'ar' ? 'الاسم الأول (عربي)' : 'First Name (Arabic)'} value={form.firstNameAr} onChange={e => updateField('firstNameAr', e.target.value)} dir="rtl" className="arabic-text" />
             <FormField label={lang === 'ar' ? 'الاسم الأخير (عربي)' : 'Last Name (Arabic)'} value={form.lastNameAr} onChange={e => updateField('lastNameAr', e.target.value)} dir="rtl" className="arabic-text" />
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <FormField label={lang === 'ar' ? 'البريد الإلكتروني' : 'Email'} required type="email" value={form.email} onChange={e => updateField('email', e.target.value)} onBlur={() => setEmailError(validateEmail(form.email))} error={emailError} />
             </div>
@@ -604,7 +604,7 @@ export default function ServantsPage() {
             </select>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">{lang === 'ar' ? 'المستوى' : 'Level'}</label>
               <select value={form.levelId} onChange={e => { updateField('levelId', e.target.value); setForm(prev => ({ ...prev, groupId: '' })) }}

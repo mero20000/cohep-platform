@@ -7,6 +7,8 @@ import { useToast } from '@/components/ui/toast'
 import { getSchoolId } from '@/lib/school'
 import { SlideEditor } from './slide-editor'
 import { API } from './constants'
+import { request } from './hooks'
+import { http } from '@/lib/http-client'
 import type { Level, Subject, Lesson, LessonFormData, PresentationData, SubjectItem } from './types'
 
 interface LessonModalProps {
@@ -62,10 +64,7 @@ export function LessonModal({ mode, lesson, levels, subjects, onSaveAdd, onSaveE
   useEffect(() => {
     if (!subjectId) { setSubjectItems([]); return }
     setSubjectItemsLoading(true)
-    fetch(`${API}/curriculum/subjects/${subjectId}/items?schoolId=${getSchoolId()}`, {
-      credentials: 'include',
-    })
-      .then(r => r.json())
+    request<SubjectItem[]>(`${API}/curriculum/subjects/${subjectId}/items?schoolId=${getSchoolId()}`, 'GET')
       .then(data => setSubjectItems(Array.isArray(data) ? data : []))
       .catch(() => setSubjectItems([]))
       .finally(() => setSubjectItemsLoading(false))
@@ -116,7 +115,7 @@ export function LessonModal({ mode, lesson, levels, subjects, onSaveAdd, onSaveE
         </div>
         <div className="px-6 py-4 space-y-4 overflow-y-auto flex-1">
           {mode === 'add' && (
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label htmlFor="lm-subject" className="block text-xs font-medium text-gray-500 mb-1">{lang === 'ar' ? 'المادة' : 'Subject'}</label>
                 <select id="lm-subject" value={subjectId} onChange={e => setSubjectId(e.target.value)}
@@ -197,7 +196,7 @@ export function LessonModal({ mode, lesson, levels, subjects, onSaveAdd, onSaveE
               </select>
             </div>
           )}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label htmlFor="lm-duration" className="block text-xs font-medium text-gray-500 mb-1">{lang === 'ar' ? 'المدة (دقيقة)' : 'Duration (min)'}</label>
               <input id="lm-duration" type="number" value={form.estimatedDurationMinutes} onChange={e => handleFieldChange('estimatedDurationMinutes', Number(e.target.value))}
@@ -220,7 +219,7 @@ export function LessonModal({ mode, lesson, levels, subjects, onSaveAdd, onSaveE
                   const fd = new FormData()
                   fd.append('audio', file)
                   const res = await fetch(`${API}/curriculum/lessons/${lesson.id}/audio`, {
-                    method: 'PATCH', body: fd, credentials: 'include',
+                    method: 'PATCH', body: fd, credentials: 'include', headers: http.rawHeaders(),
                   })
                   if (!res.ok) throw new Error('Upload failed')
                   const data = await res.json()

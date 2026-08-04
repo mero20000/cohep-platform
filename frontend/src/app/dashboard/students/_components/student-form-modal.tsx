@@ -108,11 +108,11 @@ export function StudentFormModal({ student, activeLevels, allGroups, churches, g
             <input id="sf-name" type="text" value={form.name} onChange={e=>setField('name',e.target.value)} placeholder={t('Full name','الاسم الكامل')} className={ic(formErrors.name)} />
             {formErrors.name&&<p className="mt-1 text-xs text-red-500">{formErrors.name}</p>}
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div><label htmlFor="sf-name-ar" className="block text-sm font-medium text-gray-700">{t('First Name (Arabic)','الاسم الأول (عربي)')}</label><input id="sf-name-ar" type="text" value={form.firstNameAr} onChange={e=>setForm({...form,firstNameAr:e.target.value})} className={ic()} /></div>
             <div><label htmlFor="sf-last-ar" className="block text-sm font-medium text-gray-700">{t('Last Name (Arabic)','الاسم الأخير (عربي)')}</label><input id="sf-last-ar" type="text" value={form.lastNameAr} onChange={e=>setForm({...form,lastNameAr:e.target.value})} className={ic()} /></div>
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label htmlFor="sf-dob" className="block text-sm font-medium text-gray-700">{t('Date of Birth *','تاريخ الميلاد *')}</label>
               <DatePicker id="sf-dob" value={form.dateOfBirth} onChange={v=>setField('dateOfBirth',v)} max={new Date().toISOString().split('T')[0]} className={ic(formErrors.dateOfBirth)} />
@@ -120,7 +120,7 @@ export function StudentFormModal({ student, activeLevels, allGroups, churches, g
             </div>
             <div><label htmlFor="sf-gender" className="block text-sm font-medium text-gray-700">{t('Gender *','الجنس *')}</label><select id="sf-gender" value={form.gender} onChange={e=>setForm({...form,gender:e.target.value})} className={ic()}><option value="male">{t('Male','ذكر')}</option><option value="female">{t('Female','أنثى')}</option></select></div>
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label htmlFor="sf-level" className="block text-sm font-medium text-gray-700">{t('Level *','المستوى *')}</label>
               <select id="sf-level" value={form.levelId} onChange={e=>{setField('levelId',e.target.value);setForm(prev=>({...prev,levelId:e.target.value,schoolGrade:'',groupId:''}))}} className={ic(formErrors.levelId)}>
@@ -139,14 +139,14 @@ export function StudentFormModal({ student, activeLevels, allGroups, churches, g
               </div>
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div><label htmlFor="sf-church" className="block text-sm font-medium text-gray-700">{t('Church','الكنيسة')}</label><select id="sf-church" value={form.churchName} onChange={e=>setForm({...form,churchName:e.target.value})} className={ic()}><option value="">{t('Select church','اختر الكنيسة')}</option>{churches.map(c=><option key={c.id} value={c.name}>{c.name}{c.city?`, ${c.city}`:''}</option>)}</select></div>
             <div><label htmlFor="sf-grade" className="block text-sm font-medium text-gray-700">{t('Grade','المرحلة الدراسية')}</label><select id="sf-grade" value={form.schoolGrade} onChange={e=>{const g=e.target.value;const combo=form.levelId?gradeGroups.find(c=>c.levelId===form.levelId&&c.status==='active'&&c.gradeName===g):undefined;setForm({...form,schoolGrade:g,groupId:combo?.groupId||'',groupName:combo?.groupName||''})}} className={ic()}><option value="">{t('Select grade','اختر المرحلة')}</option>{mappedGrade.map(g=>{
               const combo = form.levelId ? gradeGroups.find(c=>c.levelId===form.levelId&&c.status==='active'&&c.gradeName===g) : undefined
               return <option key={g} value={g}>{combo?`${g} + ${combo.groupName}`:g}</option>
             })}</select>{comboGrades.length===0&&form.levelId&&<p className="mt-1 text-xs text-amber-600">{t('No grades mapped for this level yet — configure in Settings → Grades','لا توجد صفوف مربوطة بهذا المستوى بعد — قم بإعدادها من الإعدادات ← الصفوف')}</p>}</div>
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div><label htmlFor="sf-phone" className="block text-sm font-medium text-gray-700">{t('Phone','رقم الهاتف')}</label><input id="sf-phone" type="tel" value={form.phone} onChange={e=>setForm({...form,phone:e.target.value})} className={ic()} /></div>
             <div><label htmlFor="sf-email" className="block text-sm font-medium text-gray-700">{t('Email','البريد الإلكتروني')}</label><input id="sf-email" type="email" value={form.email} onChange={e=>setForm({...form,email:e.target.value})} className={ic()} /></div>
           </div>

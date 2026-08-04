@@ -1002,7 +1002,7 @@ export default function GamificationPage() {
               {ICON_OPTIONS.map(name => { const Icon = ICON_MAP[name]; return <button key={name} type="button" onClick={() => setBadgeForm({ ...badgeForm, iconUrl: name })} className={`flex items-center justify-center p-2 rounded-lg border ${badgeForm.iconUrl === name ? 'border-gold-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300'}`}><Icon className="h-5 w-5" /></button> })}
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <FormField label={t('Category', 'التصنيف')} as="select" value={badgeForm.category} onChange={e => setBadgeForm({ ...badgeForm, category: e.target.value })}>
               {BADGE_CATEGORY_OPTIONS.map(c => <option key={c} value={c}>{categoryLabel(c)}</option>)}
             </FormField>
@@ -1023,7 +1023,7 @@ export default function GamificationPage() {
               {ICON_OPTIONS.map(name => { const Icon = ICON_MAP[name]; return <button key={name} type="button" onClick={() => setEditBadgeForm({ ...editBadgeForm, iconUrl: name })} className={`flex items-center justify-center p-2 rounded-lg border ${editBadgeForm.iconUrl === name ? 'border-gold-500 bg-blue-50' : 'border-gray-200'}`}><Icon className="h-5 w-5" /></button> })}
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <FormField label={t('Category', 'التصنيف')} as="select" value={editBadgeForm.category} onChange={e => setEditBadgeForm({ ...editBadgeForm, category: e.target.value })}>
               {BADGE_CATEGORY_OPTIONS.map(c => <option key={c} value={c}>{categoryLabel(c)}</option>)}
             </FormField>
