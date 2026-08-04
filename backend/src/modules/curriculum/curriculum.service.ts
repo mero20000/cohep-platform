@@ -483,7 +483,7 @@ export class CurriculumService {
     const totalDays = (end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24);
     const termLength = totalDays / 3;
 
-    const weeks: Array<{ academicYearId: string; weekNumber: number; term: number; startDate: Date; endDate: Date }> = [];
+    const weeks: Array<{ academicYearId: string; weekNumber: number; term: number; startDate: Date; endDate: Date; isAvailable: boolean }> = [];
     let weekNumber = 1;
     const cursor = new Date(firstActive);
 
@@ -504,6 +504,7 @@ export class CurriculumService {
         term,
         startDate: weekStart,
         endDate: weekEnd,
+        isAvailable: true,
       });
       weekNumber++;
       cursor.setDate(cursor.getDate() + 7);
