@@ -151,45 +151,66 @@ async function main() {
   console.log('Roles ready:', roles.length);
 
   // ── Admin user ─────────────────────────────────────────────────────────
+  // SECURITY: super-admin is created ONLY from env vars on first boot.
+  // No hardcoded/known credentials are ever seeded. If SUPER_ADMIN_EMAIL /
+  // SUPER_ADMIN_PASSWORD are unset, no admin user is created and the legacy
+  // seed admin is deactivated so it can never be used as a backdoor.
   const bcrypt = await import('bcrypt');
-  const passwordHash = await bcrypt.hash('Admin123!', 10);
-  const servantPw = await bcrypt.hash('Servant123!', 10);
+  const superAdminRole = roles.find((r) => r.name === 'super_admin')!;
+  const superAdminEmail = (process.env.SUPER_ADMIN_EMAIL || '').trim();
+  const superAdminPassword = process.env.SUPER_ADMIN_PASSWORD || '';
 
-  let adminUser = await prisma.user.findFirst({
-    where: { email: 'admin@niangelos.app', schoolId: school.id },
+  // Neutralize any previously-seeded super admin using known default creds.
+  const legacyAdmin = await prisma.user.findUnique({
+    where: { schoolId_email: { schoolId: school.id, email: 'admin@niangelos.app' } },
   });
-  if (!adminUser) {
-    adminUser = await prisma.user.create({
-      data: {
+  if (legacyAdmin) {
+    await prisma.user.update({
+      where: { id: legacyAdmin.id },
+      data: { isActive: false },
+    });
+    console.log('Deactivated legacy seed admin (must not be used)');
+  }
+
+  let adminUser: any = null;
+  if (superAdminEmail && superAdminPassword) {
+    const passwordHash = await bcrypt.hash(superAdminPassword, 12);
+    adminUser = await prisma.user.upsert({
+      where: { schoolId_email: { schoolId: school.id, email: superAdminEmail } },
+      update: { passwordHash, isActive: true, deletedAt: null },
+      create: {
         schoolId: school.id,
-        email: 'admin@niangelos.app',
+        email: superAdminEmail,
         passwordHash,
-        firstName: 'Admin',
-        lastName: 'User',
-        firstNameAr: 'مدير',
-        lastNameAr: 'المستخدم',
+        firstName: 'Super',
+        lastName: 'Admin',
+        firstNameAr: 'مدير عام',
+        lastNameAr: 'النظام',
         isActive: true,
         emailVerifiedAt: new Date(),
       },
     });
-    console.log('Created admin user');
-  } else {
-    console.log('Admin user already exists');
-  }
-
-  // ── Assign super_admin role ────────────────────────────────────────────
-  const superAdminRole = roles.find((r) => r.name === 'super_admin')!;
-  const existingRole = await prisma.userRole.findUnique({
-    where: { userId_roleId: { userId: adminUser.id, roleId: superAdminRole.id } },
-  });
-  if (!existingRole) {
-    await prisma.userRole.create({
-      data: { userId: adminUser.id, roleId: superAdminRole.id },
+    const existingRole = await prisma.userRole.findUnique({
+      where: { userId_roleId: { userId: adminUser.id, roleId: superAdminRole.id } },
     });
+    if (!existingRole) {
+      await prisma.userRole.create({
+        data: { userId: adminUser.id, roleId: superAdminRole.id },
+      });
+    }
+    console.log('Super admin ready from env:', superAdminEmail);
+  } else {
+    console.log('SUPER_ADMIN_EMAIL / SUPER_ADMIN_PASSWORD unset — no admin created (secure default).');
   }
 
-  const adminUserId = adminUser.id;
-  console.log('Admin user ready:', adminUser.email);
+  const adminUserId = adminUser?.id;
+  const seedDemo = (process.env.SEED_DEMO_USERS || 'true') !== 'false';
+  const buildDemo = !!(adminUserId && seedDemo);
+  const servantPw = await bcrypt.hash('Servant123!', 10);
+
+  // ── Demo content (servants, students, lessons) — only when a real admin
+  //    was configured AND demo data is explicitly allowed. ──────────────────
+  if (buildDemo) {
 
   // ── Servant (teacher) users ────────────────────────────────────────────
   const servantData = [
@@ -427,6 +448,10 @@ async function main() {
   } else {
     console.log('Lessons already exist:', lessonsCount);
   }
+  } // /if (buildDemo)
+  if (!buildDemo) {
+    console.log('Skipped demo content (requires SUPER_ADMIN_* env and SEED_DEMO_USERS=true).');
+  }
 
   // ── System Configs ──────────────────────────────────────────────────────
   const configs = [
@@ -446,15 +471,15 @@ async function main() {
 
   console.log('');
   console.log('─────────────────────────────────────────');
-  console.log('Login credentials:');
-  console.log('  Admin:');
-  console.log('    Email:    admin@niangelos.app');
-  console.log('    Password: Admin123!');
-  console.log('  Servants:');
-  console.log('    Email:    mina.girgis@niangelos.app');
-  console.log('    Password: Servant123!');
-  console.log('    Email:    mariam.iskander@niangelos.app');
-  console.log('    Password: Servant123!');
+  console.log('Super admin:');
+  console.log(superAdminEmail
+    ? `  Email:    ${superAdminEmail}\n  Password: SUPPLIED VIA ENV (SUPER_ADMIN_PASSWORD)`
+    : '  None — set SUPER_ADMIN_EMAIL / SUPER_ADMIN_PASSWORD to create one.');
+  if (buildDemo) {
+    console.log('  Demo servants (SEED_DEMO_USERS):');
+    console.log('    mina.girgis@niangelos.app / Servant123!');
+    console.log('    mariam.iskander@niangelos.app / Servant123!');
+  }
   console.log('  School:   niangelos-main');
   console.log('─────────────────────────────────────────');
   console.log('Seeding completed successfully!');

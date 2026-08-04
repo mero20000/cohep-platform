@@ -2,6 +2,8 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { NotFoundException } from '@nestjs/common';
 import { StudentsService } from './students.service';
 import { PrismaService } from '../../database/prisma.service';
+import { AuditService } from '../audit/audit.service';
+import { SchoolResolver } from '../../common/utils/school-resolver';
 
 describe('StudentsService', () => {
   let service: StudentsService;
@@ -58,6 +60,8 @@ describe('StudentsService', () => {
     },
     group: {
       findFirst: jest.fn(),
+      findUnique: jest.fn(),
+      findMany: jest.fn(),
       create: jest.fn(),
       update: jest.fn(),
       updateMany: jest.fn(),
@@ -65,6 +69,7 @@ describe('StudentsService', () => {
     academicYear: {
       findFirst: jest.fn(),
     },
+    systemConfig: { findUnique: jest.fn() },
     attendanceRecord: { findMany: jest.fn() },
     studentProgress: { findMany: jest.fn() },
     $transaction: jest.fn(),
@@ -76,6 +81,8 @@ describe('StudentsService', () => {
       providers: [
         StudentsService,
         { provide: PrismaService, useValue: prismaMock },
+        { provide: AuditService, useValue: { log: jest.fn().mockResolvedValue(undefined) } },
+        { provide: SchoolResolver, useValue: { resolve: jest.fn(async (id: string) => id) } },
       ],
     }).compile();
 
@@ -378,7 +385,9 @@ describe('StudentsService', () => {
 
     it('creates group with next orderIndex', async () => {
       prisma.level.findFirst.mockResolvedValue({ id: 'level-1' });
-      prisma.group.findFirst.mockResolvedValue({ orderIndex: 5 });
+      prisma.group.findFirst
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce({ orderIndex: 5 });
       prisma.group.create.mockResolvedValue({ id: 'group-3', name: 'Group C', levelId: 'level-1', orderIndex: 6, status: 'active' });
 
       const result = await service.createGroup(schoolId, { name: 'Group C' });
@@ -390,6 +399,7 @@ describe('StudentsService', () => {
   // ===== updateGroup =====
   describe('updateGroup', () => {
     it('updates group name and status', async () => {
+      prisma.group.findUnique.mockResolvedValue({ id: 'group-1', levelId: 'level-1' });
       prisma.group.update.mockResolvedValue({ id: 'group-1', name: 'Updated Group', status: 'active' });
 
       const result = await service.updateGroup('group-1', { name: 'Updated Group', status: 'active' });
@@ -440,6 +450,9 @@ describe('StudentsService', () => {
   describe('bulkCreate', () => {
     it('imports students in bulk', async () => {
       prisma.student.count.mockResolvedValue(5);
+      prisma.level.findMany.mockResolvedValue([{ id: 'level-1', name: 'Level 1', number: 1 }]);
+      prisma.group.findMany.mockResolvedValue([{ id: 'group-1', name: 'Group A', levelId: 'level-1' }]);
+      prisma.systemConfig.findUnique.mockResolvedValue(null);
       prisma.$transaction.mockResolvedValue([{ ...mockStudent, studentCode: 'STU-00006' }]);
 
       const result = await service.bulkCreate(

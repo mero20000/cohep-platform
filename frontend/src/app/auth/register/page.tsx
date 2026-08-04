@@ -40,9 +40,9 @@ const languages = [
   ...allLanguages.filter(l => RELEVANT_LANG_CODES.includes(l.code) && l.code !== 'cop'),
 ]
 
-const INPUT_CLASS = "block w-full min-h-[48px] rounded-lg border border-gray-200 bg-white px-4 py-3 text-sm shadow-sm placeholder:text-gray-400 focus:border-gold-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all"
+const INPUT_CLASS = "block w-full min-h-[48px] rounded-lg border border-gray-200 bg-white px-4 py-3 text-sm shadow-sm placeholder:text-gray-400 focus:border-gold-500 focus:outline-none focus:ring-2 focus:ring-gold-500/20 transition-all"
 const INPUT_ERROR_CLASS = "block w-full min-h-[48px] rounded-lg border border-red-300 bg-white px-4 py-3 text-sm shadow-sm placeholder:text-gray-400 focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-500/20 transition-all"
-const SELECT_CLASS = "block w-full min-h-[48px] rounded-lg border border-gray-200 bg-white px-4 py-3 pe-10 text-sm shadow-sm focus:border-gold-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all appearance-none cursor-pointer"
+const SELECT_CLASS = "block w-full min-h-[48px] rounded-lg border border-gray-200 bg-white px-4 py-3 pe-10 text-sm shadow-sm focus:border-gold-500 focus:outline-none focus:ring-2 focus:ring-gold-500/20 transition-all appearance-none cursor-pointer"
 const SELECT_ERROR_CLASS = "block w-full min-h-[48px] rounded-lg border border-red-300 bg-white px-4 py-3 pe-10 text-sm shadow-sm focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-500/20 transition-all appearance-none cursor-pointer"
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -241,24 +241,34 @@ export default function RegisterPage() {
 
   if (submitted) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900" dir={isAr ? 'rtl' : 'ltr'}>
         <div className="max-w-md mx-auto px-6 text-center">
           <div className="inline-flex h-16 w-16 items-center justify-center rounded-full bg-blue-500/10 mb-6">
             <CheckCircle2 className="h-8 w-8 text-gold-400" />
           </div>
-          <h1 className="text-3xl font-bold text-white mb-4">Registration Submitted</h1>
+          <h1 className="text-3xl font-bold text-white mb-4">
+            {isAr ? 'تم تقديم طلب التسجيل' : 'Registration Submitted'}
+          </h1>
           <p className="text-gray-400 text-lg mb-2">
-            Your church registration for <strong className="text-white">{form.churchName}</strong> has been submitted for review.
+            {isAr ? (
+              <>تم إرسال طلب تسجيل الكنيسة <strong className="text-white">{form.churchName}</strong> للمراجعة.</>
+            ) : (
+              <>Your church registration for <strong className="text-white">{form.churchName}</strong> has been submitted for review.</>
+            )}
           </p>
           <p className="text-gray-500 text-sm mb-8">
-            You will receive an email at <strong className="text-gray-300">{form.email}</strong> once your account is approved. Most churches are reviewed within 48 hours.
+            {isAr ? (
+              <>ستصلك رسالة إلكترونية على <strong className="text-gray-300">{form.email}</strong> فور اعتماد حسابك. تتم مراجعة معظم طلبات الكنائس خلال 48 ساعة.</>
+            ) : (
+              <>You will receive an email at <strong className="text-gray-300">{form.email}</strong> once your account is approved. Most churches are reviewed within 48 hours.</>
+            )}
           </p>
           <div className="flex gap-3 justify-center">
             <Link
               href="/auth/login"
                 className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-gold-500 to-gold-600 px-6 py-3 text-gray-950 font-semibold hover:from-gold-400 hover:to-gold-500 transition-all"
             >
-              Go to Login <ArrowRight className="h-4 w-4 rtl-flip" />
+              {isAr ? 'الذهاب إلى تسجيل الدخول' : 'Go to Login'} <ArrowRight className="h-4 w-4 rtl-flip" />
             </Link>
           </div>
         </div>
@@ -277,7 +287,7 @@ export default function RegisterPage() {
         <div className="absolute inset-0 bg-[url('/grid.svg')] opacity-5" />
 
         <div className="relative flex flex-col justify-between px-12 xl:px-16 py-12">
-          <Link href="/" className="flex items-center gap-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded-lg">
+          <Link href="/" className="flex items-center gap-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500 rounded-lg">
             <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-gold-500 to-gold-600 text-white shadow-lg shadow-gold-500/30">
               <Cross className="h-6 w-6" />
             </div>
@@ -328,7 +338,7 @@ export default function RegisterPage() {
 
       <div className="flex flex-1 flex-col px-6 py-10 sm:px-12 lg:px-16 xl:px-20 bg-gradient-to-br from-white via-gray-50 to-blue-50/30 overflow-y-auto">
         <div className="my-auto mx-auto w-full max-w-md">
-          <Link href="/" className="flex items-center gap-2 mb-6 lg:hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded-lg">
+          <Link href="/" className="flex items-center gap-2 mb-6 lg:hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500 rounded-lg">
             <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-gold-500 to-gold-600 text-white shadow-md">
               <Cross className="h-5 w-5" />
             </div>
@@ -336,7 +346,7 @@ export default function RegisterPage() {
           </Link>
 
           <div className="mb-6 text-center lg:text-start">
-            <div className="inline-flex items-center gap-2 rounded-full bg-blue-50 border border-blue-200 px-3 py-1 text-xs font-medium text-blue-700 mb-3">
+            <div className="inline-flex items-center gap-2 rounded-full bg-gold-50 border border-gold-500/20 px-3 py-1 text-xs font-medium text-gold-700 mb-3">
               <Sparkles className="h-3 w-3" />
               {isAr ? 'ابدأ مجاناً' : 'Free for churches'}
             </div>
@@ -345,7 +355,7 @@ export default function RegisterPage() {
             </h2>
             <p className="mt-2 text-sm text-gray-500">
               {isAr ? 'لديك حساب بالفعل؟' : 'Already have an account?'}{' '}
-              <Link href="/auth/login" className="inline-flex items-center gap-1 font-semibold text-blue-700 hover:text-gold-500 transition-colors">
+              <Link href="/auth/login" className="inline-flex items-center gap-1 font-semibold text-gold-700 hover:text-gold-500 transition-colors">
                 {isAr ? 'تسجيل الدخول' : 'Sign in'} <ArrowRight className="h-3.5 w-3.5 rtl-flip" />
               </Link>
             </p>
@@ -554,7 +564,7 @@ export default function RegisterPage() {
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
                     aria-label={showPassword ? (isAr ? 'إخفاء كلمة المرور' : 'Hide password') : (isAr ? 'إظهار كلمة المرور' : 'Show password')}
-                    className="absolute end-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                    className="absolute end-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500 rounded-md"
                   >
                     {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
@@ -596,7 +606,7 @@ export default function RegisterPage() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full flex items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-gold-500 to-gold-600 px-4 py-3 text-sm font-semibold text-gray-950 shadow-lg shadow-gold-200 hover:from-gold-400 hover:to-gold-500 hover:shadow-xl hover:shadow-gold-200 disabled:opacity-60 disabled:hover:shadow-lg transition-all"
+                className="w-full flex items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-gold-500 to-gold-600 px-4 py-3 text-sm font-semibold text-gray-950 shadow-lg shadow-gold-200 hover:from-gold-400 hover:to-gold-500 hover:shadow-xl hover:shadow-gold-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500 focus-visible:ring-offset-2 disabled:opacity-60 disabled:hover:shadow-lg transition-all"
               >
                 {loading ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -607,9 +617,9 @@ export default function RegisterPage() {
 
               <p className="text-center text-xs text-gray-400">
                 {isAr ? 'بالتسجيل، أنت توافق على' : 'By registering, you agree to our'}{' '}
-                <a href="/terms" className="text-blue-700 hover:underline font-medium">{isAr ? 'شروط الخدمة' : 'Terms of Service'}</a>
+                <a href="/terms" className="text-gold-700 hover:underline font-medium">{isAr ? 'شروط الخدمة' : 'Terms of Service'}</a>
                 {' '}{isAr ? 'و' : 'and'}{' '}
-                <a href="/privacy" className="text-blue-700 hover:underline font-medium">{isAr ? 'سياسة الخصوصية' : 'Privacy Policy'}</a>
+                <a href="/privacy" className="text-gold-700 hover:underline font-medium">{isAr ? 'سياسة الخصوصية' : 'Privacy Policy'}</a>
               </p>
             </form>
           </div>

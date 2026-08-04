@@ -26,7 +26,7 @@ export default function PendingRegistrationsPage() {
   const [loading, setLoading] = useState(true)
   const [processing, setProcessing] = useState<string | null>(null)
   const [error, setError] = useState('')
-  const [actionMsg, setActionMsg] = useState<{ id: string; type: 'approved' | 'rejected' } | null>(null)
+  const [confirmRejectId, setConfirmRejectId] = useState<string | null>(null)
 
   const fetchRegistrations = useCallback(async () => {
     setLoading(true)
@@ -49,7 +49,6 @@ export default function PendingRegistrationsPage() {
     try {
       await http.post(`/admin/pending-registrations/${id}/approve`)
       setRegistrations((prev) => prev.filter((r) => r.id !== id))
-      setActionMsg({ id, type: 'approved' })
       toast('success', lang === 'ar' ? 'تم الموافقة على التسجيل' : 'Registration approved')
     } catch (e: any) {
       toast('error', e?.message || 'Failed to approve')
@@ -58,11 +57,11 @@ export default function PendingRegistrationsPage() {
   }
 
   const handleReject = async (id: string) => {
+    setConfirmRejectId(null)
     setProcessing(id)
     try {
       await http.post(`/admin/pending-registrations/${id}/reject`)
       setRegistrations((prev) => prev.filter((r) => r.id !== id))
-      setActionMsg({ id, type: 'rejected' })
       toast('success', lang === 'ar' ? 'تم رفض التسجيل' : 'Registration rejected')
     } catch (e: any) {
       toast('error', e?.message || 'Failed to reject')
@@ -174,18 +173,46 @@ export default function PendingRegistrationsPage() {
                     })}
                   </p>
                   <div className="flex items-center gap-2">
-                    <Button
-                      variant="destructive" size="sm"
-                      onClick={() => handleReject(reg.id)}
-                      disabled={processing === reg.id}
-                    >
-                      {processing === reg.id ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <XCircle className="h-4 w-4" />
-                      )}
-                      {lang === 'ar' ? 'رفض' : 'Reject'}
-                    </Button>
+                    {confirmRejectId === reg.id ? (
+                      <div className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-1.5">
+                        <span className="text-xs font-medium text-red-700">
+                          {lang === 'ar' ? 'تأكيد رفض هذا التسجيل؟' : 'Confirm rejection?'}
+                        </span>
+                        <Button
+                          variant="ghost" size="sm"
+                          onClick={() => setConfirmRejectId(null)}
+                          disabled={processing === reg.id}
+                          className="text-gray-600 hover:bg-red-100"
+                        >
+                          {lang === 'ar' ? 'إلغاء' : 'Cancel'}
+                        </Button>
+                        <Button
+                          variant="destructive" size="sm"
+                          onClick={() => handleReject(reg.id)}
+                          disabled={processing === reg.id}
+                        >
+                          {processing === reg.id ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <XCircle className="h-4 w-4" />
+                          )}
+                          {lang === 'ar' ? 'تأكيد الرفض' : 'Confirm'}
+                        </Button>
+                      </div>
+                    ) : (
+                      <Button
+                        variant="destructive" size="sm"
+                        onClick={() => setConfirmRejectId(reg.id)}
+                        disabled={processing === reg.id}
+                      >
+                        {processing === reg.id ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <XCircle className="h-4 w-4" />
+                        )}
+                        {lang === 'ar' ? 'رفض' : 'Reject'}
+                      </Button>
+                    )}
                     <Button
                       size="sm"
                       onClick={() => handleApprove(reg.id)}

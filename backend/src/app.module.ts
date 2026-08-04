@@ -25,6 +25,7 @@ import { ReportsModule } from './modules/reports/reports.module';
 import { AnnouncementsModule } from './modules/announcements/announcements.module';
 import { JwtAuthGuard } from './modules/auth/guards/jwt-auth.guard';
 import { RolesGuard } from './modules/auth/guards/roles.guard';
+import { TenantScopeGuard } from './common/guards/tenant-scope.guard';
 
 @Module({
   imports: [
@@ -78,6 +79,10 @@ import { RolesGuard } from './modules/auth/guards/roles.guard';
     {
       provide: APP_GUARD,
       useClass: RolesGuard,
+    },
+    {
+      provide: APP_GUARD,
+      useClass: TenantScopeGuard,
     },
   ],
 })

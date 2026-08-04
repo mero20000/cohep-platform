@@ -39,8 +39,10 @@ export class AllExceptionsFilter implements ExceptionFilter {
       message = prismaError.message;
       error = prismaError.error;
     } else if (exception instanceof Error) {
-      message = exception.message;
-      error = exception.name;
+      // Never leak internal details (DB plumbing, file paths, dependency
+      // messages) to clients. The full stack is still logged server-side.
+      message = 'Internal server error';
+      error = 'Internal Server Error';
     }
 
     const errorResponse = {

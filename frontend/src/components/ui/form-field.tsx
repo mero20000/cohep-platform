@@ -14,7 +14,7 @@ interface FormFieldProps extends Omit<React.InputHTMLAttributes<HTMLInputElement
 
 export function FormField({ label, error, hint, required, as = 'input', children, className = '', fieldId, ...props }: FormFieldProps) {
   const id = fieldId || label.toLowerCase().replace(/\s+/g, '-')
-  const baseClass = `mt-1.5 block w-full rounded-lg border px-3.5 py-2.5 text-sm focus:outline-none focus:ring-1 transition-colors ${error ? 'border-red-300 focus:border-red-500 focus:ring-red-500' : 'border-gray-300 focus:border-gold-500 focus:ring-blue-500'} bg-white ${className}`
+  const baseClass = `mt-1.5 block w-full rounded-lg border px-3.5 py-2.5 text-sm focus:outline-none focus:ring-1 transition-colors ${error ? 'border-red-300 focus:border-red-500 focus:ring-red-500' : 'border-gray-300 focus:border-gold-500 focus:ring-gold-500'} bg-white ${className}`
 
   return (
     <div>

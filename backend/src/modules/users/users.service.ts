@@ -24,6 +24,16 @@ export class UsersService {
     return !!userRole;
   }
 
+  // Tenancy guard: non-super-admin callers may only operate on users within
+  // their own school. Super admin spans all schools.
+  private async requireSameSchool(requestingUser: any, targetUser: { schoolId?: string | null }): Promise<void> {
+    if (!requestingUser) return;
+    if (requestingUser.roles?.includes('super_admin')) return;
+    if (requestingUser.schoolId && targetUser.schoolId !== requestingUser.schoolId) {
+      throw new NotFoundException('User not found');
+    }
+  }
+
   async listUsers(
     requestingUser: any,
     schoolIdentifier?: string,
@@ -102,6 +112,7 @@ export class UsersService {
   async updateUser(id: string, data: any, requestingUser?: any) {
     const user = await this.prisma.user.findUnique({ where: { id } });
     if (!user) throw new NotFoundException('User not found');
+    await this.requireSameSchool(requestingUser, user);
     if (requestingUser && !requestingUser.roles?.includes('super_admin') && await this.userHasRole(id, 'super_admin')) {
       throw new BadRequestException('Cannot modify a super admin user');
     }
@@ -147,6 +158,9 @@ export class UsersService {
   }
 
   async deleteUser(id: string, requestingUser?: any) {
+    const user = await this.prisma.user.findUnique({ where: { id } });
+    if (!user) throw new NotFoundException('User not found');
+    await this.requireSameSchool(requestingUser, user);
     if (requestingUser && !requestingUser.roles?.includes('super_admin') && await this.userHasRole(id, 'super_admin')) {
       throw new BadRequestException('Cannot delete a super admin user');
     }
@@ -154,6 +168,9 @@ export class UsersService {
   }
 
   async assignRole(userId: string, roleName: string, requestingUser?: any) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new NotFoundException('User not found');
+    await this.requireSameSchool(requestingUser, user);
     if (requestingUser && !requestingUser.roles?.includes('super_admin') && (roleName === 'super_admin' || roleName === 'admin')) {
       throw new BadRequestException('Only super admin can assign super_admin or admin roles');
     }
@@ -165,6 +182,9 @@ export class UsersService {
   }
 
   async removeRole(userId: string, roleName: string, requestingUser?: any) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new NotFoundException('User not found');
+    await this.requireSameSchool(requestingUser, user);
     if (requestingUser && !requestingUser.roles?.includes('super_admin') && (roleName === 'super_admin' || roleName === 'admin')) {
       throw new BadRequestException('Only super admin can remove super_admin or admin roles');
     }

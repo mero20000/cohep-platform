@@ -29,10 +29,14 @@ export class NotificationsService {
     return this.prisma.notification.count({ where: { schoolId, userId, isRead: false } });
   }
 
-  async markAsRead(schoolIdentifier: string, notificationId: string) {
+  async markAsRead(schoolIdentifier: string, notificationId: string, userId?: string) {
     const schoolId = await this.schoolResolver.resolve(schoolIdentifier);
     return this.prisma.notification.updateMany({
-      where: { id: notificationId, schoolId },
+      where: {
+        id: notificationId,
+        schoolId,
+        ...(userId ? { userId } : {}),
+      },
       data: { isRead: true, readAt: new Date() },
     });
   }

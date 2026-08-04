@@ -631,7 +631,7 @@ export class AttendanceService {
     if (!year) throw new NotFoundException('No current academic year found');
 
     const activeDays: number[] = (year.activeDays as number[]) || [6, 0];
-    if (!activeDays.length) throw new Error('No active days configured for this academic year');
+    if (!activeDays.length) throw new BadRequestException('No active days configured for this academic year');
 
     const weeks = await this.prisma.academicWeek.findMany({
       where: { academicYearId: year.id, isAvailable: true },

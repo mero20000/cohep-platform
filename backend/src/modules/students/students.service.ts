@@ -476,7 +476,7 @@ export class StudentsService {
         select: { id: true },
       });
     }
-    if (!level) throw new Error('No level found. Create a level first.');
+    if (!level) throw new BadRequestException('No level found. Create a level first.');
     const existing = await this.prisma.group.findFirst({
       where: { levelId: level.id, name: data.name, deletedAt: null },
     });
@@ -545,9 +545,13 @@ export class StudentsService {
     return { deletedCount: count };
   }
 
-  async getPortalData(studentCode: string) {
+  async getPortalData(studentCode: string, schoolId?: string) {
     const student = await this.prisma.student.findFirst({
-      where: { studentCode, deletedAt: null },
+      where: {
+        studentCode,
+        deletedAt: null,
+        ...(schoolId ? { schoolId } : {}),
+      },
       include: {
         level: { select: { id: true, name: true, number: true, nameAr: true } },
         group: { select: { id: true, name: true, nameAr: true } },

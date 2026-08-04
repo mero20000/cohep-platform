@@ -31,8 +31,11 @@ export class ReportsController {
   }
 
   @Get('diocese')
-  @ApiOperation({ summary: 'Diocese dashboard — all schools under a church with health scores' })
+  @Roles('super_admin')
+  @ApiOperation({ summary: 'Diocese dashboard — all schools with health scores, optionally filtered by church' })
   async getDioceseDashboard(@Query('churchId') churchId: string = '') {
-    return this.reportsService.getDioceseReport();
+    // Super-admin only. Without churchId the full diocese is returned;
+    // a churchId query narrows the report to that church's schools.
+    return this.reportsService.getDioceseReport(churchId || undefined);
   }
 }

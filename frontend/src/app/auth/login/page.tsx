@@ -22,7 +22,7 @@ const features = [
 ]
 
 const INPUT_CLASS =
-  "block w-full rounded-lg border border-gray-200 bg-white px-4 py-3 min-h-[48px] text-sm shadow-sm placeholder:text-gray-500 focus:border-gold-500 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+  "block w-full rounded-lg border border-gray-200 bg-white px-4 py-3 min-h-[48px] text-sm shadow-sm placeholder:text-gray-500 focus:border-gold-500 focus:outline-none focus:ring-2 focus:ring-gold-500/20 transition-all"
 const INPUT_ERROR_CLASS =
   "block w-full rounded-lg border border-red-300 bg-white px-4 py-3 min-h-[48px] text-sm shadow-sm placeholder:text-gray-500 focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-500 transition-all"
 
@@ -137,7 +137,7 @@ export default function LoginPage() {
 
         <div className="relative flex flex-col justify-between px-12 xl:px-16 py-12">
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded-lg">
+          <Link href="/" className="flex items-center gap-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500 rounded-lg">
             <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-gold-500 to-gold-600 text-white shadow-lg shadow-gold-500/30">
               <Cross className="h-6 w-6" />
             </div>
@@ -195,7 +195,7 @@ export default function LoginPage() {
       <div className="flex flex-1 flex-col justify-center px-6 py-12 sm:px-12 lg:px-16 xl:px-20 bg-gradient-to-br from-white via-gray-50 to-blue-50/30 overflow-y-auto">
         <div className="mx-auto w-full max-w-sm">
           {/* Mobile logo */}
-          <Link href="/" className="flex items-center gap-2 mb-8 lg:hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded-lg">
+          <Link href="/" className="flex items-center gap-2 mb-8 lg:hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500 rounded-lg">
             <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-gold-500 to-gold-600 text-white">
               <Cross className="h-5 w-5" />
             </div>
@@ -208,7 +208,7 @@ export default function LoginPage() {
             </h2>
             <p className="mt-3 text-sm text-gray-600">
               {isAr ? 'ليس لديك حساب؟' : "Don&apos;t have an account?"}{' '}
-              <Link href="/auth/register" className="inline-flex items-center gap-1 font-semibold text-blue-700 hover:text-gold-500 transition-colors">
+              <Link href="/auth/register" className="inline-flex items-center gap-1 font-semibold text-gold-700 hover:text-gold-500 transition-colors">
                 {isAr ? 'أنشئ حسابًا مجانًا' : 'Create one free'} <ArrowRight className="h-3.5 w-3.5 rtl-flip" />
               </Link>
             </p>
@@ -291,7 +291,7 @@ export default function LoginPage() {
                     onClick={() => setShowPassword(!showPassword)}
                     aria-label={showPassword ? (isAr ? 'إخفاء كلمة المرور' : 'Hide password') : (isAr ? 'إظهار كلمة المرور' : 'Show password')}
                     aria-pressed={showPassword}
-                    className="absolute end-2 top-1/2 -translate-y-1/2 flex h-11 w-11 items-center justify-center text-gray-500 hover:text-gray-700 transition-colors rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                    className="absolute end-2 top-1/2 -translate-y-1/2 flex h-11 w-11 items-center justify-center text-gray-500 hover:text-gray-700 transition-colors rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500"
                   >
                     {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
@@ -336,7 +336,7 @@ export default function LoginPage() {
                     type="checkbox"
                     checked={rememberMe}
                     onChange={(e) => setRememberMe(e.target.checked)}
-                    className="h-6 w-6 rounded border-gray-300 text-blue-700 focus:ring-blue-500 cursor-pointer"
+                    className="h-6 w-6 rounded border-gray-300 text-gold-600 focus:ring-gold-500 cursor-pointer"
                   />
                   <span className="text-sm text-gray-600 group-hover:text-gray-900 transition-colors select-none">{isAr ? 'تذكرني' : 'Remember me'}</span>
                 </label>
@@ -345,7 +345,7 @@ export default function LoginPage() {
                     type="button"
                     onClick={() => setForgotHint(!forgotHint)}
                     onBlur={() => setTimeout(() => setForgotHint(false), 200)}
-                    className="text-sm font-semibold text-blue-700 hover:text-gold-500 transition-colors py-2 min-h-[44px]"
+                    className="text-sm font-semibold text-gold-700 hover:text-gold-500 transition-colors py-2 min-h-[44px]"
                   >
                     {isAr ? 'نسيت كلمة المرور؟' : 'Forgot password?'}
                   </button>

@@ -1,4 +1,4 @@
-import { parseCopticChurchHtml } from './html-parser';
+import { parseCopticChurchHtml, hymnToPresentationData } from './html-parser';
 
 const sample1 = `<HTML><HEAD><TITLE>Full Prayer :: Alleluia Fai be pi-ehoo :: Ⲁ̅ⲗ̅ Ⲫⲁⲓ ⲡⲉ ⲡⲓⲉ̀ϩⲟⲟⲩ</TITLE></HEAD><BODY>
 <h1>Alleluia Fai be pi-ehoo :: <span class="coptictext_utf8">Ⲁ̅ⲗ̅ Ⲫⲁⲓ ⲡⲉ ⲡⲓⲉ̀ϩⲟⲟⲩ</span></h1>
@@ -76,14 +76,86 @@ Not said on the weekdays on Lent but instead, Alleluia ei-e-ee is said.</p></div
 </div>
 </BODY></HTML>`;
 
-console.log('=== SAMPLE 1: Alleluia Fai Pe Piehoou ===');
-const r1 = parseCopticChurchHtml(sample1);
-console.log(JSON.stringify(r1, null, 2));
+describe('parseCopticChurchHtml', () => {
+  // Coptic text uses combining diacritics (U+0300 range) that can split a
+  // visual substring; normalize before matching so assertions are stable.
+  const stripDiacritics = (s: string) => s.replace(/[\u0300-\u036f]/g, '');
 
-console.log('\n=== SAMPLE 2: Ten-oo-osht ===');
-const r2 = parseCopticChurchHtml(sample2);
-console.log(JSON.stringify(r2, null, 2));
+  it('returns the full ParsedHymn shape', () => {
+    const result = parseCopticChurchHtml(sample1);
+    expect(result).toEqual(
+      expect.objectContaining({
+        titleEn: expect.any(String),
+        titleCop: expect.any(String),
+        titleAr: expect.any(String),
+        speaker: expect.any(String),
+        note: expect.any(String),
+        verses: expect.any(Array),
+      }),
+    );
+  });
 
-console.log('\n=== SAMPLE 3: Alleluia Je Efmevee ===');
-const r3 = parseCopticChurchHtml(sample3);
-console.log(JSON.stringify(r3, null, 2));
+  it('extracts the English title from the <h1>', () => {
+    expect(parseCopticChurchHtml(sample1).titleEn).toBe('Alleluia Fai be pi-ehoo');
+    expect(parseCopticChurchHtml(sample2).titleEn).toBe('Ten-oo-osht');
+    expect(parseCopticChurchHtml(sample3).titleEn).toBe('Alleluia. Je Efmevee');
+  });
+
+  it('extracts the Coptic and Arabic titles', () => {
+    const r1 = parseCopticChurchHtml(sample1);
+    expect(stripDiacritics(r1.titleCop)).toContain('Ⲫⲁⲓ');
+    expect(stripDiacritics(r1.titleCop)).toContain('ϩⲟⲟⲩ');
+
+    const r2 = parseCopticChurchHtml(sample2);
+    expect(stripDiacritics(r2.titleCop)).toContain('Ⲧⲉⲛⲟⲩⲱϣⲧ');
+    expect(r2.titleAr).toBe('تين اوؤشت');
+
+    const r3 = parseCopticChurchHtml(sample3);
+    expect(stripDiacritics(r3.titleCop)).toContain('ⲫⲙⲉⲩⲓ');
+    expect(r3.titleAr).toContain('افميي');
+  });
+
+  it('detects the speaker label when present', () => {
+    expect(parseCopticChurchHtml(sample1).speaker).toBe('People');
+    expect(parseCopticChurchHtml(sample3).speaker).toBe('People');
+  });
+
+  it('leaves speaker empty when no label is present', () => {
+    expect(parseCopticChurchHtml(sample2).speaker).toBe('');
+  });
+
+  it('captures the usage note after an <hr>', () => {
+    const r1 = parseCopticChurchHtml(sample1);
+    expect(r1.note).toContain('Said on all days');
+    const r3 = parseCopticChurchHtml(sample3);
+    expect(r3.note).toContain('Said on all fasting days');
+  });
+
+  it('extracts trilingual verse content', () => {
+    const r1 = parseCopticChurchHtml(sample1);
+    expect(r1.verses).toHaveLength(1);
+    expect(r1.verses[0].en).toContain('Alleluia. This is the day');
+    expect(r1.verses[0].cop.length).toBeGreaterThan(50);
+    expect(r1.verses[0].ar.length).toBeGreaterThan(50);
+
+    const r2 = parseCopticChurchHtml(sample2);
+    expect(r2.verses[0].en).toContain('We worship the Father of light');
+  });
+
+  it('returns an empty hymn for non-hymn HTML', () => {
+    const result = parseCopticChurchHtml('<html><body><p>no hymn here</p></body></html>');
+    expect(result.titleEn).toBe('');
+    expect(result.verses).toHaveLength(0);
+  });
+});
+
+describe('hymnToPresentationData', () => {
+  it('maps a parsed hymn into presentation data', () => {
+    const hymn = parseCopticChurchHtml(sample1);
+    const data = hymnToPresentationData(hymn);
+    expect(data.format).toBe('coptic-church-v1');
+    expect(data.speaker).toBe(hymn.speaker);
+    expect(data.verses).toBe(hymn.verses);
+    expect(data.note).toBe(hymn.note);
+  });
+});

@@ -6,10 +6,51 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { extname, join } from 'path';
 import { v4 as uuid } from 'uuid';
+import { readFile, unlink } from 'fs/promises';
 import { Roles, STAFF_ROLES } from '../../common/decorators/roles.decorator';
-const ALLOWED_TYPES = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg'];
+
+// SVG is intentionally excluded: it executes scripts when served inline
+// (stored XSS). Only raster image formats are accepted for uploads.
+const ALLOWED_TYPES = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
 const MAX_SIZE = 5 * 1024 * 1024; // 5MB
 const PPTX_MAX_SIZE = 50 * 1024 * 1024; // 50MB
+
+const MAGIC_BYTES: Record<string, string[]> = {
+  '.jpg': ['ffd8ff'],
+  '.jpeg': ['ffd8ff'],
+  '.png': ['89504e470d0a1a0a'],
+  '.gif': ['47494638'],
+  '.webp': ['52494646'],
+};
+
+function sniffImageMagic(buf: Buffer, ext: string): boolean {
+  const signatures = MAGIC_BYTES[ext];
+  if (!signatures) return false;
+  const hex = buf.subarray(0, 12).toString('hex');
+  return signatures.some((sig) => hex.startsWith(sig));
+}
+
+function createImageFileFilter() {
+  return (req: any, file: Express.Multer.File, cb: (error: Error | null, acceptFile: boolean) => void) => {
+    const ext = extname(file.originalname).toLowerCase();
+    if (!ALLOWED_TYPES.includes(ext)) {
+      cb(new BadRequestException(`Invalid file type. Allowed: ${ALLOWED_TYPES.join(', ')}`), false);
+      return;
+    }
+    // With diskStorage, buffer isn't streamed into memory here; extension gate
+    // applies above, and content magic bytes are verified after save below.
+    cb(null, true);
+  };
+}
+
+async function validateImageContent(fullPath: string, filename: string): Promise<void> {
+  const ext = extname(filename).toLowerCase();
+  const buf = await readFile(fullPath);
+  if (!sniffImageMagic(buf, ext)) {
+    await unlink(fullPath).catch(() => undefined);
+    throw new BadRequestException('File content does not match its declared type');
+  }
+}
 
 @Roles(...STAFF_ROLES)
 @Controller('upload')
@@ -25,18 +66,13 @@ export class UploadController {
         },
       }),
       limits: { fileSize: MAX_SIZE },
-      fileFilter: (req, file, cb) => {
-        const ext = extname(file.originalname).toLowerCase();
-        if (!ALLOWED_TYPES.includes(ext)) {
-          cb(new BadRequestException(`Invalid file type. Allowed: ${ALLOWED_TYPES.join(', ')}`), false);
-        } else {
-          cb(null, true);
-        }
-      },
+      fileFilter: createImageFileFilter(),
     }),
   )
-  uploadChurchLogo(@UploadedFile() file: Express.Multer.File) {
+  async uploadChurchLogo(@UploadedFile() file: Express.Multer.File) {
     if (!file) throw new BadRequestException('No file uploaded');
+    const fullPath = join(__dirname, '..', '..', '..', 'uploads', 'church-logos', file.filename);
+    await validateImageContent(fullPath, file.filename);
     return { url: `/uploads/church-logos/${file.filename}`, filename: file.filename };
   }
 
@@ -51,18 +87,13 @@ export class UploadController {
         },
       }),
       limits: { fileSize: MAX_SIZE },
-      fileFilter: (req, file, cb) => {
-        const ext = extname(file.originalname).toLowerCase();
-        if (!ALLOWED_TYPES.includes(ext)) {
-          cb(new BadRequestException(`Invalid file type. Allowed: ${ALLOWED_TYPES.join(', ')}`), false);
-        } else {
-          cb(null, true);
-        }
-      },
+      fileFilter: createImageFileFilter(),
     }),
   )
-  uploadSchoolLogo(@UploadedFile() file: Express.Multer.File) {
+  async uploadSchoolLogo(@UploadedFile() file: Express.Multer.File) {
     if (!file) throw new BadRequestException('No file uploaded');
+    const fullPath = join(__dirname, '..', '..', '..', 'uploads', 'church-logos', file.filename);
+    await validateImageContent(fullPath, file.filename);
     return { url: `/uploads/church-logos/${file.filename}`, filename: file.filename };
   }
 
@@ -77,18 +108,13 @@ export class UploadController {
         },
       }),
       limits: { fileSize: MAX_SIZE },
-      fileFilter: (req, file, cb) => {
-        const ext = extname(file.originalname).toLowerCase();
-        if (!ALLOWED_TYPES.includes(ext)) {
-          cb(new BadRequestException(`Invalid file type. Allowed: ${ALLOWED_TYPES.join(', ')}`), false);
-        } else {
-          cb(null, true);
-        }
-      },
+      fileFilter: createImageFileFilter(),
     }),
   )
-  uploadAvatar(@UploadedFile() file: Express.Multer.File) {
+  async uploadAvatar(@UploadedFile() file: Express.Multer.File) {
     if (!file) throw new BadRequestException('No file uploaded');
+    const fullPath = join(__dirname, '..', '..', '..', 'uploads', 'avatars', file.filename);
+    await validateImageContent(fullPath, file.filename);
     return { url: `/uploads/avatars/${file.filename}`, filename: file.filename };
   }
 
@@ -103,18 +129,13 @@ export class UploadController {
         },
       }),
       limits: { fileSize: MAX_SIZE },
-      fileFilter: (req, file, cb) => {
-        const ext = extname(file.originalname).toLowerCase();
-        if (!ALLOWED_TYPES.includes(ext)) {
-          cb(new BadRequestException(`Invalid file type. Allowed: ${ALLOWED_TYPES.join(', ')}`), false);
-        } else {
-          cb(null, true);
-        }
-      },
+      fileFilter: createImageFileFilter(),
     }),
   )
-  uploadStudentPhoto(@UploadedFile() file: Express.Multer.File) {
+  async uploadStudentPhoto(@UploadedFile() file: Express.Multer.File) {
     if (!file) throw new BadRequestException('No file uploaded');
+    const fullPath = join(__dirname, '..', '..', '..', 'uploads', 'student-photos', file.filename);
+    await validateImageContent(fullPath, file.filename);
     return { url: `/uploads/student-photos/${file.filename}`, filename: file.filename };
   }
 

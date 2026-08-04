@@ -388,13 +388,16 @@ export class ReportsService {
 
   // ── Diocese Dashboard ─────────────────────────────────────────────────────
 
-  async getDioceseReport() {
+async getDioceseReport(churchId?: string) {
     const now = new Date();
     const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
     const twoWeeksAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
 
     const churches = await this.prisma.church.findMany({
-      where: { deletedAt: null, isActive: true },
+      where: {
+        deletedAt: null, isActive: true,
+        ...(churchId ? { id: churchId } : {}),
+      },
       include: {
         schools: {
           where: { deletedAt: null },
