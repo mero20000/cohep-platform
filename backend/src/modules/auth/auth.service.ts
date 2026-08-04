@@ -5,6 +5,7 @@ import * as bcrypt from 'bcrypt';
 import { v4 as uuid } from 'uuid';
 import { PrismaService } from '../../database/prisma.service';
 import { MailService } from '../mail/mail.service';
+import { LoginThrottleService } from './login-throttle.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 
@@ -15,6 +16,7 @@ export class AuthService {
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
     private readonly mailService: MailService,
+    private readonly loginThrottle: LoginThrottleService,
   ) {}
 
   async register(registerDto: RegisterDto) {
@@ -127,6 +129,9 @@ export class AuthService {
   async login(loginDto: LoginDto) {
     const { email, password, schoolIdentifier } = loginDto;
 
+    // Per-account lockout — block before any work is done for a locked account.
+    this.loginThrottle.assertNotLocked(email);
+
     let user;
 
     if (schoolIdentifier) {
@@ -159,8 +164,14 @@ export class AuthService {
     const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
 
     if (!isPasswordValid) {
+      // Only throttle real accounts — unknown emails are covered by the IP
+      // limiter and recording them would let anyone lock arbitrary addresses.
+      this.loginThrottle.recordFailure(email);
       throw new UnauthorizedException('Invalid credentials');
     }
+
+    // Successful login clears any throttling state for this account.
+    this.loginThrottle.clear(email);
 
     await this.prisma.user.update({
       where: { id: user.id },

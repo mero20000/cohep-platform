@@ -7,6 +7,15 @@ import { emailTemplate, emailKeyValueRow, emailParagraph } from './email-templat
 export class MailService {
   private transporter: nodemailer.Transporter;
 
+  // Dedupe cache: key -> timestamp of last send. Prevents duplicate emails
+  // (e.g. a re-submitted registration form) from spamming the same recipient.
+  private readonly sentCache = new Map<string, number>();
+  private static readonly DEDUPE_TTL_MS = 10 * 60_000;
+
+  // Serializes sends so bursts of mail are dispatched sequentially instead
+  // of piling up as concurrent socket connections.
+  private sendChain: Promise<unknown> = Promise.resolve();
+
   constructor(private configService: ConfigService) {
     this.transporter = nodemailer.createTransport({
       host: this.configService.get('MAIL_HOST', 'smtp.gmail.com'),
@@ -22,6 +31,39 @@ export class MailService {
   async sendMail(to: string, subject: string, html: string) {
     const from = this.configService.get('MAIL_FROM', 'noreply@niangelos.app');
     await this.transporter.sendMail({ from, to, subject, html });
+  }
+
+  /**
+   * Queues `fn` behind any in-flight send so messages leave the process in
+   * order. Returns true when the job was accepted into the queue.
+   */
+  private enqueue(fn: () => Promise<void>): Promise<boolean> {
+    const run = this.sendChain.then(async () => {
+      await fn();
+    });
+    // Swallow rejection so one failed send doesn't poison the chain.
+    this.sendChain = run.catch(() => undefined);
+    return run.then(() => true).catch(() => false);
+  }
+
+  /**
+   * Sends `fn` only if no identical message (by `key`) was sent within the
+   * dedupe window.
+   */
+  private async dedupe(key: string, fn: () => Promise<void>): Promise<boolean> {
+    const now = Date.now();
+    const lastSent = this.sentCache.get(key);
+    if (lastSent && now - lastSent < MailService.DEDUPE_TTL_MS) {
+      return false;
+    }
+    this.sentCache.set(key, now);
+    // Opportunistic cleanup of expired keys.
+    if (this.sentCache.size > 500) {
+      for (const [k, ts] of this.sentCache) {
+        if (now - ts >= MailService.DEDUPE_TTL_MS) this.sentCache.delete(k);
+      }
+    }
+    return this.enqueue(fn);
   }
 
   async sendRegistrationNotification(adminEmail: string, data: {
@@ -48,7 +90,10 @@ export class MailService {
       `,
       cta: { text: 'Review Registration', url: '/dashboard/pending-registrations' },
     });
-    await this.sendMail(adminEmail, `New Registration: ${data.churchName}`, html);
+    const key = `reg:${adminEmail.toLowerCase()}:${data.email.toLowerCase()}:${data.churchName.toLowerCase()}`;
+    await this.dedupe(key, () =>
+      this.sendMail(adminEmail, `New Registration: ${data.churchName}`, html),
+    );
   }
 
   async sendAttendanceAlert(to: string, studentName: string, studentNameAr: string, groupName: string) {
