@@ -45,6 +45,15 @@ async function bootstrap() {
     .filter((o): o is string => !!o)
     .map((o) => o.replace(/\/$/, ''));
 
+  // Guard against silent CORS misconfig: a deployed frontend without an
+  // allowlisted origin can never reach the API (browser shows "Failed to fetch").
+  if (!process.env.FRONTEND_URL && !process.env.FRONTEND_URL_2) {
+    console.warn(
+      '[cors] WARNING: neither FRONTEND_URL nor FRONTEND_URL_2 is set — ' +
+        'only localhost origins are allowlisted; production browser requests will be blocked.',
+    );
+  }
+
   app.enableCors({
     origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
       // Allow server-to-server / curl / same-origin requests with no Origin header.
