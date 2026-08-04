@@ -36,7 +36,6 @@ interface SessionDetail extends Session {
 }
 interface Level { id: string; name: string; number: number; status?: string }
 interface Group { id: string; name: string; levelId: string; status?: string }
-interface Student { id: string; firstName: string; lastName: string; studentCode: string; levelId: string; groupId: string }
 interface Stats {
   totalSessions: number; completedSessions: number; scheduledSessions: number; inProgressSessions: number;
   totalRecords: number; presentCount: number; lateCount: number; absentCount: number; excusedCount: number;
@@ -50,14 +49,7 @@ const STATUS_ICONS: Record<string, React.ComponentType<{ className?: string }>> 
 }
 const STATUS_COLORS: Record<string, string> = {
   present: 'bg-green-100 text-green-700', late: 'bg-amber-100 text-amber-700',
-  absent: 'bg-red-100 text-red-700', excused: 'bg-gray-100 text-gray-600', unmarked: 'bg-gray-100 text-gray-600',
-}
-const SESSION_STATUS_COLORS: Record<string, string> = {
-  completed: 'bg-green-50 text-green-700 border-green-200',
-  scheduled: 'bg-blue-50 text-blue-700 border-blue-200',
-  in_progress: 'bg-amber-50 text-amber-700 border-amber-200',
-  cancelled: 'bg-red-50 text-red-700 border-red-200',
-  postponed: 'bg-purple-50 text-purple-700 border-purple-200',
+  absent: 'bg-red-100 text-red-700', excused: 'bg-gray-100 text-gray-600', unmarked: 'bg-gray-50 text-gray-500',
 }
 export function AttendanceClient() {
   const { toast } = useToast()

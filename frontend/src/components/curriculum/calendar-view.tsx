@@ -141,9 +141,6 @@ export function CalendarView({
       await onDeleteAllocation(a.id)
       const lesson = lessons.find(l => l.id === a.lesson.id)
       if (lesson?.subjectItemId) {
-        const remainingAllocs = allocations.filter(x =>
-          x.id !== a.id && x.lesson.id !== a.lesson.id
-        )
         const sameLessonAllocs = allocations.filter(x =>
           x.lesson.id === a.lesson.id && x.id !== a.id
         )
@@ -272,14 +269,6 @@ export function CalendarView({
     setDraggedLesson(null)
   }
 
-  const allocationsForSubjectLevel = (subjectName: string) => {
-    return allocations.filter(a => {
-      if (a.subject.name !== subjectName) return false
-      if (levelNumber && a.level.number !== levelNumber) return false
-      return true
-    })
-  }
-
   /* ─── Month view helpers ─── */
   interface DayData { date: Date; isCurrentMonth: boolean; allocations: Allocation[] }
 
@@ -379,7 +368,6 @@ export function CalendarView({
   const todayStr = new Date().toISOString().split('T')[0]
 
   const renderGrid = () => {
-    const cols = subjectColumns.length
     return (
       <div className="flex-1 bg-white rounded-xl border border-gray-200 flex flex-col overflow-hidden min-h-[60vh] lg:min-h-0">
         {/* Header */}
@@ -710,7 +698,19 @@ export function CalendarView({
         </div>
       </div>
 
-      {viewMode === 'grid' ? renderGrid() : renderMonth()}
+      {termWeeks.length === 0 ? (
+        <div className="flex-1 bg-white rounded-xl border border-gray-200 flex flex-col items-center justify-center gap-3 px-6 py-16 text-center min-h-[60vh] lg:min-h-0">
+          <div className="rounded-full bg-gray-100 p-3">
+            <CalendarDays className="h-6 w-6 text-gray-400" />
+          </div>
+          <p className="text-sm font-medium text-gray-700">
+            {lang === 'ar' ? `لا توجد أسابيع للفصل ${selectedTerm} في هذه السنة الدراسية` : `No weeks for Term ${selectedTerm} in this academic year`}
+          </p>
+          <p className="text-xs text-gray-500 max-w-sm">
+            {lang === 'ar' ? 'أنشئ أسابيع العطلة من الإعدادات ← التقويم ثم عد هنا للتوزيع.' : 'Generate the weekend weeks from Settings → Calendar, then return here to allocate.'}
+          </p>
+        </div>
+      ) : viewMode === 'grid' ? renderGrid() : renderMonth()}
 
       <Modal open={!!moveModal} onClose={() => setMoveModal(null)}
         title={lang === 'ar' ? 'نقل التوزيع' : 'Move Allocation'} size="sm">
