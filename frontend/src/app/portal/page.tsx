@@ -257,12 +257,12 @@ export default function PortalPage() {
                     </div>
                     <div className="flex flex-wrap items-center gap-2 mt-1.5">
                       {relLabel && (
-                        <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-[11px] font-medium text-indigo-700 capitalize">
+                        <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-xs font-medium text-indigo-700 capitalize">
                           {t(relLabel.en, relLabel.ar)}
                         </span>
                       )}
                       {child.isPrimary && (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-medium text-blue-700">
+                        <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700">
                           <Crown className="h-3 w-3" />{t('Primary', 'أساسي')}
                         </span>
                       )}
@@ -278,19 +278,19 @@ export default function PortalPage() {
                 <div className="mt-3 grid grid-cols-4 gap-2">
                   <div className="rounded-lg bg-green-50 p-2 text-center">
                     <div className="text-sm font-bold text-green-700">{s.attendanceRate}%</div>
-                    <div className="text-[10px] text-green-600">{t('Attend.', 'حضور')}</div>
+                    <div className="text-xs text-green-600">{t('Attend.', 'حضور')}</div>
                   </div>
                   <div className="rounded-lg bg-blue-50 p-2 text-center">
                     <div className="text-sm font-bold text-blue-700">{s.total}</div>
-                    <div className="text-[10px] text-blue-600">{t('Total', 'إجمالي')}</div>
+                    <div className="text-xs text-blue-600">{t('Total', 'إجمالي')}</div>
                   </div>
                   <div className="rounded-lg bg-amber-50 p-2 text-center">
                     <div className="text-sm font-bold text-amber-700">{s.absent}</div>
-                    <div className="text-[10px] text-amber-600">{t('Absent', 'غائب')}</div>
+                    <div className="text-xs text-amber-600">{t('Absent', 'غائب')}</div>
                   </div>
                   <div className="rounded-lg bg-purple-50 p-2 text-center">
                     <div className="text-sm font-bold text-purple-700">{s.upcomingSessions}</div>
-                    <div className="text-[10px] text-purple-600">{t('Upcoming', 'قادم')}</div>
+                    <div className="text-xs text-purple-600">{t('Upcoming', 'قادم')}</div>
                   </div>
                 </div>
 

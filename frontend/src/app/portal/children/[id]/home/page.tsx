@@ -76,7 +76,7 @@ function XpBar({ inLevel, toNext, level }: { inLevel: number; toNext: number; le
           style={{ width: `${width}%` }}
         />
       </div>
-      <div className="text-right text-[11px] text-white/50">{inLevel}/100 XP this level</div>
+      <div className="text-right text-xs text-white/50">{inLevel}/100 XP this level</div>
     </div>
   )
 }
@@ -87,14 +87,14 @@ function StreakBadge({ streak }: { streak: number }) {
     <div className="flex flex-col items-center gap-1 rounded-2xl bg-white/10 px-5 py-4 text-center">
       <Flame className="h-8 w-8 text-white/30" />
       <div className="text-2xl font-black text-white/40">0</div>
-      <div className="text-[11px] text-white/40 font-medium">day streak</div>
+      <div className="text-xs text-white/40 font-medium">day streak</div>
     </div>
   )
   return (
     <div className="flex flex-col items-center gap-1 rounded-2xl bg-gradient-to-b from-orange-400/30 to-red-500/20 border border-orange-300/20 px-5 py-4 text-center animate-pulse-slow">
       <Flame className={`h-8 w-8 ${streak >= 7 ? 'text-orange-300' : 'text-orange-400/80'} drop-shadow`} />
       <div className="text-2xl font-black text-white">{streak}</div>
-      <div className="text-[11px] text-orange-200 font-medium">day streak</div>
+      <div className="text-xs text-orange-200 font-medium">day streak</div>
     </div>
   )
 }
@@ -139,7 +139,7 @@ function JourneyNode({ item, index, isLast }: { item: HomeData['journey'][0]; in
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0">
               {item.subject && (
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-white/40 mb-0.5">{item.subject}</p>
+                <p className="text-xs font-semibold uppercase tracking-wider text-white/40 mb-0.5">{item.subject}</p>
               )}
               <h3 className={`text-sm font-bold leading-tight ${
                 isCompleted ? 'text-green-300' : isCurrent ? 'text-amber-200' : 'text-white/40'
@@ -147,7 +147,7 @@ function JourneyNode({ item, index, isLast }: { item: HomeData['journey'][0]; in
                 {item.name}
               </h3>
               {item.nameCoptic && (
-                <p className="text-[11px] text-white/30 mt-0.5">{item.nameCoptic}</p>
+                <p className="text-xs text-white/30 mt-0.5">{item.nameCoptic}</p>
               )}
             </div>
             {isCompleted && <CheckCircle2 className="h-4 w-4 text-green-400 shrink-0 mt-0.5" />}
@@ -155,7 +155,7 @@ function JourneyNode({ item, index, isLast }: { item: HomeData['journey'][0]; in
           </div>
           {isCurrent && (
             <div className="mt-2.5 flex items-center gap-2">
-              <span className="inline-flex items-center gap-1 rounded-full bg-amber-400/20 border border-amber-400/30 px-2.5 py-0.5 text-[11px] font-semibold text-amber-300">
+              <span className="inline-flex items-center gap-1 rounded-full bg-amber-400/20 border border-amber-400/30 px-2.5 py-0.5 text-xs font-semibold text-amber-300">
                 ▶ Currently learning
               </span>
             </div>
@@ -267,7 +267,7 @@ export default function StudentHomePage() {
           <div className="flex flex-col items-center gap-1 rounded-2xl bg-white/8 border border-white/10 px-3 py-4 text-center">
             <Star className="h-6 w-6 text-yellow-400" />
             <div className="text-xl font-black text-white"><AnimatedNumber value={xp.total} /></div>
-            <div className="text-[11px] text-white/40 font-medium">Total XP</div>
+            <div className="text-xs text-white/40 font-medium">Total XP</div>
           </div>
           {/* Streak */}
           <StreakBadge streak={streak} />
@@ -275,7 +275,7 @@ export default function StudentHomePage() {
           <div className="flex flex-col items-center gap-1 rounded-2xl bg-white/8 border border-white/10 px-3 py-4 text-center">
             <Trophy className="h-6 w-6 text-amber-400" />
             <div className="text-xl font-black text-white"><AnimatedNumber value={badges.length} /></div>
-            <div className="text-[11px] text-white/40 font-medium">{t('Badges', 'شارات')}</div>
+            <div className="text-xs text-white/40 font-medium">{t('Badges', 'شارات')}</div>
           </div>
         </div>
       </div>
@@ -288,7 +288,7 @@ export default function StudentHomePage() {
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 mb-0.5">
                 <Sparkles className="h-3.5 w-3.5 text-amber-400" />
-                <span className="text-[11px] font-bold uppercase tracking-wider text-amber-400">
+                <span className="text-xs font-bold uppercase tracking-wider text-amber-400">
                   {t('Current Challenge', 'التحدي الحالي')}
                 </span>
               </div>
@@ -307,7 +307,7 @@ export default function StudentHomePage() {
       {currentHymn && (
         <div className="px-4 mb-6">
           <div className="max-w-xl mx-auto">
-            <p className="text-[11px] font-bold uppercase tracking-wider text-white/30 mb-2 px-1">
+            <p className="text-xs font-bold uppercase tracking-wider text-white/30 mb-2 px-1">
               {t('Now Learning', 'تتعلم الآن')}
             </p>
             <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-purple-600/30 to-indigo-600/20 border border-purple-400/20 p-5">
@@ -428,9 +428,9 @@ export default function StudentHomePage() {
                       <div>
                         <h3 className="text-xs font-bold text-white leading-tight">{badge.name}</h3>
                         {badge.description && (
-                          <p className="text-[10px] text-white/40 mt-0.5 line-clamp-2">{badge.description}</p>
+                          <p className="text-xs text-white/40 mt-0.5 line-clamp-2">{badge.description}</p>
                         )}
-                        <div className="mt-1.5 flex items-center justify-center gap-1 text-[10px] text-amber-400/80 font-semibold">
+                        <div className="mt-1.5 flex items-center justify-center gap-1 text-xs text-amber-400/80 font-semibold">
                           <Star className="h-2.5 w-2.5" />
                           +{badge.xpReward} XP
                         </div>
@@ -454,15 +454,15 @@ export default function StudentHomePage() {
                 <div className="grid grid-cols-3 gap-3 text-center">
                   <div>
                     <div className="text-xl font-black text-green-400">{attendance.rate}%</div>
-                    <div className="text-[10px] text-white/40">{t('Rate', 'النسبة')}</div>
+                    <div className="text-xs text-white/40">{t('Rate', 'النسبة')}</div>
                   </div>
                   <div>
                     <div className="text-xl font-black text-white">{attendance.present}</div>
-                    <div className="text-[10px] text-white/40">{t('Present', 'حضور')}</div>
+                    <div className="text-xs text-white/40">{t('Present', 'حضور')}</div>
                   </div>
                   <div>
                     <div className="text-xl font-black text-white">{attendance.total}</div>
-                    <div className="text-[10px] text-white/40">{t('Total', 'إجمالي')}</div>
+                    <div className="text-xs text-white/40">{t('Total', 'إجمالي')}</div>
                   </div>
                 </div>
               </div>
@@ -483,7 +483,7 @@ export default function StudentHomePage() {
                           <p className="text-xs font-medium text-white/80">
                             {act.description || act.type.replace(/_/g, ' ')}
                           </p>
-                          <p className="text-[10px] text-white/30">
+                          <p className="text-xs text-white/30">
                             {new Date(act.date).toLocaleDateString(lang === 'ar' ? 'ar' : 'en-GB', { day: 'numeric', month: 'short' })}
                           </p>
                         </div>

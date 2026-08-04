@@ -113,7 +113,7 @@ function LiturgySection({ childId, language }: { childId: string; language: stri
         <p className="text-sm font-medium text-amber-700 mb-3 animate-pulse">{feedback}</p>
       )}
 
-      <p className="text-xs text-gray-500 mb-3">
+      <p className="text-sm text-gray-500 mb-3">
         {verifiedCount} {t('verified liturgies', 'قداس معتمد')}
         {verifiedCount < threshold && ` — ${threshold - verifiedCount} ${t('more for Faithful Worshipper badge', 'متبقي لشارة المُصلّي الأمين')}`}
       </p>
@@ -193,14 +193,16 @@ function MilestonesSection({ childId, language }: { childId: string; language: s
                   <p className="text-sm text-gray-800">{language === 'ar' ? m.label.ar : m.label.en}</p>
                   <p className="text-xs text-gray-400 mt-0.5">{new Date(m.date).toLocaleDateString()}</p>
                   {img && (
-                    <img
+                    <Image
                       src={img}
                       alt={cap}
+                      width={128}
+                      height={96}
                       className="mt-2 w-32 h-24 object-cover rounded-lg cursor-pointer hover:opacity-80 border border-gray-200"
                       onClick={() => { setLightboxSrc(img); setLightboxCaption(cap) }}
                     />
                   )}
-                  {cap && <p className="text-xs text-gray-600 mt-1 italic">&ldquo;{cap}&rdquo;</p>}
+                  {cap && <p className="text-sm text-gray-600 mt-1 italic">&ldquo;{cap}&rdquo;</p>}
                 </div>
               </div>
             )
@@ -307,7 +309,7 @@ function PracticeTogetherCard({ childId, language }: { childId: string; language
       </div>
 
       {summary && (
-        <p className="mt-2 text-xs text-gray-500">
+        <p className="mt-2 text-sm text-gray-500">
           {t('Practiced', 'تم التدرب')} {summary.weeklyCount}x {t('this week', 'هذا الأسبوع')}
           {summary.weeklyLimit > 0 && ` · ${t('Limit', 'الحد الأقصى')}: ${summary.weeklyLimit}`}
         </p>
@@ -493,11 +495,11 @@ export default function ChildDetailPage() {
                     </span>
                     {r.levelNumber && <span className="text-xs text-gray-400">Level {r.levelNumber}</span>}
                   </div>
-                  <p className="text-xs text-gray-500 mt-1">
+                  <p className="text-sm text-gray-500 mt-1">
                     {r.date ? new Date(r.date).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }) : '—'}
                      {r.homeworkStatus && r.homeworkStatus !== 'not_assigned' && <span className="ml-2">• {t('HW', 'واجب')}: {r.homeworkStatus}</span>}
                   </p>
-                  {r.note && <p className="text-xs text-gray-400 mt-0.5 italic">{r.note}</p>}
+                  {r.note && <p className="text-sm text-gray-400 mt-0.5 italic">{r.note}</p>}
                 </div>
                 <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${
                   r.status === 'present' ? 'bg-green-100 text-green-600' :
