@@ -254,7 +254,7 @@ function CurriculumContent() {
       </div>
 
       <div className="border-b border-gray-200">
-        <nav className="-mb-px flex gap-6" role="tablist" aria-label={lang === 'ar' ? 'أقسام المنهج' : 'Curriculum sections'}>
+        <nav className="-mb-px flex gap-6 overflow-x-auto" role="tablist" aria-label={lang === 'ar' ? 'أقسام المنهج' : 'Curriculum sections'}>
           {mainTabs.map((tab, i) => (
             <button key={tab.id} onClick={() => setActiveTab(tab.id)}
               onKeyDown={e => {

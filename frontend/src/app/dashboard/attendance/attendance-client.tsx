@@ -416,7 +416,7 @@ export function AttendanceClient() {
 
       {/* Tabs */}
       <div className="border-b border-gray-200">
-        <nav className="-mb-px flex gap-6" role="tablist">
+        <nav className="-mb-px flex gap-6 overflow-x-auto" role="tablist">
           {[
             { id: 'sessions' as const, label: lang === 'ar' ? 'الجلسات' : 'Sessions', icon: Calendar },
             { id: 'stats' as const, label: lang === 'ar' ? 'الإحصائيات' : 'Statistics', icon: BarChart3 },

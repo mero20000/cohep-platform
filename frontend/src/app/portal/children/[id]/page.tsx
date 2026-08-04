@@ -456,7 +456,7 @@ export default function ChildDetailPage() {
       <LiturgySection childId={id as string} language={lang} />
       <MilestonesSection childId={id as string} language={lang} />
 
-      <nav className="flex gap-6 border-b border-gray-200">
+      <nav className="flex gap-6 overflow-x-auto border-b border-gray-200">
         {tabs.map(t => {
           const isActive = tab === t.id
           return (
