@@ -28,7 +28,7 @@ services:
       - key: JWT_SECRET
         generateValue: true
       - key: FRONTEND_URL
-        value: https://niangelos-frontend.onrender.com
+        value: https://cohep-platform.vercel.app
       - key: GEMINI_MODEL
         value: gemini-3.5-flash
 
