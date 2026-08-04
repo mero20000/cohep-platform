@@ -3,6 +3,7 @@ import { NotFoundException } from '@nestjs/common';
 import { StudentsService } from './students.service';
 import { PrismaService } from '../../database/prisma.service';
 import { AuditService } from '../audit/audit.service';
+import { AnalyticsService } from '../analytics/analytics.service';
 import { SchoolResolver } from '../../common/utils/school-resolver';
 
 describe('StudentsService', () => {
@@ -83,6 +84,7 @@ describe('StudentsService', () => {
         { provide: PrismaService, useValue: prismaMock },
         { provide: AuditService, useValue: { log: jest.fn().mockResolvedValue(undefined) } },
         { provide: SchoolResolver, useValue: { resolve: jest.fn(async (id: string) => id) } },
+        { provide: AnalyticsService, useValue: { record: jest.fn().mockResolvedValue(undefined) } },
       ],
     }).compile();
 

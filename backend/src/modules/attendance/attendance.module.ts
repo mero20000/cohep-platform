@@ -4,9 +4,10 @@ import { AttendanceService } from './attendance.service';
 import { AuditModule } from '../audit/audit.module';
 import { GamificationModule } from '../gamification/gamification.module';
 import { NotificationsModule } from '../notifications/notifications.module';
+import { AnalyticsModule } from '../analytics/analytics.module';
 
 @Module({
-  imports: [AuditModule, forwardRef(() => GamificationModule), NotificationsModule],
+  imports: [AuditModule, forwardRef(() => GamificationModule), NotificationsModule, AnalyticsModule],
   controllers: [AttendanceController],
   providers: [AttendanceService],
   exports: [AttendanceService],

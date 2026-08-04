@@ -23,6 +23,7 @@ import { NewsletterModule } from './modules/newsletter/newsletter.module';
 import { ServantsModule } from './modules/servants/servants.module';
 import { ReportsModule } from './modules/reports/reports.module';
 import { AnnouncementsModule } from './modules/announcements/announcements.module';
+import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { HealthModule } from './modules/health/health.module';
 import { JwtAuthGuard } from './modules/auth/guards/jwt-auth.guard';
 import { RolesGuard } from './modules/auth/guards/roles.guard';
@@ -67,6 +68,7 @@ import { TenantScopeGuard } from './common/guards/tenant-scope.guard';
     ServantsModule,
     ReportsModule,
     AnnouncementsModule,
+    AnalyticsModule,
     HealthModule,
   ],
   providers: [

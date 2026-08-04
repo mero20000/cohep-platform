@@ -18,6 +18,7 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { QrScanner } from '@/components/qr/qr-scanner'
 import { http } from '@/lib/http-client'
 import { getSchoolId } from '@/lib/school'
+import { track } from '@/lib/analytics'
 
 interface Session {
   id: string; scheduledDate: string; scheduledTime?: string; status: string; notes?: string;
@@ -242,12 +243,14 @@ export function AttendanceClient() {
       }
       fetchSessionDetail(selectedSession.id)
       fetchSessions()
+      track('attendance.marked', 'action', { count: records.length, completed: markAsCompleted, sessionId: selectedSession.id })
     } catch (e) { console.error(e) }
     setMarking(false)
   }
 
   const handleStartClass = async () => {
     setStartingClass(true)
+    track('onboarding.start', 'activation', { feature: 'start_class' })
     try {
       const result = await http.post<{ session: SessionDetail; created: boolean } | { groups: { id: string; name: string }[]; requiresGroupPick: boolean }>('/attendance/start-class')
       if ('requiresGroupPick' in result && result.requiresGroupPick) {
@@ -256,6 +259,7 @@ export function AttendanceClient() {
         fetchSessionDetail(result.session.id)
         fetchSessions()
         toast('success', 'Class started!', 'All students pre-marked as present.')
+        track('onboarding.completed', 'activation', { feature: 'start_class', sessionId: result.session.id })
       }
     } catch (e: any) {
       toast('error', 'Failed to start class', e?.message || 'Unknown error')

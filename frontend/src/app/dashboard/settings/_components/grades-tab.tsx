@@ -10,6 +10,7 @@ import { useToast } from '@/components/ui/toast'
 import { useLanguage } from '@/lib/use-language'
 import { getSchoolId } from '@/lib/school'
 import { http } from '@/lib/http-client'
+import { track } from '@/lib/analytics'
 import {
   type GradeGroupCombo,
   type GroupLike,
@@ -109,6 +110,7 @@ export function GradesTab() {
       if (ok) {
         setCombos(next)
         toast('success', message)
+        track('settings.task_completed', 'task', { tab: 'grades', action: 'save' })
         setShowForm(false)
       }
     } catch {

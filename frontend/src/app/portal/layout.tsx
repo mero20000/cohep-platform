@@ -7,6 +7,7 @@ import { Cross, LogOut, User, Home, Bell, Menu, X, ChevronDown, Globe, CheckChec
 import { useLanguage } from '@/lib/use-language'
 import { http } from '@/lib/http-client'
 import { getSchoolId } from '@/lib/school'
+import { track } from '@/lib/analytics'
 import { Button } from '@/components/ui/button'
 import { AudioPlayer } from '@/components/audio-player'
 
@@ -100,6 +101,7 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
     document.documentElement.setAttribute('dir', newLang === 'ar' ? 'rtl' : 'ltr')
     document.documentElement.setAttribute('lang', newLang)
     window.dispatchEvent(new CustomEvent('langchange', { detail: newLang }))
+    track('locale.set', 'locale', { locale: newLang })
   }
 
   const handleSignOut = () => {

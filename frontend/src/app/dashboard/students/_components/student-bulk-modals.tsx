@@ -4,6 +4,7 @@ import { Loader2, Trash2, AlertTriangle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { http } from '@/lib/http-client'
 import { getSchoolId } from '@/lib/school'
+import { track } from '@/lib/analytics'
 import type { Level, Group } from './student-types'
 
 type BM = 'delete'|'status'|'level'|'grade'
@@ -28,6 +29,7 @@ export function StudentBulkModals({ showBulkDelete, showBulkStatus, showBulkLeve
     try {
       const r: {updated:number} = await http.patch('/students/bulk',{ids,data},{schoolId:getSchoolId()})
       onClose(m); onSuccess(currentPage); toast('success',`${r.updated} ${t('students updated','طالب تم تحديثهم')}`)
+      track('bulk.action','action',{action:`students.bulk_update_${m}`,count:ids.length})
     } catch { toast('error',t('Bulk update failed','فشل التحديث الجماعي')); onSuccess(currentPage) }
   }
 
@@ -37,6 +39,7 @@ export function StudentBulkModals({ showBulkDelete, showBulkStatus, showBulkLeve
       const r: {deleted:number} = await http.post('/students/bulk-delete',{ids},{schoolId:getSchoolId()})
       onClose('delete'); setConfirmText(''); onSuccess(currentPage)
       toast('success',`${r.deleted} ${t('students deleted','طالب تم حذفهم')}`)
+      track('bulk.action','action',{action:'students.bulk_delete',count:ids.length})
     } catch { toast('error',t('Bulk delete failed','فشل الحذف الجماعي')); onSuccess(currentPage) }
     finally { setDeleting(false) }
   }

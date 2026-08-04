@@ -5,6 +5,7 @@ import { AuditService } from '../audit/audit.service';
 import { GamificationService } from '../gamification/gamification.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { MailService } from '../mail/mail.service';
+import { AnalyticsService } from '../analytics/analytics.service';
 import { CreateAttendanceSessionDto } from './dto/create-attendance-session.dto';
 import { MarkAttendanceDto } from './dto/mark-attendance.dto';
 
@@ -18,6 +19,7 @@ export class AttendanceService {
     private readonly gamification: GamificationService,
     private readonly notifications: NotificationsService,
     private readonly mail: MailService,
+    private readonly analytics: AnalyticsService,
   ) {}
 
   async getSessions(schoolIdentifier: string, filters: {
@@ -194,6 +196,15 @@ export class AttendanceService {
       }),
     );
     await this.prisma.$transaction(upserts);
+
+    // MEASURE (C2): first attendance within 7 days of signup = activation.
+    this.analytics.record({
+      name: 'attendance.marked',
+      category: 'activation',
+      userId: recordedBy,
+      schoolId: session.schoolId,
+      properties: { count: dto.records.length, sessionId },
+    });
 
     // Compute badges for all affected students (fire-and-forget)
     const affectedStudentIds = [...new Set(dto.records.map(r => r.studentId))];

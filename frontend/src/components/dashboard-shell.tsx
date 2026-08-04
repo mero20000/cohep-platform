@@ -14,6 +14,7 @@ import { getSchoolId } from '@/lib/school'
 import { useActiveSchool } from '@/lib/use-active-school'
 import { useActiveRole } from '@/lib/use-active-role'
 import { http } from '@/lib/http-client'
+import { track } from '@/lib/analytics'
 import { ROLES } from '@/lib/roles'
 import { usePermission } from '@/lib/use-permission'
 import { DashboardSidebar } from './dashboard/sidebar'
@@ -233,6 +234,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
     localStorage.setItem('niangelos_language', newLang)
     applyLanguage(newLang)
     window.dispatchEvent(new CustomEvent('langchange', { detail: newLang }))
+    track('locale.set', 'locale', { locale: newLang })
   }
 
   const relativeTime = (dateStr: string) => {

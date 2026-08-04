@@ -2,6 +2,7 @@ import { Injectable, NotFoundException, ForbiddenException, BadRequestException 
 import { PrismaService } from '../../database/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { SchoolResolver } from '../../common/utils/school-resolver';
+import { AnalyticsService } from '../analytics/analytics.service';
 import { CreateStudentDto } from './dto/create-student.dto';
 import { UpdateStudentDto } from './dto/update-student.dto';
 import { QueryStudentDto } from './dto/query-student.dto';
@@ -13,6 +14,7 @@ export class StudentsService {
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
     private readonly schoolResolver: SchoolResolver,
+    private readonly analytics: AnalyticsService,
   ) {}
 
   async findAll(queryDto: QueryStudentDto, schoolIdentifier: string) {
@@ -162,6 +164,14 @@ export class StudentsService {
       entityType: 'student',
       entityId: student.id,
       newValues: { firstName: student.firstName, lastName: student.lastName, levelId: student.levelId, groupId: student.groupId },
+    });
+
+    // MEASURE (C4): record creation events for actions-per-session funnels.
+    this.analytics.record({
+      name: 'student.created',
+      category: 'action',
+      schoolId,
+      properties: { studentId: student.id },
     });
 
     return student;
@@ -383,6 +393,14 @@ export class StudentsService {
       newValues: { count: results.length },
     });
 
+    // MEASURE (C4): bulk import — the power-user retention lever.
+    this.analytics.record({
+      name: 'bulk.action',
+      category: 'action',
+      schoolId,
+      properties: { action: 'students.import', count: results.length },
+    });
+
     return { imported: results.length, students: results };
   }
 
@@ -426,6 +444,14 @@ export class StudentsService {
       action: 'BULK_DELETE',
       entityType: 'student',
       oldValues: { ids, count: result.count },
+    });
+
+    // MEASURE (C4): power-user bulk workflow.
+    this.analytics.record({
+      name: 'bulk.action',
+      category: 'action',
+      schoolId,
+      properties: { action: 'students.delete', count: result.count },
     });
 
     return { deleted: result.count };

@@ -15,6 +15,7 @@ import { PresentationViewer } from '@/components/curriculum/presentation-viewer'
 import type { PresentationData } from '@/components/curriculum/types'
 import { csToUnicode, isLikelyCsEncoded } from '@/lib/coptic-converter'
 import { DetailDrawer, DetailSection, DetailRow } from '@/components/ui/detail-drawer'
+import { track } from '@/lib/analytics'
 
 interface Subject {
   id: string; name: string; nameAr?: string; description?: string; color?: string; status: string; orderIndex: number
@@ -174,6 +175,7 @@ export function SubjectsTab() {
         await http.post(`/curriculum/subjects/${selectedSubject.id}/items`, body, p)
       }
       toast('success', isEdit ? (lang === 'ar' ? 'تم تحديث العنصر' : 'Item updated') : (lang === 'ar' ? 'تم إنشاء العنصر' : 'Item created'))
+      track('settings.task_completed', 'task', { tab: 'subjects', action: 'save_item' })
       setEditingItem(null); setItemForm(emptyItemForm); setItemPresentation(undefined); setShowItemForm(false)
       fetchItems(selectedSubject.id)
     } catch { toast('error', lang === 'ar' ? 'فشل حفظ العنصر' : 'Failed to save item') }

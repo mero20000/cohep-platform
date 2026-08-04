@@ -1297,3 +1297,42 @@ model FileUpload {
   @@index([entityType, entityId])
   @@map("file_uploads")
 }
+
+// ============================================
+// MEASURE — product analytics
+// ============================================
+
+model AppSession {
+  id           String    @id @default(uuid())
+  userId       String?   @map("user_id")
+  schoolId     String?   @map("school_id")
+  startedAt    DateTime  @default(now()) @map("started_at")
+  lastActiveAt DateTime  @default(now()) @map("last_active_at")
+  endedAt      DateTime? @map("ended_at")
+  durationSec  Int?      @map("duration_sec")
+  entryPage    String?   @map("entry_page")
+  locale       String?
+  userAgent    String?   @map("user_agent")
+  actionCount  Int       @default(0) @map("action_count")
+
+  @@index([startedAt])
+  @@index([userId, startedAt])
+  @@map("app_sessions")
+}
+
+model AnalyticsEvent {
+  id         String   @id @default(uuid())
+  sessionId  String?  @map("session_id")
+  userId     String?  @map("user_id")
+  schoolId   String?  @map("school_id")
+  name       String
+  category   String?
+  locale     String?
+  properties Json?
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@index([name, createdAt])
+  @@index([sessionId, createdAt])
+  @@index([userId, createdAt])
+  @@map("analytics_events")
+}

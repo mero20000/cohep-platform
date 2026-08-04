@@ -6,6 +6,7 @@ import { Plus, Pencil, Trash2, Loader2, Check, X } from 'lucide-react'
 import { useToast } from '@/components/ui/toast'
 import { Modal } from '@/components/ui/modal'
 import { FormField } from '@/components/ui/form-field'
+import { track } from '@/lib/analytics'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { http } from '@/lib/http-client'
 import { getSchoolId } from '@/lib/school'
@@ -116,12 +117,14 @@ export function GroupsTab() {
         setShowForm(false)
         fetchGroups()
         toast('success', lang === 'ar' ? 'تم تحديث المجموعة' : 'Group updated')
+        track('settings.task_completed', 'task', { tab: 'groups', action: 'update' })
       } else {
         await http.post('/students/groups', payload, { schoolId: getSchoolId() })
         setShowForm(false)
         setForm(emptyForm)
         fetchGroups()
         toast('success', lang === 'ar' ? 'تم إنشاء المجموعة' : 'Group created')
+        track('settings.task_completed', 'task', { tab: 'groups', action: 'create' })
       }
     } catch {
       setFormError(lang === 'ar' ? 'خطأ في الاتصال' : 'Connection error')
