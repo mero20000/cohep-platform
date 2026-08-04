@@ -4,8 +4,46 @@ import { getSchoolId } from '@/lib/school'
 import { API, toDateStr } from './constants'
 import type { Level, Subject, Lesson, Allocation, AcademicYear, AcademicWeek, Group, LessonFormData, SubjectItem } from './types'
 
-async function fetchJson<T>(url: string): Promise<T> {
-  const res = await fetch(url, { headers: { 'Content-Type': 'application/json' }, credentials: 'include' })
+function authHeaders(): Record<string, string> {
+  if (typeof window === 'undefined') return {}
+  const token = localStorage.getItem('niangelos_token')
+  return token ? { Authorization: `Bearer ${token}` } : {}
+}
+
+async function refreshAccessToken(): Promise<boolean> {
+  try {
+    const res = await fetch(`${API}/auth/refresh`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
+      credentials: 'include',
+    })
+    if (!res.ok) return false
+    const data = await res.json()
+    if (data.accessToken) localStorage.setItem('niangelos_token', data.accessToken)
+    return true
+  } catch {
+    return false
+  }
+}
+
+async function request<T>(url: string, method: string, body?: unknown): Promise<T> {
+  let res = await fetch(url, {
+    method,
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    credentials: 'include',
+    body: body !== undefined ? JSON.stringify(body) : undefined,
+  })
+  if (res.status === 401) {
+    const refreshed = await refreshAccessToken()
+    if (refreshed) {
+      res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
+        credentials: 'include',
+        body: body !== undefined ? JSON.stringify(body) : undefined,
+      })
+    }
+  }
   if (!res.ok) {
     const err = await res.json().catch(() => ({ message: `HTTP ${res.status}` }))
     throw new Error(err.message || `Request failed: ${res.status}`)
@@ -13,18 +51,12 @@ async function fetchJson<T>(url: string): Promise<T> {
   return res.json()
 }
 
+async function fetchJson<T>(url: string): Promise<T> {
+  return request<T>(url, 'GET')
+}
+
 async function mutateJson<T>(url: string, method: string, body?: unknown): Promise<T> {
-  const res = await fetch(url, {
-    method,
-    headers: { 'Content-Type': 'application/json' },
-    credentials: 'include',
-    body: body !== undefined ? JSON.stringify(body) : undefined,
-  })
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ message: `HTTP ${res.status}` }))
-    throw new Error(err.message || `Request failed: ${res.status}`)
-  }
-  return res.json()
+  return request<T>(url, method, body)
 }
 
 export function useLevelsQuery() {
