@@ -4,20 +4,36 @@ import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import helmet from 'helmet';
 import * as cookieParser from 'cookie-parser';
+import * as Sentry from '@sentry/node';
 import { join } from 'path';
 import { AppModule } from './app.module';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
+import { requestIdMiddleware } from './common/middleware/request-id.middleware';
+import { requestLoggerMiddleware } from './common/middleware/request-logger.middleware';
 
 async function bootstrap() {
+  // Sentry — only when a DSN is configured.
+  if (process.env.SENTRY_DSN) {
+    Sentry.init({
+      dsn: process.env.SENTRY_DSN,
+      environment: process.env.NODE_ENV || 'development',
+      tracesSampleRate: parseFloat(process.env.SENTRY_SAMPLE_RATE || '0.1'),
+    });
+  }
+
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
-  // Global prefix
-  app.setGlobalPrefix('api');
+  // Global prefix (health stays at the bare /health path for load balancers).
+  app.setGlobalPrefix('api', { exclude: ['health'] });
 
   // Serve static uploads
   app.useStaticAssets(join(__dirname, '..', 'uploads'), { prefix: '/uploads' });
 
   app.use(cookieParser());
+
+  // Observability middleware — request ID first so the logger can tag lines.
+  app.use(requestIdMiddleware);
+  app.use(requestLoggerMiddleware);
 
   // CORS — explicit allowlist only. No wildcards, no null-origin passthrough.
   const allowedOrigins = [
@@ -78,15 +94,6 @@ async function bootstrap() {
 
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api/docs', app, document);
-
-  // Health check endpoint
-  app.getHttpAdapter().get('/health', (req: any, res: any) => {
-    res.json({
-      status: 'ok',
-      timestamp: new Date().toISOString(),
-      version: process.env.npm_package_version || '1.0.0',
-    });
-  });
 
   const port = process.env.PORT || 3001;
   await app.listen(port);

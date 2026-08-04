@@ -8,6 +8,7 @@ import {
 } from '@nestjs/common';
 import { Request, Response } from 'express';
 import { Prisma } from '@prisma/client';
+import * as Sentry from '@sentry/node';
 
 @Catch()
 export class AllExceptionsFilter implements ExceptionFilter {
@@ -18,6 +19,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
     const response = ctx.getResponse<Response>();
     const request = ctx.getRequest<Request>();
     const path = request.url;
+    const requestId = (request as any).requestId;
 
     let statusCode = HttpStatus.INTERNAL_SERVER_ERROR;
     let message = 'Internal server error';
@@ -45,16 +47,27 @@ export class AllExceptionsFilter implements ExceptionFilter {
       error = 'Internal Server Error';
     }
 
+    // Forward unexpected (5xx) exceptions to Sentry when configured.
+    if (statusCode >= 500 && Sentry.isInitialized()) {
+      Sentry.withScope((scope) => {
+        scope.setTag('request_id', requestId);
+        scope.setTag('http.method', request.method);
+        scope.setExtra('url', path);
+        Sentry.captureException(exception);
+      });
+    }
+
     const errorResponse = {
       statusCode,
       message,
       error,
       timestamp: new Date().toISOString(),
       path,
+      requestId,
     };
 
     this.logger.error(
-      `${request.method} ${path} ${statusCode}`,
+      `[requestId=${requestId || '-'}] ${request.method} ${path} ${statusCode}`,
       exception instanceof Error ? exception.stack : '',
     );
 
