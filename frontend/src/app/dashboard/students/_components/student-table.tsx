@@ -84,7 +84,7 @@ export function StudentTable({ students, loading, fetchError, selectedIds, allSe
           <div key={s.id} onClick={() => onView(s)} className={`px-4 py-3 border-s-4 ${STATUS_STYLE[s.status]?.bar || 'border-s-transparent'} cursor-pointer hover:bg-gray-50`}>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3 min-w-0 flex-1">
-                <input type="checkbox" checked={selectedIds.has(s.id)} onClick={e => e.stopPropagation()} onChange={e => toggleId(s.id,(e.nativeEvent as MouseEvent).shiftKey)} className="h-4 w-4 rounded border-gray-300 accent-gold-600 shrink-0" />
+                <RowCheckbox checked={selectedIds.has(s.id)} onChange={e => toggleId(s.id,(e.nativeEvent as MouseEvent).shiftKey)} ariaLabel={t(`Select ${s.firstName} ${s.lastName}`,`تحديد ${s.firstName} ${s.lastName}`)} />
                     <AvatarCell s={s} size={36} onPreview={onPreviewPhoto} lang={lang} />
                 <div className="min-w-0">
                   <div className="text-sm font-medium text-gray-900 truncate">{s.firstName} {s.lastName}</div>
@@ -132,7 +132,7 @@ export function StudentTable({ students, loading, fetchError, selectedIds, allSe
           <tbody className="divide-y divide-gray-100">
             {students.map(s => (
               <tr key={s.id} onClick={() => onView(s)} className={`hover:bg-gray-100 transition-colors border-s-4 cursor-pointer ${STATUS_STYLE[s.status]?.bar||'border-s-transparent'}`}>
-                <td className="px-2 py-3" onClick={e => e.stopPropagation()}><input type="checkbox" checked={selectedIds.has(s.id)} onClick={e => e.stopPropagation()} onChange={e=>toggleId(s.id,(e.nativeEvent as MouseEvent).shiftKey)} className="h-4 w-4 rounded border-gray-300 accent-gold-600" /></td>
+                <td className="px-2 py-3" onClick={e => e.stopPropagation()}><RowCheckbox checked={selectedIds.has(s.id)} onChange={e=>toggleId(s.id,(e.nativeEvent as MouseEvent).shiftKey)} ariaLabel={t(`Select ${s.firstName} ${s.lastName}`,`تحديد ${s.firstName} ${s.lastName}`)} /></td>
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-3">
                 <AvatarCell s={s} size={36} onPreview={onPreviewPhoto} lang={lang} />
@@ -166,6 +166,13 @@ export function StudentTable({ students, loading, fetchError, selectedIds, allSe
 function AvatarCell({ s, size, onPreview, lang }: { s: Student; size: number; onPreview: (u: string) => void; lang: 'en'|'ar' }) {
   if (s.photoUrl) return <Button type="button" variant="ghost" size="icon" onClick={() => onPreview(photoSrc(s.photoUrl))} aria-label={`${lang==='ar'?'عرض صورة':'View photo'} ${s.firstName} ${s.lastName}`} className="flex-shrink-0"><Image src={photoSrc(s.photoUrl)} alt="" width={size} height={size} className="rounded-full object-cover border border-gray-200 cursor-pointer hover:ring-2 hover:ring-gold-400" style={{width:size,height:size}} /></Button>
   return <div className={`flex items-center justify-center rounded-full text-sm font-bold flex-shrink-0 ${s.gender==='female'?'bg-pink-100 text-pink-700':'bg-blue-100 text-blue-700'}`} style={{width:size,height:size}}>{s.firstName[0]}{s.lastName?.[0]??''}</div>
+}
+function RowCheckbox({ checked, onChange, ariaLabel }: { checked: boolean; onChange: (e: React.ChangeEvent<HTMLInputElement>) => void; ariaLabel: string }) {
+  return (
+    <label className="-ms-2 flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center">
+      <input type="checkbox" checked={checked} onChange={onChange} aria-label={ariaLabel} onClick={e => e.stopPropagation()} className="h-4 w-4 shrink-0 cursor-pointer rounded border-gray-300 accent-gold-600" />
+    </label>
+  )
 }
 function StatusBadge({ status, lang }: { status: string; lang: 'en'|'ar' }) {
   const label = status==='active'?(lang==='ar'?'نشط':'Active'):status==='inactive'?(lang==='ar'?'غير نشط':'Inactive'):status==='graduated'?(lang==='ar'?'متخرج':'Graduated'):status
