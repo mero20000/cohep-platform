@@ -52,7 +52,7 @@ export default function PortalLoginPage() {
         </div>
       </div>
 
-      <div className="flex-1 flex items-center justify-center p-8">
+      <div className="flex-1 flex items-start lg:items-center justify-center px-4 py-10 sm:px-8">
         <div className="w-full max-w-sm">
           <div className="text-center mb-8">
             <div className="lg:hidden mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-xl bg-blue-500">
