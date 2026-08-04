@@ -103,6 +103,15 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
   const userMenuRef = useRef<HTMLDivElement>(null)
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date())
   const [isRefreshing, setIsRefreshing] = useState(false)
+  const [isDesktop, setIsDesktop] = useState(false)
+
+  useEffect(() => {
+    const mq = window.matchMedia('(min-width: 1024px)')
+    const update = () => setIsDesktop(mq.matches)
+    update()
+    mq.addEventListener('change', update)
+    return () => mq.removeEventListener('change', update)
+  }, [])
 
   useEffect(() => {
     try {
@@ -395,7 +404,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
       />
 
       <div className={`${isResizing ? 'transition-none' : 'transition-all duration-200'}`}
-        style={{ [language === 'ar' ? 'paddingRight' : 'paddingLeft']: autoHide ? 0 : sidebarWidth }}>
+        style={{ [language === 'ar' ? 'paddingRight' : 'paddingLeft']: isDesktop && !autoHide ? sidebarWidth : 0 }}>
         <DashboardHeader
           lang={language}
           sidebarOpen={sidebarOpen}
