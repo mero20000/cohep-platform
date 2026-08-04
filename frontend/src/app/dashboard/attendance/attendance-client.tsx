@@ -50,7 +50,7 @@ const STATUS_ICONS: Record<string, React.ComponentType<{ className?: string }>> 
 }
 const STATUS_COLORS: Record<string, string> = {
   present: 'bg-green-100 text-green-700', late: 'bg-amber-100 text-amber-700',
-  absent: 'bg-red-100 text-red-700', excused: 'bg-gray-100 text-gray-600', unmarked: 'bg-gray-50 text-gray-400',
+  absent: 'bg-red-100 text-red-700', excused: 'bg-gray-100 text-gray-600', unmarked: 'bg-gray-100 text-gray-600',
 }
 const SESSION_STATUS_COLORS: Record<string, string> = {
   completed: 'bg-green-50 text-green-700 border-green-200',

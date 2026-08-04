@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useLanguage } from '@/lib/use-language'
-import { API, SCHOOL_ID, toDateStr } from './constants'
+import { getSchoolId } from '@/lib/school'
+import { API, toDateStr } from './constants'
 import type { Level, Subject, Lesson, Allocation, AcademicYear, AcademicWeek, Group, LessonFormData, SubjectItem } from './types'
 
 async function fetchJson<T>(url: string): Promise<T> {
@@ -29,7 +30,7 @@ async function mutateJson<T>(url: string, method: string, body?: unknown): Promi
 export function useLevelsQuery() {
   return useQuery({
     queryKey: ['curriculum', 'levels'],
-    queryFn: () => fetchJson<Level[]>(`${API}/curriculum/levels?schoolId=${SCHOOL_ID}`),
+    queryFn: () => fetchJson<Level[]>(`${API}/curriculum/levels?schoolId=${getSchoolId()}`),
     staleTime: 5 * 60 * 1000,
   })
 }
@@ -37,7 +38,7 @@ export function useLevelsQuery() {
 export function useSubjectsQuery() {
   return useQuery({
     queryKey: ['curriculum', 'subjects'],
-    queryFn: () => fetchJson<Subject[]>(`${API}/curriculum/subjects?schoolId=${SCHOOL_ID}`),
+    queryFn: () => fetchJson<Subject[]>(`${API}/curriculum/subjects?schoolId=${getSchoolId()}`),
     staleTime: 5 * 60 * 1000,
   })
 }
@@ -45,13 +46,13 @@ export function useSubjectsQuery() {
 export function useAcademicYearsQuery() {
   return useQuery({
     queryKey: ['curriculum', 'academic-years'],
-    queryFn: () => fetchJson<AcademicYear[]>(`${API}/curriculum/academic-years?schoolId=${SCHOOL_ID}`),
+    queryFn: () => fetchJson<AcademicYear[]>(`${API}/curriculum/academic-years?schoolId=${getSchoolId()}`),
     staleTime: 5 * 60 * 1000,
   })
 }
 
 export function useWeeksQuery(academicYearId?: string) {
-  const params = new URLSearchParams({ schoolId: SCHOOL_ID })
+  const params = new URLSearchParams({ schoolId: getSchoolId() })
   if (academicYearId) params.set('academicYearId', academicYearId)
   return useQuery({
     queryKey: ['curriculum', 'weeks', academicYearId],
@@ -65,7 +66,7 @@ export function useGroupsQuery() {
   return useQuery({
     queryKey: ['groups'],
     queryFn: async () => {
-      const data = await fetchJson<Array<{ groups: Group[] }>>(`${API}/students/groups/all?schoolId=${SCHOOL_ID}`)
+      const data = await fetchJson<Array<{ groups: Group[] }>>(`${API}/students/groups/all?schoolId=${getSchoolId()}`)
       return data.flatMap(l => l.groups)
     },
     staleTime: 5 * 60 * 1000,
@@ -81,7 +82,7 @@ export function useLessonQuery(lessonId?: string) {
 }
 
 export function useLessonsQuery(levelId?: string) {
-  const params = new URLSearchParams({ schoolId: SCHOOL_ID })
+  const params = new URLSearchParams({ schoolId: getSchoolId() })
   if (levelId) params.append('levelId', levelId)
   return useQuery({
     queryKey: ['curriculum', 'lessons', levelId ?? 'all'],
@@ -90,7 +91,7 @@ export function useLessonsQuery(levelId?: string) {
 }
 
 export function useAllAllocationsQuery(academicYearId: string, levelId?: string) {
-  const params = new URLSearchParams({ schoolId: SCHOOL_ID, academicYearId })
+  const params = new URLSearchParams({ schoolId: getSchoolId(), academicYearId })
   if (levelId) params.append('levelId', levelId)
   return useQuery({
     queryKey: ['curriculum', 'allocations', academicYearId, levelId ?? 'all'],
@@ -148,7 +149,7 @@ export function useCreateSubjectMutation() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (data: { name: string; nameAr?: string; description?: string }) =>
-      mutateJson(`${API}/curriculum/subjects?schoolId=${SCHOOL_ID}`, 'POST', data),
+      mutateJson(`${API}/curriculum/subjects?schoolId=${getSchoolId()}`, 'POST', data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['curriculum', 'subjects'] }),
   })
 }
@@ -157,7 +158,7 @@ export function useUpdateSubjectMutation() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: { name?: string; nameAr?: string; description?: string } }) =>
-      mutateJson(`${API}/curriculum/subjects/${id}?schoolId=${SCHOOL_ID}`, 'PUT', data),
+      mutateJson(`${API}/curriculum/subjects/${id}?schoolId=${getSchoolId()}`, 'PUT', data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['curriculum', 'subjects'] }),
   })
 }
@@ -166,7 +167,7 @@ export function useDeleteSubjectMutation() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (id: string) =>
-      mutateJson(`${API}/curriculum/subjects/${id}?schoolId=${SCHOOL_ID}`, 'DELETE'),
+      mutateJson(`${API}/curriculum/subjects/${id}?schoolId=${getSchoolId()}`, 'DELETE'),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['curriculum', 'subjects'] }),
   })
 }
@@ -175,7 +176,7 @@ export function useCreateLessonMutation() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (data: Record<string, unknown>) =>
-      mutateJson(`${API}/curriculum/lessons?schoolId=${SCHOOL_ID}`, 'POST', data),
+      mutateJson(`${API}/curriculum/lessons?schoolId=${getSchoolId()}`, 'POST', data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['curriculum', 'lessons'] }),
   })
 }
@@ -202,7 +203,7 @@ export function useAllItemsQuery(levelNumber?: number) {
   return useQuery({
     queryKey: ['curriculum', 'items', levelNumber],
     queryFn: () => {
-      const params = new URLSearchParams({ schoolId: SCHOOL_ID })
+      const params = new URLSearchParams({ schoolId: getSchoolId() })
       if (levelNumber !== undefined) params.set('levelNumber', String(levelNumber))
       return fetchJson<SubjectItem[]>(`${API}/curriculum/items?${params}`)
     },
@@ -223,7 +224,7 @@ export function useBulkImportLessonsMutation() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (data: Record<string, unknown>) =>
-      mutateJson(`${API}/curriculum/lessons/bulk?schoolId=${SCHOOL_ID}`, 'POST', data),
+      mutateJson(`${API}/curriculum/lessons/bulk?schoolId=${getSchoolId()}`, 'POST', data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['curriculum', 'lessons'] }),
   })
 }

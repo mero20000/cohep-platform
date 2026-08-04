@@ -62,7 +62,8 @@ function CurriculumContent() {
 
   const { data: levels = [] } = useLevelsQuery()
   const { data: subjects = [] } = useSubjectsQuery()
-  const { data: academicYears = [] } = useAcademicYearsQuery()
+  const academicYearsQuery = useAcademicYearsQuery()
+  const academicYears = academicYearsQuery.data ?? []
   const { data: weeks = [] } = useWeeksQuery(selectedYear || undefined)
   const { data: groups = [] } = useGroupsQuery()
   const { data: lessons = [] } = useLessonsQuery()
@@ -291,6 +292,16 @@ function CurriculumContent() {
           className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
           {academicYears.map(y => <option key={y.id} value={y.id}>{y.name} {y.isCurrent ? (lang === 'ar' ? '(الحالي)' : '(Current)') : ''}</option>)}
         </select>
+        {academicYearsQuery.isError && (
+          <span role="alert" className="text-xs text-red-600">
+            {lang === 'ar' ? 'تعذر تحميل السنوات الدراسية' : 'Couldn’t load academic years'}
+          </span>
+        )}
+        {academicYearsQuery.isSuccess && academicYears.length === 0 && (
+          <span className="text-xs text-gray-500">
+            {lang === 'ar' ? 'لا توجد سنوات دراسية بعد' : 'No academic years yet'}
+          </span>
+        )}
       </div>
 
       {activeTab === 'levels' && (

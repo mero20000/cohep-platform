@@ -4,8 +4,9 @@ import { useState, useEffect } from 'react'
 import { X, Loader2, RefreshCw } from 'lucide-react'
 import { useLanguage } from '@/lib/use-language'
 import { useToast } from '@/components/ui/toast'
+import { getSchoolId } from '@/lib/school'
 import { SlideEditor } from './slide-editor'
-import { API, SCHOOL_ID } from './constants'
+import { API } from './constants'
 import type { Level, Subject, Lesson, LessonFormData, PresentationData, SubjectItem } from './types'
 
 interface LessonModalProps {
@@ -61,7 +62,7 @@ export function LessonModal({ mode, lesson, levels, subjects, onSaveAdd, onSaveE
   useEffect(() => {
     if (!subjectId) { setSubjectItems([]); return }
     setSubjectItemsLoading(true)
-    fetch(`${API}/curriculum/subjects/${subjectId}/items?schoolId=${SCHOOL_ID}`, {
+    fetch(`${API}/curriculum/subjects/${subjectId}/items?schoolId=${getSchoolId()}`, {
       credentials: 'include',
     })
       .then(r => r.json())

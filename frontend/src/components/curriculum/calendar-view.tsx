@@ -8,7 +8,8 @@ import { DatePicker } from '@/components/ui/date-picker'
 import { Modal } from '@/components/ui/modal'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { useLanguage } from '@/lib/use-language'
-import { API, SCHOOL_ID, TERM_SHORT, getSubjectStyle } from './constants'
+import { getSchoolId } from '@/lib/school'
+import { API, TERM_SHORT, getSubjectStyle } from './constants'
 import type { Allocation, Lesson, Level, Subject, AcademicWeek, SubjectItem } from './types'
 
 interface CalendarViewProps {
@@ -230,7 +231,7 @@ export function CalendarView({
         } else {
           const existingSubjLessons = lessons.filter(l => l.subject.name === subjectName)
           const maxOrder = existingSubjLessons.reduce((m, l) => Math.max(m, l.orderIndex), 0)
-          const res = await fetch(`${API}/curriculum/lessons?schoolId=${SCHOOL_ID}`, {
+          const res = await fetch(`${API}/curriculum/lessons?schoolId=${getSchoolId()}`, {
             method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
             body: JSON.stringify({
               title: item.name, titleAr: item.nameAr || '', titleCoptic: item.nameCoptic || '',
@@ -380,9 +381,9 @@ export function CalendarView({
   const renderGrid = () => {
     const cols = subjectColumns.length
     return (
-      <div className="flex-1 bg-white rounded-xl border border-gray-200 flex flex-col overflow-hidden">
+      <div className="flex-1 bg-white rounded-xl border border-gray-200 flex flex-col overflow-hidden min-h-[60vh] lg:min-h-0">
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-3 border-b border-gray-200">
+        <div className="flex flex-wrap items-center justify-between px-5 py-3 border-b border-gray-200">
           <div className="flex items-center gap-2">
             <select value={selectedLevelId} onChange={e => setSelectedLevelId(e.target.value)}
               aria-label={lang === 'ar' ? 'المستوى' : 'Level'}
@@ -535,8 +536,8 @@ export function CalendarView({
   const renderMonth = () => {
     const days = getCalendarDays()
     return (
-      <div className="flex-1 bg-white rounded-xl border border-gray-200 flex flex-col overflow-hidden">
-        <div className="flex items-center justify-between px-5 py-3 border-b border-gray-200">
+      <div className="flex-1 bg-white rounded-xl border border-gray-200 flex flex-col overflow-hidden min-h-[60vh] lg:min-h-0">
+        <div className="flex flex-wrap items-center justify-between px-5 py-3 border-b border-gray-200">
           <div className="flex items-center gap-2">
             <button onClick={() => setCalendarMonth(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() - 1))}
               className="p-1 hover:bg-gray-100 rounded" aria-label={lang === 'ar' ? 'الشهر السابق' : 'Previous month'}>
@@ -624,9 +625,9 @@ export function CalendarView({
   }
 
   return (
-    <div role="tabpanel" id="panel-calendar" aria-labelledby="tab-calendar" className="flex gap-4 h-[calc(100vh-260px)]">
+    <div role="tabpanel" id="panel-calendar" aria-labelledby="tab-calendar" className="flex flex-col gap-4 lg:h-[calc(100vh-260px)] lg:flex-row">
       {/* Sidebar — Unallocated Hymns */}
-      <div className="w-72 flex-shrink-0 bg-white rounded-xl border border-gray-200 flex flex-col overflow-hidden">
+      <div className="w-full max-h-[18rem] flex-shrink-0 bg-white rounded-xl border border-gray-200 flex flex-col overflow-hidden lg:w-72 lg:max-h-none">
         <div className="px-4 py-3 border-b border-gray-200 space-y-2">
           <h3 className="font-semibold text-gray-900 text-sm">{lang === 'ar' ? 'العناصر غير الموزعة' : 'Unallocated Items'}</h3>
           <select value={calendarSidebarLevel} onChange={e => setCalendarSidebarLevel(e.target.value)}

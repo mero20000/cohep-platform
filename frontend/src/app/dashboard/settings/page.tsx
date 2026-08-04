@@ -154,7 +154,7 @@ function SettingsContent() {
                     type="button"
                     onClick={() => toggleCategory(category.label)}
                     aria-expanded={!isCollapsed}
-                    className="mb-1 flex w-full items-center justify-between px-3 py-1 text-xs font-semibold uppercase tracking-wider text-gray-400 hover:text-gray-600"
+                    className="mb-1 flex w-full items-center justify-between px-3 py-1 text-xs font-semibold uppercase tracking-wider text-gray-500 hover:text-gray-700"
                   >
                     <span>{category.label}</span>
                     <ChevronDown className={`h-3.5 w-3.5 transition-transform ${isCollapsed ? '' : 'rotate-180'}`} />

@@ -1,9 +1,7 @@
 import { Music2, Cross, Church, BookOpen, Star, type LucideIcon } from 'lucide-react'
 import type { SubjectStyle } from './types'
-import { getSchoolId } from '@/lib/school'
 
 export const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'
-export const SCHOOL_ID = getSchoolId()
 
 export const TERM_LABELS = ['', 'Term 1 (Sep-Dec)', 'Term 2 (Jan-Mar)', 'Term 3 (Apr-Jun)']
 export const TERM_SHORT = ['', 'T1', 'T2', 'T3']
