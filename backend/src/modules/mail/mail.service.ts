@@ -26,11 +26,27 @@ export class MailService {
         pass: this.configService.get('MAIL_PASS', ''),
       },
     });
+    const host = this.configService.get('MAIL_HOST', 'smtp.gmail.com');
+    const user = this.configService.get('MAIL_USER', '');
+    const pass = this.configService.get('MAIL_PASS', '');
+    const to = this.configService.get('MAIL_TO', '');
+    console.log(
+      `[mail] config: host=${host} user=${user ? 'set' : 'MISSING'} pass=${pass ? 'set' : 'MISSING'} from=${this.configService.get('MAIL_FROM', 'noreply@niangelos.app')} to=${to ? 'set' : 'MISSING'}`,
+    );
+    if (!user || !pass) {
+      console.error('[mail] MAIL_USER or MAIL_PASS is not configured — emails will fail.');
+    }
   }
 
   async sendMail(to: string, subject: string, html: string) {
     const from = this.configService.get('MAIL_FROM', 'noreply@niangelos.app');
-    await this.transporter.sendMail({ from, to, subject, html });
+    try {
+      await this.transporter.sendMail({ from, to, subject, html });
+      console.log(`[mail] sent to=${to} subject="${subject}"`);
+    } catch (err) {
+      console.error(`[mail] FAILED to=${to} subject="${subject}"`, err instanceof Error ? err.message : err);
+      throw err;
+    }
   }
 
   /**

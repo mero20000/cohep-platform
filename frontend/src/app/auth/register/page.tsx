@@ -511,7 +511,7 @@ export default function RegisterPage() {
                   onBlur={() => handleBlur('mobileNumber')}
                   required
                   autoComplete="tel"
-                  inputMode="numeric"
+                  inputMode="tel"
                   pattern="[+][0-9]{7,15}"
                   className={err('mobileNumber') ? INPUT_ERROR_CLASS : INPUT_CLASS}
                   placeholder="+201001234567"
