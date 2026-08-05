@@ -141,15 +141,22 @@ export class AuthService {
         include: { userRoles: { include: { role: true } } },
       });
     } else {
+      // No school given: prefer a super_admin account for this email. The same
+      // address can exist across schools (e.g. promoted by seed in one school,
+      // imported as a regular user in another); findFirst would otherwise pick
+      // an arbitrary row and reject a valid super admin login.
       user = await this.prisma.user.findFirst({
-        where: { email, deletedAt: null },
+        where: { email, deletedAt: null, userRoles: { some: { role: { name: 'super_admin' } } } },
         include: { userRoles: { include: { role: true } } },
       });
-      if (user) {
-        const isSuperAdmin = user.userRoles.some((ur) => ur.role.name === 'super_admin');
-        if (!isSuperAdmin) {
-          throw new BadRequestException('School identifier is required for this account');
-        }
+      if (!user) {
+        user = await this.prisma.user.findFirst({
+          where: { email, deletedAt: null },
+          include: { userRoles: { include: { role: true } } },
+        });
+      }
+      if (user && !user.userRoles.some((ur) => ur.role.name === 'super_admin')) {
+        throw new BadRequestException('School identifier is required for this account');
       }
     }
 
