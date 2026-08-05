@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, FormEvent } from 'react'
+import { useState, KeyboardEvent } from 'react'
 import { Loader2, AlertCircle, CheckCircle2, KeyRound } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useLanguage } from '@/lib/use-language'
@@ -41,8 +41,7 @@ export default function ForgotPasswordPanel({
 
   const validEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
-  const handleSubmit = async (e: FormEvent) => {
-    e.preventDefault()
+  const handleSubmit = async () => {
     setError('')
     setDone(false)
     if (!validEmail.test(email)) {
@@ -67,8 +66,15 @@ export default function ForgotPasswordPanel({
     setLoading(false)
   }
 
+  const handleKeyDown = (e: KeyboardEvent) => {
+    if (e.key === 'Enter' && (e.target as HTMLElement).tagName === 'INPUT') {
+      e.preventDefault()
+      if (!loading) handleSubmit()
+    }
+  }
+
   return (
-    <form onSubmit={handleSubmit} noValidate className="space-y-3 rounded-xl border border-gray-200 bg-gray-50 p-4">
+    <div onKeyDown={handleKeyDown} className="space-y-3 rounded-xl border border-gray-200 bg-gray-50 p-4">
       <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
         <KeyRound className="h-4 w-4 text-gold-600" />
         {isAr ? 'استعادة كلمة المرور' : 'Reset your password'}
@@ -118,10 +124,10 @@ export default function ForgotPasswordPanel({
         />
       </div>
 
-      <Button type="submit" disabled={loading} className="w-full">
+      <Button type="button" onClick={handleSubmit} disabled={loading} className="w-full">
         {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
         {loading ? t.sending : t.send}
       </Button>
-    </form>
+    </div>
   )
 }
