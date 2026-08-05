@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { useAuth } from '@/hooks/use-auth'
 import { useLanguage } from '@/lib/use-language'
+import ForgotPasswordPanel from '@/components/auth/forgot-password-panel'
 import {
   Cross, Eye, EyeOff, Loader2, BookOpen, Trophy, Calendar,
   Users, Music, Globe, ArrowRight, Sparkles, Shield, Heart, Star,
@@ -41,7 +42,7 @@ export default function LoginPage() {
   const [emailError, setEmailError] = useState('')
   const [showSuccess, setShowSuccess] = useState(false)
   const [rememberMe, setRememberMe] = useState(false)
-  const [forgotHint, setForgotHint] = useState(false)
+  const [showForgot, setShowForgot] = useState(false)
 
   const emailRef = useRef<HTMLInputElement>(null)
   const passwordHintRef = useRef<HTMLParagraphElement>(null)
@@ -340,24 +341,19 @@ export default function LoginPage() {
                   />
                   <span className="text-sm text-gray-600 group-hover:text-gray-900 transition-colors select-none">{isAr ? 'تذكرني' : 'Remember me'}</span>
                 </label>
-                <div className="relative">
-                  <button
-                    type="button"
-                    onClick={() => setForgotHint(!forgotHint)}
-                    onBlur={() => setTimeout(() => setForgotHint(false), 200)}
-                    className="text-sm font-semibold text-gold-700 hover:text-gold-500 transition-colors py-2 min-h-[44px]"
-                  >
-                    {isAr ? 'نسيت كلمة المرور؟' : 'Forgot password?'}
-                  </button>
-                  {forgotHint && (
-                    <div className="absolute end-0 top-full mt-1 w-64 rounded-xl border border-gray-200 bg-white px-4 py-3 text-xs text-gray-600 shadow-lg z-10" role="tooltip">
-                      {isAr
-                        ? 'لاستعادة كلمة المرور، تواصل مع مسؤول مدرستك.'
-                        : 'Contact your school administrator to reset your password.'}
-                    </div>
-                  )}
-                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowForgot(!showForgot)}
+                  aria-expanded={showForgot}
+                  className="text-sm font-semibold text-gold-700 hover:text-gold-500 transition-colors py-2 min-h-[44px]"
+                >
+                  {isAr ? 'نسيت كلمة المرور؟' : 'Forgot password?'}
+                </button>
               </div>
+
+              {showForgot && (
+                <ForgotPasswordPanel defaultEmail={email} defaultSchoolId={schoolId} />
+              )}
 
               <Button
                 type="submit"
