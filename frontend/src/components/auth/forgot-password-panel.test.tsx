@@ -100,4 +100,26 @@ describe('ForgotPasswordPanel', () => {
     render(<ForgotPasswordPanel defaultEmail="mina@example.com" />)
     expect(screen.getByLabelText(/email/i)).toHaveValue('mina@example.com')
   })
+
+  it('does not submit an enclosing form when Enter is pressed in an input', async () => {
+    const user = userEvent.setup()
+    const outerSubmit = vi.fn()
+
+    render(
+      <form onSubmit={outerSubmit}>
+        <ForgotPasswordPanel />
+      </form>,
+    )
+
+    await user.type(screen.getByLabelText(/email/i), 'user@example.com')
+    await user.keyboard('{Enter}')
+
+    await waitFor(() => {
+      expect(globalThis.fetch).toHaveBeenCalledWith(
+        `${API}/auth/forgot-password`,
+        expect.objectContaining({ method: 'POST' }),
+      )
+    })
+    expect(outerSubmit).not.toHaveBeenCalled()
+  })
 })
