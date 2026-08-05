@@ -6,6 +6,7 @@ import { v4 as uuid } from 'uuid';
 import { PrismaService } from '../../database/prisma.service';
 import { MailService } from '../mail/mail.service';
 import { LoginThrottleService } from './login-throttle.service';
+import { PasswordResetThrottleService } from './password-reset-throttle.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 
@@ -17,6 +18,7 @@ export class AuthService {
     private readonly configService: ConfigService,
     private readonly mailService: MailService,
     private readonly loginThrottle: LoginThrottleService,
+    private readonly passwordResetThrottle: PasswordResetThrottleService,
   ) {}
 
   async register(registerDto: RegisterDto) {
@@ -343,6 +345,108 @@ export class AuthService {
     const passwordHash = await bcrypt.hash(newPassword, 12);
     await this.prisma.user.update({ where: { id: userId }, data: { passwordHash } });
     return { success: true };
+  }
+
+  private static readonly RESET_TOKEN_TTL = '1h';
+
+  async forgotPassword(
+    dto: { email: string; schoolIdentifier?: string },
+    origin?: string,
+    ip?: string,
+  ) {
+    const email = dto.email.trim().toLowerCase();
+    this.passwordResetThrottle.assertAllowed(email, ip);
+
+    let user: { id: string; email: string; schoolId: string; isActive: boolean } | null = null;
+
+    if (dto.schoolIdentifier) {
+      const schoolId = await this.resolveSchool(dto.schoolIdentifier);
+      user = await this.prisma.user.findFirst({
+        where: { email, schoolId, deletedAt: null },
+        select: { id: true, email: true, schoolId: true, isActive: true },
+      });
+    } else {
+      user = await this.prisma.user.findFirst({
+        where: { email, deletedAt: null, userRoles: { some: { role: { name: 'super_admin' } } } },
+        select: { id: true, email: true, schoolId: true, isActive: true },
+      });
+      if (!user) {
+        user = await this.prisma.user.findFirst({
+          where: { email, deletedAt: null },
+          select: { id: true, email: true, schoolId: true, isActive: true },
+        });
+      }
+    }
+
+    if (user && user.isActive) {
+      const payload = { sub: user.id, email: user.email, purpose: 'password-reset' };
+      const token = await this.jwtService.signAsync(payload, {
+        secret: this.configService.get('JWT_SECRET'),
+        expiresIn: AuthService.RESET_TOKEN_TTL,
+      });
+      const base = (origin || this.configService.get('FRONTEND_URL') || 'https://cohep-platform.vercel.app').replace(/\/$/, '');
+      const resetUrl = `${base}/reset-password?token=${encodeURIComponent(token)}`;
+      try {
+        await this.mailService.sendPasswordReset(user.email, resetUrl);
+      } catch {
+        // Email delivery is best-effort; never reveal send failures to the requester.
+      }
+    }
+
+    return { message: 'If an account exists, a reset link was sent.' };
+  }
+
+  async verifyResetToken(token: string) {
+    const payload = await this.decodeResetToken(token);
+    const user = await this.prisma.user.findUnique({
+      where: { id: payload.sub },
+      select: { email: true, passwordChangedAt: true },
+    });
+    if (!user) throw new BadRequestException('Invalid or expired reset link');
+    if (user.passwordChangedAt && user.passwordChangedAt > new Date(payload.iat * 1000)) {
+      throw new BadRequestException('This reset link has already been used');
+    }
+    return { email: this.maskEmail(user.email) };
+  }
+
+  async resetPassword(token: string, newPassword: string) {
+    const payload = await this.decodeResetToken(token);
+    const user = await this.prisma.user.findUnique({
+      where: { id: payload.sub },
+      select: { id: true, passwordChangedAt: true },
+    });
+    if (!user) throw new BadRequestException('Invalid or expired reset link');
+    if (user.passwordChangedAt && user.passwordChangedAt > new Date(payload.iat * 1000)) {
+      throw new BadRequestException('This reset link has already been used');
+    }
+    const passwordHash = await bcrypt.hash(newPassword, 12);
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: { passwordHash, passwordChangedAt: new Date() },
+    });
+    return { message: 'Password reset successfully. You can now sign in with your new password.' };
+  }
+
+  private async decodeResetToken(token: string): Promise<{ sub: string; iat: number }> {
+    let payload: any;
+    try {
+      payload = await this.jwtService.verifyAsync(token, {
+        secret: this.configService.get('JWT_SECRET'),
+      });
+    } catch {
+      throw new BadRequestException('Invalid or expired reset link');
+    }
+    if (payload.purpose !== 'password-reset' || !payload.sub) {
+      throw new BadRequestException('Invalid or expired reset link');
+    }
+    return { sub: payload.sub, iat: payload.iat ?? 0 };
+  }
+
+  private maskEmail(email: string): string {
+    const [name, domain] = email.split('@');
+    const head = name.slice(0, 2);
+    const dots = '•'.repeat(Math.max(0, Math.min(3, name.length - 2)));
+    return `${head}${dots}@${domain}`;
   }
 
   private async resolveSchool(schoolIdentifier: string): Promise<string> {
