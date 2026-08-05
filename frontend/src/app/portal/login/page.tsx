@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Cross, Eye, EyeOff, Loader2 } from 'lucide-react'
 import { getBaseSchoolId } from '@/lib/school'
 import { Button } from '@/components/ui/button'
+import ForgotPasswordPanel from '@/components/auth/forgot-password-panel'
 
 export default function PortalLoginPage() {
   const [email, setEmail] = useState('')
@@ -12,6 +13,7 @@ export default function PortalLoginPage() {
   const [showPw, setShowPw] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [showForgot, setShowForgot] = useState(false)
   const router = useRouter()
 
   const handleSubmit = async (e: FormEvent) => {
@@ -87,6 +89,23 @@ export default function PortalLoginPage() {
               {loading ? 'Signing in...' : 'Sign In'}
             </Button>
           </form>
+
+            <div className="mt-4 text-center">
+              <button
+                type="button"
+                onClick={() => setShowForgot(!showForgot)}
+                aria-expanded={showForgot}
+                className="text-sm font-semibold text-gold-700 hover:text-gold-500 transition-colors py-2 min-h-[44px]"
+              >
+                Forgot password?
+              </button>
+            </div>
+
+            {showForgot && (
+              <div className="mt-4">
+                <ForgotPasswordPanel defaultEmail={email} defaultSchoolId={getBaseSchoolId()} bilingual={false} />
+              </div>
+            )}
         </div>
       </div>
     </div>
