@@ -83,6 +83,17 @@ describe('ResetPasswordPage', () => {
     expect(globalThis.fetch).toHaveBeenCalledTimes(1) // only the verify call
   })
 
+  it('does not submit a password shorter than 8 characters', async () => {
+    const user = userEvent.setup()
+    render(<ResetPasswordPage />)
+    await user.type(await screen.findByLabelText(/new password/i), 'Short1!')
+    await user.type(screen.getByLabelText(/confirm/i), 'Short1!')
+    await user.click(screen.getByRole('button', { name: /reset password/i }))
+
+    expect(await screen.findByText(/at least 8 characters/i)).toBeInTheDocument()
+    expect(globalThis.fetch).toHaveBeenCalledTimes(1) // only the verify call
+  })
+
   it('submits the new password and shows success', async () => {
     const user = userEvent.setup()
     render(<ResetPasswordPage />)
