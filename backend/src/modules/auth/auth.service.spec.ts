@@ -155,6 +155,16 @@ describe('AuthService', () => {
       expect(mail.sendPasswordReset).not.toHaveBeenCalled();
     });
 
+    it('returns the generic message for an unknown school identifier', async () => {
+      prisma.school.findFirst.mockResolvedValue(null);
+
+      const result = await service.forgotPassword({ email: 'user@example.com', schoolIdentifier: 'nope' });
+
+      expect(prisma.user.findFirst).not.toHaveBeenCalled();
+      expect(mail.sendPasswordReset).not.toHaveBeenCalled();
+      expect(result.message).toContain('If an account exists');
+    });
+
     it('uses FRONTEND_URL env as the link base when no origin is present', async () => {
       prisma.user.findFirst.mockResolvedValue(baseUser);
 

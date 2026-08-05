@@ -360,7 +360,14 @@ export class AuthService {
     let user: { id: string; email: string; schoolId: string; isActive: boolean } | null = null;
 
     if (dto.schoolIdentifier) {
-      const schoolId = await this.resolveSchool(dto.schoolIdentifier);
+      let schoolId: string;
+      try {
+        schoolId = await this.resolveSchool(dto.schoolIdentifier);
+      } catch {
+        // Unknown school identifier: treat like an unknown email so the response
+        // never reveals account existence.
+        return { message: 'If an account exists, a reset link was sent.' };
+      }
       user = await this.prisma.user.findFirst({
         where: { email, schoolId, deletedAt: null },
         select: { id: true, email: true, schoolId: true, isActive: true },
