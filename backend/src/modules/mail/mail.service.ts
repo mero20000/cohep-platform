@@ -128,4 +128,17 @@ export class MailService {
     });
     await this.sendMail(to, `We miss ${studentName} in class`, html);
   }
+
+  async sendPasswordReset(to: string, resetUrl: string) {
+    const html = emailTemplate({
+      title: 'Reset Your Password',
+      content: `
+        ${emailParagraph('We received a request to reset your password. Click the button below to choose a new one.')}
+        ${emailParagraph("If you didn't request this, you can safely ignore this email — your password will stay the same.")}
+        ${emailParagraph('This link expires in 1 hour.')}
+      `,
+      cta: { text: 'Reset Password', url: resetUrl },
+    });
+    await this.sendMail(to, 'Reset your COHEP password', html);
+  }
 }
