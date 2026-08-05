@@ -148,6 +148,7 @@ model User {
   emailVerifiedAt DateTime? @map("email_verified_at")
   phoneVerifiedAt DateTime? @map("phone_verified_at")
   lastLoginAt     DateTime? @map("last_login_at")
+  passwordChangedAt DateTime? @map("password_changed_at")
   metadata        Json?
   createdAt       DateTime  @default(now()) @map("created_at")
   updatedAt       DateTime  @updatedAt @map("updated_at")
