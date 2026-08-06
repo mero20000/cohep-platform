@@ -142,9 +142,16 @@ export class UsersService {
       },
     });
     if (data.roleName) {
-      await this.prisma.userRole.deleteMany({ where: { userId: id } });
+      if (!requestingUser?.roles?.includes('super_admin')) {
+        throw new BadRequestException('Only super admin can change a user roles');
+      }
       const role = await this.prisma.role.findFirst({ where: { name: data.roleName } });
-      if (role) await this.prisma.userRole.create({ data: { userId: id, roleId: role.id } });
+      if (role) {
+        await this.prisma.userRole.deleteMany({ where: { userId: id } });
+        await this.prisma.userRole.create({
+          data: { userId: id, roleId: role.id, assignedBy: requestingUser.id },
+        });
+      }
     }
     return updated;
   }
@@ -238,6 +245,44 @@ export class UsersService {
 
   async listPermissions() {
     return this.prisma.permission.findMany({ orderBy: [{ resource: 'asc' }, { action: 'asc' }] });
+  }
+
+  async getRolePermissions(roleName: string) {
+    const role = await this.prisma.role.findFirst({ where: { name: roleName } });
+    if (!role) throw new NotFoundException(`Role "${roleName}" not found`);
+    const links = await this.prisma.rolePermission.findMany({
+      where: { roleId: role.id },
+      include: { permission: { select: { name: true } } },
+    });
+    return links.map(l => l.permission.name);
+  }
+
+  async setRolePermissions(roleName: string, permissionNames: string[], requestingUser?: any) {
+    if (!requestingUser?.roles?.includes('super_admin') && !requestingUser?.roles?.includes('admin')) {
+      throw new BadRequestException('Only admin or super admin can change role permissions');
+    }
+    const role = await this.prisma.role.findFirst({ where: { name: roleName } });
+    if (!role) throw new NotFoundException(`Role "${roleName}" not found`);
+
+    const permissions = await this.prisma.permission.findMany({
+      where: { name: { in: permissionNames } },
+      select: { id: true, name: true },
+    });
+    const foundNames = new Set(permissions.map(p => p.name));
+    const missing = permissionNames.filter(n => !foundNames.has(n));
+    if (missing.length > 0) {
+      throw new NotFoundException(`Unknown permissions: ${missing.join(', ')}`);
+    }
+    const permissionIds = permissions.map(p => p.id);
+
+    await this.prisma.$transaction([
+      this.prisma.rolePermission.deleteMany({ where: { roleId: role.id } }),
+      ...permissionIds.map(permissionId =>
+        this.prisma.rolePermission.create({ data: { roleId: role.id, permissionId } }),
+      ),
+    ]);
+
+    return { role: roleName, permissions: permissionNames };
   }
 
   async listSchools(requestingUser?: any) {

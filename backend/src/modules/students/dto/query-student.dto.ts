@@ -55,4 +55,14 @@ export class QueryStudentDto {
   @Min(1)
   @IsOptional()
   limit?: number;
+
+  @ApiPropertyOptional({ enum: ['name', 'code', 'age', 'gender', 'church', 'grade', 'status', 'level', 'group', 'createdAt'] })
+  @IsString()
+  @IsOptional()
+  sortBy?: string;
+
+  @ApiPropertyOptional({ enum: ['asc', 'desc'] })
+  @IsString()
+  @IsOptional()
+  sortDir?: string;
 }

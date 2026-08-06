@@ -138,10 +138,12 @@ export class UpdateAssessmentDto {
   @Max(3)
   term?: number;
 
+  @IsOptional()
   @IsInt()
   @Min(1)
   totalPoints: number;
 
+  @IsOptional()
   @IsInt()
   @Min(1)
   passingPoints: number;

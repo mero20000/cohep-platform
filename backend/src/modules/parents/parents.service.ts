@@ -500,7 +500,7 @@ export class ParentsService {
         levelId: student.levelId,
         term,
         scheduledDate: { lte: now },
-        status: 'active',
+        status: { in: ['active', 'published'] },
       },
       include: {
         lesson: {

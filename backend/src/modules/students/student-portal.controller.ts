@@ -4,9 +4,11 @@ import {
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { StudentsService } from './students.service';
 import { StudentLoginDto } from './dto/student-login.dto';
+import { Public } from '../../common/decorators/public.decorator';
 
 @ApiTags('student-portal')
 @Controller('student-portal')
+@Public()
 export class StudentPortalController {
   constructor(private readonly studentsService: StudentsService) {}
 
@@ -18,16 +20,14 @@ export class StudentPortalController {
   }
 
   @Post('login')
-  @ApiOperation({ summary: 'Student login via student code — returns portal data' })
-  async login(@Body() dto: StudentLoginDto, @Req() request: Request) {
-    const user: any = (request as any).user;
-    return this.studentsService.getPortalData(dto.studentCode, this.scopeSchoolId(user));
+  @ApiOperation({ summary: 'Student login via unguessable portal access key — returns portal data' })
+  async login(@Body() dto: StudentLoginDto) {
+    return this.studentsService.getPortalData(dto.portalAccessKey);
   }
 
-  @Get(':studentCode')
-  @ApiOperation({ summary: 'Get student portal data by student code' })
-  async getPortal(@Param('studentCode') studentCode: string, @Req() request: Request) {
-    const user: any = (request as any).user;
-    return this.studentsService.getPortalData(studentCode, this.scopeSchoolId(user));
+  @Get(':portalAccessKey')
+  @ApiOperation({ summary: 'Get student portal data by portal access key' })
+  async getPortal(@Param('portalAccessKey') portalAccessKey: string) {
+    return this.studentsService.getPortalData(portalAccessKey);
   }
 }

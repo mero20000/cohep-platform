@@ -9,7 +9,7 @@ import { getSchoolId } from '@/lib/school'
 import { useToast } from '@/components/ui/toast'
 import { usePermission } from '@/lib/use-permission'
 import { emptyForm, photoSrc, type Student, type StudentForm, type Level, type Group, type ChurchItem } from './student-types'
-import { gradeOptionsForLevel, resolveGroupId } from '@/lib/grade-groups'
+import { gradeOptionsForLevel } from '@/lib/grade-groups'
 import { fetchGradeGroups } from '@/lib/school'
 
 interface Props {
@@ -42,14 +42,6 @@ export function StudentFormModal({ student, activeLevels, allGroups, churches, g
   useEffect(() => {
     dialogRef.current?.focus()
   }, [])
-
-  useEffect(() => {
-    if (student && gradeGroups.length > 0) {
-      const grade = student.schoolGrade || ''
-      const groupId = resolveGroupId(gradeGroups, student.levelId, grade) || student.groupId
-      setForm(prev => ({ ...prev, groupId }))
-    }
-  }, [student?.id, gradeGroups])
 
   useEffect(() => {
     revoke(); setPhotoFile(null); setFormErrors({})
@@ -86,7 +78,8 @@ export function StudentFormModal({ student, activeLevels, allGroups, churches, g
         await http.post('/students',body,{schoolId:getSchoolId()})
       } else { await http.put(`/students/${data.editing.id}`,body,{schoolId:getSchoolId()}) }
       toast('success',!data.editing?t('Student created','تم إنشاء الطالب'):t('Student updated','تم تحديث الطالب'))
-      onClose(); onSuccess(currentPage); return {error:''}
+      // M11: a newly created student sorts to page 1, so jump back there
+      onClose(); onSuccess(data.editing ? currentPage : 1); return {error:''}
     } catch (err:unknown) {
       const msg = err instanceof Error?err.message:t('Connection error','خطأ في الاتصال')
       toast('error',msg); onSuccess(currentPage); return {error:msg}
@@ -131,12 +124,12 @@ export function StudentFormModal({ student, activeLevels, allGroups, churches, g
             </div>
             <div>
               <label htmlFor="sf-group" className="block text-sm font-medium text-gray-700">{t('Group','المجموعة')}</label>
-              <div id="sf-group" className={`${ic()} flex items-center justify-between bg-gray-50`}>
-                <span className={form.groupId?'text-gray-900':'text-gray-400'}>
-                  {form.groupId ? (formGroups.find(g=>g.id===form.groupId)?.name || form.groupName || t('Auto','تلقائي')) : t('Auto from grade','من الصف تلقائياً')}
-                </span>
-                {form.groupId && <span className="text-xs text-green-600 font-medium">{t('Auto','تلقائي')}</span>}
-              </div>
+              <select id="sf-group" value={form.groupId} onChange={e=>setForm({...form,groupId:e.target.value,groupName:formGroups.find(g=>g.id===e.target.value)?.name||''})} className={`${ic()} ${form.groupId?'':'text-gray-400'}`}>
+                <option value="">{t('Select group manually','اختر المجموعة يدوياً')}</option>
+                {formGroups.map(g=><option key={g.id} value={g.id}>{g.name}</option>)}
+              </select>
+              {form.groupId&&<p className="mt-1 text-xs text-green-600">{t('Assigned','محددة')}</p>}
+              {!form.groupId&&<p className="mt-1 text-xs text-gray-400">{t('Pick a group directly, or select a mapped grade above to auto-assign','اختر مجموعة مباشرة، أو اختر صفاً مربوطاً بالأعلى للتحديد تلقائياً')}</p>}
             </div>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

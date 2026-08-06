@@ -515,38 +515,76 @@ export class GamificationService {
       where: { schoolId, deletedAt: null },
       select: { id: true },
     });
+
+    // M15: process students concurrently with a bounded pool to avoid slow serial
+    // runs on large schools while still capping DB load.
+    const CONCURRENCY = 5;
+    const results = await this.studentBadgeWorker(students, CONCURRENCY);
+
     let awarded = 0;
     let errors = 0;
-    for (const s of students) {
-      try {
-        const result = await this.computeBadgesForStudent(s.id);
-        awarded += result.awarded;
-      } catch {
+    for (const r of results) {
+      if (r.status === 'fulfilled') {
+        awarded += r.value.awarded;
+      } else {
         errors++;
       }
     }
     return { total: students.length, awarded, errors };
   }
 
-  async addXp(studentId: string, amount: number, type: string, description?: string) {
-    const student = await this.prisma.student.findUnique({ where: { id: studentId } });
-    if (!student) throw new NotFoundException('Student not found');
-
-    const currentBalance = await this.prisma.xPTransaction.aggregate({
-      where: { studentId },
-      _sum: { amount: true },
+  private async studentBadgeWorker(
+    students: { id: string }[],
+    concurrency: number,
+  ): Promise<PromiseSettledResult<{ awarded: number }>[]> {
+    const results: PromiseSettledResult<{ awarded: number }>[] = [];
+    let index = 0;
+    let completed = 0;
+    return new Promise(resolve => {
+      const runWorker = async () => {
+        while (index < students.length) {
+          const i = index++;
+          try {
+            const result = await this.computeBadgesForStudent(students[i].id);
+            results.push({ status: 'fulfilled', value: { awarded: result.awarded } });
+          } catch (err) {
+            results.push({ status: 'rejected', reason: err });
+          }
+          completed++;
+          if (completed === students.length) resolve(results);
+        }
+      };
+      const n = Math.min(concurrency, Math.max(students.length, 1));
+      for (let w = 0; w < n; w++) void runWorker();
     });
+  }
 
-    const balanceAfter = (currentBalance._sum.amount || 0) + amount;
+  async addXp(studentId: string, amount: number, type: string, description?: string) {
+    return this.prisma.$transaction(async tx => {
+      const student = await tx.student.findUnique({ where: { id: studentId } });
+      if (!student) throw new NotFoundException('Student not found');
 
-    return this.prisma.xPTransaction.create({
-      data: {
-        studentId,
-        amount,
-        balanceAfter,
-        type,
-        description,
-      },
+      // M14: serialize concurrent awards for the same student by locking the
+      // student row, then recompute the balance inside the same transaction so
+      // read-modify-write is atomic.
+      await tx.$queryRawUnsafe('SELECT id FROM students WHERE id = $1 FOR UPDATE', studentId);
+
+      const currentBalance = await tx.xPTransaction.aggregate({
+        where: { studentId },
+        _sum: { amount: true },
+      });
+
+      const balanceAfter = (currentBalance._sum.amount || 0) + amount;
+
+      return tx.xPTransaction.create({
+        data: {
+          studentId,
+          amount,
+          balanceAfter,
+          type,
+          description,
+        },
+      });
     });
   }
 

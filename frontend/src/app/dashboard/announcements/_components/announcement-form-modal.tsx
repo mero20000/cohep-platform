@@ -6,7 +6,6 @@ import { http } from '@/lib/http-client'
 import { getSchoolId } from '@/lib/school'
 import { useToast } from '@/components/ui/toast'
 import { emptyAnnouncement, ROLE_OPTIONS, type Announcement, type AnnouncementForm } from './announcement-types'
-import { lsCreate, lsUpdate } from './announcement-store'
 
 interface Props {
   announcement: Announcement | null
@@ -65,16 +64,13 @@ export function AnnouncementFormModal({ announcement, onClose, onSuccess, lang }
       } else {
         await http.post('/announcements', payload, { schoolId: getSchoolId() })
       }
-    } catch {
-      if (announcement) {
-        lsUpdate(announcement.id, payload)
-      } else {
-        lsCreate(payload)
-      }
+      toast('success', announcement ? t('Announcement updated', 'تم تحديث الإعلان') : t('Announcement created', 'تم إنشاء الإعلان'))
+      setSaving(false)
+      onSuccess()
+    } catch (e: any) {
+      setError(e?.message || t('Failed to save announcement', 'فشل حفظ الإعلان'))
+      setSaving(false)
     }
-    toast('success', announcement ? t('Announcement updated', 'تم تحديث الإعلان') : t('Announcement created', 'تم إنشاء الإعلان'))
-    setSaving(false)
-    onSuccess()
   }
 
   const toggleRole = (role: string) => {

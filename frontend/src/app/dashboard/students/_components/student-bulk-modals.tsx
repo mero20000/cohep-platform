@@ -54,23 +54,21 @@ export function StudentBulkModals({ showBulkDelete, showBulkStatus, showBulkLeve
           <div className="flex items-start gap-2">
             <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
             <p className="text-xs text-amber-800">
-              {t('This will permanently delete for each student','سيتم حذف ما يلي لكل طالب')}:<br/>
-              &bull; {t('Profile & enrollment data','بيانات الطالب والتسجيل')}<br/>
-              &bull; {t('Attendance records','سجلات الحضور')}<br/>
-              &bull; {t('Assessment submissions & grades','نتائج التقييمات والدرجات')}<br/>
-              &bull; {t('Gamification XP & badges','نقاط الخبرة والشارات')}<br/>
-              &bull; {t('Parent account links','روابط حسابات أولياء الأمور')}
+              {t('This will soft-delete each student','سيتم إخفاء كل طالب من القوائم النشطة')}:<br/>
+              &bull; {t('Profile & enrollment data (hidden)','بيانات الطالب والتسجيل (مخفية)')}<br/>
+              &bull; {t('Attendance / grades / XP history is retained','يتم الاحتفاظ بسجلات الحضور والدرجات والنقاط')}<br/>
+              &bull; {t('Recovery is only possible via an administrator','لا يمكن الاستعادة إلا بواسطة مسؤول النظام')}
             </p>
           </div>
         </div>
-        <p className="mt-2 text-xs text-gray-500 text-center">{t('This action cannot be undone.','لا يمكن التراجع عن هذا الإجراء.')}</p>
+        <p className="mt-2 text-xs text-gray-500 text-center">{t('This fully removes them from the active roster but does not erase historical records.','يُحذف الطالب من قائمة النشطاء لكن لا تُمسح السجلات التاريخية.')}</p>
         <p className="mt-4 text-sm font-medium text-gray-700">{t('Type','اكتب')} <span className="font-bold text-red-600">{t('DELETE','DELETE')}</span> {t('to confirm','للتأكيد')}:</p>
         <input type="text" value={confirmText} onChange={e=>setConfirmText(e.target.value)} placeholder={t('Type DELETE','اكتب DELETE')}
           className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-red-500 focus:outline-none" />
         <div className="mt-4 flex gap-3">
           <Button variant="outline" onClick={()=>{setConfirmText('');onClose('delete')}} className="flex-1">{t('Cancel','إلغاء')}</Button>
           <Button variant="destructive" disabled={deleting||confirmText!=='DELETE'} className="flex-1" onClick={handleBulkDelete}>
-            {deleting?<span className="inline-flex items-center gap-1.5"><Loader2 className="h-4 w-4 animate-spin"/>{t('Deleting','جار الحذف')}</span>:t('Delete All','حذف الكل')}
+            {deleting?<span className="inline-flex items-center gap-1.5"><Loader2 className="h-4 w-4 animate-spin"/>{t('Deleting','جار الحذف')}</span>:t('Delete Selected','حذف المحدد')}
           </Button>
         </div>
       </M>}
@@ -96,8 +94,8 @@ export function StudentBulkModals({ showBulkDelete, showBulkStatus, showBulkLeve
         <h3 className="text-lg font-semibold text-gray-900">{t('Change Level / Group','تغيير المستوى / المجموعة')}</h3>
         <p className="mt-1 text-sm text-gray-500">{ids.length} {t('students will be updated','طالب سيتم تحديثهم')}</p>
         <div className="mt-4 space-y-4">
-          <div><label className="block text-sm font-medium text-gray-700 mb-1">{t('Level','المستوى')}</label><select value={bulkLevelId} onChange={e=>setBulkLevelId(e.target.value)} className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gold-500 focus:outline-none"><option value="">{t('Select level','اختر المستوى')}</option>{activeLevels.map(l=><option key={l.id} value={l.id}>{l.name}</option>)}</select></div>
-          <div><label className="block text-sm font-medium text-gray-700 mb-1">{t('Group','المجموعة')}</label><select value={bulkGroupId} onChange={e=>setBulkGroupId(e.target.value)} className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gold-500 focus:outline-none"><option value="">{t('Select group','اختر المجموعة')}</option>{allGroups.map(g=><option key={g.id} value={g.id}>{g.name}</option>)}</select></div>
+          <div><label className="block text-sm font-medium text-gray-700 mb-1">{t('Level','المستوى')}</label><select value={bulkLevelId} onChange={e=>{setBulkLevelId(e.target.value);setBulkGroupId('')}} className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gold-500 focus:outline-none"><option value="">{t('Select level','اختر المستوى')}</option>{activeLevels.map(l=><option key={l.id} value={l.id}>{l.name}</option>)}</select></div>
+          <div><label className="block text-sm font-medium text-gray-700 mb-1">{t('Group','المجموعة')}</label><select value={bulkGroupId} onChange={e=>setBulkGroupId(e.target.value)} className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gold-500 focus:outline-none"><option value="">{t('Select group','اختر المجموعة')}</option>{allGroups.filter(g=>g.levelId===bulkLevelId).map(g=><option key={g.id} value={g.id}>{g.name}</option>)}</select></div>
         </div>
         <div className="mt-6 flex gap-3">
           <Button variant="outline" onClick={()=>onClose('level')} className="flex-1">{t('Cancel','إلغاء')}</Button>

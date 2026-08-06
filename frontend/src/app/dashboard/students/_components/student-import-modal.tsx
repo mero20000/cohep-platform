@@ -23,7 +23,7 @@ export function StudentImportModal({ onClose, onSuccess, levelNameMap, lang }: P
     const result:string[]=[]; let cur='', inQ=false
     for(let i=0;i<line.length;i++){
       const ch=line[i]
-      if(inQ){if(ch==='"')inQ=false;else cur+=ch}
+      if(inQ){if(ch==='"'){if(line[i+1]==='"'){cur+='"';i++}else inQ=false}else cur+=ch}
       else{if(ch==='"')inQ=true;else if(ch===','){result.push(cur);cur=''}else cur+=ch}
     }
     result.push(cur)
@@ -32,19 +32,26 @@ export function StudentImportModal({ onClose, onSuccess, levelNameMap, lang }: P
   const sanitize = (v:string) => v.replace(/<[^>]*>/g,'').replace(/\0/g,'').trim()
 
   const parse = (text: string) => {
-    const lines = text.split('\n').filter(l=>l.trim())
+    // Strip UTF-8 BOM so the header row is matched cleanly
+    const clean = text.replace(/^\uFEFF/,'')
+    const lines = clean.split('\n').filter(l=>l.trim())
     if (lines.length<2){setError(t('CSV must have a header row and at least one data row','يجب أن يحتوي CSV على صف رأس وصف بيانات'));return}
-    const headers = csvFields(lines[0]).map(h=>h.trim().toLowerCase().replace(/"/g,''))
+    const headers = csvFields(lines[0]).map(h=>h.trim().toLowerCase().replace(/^"+|"+$/g,''))
     if (!headers.includes('name')&&!(headers.includes('firstname')&&headers.includes('lastname'))){setError(t('CSV must have a "name" or "firstName"+"lastName" columns','CSV يحتاج عمود name أو firstName+lastName'));return}
     const missing = ['dateofbirth','gender','levelid'].filter(r=>!headers.includes(r))
     if (missing.length){setError(`${t('Missing columns:','أعمدة مفقودة:')} ${missing.join(', ')}`);return}
-    const rows = lines.slice(1).map(line=>{
-      const vals=csvFields(line).map(v=>sanitize(v.replace(/"/g,'')))
+    const rows:Record<string,string>[]=[]; const skipped:string[]=[]
+    lines.slice(1).forEach(line=>{
+      const vals=csvFields(line).map(v=>sanitize(v.replace(/^"+|"+$/g,'')))
       const row:Record<string,string>={}
       headers.forEach((h,i)=>{row[h]=vals[i]||''})
       if(row.name&&!row.firstname){const p=row.name.trim().split(/\s+/);row.firstname=p[0]||'';row.lastname=p.slice(1).join(' ')||''}
-      return row
-    }).filter(r=>r.firstname&&r.lastname)
+      // M8: surface rows without a full name instead of silently dropping them
+      if(!row.firstname||!row.lastname){skipped.push(row.name||row.firstname||row.lastname||`#${lines.slice(1).indexOf(line)+2}`);return}
+      rows.push(row)
+    })
+    if(skipped.length)setError(`${t('Rows skipped (missing name):','صفوف تم تخطيها (اسم غير مكتمل):')} ${skipped.length}`)
+    else if(rows.length)setError('')
     const dups:{name:string;reason:string}[]=[]
     const seen=new Map<string,number[]>()
     rows.forEach((r,i)=>{
@@ -56,7 +63,7 @@ export function StudentImportModal({ onClose, onSuccess, levelNameMap, lang }: P
       if(r.phone&&[...seen.entries()].some(([k])=>k===`phone:${r.phone}`))dups.push({name:r.phone,reason:t('Same phone','هاتف مكرر')})
       else if(r.phone)seen.set(`phone:${r.phone}`,[i])
     })
-    setPreview(rows);setDuplicateWarnings(dups);setError('')
+    setPreview(rows);setDuplicateWarnings(dups)
   }
 
   const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {

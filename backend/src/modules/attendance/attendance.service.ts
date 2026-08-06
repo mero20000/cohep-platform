@@ -28,7 +28,7 @@ export class AttendanceService {
   }) {
     const schoolId = await this.schoolResolver.resolve(schoolIdentifier);
     const { page = 1, limit: rawLimit = 50, status, levelId, groupId, from, to } = filters;
-    const limit = Math.min(rawLimit, 100);
+    const limit = Math.min(rawLimit, 1000);
 
     const where: any = { schoolId, deletedAt: null };
     if (status) where.status = status;
@@ -37,7 +37,12 @@ export class AttendanceService {
     if (from || to) {
       where.scheduledDate = {};
       if (from) where.scheduledDate.gte = new Date(from);
-      if (to) where.scheduledDate.lte = new Date(to);
+      // H8: include the entire `to` day (set to 23:59:59.999)
+      if (to) {
+        const end = new Date(to);
+        end.setHours(23, 59, 59, 999);
+        where.scheduledDate.lte = end;
+      }
     }
 
     const [sessions, total] = await Promise.all([
@@ -47,7 +52,9 @@ export class AttendanceService {
           level: { select: { id: true, name: true, number: true } },
           group: { select: { id: true, name: true } },
           servant: { select: { id: true, firstName: true, lastName: true } },
-          attendanceRecords: { select: { status: true } },
+          attendanceRecords: {
+            select: { status: true, student: { select: { deletedAt: true } } },
+          },
         },
         skip: (page - 1) * limit,
         take: limit,
@@ -57,7 +64,8 @@ export class AttendanceService {
     ]);
 
     const data = sessions.map(session => {
-      const records = session.attendanceRecords;
+      // M1: exclude records belonging to soft-deleted students from the summary
+      const records = session.attendanceRecords.filter(r => r.student && !r.student.deletedAt);
       const present = records.filter(r => r.status === 'present').length;
       const absent = records.filter(r => r.status === 'absent').length;
       const late = records.filter(r => r.status === 'late').length;
@@ -94,6 +102,16 @@ export class AttendanceService {
 
   async createSession(dto: CreateAttendanceSessionDto) {
     const schoolId = await this.schoolResolver.resolve(dto.schoolId || '');
+    const scheduledDate = new Date(dto.scheduledDate);
+
+    // H9: prevent duplicate sessions for the same group on the same date
+    if (dto.groupId) {
+      const existing = await this.prisma.attendanceSession.findFirst({
+        where: { schoolId, groupId: dto.groupId, scheduledDate, deletedAt: null },
+      });
+      if (existing) throw new BadRequestException('A session already exists for this group on the selected date');
+    }
+
     const session = await this.prisma.attendanceSession.create({
       data: {
         schoolId,
@@ -101,7 +119,7 @@ export class AttendanceService {
         servantId: dto.servantId,
         levelId: dto.levelId,
         groupId: dto.groupId,
-        scheduledDate: new Date(dto.scheduledDate),
+        scheduledDate,
         scheduledTime: dto.scheduledTime,
         status: dto.status || 'scheduled',
         notes: dto.notes,

@@ -11,11 +11,16 @@ interface StudentInfo {
   firstName: string
   lastName: string
   studentCode?: string
+  portalAccessKey?: string
 }
 
 export function StudentQrCard({ student }: { student: StudentInfo }) {
   const lang = useLanguage()
   const canvasRef = useRef<HTMLDivElement>(null)
+
+  const portalHref = student.portalAccessKey
+    ? `/student-portal/${student.portalAccessKey}`
+    : `/student-portal/${student.studentCode || student.id}`
 
   const qrValue = JSON.stringify({ type: 'student-checkin', studentId: student.id })
 
@@ -55,7 +60,7 @@ export function StudentQrCard({ student }: { student: StudentInfo }) {
       </div>
       <div className="flex gap-2 print:hidden">
         <Button variant="outline" size="sm" asChild>
-          <a href={`/student-portal/${student.studentCode || student.id}`} target="_blank" rel="noopener noreferrer">
+          <a href={portalHref} target="_blank" rel="noopener noreferrer">
             <ExternalLink className="h-3.5 w-3.5 mr-1" />
             {lang === 'ar' ? 'بوابة الطالب' : 'Student Portal'}
           </a>

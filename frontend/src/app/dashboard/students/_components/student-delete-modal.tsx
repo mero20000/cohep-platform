@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useRef } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Trash2, AlertTriangle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import type { Student } from './student-types'
@@ -8,6 +8,7 @@ export function StudentDeleteModal({ student:s, onClose, onConfirm, lang }: Prop
   const t = (en: string, ar: string) => lang==='ar'?ar:en
   const dialogRef = useRef<HTMLDivElement>(null)
   const confirmRef = useRef<HTMLButtonElement>(null)
+  const [confirmText, setConfirmText] = useState('')
   useEffect(() => { confirmRef.current?.focus() }, [])
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
@@ -21,19 +22,20 @@ export function StudentDeleteModal({ student:s, onClose, onConfirm, lang }: Prop
           <div className="flex items-start gap-2">
             <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
             <p className="text-xs text-amber-800">
-              {t('This will permanently delete','سيتم حذف ما يلي نهائياً')}:<br/>
-              &bull; {t('Student profile & enrollment data','بيانات الطالب والتسجيل')}<br/>
-              &bull; {t('Attendance records','سجلات الحضور')}<br/>
-              &bull; {t('Assessment submissions & grades','نتائج التقييمات والدرجات')}<br/>
-              &bull; {t('Gamification XP & badges','نقاط الخبرة والشارات')}<br/>
-              {s.parentEmail ? <>&bull; {t('Parent account linking','ربط حساب ولي الأمر')}<br/></> : null}
+              {t('This will soft-delete the student','سيتم إخفاء الطالب من القوائم النشطة')}:<br/>
+              &bull; {t('Profile & enrollment data (hidden)','بيانات الطالب والتسجيل (مخفية)')}<br/>
+              &bull; {t('Attendance / grades / XP history is retained','يتم الاحتفاظ بسجلات الحضور والدرجات والنقاط')}
+              {s.parentEmail ? <>&bull; {t('Parent account links are kept','يُحتفظ بروابط حسابات أولياء الأمور')}<br/></> : null}
             </p>
           </div>
         </div>
-        <p className="mt-2 text-xs text-gray-500 text-center">{t('This action cannot be undone.','لا يمكن التراجع عن هذا الإجراء.')}</p>
+        <p className="mt-2 text-xs text-gray-500 text-center">{t('Recovery is only possible via an administrator.','لا يمكن الاستعادة إلا بواسطة مسؤول النظام.')}</p>
+        <p className="mt-4 text-sm font-medium text-gray-700">{t('Type','اكتب')} <span className="font-bold text-red-600">DELETE</span> {t('to confirm','للتأكيد')}:</p>
+        <input type="text" value={confirmText} onChange={e=>setConfirmText(e.target.value)} placeholder="DELETE"
+          className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-red-500 focus:outline-none" />
         <div className="mt-4 flex items-center gap-3">
           <Button variant="outline" onClick={onClose} className="flex-1">{t('Cancel','إلغاء')}</Button>
-          <Button variant="destructive" ref={confirmRef} onClick={onConfirm} className="flex-1">{t('Delete','حذف')}</Button>
+          <Button variant="destructive" ref={confirmRef} disabled={confirmText!=='DELETE'} onClick={onConfirm} className="flex-1">{t('Delete','حذف')}</Button>
         </div>
       </div>
     </div>

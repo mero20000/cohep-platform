@@ -32,6 +32,7 @@ export default function StudentsClient() {
     (state, action: {type:'add';student:Student}|{type:'remove';id:string}) =>
       action.type==='add'?[...state,action.student]:state.filter(s=>s.id!==action.id))
   const [pagination, setPagination] = useState({page:1,limit:20,total:0,totalPages:0})
+  const [pageSize, setPageSize]     = useState(20)
   const [loading, setLoading]       = useState(true)
   const [fetchError, setFetchError] = useState(false)
   // Filters
@@ -60,7 +61,6 @@ export default function StudentsClient() {
   // Selection
   const [selectedIds, setSelectedIds]   = useState<Set<string>>(new Set())
   const lastClickedRef                  = useRef<string|null>(null)
-  const deletingRef                     = useRef<Student|null>(null)
   // Modals
   const [selectedStudent, setSelectedStudent] = useState<Student|null>(null)
   const [showForm, setShowForm]   = useState(false)
@@ -77,24 +77,27 @@ export default function StudentsClient() {
   const allSelected      = optimisticStudents.length>0&&selectedIds.size===optimisticStudents.length
   const levelNameMap     = useMemo(()=>{const m:Record<string,string>={};for(const l of activeLevels){m[l.id]=l.name;for(const g of l.groups)m[g.id]=g.name};return m},[activeLevels])
   const sortedStudents   = useMemo(()=>{
-    if(!sortKey)return optimisticStudents
-    return [...optimisticStudents].sort((a,b)=>{
-      const v=(s:Student):string=>{switch(sortKey){case'name':return`${s.firstName} ${s.lastName}`;case'code':return s.studentCode;case'gender':return s.gender;case'phone':return s.metadata?.phone||'';case'level':return s.level?.name||'';case'group':return s.group?.name||'';case'age':return s.dateOfBirth;case'church':return s.churchName||'';case'grade':return s.schoolGrade||'';case'status':return s.status;default:return''}}
-      const[va,vb]=[v(a),v(b)];return sortDir==='asc'?va.localeCompare(vb):vb.localeCompare(va)
-    })
-  },[optimisticStudents,sortKey,sortDir])
+    return optimisticStudents
+  },[optimisticStudents])
 
   const fetchStudents = useCallback(async(page=1)=>{
     setLoading(true)
     try{
-      const params:Record<string,string>={page:String(page),limit:'20',schoolId:getSchoolId()}
+      const params:Record<string,string>={page:String(page),limit:String(pageSize),schoolId:getSchoolId()}
+      if(sortKey)params.sortBy=sortKey
+      if(sortKey)params.sortDir=sortDir
       if(debouncedSearch)params.search=debouncedSearch; if(filterLevel)params.levelId=filterLevel; if(filterGroup)params.groupId=filterGroup
       if(filterStatus)params.status=filterStatus; if(filterChurch)params.churchName=filterChurch; if(filterGrade)params.schoolGrade=filterGrade; if(filterGender)params.gender=filterGender
       const data=await http.get<PaginatedResponse>('/students',params)
       setStudents(data.data); setPagination(data.pagination); setFetchError(false)
     }catch{setFetchError(true)}
     setLoading(false)
-  },[debouncedSearch,filterLevel,filterGroup,filterStatus,filterChurch,filterGrade,filterGender])
+  },[debouncedSearch,filterLevel,filterGroup,filterStatus,filterChurch,filterGrade,filterGender,sortKey,sortDir,pageSize])
+
+  // M10: stats are refetched whenever the roster changes (add/edit/delete/import)
+  const fetchStats = useCallback(()=>{
+    http.get<StatsType>('/students/stats',{schoolId:getSchoolId()}).then(setStudentStats).catch(console.error).finally(()=>setStatsLoading(false))
+  },[])
 
   useEffect(()=>{const t=setTimeout(()=>setDebouncedSearch(search),300);return ()=>clearTimeout(t)},[search])
   useEffect(()=>{fetchStudents(1)},[fetchStudents])
@@ -105,8 +108,8 @@ export default function StudentsClient() {
     http.get<ChurchItem[]>('/churches').then(d=>setChurches(d.filter(c=>c.isActive!==false))).catch(console.error)
     http.get<{church?:{name:string}}>('/users/schools/me').then(s=>{if(s.church?.name)setFilterChurch(s.church.name)}).catch(console.error)
     fetchActiveGrades().then((grades:GradeItem[])=>{if(grades.length)setGradeOptions(grades.map(g=>g.name))}).catch(console.error)
-    http.get<StatsType>('/students/stats',{schoolId:getSchoolId()}).then(setStudentStats).catch(console.error).finally(()=>setStatsLoading(false))
-  },[])
+    fetchStats()
+  },[fetchStats])
   useEffect(()=>{
     if(!filterLevel||!filterGroup){setAssignedServants([]);return}
     setServantsLoading(true)
@@ -122,7 +125,7 @@ export default function StudentsClient() {
   },[showForm,selectedIds,optimisticStudents])
 
   const clearFilters = ()=>{setSearch('');setFilterLevel('');setFilterGroup('');setFilterStatus('');setFilterChurch('');setFilterGrade('');setFilterGender('')}
-  const toggleSort   = (k:string)=>{if(sortKey===k)setSortDir(d=>d==='asc'?'desc':'asc');else{setSortKey(k);setSortDir('asc')}}
+  const toggleSort   = (k:string)=>{if(k==='phone')return;if(sortKey===k)setSortDir(d=>d==='asc'?'desc':'asc');else{setSortKey(k);setSortDir('asc')}}
   const toggleAll    = ()=>setSelectedIds(allSelected?new Set():new Set(optimisticStudents.map(s=>s.id)))
   const toggleId     = (id:string,shiftKey?:boolean)=>{
     if(shiftKey&&lastClickedRef.current&&lastClickedRef.current!==id){
@@ -137,20 +140,37 @@ export default function StudentsClient() {
   const openDelete = (s:Student)=>{setSelectedStudent(s);setShowDelete(true)}
   const handleDelete = async()=>{
     if(!selectedStudent)return
-    deletingRef.current = selectedStudent
     startTransition(()=>addOptimisticStudent({type:'remove',id:selectedStudent.id})); setShowDelete(false)
-    try{await http.delete(`/students/${selectedStudent.id}`,{schoolId:getSchoolId()});fetchStudents(pagination.page);toast('success',lang==='ar'?'تم حذف الطالب':'Student deleted')}
+    try{
+      await http.delete(`/students/${selectedStudent.id}`,{schoolId:getSchoolId()})
+      // M11: deleting the last row of the last page should step back a page
+      const remaining = pagination.total - 1
+      const targetPage = remaining > 0 && remaining <= (pagination.page - 1) * pageSize ? pagination.page - 1 : pagination.page
+      fetchStudents(targetPage); fetchStats()
+      toast('success',lang==='ar'?'تم حذف الطالب':'Student deleted')
+    }
     catch{toast('error',lang==='ar'?'فشل الحذف':'Delete failed');fetchStudents(pagination.page)}
-    finally{deletingRef.current = null}
   }
   const handleExport = async()=>{
     try{
-      const params:Record<string,string>={limit:String(pagination.total||2000),schoolId:getSchoolId()}
-      if(search)params.search=search;if(filterLevel)params.levelId=filterLevel;if(filterGroup)params.groupId=filterGroup;if(filterStatus)params.status=filterStatus;if(filterChurch)params.churchName=filterChurch;if(filterGrade)params.schoolGrade=filterGrade;if(filterGender)params.gender=filterGender
-      const data=await http.get<PaginatedResponse>('/students',params)
-      const rows=[['Student Code','Name','First Name (Ar)','Last Name (Ar)','Date of Birth','Gender','Level','Group','Church','Grade','Phone','Email','Church Tool ID','Status','Enrollment Date'],...data.data.map(s=>[s.studentCode,`${s.firstName} ${s.lastName}`.trim(),s.firstNameAr||'',s.lastNameAr||'',s.dateOfBirth.split('T')[0],s.gender,s.level?.name||'',s.group?.name||'',s.churchName||'',s.schoolGrade||'',s.metadata?.phone||'',s.metadata?.email||'',s.metadata?.churchToolId||'',s.status,s.enrollmentDate.split('T')[0]])]
-      const csv=rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n')
-      const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'}); const url=URL.createObjectURL(blob)
+      const baseParams:Record<string,string>={schoolId:getSchoolId(),limit:'100'}
+      if(search)baseParams.search=search;if(filterLevel)baseParams.levelId=filterLevel;if(filterGroup)baseParams.groupId=filterGroup;if(filterStatus)baseParams.status=filterStatus;if(filterChurch)baseParams.churchName=filterChurch;if(filterGrade)baseParams.schoolGrade=filterGrade;if(filterGender)baseParams.gender=filterGender
+      const all:any[]=[]
+      let page=1, totalPages=1
+      do{
+        const data=await http.get<PaginatedResponse>('/students',{...baseParams,page:String(page)})
+        all.push(...data.data)
+        totalPages=data.pagination.totalPages
+        page++
+      }while(page<=totalPages)
+      const escape=(v:any)=>String(v??'')
+      const rows=[['Student Code','Name','First Name (Ar)','Last Name (Ar)','Date of Birth','Gender','Level','Group','Church','Grade','Phone','Email','Church Tool ID','Status','Enrollment Date'],...all.map(s=>[s.studentCode,`${s.firstName} ${s.lastName}`.trim(),s.firstNameAr||'',s.lastNameAr||'',s.dateOfBirth.split('T')[0],s.gender,s.level?.name||'',s.group?.name||'',s.churchName||'',s.schoolGrade||'',s.metadata?.phone||'',s.metadata?.email||'',s.metadata?.churchToolId||'',s.status,s.enrollmentDate.split('T')[0]])]
+      const csv=rows.map(r=>r.map(c=>{
+        let val=escape(c).replace(/"/g,'""')
+        if(/^[=+\-@]/.test(val)) val=`'${val}`
+        return `"${val}"`
+      }).join(',')).join('\n')
+      const blob=new Blob([`\uFEFF${csv}`],{type:'text/csv;charset=utf-8;'}); const url=URL.createObjectURL(blob)
       const a=document.createElement('a'); a.href=url; a.download=`${lang==='ar'?`طلاب-نيانجلوس`:`niangelos-students`}${hasActiveFilters?`-${lang==='ar'?'مصفى':'filtered'}`:''}-${new Date().toISOString().split('T')[0]}.csv`; a.click(); URL.revokeObjectURL(url)
     }catch(err){console.error('Export failed',err)}
   }
@@ -194,26 +214,28 @@ export default function StudentsClient() {
         onView={openDetail} onEdit={openEdit} onDelete={openDelete} onRetry={()=>fetchStudents(1)}
         hasActiveFilters={hasActiveFilters} onClearFilters={clearFilters} onOpenCreate={openCreate}
         pagination={pagination} onPageChange={p=>{fetchStudents(p)}}
+        pageSize={pageSize} onPageSizeChange={s=>{setPageSize(s);fetchStudents(1)}}
         onPreviewPhoto={setPreviewPhotoUrl} lang={lang}/>
       </ErrorBoundary>
 
       {filterLevel&&filterGroup&&<AssignedServants servants={assignedServants} loading={servantsLoading} show={showAssignedServants} onToggle={()=>setShowAssignedServants(v=>!v)} lang={lang}/>}
 
       {showForm&&<StudentFormModal student={selectedStudent} activeLevels={activeLevels} allGroups={allGroups} churches={churches} gradeOptions={gradeOptions}
-        onClose={()=>setShowForm(false)} onSuccess={fetchStudents} currentPage={pagination.page}
+        onClose={()=>setShowForm(false)}
+        onSuccess={(page:number)=>{fetchStudents(page);fetchStats()}} currentPage={pagination.page}
         onOptimisticAdd={s=>startTransition(()=>addOptimisticStudent({type:'add',student:s}))} lang={lang}/>}
 
       {showDetail&&selectedStudent&&<StudentDetailModal student={selectedStudent} onClose={()=>setShowDetail(false)} onEdit={()=>{setShowDetail(false);openEdit(selectedStudent)}} onPreviewPhoto={setPreviewPhotoUrl} lang={lang}/>}
 
       {showDelete&&selectedStudent&&<StudentDeleteModal student={selectedStudent} onClose={()=>setShowDelete(false)} onConfirm={handleDelete} lang={lang}/>}
 
-      {showImport&&<StudentImportModal onClose={()=>setShowImport(false)} onSuccess={()=>fetchStudents(1)} levelNameMap={levelNameMap} lang={lang}/>}
+      {showImport&&<StudentImportModal onClose={()=>setShowImport(false)} onSuccess={()=>{fetchStudents(1);fetchStats()}} levelNameMap={levelNameMap} lang={lang}/>}
 
       <StudentBulkModals
         showBulkDelete={bulkOpen.delete} showBulkStatus={bulkOpen.status} showBulkLevel={bulkOpen.level} showBulkGrade={bulkOpen.grade}
         onClose={modal=>setBulkOpen(b=>({...b,[modal]:false}))}
         selectedIds={selectedIds} activeLevels={activeLevels} allGroups={allGroups} gradeOptions={gradeOptions}
-        onSuccess={page=>{setSelectedIds(new Set());fetchStudents(page)}} currentPage={pagination.page}
+        onSuccess={page=>{setSelectedIds(new Set());fetchStudents(page);fetchStats()}} currentPage={pagination.page}
         toast={toast} lang={lang}/>
 
       {previewPhotoUrl&&(

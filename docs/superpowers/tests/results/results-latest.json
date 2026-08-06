@@ -1,0 +1,1028 @@
+{
+  "runAt": "2026-08-01T11:03:15.113Z",
+  "results": [
+    {
+      "status": "PASS",
+      "name": "AUTH1 Register new church",
+      "detail": "pending=yes message=\"Registration submitted for review. You will be notified once\""
+    },
+    {
+      "status": "PASS",
+      "name": "AUTH2 Login admin",
+      "detail": "token issued"
+    },
+    {
+      "status": "PASS",
+      "name": "AUTH3 Refresh token",
+      "detail": "new accessToken issued"
+    },
+    {
+      "status": "PASS",
+      "name": "AUTH4 Logout",
+      "detail": "status=200"
+    },
+    {
+      "status": "PASS",
+      "name": "AUTH5 Get me",
+      "detail": "id=7f833233-55b8-4f33-bd7c-962ef48ede45"
+    },
+    {
+      "status": "PASS",
+      "name": "AUTH6 Update profile",
+      "detail": "phone set"
+    },
+    {
+      "status": "PASS",
+      "name": "AUTH7 Change password",
+      "detail": "new password accepted"
+    },
+    {
+      "status": "PASS",
+      "name": "AUTH7b Login with new password",
+      "detail": "confirmed"
+    },
+    {
+      "status": "PASS",
+      "name": "S1 Student stats read",
+      "detail": "keys=total,active,inactive,graduated,male,female"
+    },
+    {
+      "status": "PASS",
+      "name": "S2 Students levels/all read",
+      "detail": "count=10"
+    },
+    {
+      "status": "PASS",
+      "name": "S3 Create group",
+      "detail": "id=a0d5bc63-896b-4b04-bb6d-b04c8f749d64"
+    },
+    {
+      "status": "PASS",
+      "name": "S4 Update group",
+      "detail": "description set"
+    },
+    {
+      "status": "PASS",
+      "name": "S5 Delete group",
+      "detail": "deleted"
+    },
+    {
+      "status": "PASS",
+      "name": "S6 Bulk import students",
+      "detail": "2 created"
+    },
+    {
+      "status": "PASS",
+      "name": "S7 Bulk update students",
+      "detail": "2 updated"
+    },
+    {
+      "status": "PASS",
+      "name": "T1 Create student",
+      "detail": "id=d1ef47bf-4978-45ec-84eb-8cef249b2b6d code=STU-00030"
+    },
+    {
+      "status": "PASS",
+      "name": "T4a Read-back student",
+      "detail": "firstName=Peter level=1"
+    },
+    {
+      "status": "PASS",
+      "name": "T4b Update student",
+      "detail": "schoolGrade set"
+    },
+    {
+      "status": "PASS",
+      "name": "T4c Student attendance read",
+      "detail": "ok (may be empty)"
+    },
+    {
+      "status": "PASS",
+      "name": "T4d Student progress read",
+      "detail": "ok (may be empty)"
+    },
+    {
+      "status": "PASS",
+      "name": "T4e Student activity read",
+      "detail": "ok"
+    },
+    {
+      "status": "PASS",
+      "name": "S8 Bulk delete students",
+      "detail": "2 deleted"
+    },
+    {
+      "status": "PASS",
+      "name": "PORTAL1 Student portal login",
+      "detail": "code=STU-00027 student=yes"
+    },
+    {
+      "status": "PASS",
+      "name": "PORTAL2 Get portal data by code",
+      "detail": "keys=student,attendance,recentAttendance,badges,totalXp,upcomingSessions,recentHomework"
+    },
+    {
+      "status": "PASS",
+      "name": "C-L1 Levels list read",
+      "detail": "count=?"
+    },
+    {
+      "status": "PASS",
+      "name": "T14 Create level",
+      "detail": "id=5575a666-2f4e-4b8e-8f3c-8f2bc66a5bdd"
+    },
+    {
+      "status": "PASS",
+      "name": "C-L2 Update level",
+      "detail": "description set"
+    },
+    {
+      "status": "PASS",
+      "name": "C-L3 Delete level",
+      "detail": "deleted (soft)"
+    },
+    {
+      "status": "PASS",
+      "name": "T8 Create subject",
+      "detail": "id=d7bdafa5-dada-44b8-a198-b72e8b4988a2"
+    },
+    {
+      "status": "PASS",
+      "name": "C-S1 Subjects list read",
+      "detail": "ok"
+    },
+    {
+      "status": "PASS",
+      "name": "C-S2 Update subject",
+      "detail": "description set"
+    },
+    {
+      "status": "PASS",
+      "name": "T9 Create subject item",
+      "detail": "id=cc2e42dd-7b71-4d0f-87f3-9f7fb5539b47"
+    },
+    {
+      "status": "PASS",
+      "name": "C-I1 Subject items list read",
+      "detail": "ok"
+    },
+    {
+      "status": "PASS",
+      "name": "C-I2 Update subject item",
+      "detail": "name set"
+    },
+    {
+      "status": "PASS",
+      "name": "C-I3 Update item status",
+      "detail": "ok"
+    },
+    {
+      "status": "PASS",
+      "name": "C-I4 Flat items list read",
+      "detail": "count=7"
+    },
+    {
+      "status": "PASS",
+      "name": "T10 Create lesson",
+      "detail": "id=7f52eff6-3f06-4e78-bc79-67128d79c4c5"
+    },
+    {
+      "status": "PASS",
+      "name": "T11 Update lesson (audio fields)",
+      "detail": "audioUrl/audioDuration persisted"
+    },
+    {
+      "status": "PASS",
+      "name": "T11b Read-back lesson audio",
+      "detail": "audioUrl confirmed, duration=90"
+    },
+    {
+      "status": "PASS",
+      "name": "C-LS1 Lessons list read",
+      "detail": "ok"
+    },
+    {
+      "status": "PASS",
+      "name": "C-LS2 Patch lesson audio",
+      "detail": "uploaded"
+    },
+    {
+      "status": "PASS",
+      "name": "C-LS3 Bulk create lessons",
+      "detail": "2 created"
+    },
+    {
+      "status": "PASS",
+      "name": "C-LS4 Parse HTML",
+      "detail": "keys=titleEn,titleCop,titleAr,speaker,verses"
+    },
+    {
+      "status": "PASS",
+      "name": "T12 Create academic year",
+      "detail": "id=b7a66a53-232b-4b36-bbca-45db4fbb5860"
+    },
+    {
+      "status": "PASS",
+      "name": "C-Y1 Academic years list read",
+      "detail": "ok"
+    },
+    {
+      "status": "PASS",
+      "name": "C-Y2 Update academic year",
+      "detail": "ok"
+    },
+    {
+      "status": "PASS",
+      "name": "T15 Generate weekends",
+      "detail": "status=201 {\"message\":\"Weekends set. Generated 43 weeks.\",\"weeksGenerated\":43}"
+    },
+    {
+      "status": "PASS",
+      "name": "C-CAL1 Calendar read",
+      "detail": "ok"
+    },
+    {
+      "status": "PASS",
+      "name": "C-W1 Weeks list read",
+      "detail": "ok"
+    },
+    {
+      "status": "PASS",
+      "name": "C-W2 Update week",
+      "detail": "isAvailable=true"
+    },
+    {
+      "status": "PASS",
+      "name": "C-W3 Bulk-update weeks",
+      "detail": "ok"
+    },
+    {
+      "status": "PASS",
+      "name": "C-CAL2 Create calendar event",
+      "detail": "id=8d54e720-4aca-4337-9a38-a71b41c0d537"
+    },
+    {
+      "status": "PASS",
+      "name": "C-CAL3 Calendar events list read",
+      "detail": "ok"
+    },
+    {
+      "status": "PASS",
+      "name": "C-CAL4 Update calendar event",
+      "detail": "label set"
+    },
+    {
+      "status": "PASS",
+      "name": "C-CAL5 Delete calendar event",
+      "detail": "deleted"
+    },
+    {
+      "status": "PASS",
+      "name": "T13 Create allocation",
+      "detail": "id=8ec4f0bb-c89f-46e7-abd3-cb37d37f9ce9"
+    },
+    {
+      "status": "PASS",
+      "name": "C-A1 Allocations list read",
+      "detail": "ok"
+    },
+    {
+      "status": "PASS",
+      "name": "C-A2 Update allocation",
+      "detail": "weekNumber=2"
+    },
+    {
+      "status": "PASS",
+      "name": "C-A3 Reorder allocations",
+      "detail": "ok"
+    },
+    {
+      "status": "PASS",
+      "name": "C-A4 Delete allocation",
+      "detail": "deleted"
+    },
+    {
+      "status": "PASS",
+      "name": "HL1 This Sunday hymns",
+      "detail": "keys=sunday,copticDate,season,hymns"
+    },
+    {
+      "status": "PASS",
+      "name": "HL2 Log practice",
+      "detail": "lesson=7f52eff6-3f06-4e78-bc79-67128d79c4c5 id=628f9e07-09e4-4d64-9ca7-9a63664f948a"
+    },
+    {
+      "status": "PASS",
+      "name": "HL3 Hymn map",
+      "detail": "ok"
+    },
+    {
+      "status": "PASS",
+      "name": "HL4 Due review",
+      "detail": "ok"
+    },
+    {
+      "status": "PASS",
+      "name": "HL5 Learning stats",
+      "detail": "ok"
+    },
+    {
+      "status": "PASS",
+      "name": "HL6 Practice history",
+      "detail": "ok"
+    },
+    {
+      "status": "PASS",
+      "name": "HL7 Servant review queue",
+      "detail": "ok (may be empty)"
+    },
+    {
+      "status": "PASS",
+      "name": "HL8 Review practice session",
+      "detail": "servantRating saved"
+    },
+    {
+      "status": "PASS",
+      "name": "A-1 Sessions list read",
+      "detail": "ok"
+    },
+    {
+      "status": "PASS",
+      "name": "A-2 Attendance stats read",
+      "detail": "ok"
+    },
+    {
+      "status": "PASS",
+      "name": "A-3 Student search read",
+      "detail": "ok"
+    },
+    {
+      "status": "PASS",
+      "name": "A-4 Level stats read",
+      "detail": "ok"
+    },
+    {
+      "status": "PASS",
+      "name": "A-5 Group stats read",
+      "detail": "ok"
+    },
+    {
+      "status": "PASS",
+      "name": "T16 Create session",
+      "detail": "id=fda96d4b-90c4-43fe-a84f-78575bced7e4"
+    },
+    {
+      "status": "PASS",
+      "name": "T17 Mark attendance",
+      "detail": "3 records saved"
+    },
+    {
+      "status": "PASS",
+      "name": "T18 Read-back session",
+      "detail": "summary=\"n/a\""
+    },
+    {
+      "status": "PASS",
+      "name": "A-6 Update session",
+      "detail": "status=completed"
+    },
+    {
+      "status": "PASS",
+      "name": "A-7 Delete session",
+      "detail": "deleted"
+    },
+    {
+      "status": "PASS",
+      "name": "A-8 Generate sessions",
+      "detail": "status=201 {\"created\":0,\"skipped\":48,\"total\":48}"
+    },
+    {
+      "status": "PASS",
+      "name": "A-9 QR check-in",
+      "detail": "status=201"
+    },
+    {
+      "status": "PASS",
+      "name": "T19 Start-class auto-detect",
+      "detail": "returned=session,created"
+    },
+    {
+      "status": "PASS",
+      "name": "A-10 Liturgy heatmap read",
+      "detail": "ok"
+    },
+    {
+      "status": "PASS",
+      "name": "AS-1 Assessments list read",
+      "detail": "ok"
+    },
+    {
+      "status": "PASS",
+      "name": "AS-2 Assessments stats read",
+      "detail": "ok"
+    },
+    {
+      "status": "PASS",
+      "name": "T20 Create assessment",
+      "detail": "id=bd1d5ccc-5014-4b1a-82b1-7c3ef5d603dc"
+    },
+    {
+      "status": "PASS",
+      "name": "AS-3 Read-back assessment",
+      "detail": "ok"
+    },
+    {
+      "status": "PASS",
+      "name": "T21 Submit assessment",
+      "detail": "student=6dd51361-6e62-44f9-ae4a-5a0db15472b2"
+    },
+    {
+      "status": "PASS",
+      "name": "T22 Assign student",
+      "detail": "student=6dd51361-6e62-44f9-ae4a-5a0db15472b2"
+    },
+    {
+      "status": "PASS",
+      "name": "T23 Mark submission",
+      "detail": "score=8/10"
+    },
+    {
+      "status": "PASS",
+      "name": "AS-4 Reassess student",
+      "detail": "submission reopened"
+    },
+    {
+      "status": "PASS",
+      "name": "AS-5 Unassign student",
+      "detail": "removed"
+    },
+    {
+      "status": "PASS",
+      "name": "Assessment submissions list read",
+      "detail": "ok"
+    },
+    {
+      "status": "PASS",
+      "name": "Assessment students list read",
+      "detail": "ok"
+    },
+    {
+      "status": "PASS",
+      "name": "AS-6 Update assessment",
+      "detail": "description set (with required numeric fields)"
+    },
+    {
+      "status": "PASS",
+      "name": "G-1 Leaderboard read",
+      "detail": "ok"
+    },
+    {
+      "status": "PASS",
+      "name": "G-2 Seasonal badge status read",
+      "detail": "ok"
+    },
+    {
+      "status": "FAIL",
+      "name": "G-3 Create seasonal badge",
+      "detail": "status=400 {\"statusCode\":400,\"message\":\"No active liturgical season at this time\",\"error\":\"Bad Request\",\"timestamp\":\"2026-08-01T11:00:25.749Z\",\"path\":\"/api/gamification/seasonal/create?schoolId=7f1cacca-65f0-475"
+    },
+    {
+      "status": "PASS",
+      "name": "T24 Create badge",
+      "detail": "id=97566bb3-640a-4f7e-9375-80f3126ae53d"
+    },
+    {
+      "status": "PASS",
+      "name": "G-4 Badges list read",
+      "detail": "ok"
+    },
+    {
+      "status": "PASS",
+      "name": "G-5 Update badge",
+      "detail": "description+points set"
+    },
+    {
+      "status": "PASS",
+      "name": "T25 Add XP",
+      "detail": "student=6dd51361-6e62-44f9-ae4a-5a0db15472b2 amount=25"
+    },
+    {
+      "status": "PASS",
+      "name": "T25b XP transactions read",
+      "detail": "ok"
+    },
+    {
+      "status": "PASS",
+      "name": "G-6 Student growth read",
+      "detail": "ok"
+    },
+    {
+      "status": "PASS",
+      "name": "T26 Award badge",
+      "detail": "student=6dd51361-6e62-44f9-ae4a-5a0db15472b2 badge=97566bb3-640a-4f7e-9375-80f3126ae53d"
+    },
+    {
+      "status": "PASS",
+      "name": "G-7 Student badges list read",
+      "detail": "ok"
+    },
+    {
+      "status": "PASS",
+      "name": "T25c Student gamification stats read",
+      "detail": "ok"
+    },
+    {
+      "status": "PASS",
+      "name": "T27 Compute badges",
+      "detail": "ok"
+    },
+    {
+      "status": "PASS",
+      "name": "G-8 Group trophy read",
+      "detail": "ok"
+    },
+    {
+      "status": "PASS",
+      "name": "G-9 Servant milestones read",
+      "detail": "ok"
+    },
+    {
+      "status": "PASS",
+      "name": "G-10 Compute school",
+      "detail": "status=201 {\"total\":19,\"awarded\":0,\"errors\":0}"
+    },
+    {
+      "status": "PASS",
+      "name": "T28 Draft announcement (AI)",
+      "detail": "title=\"COHEP Level 1 Hymn Practice Session!\""
+    },
+    {
+      "status": "PASS",
+      "name": "R-1 Priest pulse read",
+      "detail": "ok"
+    },
+    {
+      "status": "PASS",
+      "name": "R-2 Liturgical engagement read",
+      "detail": "ok"
+    },
+    {
+      "status": "PASS",
+      "name": "R-3 Servant contributions read",
+      "detail": "ok"
+    },
+    {
+      "status": "PASS",
+      "name": "R-4 Diocese report read",
+      "detail": "ok"
+    },
+    {
+      "status": "PASS",
+      "name": "D-1 Dashboard stats read",
+      "detail": "ok"
+    },
+    {
+      "status": "PASS",
+      "name": "D-2 Dashboard mine read",
+      "detail": "ok"
+    },
+    {
+      "status": "PASS",
+      "name": "D-3 Dashboard leaderboard read",
+      "detail": "ok"
+    },
+    {
+      "status": "PASS",
+      "name": "D-4 Servant digest read",
+      "detail": "ok"
+    },
+    {
+      "status": "PASS",
+      "name": "D-5 Practice stats read",
+      "detail": "ok"
+    },
+    {
+      "status": "PASS",
+      "name": "D-6 Absence cascade run",
+      "detail": "status=201"
+    },
+    {
+      "status": "PASS",
+      "name": "P-1 Create parent user",
+      "detail": "id=978c6df5-869c-4d4e-8817-34f382872480"
+    },
+    {
+      "status": "PASS",
+      "name": "P-2 Parent login",
+      "detail": "token issued"
+    },
+    {
+      "status": "PASS",
+      "name": "P-3 Link child",
+      "detail": "code=STU-00030"
+    },
+    {
+      "status": "PASS",
+      "name": "P-4 Children list read",
+      "detail": "count=1 childId=d1ef47bf-4978-45ec-84eb-8cef249b2b6d"
+    },
+    {
+      "status": "PASS",
+      "name": "P-5 Get child",
+      "detail": "id=d1ef47bf-4978-45ec-84eb-8cef249b2b6d"
+    },
+    {
+      "status": "PASS",
+      "name": "P-6 Child attendance read",
+      "detail": "ok"
+    },
+    {
+      "status": "PASS",
+      "name": "P-7 Child assessments read",
+      "detail": "ok"
+    },
+    {
+      "status": "PASS",
+      "name": "P-8 Child progress read",
+      "detail": "ok"
+    },
+    {
+      "status": "PASS",
+      "name": "P-9 Child home read",
+      "detail": "ok"
+    },
+    {
+      "status": "PASS",
+      "name": "P-10 Child current lesson read",
+      "detail": "ok (may be null)"
+    },
+    {
+      "status": "PASS",
+      "name": "P-11 Log practice (parent)",
+      "detail": "lesson=7f52eff6-3f06-4e78-bc79-67128d79c4c5"
+    },
+    {
+      "status": "PASS",
+      "name": "P-12 Practice summary read",
+      "detail": "ok"
+    },
+    {
+      "status": "PASS",
+      "name": "P-13 Log liturgy",
+      "detail": "id=63b565a0-94e8-44f5-8aa9-94747d05ac40 status=pending"
+    },
+    {
+      "status": "PASS",
+      "name": "P-14 Child liturgy records read",
+      "detail": "ok"
+    },
+    {
+      "status": "PASS",
+      "name": "P-15 Child milestones read",
+      "detail": "ok"
+    },
+    {
+      "status": "PASS",
+      "name": "P-16 Child archive read",
+      "detail": "ok"
+    },
+    {
+      "status": "PASS",
+      "name": "P-17 Child term report read",
+      "detail": "ok"
+    },
+    {
+      "status": "PASS",
+      "name": "P-18 Unlink child",
+      "detail": "unlinked + re-linked for downstream modules"
+    },
+    {
+      "status": "PASS",
+      "name": "T7 Servant liturgy-pending list",
+      "detail": "count=1"
+    },
+    {
+      "status": "PASS",
+      "name": "SV-2 Verify liturgy",
+      "detail": "id=63b565a0-94e8-44f5-8aa9-94747d05ac40"
+    },
+    {
+      "status": "PASS",
+      "name": "SV-3 Reject liturgy",
+      "detail": "id=a1f38197-bb47-41ad-958f-c98393abb7cd"
+    },
+    {
+      "status": "PASS",
+      "name": "N-1 Notifications list read",
+      "detail": "ok"
+    },
+    {
+      "status": "PASS",
+      "name": "N-2 Unread count read",
+      "detail": "ok"
+    },
+    {
+      "status": "PASS",
+      "name": "N-3 Create notification",
+      "detail": "id=6023cb40-c8f9-445d-9670-5d60157267a0"
+    },
+    {
+      "status": "PASS",
+      "name": "N-4 Mark notification read",
+      "detail": "ok"
+    },
+    {
+      "status": "PASS",
+      "name": "N-5 Mark all read",
+      "detail": "ok"
+    },
+    {
+      "status": "PASS",
+      "name": "U-1 Users list read",
+      "detail": "count=19"
+    },
+    {
+      "status": "PASS",
+      "name": "U-2 Roles list read",
+      "detail": "ok"
+    },
+    {
+      "status": "PASS",
+      "name": "U-3 Permissions list read",
+      "detail": "ok"
+    },
+    {
+      "status": "PASS",
+      "name": "U-4 Schools list read",
+      "detail": "count=8"
+    },
+    {
+      "status": "PASS",
+      "name": "U-5 Schools/me read",
+      "detail": "id=7f1cacca-65f0-4759-a735-ea3f022171c6"
+    },
+    {
+      "status": "PASS",
+      "name": "U-6 Create school",
+      "detail": "id=6070bf75-792f-44b7-a8f6-dad525a85ffe"
+    },
+    {
+      "status": "PASS",
+      "name": "U-7 Get school read",
+      "detail": "id=6070bf75-792f-44b7-a8f6-dad525a85ffe"
+    },
+    {
+      "status": "PASS",
+      "name": "U-8 Update school",
+      "detail": "address set"
+    },
+    {
+      "status": "PASS",
+      "name": "U-9 Set school config",
+      "detail": "key saved"
+    },
+    {
+      "status": "PASS",
+      "name": "U-10 Get school config",
+      "detail": "ok"
+    },
+    {
+      "status": "PASS",
+      "name": "U-11 Create user",
+      "detail": "id=fef218f6-e1cd-4256-8398-0f363f7c9991"
+    },
+    {
+      "status": "PASS",
+      "name": "U-12 Get user read",
+      "detail": "id=fef218f6-e1cd-4256-8398-0f363f7c9991"
+    },
+    {
+      "status": "PASS",
+      "name": "U-13 Update user",
+      "detail": "phone set"
+    },
+    {
+      "status": "PASS",
+      "name": "U-14 Assign role",
+      "detail": "group_leader added"
+    },
+    {
+      "status": "PASS",
+      "name": "U-15 Remove role",
+      "detail": "removed"
+    },
+    {
+      "status": "PASS",
+      "name": "AD-1 Pending registrations list",
+      "detail": "count=2"
+    },
+    {
+      "status": "PASS",
+      "name": "AD-2 Reject pending registration",
+      "detail": "school=22eaa69b-01bc-4a90-91f9-8ba2dd346d5a"
+    },
+    {
+      "status": "PASS",
+      "name": "AD-3 Reset password",
+      "detail": "password reset"
+    },
+    {
+      "status": "PASS",
+      "name": "AD-3b Login with reset password",
+      "detail": "confirmed"
+    },
+    {
+      "status": "PASS",
+      "name": "CH-1 Churches list read",
+      "detail": "count=6"
+    },
+    {
+      "status": "PASS",
+      "name": "CH-2 Create church",
+      "detail": "id=8f72b68c-fdbb-45a6-96da-5064879e8045"
+    },
+    {
+      "status": "PASS",
+      "name": "CH-3 Get church read",
+      "detail": "id=8f72b68c-fdbb-45a6-96da-5064879e8045"
+    },
+    {
+      "status": "PASS",
+      "name": "CH-4 Update church",
+      "detail": "city=Alexandria"
+    },
+    {
+      "status": "PASS",
+      "name": "CH-5 Delete church",
+      "detail": "deleted"
+    },
+    {
+      "status": "PASS",
+      "name": "NW-1 Newsletter subscribe",
+      "detail": "status=200"
+    },
+    {
+      "status": "PASS",
+      "name": "U-church-logo upload",
+      "detail": "url=/uploads/church-logos/6a6029b6-49bf-4c09-a282-0701a6876d9f.png"
+    },
+    {
+      "status": "PASS",
+      "name": "U-school-logo upload",
+      "detail": "url=/uploads/church-logos/school-a222b804-f4ea-46e2-a10d-b9f1d9b350c2.png"
+    },
+    {
+      "status": "PASS",
+      "name": "U-avatar upload",
+      "detail": "url=/uploads/avatars/avatar-6236d615-3e5f-4e6e-a240-e3b8a36d5904.png"
+    },
+    {
+      "status": "PASS",
+      "name": "U-student-photo upload",
+      "detail": "url=/uploads/student-photos/student-28a4747d-304e-4f1d-b77a-e20fc7c04414.png"
+    },
+    {
+      "status": "PASS",
+      "name": "U-presentation upload",
+      "detail": "url=/uploads/presentations/pres-85553e15-ed90-4801-bf98-47f6c808bd66.pptx"
+    }
+  ],
+  "tracked": [
+    {
+      "id": "22eaa69b-01bc-4a90-91f9-8ba2dd346d5a",
+      "label": "QA pending school (auth register qa-auth-976224@example.com)"
+    },
+    {
+      "id": "f32f9180-1dc5-4759-843c-7e60f45c219b",
+      "label": "QA throwaway user (change-password) qa-changepw-976224@example.com"
+    },
+    {
+      "id": "a0d5bc63-896b-4b04-bb6d-b04c8f749d64",
+      "label": "QA student group"
+    },
+    {
+      "id": "821cbf1f-dd34-4aae-86a6-b6c5bf48e4fe",
+      "label": "QA bulk-import student"
+    },
+    {
+      "id": "401bf4f2-af71-48d5-895a-891310de0346",
+      "label": "QA bulk-import student"
+    },
+    {
+      "id": "d1ef47bf-4978-45ec-84eb-8cef249b2b6d",
+      "label": "QA student QA-T1-Peter-1785581991643"
+    },
+    {
+      "id": "STU-00030",
+      "label": "QA student code for QA-T1-Peter-1785581991643"
+    },
+    {
+      "id": "5575a666-2f4e-4b8e-8f3c-8f2bc66a5bdd",
+      "label": "QA level"
+    },
+    {
+      "id": "d7bdafa5-dada-44b8-a198-b72e8b4988a2",
+      "label": "QA subject"
+    },
+    {
+      "id": "cc2e42dd-7b71-4d0f-87f3-9f7fb5539b47",
+      "label": "QA subject item"
+    },
+    {
+      "id": "7f52eff6-3f06-4e78-bc79-67128d79c4c5",
+      "label": "QA lesson"
+    },
+    {
+      "id": "1ea811ac-4b76-40dd-aada-b331a32a736b",
+      "label": "QA bulk lesson"
+    },
+    {
+      "id": "60b225ab-760a-4917-afe8-5b4eac291001",
+      "label": "QA bulk lesson"
+    },
+    {
+      "id": "b7a66a53-232b-4b36-bbca-45db4fbb5860",
+      "label": "QA academic year"
+    },
+    {
+      "id": "8d54e720-4aca-4337-9a38-a71b41c0d537",
+      "label": "QA calendar event"
+    },
+    {
+      "id": "8ec4f0bb-c89f-46e7-abd3-cb37d37f9ce9",
+      "label": "QA allocation"
+    },
+    {
+      "id": "628f9e07-09e4-4d64-9ca7-9a63664f948a",
+      "label": "QA hymn practice session"
+    },
+    {
+      "id": "fda96d4b-90c4-43fe-a84f-78575bced7e4",
+      "label": "QA attendance session"
+    },
+    {
+      "id": "bd1d5ccc-5014-4b1a-82b1-7c3ef5d603dc",
+      "label": "QA assessment"
+    },
+    {
+      "id": "97566bb3-640a-4f7e-9375-80f3126ae53d",
+      "label": "QA badge"
+    },
+    {
+      "id": "167ecb29-84e8-4c41-9d45-8520e6f82f2a",
+      "label": "QA student-badge (Peter)"
+    },
+    {
+      "id": "978c6df5-869c-4d4e-8817-34f382872480",
+      "label": "QA parent user qa-parent-041529@example.com"
+    },
+    {
+      "id": "63b565a0-94e8-44f5-8aa9-94747d05ac40",
+      "label": "QA family liturgy (STU-00030)"
+    },
+    {
+      "id": "a1f38197-bb47-41ad-958f-c98393abb7cd",
+      "label": "QA family liturgy (reject path)"
+    },
+    {
+      "id": "6023cb40-c8f9-445d-9670-5d60157267a0",
+      "label": "QA notification"
+    },
+    {
+      "id": "6070bf75-792f-44b7-a8f6-dad525a85ffe",
+      "label": "QA school"
+    },
+    {
+      "id": "fef218f6-e1cd-4256-8398-0f363f7c9991",
+      "label": "QA user qa-user-056408@example.com"
+    },
+    {
+      "id": "c925fe40-49d4-4906-b28a-bfee539011bc",
+      "label": "QA throwaway user (reset-password) qa-adminpw-063602@example.com"
+    },
+    {
+      "id": "8f72b68c-fdbb-45a6-96da-5064879e8045",
+      "label": "QA church"
+    },
+    {
+      "id": "/uploads/church-logos/6a6029b6-49bf-4c09-a282-0701a6876d9f.png",
+      "label": "QA uploaded file (church-logo)"
+    },
+    {
+      "id": "/uploads/church-logos/school-a222b804-f4ea-46e2-a10d-b9f1d9b350c2.png",
+      "label": "QA uploaded file (school-logo)"
+    },
+    {
+      "id": "/uploads/avatars/avatar-6236d615-3e5f-4e6e-a240-e3b8a36d5904.png",
+      "label": "QA uploaded file (avatar)"
+    },
+    {
+      "id": "/uploads/student-photos/student-28a4747d-304e-4f1d-b77a-e20fc7c04414.png",
+      "label": "QA uploaded file (student-photo)"
+    },
+    {
+      "id": "/uploads/presentations/pres-85553e15-ed90-4801-bf98-47f6c808bd66.pptx",
+      "label": "QA uploaded presentation"
+    }
+  ]
+}

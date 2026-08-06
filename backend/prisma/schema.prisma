@@ -244,6 +244,7 @@ model Student {
   schoolId       String    @map("school_id")
   academicYearId String    @map("academic_year_id")
   studentCode    String    @map("student_code")
+  portalAccessKey String   @unique @default(uuid()) @map("portal_access_key")
   firstName      String    @map("first_name")
   lastName       String    @map("last_name")
   firstNameAr    String?   @map("first_name_ar")

@@ -26,9 +26,10 @@ export function PointSystemTab() {
   useEffect(() => {
     if (!schoolId) return
     setLoading(true)
-    http.get<{ value: PointRules }[]>(`/users/schools/${schoolId}/config`, { key: 'point_rules' })
+    http.get<{ value: PointRules }[] | { value: PointRules }>(`/users/schools/${schoolId}/config`, { key: 'point_rules' })
       .then(data => {
-        if (data?.[0]?.value) setRules({ ...DEFAULTS, ...data[0].value })
+        const cfg = Array.isArray(data) ? data?.[0] : data
+        if (cfg?.value) setRules({ ...DEFAULTS, ...cfg.value })
       })
       .catch(() => {})
       .finally(() => setLoading(false))

@@ -286,13 +286,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
     if (dismissed) setBannerDismissed(dismissed)
     http.get<{ data: { id: string; title: string; titleAr?: string; body: string; bodyAr?: string; priority: string }[] }>('/announcements', { schoolId: getSchoolId(), status: 'published', limit: '1' })
       .then(d => { if (d.data?.[0]) setBannerAnnouncement(d.data[0]) })
-      .catch(() => {
-        try {
-          const stored = JSON.parse(localStorage.getItem('niangelos_announcements') || '[]')
-          const published = stored.filter((a: any) => a.publishedAt).sort((a: any, b: any) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime())
-          if (published.length) setBannerAnnouncement(published[0])
-        } catch {}
-      })
+      .catch(() => {})
   }, [])
 
   useEffect(() => {

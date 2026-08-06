@@ -199,7 +199,7 @@ export function CalendarView({
           subjectId: matchingSubject.id, lessonId,
           groupNumber: selectedGroup,
           term: selectedTerm, weekNumber: wn,
-          orderIndex: nextOrder, scheduledDate: dateStr, status: 'draft',
+          orderIndex: nextOrder, scheduledDate: dateStr, status: 'published',
         })
         created = true
       }
@@ -338,7 +338,7 @@ export function CalendarView({
         weekNumber,
         orderIndex: nextOrder,
         scheduledDate: dateStr,
-        status: 'draft',
+        status: 'published',
       })
       if (ok) await onRefresh()
     } catch { /* ignore */ }

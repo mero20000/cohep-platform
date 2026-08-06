@@ -146,7 +146,7 @@ export class StudentsController {
 
     @Get(':id/activity')
   @ApiOperation({ summary: 'Get student activity log' })
-  async getActivity(@Param('id') id: string) {
-    return this.auditService.findByEntity('student', id);
+  async getActivity(@Param('id') id: string, @Query('schoolId') schoolId: string = '') {
+    return this.auditService.findByEntity('student', id, 50, schoolId);
   }
 }

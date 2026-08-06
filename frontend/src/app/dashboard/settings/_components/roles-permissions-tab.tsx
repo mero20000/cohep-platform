@@ -121,10 +121,11 @@ export function RolesPermissionsTab() {
     const perms = activePerms[role] || []
     try {
       await http.post(`/roles/${role}/permissions`, { permissions: perms }, { schoolId: getSchoolId() })
-    } catch {
       setRolePermissions(role, perms)
+      toast('success', t('Permissions updated', 'تم تحديث الصلاحيات'))
+    } catch {
+      toast('error', t('Failed to save permissions', 'فشل حفظ الصلاحيات'))
     }
-    toast('success', t('Permissions updated', 'تم تحديث الصلاحيات'))
     setSaving(false)
     setEditing(null)
   }

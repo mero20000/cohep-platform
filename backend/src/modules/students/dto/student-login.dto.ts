@@ -1,6 +1,7 @@
-import { IsString } from 'class-validator';
+import { IsString, MinLength } from 'class-validator';
 
 export class StudentLoginDto {
   @IsString()
-  studentCode: string;
+  @MinLength(8, { message: 'Access key looks too short' })
+  portalAccessKey: string;
 }

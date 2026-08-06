@@ -8,7 +8,6 @@ import { useToast } from '@/components/ui/toast'
 import { Button } from '@/components/ui/button'
 import { AnnouncementFormModal } from './_components/announcement-form-modal'
 import { type Announcement, type PaginatedAnnouncements, PRIORITY_STYLE } from './_components/announcement-types'
-import { lsFetch, lsDelete, lsPublish } from './_components/announcement-store'
 
 const LIMIT = 20
 
@@ -36,18 +35,14 @@ export default function AnnouncementsPage() {
       setList(data.data)
       setTotalPages(data.pagination.totalPages)
       setTotal(data.pagination.total)
-    } catch {
-      const all = lsFetch()
-      let filtered = all
-      if (filterPriority) filtered = filtered.filter(a => a.priority === filterPriority)
-      if (filterStatus) filtered = filtered.filter(a => filterStatus === 'published' ? a.publishedAt : !a.publishedAt)
-      const start = (p - 1) * LIMIT
-      setList(filtered.slice(start, start + LIMIT))
-      setTotalPages(Math.max(1, Math.ceil(filtered.length / LIMIT)))
-      setTotal(filtered.length)
+    } catch (e: any) {
+      toast('error', t('Failed to load announcements', 'فشل تحميل الإعلانات'), e?.message || '')
+      setList([])
+      setTotalPages(1)
+      setTotal(0)
     }
     setLoading(false)
-  }, [filterPriority, filterStatus])
+  }, [filterPriority, filterStatus, toast, t])
 
   useEffect(() => { fetchList(page) }, [page, fetchList])
 
@@ -56,7 +51,9 @@ export default function AnnouncementsPage() {
     try {
       await http.delete(`/announcements/${id}`, { schoolId: getSchoolId() })
       toast('success', t('Announcement deleted', 'تم حذف الإعلان'))
-    } catch { lsDelete(id) }
+    } catch (e: any) {
+      toast('error', t('Failed to delete', 'فشل الحذف'), e?.message || '')
+    }
     fetchList(page)
   }
 
@@ -64,7 +61,9 @@ export default function AnnouncementsPage() {
     try {
       await http.patch(`/announcements/${id}/publish`, null, { schoolId: getSchoolId() })
       toast('success', t('Announcement published', 'تم نشر الإعلان'))
-    } catch { lsPublish(id) }
+    } catch (e: any) {
+      toast('error', t('Failed to publish', 'فشل النشر'), e?.message || '')
+    }
     fetchList(page)
   }
 

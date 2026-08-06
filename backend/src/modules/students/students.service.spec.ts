@@ -70,9 +70,14 @@ describe('StudentsService', () => {
     academicYear: {
       findFirst: jest.fn(),
     },
-    systemConfig: { findUnique: jest.fn() },
+systemConfig: {
+      findUnique: jest.fn(),
+    },
     attendanceRecord: { findMany: jest.fn() },
     studentProgress: { findMany: jest.fn() },
+    studentBadge: { findMany: jest.fn() },
+    xPTransaction: { aggregate: jest.fn() },
+    attendanceSession: { findMany: jest.fn() },
     $transaction: jest.fn(),
     $executeRawUnsafe: jest.fn(),
   };
@@ -182,6 +187,32 @@ describe('StudentsService', () => {
       expect(result.data).toHaveLength(0);
       expect(result.pagination.total).toBe(0);
     });
+
+    it('applies server-side sort', async () => {
+      prisma.student.findMany.mockResolvedValue([]);
+      prisma.student.count.mockResolvedValue(0);
+
+      await service.findAll({ page: 1, limit: 20, sortBy: 'name', sortDir: 'asc' }, schoolId);
+
+      expect(prisma.student.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          orderBy: [{ firstName: 'asc' }, { lastName: 'asc' }],
+        }),
+      );
+    });
+
+    it('orders by level number when sorting by level', async () => {
+      prisma.student.findMany.mockResolvedValue([]);
+      prisma.student.count.mockResolvedValue(0);
+
+      await service.findAll({ page: 1, limit: 20, sortBy: 'level', sortDir: 'desc' }, schoolId);
+
+      expect(prisma.student.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          orderBy: [{ level: { number: 'desc' } }],
+        }),
+      );
+    });
   });
 
   // ===== findOne =====
@@ -265,6 +296,28 @@ describe('StudentsService', () => {
       expect(result.firstNameAr).toBe('ملك');
       expect(result.lastNameAr).toBe('أحمد');
     });
+
+    it('skips taken codes without recursion', async () => {
+      prisma.student.count.mockResolvedValue(1);
+      // STU-00002 is taken, next free is STU-00003
+      prisma.student.findFirst
+        .mockResolvedValueOnce({ id: 'taken' }) // STU-00002 exists
+        .mockResolvedValueOnce(null); // STU-00003 free
+      prisma.student.create.mockResolvedValue({ ...mockStudent, studentCode: 'STU-00003' });
+
+      const dto = {
+        firstName: 'Malak',
+        lastName: 'Ahmed',
+        dateOfBirth: '2026-01-01',
+        gender: 'female',
+        levelId: 'level-1',
+        groupId: 'group-1',
+      };
+
+      const result = await service.create(dto, schoolId);
+
+      expect(result.studentCode).toBe('STU-00003');
+    });
   });
 
   // ===== update =====
@@ -282,6 +335,16 @@ describe('StudentsService', () => {
       prisma.student.findFirst.mockResolvedValue(null);
 
       await expect(service.update('nonexistent', { firstName: 'Test' }, schoolId)).rejects.toThrow(NotFoundException);
+    });
+
+    it('rejects a group that belongs to a different level', async () => {
+      prisma.student.findFirst.mockResolvedValue(mockStudent);
+      prisma.group.findFirst.mockResolvedValue({ levelId: 'level-2' });
+
+      await expect(
+        service.update('stu-1', { levelId: 'level-1', groupId: 'group-2' }, schoolId),
+      ).rejects.toThrow('does not belong');
+      expect(prisma.student.update).not.toHaveBeenCalled();
     });
 
     it('updates status to graduated', async () => {
@@ -516,6 +579,41 @@ describe('StudentsService', () => {
       prisma.student.findFirst.mockResolvedValue(null);
 
       await expect(service.getProgress('nonexistent', schoolId)).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  // ===== getPortalData =====
+  describe('getPortalData', () => {
+    beforeEach(() => {
+      prisma.student.findFirst.mockResolvedValue({ ...mockStudent, portalAccessKey: 'abc-secret-key' });
+      prisma.attendanceRecord.findMany.mockResolvedValue([]);
+      prisma.studentBadge.findMany.mockResolvedValue([]);
+      prisma.xPTransaction.aggregate.mockResolvedValue({ _sum: { amount: 120 } });
+      prisma.attendanceSession.findMany.mockResolvedValue([]);
+    });
+
+    it('looks up student by portalAccessKey, not studentCode', async () => {
+      await service.getPortalData('abc-secret-key');
+
+      expect(prisma.student.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { portalAccessKey: 'abc-secret-key', deletedAt: null },
+        }),
+      );
+    });
+
+    it('throws NotFoundException for unknown access key', async () => {
+      prisma.student.findFirst.mockResolvedValue(null);
+
+      await expect(service.getPortalData('nope')).rejects.toThrow(NotFoundException);
+    });
+
+    it('returns student summary with XP total', async () => {
+      const result = await service.getPortalData('abc-secret-key');
+
+      expect(result.student.studentCode).toBe('STU-00001');
+      expect(result.totalXp).toBe(120);
+      expect(result.attendance).toEqual({ present: 0, late: 0, absent: 0, excused: 0, total: 0 });
     });
   });
 

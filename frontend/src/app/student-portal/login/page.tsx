@@ -18,10 +18,10 @@ export default function StudentLoginPage() {
     try {
       const res = await fetch(
         (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api') + '/student-portal/login',
-        { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ studentCode: code.trim() }) },
+        { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ portalAccessKey: code.trim() }) },
       )
       if (!res.ok) {
-        const err = await res.json().catch(() => ({ message: 'Student not found' }))
+        const err = await res.json().catch(() => ({ message: 'Access key not found' }))
         throw new Error(err.message)
       }
       router.push(`/student-portal/${code.trim()}`)
@@ -51,7 +51,7 @@ export default function StudentLoginPage() {
               <Cross className="h-7 w-7 text-white" />
             </div>
             <h2 className="text-2xl font-bold text-gray-900">Student Sign In</h2>
-            <p className="text-sm text-gray-500 mt-1">Enter your student code to view your dashboard</p>
+            <p className="text-sm text-gray-500 mt-1">Enter your access key to view your dashboard</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -59,13 +59,13 @@ export default function StudentLoginPage() {
               <div className="rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">{error}</div>
             )}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Student Code</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Access Key</label>
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                 <input
                   value={code}
-                  onChange={e => setCode(e.target.value.toUpperCase())}
-                  placeholder="e.g. STU-0001"
+                  onChange={e => setCode(e.target.value)}
+                  placeholder="e.g. a1b2c3d4-e5f6-7890-abcd-ef1234567890"
                   className="w-full rounded-lg border border-gray-300 pl-10 pr-3 py-2.5 text-sm focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-gold-500"
                   autoFocus
                 />

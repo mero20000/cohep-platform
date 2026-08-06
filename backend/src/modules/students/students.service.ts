@@ -19,7 +19,7 @@ export class StudentsService {
 
   async findAll(queryDto: QueryStudentDto, schoolIdentifier: string) {
     const schoolId = await this.schoolResolver.resolve(schoolIdentifier);
-    const { levelId, groupId, status, churchName, schoolGrade, gender, search, page = 1, limit: rawLimit = 20 } = queryDto;
+    const { levelId, groupId, status, churchName, schoolGrade, gender, search, page = 1, limit: rawLimit = 20, sortBy, sortDir } = queryDto;
     const limit = Math.min(rawLimit, 100);
 
     const where: any = {
@@ -42,6 +42,21 @@ export class StudentsService {
       ];
     }
 
+    const dir = sortDir === 'desc' ? 'desc' : 'asc';
+    const orderMap: Record<string, any> = {
+      name: [{ firstName: dir }, { lastName: dir }],
+      code: [{ studentCode: dir }],
+      age: [{ dateOfBirth: dir }],
+      gender: [{ gender: dir }],
+      church: [{ churchName: dir }],
+      grade: [{ schoolGrade: dir }],
+      status: [{ status: dir }],
+      level: [{ level: { number: dir } }],
+      group: [{ group: { name: dir } }],
+      createdAt: [{ createdAt: dir }],
+    };
+    const orderBy: any = (sortBy && orderMap[sortBy]) || [{ createdAt: 'desc' }];
+
     const [students, total] = await Promise.all([
       this.prisma.student.findMany({
         where,
@@ -52,7 +67,7 @@ export class StudentsService {
         },
         skip: (page - 1) * limit,
         take: limit,
-        orderBy: { createdAt: 'desc' },
+        orderBy,
       }),
       this.prisma.student.count({ where }),
     ]);
@@ -149,7 +164,7 @@ export class StudentsService {
         academicYearId: currentYear.id,
         parentEmail: createStudentDto.parentEmail || undefined,
         metadata: Object.keys(metadata).length > 0 ? metadata : undefined,
-        status: 'active',
+        status: createStudentDto.status || 'active',
         enrollmentDate: new Date(),
       },
       include: {
@@ -183,6 +198,10 @@ export class StudentsService {
 
     const data = { ...updateStudentDto } as any;
     if (data.dateOfBirth) data.dateOfBirth = new Date(data.dateOfBirth);
+
+    if (data.levelId && data.groupId) {
+      await this.assertGroupBelongsToLevel(data.groupId, data.levelId);
+    }
 
     // Merge contact fields into metadata
     const existingMeta = (student as any).metadata || {};
@@ -299,7 +318,11 @@ export class StudentsService {
     const groupMap = new Map<string, string>();
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     for (const l of levels) { levelMap.set(l.id, l.id); levelMap.set(l.name.toLowerCase(), l.id); }
-    for (const g of groups) { groupMap.set(g.id, g.id); groupMap.set(g.name.toLowerCase(), g.id); }
+    // Key groups by (levelId, name) so same-named groups in different levels resolve correctly.
+    for (const g of groups) {
+      groupMap.set(g.id, g.id);
+      groupMap.set(`${g.levelId}|${g.name.toLowerCase()}`, g.id);
+    }
 
     const gradeGroupsConfig = await this.prisma.systemConfig.findUnique({
       where: { schoolId_key: { schoolId, key: 'gradeGroups' } },
@@ -315,15 +338,47 @@ export class StudentsService {
       }
     }
 
-    const count = await this.prisma.student.count({ where: { schoolId } });
     const errors: { row: number; message: string }[] = [];
+    const seenInBatch = new Set<string>();
+
+    // M9: collect existing codes up-front so import codes never collide with
+    // soft-deleted or previously-assigned rows.
+    const existingCodes = await this.prisma.student.findMany({
+      where: { schoolId },
+      select: { studentCode: true },
+    });
+    const taken = new Set(existingCodes.map(e => e.studentCode));
+
+    const nextFreeCode = (): string => {
+      let n = existingCodes.length + 1;
+      let code = `STU-${String(n).padStart(5, '0')}`;
+      while (taken.has(code)) {
+        n++;
+        code = `STU-${String(n).padStart(5, '0')}`;
+      }
+      taken.add(code);
+      return code;
+    };
 
     const studentData = dto.students.map((s, i) => {
       const rowNum = i + 2;
+      const dupKey = `${s.firstName.trim().toLowerCase()}|${s.lastName.trim().toLowerCase()}|${s.dateOfBirth.trim()}`;
+      if (seenInBatch.has(dupKey)) {
+        errors.push({ row: rowNum, message: 'Duplicate student in import (same name + date of birth)' });
+      }
+      seenInBatch.add(dupKey);
 
       const resolvedLevelId = levelMap.get(s.levelId.trim().toLowerCase()) || levelMap.get(s.levelId.trim());
       if (!resolvedLevelId) errors.push({ row: rowNum, message: `Level "${s.levelId}" not found` });
-      let resolvedGroupId = s.groupId ? (groupMap.get(s.groupId.trim().toLowerCase()) || groupMap.get(s.groupId.trim())) : undefined;
+      let resolvedGroupId: string | undefined;
+      if (s.groupId) {
+        const g = s.groupId.trim();
+        // Prefer (levelId, name) key when a group name is supplied so same-named
+        // groups in different levels resolve to the correct one.
+        resolvedGroupId = groupMap.get(`${resolvedLevelId}|${g.toLowerCase()}`)
+          || groupMap.get(g.toLowerCase())
+          || groupMap.get(g);
+      }
       if (!resolvedGroupId && resolvedLevelId && s.schoolGrade) {
         resolvedGroupId = gradeGroupMap.get(`${resolvedLevelId}|${s.schoolGrade.trim().toLowerCase()}`);
       }
@@ -363,7 +418,7 @@ export class StudentsService {
         levelId: resolvedLevelId || '',
         groupId: resolvedGroupId || '',
         schoolId,
-        studentCode: `STU-${String(count + i + 1).padStart(5, '0')}`,
+        studentCode: nextFreeCode(),
         academicYearId: currentYear.id,
         status: 'active',
         enrollmentDate: new Date(),
@@ -414,6 +469,42 @@ export class StudentsService {
       if (data?.[key] !== undefined) updateData[key] = data[key];
     }
     if (Object.keys(updateData).length === 0) throw new BadRequestException('No supported fields to update');
+
+    if (updateData.levelId && updateData.groupId) {
+      await this.assertGroupBelongsToLevel(updateData.groupId, updateData.levelId);
+    }
+
+    // H7: when only schoolGrade changes, re-derive groupId from the grade→group mapping
+    if (updateData.schoolGrade && !updateData.groupId && !updateData.levelId) {
+      const gradeGroupMap = await this.loadGradeGroupMap(schoolId);
+      if (gradeGroupMap.size > 0) {
+        const students = await this.prisma.student.findMany({
+          where: { id: { in: ids }, schoolId, deletedAt: null },
+          select: { id: true, levelId: true },
+        });
+        const updatedCount = await this.prisma.$transaction(
+          students.map(s => {
+            const groupId = gradeGroupMap.get(`${s.levelId}|${updateData.schoolGrade.trim().toLowerCase()}`);
+            return groupId
+              ? this.prisma.student.update({
+                  where: { id: s.id },
+                  data: { schoolGrade: updateData.schoolGrade, groupId },
+                })
+              : this.prisma.student.update({
+                  where: { id: s.id },
+                  data: { schoolGrade: updateData.schoolGrade },
+                });
+          }),
+        );
+        await this.audit.log({
+          schoolId,
+          action: 'BULK_UPDATE',
+          entityType: 'student',
+          newValues: { ids, data: updateData, count: updatedCount.length },
+        });
+        return { updated: updatedCount.length };
+      }
+    }
 
     const result = await this.prisma.student.updateMany({
       where: { id: { in: ids }, schoolId, deletedAt: null },
@@ -571,13 +662,9 @@ export class StudentsService {
     return { deletedCount: count };
   }
 
-  async getPortalData(studentCode: string, schoolId?: string) {
+async getPortalData(portalAccessKey: string) {
     const student = await this.prisma.student.findFirst({
-      where: {
-        studentCode,
-        deletedAt: null,
-        ...(schoolId ? { schoolId } : {}),
-      },
+      where: { portalAccessKey, deletedAt: null },
       include: {
         level: { select: { id: true, name: true, number: true, nameAr: true } },
         group: { select: { id: true, name: true, nameAr: true } },
@@ -691,21 +778,57 @@ export class StudentsService {
     return { total, active, inactive, graduated, male, female, studentsWithoutGrade, gradeDistribution: gradeGroups.map(g => ({ grade: g.schoolGrade!, count: g._count.id })) };
   }
 
+  private async loadGradeGroupMap(schoolId: string): Promise<Map<string, string>> {
+    const gradeGroupsConfig = await this.prisma.systemConfig.findUnique({
+      where: { schoolId_key: { schoolId, key: 'gradeGroups' } },
+    });
+    const gradeGroupMap = new Map<string, string>();
+    if (gradeGroupsConfig && Array.isArray((gradeGroupsConfig.value as any)?.combo ?? (gradeGroupsConfig.value as any))) {
+      const raw = Array.isArray(gradeGroupsConfig.value) ? gradeGroupsConfig.value : (gradeGroupsConfig.value as any).combo;
+      for (const c of raw as any[]) {
+        if (!c || c.status === 'inactive') continue;
+        if (c.levelId && c.gradeName && c.groupId) {
+          gradeGroupMap.set(`${c.levelId}|${c.gradeName.trim().toLowerCase()}`, c.groupId);
+        }
+      }
+    }
+    return gradeGroupMap;
+  }
+
+  private async assertGroupBelongsToLevel(groupId: string, levelId: string) {
+    const group = await this.prisma.group.findFirst({
+      where: { id: groupId, deletedAt: null },
+      select: { levelId: true },
+    });
+    if (!group) throw new BadRequestException(`Group "${groupId}" not found`);
+    if (group.levelId !== levelId) {
+      throw new BadRequestException('Group does not belong to the selected level');
+    }
+  }
+
   private async generateStudentCode(schoolId: string): Promise<string> {
-    const count = await this.prisma.student.count({
-      where: { schoolId },
-    });
+    const count = await this.prisma.student.count({ where: { schoolId } });
 
-    const code = `STU-${String(count + 1).padStart(5, '0')}`;
-
-    // Check if code already exists
-    const exists = await this.prisma.student.findFirst({
+    // Iterative, bounded search for the next free code. Avoids unbounded recursion
+    // that would occur if many high-numbered codes are already taken.
+    let n = count + 1;
+    const start = n;
+    let code = `STU-${String(n).padStart(5, '0')}`;
+    let exists = await this.prisma.student.findFirst({
       where: { schoolId, studentCode: code },
+      select: { id: true },
     });
 
-    if (exists) {
-      // Try next number
-      return this.generateStudentCode(schoolId);
+    while (exists) {
+      n++;
+      if (n - start > 100000) {
+        throw new BadRequestException('Unable to allocate a student code');
+      }
+      code = `STU-${String(n).padStart(5, '0')}`;
+      exists = await this.prisma.student.findFirst({
+        where: { schoolId, studentCode: code },
+        select: { id: true },
+      });
     }
 
     return code;

@@ -1,0 +1,425 @@
+{
+  "runAt": "2026-08-01T12:59:54.623Z",
+  "results": [
+    {
+      "status": "PASS",
+      "name": "Students page - Level Level 1",
+      "detail": "groups=5 total=7"
+    },
+    {
+      "status": "FAIL",
+      "name": "Students page - Level Level 2",
+      "detail": "A-2 status=200 HAS 3 students but NO groups => cannot filter/assign group (group menu empty)"
+    },
+    {
+      "status": "FAIL",
+      "name": "Students page - Level Level 3",
+      "detail": "A-3 status=200 HAS 3 students but NO groups => cannot filter/assign group (group menu empty)"
+    },
+    {
+      "status": "FAIL",
+      "name": "Students page - Level Level 4",
+      "detail": "A-4 status=200 HAS 3 students but NO groups => cannot filter/assign group (group menu empty)"
+    },
+    {
+      "status": "FAIL",
+      "name": "Students page - Level Level 5",
+      "detail": "A-5 status=200 HAS 3 students but NO groups => cannot filter/assign group (group menu empty)"
+    },
+    {
+      "status": "PASS",
+      "name": "Students level+group filter Level 1/Group 1",
+      "detail": "status=200"
+    },
+    {
+      "status": "PASS",
+      "name": "Students level+group filter Level 1/Group 2",
+      "detail": "status=200"
+    },
+    {
+      "status": "PASS",
+      "name": "Students status=active filter",
+      "detail": "status=200"
+    },
+    {
+      "status": "PASS",
+      "name": "Students status=inactive filter",
+      "detail": "status=200"
+    },
+    {
+      "status": "PASS",
+      "name": "Students status=graduated filter",
+      "detail": "status=200"
+    },
+    {
+      "status": "PASS",
+      "name": "Students gender=male filter",
+      "detail": "status=200"
+    },
+    {
+      "status": "PASS",
+      "name": "Students gender=female filter",
+      "detail": "status=200"
+    },
+    {
+      "status": "PASS",
+      "name": "Students grade=Grade 1 filter",
+      "detail": "status=200"
+    },
+    {
+      "status": "PASS",
+      "name": "Students grade=Grade 4 filter",
+      "detail": "status=200"
+    },
+    {
+      "status": "PASS",
+      "name": "Students grade=Adult filter",
+      "detail": "status=200"
+    },
+    {
+      "status": "PASS",
+      "name": "Students search=Peter filter",
+      "detail": "status=200"
+    },
+    {
+      "status": "PASS",
+      "name": "Students search=STU-000 filter",
+      "detail": "status=200"
+    },
+    {
+      "status": "PASS",
+      "name": "Students search=zzznomatch filter",
+      "detail": "status=200"
+    },
+    {
+      "status": "PASS",
+      "name": "Students level=Level 1+active+male",
+      "detail": "status=200"
+    },
+    {
+      "status": "PASS",
+      "name": "Students level=Level 1+search=Peter",
+      "detail": "status=200"
+    },
+    {
+      "status": "PASS",
+      "name": "Students pagination",
+      "detail": "totalPages=1"
+    },
+    {
+      "status": "FAIL",
+      "name": "Student create in level without groups (Level 2)",
+      "detail": "B-1 status=400 REQUIRED groupId blocks enrollment: {\"statusCode\":400,\"message\":[\"groupId must be a UUID\"],\"error\":\"Bad Request\",\"timestamp\":\"2026-08-01T12:59:25.668Z\",\"path\":\"/api/students?schoolId=7f1cacca-65f0-4759-a735-ea3f022171c6\"}"
+    },
+    {
+      "status": "PASS",
+      "name": "createGroup honors levelId (Level 2)",
+      "detail": "levelId=b14f5404-1bd1-4b07-98da-3e0fa99b0a6e"
+    },
+    {
+      "status": "PASS",
+      "name": "cleanup created group",
+      "detail": "deleted"
+    },
+    {
+      "status": "PASS",
+      "name": "Attendance sessions (all)",
+      "detail": "status=200"
+    },
+    {
+      "status": "PASS",
+      "name": "Attendance level=Level 1",
+      "detail": "status=200"
+    },
+    {
+      "status": "PASS",
+      "name": "Attendance level=Level 2",
+      "detail": "status=200"
+    },
+    {
+      "status": "PASS",
+      "name": "Attendance level=Level 3",
+      "detail": "status=200"
+    },
+    {
+      "status": "PASS",
+      "name": "Attendance level=Level 4",
+      "detail": "status=200"
+    },
+    {
+      "status": "PASS",
+      "name": "Attendance level=Level 5",
+      "detail": "status=200"
+    },
+    {
+      "status": "PASS",
+      "name": "Attendance status=scheduled",
+      "detail": "status=200"
+    },
+    {
+      "status": "PASS",
+      "name": "Attendance status=in_progress",
+      "detail": "status=200"
+    },
+    {
+      "status": "PASS",
+      "name": "Attendance status=completed",
+      "detail": "status=200"
+    },
+    {
+      "status": "PASS",
+      "name": "Attendance status=cancelled",
+      "detail": "status=200"
+    },
+    {
+      "status": "PASS",
+      "name": "Attendance from=2026-01-01 to=2026-12-31",
+      "detail": "status=200"
+    },
+    {
+      "status": "PASS",
+      "name": "Attendance from=2026-08-01 to=2026-08-01",
+      "detail": "status=200"
+    },
+    {
+      "status": "PASS",
+      "name": "Attendance level-stats",
+      "detail": "status=200"
+    },
+    {
+      "status": "PASS",
+      "name": "Attendance group-stats",
+      "detail": "status=200"
+    },
+    {
+      "status": "PASS",
+      "name": "Attendance liturgy-heatmap",
+      "detail": "status=200"
+    },
+    {
+      "status": "PASS",
+      "name": "Assessments list",
+      "detail": "status=200"
+    },
+    {
+      "status": "PASS",
+      "name": "Assessments level=Level 1",
+      "detail": "status=200"
+    },
+    {
+      "status": "PASS",
+      "name": "Assessments level=Level 2",
+      "detail": "status=200"
+    },
+    {
+      "status": "PASS",
+      "name": "Assessments level=Level 3",
+      "detail": "status=200"
+    },
+    {
+      "status": "PASS",
+      "name": "Assessments status=draft",
+      "detail": "status=200"
+    },
+    {
+      "status": "PASS",
+      "name": "Assessments status=published",
+      "detail": "status=200"
+    },
+    {
+      "status": "PASS",
+      "name": "Assessments status=completed",
+      "detail": "status=200"
+    },
+    {
+      "status": "PASS",
+      "name": "Assessments status=archived",
+      "detail": "status=200"
+    },
+    {
+      "status": "PASS",
+      "name": "Assessments stats",
+      "detail": "status=200"
+    },
+    {
+      "status": "PASS",
+      "name": "Curriculum lessons level=Level 1",
+      "detail": "status=200"
+    },
+    {
+      "status": "PASS",
+      "name": "Curriculum lessons level=Level 2",
+      "detail": "status=200"
+    },
+    {
+      "status": "PASS",
+      "name": "Curriculum lessons level=Level 3",
+      "detail": "status=200"
+    },
+    {
+      "status": "PASS",
+      "name": "Curriculum lessons level=Level 4",
+      "detail": "status=200"
+    },
+    {
+      "status": "PASS",
+      "name": "Curriculum lessons level=Level 5",
+      "detail": "status=200"
+    },
+    {
+      "status": "PASS",
+      "name": "Curriculum items levelNumber=1",
+      "detail": "status=200"
+    },
+    {
+      "status": "PASS",
+      "name": "Curriculum items levelNumber=2",
+      "detail": "status=200"
+    },
+    {
+      "status": "PASS",
+      "name": "Curriculum items levelNumber=3",
+      "detail": "status=200"
+    },
+    {
+      "status": "PASS",
+      "name": "Curriculum items levelNumber=4",
+      "detail": "status=200"
+    },
+    {
+      "status": "PASS",
+      "name": "Curriculum items levelNumber=5",
+      "detail": "status=200"
+    },
+    {
+      "status": "PASS",
+      "name": "Curriculum allocations year+level=Level 1",
+      "detail": "status=200"
+    },
+    {
+      "status": "PASS",
+      "name": "Curriculum allocations year+level=Level 2",
+      "detail": "status=200"
+    },
+    {
+      "status": "PASS",
+      "name": "Curriculum calendar (year)",
+      "detail": "status=200"
+    },
+    {
+      "status": "PASS",
+      "name": "Curriculum weeks (year)",
+      "detail": "status=200"
+    },
+    {
+      "status": "PASS",
+      "name": "Gamification leaderboard",
+      "detail": "status=200"
+    },
+    {
+      "status": "PASS",
+      "name": "Gamification badges",
+      "detail": "status=200"
+    },
+    {
+      "status": "PASS",
+      "name": "Gamification seasonal status",
+      "detail": "status=200"
+    },
+    {
+      "status": "PASS",
+      "name": "Dashboard leaderboard",
+      "detail": "status=200"
+    },
+    {
+      "status": "PASS",
+      "name": "Dashboard stats",
+      "detail": "status=200"
+    },
+    {
+      "status": "PASS",
+      "name": "Dashboard mine",
+      "detail": "status=200"
+    },
+    {
+      "status": "PASS",
+      "name": "Dashboard servant-digest",
+      "detail": "status=200"
+    },
+    {
+      "status": "PASS",
+      "name": "Dashboard practice-stats",
+      "detail": "status=200"
+    },
+    {
+      "status": "PASS",
+      "name": "Settings schools",
+      "detail": "status=200"
+    },
+    {
+      "status": "PASS",
+      "name": "Settings churches",
+      "detail": "status=200"
+    },
+    {
+      "status": "PASS",
+      "name": "Settings roles",
+      "detail": "status=200"
+    },
+    {
+      "status": "PASS",
+      "name": "Settings grades config",
+      "detail": "status=200"
+    },
+    {
+      "status": "PASS",
+      "name": "Settings users",
+      "detail": "status=200"
+    },
+    {
+      "status": "PASS",
+      "name": "Settings users role=servant",
+      "detail": "status=200"
+    },
+    {
+      "status": "PASS",
+      "name": "Report priest-pulse",
+      "detail": "status=200"
+    },
+    {
+      "status": "PASS",
+      "name": "Report liturgical-engagement",
+      "detail": "status=200"
+    },
+    {
+      "status": "PASS",
+      "name": "Report servant-contributions",
+      "detail": "status=200"
+    },
+    {
+      "status": "PASS",
+      "name": "Report diocese",
+      "detail": "status=200"
+    },
+    {
+      "status": "PASS",
+      "name": "Notifications list",
+      "detail": "status=200"
+    },
+    {
+      "status": "PASS",
+      "name": "Notifications read=false",
+      "detail": "status=200"
+    },
+    {
+      "status": "PASS",
+      "name": "Student portal login STU-00030",
+      "detail": "status=201 (2xx ok for res.ok)"
+    },
+    {
+      "status": "PASS",
+      "name": "Student portal data STU-00030",
+      "detail": "status=200"
+    }
+  ]
+}

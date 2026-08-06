@@ -17,6 +17,7 @@ interface Props {
   onView: (s: Student) => void; onEdit: (s: Student) => void; onDelete: (s: Student) => void
   onRetry: () => void; hasActiveFilters: boolean; onClearFilters: () => void; onOpenCreate: () => void
   pagination: Pag; onPageChange: (p: number) => void
+  pageSize?: number; onPageSizeChange?: (s: number) => void
   onPreviewPhoto: (url: string) => void; lang: 'en'|'ar'
 }
 const COLS = [
@@ -25,7 +26,7 @@ const COLS = [
   ['age','Age','العمر'],['church','Church','الكنيسة'],['grade','Grade','المرحلة'],['status','Status','الحالة'],
 ] as const
 
-export function StudentTable({ students, loading, fetchError, selectedIds, allSelected, toggleId, toggleAll, sortKey, sortDir, toggleSort, onView, onEdit, onDelete, onRetry, hasActiveFilters, onClearFilters, onOpenCreate, pagination, onPageChange, onPreviewPhoto, lang }: Props) {
+export function StudentTable({ students, loading, fetchError, selectedIds, allSelected, toggleId, toggleAll, sortKey, sortDir, toggleSort, onView, onEdit, onDelete, onRetry, hasActiveFilters, onClearFilters, onOpenCreate, pagination, onPageChange, pageSize, onPageSizeChange, onPreviewPhoto, lang }: Props) {
   const t = (en: string, ar: string) => lang === 'ar' ? ar : en
   if (loading) return (
     <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
@@ -158,7 +159,7 @@ export function StudentTable({ students, loading, fetchError, selectedIds, allSe
         </table>
       </div>
       <div className="border-t border-gray-100">
-        <Pagination page={pagination.page} totalPages={pagination.totalPages} total={pagination.total} onPageChange={onPageChange} lang={lang} />
+<Pagination page={pagination.page} totalPages={pagination.totalPages} total={pagination.total} onPageChange={onPageChange} pageSize={pageSize} onPageSizeChange={onPageSizeChange} lang={lang} />
       </div>
     </div>
   )

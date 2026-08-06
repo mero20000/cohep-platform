@@ -29,9 +29,9 @@ export class AuditService {
     });
   }
 
-  async findByEntity(entityType: string, entityId: string, limit = 50) {
+  async findByEntity(entityType: string, entityId: string, limit = 50, schoolId?: string) {
     return this.prisma.auditLog.findMany({
-      where: { entityType, entityId },
+      where: { entityType, entityId, ...(schoolId ? { schoolId } : {}) },
       orderBy: { createdAt: 'desc' },
       take: limit,
       include: {
