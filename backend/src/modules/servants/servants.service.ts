@@ -2,12 +2,68 @@ import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/commo
 import { PrismaService } from '../../database/prisma.service';
 import { GamificationService } from '../gamification/gamification.service';
 
+const SERVANT_ROLE_NAMES = ['servant', 'group_leader', 'level_leader'] as const;
+
 @Injectable()
 export class ServantsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly gamification: GamificationService,
   ) {}
+
+  async listServants(
+    user: { id: string; schoolId?: string; roles: string[] },
+    query: { search?: string; role?: string; levelId?: string; groupId?: string; teachingSubject?: string } = {},
+  ) {
+    const isSuperAdmin = user.roles?.includes('super_admin');
+    const where: any = {
+      deletedAt: null,
+      userRoles: {
+        some: { role: { name: { in: [...SERVANT_ROLE_NAMES] } } },
+      },
+    };
+    if (!isSuperAdmin && user.schoolId) where.schoolId = user.schoolId;
+
+    if (query.search) {
+      where.OR = [
+        { firstName: { contains: query.search, mode: 'insensitive' } },
+        { lastName: { contains: query.search, mode: 'insensitive' } },
+        { email: { contains: query.search, mode: 'insensitive' } },
+      ];
+    }
+    if (query.role) {
+      where.userRoles = {
+        some: { role: { name: query.role } },
+      };
+    }
+
+    const users = await this.prisma.user.findMany({
+      where,
+      select: {
+        id: true, firstName: true, lastName: true, firstNameAr: true, lastNameAr: true,
+        email: true, phone: true, avatarUrl: true, isActive: true, lastLoginAt: true,
+        userRoles: { select: { role: { select: { id: true, name: true, displayName: true } } } },
+        metadata: true,
+      },
+      orderBy: { firstName: 'asc' },
+    });
+
+    return users
+      .filter((u: any) => !u.deletedAt)
+      .map((u: any) => ({
+        id: u.id, firstName: u.firstName, lastName: u.lastName, firstNameAr: u.firstNameAr,
+        lastNameAr: u.lastNameAr, email: u.email, phone: u.phone, avatarUrl: u.avatarUrl,
+        isActive: u.isActive, lastLoginAt: u.lastLoginAt,
+        userRoles: u.userRoles,
+        metadata: (u.metadata as any) || undefined,
+      }))
+      .filter((u: any) => {
+        if (query.levelId && (u.metadata?.levelId ?? '') !== query.levelId) return false;
+        if (query.groupId && (u.metadata?.groupId ?? '') !== query.groupId) return false;
+        if (query.teachingSubject && !(u.metadata?.teachingSubjects ?? []).includes(query.teachingSubject)) return false;
+        return true;
+      });
+  }
 
   async getPendingLiturgies(userId: string) {
     const servant = await this.prisma.user.findUnique({

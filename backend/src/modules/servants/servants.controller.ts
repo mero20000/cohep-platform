@@ -1,4 +1,4 @@
-import { Controller, Get, Patch, Delete, Param, Req, UseGuards } from '@nestjs/common';
+import { Controller, Get, Patch, Delete, Param, Query, Req, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { ServantsService } from './servants.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -10,6 +10,20 @@ import { Roles, STAFF_ROLES } from '../../common/decorators/roles.decorator';
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class ServantsController {
   constructor(private readonly servantsService: ServantsService) {}
+
+  @Get()
+  @Roles('super_admin', 'admin', 'principal', 'level_leader')
+  @ApiOperation({ summary: 'List servant-role users (school-scoped)' })
+  listServants(
+    @Req() req: any,
+    @Query('search') search?: string,
+    @Query('role') role?: string,
+    @Query('levelId') levelId?: string,
+    @Query('groupId') groupId?: string,
+    @Query('teachingSubject') teachingSubject?: string,
+  ) {
+    return this.servantsService.listServants(req.user, { search, role, levelId, groupId, teachingSubject });
+  }
 
   @Get('liturgy-pending')
   @Roles(...STAFF_ROLES)
