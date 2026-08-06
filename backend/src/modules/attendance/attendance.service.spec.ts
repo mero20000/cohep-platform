@@ -7,6 +7,7 @@ import { AuditService } from '../audit/audit.service';
 import { GamificationService } from '../gamification/gamification.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { MailService } from '../mail/mail.service';
+import { AnalyticsService } from '../analytics/analytics.service';
 
 describe('AttendanceService', () => {
   let service: AttendanceService;
@@ -49,6 +50,7 @@ describe('AttendanceService', () => {
         { provide: GamificationService, useValue: { computeBadgesForStudent: jest.fn() } },
         { provide: NotificationsService, useValue: { createNotification: jest.fn() } },
         { provide: MailService, useValue: { sendAttendanceAlert: jest.fn() } },
+        { provide: AnalyticsService, useValue: { record: jest.fn() } },
       ],
     }).compile();
 
