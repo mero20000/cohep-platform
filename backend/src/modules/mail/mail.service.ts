@@ -48,24 +48,25 @@ export class MailService {
   private async probeSmtp() {
     const host = this.configService.get('MAIL_HOST', 'smtp.gmail.com');
     const port = Number(this.configService.get('MAIL_PORT', 587));
-    try {
-      const addrs = await lookup(host, { all: true });
-      console.log(`[mail] probe: ${host} ->`, addrs.map((a) => `${a.address} (${a.family})`).join(', '));
-    } catch (e) {
-      console.log(`[mail] probe: DNS lookup of ${host} FAILED`, e instanceof Error ? e.message : e);
-      return;
-    }
-    for (const p of [port, 465, 25]) {
+    const targets: Array<[string, number]> = [
+      [host, port],
+      [host, 465],
+      [host, 25],
+      ['smtp-mail.outlook.com', 587],
+      ['smtp.sendgrid.net', 587],
+    ];
+    for (const [h, p] of targets) {
+      const start = Date.now();
       try {
         await new Promise<void>((resolve, reject) => {
-          const s = createConnection({ host, port: p, family: 4, timeout: 8000 });
+          const s = createConnection({ host: h, port: p, family: 4, timeout: 8000 });
           s.once('connect', () => { s.destroy(); resolve(); });
           s.once('error', (e) => { s.destroy(); reject(e); });
           s.once('timeout', () => { s.destroy(); reject(new Error('timeout')); });
         });
-        console.log(`[mail] probe: port ${p} OK`);
+        console.log(`[mail] probe: ${h}:${p} OK (${Date.now() - start}ms)`);
       } catch (e) {
-        console.log(`[mail] probe: port ${p} FAILED (${e instanceof Error ? e.message : e})`);
+        console.log(`[mail] probe: ${h}:${p} FAILED (${e instanceof Error ? e.message : e})`);
       }
     }
   }
