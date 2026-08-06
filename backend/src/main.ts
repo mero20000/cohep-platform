@@ -5,6 +5,7 @@ import { NestExpressApplication } from '@nestjs/platform-express';
 import helmet from 'helmet';
 import * as cookieParser from 'cookie-parser';
 import * as Sentry from '@sentry/node';
+import { setDefaultResultOrder } from 'node:dns';
 import { join } from 'path';
 import { AppModule } from './app.module';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
@@ -12,6 +13,11 @@ import { requestIdMiddleware } from './common/middleware/request-id.middleware';
 import { requestLoggerMiddleware } from './common/middleware/request-logger.middleware';
 
 async function bootstrap() {
+  // Resolve outbound hostnames over IPv4 first. Render's containers have no
+  // IPv6 route; without this, smtp.gmail.com (which publishes AAAA records)
+  // is tried on IPv6 first and every SMTP connect fails with ENETUNREACH.
+  setDefaultResultOrder('ipv4first');
+
   // Sentry — only when a DSN is configured.
   if (process.env.SENTRY_DSN) {
     Sentry.init({
