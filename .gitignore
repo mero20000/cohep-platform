@@ -40,5 +40,8 @@ coverage/
 # Vercel
 .vercel
 
+# Git worktrees
+.worktrees/
+
 # Misc
 *.bak
