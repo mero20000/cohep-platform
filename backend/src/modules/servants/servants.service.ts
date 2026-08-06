@@ -33,7 +33,11 @@ export class ServantsService {
     }
     if (query.role) {
       where.userRoles = {
-        some: { role: { name: query.role } },
+        some: {
+          role: {
+            name: { in: [...SERVANT_ROLE_NAMES].filter(r => r === query.role) },
+          },
+        },
       };
     }
 

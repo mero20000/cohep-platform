@@ -49,6 +49,9 @@ describe('ServantsService.listServants', () => {
     expect(prisma.user.findMany).toHaveBeenCalledWith(
       expect.objectContaining({ where: expect.objectContaining({ schoolId: 'school-1' }) }),
     );
+    expect(prisma.user.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: expect.objectContaining({ deletedAt: null }) }),
+    );
   });
 
   it('super_admin is not school-scoped', async () => {
