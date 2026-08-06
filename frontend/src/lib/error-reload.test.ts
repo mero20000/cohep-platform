@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest'
-import { isChunkLoadError } from './error-reload'
+import { describe, it, expect, beforeEach } from 'vitest'
+import { isChunkLoadError, shouldAutoReloadOnChunkError, CHUNK_RELOAD_KEY, CHUNK_RELOAD_MAX } from './error-reload'
 
 describe('isChunkLoadError', () => {
   it('detects Next.js "Loading chunk N failed" message', () => {
@@ -28,5 +28,32 @@ describe('isChunkLoadError', () => {
 
   it('returns false when given null', () => {
     expect(isChunkLoadError(null)).toBe(false)
+  })
+})
+
+describe('shouldAutoReloadOnChunkError', () => {
+  beforeEach(() => {
+    sessionStorage.removeItem(CHUNK_RELOAD_KEY)
+  })
+
+  it('returns true for a chunk error when no attempts remain in the session', () => {
+    expect(shouldAutoReloadOnChunkError(new Error('Loading chunk 727 failed.'))).toBe(true)
+  })
+
+  it('allows up to CHUNK_RELOAD_MAX auto-reloads per session (bounded retry)', () => {
+    const error = new Error('Failed to fetch dynamically imported module: https://x/_next/static/chunks/727.js')
+    for (let i = 0; i < CHUNK_RELOAD_MAX; i++) {
+      expect(shouldAutoReloadOnChunkError(error)).toBe(true)
+    }
+    expect(shouldAutoReloadOnChunkError(error)).toBe(false)
+  })
+
+  it('returns false for a non-chunk error and does not consume an attempt', () => {
+    expect(shouldAutoReloadOnChunkError(new Error('Something went wrong'))).toBe(false)
+    expect(sessionStorage.getItem(CHUNK_RELOAD_KEY)).toBeNull()
+  })
+
+  it('returns false when given null', () => {
+    expect(shouldAutoReloadOnChunkError(null)).toBe(false)
   })
 })
