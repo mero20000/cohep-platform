@@ -16,7 +16,7 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { http } from '@/lib/http-client'
 import { getSchoolId } from '@/lib/school'
 import { useLanguage } from '@/lib/use-language'
-import { SERVANT_ROLES } from '@/lib/roles'
+import { SERVANT_ROLES, ROLES } from '@/lib/roles'
 import { PhoneLink } from '@/app/dashboard/students/_components/phone-link'
 import { usePermission } from '@/lib/use-permission'
 
@@ -84,7 +84,6 @@ export default function ServantsPage() {
 
   const [levels, setLevels] = useState<LevelWithGroups[]>([])
   const [activeGroups, setActiveGroups] = useState<Group[]>([])
-  const [roles, setRoles] = useState<ServantRole[]>([])
 
   const [showForm, setShowForm] = useState(false)
   const [editing, setEditing] = useState<ServantUser | null>(null)
@@ -133,16 +132,7 @@ export default function ServantsPage() {
     }
   }, [schoolId, toast])
 
-  const fetchRoles = useCallback(async () => {
-    try {
-      const data = await http.get<ServantRole[]>('/users/roles')
-      setRoles(data.filter(r => (SERVANT_ROLES as readonly string[]).includes(r.name)))
-    } catch (e: any) {
-      toast('error', e?.message || (lang === 'ar' ? 'فشل تحميل الأدوار' : 'Failed to load roles'))
-    }
-  }, [toast])
-
-  useEffect(() => { fetchServants(); fetchLevels(); fetchRoles() }, [fetchServants, fetchLevels, fetchRoles])
+  useEffect(() => { fetchServants(); fetchLevels() }, [fetchServants, fetchLevels])
 
   useEffect(() => {
     http.get<any>('/users/schools/me').then(s => {
@@ -165,6 +155,13 @@ export default function ServantsPage() {
     const level = levels.find(l => l.id === form.levelId)
     return level?.groups?.filter(g => g.status !== 'inactive') || []
   }, [form.levelId, levels])
+
+  const roleOptions = useMemo<ServantRole[]>(() =>
+    SERVANT_ROLES.map(v => {
+      const r = ROLES.find(x => x.value === v)!
+      return { id: v, name: v, displayName: lang === 'ar' ? r.labelAr : r.label }
+    })
+  , [lang])
 
   const filteredServants = useMemo(() => {
     return servants.filter(s => {
@@ -410,7 +407,7 @@ export default function ServantsPage() {
           <select aria-label={lang === 'ar' ? 'تصفية حسب الدور' : 'Filter by role'} value={filterRole} onChange={e => setFilterRole(e.target.value)}
             className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
             <option value="">{lang === 'ar' ? 'جميع الأدوار' : 'All Roles'}</option>
-            {roles.map(r => (
+            {roleOptions.map(r => (
               <option key={r.name} value={r.name}>{r.displayName}</option>
             ))}
           </select>
@@ -705,7 +702,7 @@ export default function ServantsPage() {
             <label className="block text-sm font-medium text-gray-700 mb-1.5">{lang === 'ar' ? 'الدور' : 'Role'}</label>
             <select value={form.roleName} onChange={e => updateField('roleName', e.target.value)}
               className="block w-full rounded-lg border border-gray-300 bg-white px-3.5 py-2.5 text-sm focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
-              {roles.map(r => (
+              {roleOptions.map(r => (
                 <option key={r.name} value={r.name}>{r.displayName}</option>
               ))}
             </select>

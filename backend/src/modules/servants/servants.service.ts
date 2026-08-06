@@ -45,7 +45,7 @@ export class ServantsService {
       where,
       select: {
         id: true, firstName: true, lastName: true, firstNameAr: true, lastNameAr: true,
-        email: true, phone: true, avatarUrl: true, isActive: true, lastLoginAt: true,
+        email: true, phone: true, avatarUrl: true, isActive: true, lastLoginAt: true, deletedAt: true,
         userRoles: { select: { role: { select: { id: true, name: true, displayName: true } } } },
         metadata: true,
       },
