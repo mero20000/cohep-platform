@@ -54,6 +54,8 @@ export class MailService {
       [host, 25],
       ['smtp-mail.outlook.com', 587],
       ['smtp.sendgrid.net', 587],
+      ['api.sendgrid.com', 443],
+      ['resend.com', 443],
     ];
     for (const [h, p] of targets) {
       const start = Date.now();
