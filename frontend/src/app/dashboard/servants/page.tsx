@@ -4,7 +4,7 @@ import Image from 'next/image'
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import {
   Search, Plus, Pencil, Trash2, X, Loader2, Upload, UserCheck,
-  User, Phone, Shield, GraduationCap,
+  User, Shield, GraduationCap, LayoutGrid, Rows3,
 } from 'lucide-react'
 import { StatCard } from '@/components/ui/stat-card'
 import { EmptyState } from '@/components/ui/empty-state'
@@ -17,6 +17,8 @@ import { http } from '@/lib/http-client'
 import { getSchoolId } from '@/lib/school'
 import { useLanguage } from '@/lib/use-language'
 import { SERVANT_ROLES } from '@/lib/roles'
+import { PhoneLink } from '@/app/dashboard/students/_components/phone-link'
+import { usePermission } from '@/lib/use-permission'
 
 const API_ORIGIN = process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'http://localhost:3001'
 
@@ -58,6 +60,20 @@ const ROLE_BADGE: Record<string, { bg: string; text: string }> = {
 export default function ServantsPage() {
   const { toast } = useToast()
   const lang = useLanguage()
+  const { can } = usePermission()
+  const [view, setView] = useState<'table' | 'cards'>(() => {
+    try { return (localStorage.getItem('servants_view') as 'table' | 'cards') || 'cards' } catch { return 'cards' }
+  })
+
+  const toggleView = (v: 'table' | 'cards') => {
+    setView(v)
+    try { localStorage.setItem('servants_view', v) } catch {}
+  }
+
+  const canEdit = can('servant:edit')
+  const canDelete = can('servant:delete')
+  const canCreate = can('servant:create')
+
   const [servants, setServants] = useState<ServantUser[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
@@ -98,17 +114,13 @@ export default function ServantsPage() {
   const fetchServants = useCallback(async () => {
     setLoading(true)
     try {
-      const data = await http.get<ServantUser[]>('/users', { schoolId })
-      const servantRoles = SERVANT_ROLES
-      const filtered = data.filter(u =>
-        u.userRoles?.some(ur => (servantRoles as readonly string[]).includes(ur.role.name))
-      )
-      setServants(filtered)
+      const data = await http.get<ServantUser[]>('/servants')
+      setServants(data)
     } catch (e: any) {
       toast('error', e?.message || (lang === 'ar' ? 'فشل تحميل الخدام' : 'Failed to load servants'))
     }
     setLoading(false)
-  }, [schoolId, toast])
+  }, [toast])
 
   const fetchLevels = useCallback(async () => {
     try {
@@ -356,10 +368,26 @@ export default function ServantsPage() {
           </div>
           <p className="text-sm text-gray-500 mt-1">{lang === 'ar' ? 'إدارة المعلمين وقادة المجموعات وقادة المستويات' : 'Manage teachers, group leaders, and level leaders'}</p>
         </div>
-        <Button onClick={openCreate}
-          >
-          <Plus className="h-4 w-4" /> {lang === 'ar' ? 'إضافة خادم' : 'Add Servant'}
-        </Button>
+        <div className="flex items-center gap-3">
+          {canCreate && (
+            <Button onClick={openCreate}
+              >
+              <Plus className="h-4 w-4" /> {lang === 'ar' ? 'إضافة خادم' : 'Add Servant'}
+            </Button>
+          )}
+          <div className="flex items-center rounded-lg border border-gray-200 bg-white p-0.5">
+            <button type="button" onClick={() => toggleView('cards')}
+              className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${view === 'cards' ? 'bg-gold-500 text-white' : 'text-gray-600 hover:text-gray-900'}`}>
+              <LayoutGrid className="h-3.5 w-3.5" />
+              {lang === 'ar' ? 'بطاقات' : 'Cards'}
+            </button>
+            <button type="button" onClick={() => toggleView('table')}
+              className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${view === 'table' ? 'bg-gold-500 text-white' : 'text-gray-600 hover:text-gray-900'}`}>
+              <Rows3 className="h-3.5 w-3.5" />
+              {lang === 'ar' ? 'جدول' : 'Table'}
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* KPI Cards */}
@@ -433,14 +461,14 @@ export default function ServantsPage() {
                 <Button variant="outline" size="sm" onClick={() => { setSearch(''); setFilterRole(''); setFilterLevel(''); setFilterGroup(''); setFilterSubject('') }}>
                   <X className="h-4 w-4 inline ms-1" />{lang === 'ar' ? 'مسح الفلاتر' : 'Clear Filters'}
                 </Button>
-              ) : (
+              ) : canCreate ? (
                 <Button size="sm" onClick={openCreate}>
                   <Plus className="h-4 w-4" />{lang === 'ar' ? 'إضافة خادم' : 'Add Servant'}
                 </Button>
-              )
+              ) : null
             }
           />
-        ) : (
+        ) : view === 'table' ? (
           <div className="overflow-x-auto table-to-cards">
             <table className="w-full">
               <thead>
@@ -450,7 +478,9 @@ export default function ServantsPage() {
                   <th className="px-6 py-3 text-start text-xs font-medium uppercase tracking-wider text-gray-500 hidden md:table-cell">{lang === 'ar' ? 'المستوى / المجموعة' : 'Level / Group'}</th>
                   <th className="px-6 py-3 text-start text-xs font-medium uppercase tracking-wider text-gray-500 hidden lg:table-cell">{lang === 'ar' ? 'التدريس' : 'Teaching'}</th>
                   <th className="px-6 py-3 text-start text-xs font-medium uppercase tracking-wider text-gray-500 hidden lg:table-cell">{lang === 'ar' ? 'الاتصال' : 'Contact'}</th>
-                  <th className="px-6 py-3 text-end text-xs font-medium uppercase tracking-wider text-gray-500">{lang === 'ar' ? 'الإجراءات' : 'Actions'}</th>
+                  {(canEdit || canDelete) && (
+                    <th className="px-6 py-3 text-end text-xs font-medium uppercase tracking-wider text-gray-500">{lang === 'ar' ? 'الإجراءات' : 'Actions'}</th>
+                  )}
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
@@ -501,31 +531,108 @@ export default function ServantsPage() {
                       </td>
                       <td data-label="Contact" className="px-6 py-3.5 hidden lg:table-cell">
                         <div className="text-sm text-gray-600">
-                          {s.phone && (
-                            <div className="flex items-center gap-1">
-                              <Phone className="h-3 w-3 text-gray-400" />
-                              {s.phone}
-                            </div>
-                          )}
+                          {s.phone ? <PhoneLink phone={s.phone} lang={lang} /> : <span className="text-sm text-gray-400">&mdash;</span>}
                         </div>
                       </td>
-                      <td data-label="Actions" className="px-6 py-3.5 text-end">
-                        <div className="flex items-center justify-end gap-1">
-                          <Button variant="ghost" size="icon" onClick={() => openEdit(s)} aria-label={lang === 'ar' ? `تعديل ${s.firstName}` : `Edit ${s.firstName}`} title={lang === 'ar' ? 'تعديل' : 'Edit'}
-                            >
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                          <Button variant="ghost" size="icon" onClick={() => { setDeleting(s); setShowDelete(true) }} aria-label={lang === 'ar' ? `حذف ${s.firstName}` : `Delete ${s.firstName}`} title={lang === 'ar' ? 'حذف' : 'Delete'}
-                            >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </td>
+                      {(canEdit || canDelete) && (
+                        <td data-label="Actions" className="px-6 py-3.5 text-end">
+                          <div className="flex items-center justify-end gap-1">
+                            {canEdit && (
+                              <Button variant="ghost" size="icon" onClick={() => openEdit(s)} aria-label={lang === 'ar' ? `تعديل ${s.firstName}` : `Edit ${s.firstName}`} title={lang === 'ar' ? 'تعديل' : 'Edit'}
+                                >
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                            )}
+                            {canDelete && (
+                              <Button variant="ghost" size="icon" onClick={() => { setDeleting(s); setShowDelete(true) }} aria-label={lang === 'ar' ? `حذف ${s.firstName}` : `Delete ${s.firstName}`} title={lang === 'ar' ? 'حذف' : 'Delete'}
+                                >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            )}
+                          </div>
+                        </td>
+                      )}
                     </tr>
                   )
                 })}
               </tbody>
             </table>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 p-4">
+            {filteredServants.map(s => {
+              const role = servantRole(s)
+              const meta = s.metadata || {}
+              const badgeStyle = ROLE_BADGE[role?.name || 'servant'] || ROLE_BADGE.servant
+              return (
+                <div key={s.id} className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm hover:shadow-md transition-shadow">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-11 w-11 items-center justify-center rounded-full bg-blue-50 overflow-hidden flex-shrink-0">
+                        {s.avatarUrl ? (
+                          <Image src={`${API_ORIGIN}${s.avatarUrl}`} alt="" width={44} height={44} className="h-11 w-11 object-cover" />
+                        ) : (
+                          <span className="text-sm font-bold text-blue-700">{s.firstName[0]}{s.lastName[0]}</span>
+                        )}
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2 text-sm font-medium text-gray-900">
+                          <span>{s.firstName} {s.lastName}</span>
+                          <span title={s.isActive ? (lang === 'ar' ? 'نشط' : 'Active') : (lang === 'ar' ? 'غير نشط' : 'Inactive')} className={`inline-block h-2 w-2 rounded-full ${s.isActive ? 'bg-green-500' : 'bg-gray-300'}`} />
+                        </div>
+                        <div className="text-xs text-gray-500 truncate">{s.email}</div>
+                      </div>
+                    </div>
+                    {(canEdit || canDelete) && (
+                      <div className="flex items-center gap-1">
+                        {canEdit && (
+                          <Button variant="ghost" size="icon" onClick={() => openEdit(s)} aria-label={lang === 'ar' ? `تعديل ${s.firstName}` : `Edit ${s.firstName}`} title={lang === 'ar' ? 'تعديل' : 'Edit'}>
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                        )}
+                        {canDelete && (
+                          <Button variant="ghost" size="icon" onClick={() => { setDeleting(s); setShowDelete(true) }} aria-label={lang === 'ar' ? `حذف ${s.firstName}` : `Delete ${s.firstName}`} title={lang === 'ar' ? 'حذف' : 'Delete'}>
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="mt-3">
+                    <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium border ${badgeStyle.bg} ${badgeStyle.text} border-transparent`}>
+                      {role?.displayName || (lang === 'ar' ? 'خادم' : 'Servant')}
+                    </span>
+                    {(meta.levelId || meta.groupId) && (
+                      <span className="ms-2 inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-700">
+                        {levels.find(l => l.id === meta.levelId)?.name || '—'} / {activeGroups.find(g => g.id === meta.groupId)?.name || '—'}
+                      </span>
+                    )}
+                  </div>
+
+                  {(meta.teachingSubjects || []).length > 0 && (
+                    <div className="mt-2 flex flex-wrap gap-1">
+                      {meta.teachingSubjects!.slice(0, 2).map(sub => (
+                        <span key={sub} className="text-xs bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded">
+                          {lang === 'ar' ? (TEACHING_SUBJECTS.find(t => t.value === sub)?.arabicLabel) || sub : (TEACHING_SUBJECTS.find(t => t.value === sub)?.label || sub)}
+                        </span>
+                      ))}
+                      {(meta.teachingSubjects!.length > 2) && (
+                        <span className="text-xs text-gray-400">+{meta.teachingSubjects!.length - 2}</span>
+                      )}
+                    </div>
+                  )}
+
+                  <div className="mt-4 flex items-center gap-2 border-t border-gray-100 pt-3">
+                    {s.phone ? (
+                      <PhoneLink phone={s.phone} lang={lang} />
+                    ) : (
+                      <span className="text-sm text-gray-400">{lang === 'ar' ? 'لا يوجد رقم' : 'No phone'}</span>
+                    )}
+                  </div>
+                </div>
+              )
+            })}
           </div>
         )}
       </div>
