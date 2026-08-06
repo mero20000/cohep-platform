@@ -1,6 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as nodemailer from 'nodemailer';
+import { createConnection } from 'node:net';
+import { lookup } from 'node:dns/promises';
 import { emailTemplate, emailKeyValueRow, emailParagraph } from './email-template';
 
 @Injectable()
@@ -35,6 +37,36 @@ export class MailService {
     );
     if (!user || !pass) {
       console.error('[mail] MAIL_USER or MAIL_PASS is not configured — emails will fail.');
+    }
+    // Temporary diagnostic: probes outbound SMTP reachability so we can see
+    // whether Render's container can connect to the mail host at all.
+    if (process.env.NODE_ENV !== 'test') {
+      this.probeSmtp().catch(() => undefined);
+    }
+  }
+
+  private async probeSmtp() {
+    const host = this.configService.get('MAIL_HOST', 'smtp.gmail.com');
+    const port = Number(this.configService.get('MAIL_PORT', 587));
+    try {
+      const addrs = await lookup(host, { all: true });
+      console.log(`[mail] probe: ${host} ->`, addrs.map((a) => `${a.address} (${a.family})`).join(', '));
+    } catch (e) {
+      console.log(`[mail] probe: DNS lookup of ${host} FAILED`, e instanceof Error ? e.message : e);
+      return;
+    }
+    for (const p of [port, 465, 25]) {
+      try {
+        await new Promise<void>((resolve, reject) => {
+          const s = createConnection({ host, port: p, family: 4, timeout: 8000 });
+          s.once('connect', () => { s.destroy(); resolve(); });
+          s.once('error', (e) => { s.destroy(); reject(e); });
+          s.once('timeout', () => { s.destroy(); reject(new Error('timeout')); });
+        });
+        console.log(`[mail] probe: port ${p} OK`);
+      } catch (e) {
+        console.log(`[mail] probe: port ${p} FAILED (${e instanceof Error ? e.message : e})`);
+      }
     }
   }
 
