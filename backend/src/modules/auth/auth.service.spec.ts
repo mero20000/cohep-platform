@@ -268,4 +268,19 @@ describe('AuthService', () => {
       await expect(service.resetPassword('bad-token', 'NewPassword123!')).rejects.toThrow(BadRequestException);
     });
   });
+
+  describe('changePassword', () => {
+    it('sets passwordChangedAt so outstanding reset links are revoked', async () => {
+      prisma.user.findUnique.mockResolvedValue(baseUser);
+
+      await service.changePassword('user-1', 'OldPassword1!', 'NewPassword123!');
+
+      expect(prisma.user.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 'user-1' },
+          data: expect.objectContaining({ passwordChangedAt: expect.any(Date) }),
+        }),
+      );
+    });
+  });
 });

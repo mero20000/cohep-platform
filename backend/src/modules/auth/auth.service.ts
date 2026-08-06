@@ -343,7 +343,7 @@ export class AuthService {
     const valid = await bcrypt.compare(currentPassword, user.passwordHash);
     if (!valid) throw new UnauthorizedException('Current password is incorrect');
     const passwordHash = await bcrypt.hash(newPassword, 12);
-    await this.prisma.user.update({ where: { id: userId }, data: { passwordHash } });
+    await this.prisma.user.update({ where: { id: userId }, data: { passwordHash, passwordChangedAt: new Date() } });
     return { success: true };
   }
 

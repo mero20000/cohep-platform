@@ -133,7 +133,7 @@ export class AdminController {
     const passwordHash = await bcrypt.hash(newPassword, 12);
     await this.prisma.user.update({
       where: { id: user.id },
-      data: { passwordHash },
+      data: { passwordHash, passwordChangedAt: new Date() },
     });
     return { message: `Password reset for ${email}` };
   }
