@@ -60,11 +60,9 @@ Add these manually (they're not in render.yaml for security):
 
 | Key | Value |
 |-----|-------|
-| `MAIL_HOST` | `smtp.gmail.com` |
-| `MAIL_PORT` | `587` |
-| `MAIL_USER` | `amir.adly1@gmail.com` |
-| `MAIL_PASS` | `gnze cuzt vbcd xumb` |
-| `MAIL_FROM` | `amir.adly1@gmail.com` |
+| `SENDGRID_API_KEY` | `SG.xxxx` (create a free SendGrid account → API Keys → Create API Key) |
+| `MAIL_FROM` | `amir.adly1@gmail.com` (must be verified as a Single Sender in SendGrid) |
+| `MAIL_TO` | Admin email that receives new-registration notifications |
 | `JWT_EXPIRATION` | `15m` |
 | `JWT_REFRESH_EXPIRATION` | `7d` |
 | `STORAGE_TYPE` | `local` |

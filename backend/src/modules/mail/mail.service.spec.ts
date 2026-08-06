@@ -1,57 +1,116 @@
-import { ConfigService } from '@nestjs/config';
-import * as nodemailer from 'nodemailer';
-import { MailService } from './mail.service';
+import { ConfigService } from "@nestjs/config";
+import { MailService } from "./mail.service";
 
-jest.mock('nodemailer', () => ({
-  createTransport: jest.fn(),
-}));
+const fetchMock = jest.fn();
 
-const createTransportMock = nodemailer.createTransport as jest.Mock;
-
-describe('MailService', () => {
+describe("MailService", () => {
   let service: MailService;
-  let sendMailMock: jest.Mock;
+  let configGet: jest.Mock;
 
   beforeEach(() => {
-    sendMailMock = jest.fn().mockResolvedValue({ accepted: ['to@example.com'] });
-    createTransportMock.mockImplementation(() => ({ sendMail: sendMailMock }));
-    service = new MailService({
-      get: jest.fn((key: string, def?: any) => {
-        if (key === 'MAIL_USER') return 'sender@gmail.com';
-        if (key === 'MAIL_PASS') return 'app-password';
-        return def;
-      }),
-    } as unknown as ConfigService);
+    fetchMock.mockReset();
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 202,
+      text: async () => "",
+    });
+    global.fetch = fetchMock as unknown as typeof fetch;
+    configGet = jest.fn((key: string, def?: any) => {
+      if (key === "SENDGRID_API_KEY") return "SG.test-key";
+      return def;
+    });
+    service = new MailService({ get: configGet } as unknown as ConfigService);
   });
 
-  it('sends a password reset email with an absolute CTA link', async () => {
+  it("sends a password reset email with an absolute CTA link", async () => {
     await service.sendPasswordReset(
-      'user@example.com',
-      'https://cohep-platform.vercel.app/reset-password?token=abc123',
+      "user@example.com",
+      "https://cohep-platform.vercel.app/reset-password?token=abc123",
     );
 
-    expect(sendMailMock).toHaveBeenCalledWith(
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://api.sendgrid.com/v3/mail/send",
       expect.objectContaining({
-        from: 'noreply@niangelos.app',
-        to: 'user@example.com',
-        subject: 'Reset your COHEP password',
+        method: "POST",
+        headers: expect.objectContaining({
+          Authorization: "Bearer SG.test-key",
+          "Content-Type": "application/json",
+        }),
       }),
     );
-    const sent = sendMailMock.mock.calls[0][0] as { html: string };
-    expect(sent.html).toContain('https://cohep-platform.vercel.app/reset-password?token=abc123');
-    expect(sent.html).toContain('Reset Your Password');
-    expect(sent.html).toContain('expires in 1 hour');
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body) as {
+      from: { email: string };
+      personalizations: Array<{ to: Array<{ email: string }> }>;
+      subject: string;
+      content: Array<{ type: string; value: string }>;
+    };
+    expect(body.from.email).toBe("noreply@niangelos.app");
+    expect(body.personalizations[0].to[0].email).toBe("user@example.com");
+    expect(body.subject).toBe("Reset your COHEP password");
+    expect(body.content[0].value).toContain(
+      "https://cohep-platform.vercel.app/reset-password?token=abc123",
+    );
+    expect(body.content[0].value).toContain("Reset Your Password");
+    expect(body.content[0].value).toContain("expires in 1 hour");
   });
 
-  it('uses MAIL_FROM when configured', async () => {
-    service = new MailService({
-      get: jest.fn((key: string, def?: any) => {
-        if (key === 'MAIL_FROM') return 'custom@example.com';
-        return def;
-      }),
-    } as unknown as ConfigService);
+  it("uses MAIL_FROM when configured", async () => {
+    configGet.mockImplementation((key: string, def?: any) => {
+      if (key === "SENDGRID_API_KEY") return "SG.test-key";
+      if (key === "MAIL_FROM") return "custom@example.com";
+      return def;
+    });
+    service = new MailService({ get: configGet } as unknown as ConfigService);
 
-    await service.sendPasswordReset('user@example.com', 'https://x.example/reset?token=1');
-    expect(sendMailMock.mock.calls[0][0].from).toBe('custom@example.com');
+    await service.sendPasswordReset(
+      "user@example.com",
+      "https://x.example/reset?token=1",
+    );
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body) as {
+      from: { email: string };
+    };
+    expect(body.from.email).toBe("custom@example.com");
+  });
+
+  it("logs and throws when SendGrid returns an error", async () => {
+    fetchMock.mockResolvedValue({
+      ok: false,
+      status: 401,
+      text: async () => '{"errors":[{"message":"invalid api key"}]}',
+    });
+    const logSpy = jest
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+
+    await expect(
+      service.sendPasswordReset(
+        "user@example.com",
+        "https://x.example/reset?token=1",
+      ),
+    ).rejects.toThrow("SendGrid 401");
+    expect(logSpy).toHaveBeenCalledWith(
+      '[mail] FAILED to=user@example.com subject="Reset your COHEP password"',
+      'SendGrid 401: {"errors":[{"message":"invalid api key"}]}',
+    );
+    logSpy.mockRestore();
+  });
+
+  it("fails fast with a clear error when SENDGRID_API_KEY is missing", async () => {
+    configGet.mockImplementation((key: string, def?: any) =>
+      key === "SENDGRID_API_KEY" ? "" : def,
+    );
+    const logSpy = jest
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+    service = new MailService({ get: configGet } as unknown as ConfigService);
+
+    await expect(
+      service.sendPasswordReset(
+        "user@example.com",
+        "https://x.example/reset?token=1",
+      ),
+    ).rejects.toThrow("SENDGRID_API_KEY is not configured");
+    expect(fetchMock).not.toHaveBeenCalled();
+    logSpy.mockRestore();
   });
 });

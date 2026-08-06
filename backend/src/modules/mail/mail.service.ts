@@ -1,13 +1,17 @@
-import { Injectable } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import * as nodemailer from 'nodemailer';
-import { createConnection } from 'node:net';
-import { lookup } from 'node:dns/promises';
-import { emailTemplate, emailKeyValueRow, emailParagraph } from './email-template';
+import { Injectable } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
+import {
+  emailTemplate,
+  emailKeyValueRow,
+  emailParagraph,
+} from "./email-template";
+
+const SENDGRID_API_URL = "https://api.sendgrid.com/v3/mail/send";
 
 @Injectable()
 export class MailService {
-  private transporter: nodemailer.Transporter;
+  private readonly apiKey: string;
+  private readonly from: string;
 
   // Dedupe cache: key -> timestamp of last send. Prevents duplicate emails
   // (e.g. a re-submitted registration form) from spamming the same recipient.
@@ -15,71 +19,54 @@ export class MailService {
   private static readonly DEDUPE_TTL_MS = 10 * 60_000;
 
   // Serializes sends so bursts of mail are dispatched sequentially instead
-  // of piling up as concurrent socket connections.
+  // of piling up as concurrent requests.
   private sendChain: Promise<unknown> = Promise.resolve();
 
   constructor(private configService: ConfigService) {
-    this.transporter = nodemailer.createTransport({
-      host: this.configService.get('MAIL_HOST', 'smtp.gmail.com'),
-      port: this.configService.get('MAIL_PORT', 587),
-      secure: false,
-      auth: {
-        user: this.configService.get('MAIL_USER', ''),
-        pass: this.configService.get('MAIL_PASS', ''),
-      },
-    });
-    const host = this.configService.get('MAIL_HOST', 'smtp.gmail.com');
-    const user = this.configService.get('MAIL_USER', '');
-    const pass = this.configService.get('MAIL_PASS', '');
-    const to = this.configService.get('MAIL_TO', '');
+    this.apiKey = this.configService.get("SENDGRID_API_KEY", "");
+    this.from = this.configService.get("MAIL_FROM", "noreply@niangelos.app");
+    const to = this.configService.get("MAIL_TO", "");
     console.log(
-      `[mail] config: host=${host} user=${user ? 'set' : 'MISSING'} pass=${pass ? 'set' : 'MISSING'} from=${this.configService.get('MAIL_FROM', 'noreply@niangelos.app')} to=${to ? 'set' : 'MISSING'}`,
+      `[mail] config: provider=sendgrid apiKey=${this.apiKey ? "set" : "MISSING"} from=${this.from} to=${to ? "set" : "MISSING"}`,
     );
-    if (!user || !pass) {
-      console.error('[mail] MAIL_USER or MAIL_PASS is not configured — emails will fail.');
-    }
-    // Temporary diagnostic: probes outbound SMTP reachability so we can see
-    // whether Render's container can connect to the mail host at all.
-    if (process.env.NODE_ENV !== 'test') {
-      this.probeSmtp().catch(() => undefined);
-    }
-  }
-
-  private async probeSmtp() {
-    const host = this.configService.get('MAIL_HOST', 'smtp.gmail.com');
-    const port = Number(this.configService.get('MAIL_PORT', 587));
-    const targets: Array<[string, number]> = [
-      [host, port],
-      [host, 465],
-      [host, 25],
-      ['smtp-mail.outlook.com', 587],
-      ['smtp.sendgrid.net', 587],
-      ['api.sendgrid.com', 443],
-      ['resend.com', 443],
-    ];
-    for (const [h, p] of targets) {
-      const start = Date.now();
-      try {
-        await new Promise<void>((resolve, reject) => {
-          const s = createConnection({ host: h, port: p, family: 4, timeout: 8000 });
-          s.once('connect', () => { s.destroy(); resolve(); });
-          s.once('error', (e) => { s.destroy(); reject(e); });
-          s.once('timeout', () => { s.destroy(); reject(new Error('timeout')); });
-        });
-        console.log(`[mail] probe: ${h}:${p} OK (${Date.now() - start}ms)`);
-      } catch (e) {
-        console.log(`[mail] probe: ${h}:${p} FAILED (${e instanceof Error ? e.message : e})`);
-      }
+    if (!this.apiKey) {
+      console.error(
+        "[mail] SENDGRID_API_KEY is not configured — emails will fail.",
+      );
     }
   }
 
   async sendMail(to: string, subject: string, html: string) {
-    const from = this.configService.get('MAIL_FROM', 'noreply@niangelos.app');
+    // SendGrid rejects subjects longer than 100 chars; long generated
+    // subjects (e.g. church names in registration emails) would otherwise 400.
+    const safeSubject = subject.slice(0, 98);
     try {
-      await this.transporter.sendMail({ from, to, subject, html });
+      if (!this.apiKey) {
+        throw new Error("SENDGRID_API_KEY is not configured");
+      }
+      const res = await fetch(SENDGRID_API_URL, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${this.apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          personalizations: [{ to: [{ email: to }] }],
+          from: { email: this.from },
+          subject: safeSubject,
+          content: [{ type: "text/html", value: html }],
+        }),
+      });
+      if (!res.ok) {
+        const detail = (await res.text()).slice(0, 300);
+        throw new Error(`SendGrid ${res.status}: ${detail}`);
+      }
       console.log(`[mail] sent to=${to} subject="${subject}"`);
     } catch (err) {
-      console.error(`[mail] FAILED to=${to} subject="${subject}"`, err instanceof Error ? err.message : err);
+      console.error(
+        `[mail] FAILED to=${to} subject="${subject}"`,
+        err instanceof Error ? err.message : err,
+      );
       throw err;
     }
   }
@@ -117,29 +104,35 @@ export class MailService {
     return this.enqueue(fn);
   }
 
-  async sendRegistrationNotification(adminEmail: string, data: {
-    churchName: string;
-    firstName: string;
-    lastName: string;
-    email: string;
-    phone: string;
-    country: string;
-    city: string;
-  }) {
+  async sendRegistrationNotification(
+    adminEmail: string,
+    data: {
+      churchName: string;
+      firstName: string;
+      lastName: string;
+      email: string;
+      phone: string;
+      country: string;
+      city: string;
+    },
+  ) {
     const html = emailTemplate({
-      title: 'New Registration Request',
+      title: "New Registration Request",
       content: `
-        ${emailParagraph('A new church has submitted a registration request. Review the details below:')}
+        ${emailParagraph("A new church has submitted a registration request. Review the details below:")}
         <table style="width:100%;border-collapse:collapse;font-size:14px;">
-          ${emailKeyValueRow('Church', data.churchName)}
-          ${emailKeyValueRow('Contact', `${data.firstName} ${data.lastName}`)}
-          ${emailKeyValueRow('Email', data.email)}
-          ${emailKeyValueRow('Phone', data.phone)}
-          ${emailKeyValueRow('Country', data.country)}
-          ${emailKeyValueRow('City', data.city)}
+          ${emailKeyValueRow("Church", data.churchName)}
+          ${emailKeyValueRow("Contact", `${data.firstName} ${data.lastName}`)}
+          ${emailKeyValueRow("Email", data.email)}
+          ${emailKeyValueRow("Phone", data.phone)}
+          ${emailKeyValueRow("Country", data.country)}
+          ${emailKeyValueRow("City", data.city)}
         </table>
       `,
-      cta: { text: 'Review Registration', url: '/dashboard/pending-registrations' },
+      cta: {
+        text: "Review Registration",
+        url: "/dashboard/pending-registrations",
+      },
     });
     const key = `reg:${adminEmail.toLowerCase()}:${data.email.toLowerCase()}:${data.churchName.toLowerCase()}`;
     await this.dedupe(key, () =>
@@ -147,33 +140,38 @@ export class MailService {
     );
   }
 
-  async sendAttendanceAlert(to: string, studentName: string, studentNameAr: string, groupName: string) {
+  async sendAttendanceAlert(
+    to: string,
+    studentName: string,
+    studentNameAr: string,
+    groupName: string,
+  ) {
     const html = emailTemplate({
-      title: 'We Miss Your Child in Class',
+      title: "We Miss Your Child in Class",
       content: `
         ${emailParagraph(`We've noticed that ${studentName} hasn't attended ${groupName} for the past 3 weeks. We miss them and hope everything is okay!`)}
         ${emailParagraph(`لاحظنا أن ${studentNameAr || studentName} لم يحضر ${groupName} خلال الأسابيع الثلاثة الماضية. نحن نفتقدهم ونأمل أن يكون كل شيء على ما يرام!`)}
         <table style="width:100%;border-collapse:collapse;font-size:14px;">
-          ${emailKeyValueRow('Student', studentName)}
-          ${emailKeyValueRow('Group', groupName)}
+          ${emailKeyValueRow("Student", studentName)}
+          ${emailKeyValueRow("Group", groupName)}
         </table>
-        ${emailParagraph('If there is anything we can help with, please reach out to your child\'s servant.')}
+        ${emailParagraph("If there is anything we can help with, please reach out to your child's servant.")}
       `,
-      cta: { text: 'View Attendance', url: '/portal' },
+      cta: { text: "View Attendance", url: "/portal" },
     });
     await this.sendMail(to, `We miss ${studentName} in class`, html);
   }
 
   async sendPasswordReset(to: string, resetUrl: string) {
     const html = emailTemplate({
-      title: 'Reset Your Password',
+      title: "Reset Your Password",
       content: `
-        ${emailParagraph('We received a request to reset your password. Click the button below to choose a new one.')}
+        ${emailParagraph("We received a request to reset your password. Click the button below to choose a new one.")}
         ${emailParagraph("If you didn't request this, you can safely ignore this email — your password will stay the same.")}
-        ${emailParagraph('This link expires in 1 hour.')}
+        ${emailParagraph("This link expires in 1 hour.")}
       `,
-      cta: { text: 'Reset Password', url: resetUrl },
+      cta: { text: "Reset Password", url: resetUrl },
     });
-    await this.sendMail(to, 'Reset your COHEP password', html);
+    await this.sendMail(to, "Reset your COHEP password", html);
   }
 }
