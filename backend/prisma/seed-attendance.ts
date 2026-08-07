@@ -36,7 +36,7 @@ async function main() {
       const lesson = lessons.find(l => l.levelId === level.id) || lessons[0];
       if (!lesson) continue;
 
-      const groups = await prisma.group.findMany({ where: { levelId: level.id } });
+      const groups = await prisma.group.findMany({ where: { schoolId: school.id } });
       const group = groups[0];
       if (!group) continue;
 

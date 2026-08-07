@@ -78,26 +78,48 @@ async function main() {
   }
   console.log('Levels ready:', levels.length);
 
-  // ── Groups ─────────────────────────────────────────────────────────────
-  for (const level of levels) {
-    for (let g = 1; g <= 4; g++) {
-      const existing = await prisma.group.findFirst({
-        where: { levelId: level.id, name: `Group ${g}` },
+  // ── Groups (school-wide) ───────────────────────────────────────────────
+  for (let g = 1; g <= 4; g++) {
+    const existing = await prisma.group.findFirst({
+      where: { schoolId: school.id, name: `Group ${g}` },
+    });
+    if (!existing) {
+      await prisma.group.create({
+        data: {
+          schoolId: school.id,
+          name: `Group ${g}`,
+          nameAr: `المجموعة ${g}`,
+          capacity: 30,
+          orderIndex: g,
+        },
       });
-      if (!existing) {
-        await prisma.group.create({
-          data: {
-            levelId: level.id,
-            name: `Group ${g}`,
-            nameAr: `المجموعة ${g}`,
-            capacity: 30,
-            orderIndex: g,
-          },
-        });
-      }
     }
   }
   console.log('Groups ready');
+
+  // ── Grades (SchoolGrade) ───────────────────────────────────────────────
+  const groups = await prisma.group.findMany({
+    where: { schoolId: school.id, deletedAt: null },
+    orderBy: { orderIndex: 'asc' },
+  });
+  const gradeNames = ['Grade 4', 'Grade 5', 'Grade 6', 'Grade 7', 'Grade 8', 'Grade 9'];
+  for (let i = 0; i < gradeNames.length; i++) {
+    const existing = await prisma.schoolGrade.findFirst({
+      where: { schoolId: school.id, name: gradeNames[i] },
+    });
+    if (!existing) {
+      await prisma.schoolGrade.create({
+        data: {
+          schoolId: school.id,
+          name: gradeNames[i],
+          nameAr: `الصف ${i + 4}`,
+          groupId: groups[i % groups.length].id,
+          orderIndex: i + 1,
+        },
+      });
+    }
+  }
+  console.log('Grades ready:', gradeNames.length);
 
   // ── Subjects ───────────────────────────────────────────────────────────
   const subjectData = [
@@ -256,19 +278,22 @@ async function main() {
     const genders = ['male', 'male', 'female', 'male', 'female', 'male', 'female', 'male', 'female', 'male', 'female', 'male', 'female', 'male', 'female'];
 
     const allGroups = await prisma.group.findMany({
-      where: { levelId: { in: levels.map((l: any) => l.id) }, deletedAt: null },
-      orderBy: [{ levelId: 'asc' }, { orderIndex: 'asc' }],
+      where: { schoolId: school.id, deletedAt: null },
+      orderBy: { orderIndex: 'asc' },
+    });
+    const grades = await prisma.schoolGrade.findMany({
+      where: { schoolId: school.id, deletedAt: null },
+      orderBy: { orderIndex: 'asc' },
     });
 
     let studentIdx = 0;
     const studentData: any[] = [];
     for (let levelIdx = 0; levelIdx < Math.min(levels.length, 5); levelIdx++) {
       const level = levels[levelIdx];
-      const levelGroups = allGroups.filter((g: any) => g.levelId === level.id);
       const studentsPerLevel = 3;
 
       for (let i = 0; i < studentsPerLevel && studentIdx < firstNames.length; i++) {
-        const group = levelGroups[i % levelGroups.length];
+        const grade = grades[studentIdx % grades.length];
         const nameIdx = studentIdx % firstNames.length;
         studentData.push({
           firstName: firstNames[nameIdx],
@@ -278,9 +303,9 @@ async function main() {
           dateOfBirth: new Date(2012 + studentIdx, 0, 15),
           gender: genders[studentIdx % genders.length],
           churchName: 'St. Mary Church',
-          schoolGrade: `${3 + (studentIdx % 6)}`,
           levelId: level.id,
-          groupId: group.id,
+          gradeId: grade.id,
+          groupId: grade.groupId,
           schoolId: school.id,
           studentCode: `STU-${String(2026001 + studentIdx).padStart(5, '0')}`,
           academicYearId: academicYear.id,
