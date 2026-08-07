@@ -23,6 +23,7 @@ import { ErrorBoundary } from '@/components/ui/error-boundary'
 import { useToast } from '@/components/ui/toast'
 import { http } from '@/lib/http-client'
 import { getSchoolId } from '@/lib/school'
+import { getGreeting, getGreetingAr, getDayName, getDayNameAr } from '@/lib/datetime'
 import { useActiveRole, roleCategory } from '@/lib/use-active-role'
 
 interface GradeDistItem { grade: string; count: number }
@@ -95,11 +96,6 @@ function relativeTime(dateStr: string | null | undefined, locale = 'en') {
  const days = Math.floor(hrs / 24)
  return `${days}d ago`
 }
-function getGreeting() { const h = new Date().getHours(); if (h < 12) return 'Good morning'; if (h < 17) return 'Good afternoon'; return 'Good evening' }
-function getGreetingAr() { const h = new Date().getHours(); if (h < 12) return 'صباح الخير'; if (h < 17) return 'مساء الخير'; return 'مساء الخير' }
-function getDayName() { return new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) }
-function getDayNameAr() { return new Date().toLocaleDateString('ar-EG', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) }
-
 function AnimatedCounter({ value, suffix = '' }: { value: number; suffix?: string }) {
  const [display, setDisplay] = useState(0)
  const raf = useRef<number | null>(null)
