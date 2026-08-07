@@ -60,4 +60,30 @@ describe('DashboardHero', () => {
     expect(screen.getByText('صباح الخير')).toBeInTheDocument()
     vi.mocked(useLanguage).mockReturnValue('en')
   })
+
+  it('renders the avatar tile when provided', () => {
+    render(
+      <DashboardHero
+        bg="var(--hymn-indigo)"
+        title="My Children"
+        avatar={
+          // eslint-disable-next-line @next/next/no-img-element
+          <img data-testid="avatar" alt="" className="h-14 w-14" />
+        }
+      />,
+    )
+    expect(screen.getByTestId('avatar')).toBeInTheDocument()
+  })
+
+  it('renders the description below the badges when provided', () => {
+    render(
+      <DashboardHero
+        bg="var(--hymn-indigo)"
+        title="My Children"
+        badges={<span>chip</span>}
+        description={<p>helper text</p>}
+      />,
+    )
+    expect(screen.getByText('helper text')).toBeInTheDocument()
+  })
 })

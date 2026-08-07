@@ -12,6 +12,8 @@ export interface DashboardHeroProps {
   greeting?: ReactNode
   badges?: ReactNode
   logos?: ReactNode
+  avatar?: ReactNode
+  description?: ReactNode
   children?: ReactNode
   orbTint?: string
 }
@@ -22,6 +24,8 @@ export default function DashboardHero({
   greeting,
   badges,
   logos,
+  avatar,
+  description,
   children,
   orbTint = 'bg-blue-500/10',
 }: DashboardHeroProps) {
@@ -41,17 +45,23 @@ export default function DashboardHero({
       <div className="absolute inset-0 opacity-[0.03] bg-[radial-gradient(circle_at_center,_white_1px,_transparent_1px)] bg-[length:20px_20px]" />
 
       <div className="relative flex items-start justify-between gap-4">
-        <div className="min-w-0">
-          <div className="flex items-center gap-2 text-gold-400 text-sm font-medium mb-2">
-            {greeting ?? (
-              <>
-                <Sun className="h-4 w-4" />
-                <span>{lang === 'ar' ? getGreetingAr() : getGreeting()}</span>
-              </>
-            )}
+        <div className="flex items-start gap-4">
+          {avatar && (
+            <div className="shrink-0 rounded-2xl border-2 border-white/20 overflow-hidden">{avatar}</div>
+          )}
+          <div className="min-w-0">
+            <div className="flex items-center gap-2 text-gold-400 text-sm font-medium mb-2">
+              {greeting ?? (
+                <>
+                  <Sun className="h-4 w-4" />
+                  <span>{lang === 'ar' ? getGreetingAr() : getGreeting()}</span>
+                </>
+              )}
+            </div>
+            <h1 className="text-2xl sm:text-3xl font-bold text-white">{title}</h1>
+            {badges && <div className="flex items-center gap-2 mt-1.5">{badges}</div>}
+            {description && <p className="text-sm mt-3 opacity-80">{description}</p>}
           </div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-white">{title}</h1>
-          {badges && <div className="flex items-center gap-2 mt-1.5">{badges}</div>}
         </div>
         {logos && <div className="flex items-center gap-4 shrink-0">{logos}</div>}
       </div>
