@@ -1713,28 +1713,29 @@ function ParentDashboard({ data, loading, error, onRetry }: { data: any; loading
 
  const topStreak = Math.max(...withP.map((c: any) => c.progress.currentStreak || 0), 0)
 
+ const parentGreeting = (
+  <>
+   <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white/10 border border-white/20">
+    <Baby className="h-5 w-5 text-gold-300" />
+   </div>
+   <span>{lang === 'ar' ? getGreetingAr() : getGreeting()}</span>
+  </>
+ )
+
+ const parentBadges = <p className="text-white/60 text-sm">{lang === 'ar' ? getDayNameAr() : getDayName()}</p>
+
  return (
   <>
 <title>{lang === 'ar' ? 'أولادي' : 'My Children'} — Coptic Orthodox Hymn Education Platform (COHEP)</title>
     <meta name="description" content="Coptic Orthodox Hymn Education Platform (COHEP) parent dashboard" />
    <motion.div className="space-y-6" initial="initial" animate="animate" variants={stagger}>
     {/* Hero */}
-    <div className="relative overflow-hidden rounded-b-[2rem] bg-[var(--hymn-indigo)] p-6 sm:p-8">
-     <div className="absolute -top-6 left-1/2 -translate-x-1/2 w-[120%] h-12 rounded-[50%] bg-blue-500/5" />
-     <div className="absolute top-0 left-1/4 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl" />
-     <div className="absolute bottom-0 right-1/4 w-48 h-48 bg-indigo-500/10 rounded-full blur-3xl" />
-     <div className="absolute inset-0 opacity-[0.03] bg-[radial-gradient(circle_at_center,_white_1px,_transparent_1px)] bg-[length:20px_20px]" />
-     <div className="relative flex items-center gap-3">
-      <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/10 border border-white/20"><Baby className="h-6 w-6 text-gold-300" /></div>
-      <div>
-       <div className="flex items-center gap-2 text-gold-400 text-sm font-medium mb-1">
-        <Sun className="h-4 w-4" /><span>{lang === 'ar' ? getGreetingAr() : getGreeting()}</span>
-       </div>
-       <h1 className="text-2xl sm:text-3xl font-bold text-white tracking-wider">{lang === 'ar' ? 'أولادي' : 'My Children'}</h1>
-       <p className="text-white/60 text-sm mt-1">{lang === 'ar' ? getDayNameAr() : getDayName()}</p>
-      </div>
-     </div>
-    </div>
+    <DashboardHero
+      bg="var(--hymn-indigo)"
+      title={lang === 'ar' ? 'أولادي' : 'My Children'}
+      greeting={parentGreeting}
+      badges={parentBadges}
+    />
 
     {/* Aggregate summary */}
     {children.length > 0 && (
