@@ -255,7 +255,6 @@ model Student {
   gender         String
   photoUrl       String?   @map("photo_url")
   churchName     String?   @map("church_name")
-  schoolGrade    String?   @map("school_grade")
   parentEmail    String?   @map("parent_email")
   levelId        String    @map("level_id")
   groupId        String    @map("group_id")
