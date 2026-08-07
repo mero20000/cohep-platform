@@ -1136,70 +1136,73 @@ function MinistryDashboard({ data, loading, error, onRetry }: { data: any; loadi
   ? ((process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api').replace('/api', '') + school.logoUrl)
   : null
 
+ const ministryBadges = (
+  <>
+   {churchName && (
+    <span className="inline-flex items-center gap-1 rounded-lg bg-white/10 px-2 py-0.5 text-xs font-medium text-white/80">
+     {churchName}
+    </span>
+   )}
+   <p className="text-white/60 text-sm">{lang === 'ar' ? getDayNameAr() : getDayName()}</p>
+   <RoleBadge role={d.role || 'servant'} lang={lang} />
+  </>
+ )
+
+ const ministryLogos = (
+  <>
+   {churchLogo && (
+    <div className="relative shrink-0">
+     <div className="absolute inset-0 rounded-2xl bg-white/10 blur-xl" />
+     <Image src={churchLogo} alt="Church Logo" width={100} height={100}
+      className="relative h-24 w-24 rounded-2xl border-2 border-white/20 bg-white/10 object-cover shadow-xl" />
+    </div>
+   )}
+   {schoolLogo && (
+    <div className="relative shrink-0">
+     <div className="absolute inset-0 rounded-2xl bg-white/10 blur-xl" />
+     <Image src={schoolLogo} alt="School Logo" width={100} height={100}
+      className="relative h-24 w-24 rounded-2xl border-2 border-white/20 bg-white/10 object-cover shadow-xl" />
+    </div>
+   )}
+  </>
+ )
+
+ const ministryStats = (
+  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+   {([
+    { label: 'My Students', labelAr: 'طلابي', value: d.studentsCount ?? 0, icon: Users },
+    { label: 'My Groups', labelAr: 'مجموعاتي', value: groups.length, icon: UserCog },
+    { label: 'Attendance', labelAr: 'الحضور', value: d.attendanceRate ?? 0, suffix: '%', icon: UserCheck },
+    { label: 'Sessions to Run', labelAr: 'جلسات للتشغيل', value: sessions.length, icon: CalendarClock },
+   ] as const).map((item) => (
+    <div key={item.label} className="rounded-xl bg-white/5 border border-white/10 px-4 py-3">
+     <div className="flex items-center gap-2 mb-1">
+      <item.icon className="h-3.5 w-3.5 text-gold-400" />
+      <span className="text-[11px] text-white/60">{lang === 'ar' ? (item as any).labelAr : item.label}</span>
+     </div>
+     <div className="text-xl font-bold text-white tracking-wider">
+      <AnimatedCounter value={item.value} suffix={'suffix' in item ? (item as any).suffix || '' : ''} />
+     </div>
+    </div>
+   ))}
+  </div>
+ )
+
  return (
   <>
 <title>{lang === 'ar' ? 'خدمتي' : 'My Ministry'} — Coptic Orthodox Hymn Education Platform (COHEP)</title>
     <meta name="description" content="Coptic Orthodox Hymn Education Platform (COHEP) ministry dashboard" />
    <motion.div className="space-y-6" initial="initial" animate="animate" variants={stagger}>
-    <div className="relative overflow-hidden rounded-b-[2rem] bg-[var(--hymn-green)] p-6 sm:p-8">
-     <div className="absolute -top-6 left-1/2 -translate-x-1/2 w-[120%] h-12 rounded-[50%] bg-blue-500/5" />
-     <div className="absolute top-0 left-1/4 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl" />
-     <div className="absolute bottom-0 right-1/4 w-48 h-48 bg-emerald-500/10 rounded-full blur-3xl" />
-     <div className="absolute inset-0 opacity-[0.03] bg-[radial-gradient(circle_at_center,_white_1px,_transparent_1px)] bg-[length:20px_20px]" />
-     <div className="relative flex items-start justify-between">
-      <div>
-       <div className="flex items-center gap-2 text-gold-400 text-sm font-medium mb-2">
-        <Sun className="h-4 w-4" /><span>{lang === 'ar' ? getGreetingAr() : getGreeting()}</span>
-       </div>
-       <h1 className="text-2xl sm:text-3xl font-bold text-white">
-        {school?.name || (lang === 'ar' ? 'منصة تعليم التراتيل الكنسية' : 'Coptic Orthodox Hymn Education Platform')}
-       </h1>
-       <div className="flex items-center gap-2 mt-1.5">
-        {churchName && (
-         <span className="inline-flex items-center gap-1 rounded-lg bg-white/10 px-2 py-0.5 text-xs font-medium text-white/80">
-          {churchName}
-         </span>
-        )}
-        <p className="text-white/60 text-sm">{lang === 'ar' ? getDayNameAr() : getDayName()}</p>
-       </div>
-       <div className="mt-2"><RoleBadge role={d.role || 'servant'} lang={lang} /></div>
-      </div>
-      <div className="flex items-center gap-4">
-       {churchLogo && (
-        <div className="relative shrink-0">
-         <div className="absolute inset-0 rounded-2xl bg-white/10 blur-xl" />
-         <Image src={churchLogo} alt="Church Logo" width={100} height={100}
-          className="relative h-24 w-24 rounded-2xl border-2 border-white/20 bg-white/10 object-cover shadow-xl" />
-        </div>
-       )}
-       {schoolLogo && (
-        <div className="relative shrink-0">
-         <div className="absolute inset-0 rounded-2xl bg-white/10 blur-xl" />
-         <Image src={schoolLogo} alt="School Logo" width={100} height={100}
-          className="relative h-24 w-24 rounded-2xl border-2 border-white/20 bg-white/10 object-cover shadow-xl" />
-        </div>
-       )}
-      </div>
-     </div>
-     <div className="relative mt-6 grid grid-cols-2 sm:grid-cols-4 gap-3">
-      {([
-       { label: 'My Students', labelAr: 'طلابي', value: d.studentsCount ?? 0, icon: Users },
-       { label: 'My Groups', labelAr: 'مجموعاتي', value: groups.length, icon: UserCog },
-       { label: 'Attendance', labelAr: 'الحضور', value: d.attendanceRate ?? 0, suffix: '%', icon: UserCheck },
-       { label: 'Sessions to Run', labelAr: 'جلسات للتشغيل', value: sessions.length, icon: CalendarClock },
-      ] as const).map((item) => (
-       <div key={item.label} className="rounded-xl bg-white/5 border border-white/10 px-4 py-3">
-        <div className="flex items-center gap-2 mb-1">
-         <item.icon className="h-3.5 w-3.5 text-gold-400" />
-         <span className="text-[11px] text-white/60">{lang === 'ar' ? (item as any).labelAr : item.label}</span>
-        </div>
-        <div className="text-xl font-bold text-white tracking-wider">
-         <AnimatedCounter value={item.value} suffix={'suffix' in item ? (item as any).suffix || '' : ''} />
-        </div>
-       </div>
-      ))}
-     </div>
-     </div>
+     <DashboardHero
+      bg="var(--hymn-green)"
+      title={
+       school?.name || (lang === 'ar' ? 'منصة تعليم التراتيل الكنسية' : 'Coptic Orthodox Hymn Education Platform')
+      }
+      badges={ministryBadges}
+      logos={ministryLogos}
+     >
+      {ministryStats}
+     </DashboardHero>
 
      {/* Start Class button */}
      <motion.div variants={fadeUp}>
