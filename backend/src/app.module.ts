@@ -5,6 +5,7 @@ import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { AuthModule } from './modules/auth/auth.module';
 import { UsersModule } from './modules/users/users.module';
 import { StudentsModule } from './modules/students/students.module';
+import { GradesModule } from './modules/grades/grades.module';
 import { CurriculumModule } from './modules/curriculum/curriculum.module';
 import { AttendanceModule } from './modules/attendance/attendance.module';
 import { AssessmentsModule } from './modules/assessments/assessments.module';
@@ -52,6 +53,7 @@ import { TenantScopeGuard } from './common/guards/tenant-scope.guard';
     AuthModule,
     UsersModule,
     StudentsModule,
+    GradesModule,
     CurriculumModule,
     AttendanceModule,
     AssessmentsModule,
