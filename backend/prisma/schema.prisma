@@ -68,6 +68,8 @@ model School {
   users              User[]
   students           Student[]
   levels             Level[]
+  groups             Group[]
+  schoolGrades       SchoolGrade[]
   subjects           Subject[]
   lessons            Lesson[]
   resources          Resource[]
@@ -257,6 +259,7 @@ model Student {
   parentEmail    String?   @map("parent_email")
   levelId        String    @map("level_id")
   groupId        String    @map("group_id")
+  gradeId        String?   @map("grade_id")
   status         String    @default("active")
   enrollmentDate DateTime  @default(now()) @map("enrollment_date")
   graduationDate DateTime? @map("graduation_date")
@@ -269,6 +272,7 @@ model Student {
   academicYear          AcademicYear           @relation(fields: [academicYearId], references: [id])
   level                 Level                  @relation(fields: [levelId], references: [id])
   group                 Group                  @relation(fields: [groupId], references: [id])
+  grade                 SchoolGrade?           @relation(fields: [gradeId], references: [id])
   profile               StudentProfile?
   studentParents        StudentParent[]
   medicalNotes          MedicalNote[]
@@ -368,7 +372,6 @@ model Level {
   deletedAt            DateTime? @map("deleted_at")
 
   school                School                 @relation(fields: [schoolId], references: [id])
-  groups                Group[]
   students              Student[]
   lessons               Lesson[]
   assessments           Assessment[]
@@ -387,7 +390,7 @@ model Level {
 
 model Group {
   id          String    @id @default(uuid())
-  levelId     String    @map("level_id")
+  schoolId    String    @map("school_id")
   name        String
   nameAr      String?   @map("name_ar")
   description String?
@@ -399,13 +402,37 @@ model Group {
   updatedAt   DateTime  @updatedAt @map("updated_at")
   deletedAt   DateTime? @map("deleted_at")
 
-  level              Level               @relation(fields: [levelId], references: [id])
-  students           Student[]
+  school       School       @relation(fields: [schoolId], references: [id])
+  schoolGrades SchoolGrade[]
+  students     Student[]
   attendanceSessions AttendanceSession[]
   assessments        Assessment[]
 
-  @@index([levelId])
+  @@index([schoolId])
   @@map("groups")
+}
+
+model SchoolGrade {
+  id         String    @id @default(uuid())
+  schoolId   String    @map("school_id")
+  name       String
+  nameAr     String?   @map("name_ar")
+  groupId    String    @map("group_id")
+  orderIndex Int       @default(0) @map("order_index")
+  status     String    @default("active")
+  metadata   Json?
+  createdAt  DateTime  @default(now()) @map("created_at")
+  updatedAt  DateTime  @updatedAt @map("updated_at")
+  deletedAt  DateTime? @map("deleted_at")
+
+  school   School   @relation(fields: [schoolId], references: [id])
+  group    Group    @relation(fields: [groupId], references: [id])
+  students Student[]
+
+  @@unique([schoolId, name])
+  @@index([schoolId])
+  @@index([groupId])
+  @@map("school_grades")
 }
 
 model Subject {
