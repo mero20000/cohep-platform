@@ -287,12 +287,18 @@ git commit -m "feat(dashboard): add shared DashboardHero component with parallax
 **Interfaces:**
 - Consumes: `DashboardHero` from `./hero`; existing `HeroFallback`, `AnimatedCounter`, `useLanguage`, `getSchoolId`, icons.
 
-- [ ] **Step 1: Import the component**
+- [ ] **Step 1: Import the component and trim motion hooks**
 
 Add after line 26 (`import ... from '@/lib/use-active-role'`):
 
 ```tsx
 import DashboardHero from './hero'
+```
+
+Change line 8 (`import { motion, useScroll, useTransform, useSpring, useReducedMotion } from 'motion/react'`) to import only `motion` — the four scroll/spring/reduced-motion hooks move into `hero.tsx` and are no longer used in this file:
+
+```tsx
+import { motion } from 'motion/react'
 ```
 
 - [ ] **Step 2: Rewrite `HeroSection`**
@@ -404,7 +410,7 @@ git commit -m "refactor(dashboard): rebuild admin hero on shared DashboardHero"
 - Modify: `frontend/src/app/dashboard/dashboard-client.tsx` (`MinistryDashboard` hero, currently lines ~1143-1201)
 
 **Interfaces:**
-- Consumes: `DashboardHero`, `renew `RoleBadge`/`StartClassCard` (unchanged), icons.
+- Consumes: `DashboardHero`, `RoleBadge`/`StartClassCard` (unchanged), icons.
 
 - [ ] **Step 1: Rewrite the ministry hero block**
 
