@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import React from 'react'
 import DashboardHero from './hero'
+import { useLanguage } from '@/lib/use-language'
 
 vi.mock('motion/react', () => {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -20,7 +21,7 @@ vi.mock('lucide-react', () => ({
   Sun: (p: any) => <span data-testid="icon-sun" {...p} />,
 }))
 
-vi.mock('@/lib/use-language', () => ({ useLanguage: () => 'en' }))
+vi.mock('@/lib/use-language', () => ({ useLanguage: vi.fn(() => 'en') }))
 
 vi.mock('@/lib/datetime', () => ({
   getGreeting: () => 'Good morning',
@@ -51,5 +52,11 @@ describe('DashboardHero', () => {
     render(<DashboardHero bg="var(--hymn-navy)" title="Platform" />)
     expect(screen.getByText('Good morning')).toBeInTheDocument()
     expect(screen.getByTestId('icon-sun')).toBeInTheDocument()
+  })
+
+  it('renders the Arabic default greeting when the language is ar', () => {
+    vi.mocked(useLanguage).mockReturnValue('ar')
+    render(<DashboardHero bg="var(--hymn-navy)" title="منصة" />)
+    expect(screen.getByText('صباح الخير')).toBeInTheDocument()
   })
 })

@@ -1200,6 +1200,7 @@ function MinistryDashboard({ data, loading, error, onRetry }: { data: any; loadi
       }
       badges={ministryBadges}
       logos={ministryLogos}
+      orbTint="bg-emerald-500/10"
      >
       {ministryStats}
      </DashboardHero>
@@ -1735,6 +1736,7 @@ function ParentDashboard({ data, loading, error, onRetry }: { data: any; loading
       title={lang === 'ar' ? 'أولادي' : 'My Children'}
       greeting={parentGreeting}
       badges={parentBadges}
+      orbTint="bg-indigo-500/10"
     />
 
     {/* Aggregate summary */}

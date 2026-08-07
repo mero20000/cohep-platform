@@ -13,6 +13,7 @@ export interface DashboardHeroProps {
   badges?: ReactNode
   logos?: ReactNode
   children?: ReactNode
+  orbTint?: string
 }
 
 export default function DashboardHero({
@@ -22,6 +23,7 @@ export default function DashboardHero({
   badges,
   logos,
   children,
+  orbTint = 'bg-blue-500/10',
 }: DashboardHeroProps) {
   const lang = useLanguage()
   const reduce = useReducedMotion()
@@ -35,7 +37,7 @@ export default function DashboardHero({
     <div className="relative overflow-hidden rounded-b-[2rem] p-6 sm:p-8" style={{ backgroundColor: bg }}>
       <motion.div className="absolute -top-6 left-1/2 -translate-x-1/2 w-[120%] h-12 rounded-[50%] bg-blue-500/5" style={{ y: curveY }} />
       <motion.div className="absolute top-0 left-1/4 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl" style={{ y: orb1Y }} />
-      <motion.div className="absolute bottom-0 right-1/4 w-48 h-48 bg-blue-500/10 rounded-full blur-3xl" style={{ y: orb2Y }} />
+      <motion.div className={`absolute bottom-0 right-1/4 w-48 h-48 ${orbTint} rounded-full blur-3xl`} style={{ y: orb2Y }} />
       <div className="absolute inset-0 opacity-[0.03] bg-[radial-gradient(circle_at_center,_white_1px,_transparent_1px)] bg-[length:20px_20px]" />
 
       <div className="relative flex items-start justify-between gap-4">
