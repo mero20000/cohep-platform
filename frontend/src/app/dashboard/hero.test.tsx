@@ -58,5 +58,6 @@ describe('DashboardHero', () => {
     vi.mocked(useLanguage).mockReturnValue('ar')
     render(<DashboardHero bg="var(--hymn-navy)" title="منصة" />)
     expect(screen.getByText('صباح الخير')).toBeInTheDocument()
+    vi.mocked(useLanguage).mockReturnValue('en')
   })
 })
