@@ -753,7 +753,6 @@ export class GamificationService {
     const group = await this.prisma.group.findUnique({
       where: { id: groupId },
       include: {
-        level: { select: { number: true, name: true } },
         students: {
           where: { deletedAt: null },
           select: { id: true, firstName: true, lastName: true },
@@ -873,8 +872,6 @@ export class GamificationService {
     return {
       groupId,
       groupName: group.name,
-      levelNumber: group.level?.number,
-      levelName: group.level?.name,
       totalStudents: studentIds.length,
       totalXp: groupXp._sum.amount || 0,
       achievedMilestones: achievedCount,
