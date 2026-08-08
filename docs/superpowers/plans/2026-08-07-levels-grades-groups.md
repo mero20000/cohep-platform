@@ -579,7 +579,7 @@ export async function deleteGrade(id: string) {
 - `student-table.tsx`: grade cell `{s.grade?.name || '—'}` (both desktop :153 and mobile :103).
 - `student-detail-modal.tsx`: `value: s.grade?.name || '—'` (was `s.schoolGrade`, :33).
 
-**Steps:** edit; update `students/__tests__/page.test.tsx` mocks (Task 22); `npm run test` (frontend); commit.
+**Steps:** edit; update `students/__tests__/page.test.tsx` mocks *minimally* so the suite stays green under this task (the fetch mock must now serve `/curriculum/levels` and the flat `/students/groups/all` and `/grades`; student fixtures switch `schoolGrade` → `gradeId` + `grade: { name }`; the group-filter dropdown loses its "Select level first" disabled state, so update any assertion that expects it; full student-form-modal/groups-tab/grades-tab coverage is Task 22) — `npm run test` (frontend) MUST pass after this task; commit.
 
 ### Task 20: Students — bulk + import modals
 
