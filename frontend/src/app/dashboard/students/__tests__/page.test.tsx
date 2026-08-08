@@ -66,7 +66,7 @@ const mockStudents = {
       dateOfBirth: '2015-06-15T00:00:00Z',
       gender: 'female',
       churchName: 'St. Mary',
-      schoolGrade: 'Grade 4',
+      gradeId: 'grade-1', grade: { id: 'grade-1', name: 'Grade 4' },
       photoUrl: null,
       levelId: 'level-1',
       groupId: 'group-1',
@@ -85,7 +85,7 @@ const mockStudents = {
       dateOfBirth: '2014-03-20T00:00:00Z',
       gender: 'male',
       churchName: null,
-      schoolGrade: 'Grade 6',
+      gradeId: 'grade-2', grade: { id: 'grade-2', name: 'Grade 6' },
       photoUrl: null,
       levelId: 'level-1',
       groupId: 'group-1',
@@ -99,20 +99,18 @@ const mockStudents = {
 }
 
 const mockLevels = [
-  {
-    id: 'level-1',
-    name: 'Level 1',
-    number: 1,
-    status: 'active',
-    groups: [{ id: 'group-1', name: 'Group A', levelId: 'level-1', status: 'active' }],
-  },
-  {
-    id: 'level-2',
-    name: 'Level 2',
-    number: 2,
-    status: 'active',
-    groups: [{ id: 'group-2', name: 'Group B', levelId: 'level-2', status: 'active' }],
-  },
+  { id: 'level-1', name: 'Level 1', number: 1, status: 'active' },
+  { id: 'level-2', name: 'Level 2', number: 2, status: 'active' },
+]
+
+const mockGroups = [
+  { id: 'group-1', name: 'Group A', status: 'active', orderIndex: 0 },
+  { id: 'group-2', name: 'Group B', status: 'active', orderIndex: 1 },
+]
+
+const mockGrades = [
+  { id: 'grade-1', name: 'Grade 4', status: 'active' },
+  { id: 'grade-2', name: 'Grade 6', status: 'active' },
 ]
 
 const mockChurches = [
@@ -127,7 +125,13 @@ function createFetchMock(empty = false) {
       return Promise.resolve({ ok: true, json: () => Promise.resolve(data) } as Response)
     }
     if (url.toString().startsWith(`${API}/students/groups/all`)) {
+      return Promise.resolve({ ok: true, json: () => Promise.resolve(empty ? [] : mockGroups) } as Response)
+    }
+    if (url.toString().startsWith(`${API}/curriculum/levels`)) {
       return Promise.resolve({ ok: true, json: () => Promise.resolve(empty ? [] : mockLevels) } as Response)
+    }
+    if (url.toString().startsWith(`${API}/grades`)) {
+      return Promise.resolve({ ok: true, json: () => Promise.resolve(empty ? [] : mockGrades) } as Response)
     }
     if (url.toString().startsWith(`${API}/churches`)) {
       return Promise.resolve({ ok: true, json: () => Promise.resolve(empty ? [] : mockChurches) } as Response)
@@ -205,7 +209,7 @@ describe('StudentsPage', () => {
     it('renders filter dropdowns', async () => {
       render(<StudentsPage />)
       expect(await screen.findByText('All Levels')).toBeInTheDocument()
-      expect(await screen.findByText('Select level first')).toBeInTheDocument()
+      expect(await screen.findByText('All Groups')).toBeInTheDocument()
       expect(await screen.findByText('All Status')).toBeInTheDocument()
     })
   })
@@ -364,10 +368,13 @@ describe('StudentsPage', () => {
       expect(await screen.findByText('All Status')).toBeInTheDocument()
     })
 
-    it('disables group filter when no level selected', async () => {
+    it('renders group filter with All Groups and lists groups', async () => {
       render(<StudentsPage />)
-      expect(await screen.findByText('Select level first')).toBeInTheDocument()
-      expect(screen.getByLabelText('Filter by group')).toBeDisabled()
+      expect(await screen.findByText('All Groups')).toBeInTheDocument()
+      const groupSelect = screen.getByLabelText('Filter by group')
+      expect(groupSelect).toBeEnabled()
+      expect(await screen.findByRole('option', { name: 'Group A' })).toBeInTheDocument()
+      expect(await screen.findByRole('option', { name: 'Group B' })).toBeInTheDocument()
     })
   })
 

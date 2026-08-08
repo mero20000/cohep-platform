@@ -2,6 +2,7 @@
 import { Search, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import type { Level, Group, ChurchItem } from './student-types'
+import type { GradeItem } from '@/lib/grades'
 
 interface Props {
   search: string; onSearchChange: (v: string) => void
@@ -13,7 +14,7 @@ interface Props {
   filterGrade: string; onGradeChange: (v: string) => void
   filterGender: string; onGenderChange: (v: string) => void
   activeLevels: Level[]; filterGroups: Group[]
-  gradeOptions: string[]; churches: ChurchItem[]
+  gradeOptions: GradeItem[]; churches: ChurchItem[]
   hasActiveFilters: boolean; onClearFilters: () => void
   lang: 'en' | 'ar'
 }
@@ -35,8 +36,8 @@ export function StudentFilters(p: Props) {
         <option value="">{t('All Levels','جميع المستويات')}</option>
         {p.activeLevels.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
       </select>
-      <select aria-label={t('Filter by group','تصفية حسب المجموعة')} value={p.filterGroup} onChange={e => p.onGroupChange(e.target.value)} disabled={!p.filterLevel} title={p.filterLevel?'':t('Select a level first','اختر مستوى أولاً')} className={`${sel} disabled:bg-gray-50 disabled:text-gray-400`}>
-        <option value="">{p.filterLevel?t('All Groups','جميع المجموعات'):t('Select level first','اختر المستوى أولاً')}</option>
+      <select aria-label={t('Filter by group','تصفية حسب المجموعة')} value={p.filterGroup} onChange={e => p.onGroupChange(e.target.value)} className={sel}>
+        <option value="">{t('All Groups','جميع المجموعات')}</option>
         {p.filterGroups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
       </select>
       <select aria-label={t('Filter by status','تصفية حسب الحالة')} value={p.filterStatus} onChange={e => p.onStatusChange(e.target.value)} className={sel}>
@@ -47,7 +48,7 @@ export function StudentFilters(p: Props) {
       </select>
       <select aria-label={t('Filter by grade','تصفية حسب المرحلة')} value={p.filterGrade} onChange={e => p.onGradeChange(e.target.value)} className={sel}>
         <option value="">{t('All Grades','جميع المراحل')}</option>
-        {p.gradeOptions.map(g => <option key={g} value={g}>{g}</option>)}
+        {p.gradeOptions.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
       </select>
       <select aria-label={t('Filter by gender','تصفية حسب الجنس')} value={p.filterGender} onChange={e => p.onGenderChange(e.target.value)} className={sel}>
         <option value="">{t('All Genders','جميع الجنسين')}</option>

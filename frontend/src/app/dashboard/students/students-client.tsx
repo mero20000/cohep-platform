@@ -19,9 +19,10 @@ import { StudentDeleteModal } from './_components/student-delete-modal'
 import { StudentImportModal } from './_components/student-import-modal'
 import { StudentBulkModals }  from './_components/student-bulk-modals'
 import { AssignedServants, type Servant } from './_components/assigned-servants'
-import { type Student, type LevelWithGroups, type Group, type ChurchItem, type PaginatedResponse, type StudentStats as StatsType } from './_components/student-types'
+import { type Student, type Group, type ChurchItem, type PaginatedResponse, type StudentStats as StatsType } from './_components/student-types'
 
 type BulkModal = 'delete'|'status'|'level'|'grade'
+type LevelOption = { id: string; name: string; number: number; status?: string }
 
 export default function StudentsClient() {
   const { toast } = useToast()
@@ -49,7 +50,7 @@ export default function StudentsClient() {
   const [sortKey, setSortKey] = useState('')
   const [sortDir, setSortDir] = useState<'asc'|'desc'>('asc')
   // Reference data
-  const [levels, setLevels]             = useState<LevelWithGroups[]>([])
+  const [levels, setLevels]             = useState<LevelOption[]>([])
   const [allGroups, setAllGroups]       = useState<Group[]>([])
   const [churches, setChurches]         = useState<ChurchItem[]>([])
   const [gradeOptions, setGradeOptions] = useState<GradeItem[]>([])
@@ -73,10 +74,10 @@ export default function StudentsClient() {
 
   // Derived
   const activeLevels     = useMemo(()=>levels.filter(l=>l.status!=='inactive'),[levels])
-  const filterGroups     = useMemo(()=>filterLevel?allGroups.filter(g=>g.levelId===filterLevel):allGroups,[filterLevel,allGroups])
+  const filterGroups     = allGroups
   const hasActiveFilters = !!(search||filterLevel||filterGroup||filterStatus||filterChurch||filterGrade||filterGender)
   const allSelected      = optimisticStudents.length>0&&selectedIds.size===optimisticStudents.length
-  const levelNameMap     = useMemo(()=>{const m:Record<string,string>={};for(const l of activeLevels){m[l.id]=l.name;for(const g of l.groups)m[g.id]=g.name};return m},[activeLevels])
+  const levelNameMap     = useMemo(()=>{const m:Record<string,string>={};for(const l of activeLevels)m[l.id]=l.name;return m},[activeLevels])
   const sortedStudents   = useMemo(()=>{
     return optimisticStudents
   },[optimisticStudents])
@@ -88,7 +89,7 @@ export default function StudentsClient() {
       if(sortKey)params.sortBy=sortKey
       if(sortKey)params.sortDir=sortDir
       if(debouncedSearch)params.search=debouncedSearch; if(filterLevel)params.levelId=filterLevel; if(filterGroup)params.groupId=filterGroup
-      if(filterStatus)params.status=filterStatus; if(filterChurch)params.churchName=filterChurch; if(filterGrade)params.schoolGrade=filterGrade; if(filterGender)params.gender=filterGender
+      if(filterStatus)params.status=filterStatus; if(filterChurch)params.churchName=filterChurch; if(filterGrade)params.gradeId=filterGrade; if(filterGender)params.gender=filterGender
       const data=await http.get<PaginatedResponse>('/students',params)
       setStudents(data.data); setPagination(data.pagination); setFetchError(false)
     }catch{setFetchError(true)}
@@ -105,7 +106,8 @@ export default function StudentsClient() {
   useEffect(()=>{setSelectedIds(new Set())},[search,filterLevel,filterGroup,filterStatus,filterChurch,filterGrade,filterGender])
   useEffect(()=>{setFilterGroup('')},[filterLevel])
   useEffect(()=>{
-    http.get<LevelWithGroups[]>('/students/groups/all',{schoolId:getSchoolId()}).then(d=>{setLevels(d);setAllGroups(d.flatMap(l=>l.groups.filter(g=>g.status!=='inactive')))}).catch(console.error)
+    http.get<LevelOption[]>('/curriculum/levels',{schoolId:getSchoolId()}).then(d=>setLevels(d)).catch(console.error)
+    http.get<Group[]>('/students/groups/all',{schoolId:getSchoolId()}).then(d=>setAllGroups(d.filter(g=>g.status!=='inactive'))).catch(console.error)
     http.get<ChurchItem[]>('/churches').then(d=>setChurches(d.filter(c=>c.isActive!==false))).catch(console.error)
     http.get<{church?:{name:string}}>('/users/schools/me').then(s=>{if(s.church?.name)setFilterChurch(s.church.name)}).catch(console.error)
     fetchActiveGrades().then(setGradeOptions).catch(console.error)
@@ -155,7 +157,7 @@ export default function StudentsClient() {
   const handleExport = async()=>{
     try{
       const baseParams:Record<string,string>={schoolId:getSchoolId(),limit:'100'}
-      if(search)baseParams.search=search;if(filterLevel)baseParams.levelId=filterLevel;if(filterGroup)baseParams.groupId=filterGroup;if(filterStatus)baseParams.status=filterStatus;if(filterChurch)baseParams.churchName=filterChurch;if(filterGrade)baseParams.schoolGrade=filterGrade;if(filterGender)baseParams.gender=filterGender
+      if(search)baseParams.search=search;if(filterLevel)baseParams.levelId=filterLevel;if(filterGroup)baseParams.groupId=filterGroup;if(filterStatus)baseParams.status=filterStatus;if(filterChurch)baseParams.churchName=filterChurch;if(filterGrade)baseParams.gradeId=filterGrade;if(filterGender)baseParams.gender=filterGender
       const all:any[]=[]
       let page=1, totalPages=1
       do{
@@ -165,7 +167,7 @@ export default function StudentsClient() {
         page++
       }while(page<=totalPages)
       const escape=(v:any)=>String(v??'')
-      const rows=[['Student Code','Name','First Name (Ar)','Last Name (Ar)','Date of Birth','Gender','Level','Group','Church','Grade','Phone','Email','Church Tool ID','Status','Enrollment Date'],...all.map(s=>[s.studentCode,`${s.firstName} ${s.lastName}`.trim(),s.firstNameAr||'',s.lastNameAr||'',s.dateOfBirth.split('T')[0],s.gender,s.level?.name||'',s.group?.name||'',s.churchName||'',s.schoolGrade||'',s.metadata?.phone||'',s.metadata?.email||'',s.metadata?.churchToolId||'',s.status,s.enrollmentDate.split('T')[0]])]
+      const rows=[['Student Code','Name','First Name (Ar)','Last Name (Ar)','Date of Birth','Gender','Level','Group','Church','Grade','Phone','Email','Church Tool ID','Status','Enrollment Date'],...all.map(s=>[s.studentCode,`${s.firstName} ${s.lastName}`.trim(),s.firstNameAr||'',s.lastNameAr||'',s.dateOfBirth.split('T')[0],s.gender,s.level?.name||'',s.group?.name||'',s.churchName||'',s.grade?.name||'',s.metadata?.phone||'',s.metadata?.email||'',s.metadata?.churchToolId||'',s.status,s.enrollmentDate.split('T')[0]])]
       const csv=rows.map(r=>r.map(c=>{
         let val=escape(c).replace(/"/g,'""')
         if(/^[=+\-@]/.test(val)) val=`'${val}`
@@ -198,7 +200,7 @@ export default function StudentsClient() {
         filterLevel={filterLevel} onLevelChange={setFilterLevel} filterGroup={filterGroup} onGroupChange={setFilterGroup}
         filterStatus={filterStatus} onStatusChange={setFilterStatus} filterChurch={filterChurch} onChurchChange={setFilterChurch}
         filterGrade={filterGrade} onGradeChange={setFilterGrade} filterGender={filterGender} onGenderChange={setFilterGender}
-        activeLevels={activeLevels} filterGroups={filterGroups} gradeOptions={gradeOptions.map(g=>g.name)} churches={churches}
+        activeLevels={activeLevels} filterGroups={filterGroups} gradeOptions={gradeOptions} churches={churches}
         hasActiveFilters={hasActiveFilters} onClearFilters={clearFilters} lang={lang}/>
 
       {selectedIds.size>0&&<StudentBulkToolbar
