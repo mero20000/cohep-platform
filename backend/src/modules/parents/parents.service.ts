@@ -43,6 +43,7 @@ export class ParentsService {
             include: {
               level: { select: { number: true, name: true } },
               group: { select: { name: true } },
+              grade: { select: { name: true } },
             },
           },
         },
@@ -53,6 +54,7 @@ export class ParentsService {
         include: {
           level: { select: { number: true, name: true } },
           group: { select: { name: true } },
+          grade: { select: { name: true } },
         },
       }),
     ]);
@@ -117,7 +119,7 @@ export class ParentsService {
         levelNumber: sp.student.level?.number,
         levelName: sp.student.level?.name,
         groupName: sp.student.group?.name,
-        schoolGrade: sp.student.schoolGrade,
+        gradeName: sp.student.grade?.name || null,
         status: sp.student.status,
         totalPoints,
         badges: badgeCount,
