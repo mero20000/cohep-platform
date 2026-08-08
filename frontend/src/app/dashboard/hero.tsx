@@ -60,7 +60,7 @@ export default function DashboardHero({
             </div>
             <h1 className="text-2xl sm:text-3xl font-bold text-white">{title}</h1>
             {badges && <div className="flex items-center gap-2 mt-1.5">{badges}</div>}
-            {description && <p className="text-sm mt-3 opacity-80">{description}</p>}
+            {description && <div className="text-sm mt-3 opacity-80">{description}</div>}
           </div>
         </div>
         {logos && <div className="flex items-center gap-4 shrink-0">{logos}</div>}

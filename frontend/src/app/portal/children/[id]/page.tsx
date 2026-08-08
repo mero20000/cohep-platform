@@ -398,7 +398,10 @@ export default function ChildDetailPage() {
             )
           }
           title={
-            (lang === 'ar' && student.firstNameAr) ? `${student.firstNameAr} ${student.lastNameAr}` : `${student.firstName} ${student.lastName}`
+            <span>
+              {(lang === 'ar' && student.firstNameAr) ? `${student.firstNameAr} ${student.lastNameAr}` : `${student.firstName} ${student.lastName}`}
+              {student.firstNameAr && <span className="opacity-60 text-sm font-normal"> {lang === 'ar' ? `${student.firstName} ${student.lastName}` : `${student.firstNameAr} ${student.lastNameAr}`}</span>}
+            </span>
           }
           badges={
             <span className="text-white/60 text-sm">

@@ -71,7 +71,7 @@ export default function PracticeGuidePage() {
           bg="var(--hymn-indigo)"
           orbTint="bg-indigo-500/10"
           title={lang === 'ar' ? lesson.titleAr : lesson.title}
-          description={t('Practice this hymn with your child at home.', 'تدرب على هذه التسبيجة مع طفلك في المنزل.')}
+          description={t('Practice this hymn with your child at home.', 'تدرب على هذه التسبيحة مع طفلك في المنزل.')}
         />
 
         <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">

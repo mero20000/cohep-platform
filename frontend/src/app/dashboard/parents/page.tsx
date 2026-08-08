@@ -148,7 +148,7 @@ export default function ParentsPage() {
                   {schoolIdentity.churchName}
                 </span>
               )}
-              <span className="text-white/30">·</span>
+              {schoolIdentity.churchName && schoolIdentity.name && <span className="text-white/30">·</span>}
               {schoolIdentity.name && (
                 <span className="inline-flex items-center gap-1.5 text-xs text-white/70">
                   {schoolIdentity.logoUrl && (
