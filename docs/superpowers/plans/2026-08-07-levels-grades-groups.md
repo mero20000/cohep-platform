@@ -399,8 +399,8 @@ and set `gradeId: createStudentDto.gradeId || null` + `groupId` on create; inclu
 2. `getGroupStats` (:590-618): query `where: { schoolId, status: { not: 'inactive' } }`, drop the `include: { level }` and `orderBy: [{ level: ... }]` → `orderBy: { name: 'asc' }`, and remove `levelNumber`/`levelName` from each stat row.
 3. Check for any other `group.level` / `levelId: groups[...]` references in the file and fix them the same way (verify with grep `group\.level|groups\[.*\]\.levelId`).
 4. `generateSessions` (:667-747): the `levels` query `include: { groups: ... }` (reverse relation — removed) must be rewritten. **Decision:** sessions are generated per (school-wide group × distinct level of that group's active students). Replace the levels loop with:
-   - `const groups = await this.prisma.group.findMany({ where: { schoolId, deletedAt: null }, orderBy: { orderIndex: 'asc' } });`
-   - `for (const group of groups)`: resolve `const groupLevels = await this.prisma.student.findMany({ where: { groupId: group.id, schoolId, deletedAt: null }, select: { levelId: true }, distinct: ['levelId'] });` — if empty, `continue` (no students → no session).
+   - `const groups = await this.prisma.group.findMany({ where: { schoolId, deletedAt: null, status: { not: 'inactive' } }, orderBy: { orderIndex: 'asc' } });`
+   - `for (const group of groups)`: resolve `const groupLevels = await this.prisma.student.findMany({ where: { groupId: group.id, schoolId, deletedAt: null, status: 'active' }, select: { levelId: true }, distinct: ['levelId'] });` — if empty, `continue` (no students → no session).
    - `for (const { levelId } of groupLevels)`: the existing session create keeps `levelId` + `groupId`; the student pre-mark query becomes `where: { groupId: group.id, levelId, schoolId, deletedAt: null, status: 'active' }` so each (group, level) session marks exactly its students.
    - `level.id` usages in the session create/pre-mark are replaced by the loop's `levelId`.
 
