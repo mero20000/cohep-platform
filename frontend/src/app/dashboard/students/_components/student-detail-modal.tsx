@@ -30,7 +30,7 @@ export function StudentDetailModal({ student:s, onClose, onEdit, onPreviewPhoto,
     {icon:Calendar,label:t('Date of Birth','تاريخ الميلاد'),value:new Date(s.dateOfBirth).toLocaleDateString(lang==='ar'?'ar-EG':'en-GB',{day:'2-digit',month:'2-digit',year:'numeric'})},
     {icon:User,label:t('Age','العمر'),value:`${calcAge(s.dateOfBirth)} ${t('years','سنة')}`},
     {icon:Layers,label:t('Level','المستوى'),value:s.level?.name},{icon:Users,label:t('Group','المجموعة'),value:s.group?.name},
-    {icon:Church,label:t('Church','الكنيسة'),value:s.churchName||'—'},{icon:GraduationCap,label:t('Grade','المرحلة الدراسية'),value:s.schoolGrade||'—'},
+    {icon:Church,label:t('Church','الكنيسة'),value:s.churchName||'—'},{icon:GraduationCap,label:t('Grade','المرحلة الدراسية'),value:s.grade?.name||'—'},
     {icon:Mail,label:t('Email','البريد الإلكتروني'),value:s.metadata?.email||'—'},
     {icon:MapPin,label:t('Address','العنوان'),value:s.metadata?.address||'—'},{icon:UserCheck,label:t('Parent Email','بريد ولي الأمر'),value:s.parentEmail||'—'},
   ]

@@ -8,36 +8,27 @@ import { http } from '@/lib/http-client'
 import { getSchoolId } from '@/lib/school'
 import { useToast } from '@/components/ui/toast'
 import { usePermission } from '@/lib/use-permission'
-import { emptyForm, photoSrc, type Student, type StudentForm, type Level, type Group, type ChurchItem } from './student-types'
-import { gradeOptionsForLevel } from '@/lib/grade-groups'
-import { fetchGradeGroups } from '@/lib/school'
+import { emptyForm, photoSrc, type Student, type StudentForm, type Level, type ChurchItem } from './student-types'
+import { type GradeItem } from '@/lib/grades'
 
 interface Props {
-  student: Student | null; activeLevels: Level[]; allGroups: Group[]
-  churches: ChurchItem[]; gradeOptions: string[]
+  student: Student | null; activeLevels: Level[]
+  churches: ChurchItem[]; gradeOptions: GradeItem[]
   onClose: () => void; onSuccess: (page: number) => void
   currentPage: number; onOptimisticAdd: (s: Student) => void; lang: 'en'|'ar'
 }
-export function StudentFormModal({ student, activeLevels, allGroups, churches, gradeOptions, onClose, onSuccess, currentPage, onOptimisticAdd, lang }: Props) {
+export function StudentFormModal({ student, activeLevels, churches, gradeOptions, onClose, onSuccess, currentPage, onOptimisticAdd, lang }: Props) {
   const { toast } = useToast()
   const { can } = usePermission()
   const dialogRef = useRef<HTMLFormElement>(null)
   const [form, setForm] = useState<StudentForm>(emptyForm)
   const [formErrors, setFormErrors] = useState<Record<string,string>>({})
-  const [gradeGroups, setGradeGroups] = useState<Awaited<ReturnType<typeof fetchGradeGroups>>>([])
   const [photoFile, setPhotoFile] = useState<File|null>(null)
   const photoRef = useRef<HTMLInputElement>(null)
   const blobRef = useRef('')
   const revoke = useCallback(() => { if (blobRef.current) URL.revokeObjectURL(blobRef.current); blobRef.current = '' }, [])
   const t = (en: string, ar: string) => lang==='ar'?ar:en
   const ic = (err?: string) => `mt-1 block w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-1 ${err?'border-red-300 focus:border-red-500 focus:ring-red-500':'border-gray-300 focus:border-gold-500 focus:ring-blue-500'}`
-  const formGroups = form.levelId ? allGroups.filter(g => g.levelId === form.levelId||g.id===student?.groupId) : []
-  const comboGrades = form.levelId ? gradeOptionsForLevel(gradeGroups, form.levelId) : []
-  const mappedGrade = comboGrades.length > 0 ? comboGrades : gradeOptions
-
-  useEffect(() => {
-    fetchGradeGroups().then(setGradeGroups).catch(() => {})
-  }, [])
 
   useEffect(() => {
     dialogRef.current?.focus()
@@ -46,7 +37,7 @@ export function StudentFormModal({ student, activeLevels, allGroups, churches, g
   useEffect(() => {
     revoke(); setPhotoFile(null); setFormErrors({})
     if (student) {
-      setForm({ name:`${student.firstName} ${student.lastName}`.trim(), firstNameAr:student.firstNameAr||'', lastNameAr:student.lastNameAr||'', dateOfBirth:student.dateOfBirth.split('T')[0], gender:student.gender, churchName:student.churchName||'', schoolGrade:student.schoolGrade||'', levelId:student.levelId, groupId:student.groupId, groupName:student.group?.name||'', photoUrl:student.photoUrl||'', status:student.status, phone:student.metadata?.phone||'', email:student.metadata?.email||'', address:student.metadata?.address||'', notes:student.metadata?.notes||'', churchToolId:student.metadata?.churchToolId||'', parentEmail:student.parentEmail||'' })
+      setForm({ name:`${student.firstName} ${student.lastName}`.trim(), firstNameAr:student.firstNameAr||'', lastNameAr:student.lastNameAr||'', dateOfBirth:student.dateOfBirth.split('T')[0], gender:student.gender, churchName:student.churchName||'', gradeId:student.gradeId||'', levelId:student.levelId, groupId:student.groupId, groupName:student.group?.name||'', photoUrl:student.photoUrl||'', status:student.status, phone:student.metadata?.phone||'', email:student.metadata?.email||'', address:student.metadata?.address||'', notes:student.metadata?.notes||'', churchToolId:student.metadata?.churchToolId||'', parentEmail:student.parentEmail||'' })
     } else { setForm(emptyForm) }
   }, [student?.id])
   useEffect(() => () => revoke(), [])
@@ -55,7 +46,7 @@ export function StudentFormModal({ student, activeLevels, allGroups, churches, g
   const phoneRe = /^[\d\s\-\+\(\)]{6,20}$/
   const setField = (f: string, v: string) => {
     setForm(prev => ({ ...prev, [f]: v }))
-    const req = ['name','dateOfBirth','levelId','groupId']
+    const req = ['name','dateOfBirth','levelId','gradeId']
     let err = ''
     if (req.includes(f)&&!v.trim()) err = t('This field is required','هذا الحقل مطلوب')
     else if (f==='email'&&v&&!emailRe.test(v)) err = t('Invalid email format','صيغة البريد غير صحيحة')
@@ -63,18 +54,20 @@ export function StudentFormModal({ student, activeLevels, allGroups, churches, g
     setFormErrors(e => ({ ...e, [f]: err }))
   }
   const [formState, saveAction, isSaving] = useActionState(async (_prev: {error:string}, data: {form:StudentForm;photoFile:File|null;editing:Student|null}) => {
-    if (!data.form.name||!data.form.dateOfBirth||!data.form.levelId||!data.form.groupId)
+    if (!data.form.name||!data.form.dateOfBirth||!data.form.levelId||!data.form.gradeId)
       return { error: t('Please fill all required fields','يرجى ملء جميع الحقول المطلوبة') }
     const parts = data.form.name.trim().split(/\s+/)
     const firstName = parts[0]||''; const lastName = parts.slice(1).join(' ')||''
     try {
       let photoUrl = data.form.photoUrl
       if (data.photoFile) { const fd=new FormData(); fd.append('file',data.photoFile); photoUrl=(await http.upload<{url:string}>('/upload/student-photo',fd)).url }
-      const { name:_n, ...rest } = data.form
+      const { name:_n, groupId:_g, groupName:_gn, ...rest } = data.form
       const ctid = data.form.churchToolId
-      const body: Record<string,unknown> = { ...rest, firstName, lastName, photoUrl, firstNameAr:data.form.firstNameAr||undefined, lastNameAr:data.form.lastNameAr||undefined, churchName:data.form.churchName||undefined, schoolGrade:data.form.schoolGrade||undefined, churchToolId:ctid }
+      const body: Record<string,unknown> = { ...rest, firstName, lastName, photoUrl, firstNameAr:data.form.firstNameAr||undefined, lastNameAr:data.form.lastNameAr||undefined, churchName:data.form.churchName||undefined, gradeId:data.form.gradeId||undefined, churchToolId:ctid }
       if (!data.editing) {
-        onOptimisticAdd({...body,id:`temp-${Date.now()}`,photoUrl,enrollmentDate:new Date().toISOString(),level:{id:data.form.levelId,name:'',number:0},group:{id:data.form.groupId,name:''}} as Student)
+        const grade = gradeOptions.find(g => g.id === data.form.gradeId)
+        const gradeGroup = grade ? { id: grade.groupId||'', name: grade.groupName||'' } : { id:'', name:'' }
+        onOptimisticAdd({...body,id:`temp-${Date.now()}`,photoUrl,enrollmentDate:new Date().toISOString(),level:{id:data.form.levelId,name:'',number:0},grade:grade?{id:grade.id,name:grade.name}:null,groupId:gradeGroup.id,group:gradeGroup} as Student)
         await http.post('/students',body,{schoolId:getSchoolId()})
       } else { await http.put(`/students/${data.editing.id}`,body,{schoolId:getSchoolId()}) }
       toast('success',!data.editing?t('Student created','تم إنشاء الطالب'):t('Student updated','تم تحديث الطالب'))
@@ -116,7 +109,7 @@ export function StudentFormModal({ student, activeLevels, allGroups, churches, g
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label htmlFor="sf-level" className="block text-sm font-medium text-gray-700">{t('Level *','المستوى *')}</label>
-              <select id="sf-level" value={form.levelId} onChange={e=>{setField('levelId',e.target.value);setForm(prev=>({...prev,levelId:e.target.value,schoolGrade:'',groupId:''}))}} className={ic(formErrors.levelId)}>
+              <select id="sf-level" value={form.levelId} onChange={e=>{setField('levelId',e.target.value);setForm(prev=>({...prev,levelId:e.target.value,gradeId:'',groupId:'',groupName:''}))}} className={ic(formErrors.levelId)}>
                 <option value="">{t('Select level','اختر المستوى')}</option>
                 {activeLevels.map(l=><option key={l.id} value={l.id}>{l.name}</option>)}
               </select>
@@ -124,20 +117,16 @@ export function StudentFormModal({ student, activeLevels, allGroups, churches, g
             </div>
             <div>
               <label htmlFor="sf-group" className="block text-sm font-medium text-gray-700">{t('Group','المجموعة')}</label>
-              <select id="sf-group" value={form.groupId} onChange={e=>setForm({...form,groupId:e.target.value,groupName:formGroups.find(g=>g.id===e.target.value)?.name||''})} className={`${ic()} ${form.groupId?'':'text-gray-400'}`}>
-                <option value="">{t('Select group manually','اختر المجموعة يدوياً')}</option>
-                {formGroups.map(g=><option key={g.id} value={g.id}>{g.name}</option>)}
-              </select>
-              {form.groupId&&<p className="mt-1 text-xs text-green-600">{t('Assigned','محددة')}</p>}
-              {!form.groupId&&<p className="mt-1 text-xs text-gray-400">{t('Pick a group directly, or select a mapped grade above to auto-assign','اختر مجموعة مباشرة، أو اختر صفاً مربوطاً بالأعلى للتحديد تلقائياً')}</p>}
+              <div id="sf-group" className="mt-1 block w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-600">
+                {student?.group?.name || form.groupName || (gradeOptions.find(g=>g.id===form.gradeId)?.groupName)||t('—','—')}
+              </div>
             </div>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div><label htmlFor="sf-church" className="block text-sm font-medium text-gray-700">{t('Church','الكنيسة')}</label><select id="sf-church" value={form.churchName} onChange={e=>setForm({...form,churchName:e.target.value})} className={ic()}><option value="">{t('Select church','اختر الكنيسة')}</option>{churches.map(c=><option key={c.id} value={c.name}>{c.name}{c.city?`, ${c.city}`:''}</option>)}</select></div>
-            <div><label htmlFor="sf-grade" className="block text-sm font-medium text-gray-700">{t('Grade','المرحلة الدراسية')}</label><select id="sf-grade" value={form.schoolGrade} onChange={e=>{const g=e.target.value;const combo=form.levelId?gradeGroups.find(c=>c.levelId===form.levelId&&c.status==='active'&&c.gradeName===g):undefined;setForm({...form,schoolGrade:g,groupId:combo?.groupId||'',groupName:combo?.groupName||''})}} className={ic()}><option value="">{t('Select grade','اختر المرحلة')}</option>{mappedGrade.map(g=>{
-              const combo = form.levelId ? gradeGroups.find(c=>c.levelId===form.levelId&&c.status==='active'&&c.gradeName===g) : undefined
-              return <option key={g} value={g}>{combo?`${g} + ${combo.groupName}`:g}</option>
-            })}</select>{comboGrades.length===0&&form.levelId&&<p className="mt-1 text-xs text-amber-600">{t('No grades mapped for this level yet — configure in Settings → Grades','لا توجد صفوف مربوطة بهذا المستوى بعد — قم بإعدادها من الإعدادات ← الصفوف')}</p>}</div>
+            <div><label htmlFor="sf-grade" className="block text-sm font-medium text-gray-700">{t('Grade','المرحلة الدراسية')}</label><select id="sf-grade" value={form.gradeId} onChange={e=>{const v=e.target.value;const gr=gradeOptions.find(g=>g.id===v);setForm({...form,gradeId:v,groupId:gr?.groupId||'',groupName:gr?.groupName||''})}} className={ic()}><option value="">{t('Select grade','اختر المرحلة')}</option>{gradeOptions.map(g=>(
+              <option key={g.id} value={g.id}>{g.name}</option>
+            ))}</select><p className="mt-1 text-xs text-gray-400">{t('Group is auto-assigned from the grade','يتم تحديد المجموعة تلقائياً من المرحلة')}</p></div>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div><label htmlFor="sf-phone" className="block text-sm font-medium text-gray-700">{t('Phone','رقم الهاتف')}</label><input id="sf-phone" type="tel" value={form.phone} onChange={e=>setForm({...form,phone:e.target.value})} className={ic()} /></div>

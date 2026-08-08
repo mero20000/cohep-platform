@@ -25,37 +25,3 @@ export function getBaseSchoolId(): string {
   } catch {}
   return 'niangelos-main'
 }
-
-import { GRADE_GROUPS_KEY, type GradeGroupCombo } from './grade-groups'
-
-export async function fetchGradeGroups(): Promise<GradeGroupCombo[]> {
-  try {
-    const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'
-    const res = await fetch(`${API}/users/schools/${getSchoolId()}/config?key=${GRADE_GROUPS_KEY}`, { credentials: 'include' })
-    if (!res.ok) return []
-    const data: any = await res.json()
-    if (Array.isArray(data)) {
-      const match = data.find((c: any) => c.key === GRADE_GROUPS_KEY)
-      return match?.value || []
-    }
-    if (data && Array.isArray(data.value)) return data.value
-    return []
-  } catch {
-    return []
-  }
-}
-
-export async function saveGradeGroups(value: GradeGroupCombo[]): Promise<boolean> {
-  try {
-    const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'
-    const res = await fetch(`${API}/users/schools/${getSchoolId()}/config`, {
-      method: 'POST',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ key: GRADE_GROUPS_KEY, value, description: 'Grade + Group mapping per level' }),
-    })
-    return res.ok
-  } catch {
-    return false
-  }
-}

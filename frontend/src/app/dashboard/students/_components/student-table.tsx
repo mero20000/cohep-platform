@@ -100,7 +100,7 @@ export function StudentTable({ students, loading, fetchError, selectedIds, allSe
             <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-500 ms-10">
               {s.level?.name && <span>{s.level.name}{s.group?.name ? ` · ${s.group.name}` : ''}</span>}
               {s.gender && <span>{s.gender === 'female' ? t('Female','أنثى') : t('Male','ذكر')}</span>}
-              {s.schoolGrade && <span>{s.schoolGrade}</span>}
+              {s.grade?.name && <span>{s.grade.name}</span>}
               {s.churchName && <span className="truncate max-w-[120px]">{s.churchName}</span>}
               {calcAge(s.dateOfBirth) > 0 && <span>{calcAge(s.dateOfBirth)} {t('yrs','سنة')}</span>}
             </div>
@@ -150,7 +150,7 @@ export function StudentTable({ students, loading, fetchError, selectedIds, allSe
                 <td className="hidden md:table-cell px-4 py-3 text-sm text-gray-900">{s.group?.name||'—'}</td>
                 <td className="hidden md:table-cell px-4 py-3 text-sm text-gray-600">{calcAge(s.dateOfBirth)}</td>
                 <td className="hidden md:table-cell px-4 py-3 text-sm text-gray-600 max-w-[120px] truncate">{s.churchName||'—'}</td>
-                <td className="hidden md:table-cell px-4 py-3 text-sm text-gray-900">{s.schoolGrade||'—'}</td>
+                <td className="hidden md:table-cell px-4 py-3 text-sm text-gray-900">{s.grade?.name||'—'}</td>
                 <td className="px-4 py-3"><StatusBadge status={s.status} lang={lang} /></td>
                 <td className="px-4 py-3 text-end" onClick={e => e.stopPropagation()}><Actions s={s} onView={onView} onEdit={onEdit} onDelete={onDelete} lang={lang} /></td>
               </tr>

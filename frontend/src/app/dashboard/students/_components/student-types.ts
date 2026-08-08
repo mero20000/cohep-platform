@@ -8,7 +8,7 @@ export interface ChurchItem { id: string; name: string; nameAr?: string; country
 export interface Student {
   id: string; studentCode: string; firstName: string; lastName: string
   firstNameAr?: string; lastNameAr?: string; dateOfBirth: string; gender: string
-  churchName?: string; schoolGrade?: string; photoUrl?: string
+  churchName?: string; gradeId?: string; grade?: { id: string; name: string } | null; photoUrl?: string
   levelId: string; groupId: string; status: string; enrollmentDate: string
   level: { id: string; name: string; number: number }
   group: { id: string; name: string }
@@ -30,17 +30,12 @@ export interface StudentStats {
 // ─── Form ────────────────────────────────────────────────────────────────────
 export const emptyForm = {
   name: '', firstNameAr: '', lastNameAr: '', dateOfBirth: '', gender: 'male',
-  churchName: '', schoolGrade: '', levelId: '', groupId: '', groupName: '', photoUrl: '',
+  churchName: '', gradeId: '', levelId: '', groupId: '', groupName: '', photoUrl: '',
   status: 'active', phone: '', email: '', address: '', notes: '', churchToolId: '', parentEmail: '',
 }
 export type StudentForm = typeof emptyForm
 
 // ─── Constants ───────────────────────────────────────────────────────────────
-export const GRADE_OPTIONS = [
-  'Grade 1','Grade 2','Grade 3','Grade 4','Grade 5','Grade 6','Grade 7',
-  'Grade 8','Grade 9','Grade 10','Grade 11','Grade 12','Grade 13','Adult',
-]
-
 export const STATUS_STYLE: Record<string, { variant: 'success' | 'danger' | 'warning' | 'info'; bar: string }> = {
   active:    { variant: 'success', bar: 'border-s-green-400' },
   inactive:  { variant: 'danger',  bar: 'border-s-red-400'   },

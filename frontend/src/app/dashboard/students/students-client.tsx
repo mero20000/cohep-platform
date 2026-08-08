@@ -19,7 +19,7 @@ import { StudentDeleteModal } from './_components/student-delete-modal'
 import { StudentImportModal } from './_components/student-import-modal'
 import { StudentBulkModals }  from './_components/student-bulk-modals'
 import { AssignedServants, type Servant } from './_components/assigned-servants'
-import { GRADE_OPTIONS, type Student, type LevelWithGroups, type Group, type ChurchItem, type PaginatedResponse, type StudentStats as StatsType } from './_components/student-types'
+import { type Student, type LevelWithGroups, type Group, type ChurchItem, type PaginatedResponse, type StudentStats as StatsType } from './_components/student-types'
 
 type BulkModal = 'delete'|'status'|'level'|'grade'
 
@@ -52,7 +52,7 @@ export default function StudentsClient() {
   const [levels, setLevels]             = useState<LevelWithGroups[]>([])
   const [allGroups, setAllGroups]       = useState<Group[]>([])
   const [churches, setChurches]         = useState<ChurchItem[]>([])
-  const [gradeOptions, setGradeOptions] = useState<string[]>(GRADE_OPTIONS)
+  const [gradeOptions, setGradeOptions] = useState<GradeItem[]>([])
   const [studentStats, setStudentStats] = useState<StatsType|null>(null)
   const [statsLoading, setStatsLoading] = useState(true)
   // Servants
@@ -108,7 +108,7 @@ export default function StudentsClient() {
     http.get<LevelWithGroups[]>('/students/groups/all',{schoolId:getSchoolId()}).then(d=>{setLevels(d);setAllGroups(d.flatMap(l=>l.groups.filter(g=>g.status!=='inactive')))}).catch(console.error)
     http.get<ChurchItem[]>('/churches').then(d=>setChurches(d.filter(c=>c.isActive!==false))).catch(console.error)
     http.get<{church?:{name:string}}>('/users/schools/me').then(s=>{if(s.church?.name)setFilterChurch(s.church.name)}).catch(console.error)
-    fetchActiveGrades().then((grades:GradeItem[])=>{if(grades.length)setGradeOptions(grades.map(g=>g.name))}).catch(console.error)
+    fetchActiveGrades().then(setGradeOptions).catch(console.error)
     fetchStats()
   },[fetchStats])
   useEffect(()=>{
@@ -198,7 +198,7 @@ export default function StudentsClient() {
         filterLevel={filterLevel} onLevelChange={setFilterLevel} filterGroup={filterGroup} onGroupChange={setFilterGroup}
         filterStatus={filterStatus} onStatusChange={setFilterStatus} filterChurch={filterChurch} onChurchChange={setFilterChurch}
         filterGrade={filterGrade} onGradeChange={setFilterGrade} filterGender={filterGender} onGenderChange={setFilterGender}
-        activeLevels={activeLevels} filterGroups={filterGroups} gradeOptions={gradeOptions} churches={churches}
+        activeLevels={activeLevels} filterGroups={filterGroups} gradeOptions={gradeOptions.map(g=>g.name)} churches={churches}
         hasActiveFilters={hasActiveFilters} onClearFilters={clearFilters} lang={lang}/>
 
       {selectedIds.size>0&&<StudentBulkToolbar
@@ -221,7 +221,7 @@ export default function StudentsClient() {
 
       {filterLevel&&filterGroup&&<AssignedServants servants={assignedServants} loading={servantsLoading} show={showAssignedServants} onToggle={()=>setShowAssignedServants(v=>!v)} lang={lang}/>}
 
-      {showForm&&<StudentFormModal student={selectedStudent} activeLevels={activeLevels} allGroups={allGroups} churches={churches} gradeOptions={gradeOptions}
+      {showForm&&<StudentFormModal student={selectedStudent} activeLevels={activeLevels} churches={churches} gradeOptions={gradeOptions}
         onClose={()=>setShowForm(false)}
         onSuccess={(page:number)=>{fetchStudents(page);fetchStats()}} currentPage={pagination.page}
         onOptimisticAdd={s=>startTransition(()=>addOptimisticStudent({type:'add',student:s}))} lang={lang}/>}
@@ -235,7 +235,7 @@ export default function StudentsClient() {
       <StudentBulkModals
         showBulkDelete={bulkOpen.delete} showBulkStatus={bulkOpen.status} showBulkLevel={bulkOpen.level} showBulkGrade={bulkOpen.grade}
         onClose={modal=>setBulkOpen(b=>({...b,[modal]:false}))}
-        selectedIds={selectedIds} activeLevels={activeLevels} allGroups={allGroups} gradeOptions={gradeOptions}
+        selectedIds={selectedIds} activeLevels={activeLevels} allGroups={allGroups} gradeOptions={gradeOptions.map(g=>g.name)}
         onSuccess={page=>{setSelectedIds(new Set());fetchStudents(page);fetchStats()}} currentPage={pagination.page}
         toast={toast} lang={lang}/>
 
