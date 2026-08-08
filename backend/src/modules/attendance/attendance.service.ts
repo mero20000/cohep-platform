@@ -414,8 +414,7 @@ export class AttendanceService {
 
     const ref = recentSessions[0];
     const groups = await this.prisma.group.findMany({
-      where: { level: { schoolId: servant.schoolId }, levelId: ref.levelId },
-      include: { level: { select: { id: true, name: true, number: true } } },
+      where: { schoolId: servant.schoolId, deletedAt: null, status: { not: 'inactive' } },
     });
 
     let groupId: string;
@@ -423,10 +422,10 @@ export class AttendanceService {
 
     if (groups.length === 1) {
       groupId = groups[0].id;
-      levelId = groups[0].levelId;
+      levelId = ref.levelId;
     } else {
       // Multiple groups — return them for the client to pick
-      return { groups: groups.map(g => ({ id: g.id, name: g.name, level: g.level })), requiresGroupPick: true };
+      return { groups: groups.map(g => ({ id: g.id, name: g.name })), requiresGroupPick: true };
     }
 
     const session = await this.prisma.attendanceSession.create({
@@ -589,9 +588,8 @@ export class AttendanceService {
   async getGroupStats(schoolIdentifier: string) {
     const schoolId = await this.schoolResolver.resolve(schoolIdentifier);
     const groups = await this.prisma.group.findMany({
-      where: { level: { schoolId, status: { not: 'inactive' } }, status: { not: 'inactive' } },
-      include: { level: { select: { number: true, name: true } } },
-      orderBy: [{ level: { number: 'asc' } }, { name: 'asc' }],
+      where: { schoolId, status: { not: 'inactive' }, deletedAt: null },
+      orderBy: { name: 'asc' },
     });
 
     const stats: any[] = [];
@@ -609,7 +607,6 @@ export class AttendanceService {
       }
       stats.push({
         groupId: group.id, groupName: group.name,
-        levelNumber: group.level.number, levelName: group.level.name,
         totalSessions: sessions.length, totalRecords: total,
         attendanceRate: total > 0 ? Math.round((present / total) * 10000) / 100 : 0,
       });
