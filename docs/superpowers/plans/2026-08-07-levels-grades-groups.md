@@ -511,12 +511,12 @@ export async function deleteGrade(id: string) {
   return http.delete<void>(`/grades/${id}`);
 }
 ```
-- `lib/school.ts`: remove `GradeItem`, `fetchGrades`, `fetchActiveGrades`, `fetchGradeGroups`, `saveGradeGroups`, `GRADES_SCHOOL_ID`, and the `import { GRADE_GROUPS_KEY, type GradeGroupCombo } from './grade-groups'` line. Keep `getSchoolId`/`getBaseSchoolId`.
-- Delete `lib/grade-groups.ts` and `lib/grade-groups.test.ts`.
+- `lib/school.ts`: remove `GradeItem`, `fetchGrades`, `fetchActiveGrades`, `GRADES_SCHOOL_ID` (fully migrated to `grades.ts`; both importers updated). Keep `getSchoolId`/`getBaseSchoolId`. **Do NOT remove `fetchGradeGroups`/`saveGradeGroups`/`GRADE_GROUPS_KEY`/the `grade-groups` import yet** — `student-form-modal.tsx:13` still imports `fetchGradeGroups` from `@/lib/school` and `grades-tab.tsx`/`student-form-modal.tsx` still import from `@/lib/grade-groups` until Tasks 16/18 rewrite them.
+- Do NOT delete `lib/grade-groups.ts`/`grade-groups.test.ts` in this task (still imported). They are deleted at the end of Task 18, which also removes the `fetchGradeGroups`/`saveGradeGroups`/`GRADE_GROUPS_KEY` leftovers from `lib/school.ts`.
 - Update the two importers of `fetchActiveGrades`/`GradeItem` from `@/lib/school`: `students-client.tsx` (:10) and `assessments/page.tsx` (:22) → `@/lib/grades`.
 - `lib/grades.test.ts`: mock `global.fetch`/`http-client` to assert `fetchActiveGrades` filters by status and `fetchGroups` maps the flat array.
 
-**Steps:** write files, update imports, delete obsolete files, `grep -rn "grade-groups" frontend/src` returns nothing and `grep -rn "fetchGradeGroups\|saveGradeGroups\|GRADES_SCHOOL_ID" frontend/src` returns nothing; `npm run test` (frontend); commit.
+**Steps:** write files, update the two importers, trim `lib/school.ts`; `grep -rn "fetchActiveGrades\|GRADES_SCHOOL_ID" frontend/src/app/dashboard/students/students-client.tsx frontend/src/app/dashboard/assessments/page.tsx` returns nothing (i.e. those importers no longer pull grades from `@/lib/school`); `grep -rn "GRADES_SCHOOL_ID" frontend/src` returns nothing; `npm run test` (frontend); commit. (The `grade-groups` + `fetchGradeGroups`/`saveGradeGroups` removal gates are checked after Task 18.)
 
 ### Task 16: Settings — grades-tab rewrite
 
@@ -558,7 +558,7 @@ export async function deleteGrade(id: string) {
   - Add a Grade select (options `gradeOptions`, value `gradeId`). Group is no longer user-editable: show read-only `form.groupName` (from `grades.find(g => g.id === gradeId)?.groupName`, or the existing student's group in edit mode). Remove the group select + `groupChange` warning.
   - Submit payload: `{ ...form, levelId, gradeId }` — no `schoolGrade`, no `groupId`.
 
-**Steps:** edit; update `students-client.tsx` caller (Task 19) so types line up; `npm run test` (frontend); commit.
+**Steps:** edit; update `students-client.tsx` caller (Task 19) so types line up; delete `lib/grade-groups.ts` + `grade-groups.test.ts` and remove the now-unused `fetchGradeGroups`/`saveGradeGroups`/`GRADE_GROUPS_KEY` + `import { GRADE_GROUPS_KEY, type GradeGroupCombo } from './grade-groups'` from `lib/school.ts` (verify `grep -rn "grade-groups" frontend/src` and `grep -rn "fetchGradeGroups\|saveGradeGroups\|GRADE_GROUPS_KEY" frontend/src` both return nothing); `npm run test` (frontend); commit.
 
 ### Task 19: Students — client, filters, table, detail
 
