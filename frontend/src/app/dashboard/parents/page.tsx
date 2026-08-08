@@ -8,12 +8,13 @@ import { Button } from '@/components/ui/button'
 import { http } from '@/lib/http-client'
 import { motion } from 'motion/react'
 import {
-  Baby, UserPlus, Link2, AlertCircle, Search, Users,
+  Baby, UserPlus, Link2, AlertCircle, Search,
   CalendarClock, UserCheck, Crown, Trash2, Star,
 } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
 import { EmptyState } from '@/components/ui/empty-state'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
+import DashboardHero from '../hero'
 
 interface ChildStudent {
   id: string
@@ -125,49 +126,46 @@ export default function ParentsPage() {
     <div className="space-y-6">
       <title>{lang === 'ar' ? 'أولادي' : 'My Children'} — Coptic Orthodox Hymn Education Platform (COHEP)</title>
 
-      {/* Hero */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-indigo-900 via-indigo-800 to-purple-900 p-6 sm:p-8">
-        <div className="absolute inset-0 overflow-hidden">
-          <div className="absolute top-0 right-0 w-80 h-80 bg-indigo-400/10 rounded-full blur-3xl translate-x-1/3 -translate-y-1/3" />
-          <div className="absolute bottom-0 left-0 w-72 h-72 bg-purple-400/10 rounded-full blur-3xl -translate-x-1/3 translate-y-1/3" />
-        </div>
-        <div className="relative flex items-start gap-4">
-          {schoolIdentity?.churchLogoUrl ? (
+      <DashboardHero
+        bg="var(--hymn-indigo)"
+        orbTint="bg-indigo-500/10"
+        avatar={
+          schoolIdentity?.churchLogoUrl ? (
             <Image src={schoolIdentity.churchLogoUrl} alt={schoolIdentity.churchName || 'Church'} width={56} height={56}
-              className="rounded-2xl border-2 border-white/20 object-cover flex-shrink-0" />
+              className="h-14 w-14 object-cover" />
           ) : (
-            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white/10 border-2 border-white/20 flex-shrink-0">
+            <div className="flex h-14 w-14 items-center justify-center bg-white/10">
               <Baby className="h-7 w-7 text-indigo-200" />
             </div>
-          )}
-          <div className="min-w-0 flex-1">
-            <h1 className="text-2xl sm:text-3xl font-bold text-white">{lang === 'ar' ? 'أولادي' : 'My Children'}</h1>
-            {schoolIdentity && (
-              <div className="flex flex-wrap items-center gap-2 mt-2">
-                {schoolIdentity.churchLogoUrl ? (
-                  <span className="inline-flex items-center gap-1.5 rounded-lg bg-white/15 px-2.5 py-1 text-xs font-medium text-white/90">
-                    {schoolIdentity.churchName}
-                  </span>
-                ) : (
-                  <span className="inline-flex items-center gap-1.5 rounded-lg bg-white/15 px-2.5 py-1 text-xs font-medium text-white/90">
-                    {schoolIdentity.churchName}
-                  </span>
-                )}
-                <span className="text-white/30">·</span>
+          )
+        }
+        title={lang === 'ar' ? 'أولادي' : 'My Children'}
+        badges={
+          schoolIdentity ? (
+            <div className="flex flex-wrap items-center gap-2">
+              {schoolIdentity.churchName && (
+                <span className="inline-flex items-center gap-1.5 rounded-lg bg-white/15 px-2.5 py-1 text-xs font-medium text-white/90">
+                  {schoolIdentity.churchName}
+                </span>
+              )}
+              <span className="text-white/30">·</span>
+              {schoolIdentity.name && (
                 <span className="inline-flex items-center gap-1.5 text-xs text-white/70">
                   {schoolIdentity.logoUrl && (
                     <Image src={schoolIdentity.logoUrl} alt="" width={14} height={14} className="rounded" />
                   )}
                   {lang === 'ar' && schoolIdentity.nameAr ? schoolIdentity.nameAr : schoolIdentity.name}
                 </span>
-              </div>
-            )}
-            <p className="text-indigo-200/80 text-sm mt-3">
-              {lang === 'ar' ? 'يظهر أبناؤك تلقائياً إذا كان بريدهم مسجلاً ببريدك، أو اربطهم يدوياً بكود الطالب.' : 'Your children appear automatically when their record uses your login email, or link them manually by student code.'}
-            </p>
-          </div>
-        </div>
-      </div>
+              )}
+            </div>
+          ) : undefined
+        }
+        description={
+          lang === 'ar'
+            ? 'يظهر أبناؤك تلقائياً إذا كان بريدهم مسجلاً ببريدك، أو اربطهم يدوياً بكود الطالب.'
+            : 'Your children appear automatically when their record uses your login email, or link them manually by student code.'
+        }
+      />
 
       {/* Link form */}
       <div className="rounded-xl border border-gray-200 bg-white p-5">
