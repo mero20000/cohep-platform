@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Plus, Pencil, Trash2, Loader2, GraduationCap } from 'lucide-react'
 import { Modal } from '@/components/ui/modal'
@@ -8,84 +8,51 @@ import { FormField } from '@/components/ui/form-field'
 import { Badge } from '@/components/ui/badge'
 import { useToast } from '@/components/ui/toast'
 import { useLanguage } from '@/lib/use-language'
-import { getSchoolId } from '@/lib/school'
-import { http } from '@/lib/http-client'
 import { track } from '@/lib/analytics'
 import {
-  type GradeGroupCombo,
-  type GroupLike,
-  upsertCombo,
-  removeCombo,
-  validateCombo,
-  findGroupToReuse,
-} from '@/lib/grade-groups'
+  type GradeItem,
+  type GroupOption,
+  fetchGrades,
+  fetchGroups,
+  createGrade,
+  updateGrade,
+  deleteGrade,
+} from '@/lib/grades'
 
-interface LevelOption {
-  id: string
-  name: string
-  number: number
-  status?: string
-}
-
-interface ConfigResponse {
-  id: string
-  schoolId: string | null
-  key: string
-  value: GradeGroupCombo[]
-}
-
-const emptyForm = { gradeName: '', groupName: '', status: 'active' as 'active' | 'inactive' }
-
-function loadConfig(data: any): GradeGroupCombo[] {
-  if (Array.isArray(data)) {
-    const match = data.find((c: any) => c.key === 'gradeGroups')
-    return Array.isArray(match?.value) ? match.value : []
-  }
-  if (data && Array.isArray(data.value)) return data.value
-  return []
-}
+const emptyForm = { name: '', nameAr: '', groupId: '' }
 
 export function GradesTab() {
   const lang = useLanguage()
   const { toast } = useToast()
   const t = (en: string, ar: string) => (lang === 'ar' ? ar : en)
 
-  const [levels, setLevels] = useState<LevelOption[]>([])
-  const [selectedLevel, setSelectedLevel] = useState('')
-  const [combos, setCombos] = useState<GradeGroupCombo[]>([])
-  const [groups, setGroups] = useState<GroupLike[]>([])
+  const [grades, setGrades] = useState<GradeItem[]>([])
+  const [groups, setGroups] = useState<GroupOption[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
 
   const [showForm, setShowForm] = useState(false)
-  const [editing, setEditing] = useState<GradeGroupCombo | null>(null)
+  const [editing, setEditing] = useState<GradeItem | null>(null)
   const [form, setForm] = useState(emptyForm)
   const [error, setError] = useState('')
 
-  const fetchData = useCallback(async () => {
+  useEffect(() => {
+    let mounted = true
     setLoading(true)
-    try {
-      const [configData, groupsData, levelsData] = await Promise.all([
-        http.get<any>(`/users/schools/${getSchoolId()}/config?key=gradeGroups`),
-        http.get<{ groups: GroupLike[] }[]>('/students/groups/all', { schoolId: getSchoolId() }),
-        http.get<LevelOption[]>('/curriculum/levels', { schoolId: getSchoolId() }),
-      ])
-      setCombos(loadConfig(configData))
-      const all = groupsData.flatMap(l => l.groups)
-      setGroups(all)
-      const activeLevels = levelsData.filter(l => l.status !== 'inactive').sort((a, b) => a.number - b.number)
-      setLevels(activeLevels)
-      setSelectedLevel(prev => prev || activeLevels[0]?.id || '')
-    } catch {
-      toast('error', t('Failed to load data', 'فشل تحميل البيانات'))
-    }
-    setLoading(false)
-  }, [lang])
+    Promise.all([fetchGrades(), fetchGroups()])
+      .then(([gradesData, groupsData]) => {
+        if (!mounted) return
+        setGrades(gradesData)
+        setGroups(groupsData)
+      })
+      .catch(() => {
+        if (mounted) toast('error', t('Failed to load data', 'فشل تحميل البيانات'))
+      })
+      .finally(() => { if (mounted) setLoading(false) })
+    return () => { mounted = false }
+  }, [])
 
-  useEffect(() => { fetchData() }, [fetchData])
-
-  const levelCombos = selectedLevel ? combos.filter(c => c.levelId === selectedLevel) : []
-  const levelName = levels.find(l => l.id === selectedLevel)?.name || ''
+  const activeGroups = groups.filter(g => g.status !== 'inactive')
 
   const openCreate = () => {
     setEditing(null)
@@ -94,97 +61,87 @@ export function GradesTab() {
     setShowForm(true)
   }
 
-  const openEdit = (c: GradeGroupCombo) => {
-    setEditing(c)
-    setForm({ gradeName: c.gradeName, groupName: c.groupName, status: c.status })
+  const openEdit = (grade: GradeItem) => {
+    setEditing(grade)
+    setForm({ name: grade.name, nameAr: grade.nameAr || '', groupId: grade.groupId || '' })
     setError('')
     setShowForm(true)
   }
 
-  const persist = async (next: GradeGroupCombo[], message: string) => {
-    setSaving(true)
-    try {
-      const ok = await http.post<ConfigResponse>(`/users/schools/${getSchoolId()}/config`, {
-        key: 'gradeGroups', value: next, description: 'Grade + Group mapping per level',
-      })
-      if (ok) {
-        setCombos(next)
-        toast('success', message)
-        track('settings.task_completed', 'task', { tab: 'grades', action: 'save' })
-        setShowForm(false)
-      }
-    } catch {
-      toast('error', t('Failed to save', 'فشل الحفظ'))
-    }
-    setSaving(false)
-  }
-
   const handleSave = async () => {
     setError('')
-    if (!form.gradeName.trim() || !form.groupName.trim()) {
-      setError(t('Grade and group names are required', 'اسم الصف واسم المجموعة مطلوبان'))
+    if (!form.name.trim()) {
+      setError(t('Grade name is required', 'اسم الصف مطلوب'))
       return
     }
-    const gradeName = form.gradeName.trim()
-    const groupName = form.groupName.trim()
-    const combo: GradeGroupCombo = {
-      id: editing?.id || `combo-${Date.now()}`,
-      levelId: selectedLevel,
-      gradeName,
-      groupId: editing?.groupId || '',
-      groupName,
-      status: form.status,
+    if (!form.groupId) {
+      setError(t('Please select a group', 'يرجى اختيار مجموعة'))
+      return
     }
-    const validation = validateCombo(combos, combo)
-    if (!validation.ok) { setError(validation.error); return }
+    const name = form.name.trim()
+    const nameAr = form.nameAr.trim() || undefined
+    const groupId = form.groupId
+
+    if (editing && editing.groupId && editing.groupId !== groupId) {
+      const ok = window.confirm(t(
+        `Changing the group will move all students in "${editing.name}" to the new group. Continue?`,
+        `سيؤدي تغيير المجموعة إلى نقل جميع طلاب "${editing.name}" إلى المجموعة الجديدة. متابعة؟`,
+      ))
+      if (!ok) return
+    }
 
     setSaving(true)
     try {
-      let groupId = editing?.groupId || ''
-      if (editing && editing.groupId) {
-        if (editing.groupName !== groupName) {
-          await http.patch(`/students/groups/${editing.groupId}`, { name: groupName })
-        }
-        groupId = editing.groupId
+      if (editing) {
+        const updated = await updateGrade(editing.id, { name, nameAr, groupId, status: editing.status })
+        const group = groups.find(g => g.id === groupId)
+        setGrades(prev => prev.map(g => g.id === editing.id
+          ? { ...g, ...updated, name, nameAr, groupId, groupName: updated.groupName || group?.name }
+          : g))
+        toast('success', t('Grade updated', 'تم تحديث الصف'))
+        track('settings.task_completed', 'task', { tab: 'grades', action: 'update' })
       } else {
-        const existing = findGroupToReuse(groups, selectedLevel, groupName)
-        if (existing) {
-          groupId = existing
-        } else {
-          const created = await http.post<GroupLike>('/students/groups', { name: groupName, levelId: selectedLevel }, { schoolId: getSchoolId() })
-          groupId = created.id
-          setGroups(prev => [...prev, created])
-        }
+        const created = await createGrade({ name, nameAr, groupId })
+        const group = groups.find(g => g.id === groupId)
+        setGrades(prev => [...prev, { ...created, name, nameAr, groupId, groupName: created.groupName || group?.name, status: created.status || 'active' }])
+        toast('success', t('Grade added', 'تم إضافة الصف'))
+        track('settings.task_completed', 'task', { tab: 'grades', action: 'create' })
       }
-      const withGroup: GradeGroupCombo = { ...combo, groupId }
-      const next = upsertCombo(combos, withGroup)
-      await persist(next, editing ? t('Grade updated', 'تم تحديث الصف') : t('Grade added', 'تم إضافة الصف'))
+      setShowForm(false)
     } catch {
       toast('error', t('Failed to save', 'فشل الحفظ'))
     }
     setSaving(false)
   }
 
-  const toggleStatus = async (c: GradeGroupCombo) => {
-    const newStatus: 'active' | 'inactive' = c.status === 'active' ? 'inactive' : 'active'
+  const toggleStatus = async (grade: GradeItem) => {
+    const newStatus: 'active' | 'inactive' = grade.status === 'active' ? 'inactive' : 'active'
     setSaving(true)
     try {
-      await http.patch(`/students/groups/${c.groupId}`, { status: newStatus })
-      const next = combos.map(x => x.id === c.id ? { ...x, status: newStatus } : x)
-      await persist(next, t('Status updated', 'تم تحديث الحالة'))
+      await updateGrade(grade.id, { status: newStatus })
+      setGrades(prev => prev.map(g => g.id === grade.id ? { ...g, status: newStatus } : g))
+      toast('success', t('Status updated', 'تم تحديث الحالة'))
+      track('settings.task_completed', 'task', { tab: 'grades', action: 'status' })
     } catch {
       toast('error', t('Failed to update status', 'فشل تحديث الحالة'))
     }
     setSaving(false)
   }
 
-  const handleDelete = async (c: GradeGroupCombo) => {
-    if (!confirm(t(`Delete grade "${c.gradeName}" and its group?`, `حذف الصف "${c.gradeName}" ومجموعته؟`))) return
+  const handleDelete = async (grade: GradeItem) => {
+    const message = grade.studentCount && grade.studentCount > 0
+      ? t(
+        `Delete "${grade.name}"? ${grade.studentCount} student(s) are linked to this grade and will be removed from it.`,
+        `حذف "${grade.name}"؟ يوجد ${grade.studentCount} طالب مرتبط بهذا الصف وسيتم إزالة الصف منهم.`,
+      )
+      : t(`Delete "${grade.name}"? This action cannot be undone.`, `حذف "${grade.name}"؟ لا يمكن التراجع عن هذا الإجراء.`)
+    if (!window.confirm(message)) return
     setSaving(true)
     try {
-      await http.delete(`/students/groups/${c.groupId}`)
-      const next = removeCombo(combos, c.id)
-      await persist(next, t('Grade deleted', 'تم حذف الصف'))
+      await deleteGrade(grade.id)
+      setGrades(prev => prev.filter(g => g.id !== grade.id))
+      toast('success', t('Grade deleted', 'تم حذف الصف'))
+      track('settings.task_completed', 'task', { tab: 'grades', action: 'delete' })
     } catch {
       toast('error', t('Failed to delete', 'فشل الحذف'))
     }
@@ -204,30 +161,17 @@ export function GradesTab() {
       <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4">
         <div>
           <h3 className="text-lg font-semibold text-gray-900">{t('Grades', 'الصفوف الدراسية')}</h3>
-          <p className="text-sm text-gray-500">{t('Each grade is paired with a group under a level', 'كل صف مرتبط بمجموعة داخل مستوى')}</p>
+          <p className="text-sm text-gray-500">{t('Each grade is linked to a group', 'كل صف مرتبط بمجموعة')}</p>
         </div>
-        <Button onClick={openCreate} disabled={!selectedLevel} aria-label={t('Add grade', 'إضافة صف')} size="sm">
-          <Plus className="h-4 w-4" /> {t('Add Grade + Group', 'إضافة صف ومجموعة')}
+        <Button onClick={openCreate} aria-label={t('Add grade', 'إضافة صف')} size="sm">
+          <Plus className="h-4 w-4" /> {t('Add Grade', 'إضافة صف')}
         </Button>
       </div>
 
-      <div className="px-6 py-4 border-b border-gray-100">
-        <label className="block text-sm font-medium text-gray-700 mb-1">{t('Level', 'المستوى')}</label>
-        <select value={selectedLevel} onChange={e => setSelectedLevel(e.target.value)}
-          className="mt-1 block w-full max-w-xs rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
-          {levels.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
-        </select>
-      </div>
-
-      {!selectedLevel ? (
+      {grades.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-12">
           <GraduationCap className="h-10 w-10 text-gray-300" />
-          <p className="mt-2 text-sm text-gray-500">{t('No active levels found', 'لا توجد مستويات نشطة')}</p>
-        </div>
-      ) : levelCombos.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-12">
-          <GraduationCap className="h-10 w-10 text-gray-300" />
-          <p className="mt-2 text-sm text-gray-500">{t(`No grades configured for ${levelName}`, `لا توجد صفوف مكونة لـ ${levelName}`)}</p>
+          <p className="mt-2 text-sm text-gray-500">{t('No grades yet', 'لا توجد صفوف بعد')}</p>
           <Button variant="link" onClick={openCreate} className="mt-2 text-sm font-medium text-blue-700 hover:text-gold-500">{t('Add first grade', 'إضافة أول صف')}</Button>
         </div>
       ) : (
@@ -237,33 +181,38 @@ export function GradesTab() {
               <tr className="border-b border-gray-100 bg-gray-50/50">
                 <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">{t('Grade', 'الصف')}</th>
                 <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">{t('Group', 'المجموعة')}</th>
+                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">{t('Students', 'الطلاب')}</th>
                 <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">{t('Status', 'الحالة')}</th>
                 <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">{t('Actions', 'الإجراءات')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {levelCombos.map(c => (
-                <tr key={c.id} className="hover:bg-gray-50/50 active:bg-gray-100/50 transition-colors">
-                  <td className="px-6 py-3.5 text-sm font-medium text-gray-900" data-label={t('Grade', 'الصف')}>
-                    {c.gradeName}
+              {grades.map(grade => (
+                <tr key={grade.id} className="hover:bg-gray-50/50 active:bg-gray-100/50 transition-colors">
+                  <td className="px-6 py-3.5" data-label={t('Grade', 'الصف')}>
+                    <p className="text-sm font-medium text-gray-900">{grade.name}</p>
+                    {grade.nameAr && <p className="text-xs text-gray-500">{grade.nameAr}</p>}
                   </td>
                   <td className="px-6 py-3.5 text-sm text-gray-600" data-label={t('Group', 'المجموعة')}>
-                    {c.groupName}
+                    {grade.groupName || '—'}
+                  </td>
+                  <td className="px-6 py-3.5 text-sm text-gray-600" data-label={t('Students', 'الطلاب')}>
+                    {grade.studentCount ?? 0}
                   </td>
                   <td className="px-6 py-3.5" data-label={t('Status', 'الحالة')}>
-                    <button onClick={() => toggleStatus(c)} disabled={saving}>
-                      <Badge variant={c.status === 'active' ? 'success' : 'default'}>
-                        {c.status === 'active' ? t('Active', 'نشط') : t('Inactive', 'غير نشط')}
+                    <button onClick={() => toggleStatus(grade)} disabled={saving}>
+                      <Badge variant={grade.status === 'active' ? 'success' : 'default'}>
+                        {grade.status === 'active' ? t('Active', 'نشط') : t('Inactive', 'غير نشط')}
                       </Badge>
                     </button>
                   </td>
                   <td className="px-6 py-3.5 text-right" data-label={t('Actions', 'الإجراءات')}>
                     <div className="flex items-center justify-end gap-1">
-                      <Button variant="ghost" size="icon" onClick={() => openEdit(c)} aria-label={`${t('Edit', 'تعديل')} ${c.gradeName}`} title={t('Edit', 'تعديل')}
+                      <Button variant="ghost" size="icon" onClick={() => openEdit(grade)} aria-label={`${t('Edit', 'تعديل')} ${grade.name}`} title={t('Edit', 'تعديل')}
                         className="rounded-lg p-1.5 text-gray-400 hover:bg-amber-50 hover:text-amber-600">
                         <Pencil className="h-4 w-4" />
                       </Button>
-                      <Button variant="ghost" size="icon" onClick={() => handleDelete(c)} aria-label={`${t('Delete', 'حذف')} ${c.gradeName}`} title={t('Delete', 'حذف')}
+                      <Button variant="ghost" size="icon" onClick={() => handleDelete(grade)} aria-label={`${t('Delete', 'حذف')} ${grade.name}`} title={t('Delete', 'حذف')}
                         className="rounded-lg p-1.5 text-gray-400 hover:bg-red-50 hover:text-red-600">
                         <Trash2 className="h-4 w-4" />
                       </Button>
@@ -276,19 +225,21 @@ export function GradesTab() {
         </div>
       )}
 
-      <Modal open={showForm} onClose={() => setShowForm(false)} title={editing ? t('Edit Grade + Group', 'تعديل الصف والمجموعة') : t('Add Grade + Group', 'إضافة صف ومجموعة')} size="sm">
+      <Modal open={showForm} onClose={() => setShowForm(false)} title={editing ? t('Edit Grade', 'تعديل الصف') : t('Add New Grade', 'إضافة صف جديد')} size="sm">
         <div className="space-y-4">
           {error && <div className="rounded-lg bg-red-50 border border-red-200 p-3 text-sm text-red-700" role="alert">{error}</div>}
-          <div>
-            <label className="block text-sm font-medium text-gray-700">{t('Level', 'المستوى')}</label>
-            <div className="mt-1 block w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-600">{levelName}</div>
-          </div>
-          <FormField label={t('Grade Name', 'اسم الصف')} required value={form.gradeName} onChange={e => setForm({ ...form, gradeName: e.target.value })} placeholder={t('e.g. Grade 4', 'مثال: الصف الرابع')} />
-          <FormField label={t('Group Name', 'اسم المجموعة')} required value={form.groupName} onChange={e => setForm({ ...form, groupName: e.target.value })} placeholder={t('e.g. Group 1', 'مثال: المجموعة 1')} />
-          <FormField label={t('Status', 'الحالة')} as="select" value={form.status} onChange={e => setForm({ ...form, status: e.target.value as 'active' | 'inactive' })}>
-            <option value="active">{t('Active', 'نشط')}</option>
-            <option value="inactive">{t('Inactive', 'غير نشط')}</option>
+          <FormField label={t('Grade Name', 'اسم الصف')} required value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder={t('e.g. Grade 4', 'مثال: الصف الرابع')} />
+          <FormField label={t('Arabic Name', 'الاسم بالعربية')} value={form.nameAr} onChange={e => setForm({ ...form, nameAr: e.target.value })} placeholder={t('e.g. الصف الرابع', 'مثال: الصف الرابع')} />
+          <FormField label={t('Group', 'المجموعة')} required as="select" value={form.groupId} onChange={e => setForm({ ...form, groupId: e.target.value })}>
+            <option value="">{t('Select a group', 'اختر مجموعة')}</option>
+            {activeGroups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
           </FormField>
+          {editing && (
+            <FormField label={t('Status', 'الحالة')} as="select" value={editing.status} onChange={e => setEditing({ ...editing, status: e.target.value })}>
+              <option value="active">{t('Active', 'نشط')}</option>
+              <option value="inactive">{t('Inactive', 'غير نشط')}</option>
+            </FormField>
+          )}
         </div>
         <div className="flex items-center justify-end gap-3 border-t border-gray-100 px-6 py-4 mt-4">
           <Button variant="outline" onClick={() => setShowForm(false)}>{t('Cancel', 'إلغاء')}</Button>
