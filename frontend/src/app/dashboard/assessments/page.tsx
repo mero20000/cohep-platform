@@ -19,7 +19,8 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { Pagination } from '@/components/ui/pagination'
 import { CardSkeleton } from '@/components/ui/skeleton'
 import { EmptyState } from '@/components/ui/empty-state'
-import { getSchoolId, fetchActiveGrades, type GradeItem } from '@/lib/school'
+import { getSchoolId } from '@/lib/school'
+import { fetchActiveGrades, type GradeItem } from '@/lib/grades'
 import { http } from '@/lib/http-client'
 
 interface Level { id: string; name: string; number: number; status?: string }
