@@ -75,7 +75,7 @@ export default function TermsPage() {
           <section>
             <h2 className="text-lg font-semibold text-gray-900">{isAr ? '6. الاتصال بنا' : '6. Contact Us'}</h2>
             <p className="text-sm text-gray-600">
-              {isAr ? 'للاستفسارات، يرجى مراسلتنا على support@niangelos.com' : 'For inquiries, please email us at support@niangelos.com'}
+              {isAr ? 'للاستفسارات، يرجى مراسلتنا على support@cohep.church' : 'For inquiries, please email us at support@cohep.church'}
             </p>
           </section>
         </div>
