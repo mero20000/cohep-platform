@@ -2,12 +2,53 @@ name: Keep Render Backend Alive
 
 on:
   schedule:
-    - cron: '*/10 * * * *'
+    # Every 14 minutes — stays under GitHub's rate limits
+    # and keeps Render's 15-minute sleep timer from triggering
+    - cron: '*/14 * * * *'
   workflow_dispatch:
 
 jobs:
   ping:
     runs-on: ubuntu-latest
+    timeout-minutes: 3
+
     steps:
-      - name: Ping backend health endpoint
-        run: curl -sS --max-time 15 https://niangelos-backend.onrender.com/health
+      - name: Ping /health — first attempt
+        id: ping1
+        continue-on-error: true
+        run: |
+          echo "🕐 $(date -u)"
+          RESPONSE=$(curl -s -w "\n%{http_code}" --max-time 20 \
+            https://niangelos-backend.onrender.com/health)
+          HTTP_CODE=$(echo "$RESPONSE" | tail -1)
+          BODY=$(echo "$RESPONSE" | head -1)
+          echo "Status: $HTTP_CODE"
+          echo "Body:   $BODY"
+          if [[ "$HTTP_CODE" != "200" ]]; then
+            echo "⚠️  Non-200 response — backend may be cold-starting"
+            exit 1
+          fi
+          echo "✅ Backend is warm"
+
+      - name: Wait and retry if cold-starting
+        if: steps.ping1.outcome == 'failure'
+        run: |
+          echo "⏳ Waiting 25s for cold start to complete..."
+          sleep 25
+          RESPONSE=$(curl -s -w "\n%{http_code}" --max-time 40 \
+            https://niangelos-backend.onrender.com/health)
+          HTTP_CODE=$(echo "$RESPONSE" | tail -1)
+          BODY=$(echo "$RESPONSE" | head -1)
+          echo "Retry status: $HTTP_CODE"
+          echo "Retry body:   $BODY"
+          if [[ "$HTTP_CODE" != "200" ]]; then
+            echo "❌ Backend did not recover after cold start"
+            exit 1
+          fi
+          echo "✅ Backend recovered after cold start"
+
+      - name: Also ping frontend (Vercel — just confirm it's up)
+        run: |
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
+            --max-time 10 https://cohep-platform.vercel.app/)
+          echo "Frontend status: $HTTP_CODE"

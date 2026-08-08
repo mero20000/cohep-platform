@@ -43,6 +43,7 @@ export default function LoginPage() {
   const [showSuccess, setShowSuccess] = useState(false)
   const [rememberMe, setRememberMe] = useState(false)
   const [showForgot, setShowForgot] = useState(false)
+  const [coldStartWarning, setColdStartWarning] = useState(false)
 
   const emailRef = useRef<HTMLInputElement>(null)
   const passwordHintRef = useRef<HTMLParagraphElement>(null)
@@ -72,6 +73,8 @@ export default function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
+    setColdStartWarning(false)
+    const coldTimer = setTimeout(() => setColdStartWarning(true), 4000)
     setError('')
     setEmailError('')
 
@@ -83,6 +86,8 @@ export default function LoginPage() {
 
     try {
       await login(email, password, schoolId || undefined)
+      clearTimeout(coldTimer)
+      setColdStartWarning(false)
       setShowSuccess(true)
       await new Promise((r) => setTimeout(r, 800))
       router.replace('/dashboard')
@@ -105,6 +110,8 @@ export default function LoginPage() {
         )
       }
       setLoading(false)
+      setColdStartWarning(false)
+      clearTimeout(coldTimer)
     }
   }
 
@@ -355,6 +362,15 @@ export default function LoginPage() {
                 <ForgotPasswordPanel defaultEmail={email} defaultSchoolId={schoolId} />
               )}
 
+              {coldStartWarning && (
+                <div className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs text-amber-800 flex items-start gap-2">
+                  <span className="text-base leading-none mt-0.5">☕</span>
+                  <div>
+                    <p className="font-semibold">{isAr ? 'الخادم يستيقظ…' : 'Server is waking up…'}</p>
+                    <p className="text-amber-700 mt-0.5">{isAr ? 'يحدث هذا فقط عند أول تسجيل دخول بعد فترة هدوء. سيستغرق 20–30 ثانية.' : 'This only happens on the first login after a quiet period. It will take 20–30 seconds.'}</p>
+                  </div>
+                </div>
+              )}
               <Button
                 type="submit"
                 variant="gold"
