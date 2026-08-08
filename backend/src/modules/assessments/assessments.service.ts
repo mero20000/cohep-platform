@@ -426,15 +426,12 @@ export class AssessmentsService {
     });
   }
 
-  async getStudentsForAssessment(assessmentId: string, schoolGrade?: string) {
+  async getStudentsForAssessment(assessmentId: string, gradeId?: string) {
     try {
       const assessment = await this.prisma.assessment.findUnique({ where: { id: assessmentId } });
       if (!assessment || assessment.deletedAt) {
         throw new NotFoundException('Assessment not found');
       }
-
-      const storedGrade = (assessment.metadata as any)?.grade as string | undefined;
-      const effectiveGrade = schoolGrade || storedGrade;
 
       const students = await this.prisma.student.findMany({
         where: {
@@ -442,14 +439,14 @@ export class AssessmentsService {
           deletedAt: null,
           levelId: assessment.levelId,
           ...(assessment.groupId ? { groupId: assessment.groupId } : {}),
-          ...(effectiveGrade ? { schoolGrade: effectiveGrade } : {}),
+          ...(gradeId ? { gradeId } : {}),
         },
         select: {
           id: true,
           firstName: true,
           lastName: true,
           studentCode: true,
-          schoolGrade: true,
+          grade: { select: { name: true } },
           status: true,
         },
         orderBy: { firstName: 'asc' },
@@ -467,7 +464,12 @@ export class AssessmentsService {
         const sub = submissionByStudent.get(s.id);
         const overall = sub?.grades?.find(g => g.questionId === null);
         return {
-          ...s,
+          id: s.id,
+          firstName: s.firstName,
+          lastName: s.lastName,
+          studentCode: s.studentCode,
+          gradeName: s.grade?.name ?? null,
+          status: s.status,
           assigned: !!sub,
           submissionStatus: sub?.status || null,
           mark: overall ? toNum(overall.score) : null,

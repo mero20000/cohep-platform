@@ -154,8 +154,8 @@ export class AssessmentsController {
   @ApiOperation({ summary: 'List students for an assessment (by level/group/grade) with marks' })
   async getStudentsForAssessment(
     @Param('id', ParseUUIDPipe) id: string,
-    @Query('schoolGrade') schoolGrade?: string,
+    @Query('gradeId') gradeId?: string,
   ) {
-    return this.assessmentsService.getStudentsForAssessment(id, schoolGrade);
+    return this.assessmentsService.getStudentsForAssessment(id, gradeId);
   }
 }
