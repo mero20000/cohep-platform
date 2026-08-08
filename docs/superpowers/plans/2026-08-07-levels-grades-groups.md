@@ -549,16 +549,20 @@ export async function deleteGrade(id: string) {
 
 ### Task 18: Students — types + form
 
-**Files:** `frontend/src/app/dashboard/students/student-types.ts`, `_components/student-form-modal.tsx`
+**Files:** `frontend/src/app/dashboard/students/_components/student-types.ts`, `_components/student-form-modal.tsx`, `students-client.tsx` (minimal caller alignment only)
 
 **Changes:**
-- `student-types.ts`: `Student` — remove `schoolGrade?: string`; add `gradeId?: string` and `grade?: { id: string; name: string } | null`. `emptyForm` — remove `schoolGrade`, add `gradeId: ''`. (Leave `levelId`/`groupId`/`groupName`; `groupName` stays read-only display.)
+- `student-types.ts`: `Student` — remove `schoolGrade?: string`; add `gradeId?: string` and `grade?: { id: string; name: string } | null`. Remove `schoolGrade` from `emptyForm`, add `gradeId: ''`. (Leave `levelId`/`groupId`/`groupName`; `groupName` stays read-only display.)
 - `student-form-modal.tsx`:
-  - Props: `gradeOptions` becomes `GradeItem[]` (from `@/lib/grades`); drop `allGroups`/`fetchGradeGroups`/`gradeOptionsForLevel` usage.
-  - Add a Grade select (options `gradeOptions`, value `gradeId`). Group is no longer user-editable: show read-only `form.groupName` (from `grades.find(g => g.id === gradeId)?.groupName`, or the existing student's group in edit mode). Remove the group select + `groupChange` warning.
-  - Submit payload: `{ ...form, levelId, gradeId }` — no `schoolGrade`, no `groupId`.
+  - Props: `gradeOptions` becomes `GradeItem[]` (from `@/lib/grades`); drop the `allGroups` prop and `fetchGradeGroups`/`gradeOptionsForLevel`/`grade-groups` usage.
+  - Add a Grade select (options `gradeOptions`, value `gradeId`). Group is no longer user-editable: show read-only `form.groupName` (from `gradeOptions.find(g => g.id === gradeId)?.groupName`, or the existing student's group in edit mode). Remove the group select + `groupChange`/`combo` warning.
+  - Submit payload: `{ ...form, levelId, gradeId }` — no `schoolGrade`, no `groupId`. The optimistic-add object (`onOptimisticAdd`) must not include a manually-chosen groupId; use the selected grade's `groupId`/`groupName` (from `gradeOptions`) because backend keeps `students.group_id` NOT NULL and derives it from the grade. On the level select change, clear `gradeId` too.
+- `students-client.tsx` (MINIMAL caller alignment for this task — full rewrite is Task 19): pass the new props to `StudentFormModal`:
+  - `gradeOptions` becomes `GradeItem[]` from `fetchActiveGrades()` (in `@/lib/grades`) instead of `string[]`;
+  - stop passing `allGroups`;
+  - may still build `allGroups` internally for its own filter state (not passed to the modal).
 
-**Steps:** edit; update `students-client.tsx` caller (Task 19) so types line up; delete `lib/grade-groups.ts` + `grade-groups.test.ts` and remove the now-unused `fetchGradeGroups`/`saveGradeGroups`/`GRADE_GROUPS_KEY` + `import { GRADE_GROUPS_KEY, type GradeGroupCombo } from './grade-groups'` from `lib/school.ts` (verify `grep -rn "grade-groups" frontend/src` and `grep -rn "fetchGradeGroups\|saveGradeGroups\|GRADE_GROUPS_KEY" frontend/src` both return nothing); `npm run test` (frontend); commit.
+**Steps:** edit; delete `lib/grade-groups.ts` + `grade-groups.test.ts` and remove the now-unused `fetchGradeGroups`/`saveGradeGroups`/`GRADE_GROUPS_KEY` + `import { GRADE_GROUPS_KEY, type GradeGroupCombo } from './grade-groups'` from `lib/school.ts` (verify `grep -rn "grade-groups" frontend/src` and `grep -rn "fetchGradeGroups\|saveGradeGroups\|GRADE_GROUPS_KEY" frontend/src` both return nothing); `npm run test` (frontend); commit.
 
 ### Task 19: Students — client, filters, table, detail
 
