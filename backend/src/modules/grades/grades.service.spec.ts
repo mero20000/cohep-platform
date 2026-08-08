@@ -35,7 +35,6 @@ describe('GradesService', () => {
       findUnique: jest.fn(),
       create: jest.fn(),
       update: jest.fn(),
-      updateMany: jest.fn(),
     },
     group: {
       findFirst: jest.fn(),
@@ -44,7 +43,6 @@ describe('GradesService', () => {
       count: jest.fn(),
       updateMany: jest.fn(),
     },
-    $transaction: jest.fn(),
   };
 
   beforeEach(async () => {

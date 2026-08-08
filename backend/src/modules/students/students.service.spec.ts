@@ -581,7 +581,6 @@ systemConfig: {
   // ===== deleteAllGroups =====
   describe('deleteAllGroups', () => {
     it('soft deletes all groups for school', async () => {
-      prisma.level.findMany.mockResolvedValue([{ id: 'level-1' }, { id: 'level-2' }]);
       prisma.group.updateMany.mockResolvedValue({ count: 3 });
 
       const result = await service.deleteAllGroups(schoolId);
@@ -628,6 +627,7 @@ systemConfig: {
 
     it('reports a row error for an unmatched grade name', async () => {
       prisma.student.findMany.mockResolvedValue([]);
+      prisma.level.findMany.mockResolvedValue([]);
       prisma.schoolGrade.findMany.mockResolvedValue([{ id: 'grade-1', name: 'Grade 4', groupId: 'group-1' }]);
 
       await expect(
@@ -766,6 +766,9 @@ systemConfig: {
     });
 
     it('counts students without a grade by gradeId null', async () => {
+      prisma.student.groupBy.mockResolvedValue([]);
+      prisma.schoolGrade.findMany.mockResolvedValue([]);
+
       await service.getStats(schoolId);
 
       const gradeNullWhere = prisma.student.count.mock.calls
