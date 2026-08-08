@@ -271,7 +271,7 @@ export class DashboardService {
     const groupIds = scoped
       ? ownGroupIds
       : (await this.prisma.group.findMany({
-          where: { level: { schoolId }, deletedAt: null },
+          where: { schoolId, deletedAt: null },
           select: { id: true },
         })).map((g: any) => g.id);
 
@@ -289,7 +289,6 @@ export class DashboardService {
         where: { id: { in: groupIds }, deletedAt: null },
         include: {
           _count: { select: { students: true } },
-          level: { select: { id: true, name: true, number: true } },
         },
       }),
       this.prisma.student.count({ where: { schoolId, groupId: { in: groupIds }, deletedAt: null } }),
@@ -333,8 +332,6 @@ export class DashboardService {
       groups: groups.map((g: any) => ({
         id: g.id,
         name: g.name,
-        levelName: g.level?.name,
-        levelNumber: g.level?.number,
         studentCount: g._count.students,
       })),
       studentsCount,
