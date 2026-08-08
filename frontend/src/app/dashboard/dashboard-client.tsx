@@ -5,7 +5,7 @@ import { useLanguage } from '@/lib/use-language'
 import Image from 'next/image'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { motion, useScroll, useTransform, useSpring, useReducedMotion } from 'motion/react'
+import { motion } from 'motion/react'
 import {
   Users, BookOpen, Calendar, Trophy, Layers, ClipboardCheck,
   TrendingUp, Clock, Loader2, UserCheck,
@@ -23,7 +23,9 @@ import { ErrorBoundary } from '@/components/ui/error-boundary'
 import { useToast } from '@/components/ui/toast'
 import { http } from '@/lib/http-client'
 import { getSchoolId } from '@/lib/school'
+import { getGreeting, getGreetingAr, getDayName, getDayNameAr } from '@/lib/datetime'
 import { useActiveRole, roleCategory } from '@/lib/use-active-role'
+import DashboardHero from './hero'
 
 interface GradeDistItem { grade: string; count: number }
 interface StudentsPerLevel { levelName: string; count: number }
@@ -95,11 +97,6 @@ function relativeTime(dateStr: string | null | undefined, locale = 'en') {
  const days = Math.floor(hrs / 24)
  return `${days}d ago`
 }
-function getGreeting() { const h = new Date().getHours(); if (h < 12) return 'Good morning'; if (h < 17) return 'Good afternoon'; return 'Good evening' }
-function getGreetingAr() { const h = new Date().getHours(); if (h < 12) return 'صباح الخير'; if (h < 17) return 'مساء الخير'; return 'مساء الخير' }
-function getDayName() { return new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) }
-function getDayNameAr() { return new Date().toLocaleDateString('ar-EG', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) }
-
 function AnimatedCounter({ value, suffix = '' }: { value: number; suffix?: string }) {
  const [display, setDisplay] = useState(0)
  const raf = useRef<number | null>(null)
@@ -255,77 +252,81 @@ function ServantSectionFallback() {
 
 function HeroSection({ stats, churchLogo, churchName, loading }: { stats: DashboardData | null; churchLogo: string | null; churchName: string; loading: boolean }) {
   const lang = useLanguage()
-  const reduce = useReducedMotion()
-  const { scrollY } = useScroll()
-  const springConfig = { stiffness: 80, damping: 20, mass: 0.5 }
-  const orb1Y = useSpring(useTransform(scrollY, [0, 400], [0, reduce ? 0 : -15]), springConfig)
-  const orb2Y = useSpring(useTransform(scrollY, [0, 400], [0, reduce ? 0 : 20]), springConfig)
-  const curveY = useSpring(useTransform(scrollY, [0, 400], [0, reduce ? 0 : -6]), springConfig)
   if (loading && !stats) return <HeroFallback />
   const s = stats ?? EMPTY_STATS
-  return (
-   <div className="relative overflow-hidden rounded-b-[2rem] bg-[var(--hymn-navy)] p-6 sm:p-8">
-    <motion.div className="absolute -top-6 left-1/2 -translate-x-1/2 w-[120%] h-12 rounded-[50%] bg-blue-500/5" style={{ y: curveY }} />
-    <motion.div className="absolute top-0 left-1/4 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl" style={{ y: orb1Y }} />
-    <motion.div className="absolute bottom-0 right-1/4 w-48 h-48 bg-blue-500/10 rounded-full blur-3xl" style={{ y: orb2Y }} />
-    <div className="absolute inset-0 opacity-[0.03] bg-[radial-gradient(circle_at_center,_white_1px,_transparent_1px)] bg-[length:20px_20px]" />
-   <div className="relative flex items-start justify-between">
-     <div>
-      <div className="flex items-center gap-2 text-gold-400 text-sm font-medium mb-2">
-       <Sun className="h-4 w-4" />
-       <span>{lang === 'ar' ? getGreetingAr() : getGreeting()}</span>
-      </div>
-      <h1 className="text-2xl sm:text-3xl font-bold text-white">
-       {s.school?.name || (lang === 'ar' ? 'منصة تعليم التراتيل الكنسية' : 'Coptic Orthodox Hymn Education Platform')}
-      </h1>
-      <div className="flex items-center gap-2 mt-1.5">
-       {churchName && (
+  const greetingText = lang === 'ar' ? getGreetingAr() : getGreeting()
+  const title =
+    s.school?.name || (lang === 'ar' ? 'منصة تعليم التراتيل الكنسية' : 'Coptic Orthodox Hymn Education Platform')
+
+  const badges = (
+    <>
+      {churchName && (
         <span className="inline-flex items-center gap-1 rounded-lg bg-white/10 px-2 py-0.5 text-xs font-medium text-white/80">
-         {churchName}
+          {churchName}
         </span>
-       )}
-       <p className="text-gray-400 text-sm">{lang === 'ar' ? getDayNameAr() : getDayName()}</p>
-      </div>
-     </div>
-    <div className="flex items-center gap-4">
-     {churchLogo && (
-      <div className="relative shrink-0">
-       <div className="absolute inset-0 rounded-2xl bg-white/10 blur-xl" />
-       <Image src={churchLogo} alt="Church Logo" width={100} height={100}
-        className="relative h-24 w-24 rounded-2xl border-2 border-white/20 bg-white/10 object-cover shadow-xl"  />
-      </div>
-     )}
-     {s.school?.logoUrl && (
-      <div className="relative shrink-0">
-       <div className="absolute inset-0 rounded-2xl bg-white/10 blur-xl" />
-       <Image src={(process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api').replace('/api', '') + s.school.logoUrl}
-        alt="School Logo" width={100} height={100}
-        className="relative h-24 w-24 rounded-2xl border-2 border-white/20 bg-white/10 object-cover shadow-xl"  />
-      </div>
-     )}
+      )}
+      <p className="text-gray-400 text-sm">{lang === 'ar' ? getDayNameAr() : getDayName()}</p>
+    </>
+  )
+
+  const logos = (
+    <>
+      {churchLogo && (
+        <div className="relative shrink-0">
+          <div className="absolute inset-0 rounded-2xl bg-white/10 blur-xl" />
+          <Image src={churchLogo} alt="Church Logo" width={100} height={100}
+            className="relative h-24 w-24 rounded-2xl border-2 border-white/20 bg-white/10 object-cover shadow-xl" />
+        </div>
+      )}
+      {s.school?.logoUrl && (
+        <div className="relative shrink-0">
+          <div className="absolute inset-0 rounded-2xl bg-white/10 blur-xl" />
+          <Image src={(process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api').replace('/api', '') + s.school.logoUrl}
+            alt="School Logo" width={100} height={100}
+            className="relative h-24 w-24 rounded-2xl border-2 border-white/20 bg-white/10 object-cover shadow-xl" />
+        </div>
+      )}
+    </>
+  )
+
+  const statsGrid = (
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+      {([
+        { label: 'Active Students', labelAr: 'الطلاب النشطون', value: s.activeStudents ?? 0, icon: Users },
+        { label: 'Attendance', labelAr: 'الحضور', value: s.attendanceRate ?? 0, suffix: '%', icon: UserCheck },
+        { label: 'Levels', labelAr: 'المستويات', value: s.totalLevels ?? 0, icon: Layers },
+        { label: 'Assessments', labelAr: 'التقييمات', value: s.publishedAssessments ?? 0, icon: ClipboardCheck },
+        { label: 'Pass Rate', labelAr: 'نسبة النجاح', value: s.assessmentStats?.passRate ?? 0, suffix: '%', icon: TrendingUp },
+      ] as const).map((item) => (
+        <div key={item.label} className="group rounded-xl bg-white/5 border border-white/10 backdrop-blur-sm px-4 py-3 hover:bg-white/10 hover:border-white/20 transition-all duration-300">
+          <div className="flex items-center gap-2 mb-1">
+            <item.icon className="h-3.5 w-3.5 text-gold-400 group-hover:scale-110 group-active:scale-110 transition-transform duration-300" />
+            <span className="text-[11px] text-gray-400">{lang === 'ar' ? (item as any).labelAr : item.label}</span>
+          </div>
+          <div className="text-xl font-bold text-white tracking-wider group-hover:text-gold-300 transition-colors">
+            <AnimatedCounter value={item.value} suffix={'suffix' in item ? (item as any).suffix || '' : ''} />
+          </div>
+        </div>
+      ))}
     </div>
-   </div>
-   <div className="relative mt-6 grid grid-cols-2 sm:grid-cols-5 gap-3">
-    {([
-     { label: 'Active Students', labelAr: 'الطلاب النشطون', value: s.activeStudents ?? 0, icon: Users },
-     { label: 'Attendance', labelAr: 'الحضور', value: s.attendanceRate ?? 0, suffix: '%', icon: UserCheck },
-     { label: 'Levels', labelAr: 'المستويات', value: s.totalLevels ?? 0, icon: Layers },
-     { label: 'Assessments', labelAr: 'التقييمات', value: s.publishedAssessments ?? 0, icon: ClipboardCheck },
-     { label: 'Pass Rate', labelAr: 'نسبة النجاح', value: s.assessmentStats?.passRate ?? 0, suffix: '%', icon: TrendingUp },
-    ] as const).map((item) => (
-     <div key={item.label} className="group rounded-xl bg-white/5 border border-white/10 backdrop-blur-sm px-4 py-3 hover:bg-white/10 hover:border-white/20 transition-all duration-300">
-      <div className="flex items-center gap-2 mb-1">
-       <item.icon className="h-3.5 w-3.5 text-gold-400 group-hover:scale-110 group-active:scale-110 transition-transform duration-300" />
-       <span className="text-[11px] text-gray-400">{lang === 'ar' ? (item as any).labelAr : item.label}</span>
-      </div>
-      <div className="text-xl font-bold text-white tracking-wider group-hover:text-gold-300 transition-colors">
-       <AnimatedCounter value={item.value} suffix={'suffix' in item ? (item as any).suffix || '' : ''} />
-      </div>
-     </div>
-    ))}
-   </div>
-  </div>
- )
+  )
+
+  return (
+    <DashboardHero
+      bg="var(--hymn-navy)"
+      title={title}
+      greeting={
+        <>
+          <Sun className="h-4 w-4" />
+          <span>{greetingText}</span>
+        </>
+      }
+      badges={badges}
+      logos={logos}
+    >
+      {statsGrid}
+    </DashboardHero>
+  )
 }
 
 function ServantSection({ counts, loading }: { counts: ServantCounts | null; loading: boolean }) {
@@ -1135,70 +1136,74 @@ function MinistryDashboard({ data, loading, error, onRetry }: { data: any; loadi
   ? ((process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api').replace('/api', '') + school.logoUrl)
   : null
 
+ const ministryBadges = (
+  <>
+   {churchName && (
+    <span className="inline-flex items-center gap-1 rounded-lg bg-white/10 px-2 py-0.5 text-xs font-medium text-white/80">
+     {churchName}
+    </span>
+   )}
+   <p className="text-white/60 text-sm">{lang === 'ar' ? getDayNameAr() : getDayName()}</p>
+   <RoleBadge role={d.role || 'servant'} lang={lang} />
+  </>
+ )
+
+ const ministryLogos = (
+  <>
+   {churchLogo && (
+    <div className="relative shrink-0">
+     <div className="absolute inset-0 rounded-2xl bg-white/10 blur-xl" />
+     <Image src={churchLogo} alt="Church Logo" width={100} height={100}
+      className="relative h-24 w-24 rounded-2xl border-2 border-white/20 bg-white/10 object-cover shadow-xl" />
+    </div>
+   )}
+   {schoolLogo && (
+    <div className="relative shrink-0">
+     <div className="absolute inset-0 rounded-2xl bg-white/10 blur-xl" />
+     <Image src={schoolLogo} alt="School Logo" width={100} height={100}
+      className="relative h-24 w-24 rounded-2xl border-2 border-white/20 bg-white/10 object-cover shadow-xl" />
+    </div>
+   )}
+  </>
+ )
+
+ const ministryStats = (
+  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+   {([
+    { label: 'My Students', labelAr: 'طلابي', value: d.studentsCount ?? 0, icon: Users },
+    { label: 'My Groups', labelAr: 'مجموعاتي', value: groups.length, icon: UserCog },
+    { label: 'Attendance', labelAr: 'الحضور', value: d.attendanceRate ?? 0, suffix: '%', icon: UserCheck },
+    { label: 'Sessions to Run', labelAr: 'جلسات للتشغيل', value: sessions.length, icon: CalendarClock },
+   ] as const).map((item) => (
+    <div key={item.label} className="rounded-xl bg-white/5 border border-white/10 px-4 py-3">
+     <div className="flex items-center gap-2 mb-1">
+      <item.icon className="h-3.5 w-3.5 text-gold-400" />
+      <span className="text-[11px] text-white/60">{lang === 'ar' ? (item as any).labelAr : item.label}</span>
+     </div>
+     <div className="text-xl font-bold text-white tracking-wider">
+      <AnimatedCounter value={item.value} suffix={'suffix' in item ? (item as any).suffix || '' : ''} />
+     </div>
+    </div>
+   ))}
+  </div>
+ )
+
  return (
   <>
 <title>{lang === 'ar' ? 'خدمتي' : 'My Ministry'} — Coptic Orthodox Hymn Education Platform (COHEP)</title>
     <meta name="description" content="Coptic Orthodox Hymn Education Platform (COHEP) ministry dashboard" />
    <motion.div className="space-y-6" initial="initial" animate="animate" variants={stagger}>
-    <div className="relative overflow-hidden rounded-b-[2rem] bg-[var(--hymn-green)] p-6 sm:p-8">
-     <div className="absolute -top-6 left-1/2 -translate-x-1/2 w-[120%] h-12 rounded-[50%] bg-blue-500/5" />
-     <div className="absolute top-0 left-1/4 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl" />
-     <div className="absolute bottom-0 right-1/4 w-48 h-48 bg-emerald-500/10 rounded-full blur-3xl" />
-     <div className="absolute inset-0 opacity-[0.03] bg-[radial-gradient(circle_at_center,_white_1px,_transparent_1px)] bg-[length:20px_20px]" />
-     <div className="relative flex items-start justify-between">
-      <div>
-       <div className="flex items-center gap-2 text-gold-400 text-sm font-medium mb-2">
-        <Sun className="h-4 w-4" /><span>{lang === 'ar' ? getGreetingAr() : getGreeting()}</span>
-       </div>
-       <h1 className="text-2xl sm:text-3xl font-bold text-white">
-        {school?.name || (lang === 'ar' ? 'منصة تعليم التراتيل الكنسية' : 'Coptic Orthodox Hymn Education Platform')}
-       </h1>
-       <div className="flex items-center gap-2 mt-1.5">
-        {churchName && (
-         <span className="inline-flex items-center gap-1 rounded-lg bg-white/10 px-2 py-0.5 text-xs font-medium text-white/80">
-          {churchName}
-         </span>
-        )}
-        <p className="text-white/60 text-sm">{lang === 'ar' ? getDayNameAr() : getDayName()}</p>
-       </div>
-       <div className="mt-2"><RoleBadge role={d.role || 'servant'} lang={lang} /></div>
-      </div>
-      <div className="flex items-center gap-4">
-       {churchLogo && (
-        <div className="relative shrink-0">
-         <div className="absolute inset-0 rounded-2xl bg-white/10 blur-xl" />
-         <Image src={churchLogo} alt="Church Logo" width={100} height={100}
-          className="relative h-24 w-24 rounded-2xl border-2 border-white/20 bg-white/10 object-cover shadow-xl" />
-        </div>
-       )}
-       {schoolLogo && (
-        <div className="relative shrink-0">
-         <div className="absolute inset-0 rounded-2xl bg-white/10 blur-xl" />
-         <Image src={schoolLogo} alt="School Logo" width={100} height={100}
-          className="relative h-24 w-24 rounded-2xl border-2 border-white/20 bg-white/10 object-cover shadow-xl" />
-        </div>
-       )}
-      </div>
-     </div>
-     <div className="relative mt-6 grid grid-cols-2 sm:grid-cols-4 gap-3">
-      {([
-       { label: 'My Students', labelAr: 'طلابي', value: d.studentsCount ?? 0, icon: Users },
-       { label: 'My Groups', labelAr: 'مجموعاتي', value: groups.length, icon: UserCog },
-       { label: 'Attendance', labelAr: 'الحضور', value: d.attendanceRate ?? 0, suffix: '%', icon: UserCheck },
-       { label: 'Sessions to Run', labelAr: 'جلسات للتشغيل', value: sessions.length, icon: CalendarClock },
-      ] as const).map((item) => (
-       <div key={item.label} className="rounded-xl bg-white/5 border border-white/10 px-4 py-3">
-        <div className="flex items-center gap-2 mb-1">
-         <item.icon className="h-3.5 w-3.5 text-gold-400" />
-         <span className="text-[11px] text-white/60">{lang === 'ar' ? (item as any).labelAr : item.label}</span>
-        </div>
-        <div className="text-xl font-bold text-white tracking-wider">
-         <AnimatedCounter value={item.value} suffix={'suffix' in item ? (item as any).suffix || '' : ''} />
-        </div>
-       </div>
-      ))}
-     </div>
-     </div>
+     <DashboardHero
+      bg="var(--hymn-green)"
+      title={
+       school?.name || (lang === 'ar' ? 'منصة تعليم التراتيل الكنسية' : 'Coptic Orthodox Hymn Education Platform')
+      }
+      badges={ministryBadges}
+      logos={ministryLogos}
+      orbTint="bg-emerald-500/10"
+     >
+      {ministryStats}
+     </DashboardHero>
 
      {/* Start Class button */}
      <motion.div variants={fadeUp}>
@@ -1709,28 +1714,30 @@ function ParentDashboard({ data, loading, error, onRetry }: { data: any; loading
 
  const topStreak = Math.max(...withP.map((c: any) => c.progress.currentStreak || 0), 0)
 
+ const parentGreeting = (
+  <>
+   <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white/10 border border-white/20">
+    <Baby className="h-5 w-5 text-gold-300" />
+   </div>
+   <span>{lang === 'ar' ? getGreetingAr() : getGreeting()}</span>
+  </>
+ )
+
+ const parentBadges = <p className="text-white/60 text-sm">{lang === 'ar' ? getDayNameAr() : getDayName()}</p>
+
  return (
   <>
 <title>{lang === 'ar' ? 'أولادي' : 'My Children'} — Coptic Orthodox Hymn Education Platform (COHEP)</title>
     <meta name="description" content="Coptic Orthodox Hymn Education Platform (COHEP) parent dashboard" />
    <motion.div className="space-y-6" initial="initial" animate="animate" variants={stagger}>
     {/* Hero */}
-    <div className="relative overflow-hidden rounded-b-[2rem] bg-[var(--hymn-indigo)] p-6 sm:p-8">
-     <div className="absolute -top-6 left-1/2 -translate-x-1/2 w-[120%] h-12 rounded-[50%] bg-blue-500/5" />
-     <div className="absolute top-0 left-1/4 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl" />
-     <div className="absolute bottom-0 right-1/4 w-48 h-48 bg-indigo-500/10 rounded-full blur-3xl" />
-     <div className="absolute inset-0 opacity-[0.03] bg-[radial-gradient(circle_at_center,_white_1px,_transparent_1px)] bg-[length:20px_20px]" />
-     <div className="relative flex items-center gap-3">
-      <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/10 border border-white/20"><Baby className="h-6 w-6 text-gold-300" /></div>
-      <div>
-       <div className="flex items-center gap-2 text-gold-400 text-sm font-medium mb-1">
-        <Sun className="h-4 w-4" /><span>{lang === 'ar' ? getGreetingAr() : getGreeting()}</span>
-       </div>
-       <h1 className="text-2xl sm:text-3xl font-bold text-white tracking-wider">{lang === 'ar' ? 'أولادي' : 'My Children'}</h1>
-       <p className="text-white/60 text-sm mt-1">{lang === 'ar' ? getDayNameAr() : getDayName()}</p>
-      </div>
-     </div>
-    </div>
+    <DashboardHero
+      bg="var(--hymn-indigo)"
+      title={lang === 'ar' ? 'أولادي' : 'My Children'}
+      greeting={parentGreeting}
+      badges={parentBadges}
+      orbTint="bg-indigo-500/10"
+    />
 
     {/* Aggregate summary */}
     {children.length > 0 && (

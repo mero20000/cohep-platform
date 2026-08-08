@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
+import DashboardHero from '../../../../dashboard/hero'
 import { http } from '@/lib/http-client'
 import { AudioPlayer } from '@/components/audio-player'
 import { useLanguage } from '@/lib/use-language'
@@ -66,10 +67,14 @@ export default function PracticeGuidePage() {
           <ArrowLeft className="w-4 h-4 mr-1" /> {t('Back', 'رجوع')}
         </Link>
 
-        <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-          <h1 className="text-xl font-bold text-gray-900 mb-1">{lang === 'ar' ? lesson.titleAr : lesson.title}</h1>
-          <p className="text-xs text-gray-500">{t('Practice this hymn with your child at home.', 'تدرب على هذه التسبيحة مع طفلك في المنزل.')}</p>
+        <DashboardHero
+          bg="var(--hymn-indigo)"
+          orbTint="bg-indigo-500/10"
+          title={lang === 'ar' ? lesson.titleAr : lesson.title}
+          description={t('Practice this hymn with your child at home.', 'تدرب على هذه التسبيحة مع طفلك في المنزل.')}
+        />
 
+        <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
           {lesson.audioUrl && (
             <div className="mt-4">
               <AudioPlayer src={`${API_ORIGIN}${lesson.audioUrl}`} duration={lesson.audioDuration || undefined} />

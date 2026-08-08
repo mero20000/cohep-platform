@@ -6,6 +6,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { http } from '@/lib/http-client'
 import { useLanguage } from '@/lib/use-language'
+import DashboardHero from '../../../dashboard/hero'
 import {
   Calendar, ClipboardCheck, TrendingUp, Loader2, ArrowLeft, User,
   CheckCircle2, Clock, XCircle, AlertCircle, Award, FileText,
@@ -384,25 +385,31 @@ export default function ChildDetailPage() {
       </Link>
 
       {student && (
-        <div className="rounded-xl border border-gray-200 bg-white p-5 flex items-center gap-5">
-          <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl bg-blue-100 text-blue-700 text-xl font-bold overflow-hidden">
-              {student.photoUrl ? (
-                <Image src={API_ORIGIN + student.photoUrl} alt="" width={64} height={64} className="h-full w-full object-cover" />
+        <DashboardHero
+          bg="var(--hymn-indigo)"
+          orbTint="bg-indigo-500/10"
+          avatar={
+            student.photoUrl ? (
+              <Image src={API_ORIGIN + student.photoUrl} alt="" width={64} height={64} className="h-16 w-16 object-cover" />
             ) : (
-              <span>{student.firstName[0]}{student.lastName[0]}</span>
-            )}
-          </div>
-          <div className="flex-1 min-w-0">
-            <h2 className="text-xl font-bold text-gray-900">
+              <div className="flex h-16 w-16 items-center justify-center bg-white/10 text-xl font-bold text-white">
+                {student.firstName[0]}{student.lastName[0]}
+              </div>
+            )
+          }
+          title={
+            <span>
               {(lang === 'ar' && student.firstNameAr) ? `${student.firstNameAr} ${student.lastNameAr}` : `${student.firstName} ${student.lastName}`}
-              {student.firstNameAr && <span className="text-gray-400 font-medium mr-2">{lang === 'ar' ? `${student.firstName} ${student.lastName}` : `${student.firstNameAr} ${student.lastNameAr}`}</span>}
-            </h2>
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1 text-sm text-gray-500">
-              <span>{t('Level', 'المستوى')} {student.levelNumber} — {student.groupName}</span>
-              <span>{t('Code', 'الكود')}: {student.studentCode}</span>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
+              {student.firstNameAr && <span className="opacity-60 text-sm font-normal"> {lang === 'ar' ? `${student.firstName} ${student.lastName}` : `${student.firstNameAr} ${student.lastNameAr}`}</span>}
+            </span>
+          }
+          badges={
+            <span className="text-white/60 text-sm">
+              {t('Level', 'المستوى')} {student.levelNumber} — {student.groupName} · {t('Code', 'الكود')}: {student.studentCode}
+            </span>
+          }
+        >
+          <div className="flex flex-wrap items-center gap-2">
             <button onClick={() => setShowReportModal(true)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-amber-50 text-amber-700 hover:bg-amber-100 transition-colors border border-amber-200">
               <FileText className="w-3.5 h-3.5" />
               {t('Term Report', 'تقرير الفصل')}
@@ -412,7 +419,7 @@ export default function ChildDetailPage() {
               {t('Formation Archive', 'أرشيف التكوين')}
             </button>
           </div>
-        </div>
+        </DashboardHero>
       )}
 
       {/* Gamification bar */}
