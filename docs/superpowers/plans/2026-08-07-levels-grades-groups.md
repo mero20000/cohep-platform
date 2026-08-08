@@ -398,8 +398,13 @@ and set `gradeId: createStudentDto.gradeId || null` + `groupId` on create; inclu
 1. `startClass` (:380-430): the group lookup `where: { level: { schoolId: servant.schoolId }, levelId: ref.levelId }` → `where: { schoolId: servant.schoolId, deletedAt: null, status: { not: 'inactive' } }`. The single-group shortcut should use `ref.levelId` (from `recentSessions[0].levelId` / the ref param) as the level instead of `groups[0].levelId`. The `requiresGroupPick` payload must no longer include `level` from the group — return `groups.map((g) => ({ id: g.id, name: g.name }))`.
 2. `getGroupStats` (:590-618): query `where: { schoolId, status: { not: 'inactive' } }`, drop the `include: { level }` and `orderBy: [{ level: ... }]` → `orderBy: { name: 'asc' }`, and remove `levelNumber`/`levelName` from each stat row.
 3. Check for any other `group.level` / `levelId: groups[...]` references in the file and fix them the same way (verify with grep `group\.level|groups\[.*\]\.levelId`).
+4. `generateSessions` (:667-747): the `levels` query `include: { groups: ... }` (reverse relation — removed) must be rewritten. **Decision:** sessions are generated per (school-wide group × distinct level of that group's active students). Replace the levels loop with:
+   - `const groups = await this.prisma.group.findMany({ where: { schoolId, deletedAt: null }, orderBy: { orderIndex: 'asc' } });`
+   - `for (const group of groups)`: resolve `const groupLevels = await this.prisma.student.findMany({ where: { groupId: group.id, schoolId, deletedAt: null }, select: { levelId: true }, distinct: ['levelId'] });` — if empty, `continue` (no students → no session).
+   - `for (const { levelId } of groupLevels)`: the existing session create keeps `levelId` + `groupId`; the student pre-mark query becomes `where: { groupId: group.id, levelId, schoolId, deletedAt: null, status: 'active' }` so each (group, level) session marks exactly its students.
+   - `level.id` usages in the session create/pre-mark are replaced by the loop's `levelId`.
 
-**Steps:** edit; grep to confirm no `group.level` remains; `npm run build`; commit.
+**Steps:** edit; grep to confirm no `group.level` / `level.groups` remains; `npm run build`; commit.
 
 ### Task 10: Gamification service — drop group.level
 
