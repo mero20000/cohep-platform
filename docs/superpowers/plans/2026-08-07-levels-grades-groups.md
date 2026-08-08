@@ -350,23 +350,31 @@ Add `toGrade(g)` private helper returning the mapped `GradeItem`, and `BadReques
 
 **Files:** `backend/src/modules/students/students.service.ts`, `dto/create-student.dto.ts`, `dto/update-student.dto.ts`, `dto/bulk-import-student.dto.ts`
 
+**Invariant (schema-verified):** `students.group_id` is `NOT NULL`; `students.grade_id` is nullable. Every student must have a group. When a grade is set, `groupId` is DERIVED from it (server-derived, overrides any supplied `groupId` per spec). When no grade is set, `groupId` must be supplied explicitly (school-scoped validated) — it is never written as `null`.
+
 **Changes:**
-1. `create-student.dto.ts`: `schoolGrade` and `groupId` → remove; add `gradeId: string` (`@IsOptional() @IsUUID()`). `levelId` stays required.
-2. `update-student.dto.ts`: drop `schoolGrade`/`groupId`; add optional `gradeId`.
-3. `bulk-import-student.dto.ts`: drop `schoolGrade`/`groupId` from the item DTO; add optional `grade?: string` (grade name, matched case-insensitively).
+1. `create-student.dto.ts`: `schoolGrade` → remove; `groupId` stays but becomes `@IsOptional() @IsUUID()`; add `gradeId?: string` (`@IsOptional() @IsUUID()`). `levelId` stays required.
+2. `update-student.dto.ts`: drop `schoolGrade`; keep optional `groupId`; add optional `gradeId`.
+3. `bulk-import-student.dto.ts`: `schoolGrade` → remove from the item DTO; keep optional `groupId`; add optional `grade?: string` (grade name, matched case-insensitively).
 4. `create`: replace the `schoolGrade`/`group` handling with:
 ```ts
-let groupId: string | null = null;
+let groupId: string;
 if (gradeId) {
   const grade = await this.prisma.schoolGrade.findFirst({ where: { id: gradeId, schoolId, deletedAt: null }, select: { id: true, groupId: true } });
   if (!grade) throw new BadRequestException('Grade not found');
   groupId = grade.groupId;
+} else if (createStudentDto.groupId) {
+  const group = await this.prisma.group.findFirst({ where: { id: createStudentDto.groupId, schoolId, deletedAt: null }, select: { id: true } });
+  if (!group) throw new BadRequestException('Group not found');
+  groupId = createStudentDto.groupId;
+} else {
+  throw new BadRequestException('Grade or group is required');
 }
 ```
-and set `gradeId` + `groupId` on create; include `grade: { select: { id: true, name: true } }` in the returned include.
-5. `update`: when `gradeId` is provided, look up the grade and set `groupId` (or `null` when cleared), then update.
-6. `bulkCreate` (:380-400): replace `gradeGroupMap` (keyed `levelId|gradeName`) with a per-school `gradeMap` from `schoolGrade.findMany({ where: { schoolId, deletedAt: null } })` keyed by `name.trim().toLowerCase()`; per row resolve `gradeId` + `groupId` from `item.grade`. Unmatched grades produce the existing "unknown" row error (message now names the grade).
-7. `bulkUpdate` (:466-496): `allowed = ['status', 'levelId', 'gradeId']`; remove `assertGroupBelongsToLevel` and the H7 `loadGradeGroupMap` re-derivation block; instead when `gradeId` changes, derive `groupId` from the grade (or `null` when cleared).
+and set `gradeId: createStudentDto.gradeId || null` + `groupId` on create; include `grade: { select: { id: true, name: true } }` in the returned include.
+5. `update`: when `gradeId` is provided, look up the grade and set `groupId = grade.groupId` (derived, overrides any supplied groupId). When `gradeId` is not provided but `groupId` is, validate the group belongs to the school and set it. Never write `groupId: null`.
+6. `bulkCreate` (:380-400): replace `gradeGroupMap` (keyed `levelId|gradeName`) with a per-school `gradeMap` from `schoolGrade.findMany({ where: { schoolId, deletedAt: null } })` keyed by `name.trim().toLowerCase()`; per row resolve `gradeId` + `groupId` from `item.grade` (matched case-insensitively; unmatched → row error naming the grade). If `item.grade` absent, fall back to `item.groupId` (validated school-scoped); if neither → row error `Grade or group is required`.
+7. `bulkUpdate` (:466-496): `allowed = ['status', 'levelId', 'gradeId', 'groupId']`; remove `assertGroupBelongsToLevel` and the H7 `loadGradeGroupMap` re-derivation block; when `gradeId` is a value → derive `groupId = grade.groupId` (override); `gradeId: null` → clear grade only, leave groupId untouched; `groupId` set → write it directly (updateMany, no per-row validation needed).
 8. Remove now-unused helpers `assertGroupBelongsToLevel` (:804) and `loadGradeGroupMap` (:781).
 
 **Steps:** edit; `npm run build`; fix `students.service.spec.ts` (Task 14 covers the test updates — if the spec fails to compile here, update the two `schoolGrade` fixtures immediately so `npm test` compiles). Commit.
