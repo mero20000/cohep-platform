@@ -250,9 +250,7 @@ systemConfig: {
         dateOfBirth: '2026-01-01',
         gender: 'female',
         levelId: 'level-1',
-        groupId: 'group-1',
         churchName: 'St. Mary',
-        schoolGrade: 'Grade 4',
       };
 
       const result = await service.create(dto, schoolId);
@@ -271,7 +269,6 @@ systemConfig: {
         dateOfBirth: '2026-01-01',
         gender: 'female',
         levelId: 'level-1',
-        groupId: 'group-1',
       };
 
       await expect(service.create(dto, schoolId)).rejects.toThrow(NotFoundException);
@@ -288,7 +285,6 @@ systemConfig: {
         dateOfBirth: '2026-01-01',
         gender: 'female',
         levelId: 'level-1',
-        groupId: 'group-1',
       };
 
       const result = await service.create(dto, schoolId);
@@ -311,7 +307,6 @@ systemConfig: {
         dateOfBirth: '2026-01-01',
         gender: 'female',
         levelId: 'level-1',
-        groupId: 'group-1',
       };
 
       const result = await service.create(dto, schoolId);
@@ -342,7 +337,7 @@ systemConfig: {
       prisma.group.findFirst.mockResolvedValue({ levelId: 'level-2' });
 
       await expect(
-        service.update('stu-1', { levelId: 'level-1', groupId: 'group-2' }, schoolId),
+        service.update('stu-1', { levelId: 'level-1', gradeId: 'grade-2' }, schoolId),
       ).rejects.toThrow('does not belong');
       expect(prisma.student.update).not.toHaveBeenCalled();
     });
@@ -407,29 +402,19 @@ systemConfig: {
 
   // ===== getGroups =====
   describe('getGroups', () => {
-    it('returns levels with active groups', async () => {
-      prisma.level.findMany.mockResolvedValue([
-        {
-          id: 'level-1',
-          name: 'Level 1',
-          number: 1,
-          status: 'active',
-          groups: [{ id: 'group-1', name: 'Group A', levelId: 'level-1', status: 'active' }],
-        },
+    it('returns school-wide active groups', async () => {
+      prisma.group.findMany.mockResolvedValue([
+        { id: 'group-1', name: 'Group A', status: 'active', orderIndex: 1 },
       ]);
 
       const result = await service.getGroups(schoolId);
 
       expect(result).toHaveLength(1);
-      expect(result[0].groups).toHaveLength(1);
-      expect(prisma.level.findMany).toHaveBeenCalledWith(
+      expect(result[0].name).toBe('Group A');
+      expect(prisma.group.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
           where: { schoolId, deletedAt: null },
-          select: expect.objectContaining({
-            groups: expect.objectContaining({
-              where: { deletedAt: null },
-            }),
-          }),
+          orderBy: { orderIndex: 'asc' },
         }),
       );
     });
@@ -521,7 +506,7 @@ systemConfig: {
       prisma.$transaction.mockResolvedValue([{ ...mockStudent, studentCode: 'STU-00006' }]);
 
       const result = await service.bulkCreate(
-        { students: [{ firstName: 'John', lastName: 'Doe', dateOfBirth: '2026-01-01', gender: 'male', levelId: 'level-1', groupId: 'group-1' }] },
+        { students: [{ firstName: 'John', lastName: 'Doe', dateOfBirth: '2026-01-01', gender: 'male', levelId: 'level-1' }] },
         schoolId,
       );
 
@@ -534,7 +519,7 @@ systemConfig: {
 
       await expect(
         service.bulkCreate(
-          { students: [{ firstName: 'John', lastName: 'Doe', dateOfBirth: '2026-01-01', gender: 'male', levelId: 'level-1', groupId: 'group-1' }] },
+          { students: [{ firstName: 'John', lastName: 'Doe', dateOfBirth: '2026-01-01', gender: 'male', levelId: 'level-1' }] },
           schoolId,
         ),
       ).rejects.toThrow(NotFoundException);

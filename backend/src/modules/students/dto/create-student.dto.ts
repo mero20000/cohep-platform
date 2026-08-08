@@ -33,11 +33,6 @@ export class CreateStudentDto {
   @IsOptional()
   churchName?: string;
 
-  @ApiPropertyOptional({ example: 'Grade 4' })
-  @IsString()
-  @IsOptional()
-  schoolGrade?: string;
-
   @ApiPropertyOptional({ example: '+201234567890' })
   @IsString()
   @IsOptional()
@@ -62,9 +57,15 @@ export class CreateStudentDto {
   @IsUUID()
   levelId: string;
 
-  @ApiProperty({ description: 'Group ID' })
+  @ApiPropertyOptional({ description: 'Grade ID (school-wide grade)' })
+  @IsOptional()
   @IsUUID()
-  groupId: string;
+  gradeId?: string;
+
+  @ApiPropertyOptional({ description: 'Group ID (required when gradeId is not set)' })
+  @IsOptional()
+  @IsUUID()
+  groupId?: string;
 
   @ApiPropertyOptional({ description: 'Parent User ID' })
   @IsUUID()
