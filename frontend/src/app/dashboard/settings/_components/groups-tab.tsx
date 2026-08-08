@@ -11,6 +11,7 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { http } from '@/lib/http-client'
 import { getSchoolId } from '@/lib/school'
 import { useLanguage } from '@/lib/use-language'
+import { fetchGroups } from '@/lib/grades'
 
 interface Group {
   id: string
@@ -19,24 +20,15 @@ interface Group {
   description?: string
   orderIndex: number
   status: string
-  levelId?: string
 }
 
-interface LevelOption {
-  id: string
-  name: string
-  number: number
-  status?: string
-}
-
-const emptyForm = { name: '', nameAr: '', description: '', levelId: '' }
+const emptyForm = { name: '', nameAr: '', description: '' }
 
 export function GroupsTab() {
   const { toast } = useToast()
   const lang = useLanguage()
 
   const [groups, setGroups] = useState<Group[]>([])
-  const [levels, setLevels] = useState<LevelOption[]>([])
   const [loading, setLoading] = useState(true)
   const [toggling, setToggling] = useState<Record<string, boolean>>({})
 
@@ -52,25 +44,24 @@ export function GroupsTab() {
   const [showDeleteAll, setShowDeleteAll] = useState(false)
   const [deletingAll, setDeletingAll] = useState(false)
 
-  const fetchGroups = () => {
+  const loadGroups = () => {
     setLoading(true)
-    http.get<{ groups: Group[] }[]>('/students/groups/all', { schoolId: getSchoolId() })
+    fetchGroups()
       .then((data) => {
-        const all = data.flatMap(l => l.groups)
-        all.sort((a, b) => a.orderIndex - b.orderIndex)
-        setGroups(all)
+        setGroups(data.map((g, i) => ({
+          id: g.id,
+          name: g.name,
+          nameAr: g.nameAr || undefined,
+          description: g.description || undefined,
+          orderIndex: i,
+          status: g.status,
+        })))
       })
       .catch(console.error)
       .finally(() => setLoading(false))
   }
 
-  const fetchLevels = () => {
-    http.get<LevelOption[]>('/curriculum/levels', { schoolId: getSchoolId() })
-      .then((data) => setLevels(data.filter(l => l.status !== 'inactive')))
-      .catch(console.error)
-  }
-
-  useEffect(() => { fetchGroups(); fetchLevels() }, [])
+  useEffect(() => { loadGroups() }, [])
 
   const toggleStatus = async (group: Group) => {
     const newStatus = group.status === 'active' ? 'inactive' : 'active'
@@ -88,7 +79,7 @@ export function GroupsTab() {
   const openCreate = () => {
     setMode('create')
     setEditingGroup(null)
-    setForm({ ...emptyForm, levelId: levels[0]?.id || '' })
+    setForm({ ...emptyForm })
     setFormError('')
     setShowForm(true)
   }
@@ -96,7 +87,7 @@ export function GroupsTab() {
   const openEdit = (group: Group) => {
     setMode('edit')
     setEditingGroup(group)
-    setForm({ name: group.name, nameAr: group.nameAr || '', description: group.description || '', levelId: group.levelId || levels[0]?.id || '' })
+    setForm({ name: group.name, nameAr: group.nameAr || '', description: group.description || '' })
     setFormError('')
     setShowForm(true)
   }
@@ -110,19 +101,18 @@ export function GroupsTab() {
         name: form.name.trim(),
         nameAr: form.nameAr.trim() || undefined,
         description: form.description.trim() || undefined,
-        levelId: form.levelId || undefined,
       }
       if (mode === 'edit' && editingGroup) {
         await http.patch(`/students/groups/${editingGroup.id}`, payload)
         setShowForm(false)
-        fetchGroups()
+        loadGroups()
         toast('success', lang === 'ar' ? 'تم تحديث المجموعة' : 'Group updated')
         track('settings.task_completed', 'task', { tab: 'groups', action: 'update' })
       } else {
         await http.post('/students/groups', payload, { schoolId: getSchoolId() })
         setShowForm(false)
         setForm(emptyForm)
-        fetchGroups()
+        loadGroups()
         toast('success', lang === 'ar' ? 'تم إنشاء المجموعة' : 'Group created')
         track('settings.task_completed', 'task', { tab: 'groups', action: 'create' })
       }
@@ -138,7 +128,7 @@ export function GroupsTab() {
       await http.delete(`/students/groups/${deleting.id}`)
       setShowDelete(false)
       setDeleting(null)
-      fetchGroups()
+      loadGroups()
       toast('success', lang === 'ar' ? `تم حذف المجموعة "${deleting.name}"` : `Group "${deleting.name}" deleted`)
     } catch {
       toast('error', lang === 'ar' ? 'فشل حذف المجموعة' : 'Failed to delete group')
@@ -150,7 +140,7 @@ export function GroupsTab() {
     try {
       const data = await http.delete<{ deletedCount: number }>('/students/groups', { schoolId: getSchoolId() })
       setShowDeleteAll(false)
-      fetchGroups()
+      loadGroups()
       toast('success', lang === 'ar' ? `تم حذف ${data.deletedCount} مجموعة` : `${data.deletedCount} group(s) deleted`)
     } catch {
       toast('error', lang === 'ar' ? 'فشل حذف جميع المجموعات' : 'Failed to delete all groups')
@@ -287,15 +277,6 @@ export function GroupsTab() {
           <FormField label={lang === 'ar' ? 'اسم المجموعة' : 'Group Name'} required value={form.name}
             onChange={e => setForm({ ...form, name: e.target.value })}
             placeholder={lang === 'ar' ? 'مثال: المجموعة أ' : 'e.g. Group A'} />
-          {mode === 'create' && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700">{lang === 'ar' ? 'المستوى' : 'Level'}</label>
-              <select value={form.levelId} onChange={e => setForm({ ...form, levelId: e.target.value })}
-                className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
-                {levels.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
-              </select>
-            </div>
-          )}
           <FormField label={lang === 'ar' ? 'الاسم بالعربية' : 'Arabic Name'} value={form.nameAr}
             onChange={e => setForm({ ...form, nameAr: e.target.value })}
             placeholder={lang === 'ar' ? 'مثال: المجموعة أ' : 'e.g. المجموعة أ'} />
