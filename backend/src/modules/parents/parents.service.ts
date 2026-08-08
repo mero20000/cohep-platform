@@ -183,6 +183,7 @@ export class ParentsService {
           include: {
             level: { select: { number: true, name: true } },
             group: { select: { name: true } },
+            grade: { select: { name: true } },
           },
         },
       },
@@ -194,6 +195,7 @@ export class ParentsService {
         include: {
           level: { select: { number: true, name: true } },
           group: { select: { name: true } },
+          grade: { select: { name: true } },
         },
       }));
     if (!student) throw new ForbiddenException('You are not a parent of this student');
