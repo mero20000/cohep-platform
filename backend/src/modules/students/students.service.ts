@@ -219,6 +219,8 @@ export class StudentsService {
     const data = { ...updateStudentDto } as any;
     if (data.dateOfBirth) data.dateOfBirth = new Date(data.dateOfBirth);
 
+    if (data.groupId === null) delete data.groupId;
+
     if (data.gradeId) {
       const grade = await this.prisma.schoolGrade.findFirst({
         where: { id: data.gradeId, schoolId, deletedAt: null },
@@ -373,7 +375,7 @@ export class StudentsService {
       return code;
     };
 
-    const studentData = dto.students.map((s, i) => {
+    const studentData = await Promise.all(dto.students.map(async (s, i) => {
       const rowNum = i + 2;
       const dupKey = `${s.firstName.trim().toLowerCase()}|${s.lastName.trim().toLowerCase()}|${s.dateOfBirth.trim()}`;
       if (seenInBatch.has(dupKey)) {
@@ -392,7 +394,15 @@ export class StudentsService {
         gradeId = resolvedGrade.id;
         groupId = resolvedGrade.groupId;
       } else if (s.groupId) {
-        groupId = s.groupId.trim();
+        const group = await this.prisma.group.findFirst({
+          where: { id: s.groupId.trim(), schoolId, deletedAt: null },
+          select: { id: true },
+        });
+        if (!group) {
+          errors.push({ row: rowNum, message: `Group "${s.groupId}" not found` });
+        } else {
+          groupId = group.id;
+        }
       }
       if (!s.grade && !s.groupId) errors.push({ row: rowNum, message: 'Grade or group is required' });
 
@@ -436,7 +446,7 @@ export class StudentsService {
         enrollmentDate: new Date(),
         metadata: Object.keys(metadata).length > 0 ? metadata : undefined,
       };
-    });
+    }));
 
     if (errors.length > 0) {
       throw new BadRequestException(
@@ -478,7 +488,9 @@ export class StudentsService {
     const allowed = ['status', 'levelId', 'gradeId', 'groupId'] as const;
     const updateData: any = {};
     for (const key of allowed) {
-      if (data?.[key] !== undefined) updateData[key] = data[key];
+      if (data?.[key] !== undefined && !(key === 'groupId' && data[key] === null)) {
+        updateData[key] = data[key];
+      }
     }
     if (Object.keys(updateData).length === 0) throw new BadRequestException('No supported fields to update');
 
