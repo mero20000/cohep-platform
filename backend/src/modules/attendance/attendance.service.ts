@@ -665,7 +665,7 @@ export class AttendanceService {
     });
 
     const groups = await this.prisma.group.findMany({
-      where: { schoolId, deletedAt: null },
+      where: { schoolId, deletedAt: null, status: { not: 'inactive' } },
       orderBy: { orderIndex: 'asc' },
     });
 
@@ -693,7 +693,7 @@ export class AttendanceService {
 
         for (const group of groups) {
           const groupLevels = await this.prisma.student.findMany({
-            where: { groupId: group.id, schoolId, deletedAt: null },
+            where: { groupId: group.id, schoolId, deletedAt: null, status: 'active' },
             select: { levelId: true },
             distinct: ['levelId'],
           });
