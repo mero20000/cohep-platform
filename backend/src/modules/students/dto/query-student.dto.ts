@@ -27,10 +27,10 @@ export class QueryStudentDto {
   @IsOptional()
   churchName?: string;
 
-  @ApiPropertyOptional({ description: 'Filter by school grade' })
-  @IsString()
+  @ApiPropertyOptional({ description: 'Filter by grade ID' })
+  @IsUUID()
   @IsOptional()
-  schoolGrade?: string;
+  gradeId?: string;
 
   @ApiPropertyOptional({ enum: ['male', 'female'] })
   @IsString()

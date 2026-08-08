@@ -19,7 +19,7 @@ export class StudentsService {
 
   async findAll(queryDto: QueryStudentDto, schoolIdentifier: string) {
     const schoolId = await this.schoolResolver.resolve(schoolIdentifier);
-    const { levelId, groupId, status, churchName, schoolGrade, gender, search, page = 1, limit: rawLimit = 20, sortBy, sortDir } = queryDto;
+    const { levelId, groupId, status, churchName, gradeId, gender, search, page = 1, limit: rawLimit = 20, sortBy, sortDir } = queryDto;
     const limit = Math.min(rawLimit, 100);
 
     const where: any = {
@@ -31,7 +31,7 @@ export class StudentsService {
     if (groupId) where.groupId = groupId;
     if (status) where.status = status;
     if (churchName) where.churchName = churchName;
-    if (schoolGrade) where.schoolGrade = schoolGrade;
+    if (gradeId) where.gradeId = gradeId;
     if (gender) where.gender = gender;
 
     if (search) {
@@ -49,7 +49,7 @@ export class StudentsService {
       age: [{ dateOfBirth: dir }],
       gender: [{ gender: dir }],
       church: [{ churchName: dir }],
-      grade: [{ schoolGrade: dir }],
+      grade: [{ grade: { name: dir } }],
       status: [{ status: dir }],
       level: [{ level: { number: dir } }],
       group: [{ group: { name: dir } }],
@@ -63,6 +63,7 @@ export class StudentsService {
         include: {
           level: { select: { id: true, name: true, number: true } },
           group: { select: { id: true, name: true } },
+          grade: { select: { id: true, name: true } },
           profile: true,
         },
         skip: (page - 1) * limit,
@@ -733,17 +734,32 @@ async getPortalData(portalAccessKey: string) {
     ]);
 
     const gradeGroups = await this.prisma.student.groupBy({
-      by: ['schoolGrade'],
-      where: { ...where, schoolId, schoolGrade: { not: null } },
+      by: ['gradeId'],
+      where: { ...where, schoolId, gradeId: { not: null } },
       _count: { id: true },
-      orderBy: { schoolGrade: 'asc' },
     });
+
+    const grades = await this.prisma.schoolGrade.findMany({
+      where: { schoolId, deletedAt: null },
+      select: { id: true, name: true, orderIndex: true },
+    });
+    const gradeOrder = new Map<string, number>();
+    const gradeNameMap = new Map<string, string>();
+    for (const g of grades) {
+      gradeNameMap.set(g.id, g.name);
+      gradeOrder.set(g.id, g.orderIndex);
+    }
+
+    const gradeDistribution = gradeGroups
+      .map(g => ({ gradeId: g.gradeId!, count: g._count.id, orderIndex: gradeOrder.get(g.gradeId!) ?? 0 }))
+      .sort((a, b) => a.orderIndex - b.orderIndex)
+      .map(({ gradeId, count }) => ({ grade: gradeNameMap.get(gradeId) ?? gradeId, count }));
 
     const studentsWithoutGrade = await this.prisma.student.count({
-      where: { ...where, schoolId, schoolGrade: null },
+      where: { ...where, schoolId, gradeId: null },
     });
 
-    return { total, active, inactive, graduated, male, female, studentsWithoutGrade, gradeDistribution: gradeGroups.map(g => ({ grade: g.schoolGrade!, count: g._count.id })) };
+    return { total, active, inactive, graduated, male, female, studentsWithoutGrade, gradeDistribution };
   }
 
   private async generateStudentCode(schoolId: string): Promise<string> {
