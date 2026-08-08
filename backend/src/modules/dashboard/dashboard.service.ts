@@ -48,10 +48,13 @@ export class DashboardService {
       select: { id: true, name: true, orderIndex: true },
     });
     const gradeNameMap = new Map(gradeRows.map(g => [g.id, g.name]));
-    const gradeDistribution = gradeGroups.map(g => ({
-      grade: gradeNameMap.get(g.gradeId!) ?? 'Unknown',
-      count: g._count.id,
-    }));
+    const gradeOrderMap = new Map(gradeRows.map(g => [g.id, g.orderIndex]));
+    const gradeDistribution = [...gradeGroups]
+      .sort((a, b) => (gradeOrderMap.get(a.gradeId!) ?? Number.MAX_SAFE_INTEGER) - (gradeOrderMap.get(b.gradeId!) ?? Number.MAX_SAFE_INTEGER))
+      .map(g => ({
+        grade: gradeNameMap.get(g.gradeId!) ?? 'Unknown',
+        count: g._count.id,
+      }));
 
     // Students per level
     const levelGroups = await this.prisma.student.groupBy({
@@ -375,6 +378,7 @@ export class DashboardService {
         include: {
           level: { select: { id: true, name: true, number: true } },
           group: { select: { id: true, name: true } },
+          grade: { select: { id: true, name: true } },
         },
       }),
     ]);
