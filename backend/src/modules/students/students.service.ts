@@ -559,53 +559,35 @@ export class StudentsService {
 
   async getGroups(schoolIdentifier: string) {
     const schoolId = await this.schoolResolver.resolve(schoolIdentifier);
-    const levels = await this.prisma.level.findMany({
+    return this.prisma.group.findMany({
       where: { schoolId, deletedAt: null },
       select: {
         id: true,
         name: true,
-        number: true,
+        nameAr: true,
+        description: true,
+        orderIndex: true,
         status: true,
-        groups: {
-          where: { deletedAt: null },
-          select: { id: true, name: true, nameAr: true, description: true, levelId: true, orderIndex: true, status: true },
-          orderBy: { orderIndex: 'asc' },
-        },
+        _count: { select: { students: true } },
       },
-      orderBy: { number: 'asc' },
+      orderBy: { orderIndex: 'asc' },
     });
-    return levels;
   }
 
-  async createGroup(schoolIdentifier: string, data: { name: string; nameAr?: string; description?: string; levelId?: string }) {
+  async createGroup(schoolIdentifier: string, data: { name: string; nameAr?: string; description?: string }) {
     const schoolId = await this.schoolResolver.resolve(schoolIdentifier);
-    let level: { id: string } | null = null;
-    if (data.levelId) {
-      level = await this.prisma.level.findFirst({
-        where: { id: data.levelId, schoolId, deletedAt: null },
-        select: { id: true },
-      });
-    }
-    if (!level) {
-      level = await this.prisma.level.findFirst({
-        where: { schoolId, deletedAt: null },
-        orderBy: { number: 'asc' },
-        select: { id: true },
-      });
-    }
-    if (!level) throw new BadRequestException('No level found. Create a level first.');
     const existing = await this.prisma.group.findFirst({
-      where: { levelId: level.id, name: data.name, deletedAt: null },
+      where: { schoolId, name: data.name, deletedAt: null },
     });
-    if (existing) throw new BadRequestException(`Group "${data.name}" already exists in this level`);
+    if (existing) throw new BadRequestException(`Group "${data.name}" already exists`);
     const maxOrder = await this.prisma.group.findFirst({
-      where: { levelId: level.id },
+      where: { schoolId },
       orderBy: { orderIndex: 'desc' },
       select: { orderIndex: true },
     });
     return this.prisma.group.create({
       data: {
-        levelId: level.id,
+        schoolId,
         name: data.name,
         nameAr: data.nameAr || null,
         description: data.description || null,
@@ -616,14 +598,12 @@ export class StudentsService {
   }
 
   async updateGroup(id: string, data: { name?: string; nameAr?: string; description?: string; status?: string }) {
-    if (data.name !== undefined) {
-      const group = await this.prisma.group.findUnique({ where: { id }, select: { levelId: true } });
-      if (group) {
-        const existing = await this.prisma.group.findFirst({
-          where: { levelId: group.levelId, name: data.name, deletedAt: null, id: { not: id } },
-        });
-        if (existing) throw new BadRequestException(`Group "${data.name}" already exists in this level`);
-      }
+    const group = await this.prisma.group.findUnique({ where: { id }, select: { schoolId: true } });
+    if (group && data.name !== undefined) {
+      const existing = await this.prisma.group.findFirst({
+        where: { schoolId: group.schoolId, name: data.name, deletedAt: null, id: { not: id } },
+      });
+      if (existing) throw new BadRequestException(`Group "${data.name}" already exists`);
     }
     return this.prisma.group.update({
       where: { id },
@@ -646,17 +626,8 @@ export class StudentsService {
 
   async deleteAllGroups(schoolIdentifier: string) {
     const schoolId = await this.schoolResolver.resolve(schoolIdentifier);
-    const levels = await this.prisma.level.findMany({
-      where: { schoolId, deletedAt: null },
-      select: { id: true },
-    });
-    const levelIds = levels.map(l => l.id);
-    if (levelIds.length === 0) return { deletedCount: 0 };
     const { count } = await this.prisma.group.updateMany({
-      where: {
-        levelId: { in: levelIds },
-        deletedAt: null,
-      },
+      where: { schoolId, deletedAt: null },
       data: { deletedAt: new Date() },
     });
     return { deletedCount: count };
