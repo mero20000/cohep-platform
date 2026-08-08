@@ -664,12 +664,9 @@ export class AttendanceService {
       orderBy: { weekNumber: 'asc' },
     });
 
-    const levels = await this.prisma.level.findMany({
+    const groups = await this.prisma.group.findMany({
       where: { schoolId, deletedAt: null },
-      include: {
-        groups: { where: { deletedAt: null }, orderBy: { orderIndex: 'asc' } },
-      },
-      orderBy: { number: 'asc' },
+      orderBy: { orderIndex: 'asc' },
     });
 
     // No lesson allocation needed — attendance is per-day
@@ -694,14 +691,19 @@ export class AttendanceService {
 
         const dateStr = d.toISOString().split('T')[0];
 
-        for (const level of levels) {
-          if (!level.groups.length) continue;
+        for (const group of groups) {
+          const groupLevels = await this.prisma.student.findMany({
+            where: { groupId: group.id, schoolId, deletedAt: null },
+            select: { levelId: true },
+            distinct: ['levelId'],
+          });
+          if (groupLevels.length === 0) continue;
 
-          for (const group of level.groups) {
+          for (const { levelId } of groupLevels) {
             const existing = await this.prisma.attendanceSession.findFirst({
               where: {
                 schoolId,
-                levelId: level.id,
+                levelId,
                 groupId: group.id,
                 scheduledDate: new Date(dateStr),
                 deletedAt: null,
@@ -713,7 +715,7 @@ export class AttendanceService {
             }
 
             const students = await this.prisma.student.findMany({
-              where: { groupId: group.id, deletedAt: null },
+              where: { groupId: group.id, levelId, schoolId, deletedAt: null, status: 'active' },
               select: { id: true },
             });
 
@@ -721,7 +723,7 @@ export class AttendanceService {
               data: {
                 schoolId,
                 servantId: defaultServantId,
-                levelId: level.id,
+                levelId,
                 groupId: group.id,
                 scheduledDate: new Date(dateStr),
                 scheduledTime: '12:00',
