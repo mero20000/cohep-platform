@@ -37,15 +37,19 @@ export class DashboardService {
       ? Math.round((completedSessions / totalSessions) * 100)
       : 0;
 
-    // Grade distribution — students grouped by schoolGrade
+    // Grade distribution — students grouped by gradeId
     const gradeGroups = await this.prisma.student.groupBy({
-      by: ['schoolGrade'],
-      where: { schoolId: resolvedId, deletedAt: null, schoolGrade: { not: null } },
+      by: ['gradeId'],
+      where: { schoolId: resolvedId, deletedAt: null, gradeId: { not: null } },
       _count: { id: true },
-      orderBy: { schoolGrade: 'asc' },
     });
+    const gradeRows = await this.prisma.schoolGrade.findMany({
+      where: { schoolId: resolvedId, deletedAt: null },
+      select: { id: true, name: true, orderIndex: true },
+    });
+    const gradeNameMap = new Map(gradeRows.map(g => [g.id, g.name]));
     const gradeDistribution = gradeGroups.map(g => ({
-      grade: g.schoolGrade!,
+      grade: gradeNameMap.get(g.gradeId!) ?? 'Unknown',
       count: g._count.id,
     }));
 
@@ -68,7 +72,7 @@ export class DashboardService {
 
     // Students without grade
     const studentsWithoutGrade = await this.prisma.student.count({
-      where: { schoolId: resolvedId, deletedAt: null, schoolGrade: null },
+      where: { schoolId: resolvedId, deletedAt: null, gradeId: null },
     });
 
     // Assessment status breakdown
@@ -364,6 +368,7 @@ export class DashboardService {
             include: {
               level: { select: { id: true, name: true, number: true } },
               group: { select: { id: true, name: true } },
+              grade: { select: { id: true, name: true } },
             },
           },
         },
@@ -506,7 +511,7 @@ export class DashboardService {
           levelName: student.level?.name,
           levelNumber: student.level?.number,
           groupName: student.group?.name,
-          schoolGrade: student.schoolGrade,
+          gradeName: student.grade?.name || null,
           totalPoints,
           progress: {
             attendancePercent: Number(prog.attendancePercent),
@@ -566,7 +571,8 @@ export class DashboardService {
     const students = await this.prisma.student.findMany({
       where: { id: { in: studentIds }, deletedAt: null },
       select: {
-        id: true, firstName: true, lastName: true, photoUrl: true, schoolGrade: true,
+        id: true, firstName: true, lastName: true, photoUrl: true,
+        grade: { select: { name: true } },
         level: { select: { name: true } },
       },
     });
@@ -579,7 +585,7 @@ export class DashboardService {
         firstName: s?.firstName || 'Unknown',
         lastName: s?.lastName || '',
         photoUrl: s?.photoUrl || null,
-        schoolGrade: s?.schoolGrade || null,
+        gradeName: s?.grade?.name || null,
         levelName: s?.level?.name || null,
         totalXp: r._sum.amount || 0,
       };
