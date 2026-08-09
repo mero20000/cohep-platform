@@ -6,6 +6,7 @@ import ResetPasswordPage from './page'
 
 vi.mock('next/navigation', () => ({
   useSearchParams: () => new URLSearchParams('token=valid-token'),
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
 }))
 
 vi.mock('next/link', () => ({
@@ -22,7 +23,7 @@ vi.mock('@/components/ui/button', () => ({
 
 vi.mock('lucide-react', () => {
   const icons: Record<string, any> = {}
-  for (const name of ['Cross', 'Loader2', 'AlertCircle', 'CheckCircle2', 'Eye', 'EyeOff']) {
+  for (const name of ['Cross', 'Loader2', 'AlertCircle', 'CheckCircle2', 'Eye', 'EyeOff', 'ArrowLeft', 'KeyRound']) {
     icons[name] = (props: any) => <span data-testid={`icon-${name}`} {...props} />
   }
   return icons
@@ -42,7 +43,7 @@ function createFetchMock(verifyOk = true) {
       }
       return Promise.resolve({
         ok: true,
-        json: () => Promise.resolve({ email: 'us••@example.com' }),
+        json: () => Promise.resolve({ valid: true, email: 'us••@example.com' }),
       } as Response)
     }
     if (u === `${API}/auth/reset-password` && options?.method === 'POST') {
@@ -69,15 +70,15 @@ describe('ResetPasswordPage', () => {
   it('shows an invalid-link message when verify fails', async () => {
     globalThis.fetch = createFetchMock(false)
     render(<ResetPasswordPage />)
-    expect(await screen.findByText(/invalid or expired/i)).toBeInTheDocument()
+    expect(await screen.findByText(/expired or invalid/i)).toBeInTheDocument()
   })
 
   it('does not submit when passwords do not match', async () => {
     const user = userEvent.setup()
     render(<ResetPasswordPage />)
-    await user.type(await screen.findByLabelText(/new password/i), 'NewPassword123!')
+    await user.type(await screen.findByLabelText(/^new password$/i), 'NewPassword123!')
     await user.type(screen.getByLabelText(/confirm/i), 'Different123!')
-    await user.click(screen.getByRole('button', { name: /reset password/i }))
+    await user.click(screen.getByRole('button', { name: /set new password/i }))
 
     expect(await screen.findByText(/do not match/i)).toBeInTheDocument()
     expect(globalThis.fetch).toHaveBeenCalledTimes(1) // only the verify call
@@ -86,20 +87,20 @@ describe('ResetPasswordPage', () => {
   it('does not submit a password shorter than 8 characters', async () => {
     const user = userEvent.setup()
     render(<ResetPasswordPage />)
-    await user.type(await screen.findByLabelText(/new password/i), 'Short1!')
+    await user.type(await screen.findByLabelText(/^new password$/i), 'Short1!')
     await user.type(screen.getByLabelText(/confirm/i), 'Short1!')
-    await user.click(screen.getByRole('button', { name: /reset password/i }))
+    await user.click(screen.getByRole('button', { name: /set new password/i }))
 
-    expect(await screen.findByText(/at least 8 characters/i)).toBeInTheDocument()
+    expect(await screen.findByText(/minimum 8 characters/i)).toBeInTheDocument()
     expect(globalThis.fetch).toHaveBeenCalledTimes(1) // only the verify call
   })
 
   it('submits the new password and shows success', async () => {
     const user = userEvent.setup()
     render(<ResetPasswordPage />)
-    await user.type(await screen.findByLabelText(/new password/i), 'NewPassword123!')
+    await user.type(await screen.findByLabelText(/^new password$/i), 'NewPassword123!')
     await user.type(screen.getByLabelText(/confirm/i), 'NewPassword123!')
-    await user.click(screen.getByRole('button', { name: /reset password/i }))
+    await user.click(screen.getByRole('button', { name: /set new password/i }))
 
     await waitFor(() => {
       expect(globalThis.fetch).toHaveBeenCalledWith(
@@ -110,7 +111,7 @@ describe('ResetPasswordPage', () => {
         }),
       )
     })
-    expect(await screen.findByText(/password reset successfully/i)).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: /back to sign in/i })).toBeInTheDocument()
+    expect(await screen.findByText(/password has been changed successfully/i)).toBeInTheDocument()
+    expect(await screen.findByText(/redirecting you to login/i)).toBeInTheDocument()
   })
 })
