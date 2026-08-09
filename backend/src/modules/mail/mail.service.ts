@@ -26,7 +26,7 @@ export class MailService {
     const port = Number(this.configService.get("MAIL_PORT", "587"));
     const user = this.configService.get("MAIL_USER", "");
     const pass = this.configService.get("MAIL_PASS", "");
-    this.from = this.configService.get("MAIL_FROM", user || "noreply@niangelos.app");
+    this.from = this.configService.get<string>("MAIL_FROM") || user || "noreply@niangelos.app";
     const to = this.configService.get("MAIL_TO", "");
 
     this.transporter = nodemailer.createTransport({
