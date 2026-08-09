@@ -29,6 +29,18 @@ services:
         generateValue: true
       - key: FRONTEND_URL
         value: https://cohep-platform.vercel.app
+      - key: MAIL_HOST
+        value: smtp.gmail.com
+      - key: MAIL_PORT
+        value: "587"
+      - key: MAIL_USER
+        sync: false
+      - key: MAIL_PASS
+        sync: false
+      - key: MAIL_FROM
+        sync: false
+      - key: MAIL_TO
+        sync: false
       - key: GEMINI_MODEL
         value: gemini-3.5-flash
 
