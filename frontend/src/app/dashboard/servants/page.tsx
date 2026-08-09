@@ -14,8 +14,8 @@ import { Modal } from '@/components/ui/modal'
 import { FormField } from '@/components/ui/form-field'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { http } from '@/lib/http-client'
-import { getSchoolId, fetchGradeGroups } from '@/lib/school'
-import type { GradeGroupCombo } from '@/lib/grade-groups'
+import { getSchoolId } from '@/lib/school'
+import { fetchGroups, fetchActiveGrades, type GradeItem, type GroupOption } from '@/lib/grades'
 import { useLanguage } from '@/lib/use-language'
 import { SERVANT_ROLES, ROLES } from '@/lib/roles'
 import { PhoneLink } from '@/app/dashboard/students/_components/phone-link'
@@ -43,8 +43,6 @@ interface ServantUser {
 }
 
 interface Level { id: string; name: string; number: number; status?: string }
-interface Group { id: string; name: string; levelId: string; status?: string }
-interface LevelWithGroups extends Level { groups: Group[] }
 
 const TEACHING_SUBJECTS = [
   { value: 'coptic_hymns', label: 'Coptic Hymns', arabicLabel: 'ألحان قبطية' },
@@ -84,9 +82,9 @@ export default function ServantsPage() {
   const [filterSubject, setFilterSubject] = useState('')
   const [filterGrade, setFilterGrade] = useState('')
 
-  const [levels, setLevels] = useState<LevelWithGroups[]>([])
-  const [activeGroups, setActiveGroups] = useState<Group[]>([])
-  const [gradeGroups, setGradeGroups] = useState<GradeGroupCombo[]>([])
+  const [levels, setLevels] = useState<Level[]>([])
+  const [activeGroups, setActiveGroups] = useState<GroupOption[]>([])
+  const [grades, setGrades] = useState<GradeItem[]>([])
 
   const [showForm, setShowForm] = useState(false)
   const [editing, setEditing] = useState<ServantUser | null>(null)
@@ -129,10 +127,12 @@ export default function ServantsPage() {
 
   const fetchLevels = useCallback(async () => {
     try {
-      const data = await http.get<LevelWithGroups[]>('/students/groups/all', { schoolId: getSchoolId() })
-      setLevels(data)
-      const allGroups = data.flatMap(l => l.groups.filter(g => g.status !== 'inactive'))
-      setActiveGroups(allGroups)
+      const [levelData, groupData] = await Promise.all([
+        http.get<Level[]>('/curriculum/levels', { schoolId: getSchoolId() }).catch(() => [] as Level[]),
+        fetchGroups().catch(() => [] as GroupOption[]),
+      ])
+      setLevels(levelData)
+      setActiveGroups(groupData.filter((g) => g.status !== 'inactive'))
     } catch (e: any) {
       toast('error', e?.message || (lang === 'ar' ? 'فشل تحميل المستويات' : 'Failed to load levels'))
     }
@@ -140,7 +140,7 @@ export default function ServantsPage() {
 
   useEffect(() => {
     fetchServants(); fetchLevels()
-    fetchGradeGroups().then(setGradeGroups).catch(() => {})
+    fetchActiveGrades().then(setGrades).catch(() => {})
   }, [fetchServants, fetchLevels])
 
   useEffect(() => {
@@ -154,16 +154,7 @@ export default function ServantsPage() {
     }).catch(() => {})
   }, [])
 
-  const filteredGroups = useMemo(() => {
-    if (!filterLevel) return activeGroups
-    return activeGroups.filter(g => g.levelId === filterLevel)
-  }, [filterLevel, activeGroups])
-
-  const formGroups = useMemo(() => {
-    if (!form.levelId) return activeGroups
-    const level = levels.find(l => l.id === form.levelId)
-    return level?.groups?.filter(g => g.status !== 'inactive') || []
-  }, [form.levelId, levels, activeGroups])
+  const formGroups = useMemo(() => activeGroups, [activeGroups])
 
   const roleOptions = useMemo<ServantRole[]>(() =>
     SERVANT_ROLES.map(v => {
@@ -175,12 +166,12 @@ export default function ServantsPage() {
   const gradeOptions = useMemo(() => {
     const seen = new Set<string>()
     const out: string[] = []
-    for (const c of gradeGroups) {
-      if (c.status === 'inactive') continue
-      if (!seen.has(c.gradeName)) { seen.add(c.gradeName); out.push(c.gradeName) }
+    for (const g of grades) {
+      if (g.status === 'inactive') continue
+      if (!seen.has(g.name)) { seen.add(g.name); out.push(g.name) }
     }
     return out
-  }, [gradeGroups])
+  }, [grades])
 
   const filteredServants = useMemo(() => {
     return servants.filter(s => {
@@ -398,11 +389,11 @@ export default function ServantsPage() {
   }
 
   const selectGrade = (grade: string) => {
-    const combo = gradeGroups.find(c => c.status !== 'inactive' && c.gradeName === grade)
+    const item = grades.find(g => g.status !== 'inactive' && g.name === grade)
     setForm(prev => ({
       ...prev,
       grade,
-      groupId: combo?.groupId || '',
+      groupId: item?.groupId || '',
     }))
     setDirty(true)
   }
@@ -484,10 +475,10 @@ export default function ServantsPage() {
               <option key={l.id} value={l.id}>{l.name}</option>
             ))}
           </select>
-          <select aria-label={lang === 'ar' ? 'تصفية حسب المجموعة' : 'Filter by group'} value={filterGroup} onChange={e => setFilterGroup(e.target.value)} disabled={!filterLevel}
-            className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:opacity-50">
+          <select aria-label={lang === 'ar' ? 'تصفية حسب المجموعة' : 'Filter by group'} value={filterGroup} onChange={e => setFilterGroup(e.target.value)}
+            className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
             <option value="">{lang === 'ar' ? 'جميع المجموعات' : 'All Groups'}</option>
-            {filteredGroups.map(g => (
+            {formGroups.map(g => (
               <option key={g.id} value={g.id}>{g.name}</option>
             ))}
           </select>

@@ -32,17 +32,21 @@ vi.mock('@/lib/http-client', () => ({
 
 vi.mock('@/lib/school', () => ({
   getSchoolId: () => 'school-1',
-  fetchGradeGroups: vi.fn().mockResolvedValue([
-    { id: 'c1', levelId: 'level-1', gradeName: 'Grade 4', groupId: 'group-1', groupName: 'Group A', status: 'active' },
-    { id: 'c2', levelId: 'level-1', gradeName: 'Grade 5', groupId: 'group-2', groupName: 'Group B', status: 'active' },
+}))
+
+vi.mock('@/lib/grades', () => ({
+  fetchGroups: vi.fn().mockResolvedValue([
+    { id: 'group-1', name: 'Group A', status: 'active' },
+    { id: 'group-2', name: 'Group B', status: 'active' },
+  ]),
+  fetchActiveGrades: vi.fn().mockResolvedValue([
+    { id: 'g1', name: 'Grade 4', status: 'active', groupId: 'group-1', groupName: 'Group A' },
+    { id: 'g2', name: 'Grade 5', status: 'active', groupId: 'group-2', groupName: 'Group B' },
   ]),
 }))
 
 const levels = [
-  { id: 'level-1', name: 'Level 1', number: 1, status: 'active', groups: [
-    { id: 'group-1', name: 'Group A', levelId: 'level-1', status: 'active' },
-    { id: 'group-2', name: 'Group B', levelId: 'level-1', status: 'active' },
-  ]},
+  { id: 'level-1', name: 'Level 1', number: 1, status: 'active' },
 ]
 
 const baseUser = {
@@ -66,7 +70,7 @@ beforeEach(() => {
   localStorage.setItem('user', JSON.stringify({ id: 'u1', roles: ['super_admin'] }))
   mockGet.mockImplementation((path: string) => {
     if (path === '/servants') return Promise.resolve(servants)
-    if (path === '/students/groups/all') return Promise.resolve(levels)
+    if (path === '/curriculum/levels') return Promise.resolve(levels)
     if (path.startsWith('/users/schools/me')) return Promise.resolve({})
     return Promise.resolve([])
   })
