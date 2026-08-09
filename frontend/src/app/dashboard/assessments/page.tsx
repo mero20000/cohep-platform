@@ -317,18 +317,12 @@ export default function AssessmentsPage() {
     setSelectedAssessment(a)
     setShowStudents(true)
     const assessmentGrade = (a.metadata as { grade?: string } | undefined)?.grade || a.grade || ''
-    let active: GradeItem[] = []
-    try {
-      active = await fetchActiveGrades()
-    } catch { /* keep active empty */ }
-    const targetName = grade || assessmentGrade
-    setStudentGradeFilter(targetName)
-    const targetId = active.find(g => g.name === targetName)?.id
+    setStudentGradeFilter(grade || assessmentGrade)
     setStudentsLoading(true)
     let rows: StudentRow[] = []
     try {
       const p: Record<string, string> = {}
-      if (targetId) p.gradeId = targetId
+      if (grade) p.gradeId = grade
       const payload: any = await http.get(`/assessments/${a.id}/students`, p)
       rows = Array.isArray(payload)
         ? payload
@@ -341,9 +335,14 @@ export default function AssessmentsPage() {
       setStudentRows([])
       toast('error', lang === 'ar' ? 'فشل تحميل الطلاب' : 'Failed to load students')
     }
-    const settingsGrades = active.map(g => g.name)
-    const studentGrades = Array.from(new Set(rows.map(r => r.gradeName).filter(Boolean))) as string[]
-    setGradeFilterOptions(settingsGrades.length ? settingsGrades : studentGrades)
+    try {
+      const active: GradeItem[] = await fetchActiveGrades()
+      const settingsGrades = active.map(g => g.name)
+      const studentGrades = Array.from(new Set(rows.map(r => r.gradeName).filter(Boolean))) as string[]
+      setGradeFilterOptions(settingsGrades.length ? settingsGrades : studentGrades)
+    } catch {
+      setGradeFilterOptions(Array.from(new Set(rows.map(r => r.gradeName).filter(Boolean))) as string[])
+    }
     setStudentsLoading(false)
   }
 
