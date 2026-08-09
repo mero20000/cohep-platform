@@ -75,7 +75,7 @@ export function StudentImportModal({ onClose, onSuccess, levelNameMap, lang }: P
   const handleImport = async () => {
     if(!preview.length)return; setImporting(true)
     try {
-      const students=preview.map(r=>({firstName:r.firstname,lastName:r.lastname,firstNameAr:r.firstnamear||undefined,lastNameAr:r.lastnamear||undefined,dateOfBirth:r.dateofbirth,gender:r.gender,levelId:r.levelid,groupId:r.groupid||undefined,churchName:r.churchname||undefined,schoolGrade:r.schoolgrade||undefined,phone:r.phone||undefined,email:r.email||undefined,address:r.address||undefined,notes:r.notes||undefined,churchToolId:r.churchtoolid||undefined}))
+      const students=preview.map(r=>({firstName:r.firstname,lastName:r.lastname,firstNameAr:r.firstnamear||undefined,lastNameAr:r.lastnamear||undefined,dateOfBirth:r.dateofbirth,gender:r.gender,levelId:r.levelid,grade:r.grade||undefined,churchName:r.churchname||undefined,phone:r.phone||undefined,email:r.email||undefined,address:r.address||undefined,notes:r.notes||undefined,churchToolId:r.churchtoolid||undefined}))
       const res:{imported:number}=await http.post('/students/bulk',{students},{schoolId:getSchoolId()})
       setResult({imported:res.imported}); setPreview([]); setFile(null); onSuccess()
       toast('success',t('Import complete','تم الاستيراد'),`${res.imported} ${t('students imported','طالب تم استيرادهم')}`)
@@ -86,7 +86,7 @@ export function StudentImportModal({ onClose, onSuccess, levelNameMap, lang }: P
   const handleClose = () => { onClose(); setPreview([]); setFile(null); setResult(null); setError(''); setDuplicateWarnings([]) }
   useEffect(() => { dialogRef.current?.focus() }, [])
   const downloadTemplate = () => {
-    const h=['name','dateOfBirth','gender','levelId','schoolGrade','firstNameAr','lastNameAr','churchName','phone','email','address','notes','churchToolId']
+    const h=['name','dateOfBirth','gender','levelId','grade','firstNameAr','lastNameAr','churchName','phone','email','address','notes','churchToolId']
     const s=['Malak Ahmed','2017-05-15','male','Level 1','Grade 4','ملك','أحمد','St. Mary Church','+201234567890','parent@example.com','123 Main St','Notes','CHR-12345']
     const csv='\uFEFF'+[h.join(','),s.join(',')].join('\n')
     const url=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8;'}))
@@ -104,8 +104,8 @@ export function StudentImportModal({ onClose, onSuccess, levelNameMap, lang }: P
           {result?(<div className="rounded-lg bg-green-50 border border-green-200 p-4 text-center"><CheckCircle2 className="h-10 w-10 text-green-500 mx-auto" /><p className="mt-2 text-sm font-medium text-green-800">{result.imported} {t('students imported successfully','طالب تم استيرادهم بنجاح')}</p><Button onClick={handleClose} className="mt-3">{t('Done','تم')}</Button></div>):(<>
             <div className="rounded-lg bg-blue-50 border border-blue-200 p-4">
               <p className="text-sm font-medium text-blue-800 mb-1">{t('Required CSV columns:','الأعمدة المطلوبة:')}</p>
-              <code className="text-xs text-blue-700">name, dateOfBirth, gender, levelId, schoolGrade</code>
-              <p className="mt-1 text-xs text-blue-600">{t('Group is auto-derived from level + grade.','يتم اشتقاق المجموعة تلقائياً من المستوى والمرحلة.')}</p>
+              <code className="text-xs text-blue-700">name, dateOfBirth, gender, levelId, grade</code>
+              <p className="mt-1 text-xs text-blue-600">{t('Group is auto-derived from grade.','يتم اشتقاق المجموعة تلقائياً من المرحلة.')}</p>
             </div>
             <Button variant="outline" onClick={downloadTemplate} className="inline-flex items-center gap-2"><FileSpreadsheet className="h-4 w-4" />{t('Download Template','تحميل القالب')}</Button>
             {error&&<div className="rounded-lg bg-red-50 border border-red-200 p-3 text-sm text-red-700 flex items-start gap-2"><AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0"/>{error}</div>}
@@ -118,7 +118,7 @@ export function StudentImportModal({ onClose, onSuccess, levelNameMap, lang }: P
               {duplicateWarnings.length>0&&<div className="rounded-lg border border-amber-200 bg-amber-50 p-3 mb-3"><p className="text-xs font-medium text-amber-800">{t('Duplicate warnings:','تحذيرات التكرار:')}</p>{duplicateWarnings.map((w,i)=><p key={i} className="text-xs text-amber-700 mt-1">&bull; {w.name} — {w.reason}</p>)}</div>}
               <p className="text-sm font-medium text-gray-700 mb-2">{t(`Preview (${preview.length} rows):`,`معاينة (${preview.length} صف):`)}</p>
               <div className="max-h-60 overflow-auto table-to-cards rounded-lg border border-gray-200"><table className="w-full text-xs"><thead><tr className="bg-gray-50 border-b border-gray-200">{[t('First','الاسم الأول'),t('Last','الأخير'),t('DOB','تاريخ الميلاد'),t('Gender','الجنس'),t('Level','المستوى'),t('Grade','المرحلة')].map(h=><th key={h} className="px-3 py-2 text-start font-medium text-gray-500">{h}</th>)}</tr></thead>
-              <tbody className="divide-y divide-gray-100">{preview.slice(0,10).map((r,i)=><tr key={i} className="hover:bg-gray-50"><td data-label={t('First','الاسم الأول')} className="px-3 py-1.5 text-gray-900">{r.firstname}</td><td data-label={t('Last','الأخير')} className="px-3 py-1.5 text-gray-900">{r.lastname}</td><td data-label={t('DOB','تاريخ الميلاد')} className="px-3 py-1.5 text-gray-600">{r.dateofbirth}</td><td data-label={t('Gender','الجنس')} className="px-3 py-1.5 text-gray-600">{r.gender}</td><td data-label={t('Level','المستوى')} className="px-3 py-1.5 text-gray-900">{levelNameMap[r.levelid]||<span className="text-gray-400 font-mono">{r.levelid?.slice(0,8)}…</span>}</td><td data-label={t('Grade','المرحلة')} className="px-3 py-1.5 text-gray-900">{r.schoolgrade||<span className="text-gray-400">—</span>}</td></tr>)}</tbody>
+              <tbody className="divide-y divide-gray-100">{preview.slice(0,10).map((r,i)=><tr key={i} className="hover:bg-gray-50"><td data-label={t('First','الاسم الأول')} className="px-3 py-1.5 text-gray-900">{r.firstname}</td><td data-label={t('Last','الأخير')} className="px-3 py-1.5 text-gray-900">{r.lastname}</td><td data-label={t('DOB','تاريخ الميلاد')} className="px-3 py-1.5 text-gray-600">{r.dateofbirth}</td><td data-label={t('Gender','الجنس')} className="px-3 py-1.5 text-gray-600">{r.gender}</td><td data-label={t('Level','المستوى')} className="px-3 py-1.5 text-gray-900">{levelNameMap[r.levelid]||<span className="text-gray-400 font-mono">{r.levelid?.slice(0,8)}…</span>}</td><td data-label={t('Grade','المرحلة')} className="px-3 py-1.5 text-gray-900">{r.grade||<span className="text-gray-400">—</span>}</td></tr>)}</tbody>
               </table>{preview.length>10&&<p className="text-xs text-gray-500 text-center py-2">{t(`...and ${preview.length-10} more rows`,`...و ${preview.length-10} صفوف أخرى`)}</p>}</div></div>)}
           </>)}
         </div>

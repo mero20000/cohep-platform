@@ -5,20 +5,20 @@ import { Button } from '@/components/ui/button'
 import { http } from '@/lib/http-client'
 import { getSchoolId } from '@/lib/school'
 import { track } from '@/lib/analytics'
-import type { Level, Group } from './student-types'
+import type { Level } from './student-types'
+import type { GradeItem } from '@/lib/grades'
 
 type BM = 'delete'|'status'|'level'|'grade'
 interface Props {
   showBulkDelete: boolean; showBulkStatus: boolean; showBulkLevel: boolean; showBulkGrade: boolean
   onClose: (m: BM) => void; selectedIds: Set<string>
-  activeLevels: Level[]; allGroups: Group[]; gradeOptions: string[]
+  activeLevels: Level[]; gradeOptions: GradeItem[]
   onSuccess: (page: number) => void; currentPage: number
   toast: (type: 'success'|'error', title: string, msg?: string) => void; lang: 'en'|'ar'
 }
-export function StudentBulkModals({ showBulkDelete, showBulkStatus, showBulkLevel, showBulkGrade, onClose, selectedIds, activeLevels, allGroups, gradeOptions, onSuccess, currentPage, toast, lang }: Props) {
+export function StudentBulkModals({ showBulkDelete, showBulkStatus, showBulkLevel, showBulkGrade, onClose, selectedIds, activeLevels, gradeOptions, onSuccess, currentPage, toast, lang }: Props) {
   const [bulkStatus, setBulkStatus] = useState('active')
   const [bulkLevelId, setBulkLevelId] = useState('')
-  const [bulkGroupId, setBulkGroupId] = useState('')
   const [bulkGrade, setBulkGrade] = useState('')
   const [deleting, setDeleting] = useState(false)
   const [confirmText, setConfirmText] = useState('')
@@ -90,26 +90,25 @@ export function StudentBulkModals({ showBulkDelete, showBulkStatus, showBulkLeve
         </div>
       </M>}
 
-      {showBulkLevel&&<M label={t('Change Level / Group','تغيير المستوى / المجموعة')} onClose={()=>onClose('level')}>
-        <h3 className="text-lg font-semibold text-gray-900">{t('Change Level / Group','تغيير المستوى / المجموعة')}</h3>
+      {showBulkLevel&&<M label={t('Change Level','تغيير المستوى')} onClose={()=>onClose('level')}>
+        <h3 className="text-lg font-semibold text-gray-900">{t('Change Level','تغيير المستوى')}</h3>
         <p className="mt-1 text-sm text-gray-500">{ids.length} {t('students will be updated','طالب سيتم تحديثهم')}</p>
         <div className="mt-4 space-y-4">
-          <div><label className="block text-sm font-medium text-gray-700 mb-1">{t('Level','المستوى')}</label><select value={bulkLevelId} onChange={e=>{setBulkLevelId(e.target.value);setBulkGroupId('')}} className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gold-500 focus:outline-none"><option value="">{t('Select level','اختر المستوى')}</option>{activeLevels.map(l=><option key={l.id} value={l.id}>{l.name}</option>)}</select></div>
-          <div><label className="block text-sm font-medium text-gray-700 mb-1">{t('Group','المجموعة')}</label><select value={bulkGroupId} onChange={e=>setBulkGroupId(e.target.value)} className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gold-500 focus:outline-none"><option value="">{t('Select group','اختر المجموعة')}</option>{allGroups.filter(g=>g.levelId===bulkLevelId).map(g=><option key={g.id} value={g.id}>{g.name}</option>)}</select></div>
+          <div><label className="block text-sm font-medium text-gray-700 mb-1">{t('Level','المستوى')}</label><select value={bulkLevelId} onChange={e=>setBulkLevelId(e.target.value)} className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gold-500 focus:outline-none"><option value="">{t('Select level','اختر المستوى')}</option>{activeLevels.map(l=><option key={l.id} value={l.id}>{l.name}</option>)}</select></div>
         </div>
         <div className="mt-6 flex gap-3">
           <Button variant="outline" onClick={()=>onClose('level')} className="flex-1">{t('Cancel','إلغاء')}</Button>
-          <Button disabled={!bulkLevelId||!bulkGroupId} onClick={()=>patch({levelId:bulkLevelId,groupId:bulkGroupId},'level')} className="flex-1">{t('Update','تحديث')}</Button>
+          <Button disabled={!bulkLevelId} onClick={()=>patch({levelId:bulkLevelId},'level')} className="flex-1">{t('Update','تحديث')}</Button>
         </div>
       </M>}
 
       {showBulkGrade&&<M label={t('Change Grade','تغيير المرحلة الدراسية')} onClose={()=>onClose('grade')}>
         <h3 className="text-lg font-semibold text-gray-900">{t('Change Grade','تغيير المرحلة الدراسية')}</h3>
         <p className="mt-1 text-sm text-gray-500">{ids.length} {t('students will be updated','طالب سيتم تحديثهم')}</p>
-        <div className="mt-4"><label className="block text-sm font-medium text-gray-700 mb-1">{t('School Grade','المرحلة الدراسية')}</label><select value={bulkGrade} onChange={e=>setBulkGrade(e.target.value)} className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gold-500 focus:outline-none"><option value="">{t('Select grade','اختر المرحلة')}</option>{gradeOptions.map(g=><option key={g} value={g}>{g}</option>)}</select></div>
+        <div className="mt-4"><label className="block text-sm font-medium text-gray-700 mb-1">{t('School Grade','المرحلة الدراسية')}</label><select value={bulkGrade} onChange={e=>setBulkGrade(e.target.value)} className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gold-500 focus:outline-none"><option value="">{t('Select grade','اختر المرحلة')}</option>{gradeOptions.map(g=><option key={g.id} value={g.id}>{g.name}</option>)}</select></div>
         <div className="mt-6 flex gap-3">
           <Button variant="outline" onClick={()=>onClose('grade')} className="flex-1">{t('Cancel','إلغاء')}</Button>
-          <Button disabled={!bulkGrade} onClick={()=>patch({schoolGrade:bulkGrade},'grade')} className="flex-1">{t('Update','تحديث')}</Button>
+          <Button disabled={!bulkGrade} onClick={()=>patch({gradeId:bulkGrade},'grade')} className="flex-1">{t('Update','تحديث')}</Button>
         </div>
       </M>}
     </>

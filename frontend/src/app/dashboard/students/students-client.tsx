@@ -237,7 +237,7 @@ export default function StudentsClient() {
       <StudentBulkModals
         showBulkDelete={bulkOpen.delete} showBulkStatus={bulkOpen.status} showBulkLevel={bulkOpen.level} showBulkGrade={bulkOpen.grade}
         onClose={modal=>setBulkOpen(b=>({...b,[modal]:false}))}
-        selectedIds={selectedIds} activeLevels={activeLevels} allGroups={allGroups} gradeOptions={gradeOptions.map(g=>g.name)}
+        selectedIds={selectedIds} activeLevels={activeLevels} gradeOptions={gradeOptions}
         onSuccess={page=>{setSelectedIds(new Set());fetchStudents(page);fetchStats()}} currentPage={pagination.page}
         toast={toast} lang={lang}/>
 
