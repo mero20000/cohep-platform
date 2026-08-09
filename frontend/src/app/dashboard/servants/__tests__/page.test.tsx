@@ -1,7 +1,6 @@
-import React from 'react'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, within, fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { it, expect, vi, beforeEach } from 'vitest'
 import ServantsPage from '../page'
 
 vi.mock('next/image', () => ({
@@ -46,13 +45,27 @@ const levels = [
   ]},
 ]
 
+const baseUser = {
+  email: 'base@x.com',
+  firstName: 'X',
+  lastName: 'Y',
+  isActive: true,
+  schoolId: 'school-1',
+  userRoles: [{ role: { id: 'r1', name: 'servant', displayName: 'Servant' } }],
+}
+
+const servants = [
+  { id: 'u1', ...baseUser, firstName: 'Malak', lastName: 'Ahmed', email: 'malak@x.com', metadata: { groupId: 'group-1', grade: 'Grade 4' } },
+  { id: 'u2', ...baseUser, firstName: 'John', lastName: 'Doe', email: 'john@x.com', metadata: { levelId: 'level-1', groupId: 'group-1' } },
+]
+
 beforeEach(() => {
   mockGet.mockReset()
   mockPost.mockReset()
   localStorage.clear()
   localStorage.setItem('user', JSON.stringify({ id: 'u1', roles: ['super_admin'] }))
   mockGet.mockImplementation((path: string) => {
-    if (path === '/servants') return Promise.resolve([])
+    if (path === '/servants') return Promise.resolve(servants)
     if (path === '/students/groups/all') return Promise.resolve(levels)
     if (path.startsWith('/users/schools/me')) return Promise.resolve({})
     return Promise.resolve([])
@@ -67,4 +80,25 @@ it('fills group when a grade is selected', async () => {
 
   const groupSelect = screen.getByLabelText('Group')
   expect(groupSelect).toHaveValue('group-2')
+})
+
+it('enables group select without a level (group-only assignment)', async () => {
+  render(<ServantsPage />)
+  await userEvent.click(screen.getByText('Add Servant'))
+  const groupSelect = screen.getByLabelText('Group')
+  expect(groupSelect).not.toBeDisabled()
+  await userEvent.selectOptions(groupSelect, 'group-1')
+  expect(groupSelect).toHaveValue('group-1')
+})
+
+it('sends grade + group in create metadata and renders grade badge on cards', async () => {
+  render(<ServantsPage />)
+  await userEvent.click(screen.getByText('Add Servant'))
+  fireEvent.change(screen.getByLabelText('First Name *'), { target: { value: 'Malak' } })
+  fireEvent.change(screen.getByLabelText('Last Name *'), { target: { value: 'Ahmed' } })
+  fireEvent.change(screen.getByLabelText('Email *'), { target: { value: 'malak@x.com' } })
+  await userEvent.selectOptions(screen.getByLabelText('Grade'), 'Grade 4')
+  await userEvent.click(within(screen.getByRole('dialog')).getByText('Add Servant'))
+  await waitFor(() => expect(mockPost).toHaveBeenCalledWith('/users', expect.objectContaining({ metadata: expect.objectContaining({ grade: 'Grade 4' }) })))
+  expect(await screen.findByText('Grade 4', { selector: 'span' })).toBeInTheDocument()
 })

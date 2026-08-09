@@ -82,6 +82,7 @@ export default function ServantsPage() {
   const [filterLevel, setFilterLevel] = useState('')
   const [filterGroup, setFilterGroup] = useState('')
   const [filterSubject, setFilterSubject] = useState('')
+  const [filterGrade, setFilterGrade] = useState('')
 
   const [levels, setLevels] = useState<LevelWithGroups[]>([])
   const [activeGroups, setActiveGroups] = useState<Group[]>([])
@@ -191,10 +192,11 @@ export default function ServantsPage() {
       const meta = s.metadata || {}
       if (filterLevel && meta.levelId !== filterLevel) return false
       if (filterGroup && meta.groupId !== filterGroup) return false
+      if (filterGrade && meta.grade !== filterGrade) return false
       if (filterSubject && !meta.teachingSubjects?.includes(filterSubject)) return false
       return true
     })
-  }, [servants, search, filterRole, filterLevel, filterGroup, filterSubject])
+  }, [servants, search, filterRole, filterLevel, filterGroup, filterGrade, filterSubject])
 
   const servantRole = (u: ServantUser): ServantRole | undefined => {
     for (const rn of SERVANT_ROLES) {
@@ -202,6 +204,16 @@ export default function ServantsPage() {
       if (found) return found.role
     }
     return undefined
+  }
+
+  const assignmentLabel = (meta: ServantUser['metadata']) => {
+    if (!meta) return '—'
+    const group = activeGroups.find(g => g.id === meta.groupId)?.name
+    const level = levels.find(l => l.id === meta.levelId)?.name
+    const grade = meta.grade
+    if (grade) return grade
+    if (level && group) return `${level} / ${group}`
+    return group || level || '—'
   }
 
   const stats = useMemo(() => {
@@ -312,6 +324,7 @@ export default function ServantsPage() {
           teachingSubjects: form.teachingSubjects,
           levelId: form.levelId || undefined,
           groupId: form.groupId || undefined,
+          grade: form.grade || undefined,
         },
       }
       if (avatarUrl) body.avatarUrl = avatarUrl
@@ -368,7 +381,7 @@ export default function ServantsPage() {
     setDirty(true)
   }
 
-  const hasActiveFilters = search || filterRole || filterLevel || filterGroup || filterSubject
+  const hasActiveFilters = search || filterRole || filterLevel || filterGroup || filterSubject || filterGrade
 
   return (
     <div className="space-y-6">
@@ -459,8 +472,15 @@ export default function ServantsPage() {
               <option key={s.value} value={s.value}>{lang === 'ar' ? s.arabicLabel : s.label}</option>
             ))}
           </select>
+          <select aria-label={lang === 'ar' ? 'تصفية حسب المرحلة' : 'Filter by grade'} value={filterGrade} onChange={e => setFilterGrade(e.target.value)}
+            className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
+            <option value="">{lang === 'ar' ? 'جميع المراحل' : 'All Grades'}</option>
+            {gradeOptions.map(g => (
+              <option key={g} value={g}>{g}</option>
+            ))}
+          </select>
           {hasActiveFilters && (
-            <Button variant="ghost" size="sm" onClick={() => { setSearch(''); setFilterRole(''); setFilterLevel(''); setFilterGroup(''); setFilterSubject('') }}
+            <Button variant="ghost" size="sm" onClick={() => { setSearch(''); setFilterRole(''); setFilterLevel(''); setFilterGroup(''); setFilterSubject(''); setFilterGrade('') }}
               >
               <X className="h-4 w-4 inline ms-1" />{lang === 'ar' ? 'مسح' : 'Clear'}
             </Button>
@@ -482,7 +502,7 @@ export default function ServantsPage() {
             icon={UserCheck}
             action={
               hasActiveFilters ? (
-                <Button variant="outline" size="sm" onClick={() => { setSearch(''); setFilterRole(''); setFilterLevel(''); setFilterGroup(''); setFilterSubject('') }}>
+                <Button variant="outline" size="sm" onClick={() => { setSearch(''); setFilterRole(''); setFilterLevel(''); setFilterGroup(''); setFilterSubject(''); setFilterGrade('') }}>
                   <X className="h-4 w-4 inline ms-1" />{lang === 'ar' ? 'مسح الفلاتر' : 'Clear Filters'}
                 </Button>
               ) : canCreate ? (
@@ -538,9 +558,7 @@ export default function ServantsPage() {
                         </span>
                       </td>
                       <td data-label="Level / Group" className="px-6 py-3.5 text-sm text-gray-600 hidden md:table-cell">
-                        {meta.levelId || meta.groupId
-                          ? `${levels.find(l => l.id === meta.levelId)?.name || '—'} / ${activeGroups.find(g => g.id === meta.groupId)?.name || '—'}`
-                          : '—'}
+                        {assignmentLabel(meta)}
                       </td>
                       <td data-label="Teaching" className="px-6 py-3.5 hidden lg:table-cell">
                         <div className="flex flex-wrap gap-1">
@@ -627,9 +645,9 @@ export default function ServantsPage() {
                     <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium border ${badgeStyle.bg} ${badgeStyle.text} border-transparent`}>
                       {role?.displayName || (lang === 'ar' ? 'خادم' : 'Servant')}
                     </span>
-                    {(meta.levelId || meta.groupId) && (
+                    {assignmentLabel(meta) !== '—' && (
                       <span className="ms-2 inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-700">
-                        {levels.find(l => l.id === meta.levelId)?.name || '—'} / {activeGroups.find(g => g.id === meta.groupId)?.name || '—'}
+                        {assignmentLabel(meta)}
                       </span>
                     )}
                   </div>
@@ -758,7 +776,7 @@ export default function ServantsPage() {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">{lang === 'ar' ? 'المجموعة' : 'Group'}</label>
-              <select aria-label={lang === 'ar' ? 'المجموعة' : 'Group'} value={form.groupId} onChange={e => updateField('groupId', e.target.value)} disabled={!form.levelId}
+              <select aria-label={lang === 'ar' ? 'المجموعة' : 'Group'} value={form.groupId} onChange={e => updateField('groupId', e.target.value)}
                 className="block w-full rounded-lg border border-gray-300 bg-white px-3.5 py-2.5 text-sm focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:opacity-50">
                 <option value="">{lang === 'ar' ? 'اختر مجموعة...' : 'Select group...'}</option>
                 {formGroups.map(g => (
