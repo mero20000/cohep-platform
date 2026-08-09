@@ -1,7 +1,7 @@
 import React from 'react'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { GradesTab } from '../_components/grades-tab'
 
 vi.mock('@/components/ui/modal', () => ({
@@ -71,6 +71,10 @@ describe('GradesTab', () => {
     })
   })
 
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
   it('renders grades with name, group and student count', async () => {
     render(<GradesTab />)
 
@@ -98,6 +102,40 @@ describe('GradesTab', () => {
       expect(mocks.post).toHaveBeenCalledWith('/grades', { name: 'Grade 6', nameAr: undefined, groupId: 'grp2' }, { schoolId: 'niangelos-main' })
     })
     expect(await screen.findByText('Grade 6')).toBeInTheDocument()
+  })
+
+  it('warns before changing the group of an existing grade', async () => {
+    const user = userEvent.setup()
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false)
+    render(<GradesTab />)
+
+    await user.click(await screen.findByLabelText('Edit Grade 5'))
+    await user.selectOptions(await screen.findByLabelText('Group *'), 'grp1')
+    await user.click(screen.getByText('Save Changes'))
+
+    await waitFor(() => {
+      expect(confirmSpy).toHaveBeenCalled()
+    })
+    expect(mocks.patch).not.toHaveBeenCalled()
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+  })
+
+  it('proceeds with the grade group change when confirmed', async () => {
+    const user = userEvent.setup()
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true)
+    mocks.patch.mockResolvedValue({ id: 'g2', name: 'Grade 5', groupId: 'grp1', status: 'inactive' })
+    render(<GradesTab />)
+
+    await user.click(await screen.findByLabelText('Edit Grade 5'))
+    await user.selectOptions(await screen.findByLabelText('Group *'), 'grp1')
+    await user.click(screen.getByText('Save Changes'))
+
+    await waitFor(() => {
+      expect(confirmSpy).toHaveBeenCalled()
+    })
+    await waitFor(() => {
+      expect(mocks.patch).toHaveBeenCalledWith('/grades/g2', { name: 'Grade 5', nameAr: undefined, groupId: 'grp1', status: 'inactive' })
+    })
   })
 
   it('shows an empty state when there are no grades', async () => {
