@@ -70,6 +70,8 @@ export default function RegisterPage() {
   const [touched, setTouched] = useState<Record<string, boolean>>({})
   const [submitted, setSubmitted] = useState(false)
   const [passwordFocused, setPasswordFocused] = useState(false)
+  const [regStep, setRegStep] = useState<1|2|3>(1)
+
 
   const errorRef = useRef<HTMLDivElement>(null)
 
@@ -154,6 +156,24 @@ export default function RegisterPage() {
       setFieldErrors(prev => ({ ...prev, confirmPassword: validateField('confirmPassword', form.confirmPassword) }))
     }
   }
+
+  const validateStep = (s: 1|2|3): boolean => {
+    const stepFields: Record<number,string[]> = {
+      1: ['churchName','email','password','confirmPassword'],
+      2: ['firstName','lastName'],
+      3: ['country','city'],
+    }
+    const fields = stepFields[s]
+    const errs: Record<string,string> = {}
+    for (const f of fields) {
+      const e = validateField(f, form[f as keyof typeof form])
+      if (e) errs[f] = e
+    }
+    setFieldErrors(p => ({...p,...errs}))
+    setTouched(p => ({...p,...Object.fromEntries(fields.map(f=>[f,true]))}))
+    return Object.keys(errs).length === 0
+  }
+  const handleNext = () => { if (validateStep(regStep)) setRegStep(s => (Math.min(3,s+1) as 1|2|3)) }
 
   const handleBlur = (field: string) => {
     setTouched(prev => ({ ...prev, [field]: true }))
@@ -363,6 +383,23 @@ export default function RegisterPage() {
 
           <div className="rounded-2xl border border-gray-200 bg-white p-6 sm:p-8 shadow-sm">
             <form onSubmit={handleSubmit} noValidate className="space-y-4">
+              {/* Step progress */}
+              <div className="flex items-center gap-1.5 mb-1">
+                {([
+                  {n:1 as const,en:'Church',ar:'الكنيسة'},
+                  {n:2 as const,en:'Your details',ar:'بياناتك'},
+                  {n:3 as const,en:'Location',ar:'الموقع'},
+                ]).map((s,i)=>(
+                  <div key={s.n} className="flex items-center gap-1.5 flex-1">
+                    <div className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-bold transition-all ${regStep>s.n?'bg-green-500 text-white':regStep===s.n?'bg-gold-500 text-white shadow shadow-gold-200':'bg-gray-100 text-gray-400'}`}>
+                      {regStep>s.n?'✓':s.n}
+                    </div>
+                    <span className={`text-[11px] font-medium hidden sm:block whitespace-nowrap ${regStep===s.n?'text-gray-700':'text-gray-400'}`}>{isAr?s.ar:s.en}</span>
+                    {i<2&&<div className={`flex-1 h-0.5 rounded-full transition-all ${regStep>s.n?'bg-green-400':'bg-gray-200'}`}/>}
+                  </div>
+                ))}
+              </div>
+
               {error && (
                 <div ref={errorRef} tabIndex={-1} role="alert" className="rounded-xl bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700 flex items-center gap-2 focus:outline-none">
                   <div className="flex h-5 w-5 items-center justify-center rounded-full bg-red-100 flex-shrink-0">
@@ -372,211 +409,33 @@ export default function RegisterPage() {
                 </div>
               )}
 
+              {/* ── Step 1: Church + credentials ── */}
+              {regStep===1&&<>
               <div>
                 <label htmlFor="churchName" className="block text-sm font-medium text-gray-700 mb-1.5">
                   {isAr ? 'اسم الكنيسة' : 'Church Name'}
                 </label>
-                <input
-                  id="churchName"
-                  type="text"
-                  value={form.churchName}
-                  onChange={(e) => update('churchName', e.target.value)}
-                  onBlur={() => handleBlur('churchName')}
-                  required
-                  autoComplete="organization"
-                  className={err('churchName') ? INPUT_ERROR_CLASS : INPUT_CLASS}
-                  placeholder={isAr ? 'مثال: كنيسة القديس مارمرقس' : 'e.g. St. Mark Coptic Orthodox Church'}
-                  aria-describedby={err('churchName') ? 'churchName-error' : undefined}
-                  aria-invalid={!!err('churchName')}
-                />
-                {err('churchName') && <p id="churchName-error" role="alert" className="mt-1 text-xs text-red-600">{err('churchName')}</p>}
+                <input id="churchName" type="text" value={form.churchName} onChange={(e) => update('churchName', e.target.value)} onBlur={() => handleBlur('churchName')} required autoComplete="organization" className={err('churchName') ? INPUT_ERROR_CLASS : INPUT_CLASS} placeholder={isAr ? 'مثال: كنيسة القديس مارمرقس' : 'e.g. St. Mark Coptic Orthodox Church'} />
+                {err('churchName') && <p role="alert" className="mt-1 text-xs text-red-600">{err('churchName')}</p>}
               </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label htmlFor="firstName" className="block text-sm font-medium text-gray-700 mb-1.5">{isAr ? 'الاسم الأول' : 'First name'}</label>
-                  <input
-                    id="firstName"
-                    type="text"
-                    value={form.firstName}
-                    onChange={(e) => update('firstName', e.target.value)}
-                    onBlur={() => handleBlur('firstName')}
-                    required
-                    autoComplete="given-name"
-                    className={err('firstName') ? INPUT_ERROR_CLASS : INPUT_CLASS}
-                    placeholder={isAr ? 'يُوحنّا' : 'John'}
-                    aria-describedby={err('firstName') ? 'firstName-error' : undefined}
-                    aria-invalid={!!err('firstName')}
-                  />
-                  {err('firstName') && <p id="firstName-error" role="alert" className="mt-1 text-xs text-red-600">{err('firstName')}</p>}
-                </div>
-                <div>
-                  <label htmlFor="lastName" className="block text-sm font-medium text-gray-700 mb-1.5">{isAr ? 'الاسم الأخير' : 'Last name'}</label>
-                  <input
-                    id="lastName"
-                    type="text"
-                    value={form.lastName}
-                    onChange={(e) => update('lastName', e.target.value)}
-                    onBlur={() => handleBlur('lastName')}
-                    required
-                    autoComplete="family-name"
-                    className={err('lastName') ? INPUT_ERROR_CLASS : INPUT_CLASS}
-                    placeholder={isAr ? 'الرسول' : 'Doe'}
-                    aria-describedby={err('lastName') ? 'lastName-error' : undefined}
-                    aria-invalid={!!err('lastName')}
-                  />
-                  {err('lastName') && <p id="lastName-error" role="alert" className="mt-1 text-xs text-red-600">{err('lastName')}</p>}
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label htmlFor="country" className="block text-sm font-medium text-gray-700 mb-1.5">
-                    {isAr ? 'الدولة' : 'Country'}
-                  </label>
-                  <div className="relative">
-                    <select
-                      id="country"
-                      value={form.country}
-                      onChange={(e) => update('country', e.target.value)}
-                      onBlur={() => handleBlur('country')}
-                      required
-                      autoComplete="country-name"
-                      className={err('country') ? SELECT_ERROR_CLASS : SELECT_CLASS}
-                      aria-describedby={err('country') ? 'country-error' : undefined}
-                      aria-invalid={!!err('country')}
-                    >
-                      <option value="">{isAr ? 'اختر الدولة' : 'Select country'}</option>
-                      {countries.map((c) => (
-                        <option key={c} value={c}>{c}</option>
-                      ))}
-                    </select>
-                    <ChevronDown className="absolute end-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
-                    {err('country') && <p id="country-error" role="alert" className="mt-1 text-xs text-red-600">{err('country')}</p>}
-                  </div>
-                </div>
-                <div>
-                  <label htmlFor="city" className="block text-sm font-medium text-gray-700 mb-1.5">{isAr ? 'المدينة' : 'City'}</label>
-                  <div className="relative">
-                    <select
-                      id="city"
-                      value={form.city}
-                      onChange={(e) => update('city', e.target.value)}
-                      onBlur={() => handleBlur('city')}
-                      required
-                      disabled={!form.country}
-                      autoComplete="address-level2"
-                      className={(err('city') ? SELECT_ERROR_CLASS : SELECT_CLASS) + " disabled:bg-gray-50 disabled:text-gray-400"}
-                      aria-describedby={err('city') ? 'city-error' : undefined}
-                      aria-invalid={!!err('city')}
-                    >
-                      <option value="">{form.country ? (isAr ? 'اختر المدينة' : 'Select city') : (isAr ? 'اختر الدولة أولاً' : 'Select country first')}</option>
-                      {availableCities.map((c) => (
-                        <option key={c} value={c}>{c}</option>
-                      ))}
-                    </select>
-                    <ChevronDown className="absolute end-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
-                    {err('city') && <p id="city-error" role="alert" className="mt-1 text-xs text-red-600">{err('city')}</p>}
-                  </div>
-                </div>
-              </div>
-
               <div>
                 <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1.5">{isAr ? 'البريد الإلكتروني' : 'Email address'}</label>
-                <input
-                  id="email"
-                  type="email"
-                  value={form.email}
-                  onChange={(e) => update('email', e.target.value)}
-                  onBlur={() => handleBlur('email')}
-                  required
-                  autoComplete="email"
-                  className={err('email') ? INPUT_ERROR_CLASS : INPUT_CLASS}
-                  placeholder={isAr ? 'you@example.com' : 'you@example.com'}
-                  aria-describedby={err('email') ? 'email-error' : undefined}
-                  aria-invalid={!!err('email')}
-                />
-                {err('email') && <p id="email-error" role="alert" className="mt-1 text-xs text-red-600">{err('email')}</p>}
+                <input id="email" type="email" value={form.email} onChange={(e) => update('email', e.target.value)} onBlur={() => handleBlur('email')} required autoComplete="email" className={err('email') ? INPUT_ERROR_CLASS : INPUT_CLASS} placeholder="you@example.com" />
+                {err('email') && <p role="alert" className="mt-1 text-xs text-red-600">{err('email')}</p>}
               </div>
-
               <div>
-                <label htmlFor="mobileNumber" className="block text-sm font-medium text-gray-700 mb-1.5">
-                  {isAr ? 'رقم الجوال' : 'Mobile Number'}
-                </label>
-                <input
-                  id="mobileNumber"
-                  type="tel"
-                  value={form.mobileNumber}
-                  onChange={(e) => update('mobileNumber', e.target.value)}
-                  onBlur={() => handleBlur('mobileNumber')}
-                  required
-                  autoComplete="tel"
-                  inputMode="tel"
-                  pattern="[+][0-9]{7,15}"
-                  className={err('mobileNumber') ? INPUT_ERROR_CLASS : INPUT_CLASS}
-                  placeholder="+201001234567"
-                  aria-describedby={err('mobileNumber') ? 'mobileNumber-error' : 'mobileNumber-hint'}
-                  aria-invalid={!!err('mobileNumber')}
-                />
-                {!err('mobileNumber') && <p id="mobileNumber-hint" className="mt-1 text-xs text-gray-400">{isAr ? 'الصيغة: رمز الدولة + الرقم (مثال: +201001234567)' : 'Format: +CountryCode Number (e.g. +201001234567)'}</p>}
-                {err('mobileNumber') && <p id="mobileNumber-error" role="alert" className="mt-1 text-xs text-red-600">{err('mobileNumber')}</p>}
-              </div>
-
-              <div>
-                <label htmlFor="educationLanguage" className="block text-sm font-medium text-gray-700 mb-1.5">
-                  {isAr ? 'لغة التعليم' : 'Education Language'}
-                  <span className="ms-1 text-xs font-normal text-gray-400">({isAr ? 'لغة التدريس' : 'language of instruction'})</span>
-                </label>
-                <div className="relative">
-                  <select
-                    id="educationLanguage"
-                    value={form.educationLanguage}
-                    onChange={(e) => update('educationLanguage', e.target.value)}
-                    required
-                    className={SELECT_CLASS}
-                  >
-                    {languages.map((l) => (
-                      <option key={l.code} value={l.code}>{l.name}</option>
-                    ))}
-                  </select>
-                  <ChevronDown className="absolute end-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
-                </div>
-              </div>
-
-              <div className="pt-1 border-t border-gray-100">
                 <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1.5">{isAr ? 'كلمة المرور' : 'Password'}</label>
                 <div className="relative">
-                  <input
-                    id="password"
-                    type={showPassword ? 'text' : 'password'}
-                    value={form.password}
-                    onChange={(e) => update('password', e.target.value)}
-                    onFocus={() => setPasswordFocused(true)}
-                    onBlur={() => { handleBlur('password'); setPasswordFocused(false) }}
-                    required
-                    autoComplete="new-password"
-                    aria-describedby={(passwordFocused || form.password) ? 'password-strength' : undefined}
-                    className={(err('password') ? INPUT_ERROR_CLASS : INPUT_CLASS) + " pe-11"}
-                    placeholder={isAr ? 'إنشاء كلمة مرور قوية' : 'Create a strong password'}
-                    aria-invalid={!!err('password')}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    aria-label={showPassword ? (isAr ? 'إخفاء كلمة المرور' : 'Hide password') : (isAr ? 'إظهار كلمة المرور' : 'Show password')}
-                    className="absolute end-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500 rounded-md"
-                  >
+                  <input id="password" type={showPassword ? 'text' : 'password'} value={form.password} onChange={(e) => update('password', e.target.value)} onFocus={() => setPasswordFocused(true)} onBlur={() => { handleBlur('password'); setPasswordFocused(false) }} required autoComplete="new-password" className={(err('password') ? INPUT_ERROR_CLASS : INPUT_CLASS) + " pe-11"} placeholder={isAr ? 'إنشاء كلمة مرور قوية' : 'Create a strong password'} />
+                  <button type="button" onClick={() => setShowPassword(!showPassword)} aria-label={showPassword ? 'Hide' : 'Show'} className="absolute end-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
                     {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
                 </div>
                 {(passwordFocused || form.password) && (
-                  <div id="password-strength" className="mt-3 space-y-1.5">
+                  <div className="mt-3 space-y-1.5">
                     {passwordChecks.map((check) => (
                       <div key={check.label} className="flex items-center gap-2 text-xs">
-                        {check.ok
-                          ? <CheckCircle2 className="h-3.5 w-3.5 text-green-500 shrink-0" />
-                          : <XCircle className="h-3.5 w-3.5 text-red-400 shrink-0" />
-                        }
+                        {check.ok ? <CheckCircle2 className="h-3.5 w-3.5 text-green-500 shrink-0" /> : <XCircle className="h-3.5 w-3.5 text-red-400 shrink-0" />}
                         <span className={check.ok ? 'text-green-700 font-medium' : 'text-gray-500'}>{check.label}</span>
                       </div>
                     ))}
@@ -584,43 +443,91 @@ export default function RegisterPage() {
                 )}
                 {err('password') && !passwordFocused && <p role="alert" className="mt-1 text-xs text-red-600">{err('password')}</p>}
               </div>
-
               <div>
                 <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-1.5">{isAr ? 'تأكيد كلمة المرور' : 'Confirm password'}</label>
-                <input
-                  id="confirmPassword"
-                  type="password"
-                  value={form.confirmPassword}
-                  onChange={(e) => { setForm({ ...form, confirmPassword: e.target.value }) }}
-                  onBlur={() => handleBlur('confirmPassword')}
-                  required
-                  autoComplete="new-password"
-                  className={err('confirmPassword') ? INPUT_ERROR_CLASS : INPUT_CLASS}
-                  placeholder={isAr ? 'تأكيد كلمة المرور' : 'Confirm your password'}
-                  aria-describedby={err('confirmPassword') ? 'confirmPassword-error' : undefined}
-                  aria-invalid={!!err('confirmPassword')}
-                />
-                {err('confirmPassword') && <p id="confirmPassword-error" role="alert" className="mt-1 text-xs text-red-600">{err('confirmPassword')}</p>}
+                <input id="confirmPassword" type="password" value={form.confirmPassword} onChange={(e) => { setForm({ ...form, confirmPassword: e.target.value }) }} onBlur={() => handleBlur('confirmPassword')} required autoComplete="new-password" className={err('confirmPassword') ? INPUT_ERROR_CLASS : INPUT_CLASS} placeholder={isAr ? 'تأكيد كلمة المرور' : 'Confirm your password'} />
+                {err('confirmPassword') && <p role="alert" className="mt-1 text-xs text-red-600">{err('confirmPassword')}</p>}
               </div>
-
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full flex items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-gold-500 to-gold-600 px-4 py-3 text-sm font-semibold text-gray-950 shadow-lg shadow-gold-200 hover:from-gold-400 hover:to-gold-500 hover:shadow-xl hover:shadow-gold-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500 focus-visible:ring-offset-2 disabled:opacity-60 disabled:hover:shadow-lg transition-all"
-              >
-                {loading ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <><Building2 className="h-4 w-4" /> {isAr ? 'إنشاء حساب' : 'Create Account'}</>
-                )}
+              <button type="button" onClick={handleNext} className="w-full flex items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-gold-500 to-gold-600 px-4 py-3 text-sm font-semibold text-gray-950 shadow-lg shadow-gold-200 hover:from-gold-400 hover:to-gold-500 transition-all">
+                {isAr ? 'التالي ←' : 'Continue →'}
               </button>
+              </>}
 
+              {/* ── Step 2: Name + Mobile ── */}
+              {regStep===2&&<div className="space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label htmlFor="firstName" className="block text-sm font-medium text-gray-700 mb-1.5">{isAr?'الاسم الأول':'First name'}</label>
+                  <input id="firstName" type="text" value={form.firstName} onChange={e=>update('firstName',e.target.value)} onBlur={()=>handleBlur('firstName')} required autoComplete="given-name" className={err('firstName')?INPUT_ERROR_CLASS:INPUT_CLASS} placeholder={isAr?'يوحنا':'John'} />
+                  {err('firstName')&&<p role="alert" className="mt-1 text-xs text-red-600">{err('firstName')}</p>}
+                </div>
+                <div>
+                  <label htmlFor="lastName" className="block text-sm font-medium text-gray-700 mb-1.5">{isAr?'الاسم الأخير':'Last name'}</label>
+                  <input id="lastName" type="text" value={form.lastName} onChange={e=>update('lastName',e.target.value)} onBlur={()=>handleBlur('lastName')} required autoComplete="family-name" className={err('lastName')?INPUT_ERROR_CLASS:INPUT_CLASS} placeholder={isAr?'بطرس':'Peters'} />
+                  {err('lastName')&&<p role="alert" className="mt-1 text-xs text-red-600">{err('lastName')}</p>}
+                </div>
+              </div>
+              <div>
+                <label htmlFor="mobileNumber" className="block text-sm font-medium text-gray-700 mb-1.5">{isAr?'رقم الجوال':'Mobile'} <span className="text-gray-400 font-normal">({isAr?'اختياري':'optional'})</span></label>
+                <input id="mobileNumber" type="tel" value={form.mobileNumber} onChange={e=>update('mobileNumber',e.target.value)} autoComplete="tel" className={INPUT_CLASS} placeholder="+201001234567" />
+              </div>
+              <div className="flex gap-3">
+                <button type="button" onClick={()=>setRegStep(1)} className="flex-1 rounded-lg border border-gray-200 py-3 text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors">{isAr?'← رجوع':'← Back'}</button>
+                <button type="button" onClick={handleNext} className="flex-1 rounded-lg bg-gradient-to-r from-gold-500 to-gold-600 py-3 text-sm font-semibold text-gray-950 hover:from-gold-400 hover:to-gold-500 transition-all">{isAr?'التالي →':'Continue →'}</button>
+              </div>
+              </div>}
+
+              {/* ── Step 3: Location + Submit ── */}
+              {regStep===3&&<div className="space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label htmlFor="country" className="block text-sm font-medium text-gray-700 mb-1.5">{isAr?'الدولة':'Country'}</label>
+                  <div className="relative">
+                    <select id="country" value={form.country} onChange={(e) => update('country', e.target.value)} onBlur={() => handleBlur('country')} required autoComplete="country-name" className={err('country') ? SELECT_ERROR_CLASS : SELECT_CLASS}>
+                      <option value="">{isAr?'اختر الدولة':'Select country'}</option>
+                      {countries.map((c) => <option key={c} value={c}>{c}</option>)}
+                    </select>
+                    <ChevronDown className="absolute end-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+                    {err('country')&&<p role="alert" className="mt-1 text-xs text-red-600">{err('country')}</p>}
+                  </div>
+                </div>
+                <div>
+                  <label htmlFor="city" className="block text-sm font-medium text-gray-700 mb-1.5">{isAr?'المدينة':'City'}</label>
+                  <div className="relative">
+                    <select id="city" value={form.city} onChange={(e) => update('city', e.target.value)} onBlur={() => handleBlur('city')} required disabled={!form.country} className={(err('city') ? SELECT_ERROR_CLASS : SELECT_CLASS) + " disabled:bg-gray-50 disabled:text-gray-400"}>
+                      <option value="">{form.country?(isAr?'اختر المدينة':'Select city'):(isAr?'اختر الدولة أولاً':'Select country first')}</option>
+                      {availableCities.map((c) => <option key={c} value={c}>{c}</option>)}
+                    </select>
+                    <ChevronDown className="absolute end-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+                    {err('city')&&<p role="alert" className="mt-1 text-xs text-red-600">{err('city')}</p>}
+                  </div>
+                </div>
+              </div>
+              <div>
+                <label htmlFor="educationLanguage" className="block text-sm font-medium text-gray-700 mb-1.5">
+                  {isAr?'لغة التعليم':'Education Language'}
+                  <span className="ms-1 text-xs font-normal text-gray-400">({isAr?'لغة التدريس':'language of instruction'})</span>
+                </label>
+                <div className="relative">
+                  <select id="educationLanguage" value={form.educationLanguage} onChange={(e) => update('educationLanguage', e.target.value)} required className={SELECT_CLASS}>
+                    {languages.map((l) => <option key={l.code} value={l.code}>{l.name}</option>)}
+                  </select>
+                  <ChevronDown className="absolute end-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+                </div>
+              </div>
+              <div className="flex gap-3">
+                <button type="button" onClick={()=>setRegStep(2)} className="flex-1 rounded-lg border border-gray-200 py-3 text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors">{isAr?'← رجوع':'← Back'}</button>
+                <button type="submit" disabled={loading} className="flex-1 flex items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-gold-500 to-gold-600 py-3 text-sm font-semibold text-gray-950 shadow-lg shadow-gold-200 hover:from-gold-400 hover:to-gold-500 disabled:opacity-60 transition-all">
+                  {loading?<Loader2 className="h-4 w-4 animate-spin"/>:<><Building2 className="h-4 w-4"/>{isAr?'إنشاء حساب':'Create Account'}</>}
+                </button>
+              </div>
               <p className="text-center text-xs text-gray-400">
-                {isAr ? 'بالتسجيل، أنت توافق على' : 'By registering, you agree to our'}{' '}
-                <a href="/terms" className="text-gold-700 hover:underline font-medium">{isAr ? 'شروط الخدمة' : 'Terms of Service'}</a>
-                {' '}{isAr ? 'و' : 'and'}{' '}
-                <a href="/privacy" className="text-gold-700 hover:underline font-medium">{isAr ? 'سياسة الخصوصية' : 'Privacy Policy'}</a>
+                {isAr?'بالتسجيل، أنت توافق على':'By registering, you agree to our'}{' '}
+                <a href="/terms" className="text-gold-700 hover:underline font-medium">{isAr?'شروط الخدمة':'Terms of Service'}</a>
+                {' '}{isAr?'و':'and'}{' '}
+                <a href="/privacy" className="text-gold-700 hover:underline font-medium">{isAr?'سياسة الخصوصية':'Privacy Policy'}</a>
               </p>
+              </div>}
             </form>
           </div>
 
