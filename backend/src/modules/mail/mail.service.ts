@@ -1,15 +1,16 @@
 import { Injectable } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import * as nodemailer from "nodemailer";
 import {
   emailTemplate,
   emailKeyValueRow,
   emailParagraph,
 } from "./email-template";
 
+const SENDGRID_API_URL = "https://api.sendgrid.com/v3/mail/send";
+
 @Injectable()
 export class MailService {
-  private readonly transporter: nodemailer.Transporter;
+  private readonly apiKey: string;
   private readonly from: string;
 
   // Dedupe cache: key -> timestamp of last send. Prevents duplicate emails
@@ -22,26 +23,15 @@ export class MailService {
   private sendChain: Promise<unknown> = Promise.resolve();
 
   constructor(private configService: ConfigService) {
-    const host = this.configService.get("MAIL_HOST", "smtp.gmail.com");
-    const port = Number(this.configService.get("MAIL_PORT", "587"));
-    const user = this.configService.get("MAIL_USER", "");
-    const pass = this.configService.get("MAIL_PASS", "");
-    this.from = this.configService.get<string>("MAIL_FROM") || user || "noreply@niangelos.app";
+    this.apiKey = this.configService.get("SENDGRID_API_KEY", "");
+    this.from = this.configService.get("MAIL_FROM", "noreply@niangelos.app");
     const to = this.configService.get("MAIL_TO", "");
-
-    this.transporter = nodemailer.createTransport({
-      host,
-      port,
-      secure: port === 465,
-      auth: { user, pass },
-    });
-
     console.log(
-      `[mail] config: provider=smtp host=${host} port=${port} user=${user ? "set" : "MISSING"} from=${this.from} to=${to ? "set" : "MISSING"}`,
+      `[mail] config: provider=sendgrid apiKey=${this.apiKey ? "set" : "MISSING"} from=${this.from} to=${to ? "set" : "MISSING"}`,
     );
-    if (!user) {
+    if (!this.apiKey) {
       console.error(
-        "[mail] MAIL_USER is not configured — emails will fail.",
+        "[mail] SENDGRID_API_KEY is not configured — emails will fail.",
       );
     }
   }
@@ -49,12 +39,26 @@ export class MailService {
   async sendMail(to: string, subject: string, html: string) {
     const safeSubject = subject.slice(0, 98);
     try {
-      await this.transporter.sendMail({
-        from: this.from,
-        to,
-        subject: safeSubject,
-        html,
+      if (!this.apiKey) {
+        throw new Error("SENDGRID_API_KEY is not configured");
+      }
+      const res = await fetch(SENDGRID_API_URL, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${this.apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          personalizations: [{ to: [{ email: to }] }],
+          from: { email: this.from },
+          subject: safeSubject,
+          content: [{ type: "text/html", value: html }],
+        }),
       });
+      if (!res.ok) {
+        const detail = (await res.text()).slice(0, 300);
+        throw new Error(`SendGrid ${res.status}: ${detail}`);
+      }
       console.log(`[mail] sent to=${to} subject="${subject}"`);
     } catch (err) {
       console.error(
