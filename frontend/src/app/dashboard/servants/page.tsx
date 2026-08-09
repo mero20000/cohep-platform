@@ -14,7 +14,8 @@ import { Modal } from '@/components/ui/modal'
 import { FormField } from '@/components/ui/form-field'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { http } from '@/lib/http-client'
-import { getSchoolId } from '@/lib/school'
+import { getSchoolId, fetchGradeGroups } from '@/lib/school'
+import type { GradeGroupCombo } from '@/lib/grade-groups'
 import { useLanguage } from '@/lib/use-language'
 import { SERVANT_ROLES, ROLES } from '@/lib/roles'
 import { PhoneLink } from '@/app/dashboard/students/_components/phone-link'
@@ -84,6 +85,7 @@ export default function ServantsPage() {
 
   const [levels, setLevels] = useState<LevelWithGroups[]>([])
   const [activeGroups, setActiveGroups] = useState<Group[]>([])
+  const [gradeGroups, setGradeGroups] = useState<GradeGroupCombo[]>([])
 
   const [showForm, setShowForm] = useState(false)
   const [editing, setEditing] = useState<ServantUser | null>(null)
@@ -94,6 +96,7 @@ export default function ServantsPage() {
     levelId: '',
     groupId: '',
     teachingSubjects: [] as string[],
+    grade: '',
   })
   const [formError, setFormError] = useState('')
   const [emailError, setEmailError] = useState('')
@@ -132,7 +135,10 @@ export default function ServantsPage() {
     }
   }, [schoolId, toast])
 
-  useEffect(() => { fetchServants(); fetchLevels() }, [fetchServants, fetchLevels])
+  useEffect(() => {
+    fetchServants(); fetchLevels()
+    fetchGradeGroups().then(setGradeGroups).catch(() => {})
+  }, [fetchServants, fetchLevels])
 
   useEffect(() => {
     http.get<any>('/users/schools/me').then(s => {
@@ -151,10 +157,10 @@ export default function ServantsPage() {
   }, [filterLevel, activeGroups])
 
   const formGroups = useMemo(() => {
-    if (!form.levelId) return []
+    if (!form.levelId) return activeGroups
     const level = levels.find(l => l.id === form.levelId)
     return level?.groups?.filter(g => g.status !== 'inactive') || []
-  }, [form.levelId, levels])
+  }, [form.levelId, levels, activeGroups])
 
   const roleOptions = useMemo<ServantRole[]>(() =>
     SERVANT_ROLES.map(v => {
@@ -162,6 +168,16 @@ export default function ServantsPage() {
       return { id: v, name: v, displayName: lang === 'ar' ? r.labelAr : r.label }
     })
   , [lang])
+
+  const gradeOptions = useMemo(() => {
+    const seen = new Set<string>()
+    const out: string[] = []
+    for (const c of gradeGroups) {
+      if (c.status === 'inactive') continue
+      if (!seen.has(c.gradeName)) { seen.add(c.gradeName); out.push(c.gradeName) }
+    }
+    return out
+  }, [gradeGroups])
 
   const filteredServants = useMemo(() => {
     return servants.filter(s => {
@@ -225,7 +241,7 @@ export default function ServantsPage() {
 
   const openCreate = () => {
     setEditing(null)
-    setForm({ firstName: '', lastName: '', firstNameAr: '', lastNameAr: '', email: '', phone: '', password: '', roleName: 'servant', levelId: '', groupId: '', teachingSubjects: [] })
+    setForm({ firstName: '', lastName: '', firstNameAr: '', lastNameAr: '', email: '', phone: '', password: '', roleName: 'servant', levelId: '', groupId: '', teachingSubjects: [], grade: '' })
     revokePhoto()
     setFormError('')
     setEmailError('')
@@ -244,6 +260,7 @@ export default function ServantsPage() {
       levelId: meta.levelId || '',
       groupId: meta.groupId || '',
       teachingSubjects: meta.teachingSubjects || [],
+      grade: meta.grade || '',
     })
     revokePhoto()
     setFormError('')
@@ -339,6 +356,16 @@ export default function ServantsPage() {
         ? prev.teachingSubjects.filter(s => s !== sub)
         : [...prev.teachingSubjects, sub],
     }))
+  }
+
+  const selectGrade = (grade: string) => {
+    const combo = gradeGroups.find(c => c.status !== 'inactive' && c.gradeName === grade)
+    setForm(prev => ({
+      ...prev,
+      grade,
+      groupId: combo?.groupId || '',
+    }))
+    setDirty(true)
   }
 
   const hasActiveFilters = search || filterRole || filterLevel || filterGroup || filterSubject
@@ -710,6 +737,16 @@ export default function ServantsPage() {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">{lang === 'ar' ? 'المرحلة الدراسية' : 'Grade'}</label>
+              <select aria-label={lang === 'ar' ? 'المرحلة الدراسية' : 'Grade'} value={form.grade} onChange={e => selectGrade(e.target.value)}
+                className="block w-full rounded-lg border border-gray-300 bg-white px-3.5 py-2.5 text-sm focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
+                <option value="">{lang === 'ar' ? 'اختر مرحلة...' : 'Select grade...'}</option>
+                {gradeOptions.map(g => (
+                  <option key={g} value={g}>{g}</option>
+                ))}
+              </select>
+            </div>
+            <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">{lang === 'ar' ? 'المستوى' : 'Level'}</label>
               <select value={form.levelId} onChange={e => { updateField('levelId', e.target.value); setForm(prev => ({ ...prev, groupId: '' })) }}
                 className="block w-full rounded-lg border border-gray-300 bg-white px-3.5 py-2.5 text-sm focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
@@ -721,7 +758,7 @@ export default function ServantsPage() {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">{lang === 'ar' ? 'المجموعة' : 'Group'}</label>
-              <select value={form.groupId} onChange={e => updateField('groupId', e.target.value)} disabled={!form.levelId}
+              <select aria-label={lang === 'ar' ? 'المجموعة' : 'Group'} value={form.groupId} onChange={e => updateField('groupId', e.target.value)} disabled={!form.levelId}
                 className="block w-full rounded-lg border border-gray-300 bg-white px-3.5 py-2.5 text-sm focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:opacity-50">
                 <option value="">{lang === 'ar' ? 'اختر مجموعة...' : 'Select group...'}</option>
                 {formGroups.map(g => (
