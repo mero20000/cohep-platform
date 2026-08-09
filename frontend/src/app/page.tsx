@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 import { motion, AnimatePresence, useReducedMotion } from 'motion/react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
@@ -792,9 +793,7 @@ export default function Home() {
       <header className={`sticky top-0 z-50 border-b transition-all duration-300 ${scrolled ? 'border-gray-200 bg-white/95 backdrop-blur shadow-sm' : 'border-transparent bg-white/80 backdrop-blur'}`}>
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
           <Link href="/" className="flex items-center gap-2.5 flex-shrink-0">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gold-500 text-white shadow-lg shadow-gold-200/50">
-              <Cross className="h-4 w-4" />
-            </div>
+            <Image src="/cohep-logo.png" alt="COHEP" width={36} height={36} className="h-9 w-9 rounded-xl object-contain shadow-lg shadow-gold-200/50" />
             <span className="text-base font-bold tracking-tight text-gray-900 hidden sm:block">COHEP</span>
           </Link>
 
@@ -1301,9 +1300,7 @@ export default function Home() {
           <div className="grid gap-8 md:grid-cols-3">
             <div>
               <Link href="/" className="flex items-center gap-2.5 mb-3">
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gold-500 text-white shadow-md shadow-gold-200/50">
-                  <Cross className="h-4 w-4" />
-                </div>
+                <Image src="/cohep-logo.png" alt="COHEP" width={32} height={32} className="h-8 w-8 rounded-lg object-contain shadow-md shadow-gold-200/50" />
                 <span className="font-bold text-sm text-gray-900">COHEP</span>
               </Link>
               <p className="text-sm text-gray-600 leading-relaxed">{t.footer.tagline}</p>
