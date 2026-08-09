@@ -35,6 +35,19 @@ function gradeKey(name: string): string {
 type ProjectedGrade = { id: string; name: string; groupId: string; status: string };
 
 async function main() {
+  // The legacy students.school_grade column is dropped by migration 2
+  // (20260807010000). This script must run BETWEEN migration 1 and migration 2.
+  // If the column is already gone, the migration was already consumed — exit as a
+  // no-op rather than failing on the missing column (idempotent re-run).
+  const colRows: Array<{ column_name: string }> = await prisma.$queryRawUnsafe(
+    `SELECT column_name FROM information_schema.columns WHERE table_name = 'students' AND column_name = 'school_grade'`,
+  );
+  if (colRows.length === 0) {
+    console.log('students.school_grade already dropped — data migration already consumed; nothing to do.');
+    await prisma.$disconnect();
+    return;
+  }
+
   const schools = await prisma.school.findMany({ select: { id: true, name: true }, orderBy: { name: 'asc' } });
 
   for (const school of schools) {
@@ -136,10 +149,13 @@ async function main() {
     }
     summary.gradesFromConfig += configGrades;
 
-    const students = await prisma.student.findMany({
-      where: { schoolId: school.id, deletedAt: null },
-      orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
-    });
+    type LegacyStudentRow = { id: string; schoolGrade: string | null; groupId: string; firstName: string };
+    const students = await prisma.$queryRaw<LegacyStudentRow[]>`
+      SELECT "id", "school_grade" AS "schoolGrade", "group_id" AS "groupId", "first_name" AS "firstName"
+      FROM "students"
+      WHERE "school_id" = ${school.id} AND "deleted_at" IS NULL
+      ORDER BY "created_at" ASC, "id" ASC
+    `;
     for (const s of students) {
       const name = normalizeGradeName(s.schoolGrade);
       if (!name) continue;
