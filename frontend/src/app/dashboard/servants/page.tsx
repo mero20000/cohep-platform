@@ -106,6 +106,8 @@ export default function ServantsPage() {
   const [showDiscardConfirm, setShowDiscardConfirm] = useState(false)
 
   const [showDelete, setShowDelete] = useState(false)
+  const [showBulkDelete, setShowBulkDelete] = useState(false)
+  const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [deleting, setDeleting] = useState<ServantUser | null>(null)
   const [photoFile, setPhotoFile] = useState<File | null>(null)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
@@ -362,6 +364,30 @@ export default function ServantsPage() {
     }
   }
 
+  const toggleSelect = (id: string) =>
+    setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
+
+  const toggleSelectAll = () =>
+    setSelectedIds(prev =>
+      filteredServants.length > 0 && prev.length === filteredServants.length
+        ? []
+        : filteredServants.filter(s => prev.includes(s.id)).length === prev.length
+          ? filteredServants.map(s => s.id)
+          : [...new Set([...prev, ...filteredServants.map(s => s.id)])])
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.length === 0) return
+    try {
+      await http.post<{ deleted: number }>('/users/bulk-delete', { ids: selectedIds })
+      setShowBulkDelete(false)
+      setSelectedIds([])
+      fetchServants()
+      toast('success', lang === 'ar' ? 'تم حذف الخدام' : 'Servants removed')
+    } catch (e: any) {
+      toast('error', e?.message || (lang === 'ar' ? 'فشل حذف الخدام' : 'Failed to delete servants'))
+    }
+  }
+
   const toggleSubject = (sub: string) => {
     setForm(prev => ({
       ...prev,
@@ -487,6 +513,21 @@ export default function ServantsPage() {
           )}
         </div>
 
+        {selectedIds.length > 0 && canDelete && (
+          <div className="flex items-center gap-3 border-t border-gray-100 bg-gray-50/60 px-6 py-2.5 text-sm">
+            <span className="font-medium text-gray-700">
+              {lang === 'ar' ? `${selectedIds.length} تم تحديد` : `${selectedIds.length} selected`}
+            </span>
+            <Button variant="destructive" size="sm" onClick={() => setShowBulkDelete(true)}>
+              <Trash2 className="h-4 w-4" />
+              {lang === 'ar' ? `حذف (${selectedIds.length})` : `Delete selected (${selectedIds.length})`}
+            </Button>
+            <Button variant="ghost" size="sm" onClick={() => setSelectedIds([])}>
+              {lang === 'ar' ? 'إلغاء التحديد' : 'Clear selection'}
+            </Button>
+          </div>
+        )}
+
         {/* Table */}
         {loading ? (
           <div className="flex items-center justify-center py-12">
@@ -517,6 +558,14 @@ export default function ServantsPage() {
             <table className="w-full">
               <thead>
                 <tr className="border-t border-gray-100 bg-gray-50/50">
+                  {canDelete && (
+                    <th className="px-4 py-3 w-10">
+                      <input type="checkbox" aria-label={lang === 'ar' ? 'تحديد الكل' : 'Select all'}
+                        checked={selectedIds.length === filteredServants.length && filteredServants.length > 0}
+                        onChange={toggleSelectAll}
+                        className="h-4 w-4 rounded border-gray-300 text-red-600 focus:ring-red-500" />
+                    </th>
+                  )}
                   <th className="px-6 py-3 text-start text-xs font-medium uppercase tracking-wider text-gray-500">{lang === 'ar' ? 'الخادم' : 'Servant'}</th>
                   <th className="px-6 py-3 text-start text-xs font-medium uppercase tracking-wider text-gray-500">{lang === 'ar' ? 'الدور' : 'Role'}</th>
                   <th className="px-6 py-3 text-start text-xs font-medium uppercase tracking-wider text-gray-500 hidden md:table-cell">{lang === 'ar' ? 'المستوى / المجموعة' : 'Level / Group'}</th>
@@ -534,6 +583,14 @@ export default function ServantsPage() {
                   const badgeStyle = ROLE_BADGE[role?.name || 'servant'] || ROLE_BADGE.servant
                   return (
                     <tr key={s.id} className="hover:bg-gray-50/50 active:bg-gray-100/50 transition-colors">
+                      {canDelete && (
+                        <td className="px-4 py-3.5 w-10">
+                          <input type="checkbox" aria-label={lang === 'ar' ? 'تحديد' : 'Select'}
+                            checked={selectedIds.includes(s.id)}
+                            onChange={() => toggleSelect(s.id)}
+                            className="h-4 w-4 rounded border-gray-300 text-red-600 focus:ring-red-500" />
+                        </td>
+                      )}
                       <td data-label="Servant" className="px-6 py-3.5">
                         <div className="flex items-center gap-3">
                           <div className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-50 overflow-hidden flex-shrink-0">
@@ -627,6 +684,12 @@ export default function ServantsPage() {
                     </div>
                     {(canEdit || canDelete) && (
                       <div className="flex items-center gap-1">
+                        {canDelete && (
+                          <input type="checkbox" aria-label={lang === 'ar' ? 'تحديد' : 'Select'}
+                            checked={selectedIds.includes(s.id)}
+                            onChange={() => toggleSelect(s.id)}
+                            className="h-4 w-4 rounded border-gray-300 text-red-600 focus:ring-red-500" />
+                        )}
                         {canEdit && (
                           <Button variant="ghost" size="icon" onClick={() => openEdit(s)} aria-label={lang === 'ar' ? `تعديل ${s.firstName}` : `Edit ${s.firstName}`} title={lang === 'ar' ? 'تعديل' : 'Edit'}>
                             <Pencil className="h-4 w-4" />
@@ -822,6 +885,16 @@ export default function ServantsPage() {
         onConfirm={handleDelete}
         title={lang === 'ar' ? 'إزالة الخادم' : 'Remove Servant'}
         message={deleting ? (lang === 'ar' ? `هل أنت متأكد من إزالة ${deleting.firstName} ${deleting.lastName} من الخدام؟ لا يمكن التراجع عن هذا الإجراء.` : `Are you sure you want to remove ${deleting.firstName} ${deleting.lastName} from the servants? This action cannot be undone.`) : ''}
+      />
+
+      {/* Bulk Delete Confirmation */}
+      <ConfirmDialog
+        open={showBulkDelete}
+        onClose={() => setShowBulkDelete(false)}
+        onConfirm={handleBulkDelete}
+        title={lang === 'ar' ? 'حذف الخدام المحددين' : 'Remove selected servants'}
+        message={lang === 'ar' ? `سيتم حذف ${selectedIds.length} من الخدام. لا يمكن التراجع عن هذا الإجراء.` : `${selectedIds.length} servants will be removed. This cannot be undone.`}
+        confirmLabel={lang === 'ar' ? 'حذف' : 'Delete'}
       />
     </div>
   )
