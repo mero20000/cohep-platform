@@ -25,7 +25,7 @@ interface ChildStudent {
   levelNumber?: number
   levelName?: string
   groupName?: string
-  schoolGrade?: string
+  gradeName?: string
   status?: string
   present: number
   late: number
@@ -249,7 +249,7 @@ export default function ParentsPage() {
                     <p className="text-sm text-gray-500 truncate">
                       {lang === 'ar' ? 'كود' : 'Code'}: {s.studentCode}
                       {s.levelName ? ` · ${s.levelName}` : ''}{s.groupName ? ` · ${s.groupName}` : ''}
-                      {s.schoolGrade ? ` · ${lang === 'ar' ? 'المرحلة' : 'Grade'}: ${s.schoolGrade}` : ''}
+                      {s.gradeName ? ` · ${lang === 'ar' ? 'المرحلة' : 'Grade'}: ${s.gradeName}` : ''}
                     </p>
                   </div>
                     <span className="rounded-full bg-indigo-50 px-2.5 py-1 text-[11px] font-medium text-indigo-700 capitalize">

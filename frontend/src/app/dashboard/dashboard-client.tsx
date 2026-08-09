@@ -1503,9 +1503,7 @@ function ChildCard({ child, lang }: { child: any; lang: string }) {
  const API = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api').replace('/api', '')
  const p = child.progress
  const initials = `${child.firstName?.[0] || ''}${child.lastName?.[0] || ''}`
- const gradePill = child.schoolGrade
-  ? (child.schoolGrade.toLowerCase().startsWith('grade') ? child.schoolGrade : `${lang === 'ar' ? 'المرحلة' : 'Grade'} ${child.schoolGrade}`)
-  : (child.levelName || '')
+ const gradePill = child.gradeName || ''
  const atRisk = p && (p.attendancePercent < 80 || p.averageScore < 60)
  const streakNudge = p && p.currentStreak >= 3
  const wc = child.weeklyComparison || {}
@@ -1828,7 +1826,7 @@ function ParentDashboard({ data, loading, error, onRetry }: { data: any; loading
           <div className={`flex h-7 w-7 items-center justify-center rounded-full text-[11px] font-bold ${i < 3 ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600'}`}>{s.rank}</div>
          <div className="min-w-0 flex-1">
           <div className="text-sm font-medium text-gray-900 truncate">{s.firstName} {s.lastName}</div>
-          <div className="text-[10px] text-gray-400">{s.schoolGrade || s.levelName || ''}</div>
+          <div className="text-[10px] text-gray-400">{s.gradeName || s.levelName || ''}</div>
          </div>
          <div className="flex items-center gap-1 text-sm font-semibold text-amber-600">
           <Zap className="h-3.5 w-3.5" />{s.totalXp}

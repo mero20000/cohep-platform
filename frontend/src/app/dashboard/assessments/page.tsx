@@ -44,7 +44,7 @@ interface StudentRow {
   firstName: string
   lastName: string
   studentCode: string
-  schoolGrade?: string
+  gradeName?: string
   status: string
   assigned: boolean
   submissionStatus: string | null
@@ -175,7 +175,7 @@ export default function AssessmentsPage() {
   }
 
   const visibleStudents = studentGradeFilter
-    ? studentRows.filter(r => r.schoolGrade === studentGradeFilter)
+    ? studentRows.filter(r => r.gradeName === studentGradeFilter)
     : studentRows
 
   const [stats, setStats] = useState({ total: 0, byStatus: [] as { status: string; count: number }[], grading: null as { gradedCount: number; passCount: number; passRate: number; avgScore: number } | null })
@@ -317,12 +317,18 @@ export default function AssessmentsPage() {
     setSelectedAssessment(a)
     setShowStudents(true)
     const assessmentGrade = (a.metadata as { grade?: string } | undefined)?.grade || a.grade || ''
-    setStudentGradeFilter(grade || assessmentGrade)
+    let active: GradeItem[] = []
+    try {
+      active = await fetchActiveGrades()
+    } catch { /* keep active empty */ }
+    const targetName = grade || assessmentGrade
+    setStudentGradeFilter(targetName)
+    const targetId = active.find(g => g.name === targetName)?.id
     setStudentsLoading(true)
     let rows: StudentRow[] = []
     try {
       const p: Record<string, string> = {}
-      if (grade) p.schoolGrade = grade
+      if (targetId) p.gradeId = targetId
       const payload: any = await http.get(`/assessments/${a.id}/students`, p)
       rows = Array.isArray(payload)
         ? payload
@@ -335,14 +341,9 @@ export default function AssessmentsPage() {
       setStudentRows([])
       toast('error', lang === 'ar' ? 'فشل تحميل الطلاب' : 'Failed to load students')
     }
-    try {
-      const active: GradeItem[] = await fetchActiveGrades()
-      const settingsGrades = active.map(g => g.name)
-      const studentGrades = Array.from(new Set(rows.map(r => r.schoolGrade).filter(Boolean))) as string[]
-      setGradeFilterOptions(settingsGrades.length ? settingsGrades : studentGrades)
-    } catch {
-      setGradeFilterOptions(Array.from(new Set(rows.map(r => r.schoolGrade).filter(Boolean))) as string[])
-    }
+    const settingsGrades = active.map(g => g.name)
+    const studentGrades = Array.from(new Set(rows.map(r => r.gradeName).filter(Boolean))) as string[]
+    setGradeFilterOptions(settingsGrades.length ? settingsGrades : studentGrades)
     setStudentsLoading(false)
   }
 
@@ -394,7 +395,7 @@ export default function AssessmentsPage() {
         r.studentCode,
         r.firstName,
         r.lastName,
-        r.schoolGrade || '',
+        r.gradeName || '',
         r.submissionStatus || '',
         r.mark?.toString() ?? '',
         r.maxMark.toString(),
@@ -419,7 +420,7 @@ export default function AssessmentsPage() {
       <tr>
         <td style="padding:8px;border:1px solid #ddd">${r.studentCode}</td>
         <td style="padding:8px;border:1px solid #ddd">${r.firstName} ${r.lastName}</td>
-        <td style="padding:8px;border:1px solid #ddd">${r.schoolGrade || '—'}</td>
+        <td style="padding:8px;border:1px solid #ddd">${r.gradeName || '—'}</td>
         <td style="padding:8px;border:1px solid #ddd">${r.submissionStatus || '—'}</td>
         <td style="padding:8px;border:1px solid #ddd;text-align:right">${r.mark !== null ? r.mark : '—'}</td>
         <td style="padding:8px;border:1px solid #ddd;text-align:right">${r.maxMark}</td>
@@ -1099,7 +1100,7 @@ export default function AssessmentsPage() {
                       <div className="flex-1 min-w-0">
                         <div className="text-sm font-medium text-gray-900 truncate">
                           {r.firstName} {r.lastName}
-                          {r.schoolGrade && <span className="ml-2 text-xs text-gray-400">{r.schoolGrade}</span>}
+                          {r.gradeName && <span className="ml-2 text-xs text-gray-400">{r.gradeName}</span>}
                         </div>
                         <div className="text-xs text-gray-400 font-mono">{r.studentCode || '—'}</div>
                       </div>
@@ -1231,7 +1232,7 @@ export default function AssessmentsPage() {
                         <tr key={r.id} className={`hover:bg-gray-50/50 active:bg-gray-100/50 ${r.mark !== null ? (isPass ? 'bg-green-50/30' : 'bg-red-50/30') : ''}`}>
                           <td data-label={lang === 'ar' ? 'الكود' : 'Code'} className="px-3 py-2.5 text-xs text-gray-500 font-mono">{r.studentCode || '—'}</td>
                           <td data-label={lang === 'ar' ? 'الطالب' : 'Student'} className="px-3 py-2.5 text-sm font-medium text-gray-900">{r.firstName} {r.lastName}</td>
-                          <td data-label={lang === 'ar' ? 'الصف' : 'Grade'} className="px-3 py-2.5 text-sm text-gray-600">{r.schoolGrade || '—'}</td>
+                          <td data-label={lang === 'ar' ? 'الصف' : 'Grade'} className="px-3 py-2.5 text-sm text-gray-600">{r.gradeName || '—'}</td>
                           <td data-label={lang === 'ar' ? 'الحالة' : 'Status'} className="px-3 py-2.5">
                             <Badge variant={r.submissionStatus === 'completed' ? 'success' : r.submissionStatus === 'assigned' ? 'info' : 'default'} size="sm">
                               {r.submissionStatus === 'completed' ? (lang === 'ar' ? 'مكتمل' : 'completed') : r.submissionStatus === 'assigned' ? (lang === 'ar' ? 'تم التعيين' : 'assigned') : r.submissionStatus || '—'}
