@@ -15,7 +15,7 @@ services:
     rootDir: backend
     plan: free
     region: oregon
-    buildCommand: mkdir -p uploads && npm install && npm run build
+    buildCommand: mkdir -p uploads && npm install && npx prisma generate && npm run build
     startCommand: npx prisma migrate deploy && npm run seed && npm run start:prod
     healthCheckPath: /health
     envVars:

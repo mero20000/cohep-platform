@@ -281,7 +281,7 @@ export default function ResetPasswordPage() {
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="text-center mb-8">
-          <Image src="/cohep-logo.png" alt="COHEP" width={56} height={56} className="inline-block h-14 w-14 rounded-2xl object-contain shadow-xl shadow-gold-500/30 mb-4" />
+          <Image src="/cohep-logo.png" alt="COHEP" width={72} height={72} className="inline-block h-18 w-18 rounded-2xl object-contain shadow-xl shadow-gold-500/30 mb-4" />
           <h1 className="text-xl font-bold text-white">Reset your password</h1>
           <p className="text-sm text-gray-400 mt-1">Choose a new password for your COHEP account</p>
         </div>

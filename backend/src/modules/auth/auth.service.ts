@@ -530,4 +530,43 @@ export class AuthService {
       refreshToken,
     };
   }
+
+  async searchSchoolsPublic(q: string) {
+    const query = (q || '').trim().toLowerCase()
+    const schools = await this.prisma.school.findMany({
+      where: {
+        deletedAt: null,
+        isActive: true,
+        ...(query ? {
+          OR: [
+            { name: { contains: query, mode: 'insensitive' } },
+            { nameAr: { contains: query, mode: 'insensitive' } },
+            { slug: { contains: query, mode: 'insensitive' } },
+            { church: { name: { contains: query, mode: 'insensitive' } } },
+          ],
+        } : {}),
+      },
+      select: {
+        id: true,
+        name: true,
+        nameAr: true,
+        slug: true,
+        church: { select: { name: true, nameAr: true, city: true, country: true } },
+      },
+      orderBy: { name: 'asc' },
+      take: 8,
+    });
+
+    return schools.map((s: any) => ({
+      slug: s.slug,
+      name: s.name,
+      nameAr: s.nameAr,
+      churchName: s.church?.name,
+      churchNameAr: s.church?.nameAr,
+      city: s.church?.city,
+      country: s.church?.country,
+      label: [s.name, s.church?.name, s.church?.city].filter(Boolean).join(' · '),
+    }));
+  }
+
 }

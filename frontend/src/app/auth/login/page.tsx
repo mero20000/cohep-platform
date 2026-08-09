@@ -147,7 +147,7 @@ export default function LoginPage() {
         <div className="relative flex flex-col justify-between px-12 xl:px-16 py-12">
           {/* Logo */}
           <Link href="/" className="flex items-center gap-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500 rounded-lg">
-            <Image src="/cohep-logo.png" alt="COHEP" width={48} height={48} className="h-12 w-12 rounded-xl object-contain shadow-lg shadow-gold-500/30" />
+            <Image src="/cohep-logo.png" alt="COHEP" width={64} height={64} className="h-16 w-16 rounded-xl object-contain shadow-lg shadow-gold-500/30" />
           </Link>
 
           {/* Hero content */}
@@ -202,7 +202,7 @@ export default function LoginPage() {
         <div className="mx-auto w-full max-w-sm">
           {/* Mobile logo */}
           <Link href="/" className="flex items-center gap-2 mb-8 lg:hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500 rounded-lg">
-            <Image src="/cohep-logo.png" alt="COHEP" width={36} height={36} className="h-9 w-9 rounded-lg object-contain" />
+            <Image src="/cohep-logo.png" alt="COHEP" width={48} height={48} className="h-12 w-12 rounded-lg object-contain" />
           </Link>
 
           <div className="mb-6 text-center lg:text-start">

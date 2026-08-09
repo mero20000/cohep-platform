@@ -309,7 +309,7 @@ export default function RegisterPage() {
 
         <div className="relative flex flex-col justify-between px-12 xl:px-16 py-12">
           <Link href="/" className="flex items-center gap-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500 rounded-lg">
-            <Image src="/cohep-logo.png" alt="COHEP" width={48} height={48} className="h-12 w-12 rounded-xl object-contain shadow-lg shadow-gold-500/30" />
+            <Image src="/cohep-logo.png" alt="COHEP" width={64} height={64} className="h-16 w-16 rounded-xl object-contain shadow-lg shadow-gold-500/30" />
           </Link>
 
           <div className="flex-1 flex flex-col justify-center max-w-lg">
@@ -357,7 +357,7 @@ export default function RegisterPage() {
       <div className="flex flex-1 flex-col px-6 py-10 sm:px-12 lg:px-16 xl:px-20 bg-gradient-to-br from-white via-gray-50 to-blue-50/30 overflow-y-auto">
         <div className="my-auto mx-auto w-full max-w-md">
           <Link href="/" className="flex items-center gap-2 mb-6 lg:hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500 rounded-lg">
-            <Image src="/cohep-logo.png" alt="COHEP" width={36} height={36} className="h-9 w-9 rounded-lg object-contain shadow-md" />
+            <Image src="/cohep-logo.png" alt="COHEP" width={48} height={48} className="h-12 w-12 rounded-lg object-contain shadow-md" />
           </Link>
 
           <div className="mb-6 text-center lg:text-start">

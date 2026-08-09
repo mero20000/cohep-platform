@@ -150,6 +150,14 @@ export class AuthController {
     return this.authService.verifyResetToken(token);
   }
 
+  @Get('schools/search')
+  @Public()
+  @Throttle({ default: { limit: 60, ttl: 60000 } })
+  @ApiOperation({ summary: 'Public — search schools by name for login autocomplete' })
+  async searchSchools(@Query('q') q: string = '') {
+    return this.authService.searchSchoolsPublic(q);
+  }
+
   @Post('reset-password')
   @Public()
   @Throttle({ default: { limit: 10, ttl: 60000 } })
