@@ -193,7 +193,7 @@ export default function StudentsClient() {
         </div>
       </div>
 
-      <StudentStats stats={studentStats} loading={statsLoading} lang={lang} onGradeClick={g=>setFilterGrade(g)} onStatusClick={s=>setFilterStatus(s)}/>
+      <StudentStats stats={studentStats} loading={statsLoading} lang={lang} onGradeClick={name=>{const gr=gradeOptions.find(o=>o.name===name);if(gr)setFilterGrade(gr.id)}} onStatusClick={s=>setFilterStatus(s)}/>
 
       <StudentFilters
         search={search} onSearchChange={setSearch} isSearching={search !== debouncedSearch}
