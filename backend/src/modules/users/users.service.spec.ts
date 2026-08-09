@@ -18,8 +18,11 @@ describe('UsersService roles', () => {
     user: {
       findUnique: jest.fn(),
       update: jest.fn(),
+      updateMany: jest.fn(),
     },
     userRole: {
+      findMany: jest.fn(),
+      findUnique: jest.fn(),
       deleteMany: jest.fn(),
       create: jest.fn(),
     },
@@ -92,6 +95,44 @@ describe('UsersService roles', () => {
         expect.objectContaining({ data: expect.objectContaining({ roleId: 'role-1' }) }),
       );
       expect(result.id).toBe('user-1');
+    });
+  });
+
+  describe('bulkDeleteUsers', () => {
+    it('rejects non-array / empty ids', async () => {
+      await expect(service.bulkDeleteUsers([], { schoolId: 's1', roles: ['admin'] })).rejects.toThrow(BadRequestException);
+      await expect(service.bulkDeleteUsers(undefined as any, { schoolId: 's1', roles: ['admin'] })).rejects.toThrow(BadRequestException);
+    });
+
+    it('soft-deletes given users within the requester school', async () => {
+      prisma.user.updateMany.mockResolvedValue({ count: 2 });
+      prisma.role.findFirst.mockResolvedValue({ id: 'sa-role' });
+      prisma.userRole.findMany.mockResolvedValue([]);
+
+      const res = await service.bulkDeleteUsers(['u1', 'u2'], { schoolId: 's1', roles: ['admin'] });
+
+      expect(prisma.user.updateMany).toHaveBeenCalledWith({
+        where: { id: { in: ['u1', 'u2'] }, schoolId: 's1', deletedAt: null },
+        data: { deletedAt: expect.any(Date) },
+      });
+      expect(res).toEqual({ deleted: 2 });
+    });
+
+    it('excludes super_admin users from deletion', async () => {
+      prisma.role.findFirst.mockResolvedValue({ id: 'sa-role' });
+      // u2 is a super admin
+      prisma.userRole.findUnique.mockImplementation((args: any) =>
+        Promise.resolve(args.where.userId_roleId.userId === 'u2' ? { userId: 'u2' } : null),
+      );
+      prisma.user.updateMany.mockResolvedValue({ count: 1 });
+
+      const res = await service.bulkDeleteUsers(['u1', 'u2'], { schoolId: 's1', roles: ['admin'] });
+
+      expect(prisma.user.updateMany).toHaveBeenCalledWith({
+        where: { id: { in: ['u1'] }, schoolId: 's1', deletedAt: null },
+        data: { deletedAt: expect.any(Date) },
+      });
+      expect(res).toEqual({ deleted: 1 });
     });
   });
 });

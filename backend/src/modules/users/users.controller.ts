@@ -133,6 +133,13 @@ export class UsersController {
   }
 
   @Roles('super_admin', 'admin')
+  @Post('bulk-delete')
+  @ApiOperation({ summary: 'Bulk soft-delete users (school-scoped)' })
+  bulkDeleteUsers(@Body() dto: { ids: string[] }, @CurrentUser() user: any) {
+    return this.usersService.bulkDeleteUsers(dto.ids || [], user);
+  }
+
+  @Roles('super_admin', 'admin')
   @Post(':id/roles/:roleName')
   @ApiOperation({ summary: 'Assign a role to a user' })
   assignRole(@Param('id') userId: string, @Param('roleName') roleName: string, @CurrentUser() user: any) {

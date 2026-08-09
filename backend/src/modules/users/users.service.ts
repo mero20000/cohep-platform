@@ -174,6 +174,29 @@ export class UsersService {
     return this.prisma.user.update({ where: { id }, data: { deletedAt: new Date() } });
   }
 
+  async bulkDeleteUsers(ids: string[], requestingUser?: any): Promise<{ deleted: number }> {
+    if (!Array.isArray(ids) || ids.length === 0) {
+      throw new BadRequestException('ids are required');
+    }
+    const uniqueIds = [...new Set(ids)];
+    const isSuperAdmin = !!requestingUser?.roles?.includes('super_admin');
+
+    // Filter out accounts the caller may not delete: other-school users (implicitly
+    // via the schoolId below) and super_admin accounts (non-super-admin callers).
+    const deletable: string[] = [];
+    for (const id of uniqueIds) {
+      if (!isSuperAdmin && (await this.userHasRole(id, 'super_admin'))) continue;
+      deletable.push(id);
+    }
+    if (deletable.length === 0) return { deleted: 0 };
+
+    const where: any = { id: { in: deletable }, deletedAt: null };
+    if (!isSuperAdmin) where.schoolId = requestingUser?.schoolId;
+
+    const result = await this.prisma.user.updateMany({ where, data: { deletedAt: new Date() } });
+    return { deleted: result.count };
+  }
+
   async assignRole(userId: string, roleName: string, requestingUser?: any) {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) throw new NotFoundException('User not found');
