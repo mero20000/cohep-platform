@@ -3,7 +3,8 @@
 import { useState, useEffect, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { Cross, Eye, EyeOff, Loader2, CheckCircle2, AlertCircle, KeyRound, ArrowLeft } from 'lucide-react'
+import Image from 'next/image'
+import { Eye, EyeOff, Loader2, CheckCircle2, AlertCircle, KeyRound, ArrowLeft } from 'lucide-react'
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'
 
@@ -280,9 +281,7 @@ export default function ResetPasswordPage() {
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="text-center mb-8">
-          <div className="inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-gold-400 to-gold-600 text-white shadow-xl shadow-gold-500/30 mb-4">
-            <Cross className="h-7 w-7" />
-          </div>
+          <Image src="/cohep-logo.png" alt="COHEP" width={56} height={56} className="inline-block h-14 w-14 rounded-2xl object-contain shadow-xl shadow-gold-500/30 mb-4" />
           <h1 className="text-xl font-bold text-white">Reset your password</h1>
           <p className="text-sm text-gray-400 mt-1">Choose a new password for your COHEP account</p>
         </div>

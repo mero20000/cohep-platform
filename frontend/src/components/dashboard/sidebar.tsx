@@ -1,7 +1,8 @@
 'use client'
 
 import Link from 'next/link'
-import { X, Cross, LogOut, PanelLeftClose, PanelLeft } from 'lucide-react'
+import { X, LogOut, PanelLeftClose, PanelLeft } from 'lucide-react'
+import Image from 'next/image'
 import { Button } from '@/components/ui/button'
 
 interface DashboardSidebarProps {
@@ -67,10 +68,7 @@ export function DashboardSidebar({
         />
       )}
       <div className="flex items-center gap-2.5 border-b border-gray-200 px-4 h-14">
-        <div className="flex h-7 w-7 items-center justify-center rounded-md bg-blue-600 text-white flex-shrink-0">
-          <Cross className="h-3.5 w-3.5" />
-        </div>
-        <span className="text-sm font-bold tracking-tight text-gray-900 flex-1 truncate">COHEP</span>
+        <Image src="/cohep-logo.png" alt="COHEP" width={28} height={28} className="h-7 w-7 rounded-md object-contain flex-shrink-0" />
         <Button variant="ghost" size="icon" onClick={() => onSetSidebarOpen(false)} aria-label={language === 'ar' ? 'إغلاق' : 'Close sidebar'} className={`lg:hidden text-gray-400 hover:text-gray-600 h-7 w-7 flex-shrink-0 ${language === 'ar' ? 'mr-auto' : 'ml-auto'}`}>
           <X className="h-4 w-4" />
         </Button>

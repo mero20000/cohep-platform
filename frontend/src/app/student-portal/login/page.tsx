@@ -2,7 +2,8 @@
 
 import { useState, FormEvent } from 'react'
 import { useRouter } from 'next/navigation'
-import { Cross, Loader2, Search } from 'lucide-react'
+import Image from 'next/image'
+import { Loader2, Search } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
 export default function StudentLoginPage() {
@@ -37,7 +38,7 @@ export default function StudentLoginPage() {
         <div className="absolute inset-0 bg-[url('/grid.svg')] opacity-10" />
         <div className="relative text-center">
           <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-2xl bg-white/15 backdrop-blur-sm">
-            <Cross className="h-10 w-10 text-white" />
+            <Image src="/cohep-logo.png" alt="COHEP" width={80} height={80} className="h-16 w-16 object-contain" />
           </div>
           <h1 className="text-3xl font-bold text-white mb-2">Student Portal</h1>
           <p className="text-indigo-200 text-lg">Your hymns journey at a glance</p>
@@ -48,7 +49,7 @@ export default function StudentLoginPage() {
         <div className="w-full max-w-sm">
           <div className="text-center mb-8">
             <div className="lg:hidden mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-xl bg-blue-500">
-              <Cross className="h-7 w-7 text-white" />
+              <Image src="/cohep-logo.png" alt="COHEP" width={56} height={56} className="h-12 w-12 object-contain" />
             </div>
             <h2 className="text-2xl font-bold text-gray-900">Student Sign In</h2>
             <p className="text-sm text-gray-500 mt-1">Enter your access key to view your dashboard</p>

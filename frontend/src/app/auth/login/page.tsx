@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import Image from 'next/image'
 import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
@@ -8,7 +9,7 @@ import { useAuth } from '@/hooks/use-auth'
 import { useLanguage } from '@/lib/use-language'
 import ForgotPasswordPanel from '@/components/auth/forgot-password-panel'
 import {
-  Cross, Eye, EyeOff, Loader2, BookOpen, Trophy, Calendar,
+  Eye, EyeOff, Loader2, BookOpen, Trophy, Calendar,
   Users, Music, Globe, ArrowRight, Sparkles, Shield, Heart, Star,
   AlertCircle, CheckCircle2, AlertTriangle,
 } from 'lucide-react'
@@ -146,10 +147,7 @@ export default function LoginPage() {
         <div className="relative flex flex-col justify-between px-12 xl:px-16 py-12">
           {/* Logo */}
           <Link href="/" className="flex items-center gap-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500 rounded-lg">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-gold-500 to-gold-600 text-white shadow-lg shadow-gold-500/30">
-              <Cross className="h-6 w-6" />
-            </div>
-            <span className="text-2xl font-bold text-white tracking-tight">COHEP</span>
+            <Image src="/cohep-logo.png" alt="COHEP" width={48} height={48} className="h-12 w-12 rounded-xl object-contain shadow-lg shadow-gold-500/30" />
           </Link>
 
           {/* Hero content */}
@@ -204,10 +202,7 @@ export default function LoginPage() {
         <div className="mx-auto w-full max-w-sm">
           {/* Mobile logo */}
           <Link href="/" className="flex items-center gap-2 mb-8 lg:hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500 rounded-lg">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-gold-500 to-gold-600 text-white">
-              <Cross className="h-5 w-5" />
-            </div>
-            <span className="text-xl font-bold text-gray-900">COHEP</span>
+            <Image src="/cohep-logo.png" alt="COHEP" width={36} height={36} className="h-9 w-9 rounded-lg object-contain" />
           </Link>
 
           <div className="mb-6 text-center lg:text-start">

@@ -1,12 +1,13 @@
 'use client'
 
 import Link from 'next/link'
+import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { useLanguage } from '@/lib/use-language'
 import { Button } from '@/components/ui/button'
 import {
-  Cross, Eye, EyeOff, Loader2, CheckCircle2, XCircle, ArrowRight,
+  Eye, EyeOff, Loader2, CheckCircle2, XCircle, ArrowRight,
   BookOpen, Trophy, Calendar, Users, Music, Globe,
   Sparkles, Shield, Heart, Star, Building2, ChevronDown,
 } from 'lucide-react'
@@ -308,10 +309,7 @@ export default function RegisterPage() {
 
         <div className="relative flex flex-col justify-between px-12 xl:px-16 py-12">
           <Link href="/" className="flex items-center gap-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500 rounded-lg">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-gold-500 to-gold-600 text-white shadow-lg shadow-gold-500/30">
-              <Cross className="h-6 w-6" />
-            </div>
-            <span className="text-2xl font-bold text-white tracking-tight">COHEP</span>
+            <Image src="/cohep-logo.png" alt="COHEP" width={48} height={48} className="h-12 w-12 rounded-xl object-contain shadow-lg shadow-gold-500/30" />
           </Link>
 
           <div className="flex-1 flex flex-col justify-center max-w-lg">
@@ -359,10 +357,7 @@ export default function RegisterPage() {
       <div className="flex flex-1 flex-col px-6 py-10 sm:px-12 lg:px-16 xl:px-20 bg-gradient-to-br from-white via-gray-50 to-blue-50/30 overflow-y-auto">
         <div className="my-auto mx-auto w-full max-w-md">
           <Link href="/" className="flex items-center gap-2 mb-6 lg:hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500 rounded-lg">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-gold-500 to-gold-600 text-white shadow-md">
-              <Cross className="h-5 w-5" />
-            </div>
-            <span className="text-lg font-bold text-gray-900">COHEP</span>
+            <Image src="/cohep-logo.png" alt="COHEP" width={36} height={36} className="h-9 w-9 rounded-lg object-contain shadow-md" />
           </Link>
 
           <div className="mb-6 text-center lg:text-start">

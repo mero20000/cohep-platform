@@ -1,7 +1,8 @@
 'use client'
 
 import Link from 'next/link'
-import { Cross, ArrowLeft, Shield, Lock, Eye, Database, UserCheck, Mail } from 'lucide-react'
+import Image from 'next/image'
+import { ArrowLeft, Shield, Lock, Eye, Database, UserCheck, Mail } from 'lucide-react'
 import { useLanguage } from '@/lib/use-language'
 
 export default function PrivacyPage() {
@@ -138,9 +139,7 @@ export default function PrivacyPage() {
 
         {/* Header */}
         <div className="flex items-center gap-3 mb-2">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gold-500 text-white shadow-md shadow-gold-200">
-            <Cross className="h-5 w-5" />
-          </div>
+          <Image src="/cohep-logo.png" alt="COHEP" width={40} height={40} className="h-10 w-10 rounded-xl object-contain shadow-md shadow-gold-200" />
           <div>
             <h1 className="text-2xl font-bold text-gray-900">{isAr ? 'سياسة الخصوصية' : 'Privacy Policy'}</h1>
             <p className="text-sm text-gray-400">{isAr ? 'آخر تحديث: يوليو 2026' : 'Last updated: July 2026'}</p>

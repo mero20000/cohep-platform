@@ -1,9 +1,10 @@
 'use client'
 
 import Link from 'next/link'
+import Image from 'next/image'
 import { useRouter, usePathname } from 'next/navigation'
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { Cross, LogOut, User, Home, Bell, Menu, X, ChevronDown, Globe, CheckCheck, Loader2, Info, Calendar, Award, ClipboardCheck, UserCheck, Settings, Megaphone, Music } from 'lucide-react'
+import { LogOut, User, Home, Bell, Menu, X, ChevronDown, Globe, CheckCheck, Loader2, Info, Calendar, Award, ClipboardCheck, UserCheck, Settings, Megaphone, Music } from 'lucide-react'
 import { useLanguage } from '@/lib/use-language'
 import { http } from '@/lib/http-client'
 import { getSchoolId } from '@/lib/school'
@@ -225,9 +226,7 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
           }}
           className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-gold-300/50 active:bg-blue-400/50 z-50" />
         <div className="flex h-16 items-center gap-2.5 border-b border-gray-200 px-5">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-500 text-white">
-            <Cross className="h-5 w-5" />
-          </div>
+          <Image src="/cohep-logo.png" alt="COHEP" width={36} height={36} className="h-9 w-9 rounded-lg object-contain" />
           <span className="text-lg font-bold tracking-tight text-gray-900">{t('Parent Portal', 'بوابة أولياء الأمور')}</span>
           <Button onClick={() => setSidebarOpen(false)} variant="ghost" size="icon" className="lg:hidden ml-auto text-gray-400 hover:text-gray-600">
             <X className="h-5 w-5" />
