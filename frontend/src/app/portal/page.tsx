@@ -7,10 +7,11 @@ import { http } from '@/lib/http-client'
 import { useLanguage } from '@/lib/use-language'
 import { useToast } from '@/components/ui/toast'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
-import { Users, Loader2, ChevronRight, Baby, Link2, Search, Crown, Star, Trash2, Award } from 'lucide-react'
+import { Users, Loader2, ChevronRight, Baby, Link2, Search, Crown, Star, Trash2, Award, Sun } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { AudioPlayer } from '@/components/audio-player'
 import DashboardHero from '../dashboard/hero'
+import { getGreeting, getGreetingAr, getDayName, getDayNameAr } from '@/lib/datetime'
 
 const API_ORIGIN = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api').replace('/api', '')
 
@@ -138,42 +139,41 @@ export default function PortalPage() {
   return (
     <div className="space-y-6">
       <DashboardHero
-        bg="var(--hymn-indigo)"
-        orbTint="bg-indigo-500/10"
-        avatar={
-          schoolIdentity?.churchLogoUrl ? (
-            <Image src={schoolIdentity.churchLogoUrl} alt={schoolIdentity.churchName || 'Church'} width={56} height={56}
-              className="h-14 w-14 object-cover" />
-          ) : (
-            <div className="flex h-14 w-14 items-center justify-center bg-white/10">
-              <Baby className="h-7 w-7 text-indigo-200" />
-            </div>
-          )
+        bg="var(--hymn-navy)"
+        title={schoolIdentity?.name || (lang === 'ar' ? 'بوابة أولياء الأمور' : 'Parent Portal')}
+        greeting={
+          <>
+            <Sun className="h-4 w-4" />
+            <span>{lang === 'ar' ? getGreetingAr() : getGreeting()}</span>
+          </>
         }
-        title={t('My Children', 'أبنائي')}
         badges={
-          schoolIdentity ? (
-            <div className="flex flex-wrap items-center gap-2">
-              {schoolIdentity.churchName && (
-                <span className="inline-flex items-center gap-1.5 rounded-lg bg-white/15 px-2.5 py-1 text-xs font-medium text-white/90">
-                  {schoolIdentity.churchName}
-                </span>
-              )}
-              {schoolIdentity.churchName && schoolIdentity.name && <span className="text-white/30">·</span>}
-              {schoolIdentity.name && (
-                <span className="inline-flex items-center gap-1.5 text-xs text-white/70">
-                  {schoolIdentity.logoUrl && (
-                    <Image src={schoolIdentity.logoUrl} alt="" width={14} height={14} className="rounded" />
-                  )}
-                  {lang === 'ar' && schoolIdentity.nameAr ? schoolIdentity.nameAr : schoolIdentity.name}
-                </span>
-              )}
-            </div>
-          ) : undefined
+          <div className="flex flex-wrap items-center gap-2">
+            {schoolIdentity?.churchName && (
+              <span className="inline-flex items-center gap-1.5 rounded-lg bg-white/15 px-2.5 py-1 text-xs font-medium text-white/90">
+                {schoolIdentity.churchName}
+              </span>
+            )}
+            <p className="text-gray-400 text-sm">{lang === 'ar' ? getDayNameAr() : getDayName()}</p>
+          </div>
         }
-        description={
-          t('Your children appear automatically when their record uses your login email, or link them manually by student code.',
-            'يظهر أبناؤك تلقائياً إذا كان بريدهم مسجلاً ببريدك، أو اربطهم يدوياً بكود الطالب.')
+        logos={
+          <>
+            {schoolIdentity?.churchLogoUrl && (
+              <div className="relative shrink-0">
+                <div className="absolute inset-0 rounded-2xl bg-white/10 blur-xl" />
+                <Image src={schoolIdentity.churchLogoUrl} alt="Church Logo" width={100} height={100}
+                  className="relative h-24 w-24 rounded-2xl border-2 border-white/20 bg-white/10 object-cover shadow-xl" />
+              </div>
+            )}
+            {schoolIdentity?.logoUrl && (
+              <div className="relative shrink-0">
+                <div className="absolute inset-0 rounded-2xl bg-white/10 blur-xl" />
+                <Image src={schoolIdentity.logoUrl} alt="School Logo" width={100} height={100}
+                  className="relative h-24 w-24 rounded-2xl border-2 border-white/20 bg-white/10 object-cover shadow-xl" />
+              </div>
+            )}
+          </>
         }
       />
 
