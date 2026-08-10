@@ -144,7 +144,20 @@ export default function AnnouncementsPage() {
                       }`}>{lang === 'ar' ? ps.labelAr : ps.label}</span>
                     </td>
                     <td className="hidden md:table-cell px-4 py-3 text-xs text-gray-600">
-                      {a.targetRoles.length === 0 ? <span className="text-gray-400">{t('Everyone', 'الكل')}</span> : a.targetRoles.join(', ')}
+                      {a.targetRoles.length === 0 && !a.targetSubscribers ? (
+                        <span className="text-gray-400">{t('Everyone', 'الكل')}</span>
+                      ) : (
+                        <div className="flex flex-wrap gap-1">
+                          {a.targetSubscribers && (
+                            <span className="inline-flex items-center rounded-full bg-gold-50 px-2 py-0.5 text-xs font-medium text-gold-700">
+                              {t('Subscribers', 'المشتركين')}
+                            </span>
+                          )}
+                          {a.targetRoles.map(r => (
+                            <span key={r} className="inline-flex items-center rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700">{r}</span>
+                          ))}
+                        </div>
+                      )}
                     </td>
                     <td className="hidden md:table-cell px-4 py-3">
                       {a.publishedAt

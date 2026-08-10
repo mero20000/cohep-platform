@@ -3,6 +3,7 @@ import {
   IsOptional,
   IsEnum,
   IsArray,
+  IsBoolean,
   IsDateString,
   IsUUID,
   MaxLength,
@@ -36,6 +37,10 @@ export class CreateAnnouncementDto {
   @IsArray()
   @ArrayMaxSize(20)
   targetRoles?: string[];
+
+  @IsOptional()
+  @IsBoolean()
+  targetSubscribers?: boolean;
 
   @IsOptional()
   @IsDateString()
@@ -75,6 +80,10 @@ export class UpdateAnnouncementDto {
   @IsArray()
   @ArrayMaxSize(20)
   targetRoles?: string[];
+
+  @IsOptional()
+  @IsBoolean()
+  targetSubscribers?: boolean;
 
   @IsOptional()
   @IsDateString()

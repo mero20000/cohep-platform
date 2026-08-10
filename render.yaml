@@ -29,6 +29,8 @@ services:
         generateValue: true
       - key: FRONTEND_URL
         value: https://cohep-platform.vercel.app
+      - key: APP_URL
+        value: https://cohep-platform.vercel.app
       - key: SENDGRID_API_KEY
         sync: false
       - key: MAIL_FROM

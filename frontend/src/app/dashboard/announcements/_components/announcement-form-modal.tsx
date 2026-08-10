@@ -18,7 +18,7 @@ export function AnnouncementFormModal({ announcement, onClose, onSuccess, lang }
   const { toast } = useToast()
   const t = (en: string, ar: string) => lang === 'ar' ? ar : en
   const [form, setForm] = useState<AnnouncementForm>(announcement
-    ? { title: announcement.title, titleAr: announcement.titleAr || '', body: announcement.body, bodyAr: announcement.bodyAr || '', priority: announcement.priority, targetRoles: announcement.targetRoles }
+    ? { title: announcement.title, titleAr: announcement.titleAr || '', body: announcement.body, bodyAr: announcement.bodyAr || '', priority: announcement.priority, targetRoles: announcement.targetRoles, targetSubscribers: announcement.targetSubscribers ?? false }
     : { ...emptyAnnouncement }
   )
   const [publishNow, setPublishNow] = useState(false)
@@ -152,15 +152,22 @@ export function AnnouncementFormModal({ announcement, onClose, onSuccess, lang }
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">{t('Target Audience', 'الجمهور المستهدف')}</label>
             <p className="text-xs text-gray-500 mb-2">{t('Leave empty to send to everyone', 'اتركه فارغاً للإرسال للجميع')}</p>
-            <div className="grid grid-cols-2 gap-2">
-              {ROLE_OPTIONS.map(role => (
-                <label key={role.value}
-                  className={`flex items-center gap-2 rounded-lg border px-3 py-2 cursor-pointer text-sm transition-colors ${form.targetRoles.includes(role.value) ? 'border-blue-300 bg-blue-50' : 'border-gray-200 hover:bg-gray-50'}`}>
-                  <input type="checkbox" checked={form.targetRoles.includes(role.value)} onChange={() => toggleRole(role.value)}
-                    className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
-                  {lang === 'ar' ? role.labelAr : role.label}
-                </label>
-              ))}
+            <div className="space-y-2">
+              <label className={`flex items-center gap-2 rounded-lg border px-3 py-2 cursor-pointer text-sm transition-colors ${form.targetSubscribers ? 'border-gold-300 bg-gold-50' : 'border-gray-200 hover:bg-gray-50'}`}>
+                <input type="checkbox" checked={form.targetSubscribers} onChange={e => setForm({ ...form, targetSubscribers: e.target.checked })}
+                  className="h-4 w-4 rounded border-gray-300 text-gold-600 focus:ring-gold-500" />
+                <span className="font-medium">{t('Newsletter Subscribers', 'مشتركين النشرة الإخبارية')}</span>
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                {ROLE_OPTIONS.map(role => (
+                  <label key={role.value}
+                    className={`flex items-center gap-2 rounded-lg border px-3 py-2 cursor-pointer text-sm transition-colors ${form.targetRoles.includes(role.value) ? 'border-blue-300 bg-blue-50' : 'border-gray-200 hover:bg-gray-50'}`}>
+                    <input type="checkbox" checked={form.targetRoles.includes(role.value)} onChange={() => toggleRole(role.value)}
+                      className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+                    {lang === 'ar' ? role.labelAr : role.label}
+                  </label>
+                ))}
+              </div>
             </div>
           </div>
           {!announcement && (

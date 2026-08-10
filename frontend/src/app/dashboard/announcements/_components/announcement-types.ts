@@ -8,6 +8,7 @@ export interface Announcement {
   bodyAr?: string
   priority: 'normal' | 'important' | 'urgent'
   targetRoles: string[]
+  targetSubscribers: boolean
   createdBy: { id: string; firstName: string; lastName: string }
   publishedAt?: string
   createdAt: string
@@ -23,6 +24,7 @@ export const emptyAnnouncement = {
   title: '', titleAr: '', body: '', bodyAr: '',
   priority: 'normal' as 'normal' | 'important' | 'urgent',
   targetRoles: [] as string[],
+  targetSubscribers: false,
 }
 
 export type AnnouncementForm = typeof emptyAnnouncement

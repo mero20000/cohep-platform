@@ -1364,3 +1364,13 @@ model AnalyticsEvent {
   @@index([userId, createdAt])
   @@map("analytics_events")
 }
+
+model NewsletterSubscriber {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("newsletter_subscribers")
+}

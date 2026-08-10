@@ -1,17 +1,30 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { PrismaService } from '../../database/prisma.service';
 import { MailService } from '../mail/mail.service';
 import { emailTemplate, emailKeyValueRow, emailParagraph } from '../mail/email-template';
 
 @Injectable()
 export class NewsletterService {
   constructor(
+    private readonly prisma: PrismaService,
     private readonly mailService: MailService,
     private readonly configService: ConfigService,
   ) {}
 
   async subscribe(email: string) {
     const appUrl = this.configService.get('FRONTEND_URL', 'https://cohep-platform.vercel.app');
+
+    // Save subscriber to database (upsert to handle re-subscription)
+    try {
+      await this.prisma.newsletterSubscriber.upsert({
+        where: { email },
+        update: { isActive: true },
+        create: { email },
+      });
+    } catch (err) {
+      console.error('[newsletter] Failed to save subscriber', err);
+    }
 
     // Send confirmation email to the subscriber
     try {
@@ -54,5 +67,38 @@ export class NewsletterService {
     }
 
     return { success: true };
+  }
+
+  async findAll(page = 1, limit = 20) {
+    const skip = (page - 1) * limit;
+    const [data, total] = await Promise.all([
+      this.prisma.newsletterSubscriber.findMany({
+        where: { isActive: true },
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit,
+      }),
+      this.prisma.newsletterSubscriber.count({ where: { isActive: true } }),
+    ]);
+    return {
+      data,
+      pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
+    };
+  }
+
+  async unsubscribe(email: string) {
+    await this.prisma.newsletterSubscriber.updateMany({
+      where: { email },
+      data: { isActive: false },
+    });
+    return { success: true };
+  }
+
+  async getActiveSubscriberEmails(): Promise<string[]> {
+    const subscribers = await this.prisma.newsletterSubscriber.findMany({
+      where: { isActive: true },
+      select: { email: true },
+    });
+    return subscribers.map(s => s.email);
   }
 }

@@ -32,6 +32,7 @@ export class AnnouncementsService {
       bodyAr: row.contentAr || '',
       priority: row.priority || 'normal',
       targetRoles: Array.isArray(attachments?.targetRoles) ? attachments.targetRoles : [],
+      targetSubscribers: attachments?.targetSubscribers ?? false,
       createdBy: row.creator
         ? { id: row.creator.id, firstName: row.creator.firstName, lastName: row.creator.lastName }
         : { id: row.createdBy, firstName: '', lastName: '' },
@@ -102,7 +103,7 @@ export class AnnouncementsService {
         isPinned: false,
         publishAt: dto.publishedAt ? new Date(dto.publishedAt) : new Date(),
         status: isPublished ? 'published' : 'draft',
-        attachments: { targetRoles: dto.targetRoles ?? [] },
+        attachments: { targetRoles: dto.targetRoles ?? [], targetSubscribers: dto.targetSubscribers ?? false },
         createdBy: userId,
       },
       include: this.listInclude,
@@ -123,7 +124,10 @@ export class AnnouncementsService {
 
     if (dto.targetRoles !== undefined) {
       const attachments = (existing.attachments as any) || {};
-      data.attachments = { ...attachments, targetRoles: dto.targetRoles };
+      data.attachments = { ...attachments, targetRoles: dto.targetRoles, targetSubscribers: dto.targetSubscribers ?? attachments.targetSubscribers ?? false };
+    } else if (dto.targetSubscribers !== undefined) {
+      const attachments = (existing.attachments as any) || {};
+      data.attachments = { ...attachments, targetSubscribers: dto.targetSubscribers };
     }
 
     if (dto.publishedAt !== undefined) {
