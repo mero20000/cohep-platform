@@ -793,7 +793,7 @@ export default function Home() {
       <header className={`sticky top-0 z-50 border-b transition-all duration-300 ${scrolled ? 'border-gray-200 bg-white/95 backdrop-blur shadow-sm' : 'border-transparent bg-white/80 backdrop-blur'}`}>
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
           <Link href="/" className="flex items-center gap-2.5 flex-shrink-0">
-            <Image src="/cohep-logo.png" alt="COHEP" width={56} height={56} className="h-14 w-14 rounded-xl object-contain shadow-lg shadow-gold-200/50" />
+            <Image src="/cohep-logo.png" alt="COHEP" width={72} height={72} className="h-[72px] w-[72px] rounded-xl object-contain shadow-lg shadow-gold-200/50" />
             <span className="text-base font-bold tracking-tight text-gray-900 hidden sm:block">COHEP</span>
           </Link>
 
@@ -915,7 +915,7 @@ export default function Home() {
                   {t.hero.cta1} <ArrowRight className="h-4 w-4 rtl-flip" />
                 </motion.a>
                 <button
-                  onClick={() => document.getElementById('platform-preview')?.scrollIntoView({ behavior: 'smooth' })}
+                  onClick={() => { const el = document.getElementById('platform-preview'); if (el) requestAnimationFrame(() => el.scrollIntoView({ behavior: 'smooth', block: 'start' })) }}
                   className={ctaSecondaryClass}
                 >
                   {t.hero.cta2}
@@ -968,7 +968,7 @@ export default function Home() {
             </div>
             <FadeIn variant="up" className="mt-14 text-center">
               <motion.button
-                onClick={() => document.getElementById('platform-preview')?.scrollIntoView({ behavior: 'smooth' })}
+                onClick={() => { const el = document.getElementById('platform-preview'); if (el) requestAnimationFrame(() => el.scrollIntoView({ behavior: 'smooth', block: 'start' })) }}
                 whileHover={reduce ? {} : { scale: 1.02 }}
                 whileTap={reduce ? {} : { scale: 0.98 }}
                 className={ctaPrimaryClass}
@@ -1271,7 +1271,7 @@ export default function Home() {
                   {t.cta.btn1} <ArrowRight className="h-4 w-4 rtl-flip" />
                 </motion.a>
                 <motion.button
-                  onClick={() => document.getElementById('platform-preview')?.scrollIntoView({ behavior: 'smooth' })}
+                  onClick={() => { const el = document.getElementById('platform-preview'); if (el) requestAnimationFrame(() => el.scrollIntoView({ behavior: 'smooth', block: 'start' })) }}
                   whileHover={reduce ? {} : { scale: 1.02 }}
                   whileTap={reduce ? {} : { scale: 0.98 }}
                   className={ctaSecondaryClass}
@@ -1300,7 +1300,7 @@ export default function Home() {
           <div className="grid gap-8 md:grid-cols-3">
             <div>
               <Link href="/" className="flex items-center gap-2.5 mb-3">
-                <Image src="/cohep-logo.png" alt="COHEP" width={48} height={48} className="h-12 w-12 rounded-lg object-contain shadow-md shadow-gold-200/50" />
+                <Image src="/cohep-logo.png" alt="COHEP" width={56} height={56} className="h-14 w-14 rounded-lg object-contain shadow-md shadow-gold-200/50" />
                 <span className="font-bold text-sm text-gray-900">COHEP</span>
               </Link>
               <p className="text-sm text-gray-600 leading-relaxed">{t.footer.tagline}</p>

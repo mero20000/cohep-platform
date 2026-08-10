@@ -13,7 +13,7 @@ export function BrandedLoader({ message }: { message?: string }) {
         </div>
       </div>
       <div className="text-center">
-        <p className="text-sm font-medium text-gray-900">{message || 'Loading...'}</p>
+        <p className="text-sm font-medium text-gray-900">{message || 'Preparing your platform…'}</p>
         <p className="mt-1 text-xs text-gold-600">Learn. Grow. Praise.</p>
       </div>
     </div>
