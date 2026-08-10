@@ -36,13 +36,13 @@ export default function AnnouncementsPage() {
       setTotalPages(data.pagination.totalPages)
       setTotal(data.pagination.total)
     } catch (e: any) {
-      toast('error', t('Failed to load announcements', 'فشل تحميل الإعلانات'), e?.message || '')
+      toast('error', lang === 'ar' ? 'فشل تحميل الإعلانات' : 'Failed to load announcements', e?.message || '')
       setList([])
       setTotalPages(1)
       setTotal(0)
     }
     setLoading(false)
-  }, [filterPriority, filterStatus, toast, t])
+  }, [filterPriority, filterStatus, toast, lang])
 
   useEffect(() => { fetchList(page) }, [page, fetchList])
 
