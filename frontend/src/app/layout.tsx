@@ -12,7 +12,10 @@ export const metadata: Metadata = {
     template: '%s | COHEP',
   },
   description: 'COHEP is a free, open-source platform for Coptic Orthodox hymn education. Structured curriculum, gamified learning, parent portals, and servant tools, built by the community for the Church.',
-  icons: {},
+  icons: {
+    icon: '/cohep-logo.png',
+    apple: '/cohep-logo.png',
+  },
   openGraph: {
     title: 'COHEP | Free Coptic Orthodox Hymn Education Platform',
     description: 'Teach hymns, preserve heritage, and help children belong to the Church. Free, open-source Coptic Orthodox hymn education platform.',
@@ -44,7 +47,7 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <meta name="apple-mobile-web-app-title" content="COHEP" />
-        <link rel="apple-touch-icon" href="/icons/icon.svg" />
+        <link rel="apple-touch-icon" href="/cohep-logo.png" />
         <script dangerouslySetInnerHTML={{
           __html: `document.documentElement.classList.add('js')`
         }} />
