@@ -2,16 +2,16 @@
 
 import Link from 'next/link'
 import Image from 'next/image'
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { useAuth } from '@/hooks/use-auth'
 import { useLanguage } from '@/lib/use-language'
 import ForgotPasswordPanel from '@/components/auth/forgot-password-panel'
 import {
-  Eye, EyeOff, Loader2, BookOpen, Trophy, Calendar,
+  Eye, EyeOff, Loader2, BookOpen, Trophy, Calendar, Search,
   Users, Music, Globe, ArrowRight, Sparkles, Shield, Heart, Star,
-  AlertCircle, CheckCircle2, AlertTriangle,
+  AlertCircle, CheckCircle2, AlertTriangle, Cross,
 } from 'lucide-react'
 
 const features = [
@@ -45,6 +45,12 @@ export default function LoginPage() {
   const [rememberMe, setRememberMe] = useState(false)
   const [showForgot, setShowForgot] = useState(false)
   const [coldStartWarning, setColdStartWarning] = useState(false)
+  const [schoolSuggestions, setSchoolSuggestions] = useState<Array<{slug:string;name:string;nameAr?:string;churchName?:string;churchNameAr?:string;city?:string;label:string}>>([])
+  const [schoolSearchLoading, setSchoolSearchLoading] = useState(false)
+  const [showSuggestions, setShowSuggestions] = useState(false)
+  const [selectedSuggestion, setSelectedSuggestion] = useState<string>('')
+  const schoolSearchRef = useRef<HTMLDivElement>(null)
+  const schoolDebounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
 
   const emailRef = useRef<HTMLInputElement>(null)
   const passwordHintRef = useRef<HTMLParagraphElement>(null)
@@ -70,6 +76,35 @@ export default function LoginPage() {
       setEmailError('')
     }
   }
+
+
+  const handleSchoolSearch = useCallback((value: string) => {
+    setSchoolId(value)
+    setSelectedSuggestion('')
+    clearTimeout(schoolDebounceRef.current)
+    if (!value.trim() || value.length < 2) { setSchoolSuggestions([]); setShowSuggestions(false); return }
+    schoolDebounceRef.current = setTimeout(async () => {
+      setSchoolSearchLoading(true)
+      try {
+        const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'
+        const res = await fetch(`${API}/auth/schools/search?q=${encodeURIComponent(value)}`)
+        const data = await res.json()
+        setSchoolSuggestions(Array.isArray(data) ? data : [])
+        setShowSuggestions(true)
+      } catch { setSchoolSuggestions([]) }
+      setSchoolSearchLoading(false)
+    }, 300)
+  }, [])
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (schoolSearchRef.current && !schoolSearchRef.current.contains(e.target as Node)) {
+        setShowSuggestions(false)
+      }
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -318,19 +353,73 @@ export default function LoginPage() {
                 )}
               </div>
 
-              <div>
+              <div ref={schoolSearchRef} className="relative">
                 <label htmlFor="schoolId" className="block text-sm font-medium text-gray-700 mb-1.5">
-                  {isAr ? 'معرّف المدرسة' : 'School ID'} <span className="text-gray-500 font-normal">({isAr ? 'اختياري' : 'optional'})</span>
+                  {isAr ? 'اسم الكنيسة أو المدرسة' : 'Church or School name'} <span className="text-gray-500 font-normal">({isAr ? 'اختياري' : 'optional'})</span>
                 </label>
-                <input
-                  id="schoolId"
-                  type="text"
-                  value={schoolId}
-                  onChange={(e) => setSchoolId(e.target.value)}
-                  autoComplete="off"
-                  className={INPUT_CLASS}
-                  placeholder={isAr ? 'مثال: st-marks-main' : 'e.g. st-marks-main'}
-                />
+                <div className="relative">
+                  <input
+                    id="schoolId"
+                    type="text"
+                    value={schoolId}
+                    onChange={(e) => handleSchoolSearch(e.target.value)}
+                    onFocus={() => { if (schoolSuggestions.length > 0) setShowSuggestions(true) }}
+                    autoComplete="off"
+                    className={INPUT_CLASS + " pe-9"}
+                    placeholder={isAr ? 'ابحث باسم الكنيسة…' : 'Search by church name…'}
+                  />
+                  <div className="absolute end-3 top-1/2 -translate-y-1/2 pointer-events-none">
+                    {schoolSearchLoading
+                      ? <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
+                      : <Search className="h-4 w-4 text-gray-300" />}
+                  </div>
+                </div>
+                {showSuggestions && schoolSuggestions.length > 0 && (
+                  <div className="absolute z-20 mt-1 w-full rounded-xl border border-gray-200 bg-white shadow-lg overflow-hidden">
+                    {schoolSuggestions.map((s) => (
+                      <button
+                        key={s.slug}
+                        type="button"
+                        onMouseDown={(e) => {
+                          e.preventDefault()
+                          setSchoolId(s.slug)
+                          setSelectedSuggestion(s.slug)
+                          setShowSuggestions(false)
+                          setSchoolSuggestions([])
+                        }}
+                        className="w-full flex items-start gap-3 px-4 py-3 text-left hover:bg-gold-50 border-b border-gray-50 last:border-0 transition-colors"
+                      >
+                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gold-50 mt-0.5">
+                          <Cross className="h-4 w-4 text-gold-600" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-semibold text-gray-900 truncate">
+                            {isAr && s.nameAr ? s.nameAr : s.name}
+                          </p>
+                          <p className="text-xs text-gray-400 truncate">
+                            {isAr && s.churchNameAr ? s.churchNameAr : s.churchName}
+                            {s.city ? ` · ${s.city}` : ''}
+                          </p>
+                          <p className="text-[10px] text-gray-300 mt-0.5 font-mono">{s.slug}</p>
+                        </div>
+                        {selectedSuggestion === s.slug && (
+                          <CheckCircle2 className="h-4 w-4 text-green-500 shrink-0 mt-1" />
+                        )}
+                      </button>
+                    ))}
+                    <div className="px-4 py-2 bg-gray-50 border-t border-gray-100">
+                      <p className="text-[10px] text-gray-400">
+                        {isAr ? 'لا تجد كنيستك؟ اكتب المعرف مباشرة.' : "Can't find your church? Type the ID directly."}
+                      </p>
+                    </div>
+                  </div>
+                )}
+                {selectedSuggestion && (
+                  <p className="mt-1 flex items-center gap-1 text-xs text-green-600">
+                    <CheckCircle2 className="h-3 w-3" />
+                    {isAr ? 'تم اختيار الكنيسة' : 'Church selected'}
+                  </p>
+                )}
               </div>
 
               <div className="flex items-center justify-between min-h-[44px]">
