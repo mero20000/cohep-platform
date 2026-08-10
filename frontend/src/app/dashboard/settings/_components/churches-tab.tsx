@@ -15,12 +15,14 @@ const API_ORIGIN = process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'http
 interface ChurchItem {
   id: string; name: string; nameAr?: string; slug: string;
   logoUrl?: string;
-  country?: string; city?: string; locale: string; timezone: string;
+  country?: string; city?: string; address?: string;
+  responsiblePriest?: string; priestPhone?: string;
+  locale: string; timezone: string;
   isActive?: boolean;
   _count?: { schools: number }
 }
 
-const emptyChurch = { name: '', nameAr: '', country: '', city: '', defaultLanguage: 'en', timezone: 'UTC', logoUrl: '' }
+const emptyChurch = { name: '', nameAr: '', country: '', city: '', address: '', responsiblePriest: '', priestPhone: '', defaultLanguage: 'en', timezone: 'UTC', logoUrl: '' }
 
 export function ChurchesTab() {
   const lang = useLanguage()
@@ -49,7 +51,9 @@ export function ChurchesTab() {
     setEditing(c)
     setForm({
       name: c.name, nameAr: c.nameAr || '', country: c.country || '',
-      city: c.city || '', defaultLanguage: c.locale, timezone: c.timezone,
+      city: c.city || '', address: c.address || '',
+      responsiblePriest: c.responsiblePriest || '', priestPhone: c.priestPhone || '',
+      defaultLanguage: c.locale, timezone: c.timezone,
       logoUrl: c.logoUrl || '',
     })
     setError('')
@@ -128,8 +132,8 @@ export function ChurchesTab() {
               <thead>
                 <tr className="border-b border-gray-100 bg-gray-50/50">
                   <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">{lang === 'ar' ? 'اسم الكنيسة' : 'Church Name'}</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">{lang === 'ar' ? 'الدولة' : 'Country'}</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">{lang === 'ar' ? 'المدينة' : 'City'}</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">{lang === 'ar' ? 'العنوان' : 'Address'}</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">{lang === 'ar' ? 'الكاهن المسؤول' : 'Responsible Priest'}</th>
                   <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">{lang === 'ar' ? 'اللغة' : 'Language'}</th>
                   <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">{lang === 'ar' ? 'المدارس' : 'Schools'}</th>
                   <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">{lang === 'ar' ? 'الحالة' : 'Status'}</th>
@@ -154,8 +158,11 @@ export function ChurchesTab() {
                         </div>
                       </div>
                     </td>
-                    <td className="px-6 py-3.5 text-sm text-gray-600" data-label="Country">{c.country || '—'}</td>
-                    <td className="px-6 py-3.5 text-sm text-gray-600" data-label="City">{c.city || '—'}</td>
+                    <td className="px-6 py-3.5 text-sm text-gray-600" data-label="Address">{c.address || '—'}</td>
+                    <td className="px-6 py-3.5" data-label="Responsible Priest">
+                      <div className="text-sm text-gray-900">{c.responsiblePriest || '—'}</div>
+                      {c.priestPhone && <div className="text-xs text-gray-400">{c.priestPhone}</div>}
+                    </td>
                     <td className="px-6 py-3.5 text-sm text-gray-600 uppercase" data-label="Language">{c.locale}</td>
                     <td className="px-6 py-3.5 text-sm text-gray-600" data-label="Schools">{c._count?.schools || 0}</td>
                     <td className="px-6 py-3.5" data-label="Status">
@@ -198,6 +205,11 @@ export function ChurchesTab() {
           <div className="grid grid-cols-2 gap-4">
             <FormField label={lang === 'ar' ? 'الدولة' : 'Country'} value={form.country} onChange={e => setForm({ ...form, country: e.target.value })} placeholder={lang === 'ar' ? 'مثال: الولايات المتحدة' : 'e.g. United States'} />
             <FormField label={lang === 'ar' ? 'المدينة' : 'City'} value={form.city} onChange={e => setForm({ ...form, city: e.target.value })} placeholder={lang === 'ar' ? 'مثال: لوس أنجلوس' : 'e.g. Los Angeles'} />
+          </div>
+          <FormField label={lang === 'ar' ? 'العنوان' : 'Address'} value={form.address} onChange={e => setForm({ ...form, address: e.target.value })} placeholder={lang === 'ar' ? 'مثال: 123 الشارع الرئيسي' : 'e.g. 123 Main St, Los Angeles, CA 90001'} />
+          <div className="grid grid-cols-2 gap-4">
+            <FormField label={lang === 'ar' ? 'الكاهن المسؤول' : 'Responsible Priest'} value={form.responsiblePriest} onChange={e => setForm({ ...form, responsiblePriest: e.target.value })} placeholder={lang === 'ar' ? 'مثال: الأب أثناسيوس' : 'e.g. Fr. Athanasius'} />
+            <FormField label={lang === 'ar' ? 'هاتف الكاهن' : 'Priest Phone'} type="tel" value={form.priestPhone} onChange={e => setForm({ ...form, priestPhone: e.target.value })} placeholder="+1234567890" />
           </div>
           <div className="grid grid-cols-2 gap-4">
             <FormField label={lang === 'ar' ? 'اللغة الافتراضية' : 'Default Language'} as="select" value={form.defaultLanguage} onChange={e => setForm({ ...form, defaultLanguage: e.target.value })}>

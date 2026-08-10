@@ -18,12 +18,12 @@ interface ChurchItem {
 
 interface SchoolItem {
   id: string; name: string; nameAr?: string; slug: string;
-  logoUrl?: string; address?: string; phone?: string; email?: string;
+  logoUrl?: string; phone?: string; email?: string;
   timezone: string; locale: string; isActive: boolean;
   churchId: string;
 }
 
-const emptyForm = { name: '', nameAr: '', churchId: '', address: '', phone: '', email: '', timezone: 'UTC', locale: 'en', logoUrl: '' }
+const emptyForm = { name: '', nameAr: '', churchId: '', phone: '', email: '', timezone: 'UTC', locale: 'en', logoUrl: '' }
 
 export function SchoolTab() {
   const lang = useLanguage()
@@ -62,7 +62,7 @@ export function SchoolTab() {
     fetchChurches()
     setEditing(s)
     setForm({
-      name: s.name || '', nameAr: s.nameAr || '', churchId: s.churchId || '', address: s.address || '',
+      name: s.name || '', nameAr: s.nameAr || '', churchId: s.churchId || '',
       phone: s.phone || '', email: s.email || '', timezone: s.timezone || 'UTC',
       locale: s.locale || 'en', logoUrl: s.logoUrl || '',
     })
@@ -142,7 +142,6 @@ export function SchoolTab() {
               <thead>
                 <tr className="border-b border-gray-100 bg-gray-50/50">
                   <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">{lang === 'ar' ? 'اسم المدرسة' : 'School Name'}</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">{lang === 'ar' ? 'العنوان' : 'Address'}</th>
                   <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">{lang === 'ar' ? 'جهة الاتصال' : 'Contact'}</th>
                   <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">{lang === 'ar' ? 'اللغة' : 'Language'}</th>
                   <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">{lang === 'ar' ? 'الحالة' : 'Status'}</th>
@@ -167,7 +166,6 @@ export function SchoolTab() {
                         </div>
                       </div>
                     </td>
-                    <td className="px-6 py-3.5 text-sm text-gray-600" data-label="Address">{s.address || '—'}</td>
                     <td className="px-6 py-3.5" data-label="Contact">
                       <div className="text-sm text-gray-900">{s.phone || '—'}</div>
                       <div className="text-xs text-gray-400">{s.email || ''}</div>
@@ -218,7 +216,6 @@ export function SchoolTab() {
               <option key={c.id} value={c.id}>{c.name}{c.nameAr ? ` (${c.nameAr})` : ''}</option>
             ))}
           </FormField>
-          <FormField label={lang === 'ar' ? 'العنوان' : 'Address'} value={form.address} onChange={e => setForm({ ...form, address: e.target.value })} placeholder={lang === 'ar' ? 'مثال: 123 الشارع الرئيسي' : '123 Main St'} />
           <div className="grid gap-5 sm:grid-cols-2">
             <FormField label={lang === 'ar' ? 'الهاتف' : 'Phone'} type="tel" value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} placeholder="+1234567890" />
             <FormField label={lang === 'ar' ? 'البريد الإلكتروني' : 'Email'} type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} placeholder="school@example.com" />

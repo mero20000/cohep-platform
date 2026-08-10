@@ -26,6 +26,9 @@ model Church {
   schoolNameCoptic String?   @map("school_name_coptic")
   country          String?
   city             String?
+  address          String?
+  responsiblePriest String?  @map("responsible_priest")
+  priestPhone      String?   @map("priest_phone")
   timezone         String    @default("UTC")
   locale           String    @default("en")
   isActive         Boolean   @default(true) @map("is_active")

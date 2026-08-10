@@ -51,6 +51,21 @@ export class CreateChurchDto {
   @IsOptional()
   city?: string;
 
+  @ApiPropertyOptional({ example: '123 Main St, Los Angeles, CA 90001' })
+  @IsString()
+  @IsOptional()
+  address?: string;
+
+  @ApiPropertyOptional({ example: 'Fr. Athanasius' })
+  @IsString()
+  @IsOptional()
+  responsiblePriest?: string;
+
+  @ApiPropertyOptional({ example: '+1234567890' })
+  @IsString()
+  @IsOptional()
+  priestPhone?: string;
+
   @ApiPropertyOptional({ example: 'America/Los_Angeles' })
   @IsString()
   @IsOptional()
