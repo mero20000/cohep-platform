@@ -2,6 +2,9 @@ import { Injectable, BadRequestException, NotFoundException } from '@nestjs/comm
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { PrismaService } from '../../database/prisma.service';
 import { SchoolResolver } from '../../common/utils/school-resolver';
+import { MailService } from '../mail/mail.service';
+import { NewsletterService } from '../newsletter/newsletter.service';
+import { emailTemplate, emailParagraph } from '../mail/email-template';
 import { CreateAnnouncementDto, UpdateAnnouncementDto } from './dto/announcement.dto';
 
 @Injectable()
@@ -12,6 +15,8 @@ export class AnnouncementsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly schoolResolver: SchoolResolver,
+    private readonly mailService: MailService,
+    private readonly newsletterService: NewsletterService,
   ) {
     const apiKey = process.env.GEMINI_API_KEY;
     const model = process.env.GEMINI_MODEL || 'gemini-2.0-flash';
@@ -45,6 +50,107 @@ export class AnnouncementsService {
   private readonly listInclude = {
     creator: { select: { id: true, firstName: true, lastName: true } },
   } as const;
+
+  private async sendAnnouncementEmails(announcement: any, schoolId: string) {
+    const attachments = (announcement.attachments as any) || {};
+    const targetRoles: string[] = Array.isArray(attachments.targetRoles) ? attachments.targetRoles : [];
+    const targetSubscribers: boolean = attachments.targetSubscribers ?? false;
+
+    const title = announcement.title;
+    const titleAr = announcement.titleAr || '';
+    const body = announcement.content;
+    const bodyAr = announcement.contentAr || '';
+    const priority = announcement.priority || 'normal';
+
+    const priorityLabel = priority === 'urgent' ? '🔴 Urgent' : priority === 'important' ? '🟡 Important' : '🔵 Normal';
+    const priorityLabelAr = priority === 'urgent' ? '🔴 عاجل' : priority === 'important' ? '🟡 هام' : '🔵 عادي';
+
+    const emails: string[] = [];
+
+    // Collect newsletter subscriber emails
+    if (targetSubscribers) {
+      try {
+        const subscriberEmails = await this.newsletterService.getActiveSubscriberEmails();
+        emails.push(...subscriberEmails);
+      } catch (err) {
+        console.error('[announcements] Failed to get subscriber emails', err);
+      }
+    }
+
+    // Collect user emails by roles
+    if (targetRoles.length > 0) {
+      try {
+        const users = await this.prisma.user.findMany({
+          where: {
+            schoolId,
+            isActive: true,
+            userRoles: {
+              some: {
+                role: {
+                  name: { in: targetRoles },
+                },
+              },
+            },
+          },
+          select: { email: true },
+        });
+        emails.push(...users.map(u => u.email));
+      } catch (err) {
+        console.error('[announcements] Failed to get user emails by role', err);
+      }
+    }
+
+    // If no specific target, send to all active users in the school
+    if (targetRoles.length === 0 && !targetSubscribers) {
+      try {
+        const users = await this.prisma.user.findMany({
+          where: { schoolId, isActive: true },
+          select: { email: true },
+        });
+        emails.push(...users.map(u => u.email));
+      } catch (err) {
+        console.error('[announcements] Failed to get all user emails', err);
+      }
+    }
+
+    // Deduplicate emails
+    const uniqueEmails = [...new Set(emails)];
+
+    if (uniqueEmails.length === 0) {
+      console.log('[announcements] No recipients found for announcement emails');
+      return;
+    }
+
+    console.log(`[announcements] Sending announcement "${title}" to ${uniqueEmails.length} recipients`);
+
+    const html = emailTemplate({
+      title: `${priorityLabel} ${title}`,
+      content: `
+        ${emailParagraph(titleAr ? `${title} — ${titleAr}` : title)}
+        ${emailParagraph(bodyAr ? `${body}\n\n${bodyAr}` : body)}
+        <table style="width:100%;border-collapse:collapse;font-size:14px;margin-top:16px;">
+          <tr><td style="padding:8px 0;color:#6b7280;">Priority</td><td style="padding:8px 0;font-weight:600;color:#111827;">${priorityLabel}</td></tr>
+          ${targetRoles.length > 0 ? `<tr><td style="padding:8px 0;color:#6b7280;">Target</td><td style="padding:8px 0;font-weight:600;color:#111827;">${targetRoles.join(', ')}</td></tr>` : ''}
+          ${targetSubscribers ? `<tr><td style="padding:8px 0;color:#6b7280;">Audience</td><td style="padding:8px 0;font-weight:600;color:#111827;">Newsletter Subscribers</td></tr>` : ''}
+        </table>
+      `,
+      variant: priority === 'urgent' ? 'red' : priority === 'important' ? 'gold' : 'blue',
+      footer: 'COHEP — Coptic Orthodox Hymn Education Platform',
+    });
+
+    // Send emails in batches to avoid rate limits
+    const BATCH_SIZE = 50;
+    for (let i = 0; i < uniqueEmails.length; i += BATCH_SIZE) {
+      const batch = uniqueEmails.slice(i, i + BATCH_SIZE);
+      await Promise.allSettled(
+        batch.map(email =>
+          this.mailService.sendMail(email, `${priorityLabel}: ${title}`, html).catch(err => {
+            console.error(`[announcements] Failed to send to ${email}`, err);
+          })
+        )
+      );
+    }
+  }
 
   async findAll(schoolId: string, filters: {
     page?: number; limit?: number; status?: string; priority?: string; banner?: boolean;
@@ -108,6 +214,14 @@ export class AnnouncementsService {
       },
       include: this.listInclude,
     });
+
+    // Send emails if publishing immediately
+    if (isPublished) {
+      this.sendAnnouncementEmails(ann, schoolId).catch(err => {
+        console.error('[announcements] Failed to send announcement emails', err);
+      });
+    }
+
     return this.mapRow(ann);
   }
 
@@ -130,6 +244,7 @@ export class AnnouncementsService {
       data.attachments = { ...attachments, targetSubscribers: dto.targetSubscribers };
     }
 
+    const wasDraft = existing.status === 'draft';
     if (dto.publishedAt !== undefined) {
       data.status = 'published';
       data.publishAt = new Date(dto.publishedAt);
@@ -140,6 +255,14 @@ export class AnnouncementsService {
       data,
       include: this.listInclude,
     });
+
+    // Send emails if transitioning from draft to published
+    if (wasDraft && ann.status === 'published') {
+      this.sendAnnouncementEmails(ann, existing.schoolId).catch(err => {
+        console.error('[announcements] Failed to send announcement emails', err);
+      });
+    }
+
     return this.mapRow(ann);
   }
 
@@ -152,6 +275,12 @@ export class AnnouncementsService {
       data: { status: 'published', publishAt: new Date() },
       include: this.listInclude,
     });
+
+    // Send emails on publish
+    this.sendAnnouncementEmails(ann, existing.schoolId).catch(err => {
+      console.error('[announcements] Failed to send announcement emails', err);
+    });
+
     return this.mapRow(ann);
   }
 
