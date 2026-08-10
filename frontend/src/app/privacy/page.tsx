@@ -138,7 +138,7 @@ export default function PrivacyPage() {
         </Link>
 
         {/* Header */}
-        <div className="flex items-center gap-3 mb-2">
+        <div className="flex items-center gap-4 mb-2">
           <Image src="/cohep-logo.png" alt="COHEP" width={72} height={72} className="h-[72px] w-[72px] rounded-xl object-contain shadow-md shadow-gold-200" />
           <div>
             <h1 className="text-2xl font-bold text-gray-900">{isAr ? 'سياسة الخصوصية' : 'Privacy Policy'}</h1>

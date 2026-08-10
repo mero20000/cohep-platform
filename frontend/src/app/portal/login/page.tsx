@@ -47,7 +47,7 @@ export default function PortalLoginPage() {
       <div className="hidden lg:flex w-1/2 bg-gradient-to-br from-gold-600 via-gold-500 to-gold-700 items-center justify-center p-12 relative overflow-hidden">
         <div className="absolute inset-0 bg-[url('/grid.svg')] opacity-10" />
         <div className="relative text-center">
-          <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-2xl bg-white/15 backdrop-blur-sm">
+          <div className="mx-auto mb-6 flex h-[136px] w-[136px] items-center justify-center rounded-2xl bg-white/15 backdrop-blur-sm">
             <Image src="/cohep-logo.png" alt="COHEP" width={120} height={120} className="h-[120px] w-[120px] object-contain" />
           </div>
           <h1 className="text-3xl font-bold text-white mb-2">Parent Portal</h1>
@@ -58,7 +58,7 @@ export default function PortalLoginPage() {
       <div className="flex-1 flex items-start lg:items-center justify-center px-4 py-10 sm:px-8">
         <div className="w-full max-w-sm">
           <div className="text-center mb-8">
-            <div className="lg:hidden mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-xl bg-blue-500">
+            <div className="lg:hidden mx-auto mb-4 flex h-[104px] w-[104px] items-center justify-center rounded-xl bg-blue-500">
               <Image src="/cohep-logo.png" alt="COHEP" width={96} height={96} className="h-24 w-24 object-contain" />
             </div>
             <h2 className="text-2xl font-bold text-gray-900">Parent Sign In</h2>

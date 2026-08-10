@@ -17,7 +17,7 @@ export default function TermsPage() {
           {isAr ? 'العودة للتسجيل' : 'Back to registration'}
         </Link>
 
-        <div className="flex items-center gap-3 mb-8">
+        <div className="flex items-center gap-4 mb-8">
           <Image src="/cohep-logo.png" alt="COHEP" width={72} height={72} className="h-[72px] w-[72px] rounded-xl object-contain" />
           <div>
             <h1 className="text-2xl font-bold text-gray-900">{isAr ? 'شروط الخدمة' : 'Terms of Service'}</h1>

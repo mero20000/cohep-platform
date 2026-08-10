@@ -67,7 +67,7 @@ export function DashboardSidebar({
           className={`absolute top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-gold-300/50 active:bg-blue-400/50 z-50 ${language === 'ar' ? 'left-0' : 'right-0'}`}
         />
       )}
-      <div className="flex items-center gap-2.5 border-b border-gray-200 px-4 h-14">
+      <div className="flex items-center gap-3 border-b border-gray-200 px-4 h-[72px]">
         <Image src="/cohep-logo.png" alt="COHEP" width={56} height={56} className="h-14 w-14 rounded-lg object-contain flex-shrink-0" />
         <Button variant="ghost" size="icon" onClick={() => onSetSidebarOpen(false)} aria-label={language === 'ar' ? 'إغلاق' : 'Close sidebar'} className={`lg:hidden text-gray-400 hover:text-gray-600 h-7 w-7 flex-shrink-0 ${language === 'ar' ? 'mr-auto' : 'ml-auto'}`}>
           <X className="h-4 w-4" />

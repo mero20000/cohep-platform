@@ -225,7 +225,7 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
             document.body.style.userSelect = 'none'
           }}
           className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-gold-300/50 active:bg-blue-400/50 z-50" />
-        <div className="flex h-16 items-center gap-2.5 border-b border-gray-200 px-5">
+        <div className="flex h-[80px] items-center gap-3 border-b border-gray-200 px-5">
           <Image src="/cohep-logo.png" alt="COHEP" width={64} height={64} className="h-16 w-16 rounded-lg object-contain" />
           <span className="text-lg font-bold tracking-tight text-gray-900">{t('Parent Portal', 'بوابة أولياء الأمور')}</span>
           <Button onClick={() => setSidebarOpen(false)} variant="ghost" size="icon" className="lg:hidden ml-auto text-gray-400 hover:text-gray-600">

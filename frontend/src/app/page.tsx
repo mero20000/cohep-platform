@@ -791,10 +791,10 @@ export default function Home() {
 
       {/* ── NAVBAR ──────────────────────────────────────────────────────── */}
       <header className={`sticky top-0 z-50 border-b transition-all duration-300 ${scrolled ? 'border-gray-200 bg-white/95 backdrop-blur shadow-sm' : 'border-transparent bg-white/80 backdrop-blur'}`}>
-        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
-          <Link href="/" className="flex items-center gap-2.5 flex-shrink-0">
+        <div className="mx-auto flex h-[88px] max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
+          <Link href="/" className="flex items-center gap-3 flex-shrink-0">
             <Image src="/cohep-logo.png" alt="COHEP" width={72} height={72} className="h-[72px] w-[72px] rounded-xl object-contain shadow-lg shadow-gold-200/50" />
-            <span className="text-base font-bold tracking-tight text-gray-900 hidden sm:block">COHEP</span>
+            <span className="text-lg font-bold tracking-tight text-gray-900 hidden sm:block">COHEP</span>
           </Link>
 
           <nav className="hidden md:flex items-center gap-0.5" aria-label={isAr ? 'التنقل الرئيسي' : 'Main navigation'}>
@@ -1299,9 +1299,9 @@ export default function Home() {
         <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
           <div className="grid gap-8 md:grid-cols-3">
             <div>
-              <Link href="/" className="flex items-center gap-2.5 mb-3">
+              <Link href="/" className="flex items-center gap-3 mb-3">
                 <Image src="/cohep-logo.png" alt="COHEP" width={56} height={56} className="h-14 w-14 rounded-lg object-contain shadow-md shadow-gold-200/50" />
-                <span className="font-bold text-sm text-gray-900">COHEP</span>
+                <span className="font-bold text-base text-gray-900">COHEP</span>
               </Link>
               <p className="text-sm text-gray-600 leading-relaxed">{t.footer.tagline}</p>
             </div>

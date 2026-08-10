@@ -308,7 +308,7 @@ export default function RegisterPage() {
         <div className="absolute inset-0 bg-[url('/grid.svg')] opacity-5" />
 
         <div className="relative flex flex-col justify-between px-12 xl:px-16 py-12">
-          <Link href="/" className="flex items-center gap-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500 rounded-lg">
+          <Link href="/" className="flex items-center gap-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500 rounded-lg">
             <Image src="/cohep-logo.png" alt="COHEP" width={80} height={80} className="h-20 w-20 rounded-xl object-contain shadow-lg shadow-gold-500/30" />
           </Link>
 
@@ -356,7 +356,7 @@ export default function RegisterPage() {
 
       <div className="flex flex-1 flex-col px-6 py-10 sm:px-12 lg:px-16 xl:px-20 bg-gradient-to-br from-white via-gray-50 to-blue-50/30 overflow-y-auto">
         <div className="my-auto mx-auto w-full max-w-md">
-          <Link href="/" className="flex items-center gap-2 mb-6 lg:hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500 rounded-lg">
+          <Link href="/" className="flex items-center gap-3 mb-6 lg:hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500 rounded-lg">
             <Image src="/cohep-logo.png" alt="COHEP" width={64} height={64} className="h-16 w-16 rounded-lg object-contain shadow-md" />
           </Link>
 
