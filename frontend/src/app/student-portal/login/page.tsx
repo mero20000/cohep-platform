@@ -38,7 +38,7 @@ export default function StudentLoginPage() {
         <div className="absolute inset-0 bg-[url('/grid.svg')] opacity-10" />
         <div className="relative text-center">
           <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-2xl bg-white/15 backdrop-blur-sm">
-            <Image src="/cohep-logo.png" alt="COHEP" width={96} height={96} className="h-24 w-24 object-contain" />
+            <Image src="/cohep-logo.png" alt="COHEP" width={120} height={120} className="h-[120px] w-[120px] object-contain" />
           </div>
           <h1 className="text-3xl font-bold text-white mb-2">Student Portal</h1>
           <p className="text-indigo-200 text-lg">Your hymns journey at a glance</p>
@@ -49,7 +49,7 @@ export default function StudentLoginPage() {
         <div className="w-full max-w-sm">
           <div className="text-center mb-8">
             <div className="lg:hidden mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-xl bg-blue-500">
-              <Image src="/cohep-logo.png" alt="COHEP" width={72} height={72} className="h-18 w-18 object-contain" />
+              <Image src="/cohep-logo.png" alt="COHEP" width={96} height={96} className="h-24 w-24 object-contain" />
             </div>
             <h2 className="text-2xl font-bold text-gray-900">Student Sign In</h2>
             <p className="text-sm text-gray-500 mt-1">Enter your access key to view your dashboard</p>
