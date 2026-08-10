@@ -489,7 +489,7 @@ export function SubjectsTab() {
               className="gap-1 text-xs text-blue-600 hover:text-blue-700">
               {lang === 'ar' ? 'قالب' : 'Template'}
             </Button>
-            <input ref={importInputRef} type="file" accept=".json,.xlsx,.xls,.csv" onChange={handleImport} className="hidden" />
+            <input ref={importInputRef} type="file" onChange={handleImport} className="hidden" />
           </div>
 
           {/* Items Table */}
