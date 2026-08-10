@@ -87,7 +87,7 @@ export class CurriculumService {
   async getSubjects(schoolIdentifier: string) {
     const schoolId = await this.schoolResolver.resolve(schoolIdentifier);
     return this.prisma.subject.findMany({
-      where: { schoolId },
+      where: { schoolId, deletedAt: null },
       orderBy: { orderIndex: 'asc' },
     });
   }
@@ -122,7 +122,7 @@ export class CurriculumService {
   async deleteSubject(schoolIdentifier: string, id: string) {
     const schoolId = await this.schoolResolver.resolve(schoolIdentifier);
     const subj = await this.prisma.subject.findUnique({ where: { id }, select: { name: true } });
-    await this.prisma.subject.delete({ where: { id } });
+    await this.prisma.subject.update({ where: { id }, data: { deletedAt: new Date() } });
     await this.audit.log({ schoolId, action: 'DELETE', entityType: 'subject', entityId: id, oldValues: { name: subj?.name } });
     return { success: true };
   }
