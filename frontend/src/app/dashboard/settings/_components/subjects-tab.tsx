@@ -511,6 +511,8 @@ export function SubjectsTab() {
                     <th className="px-2 py-2 text-left font-medium text-gray-500">{lang === 'ar' ? 'التسابيح' : 'Hymns'}</th>
                     <th className="px-2 py-2 text-center font-medium text-gray-500 w-14">{lang === 'ar' ? 'الحالة' : 'Active'}</th>
                     <th className="px-2 py-2 text-center font-medium text-gray-500 w-12">{lang === 'ar' ? 'المستوى' : 'Level'}</th>
+                    <th className="px-2 py-2 text-center font-medium text-gray-500 w-20">{lang === 'ar' ? 'الحصص' : 'Sessions'}</th>
+                    <th className="px-2 py-2 text-center font-medium text-gray-500 w-28">{lang === 'ar' ? 'لغة التعليم' : 'Teaching Lang'}</th>
                     <th className="px-2 py-2 text-right font-medium text-gray-500 w-16">{lang === 'ar' ? 'الإجراءات' : 'Actions'}</th>
                   </tr>
                 </thead>
@@ -557,6 +559,24 @@ export function SubjectsTab() {
                         </td>
                         <td className="px-2 py-1.5 text-center" data-label="Level">
                           <span className="bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded text-[11px] font-medium">{(item.levels?.map(l => l.levelNumber).join(', ')) || item.level || 1}</span>
+                        </td>
+                        <td className="px-2 py-1.5 text-center" data-label="Sessions">
+                          <span className="text-[11px] font-medium text-gray-700">
+                            {[item.sessionsGroup1, item.sessionsGroup2, item.sessionsGroup3, item.sessionsGroup4].filter((s, i) => s > 0).map((s, i, arr) => `G${i + 1}:${s}`).join(' ') || '—'}
+                          </span>
+                        </td>
+                        <td className="px-2 py-1.5 text-center" data-label="Teaching Lang">
+                          {item.educationLanguages?.length ? (
+                            <span className="flex gap-1 justify-center flex-wrap">
+                              {item.educationLanguages.map(l => (
+                                <span key={l} className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                                  l === 'coptic' ? 'bg-amber-100 text-amber-700' :
+                                  l === 'arabic' ? 'bg-emerald-100 text-emerald-700' :
+                                  'bg-blue-100 text-blue-700'
+                                }`}>{l === 'coptic' ? 'CO' : l === 'arabic' ? 'AR' : 'EN'}</span>
+                              ))}
+                            </span>
+                          ) : <span className="text-gray-300">—</span>}
                         </td>
                         <td className="px-2 py-1.5 text-right" data-label="Actions" onClick={e => e.stopPropagation()}>
                           <Button variant="ghost" size="icon" onClick={() => startEditItem(item)} className="rounded p-1 text-gray-400 hover:bg-amber-50 hover:text-amber-600 mr-1">
