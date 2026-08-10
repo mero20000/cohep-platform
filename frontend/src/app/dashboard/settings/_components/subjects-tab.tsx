@@ -280,21 +280,68 @@ export function SubjectsTab() {
     if (!file) return
     setImporting(true)
     try {
-      const text = await file.text()
-      const data = JSON.parse(text)
-      const arr = Array.isArray(data) ? data : [data]
-      for (const item of arr) {
+      let items: any[]
+      const ext = file.name.split('.').pop()?.toLowerCase()
+      if (ext === 'xlsx' || ext === 'xls' || ext === 'csv') {
+        const XLSX = await import('xlsx')
+        const buffer = await file.arrayBuffer()
+        const workbook = XLSX.read(buffer, { type: 'array' })
+        const sheetName = workbook.SheetNames[0]
+        const sheet = workbook.Sheets[sheetName]
+        const raw = XLSX.utils.sheet_to_json<Record<string, any>>(sheet, { defval: '' })
+        items = raw.map(row => {
+          const get = (...keys: string[]) => {
+            for (const k of keys) {
+              const match = Object.keys(row).find(col => col.toLowerCase().replace(/[\s_-]/g, '') === k.toLowerCase())
+              if (match && row[match] !== '' && row[match] !== undefined) return String(row[match])
+            }
+            return ''
+          }
+          const levelsStr = get('levels', 'level', 'مستوى')
+          const levels = levelsStr ? levelsStr.split(/[,\s]+/).map(Number).filter(n => n >= 1 && n <= 5) : [1]
+          const sessionsG1 = get('sessionsGroup1', 'sessions_group1', 'group1', 'g1', 'حصص1', 'المجموعة 1')
+          const sessionsG2 = get('sessionsGroup2', 'sessions_group2', 'group2', 'g2', 'حصص2', 'المجموعة 2')
+          const sessionsG3 = get('sessionsGroup3', 'sessions_group3', 'group3', 'g3', 'حصص3', 'المجموعة 3')
+          const sessionsG4 = get('sessionsGroup4', 'sessions_group4', 'group4', 'g4', 'حصص4', 'المجموعة 4')
+          const langStr = get('educationLanguages', 'education_languages', 'lang', 'لغة')
+          const educationLanguages = langStr ? langStr.split(/[,\s]+/).filter(Boolean) : []
+          const optionalStr = get('optional', 'اختياري')
+          return {
+            whenLabel: get('whenLabel', 'when_label', 'when', 'الوقت'),
+            name: get('name', 'hymn', 'hymnName', 'الاسم', 'التسبيحة'),
+            nameAr: get('nameAr', 'name_ar', 'الاسم بالعربية'),
+            nameCoptic: get('nameCoptic', 'name_coptic', 'copticName', 'الاسم القبطي'),
+            levels: levels.length > 0 ? levels : [1],
+            descriptionAr: get('descriptionAr', 'description_ar', 'الوصف'),
+            sessionsGroup1: Number(sessionsG1) || 0,
+            sessionsGroup2: Number(sessionsG2) || 0,
+            sessionsGroup3: Number(sessionsG3) || 0,
+            sessionsGroup4: Number(sessionsG4) || 0,
+            optional: ['true', '1', 'yes', 'نعم'].includes(optionalStr.toLowerCase()),
+            hazzat: get('hazzat', 'الحزّات') || null,
+            presentationUrl: get('presentationUrl', 'presentation_url', 'العرض') || null,
+            educationLanguages,
+          }
+        })
+      } else {
+        const text = await file.text()
+        const data = JSON.parse(text)
+        items = Array.isArray(data) ? data : [data]
+      }
+      let imported = 0
+      for (const item of items) {
+        if (!item.name?.trim()) continue
         await http.post(`/curriculum/subjects/${selectedSubject!.id}/items`, {
           whenLabel: item.whenLabel || '', name: item.name, nameAr: item.nameAr || '',
-          nameCoptic: item.nameCoptic || '', levels: item.levels || (item.level ? [item.level] : [1]), descriptionAr: item.descriptionAr || '',
-          sessionsGroup1: item.sessionsGroup1 || 0, sessionsGroup2: item.sessionsGroup2 || 0,
-          sessionsGroup3: item.sessionsGroup3 || 0, sessionsGroup4: item.sessionsGroup4 || 0,
+          nameCoptic: item.nameCoptic || '', levels: item.levels || [1], descriptionAr: item.descriptionAr || '',
+          sessionsGroup1: Number(item.sessionsGroup1) || 0, sessionsGroup2: Number(item.sessionsGroup2) || 0,
+          sessionsGroup3: Number(item.sessionsGroup3) || 0, sessionsGroup4: Number(item.sessionsGroup4) || 0,
           optional: item.optional || false, hazzat: item.hazzat || null,
-          educationLanguages: item.educationLanguages || [],
-          presentationData: item.presentationData || null,
+          presentationUrl: item.presentationUrl || null, educationLanguages: item.educationLanguages || [],
         }, { schoolId: getSchoolId() })
+        imported++
       }
-      toast('success', lang === 'ar' ? `تم استيراد ${arr.length} عناصر` : `${arr.length} item(s) imported`)
+      toast('success', lang === 'ar' ? `تم استيراد ${imported} عناصر` : `${imported} item(s) imported`)
       if (selectedSubject) fetchItems(selectedSubject.id)
     } catch { toast('error', lang === 'ar' ? 'فشل استيراد الملف' : 'Failed to import file') }
     setImporting(false)
@@ -425,7 +472,7 @@ export function SubjectsTab() {
               className="gap-1">
               <Upload className="h-3 w-3" /> {importing ? (lang === 'ar' ? 'جار...' : 'Importing...') : (lang === 'ar' ? 'استيراد' : 'Import')}
             </Button>
-            <input ref={importInputRef} type="file" accept=".json" onChange={handleImport} className="hidden" />
+            <input ref={importInputRef} type="file" accept=".json,.xlsx,.xls,.csv" onChange={handleImport} className="hidden" />
           </div>
 
           {/* Items Table */}
