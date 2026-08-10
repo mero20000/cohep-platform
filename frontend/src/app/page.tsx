@@ -753,6 +753,7 @@ function GamificationPreview({ isAr }: { isAr: boolean }) {
 export default function Home() {
   const [lang, setLang] = useState<'en' | 'ar'>('en')
   const [scrolled, setScrolled] = useState(false)
+  const [activeSection, setActiveSection] = useState<string>('')
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [openFaq, setOpenFaq] = useState<number | null>(0)
   const [subscribeStatus, setSubscribeStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle')
@@ -768,7 +769,25 @@ export default function Home() {
     window.addEventListener('scroll', handleScroll, { passive: true })
     document.documentElement.lang = lang
     document.documentElement.dir = isAr ? 'rtl' : 'ltr'
-    return () => window.removeEventListener('scroll', handleScroll)
+
+    // Scroll-spy: track which section is in view
+    const sectionIds = ['why', 'curriculum', 'open-source', 'features']
+    const observers: IntersectionObserver[] = []
+    sectionIds.forEach(id => {
+      const el = document.getElementById(id)
+      if (!el) return
+      const observer = new IntersectionObserver(
+        ([entry]) => { if (entry.isIntersecting) setActiveSection(id) },
+        { rootMargin: '-20% 0px -70% 0px', threshold: 0 }
+      )
+      observer.observe(el)
+      observers.push(observer)
+    })
+
+    return () => {
+      window.removeEventListener('scroll', handleScroll)
+      observers.forEach(o => o.disconnect())
+    }
   }, [lang, isAr])
 
   const jsonLd = {
@@ -803,11 +822,16 @@ export default function Home() {
               { href: '#curriculum', label: t.nav.curriculum },
               { href: '#open-source', label: t.nav.openSource },
               { href: '#features', label: t.nav.community },
-            ].map(item => (
-              <a key={item.href} href={item.href} className="rounded-lg px-3 py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-colors">
-                {item.label}
-              </a>
-            ))}
+            ].map(item => {
+              const sectionId = item.href.replace('#', '')
+              const isActive = activeSection === sectionId
+              return (
+                <a key={item.href} href={item.href} className={`rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${isActive ? 'bg-gold-50 text-gold-700 font-semibold' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'}`}>
+                  {item.label}
+                  {isActive && <span className="ml-1.5 inline-block h-1 w-1 rounded-full bg-gold-500 align-middle" />}
+                </a>
+              )
+            })}
           </nav>
 
           <div className="flex items-center gap-2.5">
@@ -844,9 +868,21 @@ export default function Home() {
                   { href: '#curriculum', label: t.nav.curriculum },
                   { href: '#open-source', label: t.nav.openSource },
                   { href: '#features', label: t.nav.community },
-                ].map(item => (
-                  <a key={item.href} href={item.href} onClick={() => setMobileMenuOpen(false)} className="rounded-lg px-3 py-3 text-sm font-medium text-gray-600 hover:bg-gray-100">{item.label}</a>
-                ))}
+                ].map(item => {
+                  const sectionId = item.href.replace('#', '')
+                  const isActive = activeSection === sectionId
+                  return (
+                    <a
+                      key={item.href}
+                      href={item.href}
+                      onClick={() => setMobileMenuOpen(false)}
+                      className={`flex items-center justify-between rounded-lg px-3 py-3 text-sm font-medium transition-colors ${isActive ? 'bg-gold-50 text-gold-700 font-semibold' : 'text-gray-600 hover:bg-gray-100'}`}
+                    >
+                      {item.label}
+                      {isActive && <span className="h-1.5 w-1.5 rounded-full bg-gold-500 shrink-0" />}
+                    </a>
+                  )
+                })}
                 <hr className="my-1 border-gray-100" />
                 <Link href="/auth/login" onClick={() => setMobileMenuOpen(false)} className="rounded-lg px-3 py-3 text-sm font-medium text-gray-600 hover:bg-gray-100">{t.nav.signIn}</Link>
                 <Link href="/auth/register" onClick={() => setMobileMenuOpen(false)} className="rounded-lg bg-gold-500 px-3 py-3 text-sm font-medium text-gray-950 text-center hover:bg-gold-400">{t.nav.getStarted}</Link>
