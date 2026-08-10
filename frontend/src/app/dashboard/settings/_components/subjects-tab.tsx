@@ -261,6 +261,19 @@ export function SubjectsTab() {
     a.href = url; a.download = `${selectedSubject?.name || 'items'}.json`; a.click()
     URL.revokeObjectURL(url)
   }
+  const handleDownloadTemplate = async () => {
+    const XLSX = await import('xlsx')
+    const headers = ['whenLabel', 'name', 'nameAr', 'nameCoptic', 'levels', 'sessionsGroup1', 'sessionsGroup2', 'sessionsGroup3', 'sessionsGroup4', 'optional', 'hazzat', 'educationLanguages']
+    const exampleRows = [
+      ['Liturgy', 'Tenosht', 'تنوش', 'Ⲭⲉⲛⲟⲥⲧ', '1,2', 2, 3, 1, 0, 'false', '', 'coptic,arabic'],
+      ['Vespers/Matins', 'Psalm 150', 'مزمور 150', ' nuest', '1,2,3', 1, 1, 0, 0, 'false', '', 'coptic'],
+      ['Glorifications', 'Glorification 1', 'التجلي الأول', '', '1', 1, 0, 0, 0, 'true', '', 'arabic,english'],
+    ]
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...exampleRows])
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, 'Items')
+    XLSX.writeFile(wb, 'subject-items-template.xlsx')
+  }
   const importInputRef = useRef<HTMLInputElement>(null)
   const pptxInputRef = useRef<HTMLInputElement>(null)
   const handlePptxUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -310,7 +323,7 @@ export function SubjectsTab() {
             whenLabel: get('whenLabel', 'when_label', 'when', 'الوقت'),
             name: get('name', 'hymn', 'hymnName', 'الاسم', 'التسبيحة'),
             nameAr: get('nameAr', 'name_ar', 'الاسم بالعربية'),
-            nameCoptic: get('nameCoptic', 'name_coptic', 'copticName', 'الاسم القبطي'),
+            nameCoptic: get('nameCoptic', 'name_coptic', 'copticName', 'coptic_name', 'coptic', 'قبطي', 'الاسم القبطي', 'copticNameArabic'),
             levels: levels.length > 0 ? levels : [1],
             descriptionAr: get('descriptionAr', 'description_ar', 'الوصف'),
             sessionsGroup1: Number(sessionsG1) || 0,
@@ -471,6 +484,10 @@ export function SubjectsTab() {
             <Button variant="outline" size="sm" onClick={() => importInputRef.current?.click()} disabled={importing || !selectedSubject}
               className="gap-1">
               <Upload className="h-3 w-3" /> {importing ? (lang === 'ar' ? 'جار...' : 'Importing...') : (lang === 'ar' ? 'استيراد' : 'Import')}
+            </Button>
+            <Button variant="ghost" size="sm" onClick={handleDownloadTemplate}
+              className="gap-1 text-xs text-blue-600 hover:text-blue-700">
+              {lang === 'ar' ? 'قالب' : 'Template'}
             </Button>
             <input ref={importInputRef} type="file" accept=".json,.xlsx,.xls,.csv" onChange={handleImport} className="hidden" />
           </div>
