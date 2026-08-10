@@ -4,6 +4,8 @@ import {
   emailTemplate,
   emailKeyValueRow,
   emailParagraph,
+  emailDivider,
+  emailHighlightBox,
 } from "./email-template";
 
 const SENDGRID_API_URL = "https://api.sendgrid.com/v3/mail/send";
@@ -116,16 +118,22 @@ export class MailService {
   ) {
     const html = emailTemplate({
       title: "New Registration Request",
+      variant: "gold",
       content: `
-        ${emailParagraph("A new church has submitted a registration request. Review the details below:")}
-        <table style="width:100%;border-collapse:collapse;font-size:14px;">
-          ${emailKeyValueRow("Church", data.churchName)}
-          ${emailKeyValueRow("Contact", `${data.firstName} ${data.lastName}`)}
-          ${emailKeyValueRow("Email", data.email)}
-          ${emailKeyValueRow("Phone", data.phone)}
+        ${emailParagraph("A new church has submitted a registration request. Please review the details below:")}
+        ${emailHighlightBox(`
+          <p style="margin:0;font-size:14px;color:#92400e;"><strong>${data.churchName}</strong></p>
+          <p style="margin:4px 0 0;font-size:13px;color:#a16207;">${data.city}, ${data.country}</p>
+        `, 'gold')}
+        <table style="width:100%;border-collapse:collapse;font-size:14px;margin:8px 0;">
+          ${emailKeyValueRow("Contact Person", `${data.firstName} ${data.lastName}`)}
+          ${emailKeyValueRow("Email Address", data.email)}
+          ${emailKeyValueRow("Phone Number", data.phone)}
           ${emailKeyValueRow("Country", data.country)}
           ${emailKeyValueRow("City", data.city)}
         </table>
+        ${emailDivider()}
+        ${emailParagraph("Click below to review this registration and approve or reject the request.")}
       `,
       cta: {
         text: "Review Registration",
@@ -146,14 +154,16 @@ export class MailService {
   ) {
     const html = emailTemplate({
       title: "We Miss Your Child in Class",
+      variant: "red",
       content: `
-        ${emailParagraph(`We've noticed that ${studentName} hasn't attended ${groupName} for the past 3 weeks. We miss them and hope everything is okay!`)}
-        ${emailParagraph(`لاحظنا أن ${studentNameAr || studentName} لم يحضر ${groupName} خلال الأسابيع الثلاثة الماضية. نحن نفتقدهم ونأمل أن يكون كل شيء على ما يرام!`)}
-        <table style="width:100%;border-collapse:collapse;font-size:14px;">
-          ${emailKeyValueRow("Student", studentName)}
-          ${emailKeyValueRow("Group", groupName)}
-        </table>
-        ${emailParagraph("If there is anything we can help with, please reach out to your child's servant.")}
+        ${emailHighlightBox(`
+          <p style="margin:0;font-size:14px;color:#991b1b;"><strong>${studentName}</strong></p>
+          <p style="margin:4px 0 0;font-size:13px;color:#b91c1c;">${groupName}</p>
+        `, 'red')}
+        ${emailParagraph(`We've noticed that <strong>${studentName}</strong> hasn't attended <strong>${groupName}</strong> for the past 3 weeks. We miss them and hope everything is okay!`)}
+        ${emailParagraph(`لاحظنا أن <strong>${studentNameAr || studentName}</strong> لم يحضر <strong>${groupName}</strong> خلال الأسابيع الثلاثة الماضية. نحن نفتقدهم ونأمل أن يكون كل شيء على ما يرام!`)}
+        ${emailDivider()}
+        ${emailParagraph("If there is anything we can help with, please don't hesitate to reach out to your child's servant or group leader.")}
       `,
       cta: { text: "View Attendance", url: "/portal" },
     });
@@ -163,10 +173,13 @@ export class MailService {
   async sendPasswordReset(to: string, resetUrl: string) {
     const html = emailTemplate({
       title: "Reset Your Password",
+      variant: "blue",
       content: `
         ${emailParagraph("We received a request to reset your password. Click the button below to choose a new one.")}
+        ${emailHighlightBox(`
+          <p style="margin:0;font-size:13px;color:#1e40af;">This link will expire in <strong>1 hour</strong>.</p>
+        `, 'blue')}
         ${emailParagraph("If you didn't request this, you can safely ignore this email — your password will stay the same.")}
-        ${emailParagraph("This link expires in 1 hour.")}
       `,
       cta: { text: "Reset Password", url: resetUrl },
     });

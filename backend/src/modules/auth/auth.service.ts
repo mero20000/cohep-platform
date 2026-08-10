@@ -201,6 +201,7 @@ export class AuthService {
         avatarUrl: user.avatarUrl,
         roles,
         schoolId: user.schoolId,
+        metadata: user.metadata ?? null,
       },
       ...tokens,
     };
@@ -307,7 +308,7 @@ export class AuthService {
         firstNameAr: true, lastNameAr: true,
         avatarUrl: true, locale: true, timezone: true,
         isActive: true, lastLoginAt: true, createdAt: true,
-        schoolId: true,
+        schoolId: true, metadata: true,
         userRoles: { include: { role: true } },
       },
     });

@@ -96,13 +96,22 @@ export default function StudentsClient() {
     setLoading(false)
   },[debouncedSearch,filterLevel,filterGroup,filterStatus,filterChurch,filterGrade,filterGender,sortKey,sortDir,pageSize])
 
-  // M10: stats are refetched whenever the roster changes (add/edit/delete/import)
+  // M10: stats are refetched whenever the roster changes (add/edit/delete/import) or filters change
   const fetchStats = useCallback(()=>{
-    http.get<StatsType>('/students/stats',{schoolId:getSchoolId()}).then(setStudentStats).catch(console.error).finally(()=>setStatsLoading(false))
-  },[])
+    const params:Record<string,string>={schoolId:getSchoolId()}
+    if(filterLevel)params.levelId=filterLevel
+    if(filterGroup)params.groupId=filterGroup
+    if(filterStatus)params.status=filterStatus
+    if(filterChurch)params.churchName=filterChurch
+    if(filterGrade)params.gradeId=filterGrade
+    if(filterGender)params.gender=filterGender
+    if(debouncedSearch)params.search=debouncedSearch
+    http.get<StatsType>('/students/stats',params).then(setStudentStats).catch(console.error).finally(()=>setStatsLoading(false))
+  },[filterLevel,filterGroup,filterStatus,filterChurch,filterGrade,filterGender,debouncedSearch])
 
   useEffect(()=>{const t=setTimeout(()=>setDebouncedSearch(search),300);return ()=>clearTimeout(t)},[search])
   useEffect(()=>{fetchStudents(1)},[fetchStudents])
+  useEffect(()=>{fetchStats()},[fetchStats])
   useEffect(()=>{setSelectedIds(new Set())},[search,filterLevel,filterGroup,filterStatus,filterChurch,filterGrade,filterGender])
   useEffect(()=>{setFilterGroup('')},[filterLevel])
   useEffect(()=>{
@@ -112,7 +121,21 @@ export default function StudentsClient() {
     http.get<{church?:{name:string}}>('/users/schools/me').then(s=>{if(s.church?.name)setFilterChurch(s.church.name)}).catch(console.error)
     fetchActiveGrades().then(setGradeOptions).catch(console.error)
     fetchStats()
-  },[fetchStats])
+  },[])
+  useEffect(()=>{
+    // Auto-filter for servants/group leaders/level leaders based on their assignments (runs once)
+    try{
+      const stored=localStorage.getItem('user')
+      if(stored){
+        const u=JSON.parse(stored)
+        const isServant=u.roles?.some((r:string)=>['servant','group_leader','level_leader'].includes(r))
+        if(isServant&&u.metadata){
+          if(u.metadata.levelId)setFilterLevel(u.metadata.levelId)
+          if(u.metadata.groupId)setFilterGroup(u.metadata.groupId)
+        }
+      }
+    }catch{}
+  },[])
   useEffect(()=>{
     if(!filterLevel||!filterGroup){setAssignedServants([]);return}
     setServantsLoading(true)

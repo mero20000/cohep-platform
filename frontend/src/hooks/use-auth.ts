@@ -11,6 +11,7 @@ export interface AuthUser {
   avatarUrl?: string
   roles: string[]
   schoolId?: string
+  metadata?: Record<string, any>
 }
 
 export function useAuth() {

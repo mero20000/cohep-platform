@@ -29,8 +29,17 @@ export class StudentsController {
 
     @Get('stats')
   @ApiOperation({ summary: 'Get student stats' })
-  async getStats(@Query('schoolId') schoolId: string = '') {
-    return this.studentsService.getStats(schoolId);
+  async getStats(
+    @Query('schoolId') schoolId: string = '',
+    @Query('levelId') levelId?: string,
+    @Query('groupId') groupId?: string,
+    @Query('status') status?: string,
+    @Query('gradeId') gradeId?: string,
+    @Query('gender') gender?: string,
+    @Query('churchName') churchName?: string,
+    @Query('search') search?: string,
+  ) {
+    return this.studentsService.getStats(schoolId, { levelId, groupId, status, gradeId, gender, churchName, search });
   }
 
     @Get()

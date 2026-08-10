@@ -720,22 +720,39 @@ async getPortalData(portalAccessKey: string) {
     };
   }
 
-  async getStats(schoolIdentifier: string) {
+  async getStats(schoolIdentifier: string, filters?: {
+    levelId?: string; groupId?: string; status?: string; gradeId?: string;
+    gender?: string; churchName?: string; search?: string;
+  }) {
     const schoolId = await this.schoolResolver.resolve(schoolIdentifier);
-    const where = { deletedAt: null } as any;
+    const where: any = { deletedAt: null, schoolId };
+
+    if (filters?.levelId) where.levelId = filters.levelId;
+    if (filters?.groupId) where.groupId = filters.groupId;
+    if (filters?.status) where.status = filters.status;
+    if (filters?.gradeId) where.gradeId = filters.gradeId;
+    if (filters?.gender) where.gender = filters.gender;
+    if (filters?.churchName) where.churchName = filters.churchName;
+    if (filters?.search) {
+      where.OR = [
+        { firstName: { contains: filters.search, mode: 'insensitive' } },
+        { lastName: { contains: filters.search, mode: 'insensitive' } },
+        { studentCode: { contains: filters.search, mode: 'insensitive' } },
+      ];
+    }
 
     const [total, active, inactive, graduated, male, female] = await Promise.all([
-      this.prisma.student.count({ where: { ...where, schoolId } }),
-      this.prisma.student.count({ where: { ...where, schoolId, status: 'active' } }),
-      this.prisma.student.count({ where: { ...where, schoolId, status: 'inactive' } }),
-      this.prisma.student.count({ where: { ...where, schoolId, status: 'graduated' } }),
-      this.prisma.student.count({ where: { ...where, schoolId, gender: 'male' } }),
-      this.prisma.student.count({ where: { ...where, schoolId, gender: 'female' } }),
+      this.prisma.student.count({ where }),
+      this.prisma.student.count({ where: { ...where, status: 'active' } }),
+      this.prisma.student.count({ where: { ...where, status: 'inactive' } }),
+      this.prisma.student.count({ where: { ...where, status: 'graduated' } }),
+      this.prisma.student.count({ where: { ...where, gender: 'male' } }),
+      this.prisma.student.count({ where: { ...where, gender: 'female' } }),
     ]);
 
     const gradeGroups = await this.prisma.student.groupBy({
       by: ['gradeId'],
-      where: { ...where, schoolId, gradeId: { not: null } },
+      where: { ...where, gradeId: { not: null } },
       _count: { id: true },
     });
 
