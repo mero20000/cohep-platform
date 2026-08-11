@@ -177,14 +177,14 @@ export function LevelsTab({
                         {lesson.presentationData && (
                           <button onClick={() => setPresentingLesson(lesson)}
                             aria-label={lang === 'ar' ? `عرض ${lesson.titleCoptic || lesson.title}` : `Present ${lesson.titleCoptic || lesson.title}`}
-                            className="p-1.5 rounded hover:bg-gray-200 text-gray-400 hover:text-purple-600 min-h-[32px] min-w-[32px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500" title={lang === 'ar' ? 'عرض التسبيحة' : 'Present Hymn'}>
+                            className="p-2 rounded hover:bg-gray-200 text-gray-400 hover:text-purple-600 min-h-[44px] min-w-[44px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500" title={lang === 'ar' ? 'عرض التسبيحة' : 'Present Hymn'}>
                             <Presentation className="h-3.5 w-3.5" />
                           </button>
                         )}
                         <button onClick={() => setEditLesson(lesson)} aria-label={lang === 'ar' ? 'تعديل' : 'Edit'}
-                          className="p-1.5 rounded hover:bg-gray-200 text-gray-400 hover:text-blue-700 min-h-[32px] min-w-[32px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500" title={lang === 'ar' ? 'تعديل' : 'Edit'}><Pencil className="h-3.5 w-3.5" /></button>
+                          className="p-2 rounded hover:bg-gray-200 text-gray-400 hover:text-blue-700 min-h-[44px] min-w-[44px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500" title={lang === 'ar' ? 'تعديل' : 'Edit'}><Pencil className="h-3.5 w-3.5" /></button>
                         <button onClick={() => setDeleteLessonTarget(lesson)} aria-label={lang === 'ar' ? 'حذف' : 'Delete'}
-                          className="p-1.5 rounded hover:bg-red-100 text-gray-400 hover:text-red-500 min-h-[32px] min-w-[32px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400" title={lang === 'ar' ? 'حذف' : 'Delete'}><Trash2 className="h-3.5 w-3.5" /></button>
+                          className="p-2 rounded hover:bg-red-100 text-gray-400 hover:text-red-500 min-h-[44px] min-w-[44px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400" title={lang === 'ar' ? 'حذف' : 'Delete'}><Trash2 className="h-3.5 w-3.5" /></button>
                       </div>
                     </div>
                   ))}

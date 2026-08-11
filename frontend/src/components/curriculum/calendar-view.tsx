@@ -414,14 +414,14 @@ export function CalendarView({
           <table className="w-full border-collapse">
             <thead>
               <tr className="sticky top-0 z-10">
-                <th className="bg-gray-50 border-b border-e border-gray-200 px-3 py-2.5 text-start text-xs font-semibold text-gray-600 min-w-[150px]">
+                <th className="bg-gray-50 border-b border-e border-gray-200 px-3 py-2.5 text-start text-xs font-semibold text-gray-600 min-w-[100px] sm:min-w-[150px]">
                   {lang === 'ar' ? 'الأسبوع' : 'Week'}
                 </th>
                 {subjectColumns.map(subj => {
                   const s = getSubjectStyle(subj.name)
                   return (
                     <th key={subj.id}
-                      className={`bg-gray-50 border-b border-e border-gray-200 px-2 py-2.5 text-center text-xs font-semibold ${s.text} min-w-[140px]`}>
+                      className={`bg-gray-50 border-b border-e border-gray-200 px-2 py-2.5 text-center text-xs font-semibold ${s.text} min-w-[100px] sm:min-w-[140px]`}>
                       <span className={`inline-flex items-center gap-1`}>
                         <span className={`w-2 h-2 rounded-full ${s.dot}`} />
                         {subj.name}

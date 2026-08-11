@@ -105,7 +105,7 @@ export function DatePicker({ value, onChange, className = '', min, max, id }: Da
       </div>
 
       {open && (
-        <div className={`absolute top-full mt-1 z-50 bg-white rounded-xl shadow-lg border border-gray-200 p-3 w-[280px] ${isRtl ? 'left-0' : 'right-0'}`}>
+        <div className={`absolute top-full mt-1 z-50 bg-white rounded-xl shadow-lg border border-gray-200 p-3 w-[280px] max-w-[90vw] ${isRtl ? 'left-0' : 'right-0'}`}>
           <div className="flex items-center justify-between mb-2">
             <button type="button" onClick={isRtl ? nextMonth : prevMonth} className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors">
               <ChevronLeft className="h-4 w-4 text-gray-600" />

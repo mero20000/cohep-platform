@@ -58,8 +58,8 @@ export default function PortalLoginPage() {
       <div className="flex-1 flex items-start lg:items-center justify-center px-4 py-10 sm:px-8">
         <div className="w-full max-w-sm">
           <div className="text-center mb-8">
-            <div className="lg:hidden mx-auto mb-4 flex h-[104px] w-[104px] items-center justify-center rounded-xl bg-blue-500">
-              <Image src="/cohep-logo.png" alt="COHEP" width={96} height={96} className="h-24 w-24 object-contain" />
+            <div className="lg:hidden mx-auto mb-4 flex h-[80px] w-[80px] sm:h-[104px] sm:w-[104px] items-center justify-center rounded-xl bg-blue-500">
+              <Image src="/cohep-logo.png" alt="COHEP" width={96} height={96} className="h-16 w-16 sm:h-24 sm:w-24 object-contain" />
             </div>
             <h2 className="text-2xl font-bold text-gray-900">Parent Sign In</h2>
             <p className="text-sm text-gray-500 mt-1">Access your child&apos;s attendance and assessments</p>

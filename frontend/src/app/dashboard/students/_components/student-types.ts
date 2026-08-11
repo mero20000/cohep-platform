@@ -14,6 +14,7 @@ export interface Student {
   group: { id: string; name: string }
   metadata?: { phone?: string; email?: string; address?: string; notes?: string; churchToolId?: string }
   parentEmail?: string
+  portalAccessKey?: string
 }
 
 export interface PaginatedResponse {

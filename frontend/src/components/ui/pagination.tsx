@@ -47,19 +47,19 @@ export function Pagination({ page, totalPages, total, onPageChange, pageSize, on
       </div>
       <div className="flex items-center gap-1">
         <button onClick={() => onPageChange(page - 1)} disabled={page <= 1} aria-label={t('Previous page','الصفحة السابقة')}
-          className="rounded-lg p-1.5 text-gray-500 hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed">
+          className="rounded-lg p-2 text-gray-500 hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed min-h-[44px] min-w-[44px] flex items-center justify-center">
           <ChevronLeft className="h-4 w-4" />
         </button>
         {pages.map((p, i) => p === '...' ? (
           <span key={`dots-${i}`} className="px-2 text-gray-400">…</span>
         ) : (
           <button key={p} onClick={() => onPageChange(p)} aria-label={t(`Page ${p}`,`صفحة ${p}`)} aria-current={p === page ? 'page' : undefined}
-            className={`min-w-[32px] h-8 rounded-lg text-sm font-medium transition-colors ${p === page ? 'bg-blue-500 text-white' : 'text-gray-700 hover:bg-gray-100'}`}>
+            className={`min-w-[44px] h-10 rounded-lg text-sm font-medium transition-colors ${p === page ? 'bg-blue-500 text-white' : 'text-gray-700 hover:bg-gray-100'}`}>
             {p}
           </button>
         ))}
         <button onClick={() => onPageChange(page + 1)} disabled={page >= totalPages} aria-label={t('Next page','الصفحة التالية')}
-          className="rounded-lg p-1.5 text-gray-500 hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed">
+          className="rounded-lg p-2 text-gray-500 hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed min-h-[44px] min-w-[44px] flex items-center justify-center">
           <ChevronRight className="h-4 w-4" />
         </button>
       </div>

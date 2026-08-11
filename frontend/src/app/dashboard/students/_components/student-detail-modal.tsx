@@ -1,10 +1,11 @@
 'use client'
 import Image from 'next/image'
 import { useState, useEffect, useRef } from 'react'
-import { X, Loader2, Pencil, Calendar, User, MapPin, Phone, Layers, Users, Church, GraduationCap, Mail, UserCheck } from 'lucide-react'
+import { X, Loader2, Pencil, Calendar, User, MapPin, Phone, Layers, Users, Church, GraduationCap, Mail, UserCheck, Copy, Check, QrCode } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { http } from '@/lib/http-client'
+import { StudentQrCard } from '@/components/qr/qr-code-card'
 import { STATUS_STYLE, photoSrc, calcAge, type Student } from './student-types'
 import { PhoneLink } from './phone-link'
 
@@ -14,6 +15,8 @@ interface Props { student: Student; onClose: () => void; onEdit: () => void; onP
 export function StudentDetailModal({ student:s, onClose, onEdit, onPreviewPhoto, lang }: Props) {
   const [log, setLog] = useState<Activity[]>([])
   const [logLoading, setLogLoading] = useState(false)
+  const [copied, setCopied] = useState(false)
+  const [showQr, setShowQr] = useState(false)
   const dialogRef = useRef<HTMLDivElement>(null)
   const t = (en: string, ar: string) => lang==='ar'?ar:en
 
@@ -66,6 +69,26 @@ export function StudentDetailModal({ student:s, onClose, onEdit, onPreviewPhoto,
             <div className="rounded-lg border border-gray-100 p-3"><div className="text-xs text-gray-500">{t('Enrolled','تاريخ التسجيل')}</div><div className="text-sm font-medium text-gray-900">{new Date(s.enrollmentDate).toLocaleDateString('en-GB',{day:'2-digit',month:'2-digit',year:'numeric'})}</div></div>
           </div>
           {s.metadata?.notes&&<div className="mt-4 rounded-lg border border-gray-100 p-3"><div className="text-xs text-gray-500">{t('Notes','ملاحظات')}</div><div className="text-sm text-gray-900 mt-1 whitespace-pre-wrap">{s.metadata.notes}</div></div>}
+          {s.portalAccessKey && (
+            <div className="mt-4 rounded-lg border border-gray-100 p-3">
+              <div className="text-xs text-gray-500 mb-2">{t('Portal Access Key','مفتاح الوصول للبوابة')}</div>
+              <div className="flex items-center gap-2">
+                <code className="flex-1 text-xs font-mono text-gray-700 bg-gray-50 rounded px-2 py-1.5 truncate">{s.portalAccessKey}</code>
+                <button onClick={() => { navigator.clipboard.writeText(s.portalAccessKey!); setCopied(true); setTimeout(() => setCopied(false), 2000) }}
+                  className="shrink-0 p-1.5 rounded hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors" title={t('Copy','نسخ')}>
+                  {copied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+                </button>
+                <button onClick={() => setShowQr(true)}
+                  className="shrink-0 p-1.5 rounded hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors" title={t('Show QR Code','عرض رمز QR')}>
+                  <QrCode className="h-4 w-4" />
+                </button>
+              </div>
+              <a href={`/student-portal/${s.portalAccessKey}`} target="_blank" rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 mt-2 text-xs text-blue-600 hover:text-blue-700">
+                {t('Open Student Portal','فتح بوابة الطالب')} →
+              </a>
+            </div>
+          )}
           <div className="mt-4">
             <h4 className="text-sm font-semibold text-gray-900 mb-2">{t('Activity','النشاط')}</h4>
             {logLoading?<div className="flex items-center justify-center py-4"><Loader2 className="h-4 w-4 animate-spin text-gray-400" /></div>
@@ -84,6 +107,17 @@ export function StudentDetailModal({ student:s, onClose, onEdit, onPreviewPhoto,
           <Button variant="secondary" onClick={onClose}>{t('Close','إغلاق')}</Button>
         </div>
       </div>
+      {showQr && s.portalAccessKey && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4" onClick={() => setShowQr(false)}>
+          <div className="bg-white rounded-2xl p-6 max-w-sm w-full" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-semibold text-gray-900">{t('Student Portal QR Code','رمز QR لبوابة الطالب')}</h3>
+              <Button variant="ghost" size="icon" onClick={() => setShowQr(false)}><X className="h-4 w-4" /></Button>
+            </div>
+            <StudentQrCard student={{ id: s.id, firstName: s.firstName, lastName: s.lastName, studentCode: s.studentCode, portalAccessKey: s.portalAccessKey }} />
+          </div>
+        </div>
+      )}
     </div>
   )
 }

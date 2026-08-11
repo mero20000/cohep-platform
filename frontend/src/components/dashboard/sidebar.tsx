@@ -58,7 +58,7 @@ export function DashboardSidebar({
           ? 'border-l lg:right-0'
           : 'border-r lg:left-0'
       } ${sidebarOpen ? 'translate-x-0' : language === 'ar' ? 'translate-x-full' : '-translate-x-full'} lg:translate-x-0 ${
-        sidebarVisible ? '' : `lg:${language === 'ar' ? 'translate-x-[100%]' : 'translate-x-[-100%]'} overflow-hidden`
+        sidebarVisible ? '' : (language === 'ar' ? 'lg:translate-x-full' : 'lg:-translate-x-full') + ' overflow-hidden'
       }`}
       style={{ width: sidebarVisible ? sidebarWidth : 0 }}>
       {sidebarVisible && (
