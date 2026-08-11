@@ -85,6 +85,7 @@ model School {
   fileUploads        FileUpload[]
   attendanceSessions AttendanceSession[]
   hymnSessions       HymnPracticeSession[]
+  servantProfiles    ServantProfile[]
 
   @@index([churchId])
   @@map("schools")
@@ -173,11 +174,61 @@ model User {
   xpTransactions     XPTransaction[]
   auditLogs          AuditLog[]
   certificates       Certificate[]
+  servantProfile     ServantProfile?
 
   @@unique([schoolId, email])
   @@index([schoolId])
   @@index([email])
   @@map("users")
+}
+
+model ServantProfile {
+  id              String   @id @default(uuid())
+  userId          String   @unique @map("user_id")
+  schoolId        String   @map("school_id")
+
+  yearsOfService  Int      @default(0) @map("years_of_service")
+  totalStudents   Int      @default(0) @map("total_students")
+  totalSessions   Int      @default(0) @map("total_sessions")
+  totalHymns      Int      @default(0) @map("total_hymns")
+  totalReviews    Int      @default(0) @map("total_reviews")
+
+  currentLevelName String? @map("current_level_name")
+  currentGroupName String? @map("current_group_name")
+
+  previousRoles   String[] @default([]) @map("previous_roles")
+
+  lastCalculatedAt DateTime @map("last_calculated_at")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  school   School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  milestones ServantMilestone[]
+
+  @@index([schoolId])
+  @@map("servant_profiles")
+}
+
+model ServantMilestone {
+  id              String   @id @default(uuid())
+  userId          String   @map("user_id")
+  profileId       String   @map("profile_id")
+
+  type            String
+  threshold       Int
+  reachedAt       DateTime @default(now()) @map("reached_at")
+
+  label           String
+  description     String?
+
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  profile ServantProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, type, threshold])
+  @@index([userId])
+  @@map("servant_milestones")
 }
 
 model Role {
