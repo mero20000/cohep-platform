@@ -331,9 +331,7 @@ export class ServantsService {
     const metadata = (user.metadata as any) || {}
     const totalHymns = await this.prisma.subjectItem.count({
       where: {
-        subject: {
-          levelSubjects: { some: { levelId: metadata.levelId } },
-        },
+        lessons: { some: { schoolId: user.schoolId } },
       },
     })
 
@@ -397,24 +395,28 @@ export class ServantsService {
     })
 
     for (const servant of servants) {
-      const stats = await this.computeServantStats(servant.id, servant.schoolId)
-      if (!stats) continue
+      try {
+        const stats = await this.computeServantStats(servant.id, servant.schoolId)
+        if (!stats) continue
 
-      const profile = await this.prisma.servantProfile.upsert({
-        where: { userId: servant.id },
-        create: {
-          userId: servant.id,
-          schoolId: servant.schoolId,
-          ...stats,
-          lastCalculatedAt: new Date(),
-        },
-        update: {
-          ...stats,
-          lastCalculatedAt: new Date(),
-        },
-      })
+        const profile = await this.prisma.servantProfile.upsert({
+          where: { userId: servant.id },
+          create: {
+            userId: servant.id,
+            schoolId: servant.schoolId,
+            ...stats,
+            lastCalculatedAt: new Date(),
+          },
+          update: {
+            ...stats,
+            lastCalculatedAt: new Date(),
+          },
+        })
 
-      await this.checkAndLogMilestones(profile.id, servant.id, stats)
+        await this.checkAndLogMilestones(profile.id, servant.id, stats)
+      } catch (error) {
+        this.logger.error(`Failed to update servant ${servant.id}: ${error}`)
+      }
     }
 
     this.logger.log(`Updated ${servants.length} servant profiles`)
