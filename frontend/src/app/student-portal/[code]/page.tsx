@@ -5,7 +5,7 @@ import { useParams } from 'next/navigation'
 import Image from 'next/image'
 import { http } from '@/lib/http-client'
 
-const API_BASE = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api').replace(/\/api\/?$/, '')
+const API_ORIGIN = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api').replace('/api', '')
 import {
   Cross, Loader2, Calendar, CheckCircle2, XCircle, Clock, AlertCircle,
   Award, Star, BookOpen, ArrowLeft, Trophy, Sparkles, Play, Music,
@@ -159,7 +159,7 @@ export default function StudentDashboard() {
   const attendanceRate = attendance.total > 0 ? Math.round((attendance.present / attendance.total) * 100) : 0
 
   const photoSrc = student.photoUrl
-    ? (student.photoUrl.startsWith('http') ? student.photoUrl : `${API_BASE}${student.photoUrl}`)
+    ? (student.photoUrl.startsWith('http') ? student.photoUrl : `${API_ORIGIN}${student.photoUrl}`)
     : null
 
   return (
@@ -179,7 +179,7 @@ export default function StudentDashboard() {
           <div className="flex items-center gap-4">
             <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-white/15 backdrop-blur-sm text-2xl font-bold overflow-hidden">
               {photoSrc ? (
-                <Image src={photoSrc} alt="" width={64} height={64} className="h-full w-full object-cover" unoptimized />
+                <img src={photoSrc} alt="" className="h-full w-full object-cover" />
               ) : (
                 <Cross className="h-7 w-7" />
               )}
@@ -199,9 +199,9 @@ export default function StudentDashboard() {
               {school && (
                 <div className="mt-2 flex items-center gap-2 text-white/70 text-xs">
                   {school.logoUrl && (
-                    <Image
-                      src={school.logoUrl.startsWith('http') ? school.logoUrl : `${API_BASE}${school.logoUrl}`}
-                      alt="" width={16} height={16} className="rounded" unoptimized
+                    <img
+                      src={school.logoUrl.startsWith('http') ? school.logoUrl : `${API_ORIGIN}${school.logoUrl}`}
+                      alt="" className="h-4 w-4 rounded"
                     />
                   )}
                   <span>{school.churchName || school.name}</span>
