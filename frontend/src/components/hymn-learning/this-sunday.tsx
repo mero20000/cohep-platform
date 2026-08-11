@@ -1,7 +1,6 @@
 'use client'
 import { Play } from 'lucide-react'
-import { useThisSunday, MASTERY_META, type MasteryStatus } from './hooks'
-import type { HymnMapItem } from './hooks'
+import { MASTERY_META, type MasteryStatus, type HymnMapItem, type ThisSundayResponse } from './hooks'
 
 const SEASON_LABEL: Record<string, { en: string; ar: string; color: string }> = {
   kiahk:       { en: 'Kiahk · Midnight Praises', ar: 'كيهك · الليلة المائة', color: 'text-purple-700' },
@@ -12,16 +11,16 @@ const SEASON_LABEL: Record<string, { en: string; ar: string; color: string }> = 
 }
 
 interface Props {
-  hymnMap?: HymnMapItem[]  // for mastery overlay
+  data: ThisSundayResponse | null
+  isLoading: boolean
+  hymnMap?: HymnMapItem[]
   onSelect: (id: string, title: string, audioUrl?: string) => void
   lang: 'en' | 'ar'
 }
 
-export function ThisSundayPanel({ hymnMap = [], onSelect, lang }: Props) {
-  const { data, isLoading } = useThisSunday()
+export function ThisSundayPanel({ data, isLoading, hymnMap = [], onSelect, lang }: Props) {
   const t = (en: string, ar: string) => lang === 'ar' ? ar : en
 
-  // Build mastery lookup from hymnMap
   const masteryMap: Record<string, MasteryStatus> = {}
   for (const h of hymnMap) masteryMap[h.id] = h.progress?.masteryStatus ?? 'not_started'
 

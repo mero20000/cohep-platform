@@ -188,6 +188,7 @@ export class HymnLearningService {
       estimatedDurationMinutes: l.estimatedDurationMinutes,
       liturgicalTags: l.liturgicalTags,
       resources: l.resources,
+      audioUrl: (l as any).audioUrl ?? l.resources[0]?.fileUrl ?? null,
       progress: (l.lessonProgress as any[])[0] ?? null,
     }))
   }
@@ -228,7 +229,7 @@ export class HymnLearningService {
         titleCoptic: p.lesson.titleCoptic,
         level: p.lesson.level,
         subject: p.lesson.subject,
-        audioUrl: p.lesson.resources[0]?.fileUrl ?? null,
+        audioUrl: (p.lesson as any).audioUrl ?? p.lesson.resources[0]?.fileUrl ?? null,
       },
       mastery: (p as any).masteryStatus,
       srRepetitions: (p as any).srRepetitions,
@@ -288,7 +289,7 @@ export class HymnLearningService {
         titleCoptic: l.titleCoptic,
         level: l.level,
         subject: l.subject,
-        audioUrl: l.resources[0]?.fileUrl ?? null,
+        audioUrl: (l as any).audioUrl ?? l.resources[0]?.fileUrl ?? null,
         liturgicalTags: l.liturgicalTags,
       })),
     }

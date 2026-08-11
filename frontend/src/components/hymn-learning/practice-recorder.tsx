@@ -10,6 +10,7 @@ interface Props {
   onSubmit: (selfRating: number, recordingUrl?: string, durationSec?: number) => Promise<void>
   onCancel: () => void
   lang: 'en' | 'ar'
+  code?: string
 }
 
 type Stage = 'idle' | 'recording' | 'recorded' | 'comparing' | 'rating' | 'submitting'
@@ -23,7 +24,7 @@ const STAR_LABELS: Record<number, { en: string; ar: string }> = {
   5: { en: "I know it perfectly", ar: "أتقنته تماماً" },
 }
 
-export function PracticeRecorder({ lessonId, lessonTitle, referenceAudioUrl, onSubmit, onCancel, lang }: Props) {
+export function PracticeRecorder({ lessonId, lessonTitle, referenceAudioUrl, onSubmit, onCancel, lang, code }: Props) {
   const { toast } = useToast()
   const t = (en: string, ar: string) => lang === 'ar' ? ar : en
 
@@ -104,7 +105,10 @@ export function PracticeRecorder({ lessonId, lessonTitle, referenceAudioUrl, onS
         const fd = new FormData()
         fd.append('file', recordingBlob, `practice-${lessonId}-${Date.now()}.webm`)
         try {
-          const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/upload/audio`, { method: 'POST', credentials: 'include', body: fd })
+          const uploadUrl = code
+            ? `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/student-portal/${code}/recordings`
+            : `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/upload/audio`
+          const res = await fetch(uploadUrl, { method: 'POST', credentials: 'include', body: fd })
           if (res.ok) { const json = await res.json(); uploadedUrl = json.url }
         } catch {}
       }
