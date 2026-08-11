@@ -5,7 +5,7 @@ import { GamificationService } from '../gamification/gamification.service';
 
 const SERVANT_ROLE_NAMES = ['servant', 'group_leader', 'level_leader'] as const;
 
-interface ServantProfileData {
+export interface ServantProfileData {
   userId: string
   name: string
   photoUrl: string | null
@@ -21,7 +21,7 @@ interface ServantProfileData {
   lastCalculatedAt: Date
 }
 
-interface ServantMilestoneData {
+export interface ServantMilestoneData {
   type: string
   threshold: number
   label: string
