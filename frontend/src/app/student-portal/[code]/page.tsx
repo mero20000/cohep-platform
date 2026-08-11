@@ -2,13 +2,12 @@
 
 import { useState, useEffect } from 'react'
 import { useParams } from 'next/navigation'
-import Image from 'next/image'
 import { http } from '@/lib/http-client'
 
 const API_ORIGIN = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api').replace('/api', '')
 import {
   Cross, Loader2, Calendar, CheckCircle2, XCircle, Clock, AlertCircle,
-  Award, Star, BookOpen, ArrowLeft, Trophy, Sparkles, Play, Music,
+  Award, Star, BookOpen, ArrowLeft, Trophy, Play, Music,
   ChevronDown, ChevronRight, Search, Filter
 } from 'lucide-react'
 import Link from 'next/link'
