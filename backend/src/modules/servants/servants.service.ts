@@ -4,6 +4,36 @@ import { GamificationService } from '../gamification/gamification.service';
 
 const SERVANT_ROLE_NAMES = ['servant', 'group_leader', 'level_leader'] as const;
 
+interface ServantProfileData {
+  userId: string
+  name: string
+  photoUrl: string | null
+  roles: string[]
+  assignedLevel: string | null
+  assignedGroup: string | null
+  teachingSubjects: string[]
+  yearsOfService: number
+  totalStudents: number
+  totalSessions: number
+  totalHymns: number
+  totalReviews: number
+  lastCalculatedAt: Date
+}
+
+interface ServantMilestoneData {
+  type: string
+  threshold: number
+  label: string
+  reachedAt: Date
+}
+
+const MILESTONE_THRESHOLDS = {
+  years_of_service: [1, 3, 5, 10, 15, 20],
+  students_taught: [10, 50, 100, 500],
+  sessions_taught: [25, 50, 100, 250, 500],
+  hymns_covered: [10, 25, 50, 100],
+}
+
 @Injectable()
 export class ServantsService {
   constructor(
@@ -181,5 +211,99 @@ export class ServantsService {
 
     await this.prisma.familyLiturgy.delete({ where: { id } });
     return { deleted: true };
+  }
+
+  async getServantProfile(userId: string, viewerId: string): Promise<ServantProfileData | null> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      include: {
+        userRoles: { include: { role: true } },
+        servantProfile: true,
+      },
+    })
+    if (!user || user.deletedAt) return null
+
+    // Check viewer is in same school
+    const viewer = await this.prisma.user.findUnique({ where: { id: viewerId } })
+    if (!viewer || viewer.schoolId !== user.schoolId) return null
+
+    const roles = user.userRoles.map(ur => ur.role.name)
+    const metadata = (user.metadata as any) || {}
+
+    const profile = user.servantProfile
+
+    return {
+      userId: user.id,
+      name: `${user.firstName} ${user.lastName}`,
+      photoUrl: user.avatarUrl,
+      roles,
+      assignedLevel: profile?.currentLevelName || null,
+      assignedGroup: profile?.currentGroupName || null,
+      teachingSubjects: metadata.teachingSubjects || [],
+      yearsOfService: profile?.yearsOfService || 0,
+      totalStudents: profile?.totalStudents || 0,
+      totalSessions: profile?.totalSessions || 0,
+      totalHymns: profile?.totalHymns || 0,
+      totalReviews: profile?.totalReviews || 0,
+      lastCalculatedAt: profile?.lastCalculatedAt || new Date(0),
+    }
+  }
+
+  async getServantTimeline(userId: string, viewerId: string): Promise<ServantMilestoneData[]> {
+    // Only the servant themselves can view their timeline
+    if (userId !== viewerId) return []
+
+    const milestones = await this.prisma.servantMilestone.findMany({
+      where: { userId },
+      orderBy: { reachedAt: 'asc' },
+      select: {
+        type: true,
+        threshold: true,
+        label: true,
+        reachedAt: true,
+      },
+    })
+
+    return milestones
+  }
+
+  async getMyServantProfile(userId: string): Promise<ServantProfileData | null> {
+    return this.getServantProfile(userId, userId)
+  }
+
+  async getSchoolServantSummary(schoolId: string): Promise<ServantProfileData[]> {
+    const servants = await this.prisma.user.findMany({
+      where: {
+        schoolId,
+        deletedAt: null,
+        userRoles: { some: { role: { name: { in: ['servant', 'group_leader', 'level_leader'] } } } },
+      },
+      include: {
+        userRoles: { include: { role: true } },
+        servantProfile: true,
+      },
+    })
+
+    return servants.map(user => {
+      const roles = user.userRoles.map(ur => ur.role.name)
+      const metadata = (user.metadata as any) || {}
+      const profile = user.servantProfile
+
+      return {
+        userId: user.id,
+        name: `${user.firstName} ${user.lastName}`,
+        photoUrl: user.avatarUrl,
+        roles,
+        assignedLevel: profile?.currentLevelName || null,
+        assignedGroup: profile?.currentGroupName || null,
+        teachingSubjects: metadata.teachingSubjects || [],
+        yearsOfService: profile?.yearsOfService || 0,
+        totalStudents: profile?.totalStudents || 0,
+        totalSessions: profile?.totalSessions || 0,
+        totalHymns: profile?.totalHymns || 0,
+        totalReviews: profile?.totalReviews || 0,
+        lastCalculatedAt: profile?.lastCalculatedAt || new Date(0),
+      }
+    })
   }
 }
