@@ -26,6 +26,7 @@ import { getSchoolId } from '@/lib/school'
 import { getGreeting, getGreetingAr, getDayName, getDayNameAr } from '@/lib/datetime'
 import { useActiveRole, roleCategory } from '@/lib/use-active-role'
 import DashboardHero from './hero'
+import { ServantJourneyCard } from '@/components/dashboard/servant-journey-card'
 
 interface GradeDistItem { grade: string; count: number }
 interface StudentsPerLevel { levelName: string; count: number }
@@ -1205,12 +1206,19 @@ function MinistryDashboard({ data, loading, error, onRetry }: { data: any; loadi
       {ministryStats}
      </DashboardHero>
 
-     {/* Start Class button */}
-     <motion.div variants={fadeUp}>
-       <StartClassCard lang={lang} />
-     </motion.div>
+      {/* Start Class button */}
+      <motion.div variants={fadeUp}>
+        <StartClassCard lang={lang} />
+      </motion.div>
 
-     {!d.scoped && (
+      {/* Servant Journey Card */}
+      {['servant', 'group_leader', 'level_leader'].includes(d.role || '') && (
+        <motion.div variants={fadeUp}>
+          <ServantJourneyCard />
+        </motion.div>
+      )}
+
+      {!d.scoped && (
      <div className="flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
       <Info className="h-4 w-4 shrink-0" />
       <span>{lang === 'ar' ? 'أنت غير معيَّن لمجموعة بعد — يتم عرض نشاط المدرسة كاملاً.' : 'You are not assigned to a group yet — showing school-wide activity.'}</span>
