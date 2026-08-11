@@ -42,6 +42,7 @@ describe('StudentsService', () => {
     level: mockLevel,
     group: mockGroup,
     grade: { id: 'grade-1', name: 'Grade 4' },
+    school: { id: schoolId, name: 'Test School', nameAr: 'مدرسةテスト', logoUrl: null, church: { name: 'St. Mary Cathedral', nameAr: 'كاتدرائية السيدة مريم' } },
     profile: null,
     studentParents: [],
     medicalNotes: [],
@@ -736,6 +737,13 @@ systemConfig: {
       expect(result.student.studentCode).toBe('STU-00001');
       expect(result.totalXp).toBe(120);
       expect(result.attendance).toEqual({ present: 0, late: 0, absent: 0, excused: 0, total: 0 });
+      expect(result.school).toEqual({
+        name: 'Test School',
+        nameAr: 'مدرسةテスト',
+        logoUrl: null,
+        churchName: 'St. Mary Cathedral',
+        churchNameAr: 'كاتدرائية السيدة مريم',
+      });
     });
   });
 

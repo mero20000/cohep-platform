@@ -637,6 +637,9 @@ async getPortalData(portalAccessKey: string) {
       include: {
         level: { select: { id: true, name: true, number: true, nameAr: true } },
         group: { select: { id: true, name: true, nameAr: true } },
+        school: {
+          select: { id: true, name: true, nameAr: true, logoUrl: true, church: { select: { name: true, nameAr: true } } },
+        },
       },
     });
     if (!student) throw new NotFoundException('Student not found');
@@ -695,6 +698,15 @@ async getPortalData(portalAccessKey: string) {
         group: student.group,
         photoUrl: student.photoUrl,
       },
+      school: student.school
+        ? {
+            name: student.school.name,
+            nameAr: student.school.nameAr,
+            logoUrl: student.school.logoUrl,
+            churchName: student.school.church?.name,
+            churchNameAr: student.school.church?.nameAr,
+          }
+        : null,
       attendance: attendanceSummary,
       recentAttendance: attRecords.map(r => ({
         date: r.attendanceSession.scheduledDate,

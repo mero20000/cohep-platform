@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react'
 import { useParams } from 'next/navigation'
 import Image from 'next/image'
 import { http } from '@/lib/http-client'
+
+const API_BASE = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api').replace(/\/api\/?$/, '')
 import {
   Cross, Loader2, Calendar, CheckCircle2, XCircle, Clock, AlertCircle,
   Award, Star, BookOpen, ArrowLeft, Trophy, Sparkles, Play, Music,
@@ -22,6 +24,10 @@ interface PortalData {
     level: { id: string; name: string; number: number; nameAr?: string };
     group: { id: string; name: string; nameAr?: string };
   }
+  school: {
+    name: string; nameAr?: string; logoUrl?: string;
+    churchName?: string; churchNameAr?: string;
+  } | null
   attendance: { present: number; late: number; absent: number; excused: number; total: number }
   recentAttendance: Array<{ date: string; time?: string; status: string; homeworkStatus?: string }>
   badges: Array<{ id: string; name?: string; nameAr?: string; description?: string; iconUrl?: string; earnedAt: string }>
@@ -149,8 +155,12 @@ export default function StudentDashboard() {
     </div>
   )
 
-  const { student, attendance, recentAttendance, badges, totalXp, upcomingSessions, recentHomework } = data
+  const { student, school, attendance, recentAttendance, badges, totalXp, upcomingSessions, recentHomework } = data
   const attendanceRate = attendance.total > 0 ? Math.round((attendance.present / attendance.total) * 100) : 0
+
+  const photoSrc = student.photoUrl
+    ? (student.photoUrl.startsWith('http') ? student.photoUrl : `${API_BASE}${student.photoUrl}`)
+    : null
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -167,16 +177,16 @@ export default function StudentDashboard() {
             </button>
           </div>
           <div className="flex items-center gap-4">
-            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-white/15 backdrop-blur-sm text-2xl font-bold">
-              {student.photoUrl ? (
-                <Image src={student.photoUrl} alt="" width={64} height={64} className="h-full w-full object-cover rounded-2xl" />
+            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-white/15 backdrop-blur-sm text-2xl font-bold overflow-hidden">
+              {photoSrc ? (
+                <Image src={photoSrc} alt="" width={64} height={64} className="h-full w-full object-cover" unoptimized />
               ) : (
                 <Cross className="h-7 w-7" />
               )}
             </div>
-            <div>
+            <div className="flex-1 min-w-0">
               {showName && (
-                <h1 className="text-2xl font-bold">
+                <h1 className="text-2xl font-bold truncate">
                   {student.firstName} {student.lastName}
                 </h1>
               )}
@@ -186,6 +196,17 @@ export default function StudentDashboard() {
                 </span>
                 <span className="text-white/60 text-xs">{student.studentCode}</span>
               </div>
+              {school && (
+                <div className="mt-2 flex items-center gap-2 text-white/70 text-xs">
+                  {school.logoUrl && (
+                    <Image
+                      src={school.logoUrl.startsWith('http') ? school.logoUrl : `${API_BASE}${school.logoUrl}`}
+                      alt="" width={16} height={16} className="rounded" unoptimized
+                    />
+                  )}
+                  <span>{school.churchName || school.name}</span>
+                </div>
+              )}
             </div>
           </div>
         </div>
