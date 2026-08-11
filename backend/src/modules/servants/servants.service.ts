@@ -1,4 +1,5 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { Cron } from '@nestjs/schedule';
 import { PrismaService } from '../../database/prisma.service';
 import { GamificationService } from '../gamification/gamification.service';
 
@@ -36,6 +37,8 @@ const MILESTONE_THRESHOLDS = {
 
 @Injectable()
 export class ServantsService {
+  private readonly logger = new Logger(ServantsService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly gamification: GamificationService,
@@ -305,5 +308,115 @@ export class ServantsService {
         lastCalculatedAt: profile?.lastCalculatedAt || new Date(0),
       }
     })
+  }
+
+  private async computeServantStats(userId: string, schoolId: string) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } })
+    if (!user) return null
+
+    const now = new Date()
+    const yearsOfService = Math.floor((now.getTime() - user.createdAt.getTime()) / (365.25 * 24 * 60 * 60 * 1000))
+
+    const totalSessions = await this.prisma.attendanceSession.count({
+      where: { servantId: userId, deletedAt: null },
+    })
+
+    const totalStudents = await this.prisma.attendanceRecord.groupBy({
+      by: ['studentId'],
+      where: {
+        attendanceSession: { servantId: userId, deletedAt: null },
+      },
+    }).then(records => records.length)
+
+    const metadata = (user.metadata as any) || {}
+    const totalHymns = await this.prisma.subjectItem.count({
+      where: {
+        subject: {
+          levelSubjects: { some: { levelId: metadata.levelId } },
+        },
+      },
+    })
+
+    const totalReviews = await this.prisma.hymnPracticeSession.count({
+      where: { reviewedBy: userId },
+    })
+
+    return {
+      yearsOfService,
+      totalStudents,
+      totalSessions,
+      totalHymns,
+      totalReviews,
+      currentLevelName: null as string | null,
+      currentGroupName: null as string | null,
+    }
+  }
+
+  private async checkAndLogMilestones(profileId: string, userId: string, stats: {
+    yearsOfService: number
+    totalStudents: number
+    totalSessions: number
+    totalHymns: number
+  }) {
+    const checks = [
+      { type: 'years_of_service', value: stats.yearsOfService, labelFn: (t: number) => `${t} year${t > 1 ? 's' : ''} of service` },
+      { type: 'students_taught', value: stats.totalStudents, labelFn: (t: number) => `${t}th student taught` },
+      { type: 'sessions_taught', value: stats.totalSessions, labelFn: (t: number) => `${t}th session taught` },
+      { type: 'hymns_covered', value: stats.totalHymns, labelFn: (t: number) => `${t}th hymn covered` },
+    ]
+
+    for (const check of checks) {
+      const thresholds = MILESTONE_THRESHOLDS[check.type as keyof typeof MILESTONE_THRESHOLDS] || []
+      for (const threshold of thresholds) {
+        if (check.value >= threshold) {
+          await this.prisma.servantMilestone.upsert({
+            where: {
+              userId_type_threshold: { userId, type: check.type, threshold },
+            },
+            create: {
+              userId,
+              profileId,
+              type: check.type,
+              threshold,
+              label: check.labelFn(threshold),
+            },
+            update: {},
+          })
+        }
+      }
+    }
+  }
+
+  @Cron('0 3 * * *')
+  async updateServantProfiles() {
+    const servants = await this.prisma.user.findMany({
+      where: {
+        deletedAt: null,
+        userRoles: { some: { role: { name: { in: ['servant', 'group_leader', 'level_leader'] } } } },
+      },
+    })
+
+    for (const servant of servants) {
+      const stats = await this.computeServantStats(servant.id, servant.schoolId)
+      if (!stats) continue
+
+      const profile = await this.prisma.servantProfile.upsert({
+        where: { userId: servant.id },
+        create: {
+          userId: servant.id,
+          schoolId: servant.schoolId,
+          ...stats,
+          lastCalculatedAt: new Date(),
+        },
+        update: {
+          ...stats,
+          lastCalculatedAt: new Date(),
+        },
+      })
+
+      await this.checkAndLogMilestones(profile.id, servant.id, stats)
+    }
+
+    this.logger.log(`Updated ${servants.length} servant profiles`)
   }
 }
