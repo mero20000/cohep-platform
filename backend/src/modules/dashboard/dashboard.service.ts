@@ -308,11 +308,15 @@ export class DashboardService {
     // If levelId is assigned, further restrict sessions to that level
     if (assignedLevelId) {
       sessionWhere.levelId = assignedLevelId;
+      // Also filter students and grades by level
+      studentWhere.levelId = assignedLevelId;
+      gradeWhereBase.submission.student.levelId = assignedLevelId;
     }
 
-    // If gradeId is assigned, further restrict students to that school grade
+    // If gradeId is assigned, further restrict students and grades to that school grade
     if (assignedGradeId) {
       studentWhere.gradeId = assignedGradeId;
+      gradeWhereBase.submission.student.gradeId = assignedGradeId;
     }
 
     const [sessions, groups, studentsCount, completedSessions, totalSessions, recentGrades] = await Promise.all([
