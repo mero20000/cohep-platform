@@ -62,6 +62,8 @@ export default function LoginPage() {
       setEmail(saved)
       setRememberMe(true)
     }
+    const savedSchool = localStorage.getItem('remembered_school_id')
+    if (savedSchool) setSchoolId(savedSchool)
   }, [])
 
   useEffect(() => {
@@ -158,6 +160,8 @@ export default function LoginPage() {
       await login(email, password, schoolId || undefined)
       clearTimeout(coldTimer)
       setColdStartWarning(false)
+      // Save school identifier for next login
+      if (schoolId) localStorage.setItem('remembered_school_id', schoolId)
       setShowSuccess(true)
       await new Promise((r) => setTimeout(r, 800))
       router.replace('/dashboard')
