@@ -150,6 +150,16 @@ export class AuthController {
     return this.authService.verifyResetToken(token);
   }
 
+
+  @Post('demo')
+  @Public()
+  @Throttle({ default: { limit: 20, ttl: 60000 } })
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Demo login — instant access with a 2h read-only session' })
+  async demoLogin() {
+    return this.authService.loginDemo()
+  }
+
   @Get('schools/search')
   @Public()
   @Throttle({ default: { limit: 60, ttl: 60000 } })

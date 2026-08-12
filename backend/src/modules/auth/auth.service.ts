@@ -570,4 +570,48 @@ export class AuthService {
     }));
   }
 
+
+  async loginDemo() {
+    const demoEmail = 'admin@niangelos.app'
+    const demoSchoolSlug = 'niangelos-main'
+
+    // Resolve school from slug
+    const school = await this.prisma.school.findUnique({
+      where: { slug: demoSchoolSlug },
+      select: { id: true, slug: true, name: true, locale: true },
+    })
+    if (!school) throw new NotFoundException('Demo school not found')
+
+    const user = await this.prisma.user.findFirst({
+      where: { email: demoEmail, schoolId: school.id, deletedAt: null },
+    })
+    if (!user) throw new NotFoundException('Demo user not found')
+
+    const userRoles = await this.prisma.userRole.findMany({
+      where: { userId: user.id },
+      include: { role: { select: { name: true } } },
+    })
+    const roles = userRoles.map((r: any) => r.role.name)
+    const payload = { sub: user.id, email: user.email, schoolId: user.schoolId, roles }
+
+    const accessToken = this.jwtService.sign(payload, { expiresIn: '2h' })
+
+    return {
+      accessToken,
+      user: {
+        id: user.id,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        roles,
+        schoolId: user.schoolId,
+        school,
+        isDemo: true,
+      },
+      isDemo: true,
+      expiresIn: 7200,
+      message: 'Demo session — explore freely. Data resets daily.',
+    }
+  }
+
 }

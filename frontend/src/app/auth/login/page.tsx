@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import { useState, useRef, useEffect, useCallback } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { useAuth } from '@/hooks/use-auth'
 import { useLanguage } from '@/lib/use-language'
@@ -45,6 +45,7 @@ export default function LoginPage() {
   const [rememberMe, setRememberMe] = useState(false)
   const [showForgot, setShowForgot] = useState(false)
   const [coldStartWarning, setColdStartWarning] = useState(false)
+  const [isDemoLoading, setIsDemoLoading] = useState(false)
   const [schoolSuggestions, setSchoolSuggestions] = useState<Array<{slug:string;name:string;nameAr?:string;churchName?:string;churchNameAr?:string;city?:string;label:string}>>([])
   const [schoolSearchLoading, setSchoolSearchLoading] = useState(false)
   const [showSuggestions, setShowSuggestions] = useState(false)
@@ -104,6 +105,39 @@ export default function LoginPage() {
     }
     document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)
+  }, [])
+
+
+  const handleDemo = async () => {
+    setIsDemoLoading(true)
+    setError('')
+    try {
+      const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'
+      const res = await fetch(API + '/auth/demo', { method: 'POST', headers: { 'Content-Type': 'application/json' } })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data?.message || 'Demo login failed')
+      localStorage.setItem('niangelos_token', data.accessToken)
+      router.replace('/dashboard')
+    } catch (e: any) {
+      setError(e.message || 'Demo unavailable — please try registering')
+    }
+    setIsDemoLoading(false)
+  }
+
+
+  // Auto-trigger demo if ?demo=1 is in URL (from landing page "Try Demo" button)
+  const searchParamsLP = typeof window !== 'undefined'
+    ? new URLSearchParams(window.location.search)
+    : null
+  const autoDemoRef = useRef(false)
+  useEffect(() => {
+    if (autoDemoRef.current) return
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('demo') === '1') {
+      autoDemoRef.current = true
+      handleDemo()
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -471,6 +505,28 @@ export default function LoginPage() {
                   isAr ? 'تسجيل الدخول' : 'Sign In'
                 )}
               </Button>
+
+              {/* Demo button */}
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-200" /></div>
+                <div className="relative flex justify-center text-xs"><span className="bg-white px-3 text-gray-400">{isAr ? 'أو' : 'or'}</span></div>
+              </div>
+              <button
+                type="button"
+                onClick={handleDemo}
+                disabled={isDemoLoading || loading}
+                className="w-full flex items-center justify-center gap-2 rounded-xl border-2 border-dashed border-gray-200 bg-gray-50 px-4 py-3 text-sm font-medium text-gray-600 hover:border-gold-300 hover:bg-gold-50 hover:text-gold-700 disabled:opacity-50 transition-all group"
+              >
+                {isDemoLoading ? (
+                  <><Loader2 className="h-4 w-4 animate-spin" /> {isAr ? 'جاري التحميل...' : 'Loading demo…'}</>
+                ) : (
+                  <>
+                    <span className="text-base">🎵</span>
+                    <span>{isAr ? 'جرّب النسخة التجريبية — بدون تسجيل' : 'Try Demo — no registration needed'}</span>
+                    <span className="ms-auto rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold text-amber-700 group-hover:bg-amber-200 transition-colors">{isAr ? 'مجاني' : 'FREE'}</span>
+                  </>
+                )}
+              </button>
             </form>
 
             <div className="mt-6 flex items-center justify-center gap-4 text-xs text-gray-500">

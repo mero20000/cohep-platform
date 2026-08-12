@@ -950,12 +950,14 @@ export default function Home() {
                 >
                   {t.hero.cta1} <ArrowRight className="h-4 w-4 rtl-flip" />
                 </motion.a>
-                <button
-                  onClick={() => { const el = document.getElementById('platform-preview'); if (el) requestAnimationFrame(() => el.scrollIntoView({ behavior: 'smooth', block: 'start' })) }}
-                  className={ctaSecondaryClass}
+                <motion.a
+                  href="/auth/login?demo=1"
+                  whileHover={reduce ? {} : { scale: 1.02 }}
+                  whileTap={reduce ? {} : { scale: 0.98 }}
+                  className="flex items-center justify-center gap-2 px-6 py-3.5 border border-white/20 bg-white/8 hover:bg-white/15 text-white/90 font-medium rounded-xl transition-all text-sm"
                 >
-                  {t.hero.cta2}
-                </button>
+                  🎵 {isAr ? 'جرّب بدون تسجيل' : 'Try Demo'}
+                </motion.a>
               </div>
             </div>
           </div>
