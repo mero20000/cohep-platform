@@ -270,7 +270,14 @@ export class DashboardService {
       select: { groupId: true },
     });
     const ownGroupIds = [...new Set(own.map((s: any) => s.groupId).filter(Boolean))] as string[];
-    const scoped = ownGroupIds.length > 0;
+
+    // Also check ServantProfile for group assignment
+    const profile = await this.prisma.servantProfile.findUnique({
+      where: { userId: user.id },
+      select: { currentGroupName: true, currentLevelName: true },
+    });
+
+    const scoped = ownGroupIds.length > 0 || !!(profile?.currentGroupName);
     const groupIds = scoped
       ? ownGroupIds
       : (await this.prisma.group.findMany({
