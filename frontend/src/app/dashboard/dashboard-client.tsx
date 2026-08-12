@@ -837,7 +837,7 @@ function TodaysSessionCard({ lang }: { lang: string }) {
     }
   }
 
-  if (loading) return <CardSkeleton className="h-32" />
+  if (loading) return <CardSkeleton count={1} />
 
   // No active session - show start button
   if (!session) {
@@ -955,7 +955,7 @@ function WeekScheduleCard({ lang }: { lang: string }) {
     })()
   }, [])
 
-  if (loading) return <CardSkeleton className="h-40" />
+  if (loading) return <CardSkeleton count={1} />
   if (sessions.length === 0) return null
 
   const dayNames = lang === 'ar'
