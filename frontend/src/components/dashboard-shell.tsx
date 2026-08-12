@@ -141,6 +141,18 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
     }
   }, [])
 
+  // Re-read user from localStorage when it changes (e.g. profile update)
+  useEffect(() => {
+    const onStorage = () => {
+      try {
+        const stored = localStorage.getItem('user')
+        if (stored) setUser(JSON.parse(stored))
+      } catch {}
+    }
+    window.addEventListener('storage', onStorage)
+    return () => window.removeEventListener('storage', onStorage)
+  }, [])
+
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
       if (!isResizing) return

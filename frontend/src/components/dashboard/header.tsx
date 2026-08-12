@@ -320,9 +320,9 @@ export function DashboardHeader({
           <Button variant="ghost" onClick={() => { onSetShowUserMenu(!showUserMenu); onSetShowNotiPanel(false) }}
             aria-label={language === 'ar' ? 'قائمة المستخدم' : 'User menu'}
             className="gap-1.5 px-1.5 h-auto hover:bg-gray-100">
-            <div className="flex h-7 w-7 items-center justify-center rounded-full bg-blue-100 overflow-hidden">
+            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-100 overflow-hidden">
               {user?.avatarUrl && !avatarError ? (
-                <Image src={`${API_ORIGIN}${user.avatarUrl}`} alt="" width={28} height={28} onError={() => setAvatarError(true)} className="h-full w-full object-cover" />
+                <Image src={user.avatarUrl.startsWith('http') ? user.avatarUrl : `${API_ORIGIN}${user.avatarUrl}`} alt="" width={36} height={36} unoptimized onError={() => setAvatarError(true)} className="h-full w-full object-cover" />
               ) : (
                 <span className="text-xs font-bold text-blue-700">{initials}</span>
               )}

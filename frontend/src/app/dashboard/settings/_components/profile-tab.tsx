@@ -62,6 +62,12 @@ export function ProfileTab() {
     try {
       const data = await http.patch<any>('/auth/me', form)
       setProfile(p => ({ ...p, ...data }))
+      // Update localStorage so header reflects changes
+      const stored = localStorage.getItem('user')
+      if (stored) {
+        const user = JSON.parse(stored)
+        localStorage.setItem('user', JSON.stringify({ ...user, ...data }))
+      }
       setSaved(true)
       setTimeout(() => setSaved(false), 2000)
     } catch (e) { console.error(e) }
@@ -89,7 +95,7 @@ export function ProfileTab() {
     if (fileRef.current) fileRef.current.value = ''
   }
 
-  const avatarSrc = previewUrl || (form.avatarUrl ? `${API_ORIGIN}${form.avatarUrl}` : '')
+  const avatarSrc = previewUrl || (form.avatarUrl ? (form.avatarUrl.startsWith('http') ? form.avatarUrl : `${API_ORIGIN}${form.avatarUrl}`) : '')
   const initials = (form.firstName?.[0] || '') + (form.lastName?.[0] || '')
 
   if (loading) {
