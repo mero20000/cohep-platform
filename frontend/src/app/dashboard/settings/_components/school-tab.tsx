@@ -155,7 +155,7 @@ export function SchoolTab() {
                       <div className="flex items-center gap-3">
                         <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-50 overflow-hidden">
                           {s.logoUrl ? (
-                            <Image src={`${API_ORIGIN}${s.logoUrl}`} alt="" width={36} height={36} className="h-9 w-9 object-cover"  />
+                            <Image src={s.logoUrl.startsWith('http') ? s.logoUrl : `${API_ORIGIN}${s.logoUrl}`} alt="" width={36} height={36} className="h-9 w-9 object-cover"  />
                           ) : (
                             <Building2 className="h-4 w-4 text-blue-700" />
                           )}
@@ -235,7 +235,7 @@ export function SchoolTab() {
             <div className="flex items-center gap-4">
               <div className="flex h-20 w-20 items-center justify-center rounded-xl border-2 border-dashed border-gray-300 bg-gray-50 overflow-hidden flex-shrink-0">
                 {form.logoUrl ? (
-                  <Image src={`${API_ORIGIN}${form.logoUrl}`} alt="School logo" width={80} height={80} className="h-full w-full object-cover"  />
+                  <Image src={form.logoUrl.startsWith('http') ? form.logoUrl : `${API_ORIGIN}${form.logoUrl}`} alt="School logo" width={80} height={80} className="h-full w-full object-cover"  />
                 ) : (
                   <ImagePlus className="h-8 w-8 text-gray-300" />
                 )}

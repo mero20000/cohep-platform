@@ -190,7 +190,7 @@ export function ChildrenTab() {
               <div key={s.id} className="flex items-center gap-4 rounded-xl border border-gray-200 bg-white px-5 py-4">
                 <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-blue-100 text-blue-700 font-bold overflow-hidden">
                   {s.photoUrl ? (
-                    <Image src={API_ORIGIN + s.photoUrl} alt="" width={48} height={48} className="h-full w-full object-cover" />
+                    <Image src={s.photoUrl.startsWith('http') ? s.photoUrl : API_ORIGIN + s.photoUrl} alt="" width={48} height={48} className="h-full w-full object-cover" />
                   ) : (
                     <span>{initials}</span>
                   )}

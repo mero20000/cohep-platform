@@ -81,8 +81,8 @@ export default function ParentsPage() {
       const churchName = s?.church?.name || s?.church?.schoolNameEn || ''
       const name = s?.church?.schoolNameEn || s?.name || ''
       const nameAr = s?.church?.schoolNameAr || s?.nameAr || ''
-      const churchLogoUrl = s?.church?.logoUrl ? API_ORIGIN + s.church.logoUrl : null
-      const logoUrl = s?.logoUrl ? API_ORIGIN + s.logoUrl : null
+      const churchLogoUrl = s?.church?.logoUrl ? (s.church.logoUrl.startsWith('http') ? s.church.logoUrl : API_ORIGIN + s.church.logoUrl) : null
+      const logoUrl = s?.logoUrl ? (s.logoUrl.startsWith('http') ? s.logoUrl : API_ORIGIN + s.logoUrl) : null
       setSchoolIdentity({ name, nameAr, churchName, logoUrl, churchLogoUrl })
     }).catch(() => {})
   }, [])

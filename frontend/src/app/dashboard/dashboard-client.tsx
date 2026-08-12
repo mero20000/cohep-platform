@@ -162,9 +162,9 @@ const stagger = {
     try {
      const school = await http.get<any>('/users/schools/me')
      churchName = school?.church?.name || school?.church?.schoolNameEn || ''
-     if (school?.church?.logoUrl) {
-      churchLogo = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api').replace('/api', '') + school.church.logoUrl
-     }
+      if (school?.church?.logoUrl) {
+       churchLogo = school.church.logoUrl.startsWith('http') ? school.church.logoUrl : (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api').replace('/api', '') + school.church.logoUrl
+      }
     } catch {}
     return { stats, churchLogo, churchName }
    })
@@ -282,7 +282,7 @@ function HeroSection({ stats, churchLogo, churchName, loading }: { stats: Dashbo
       {s.school?.logoUrl && (
         <div className="relative shrink-0">
           <div className="absolute inset-0 rounded-2xl bg-white/10 blur-xl" />
-          <Image src={(process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api').replace('/api', '') + s.school.logoUrl}
+          <Image src={s.school.logoUrl.startsWith('http') ? s.school.logoUrl : (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api').replace('/api', '') + s.school.logoUrl}
             alt="School Logo" width={100} height={100}
             className="relative h-24 w-24 rounded-2xl border-2 border-white/20 bg-white/10 object-cover shadow-xl" />
         </div>
@@ -1131,10 +1131,10 @@ function MinistryDashboard({ data, loading, error, onRetry }: { data: any; loadi
  const school = d.school || {}
  const churchName = school?.church?.name || ''
  const churchLogo = school?.church?.logoUrl
-  ? ((process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api').replace('/api', '') + school.church.logoUrl)
+  ? (school.church.logoUrl.startsWith('http') ? school.church.logoUrl : (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api').replace('/api', '') + school.church.logoUrl)
   : null
  const schoolLogo = school?.logoUrl
-  ? ((process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api').replace('/api', '') + school.logoUrl)
+  ? (school.logoUrl.startsWith('http') ? school.logoUrl : (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api').replace('/api', '') + school.logoUrl)
   : null
 
  const ministryBadges = (

@@ -45,10 +45,13 @@ export const STATUS_STYLE: Record<string, { variant: 'success' | 'danger' | 'war
 
 // ─── Utils ───────────────────────────────────────────────────────────────────
 export function photoSrc(url: string | undefined | null): string {
-  const base = process.env.NEXT_PUBLIC_UPLOADS_URL || 'http://localhost:3001'
   if (!url) return ''
   if (url.startsWith('blob:')) return url
-  if (url.startsWith('/uploads/')) return `${base}${url}`
+  if (url.startsWith('http')) return url
+  if (url.startsWith('/uploads/')) {
+    const base = process.env.NEXT_PUBLIC_UPLOADS_URL || process.env.NEXT_PUBLIC_API_URL?.replace(/\/api\/?$/, '') || 'http://localhost:3001'
+    return `${base}${url}`
+  }
   return url
 }
 

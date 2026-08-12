@@ -390,7 +390,7 @@ export default function ChildDetailPage() {
           orbTint="bg-indigo-500/10"
           avatar={
             student.photoUrl ? (
-              <Image src={API_ORIGIN + student.photoUrl} alt="" width={64} height={64} className="h-16 w-16 object-cover" />
+              <Image src={student.photoUrl.startsWith('http') ? student.photoUrl : API_ORIGIN + student.photoUrl} alt="" width={64} height={64} className="h-16 w-16 object-cover" />
             ) : (
               <div className="flex h-16 w-16 items-center justify-center bg-white/10 text-xl font-bold text-white">
                 {student.firstName[0]}{student.lastName[0]}

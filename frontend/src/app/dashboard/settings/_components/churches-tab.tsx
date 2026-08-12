@@ -147,7 +147,7 @@ export function ChurchesTab() {
                       <div className="flex items-center gap-3">
                         <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-50 overflow-hidden">
                           {c.logoUrl ? (
-                            <Image src={`${API_ORIGIN}${c.logoUrl}`} alt="" width={36} height={36} className="h-9 w-9 object-cover"  />
+                            <Image src={c.logoUrl.startsWith('http') ? c.logoUrl : `${API_ORIGIN}${c.logoUrl}`} alt="" width={36} height={36} className="h-9 w-9 object-cover"  />
                           ) : (
                             <Church className="h-4 w-4 text-blue-700" />
                           )}
@@ -229,7 +229,7 @@ export function ChurchesTab() {
               <div className="flex items-center gap-3">
                 <div className="flex h-16 w-16 items-center justify-center rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 overflow-hidden flex-shrink-0">
                   {form.logoUrl ? (
-                    <Image src={`${API_ORIGIN}${form.logoUrl}`} alt="Church logo" width={64} height={64} className="h-16 w-16 object-cover"  />
+                    <Image src={form.logoUrl.startsWith('http') ? form.logoUrl : `${API_ORIGIN}${form.logoUrl}`} alt="Church logo" width={64} height={64} className="h-16 w-16 object-cover"  />
                   ) : (
                     <ImagePlus className="h-6 w-6 text-gray-300" />
                   )}

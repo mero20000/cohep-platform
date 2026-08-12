@@ -86,8 +86,8 @@ export default function PortalPage() {
       const churchName = s?.church?.name || s?.church?.schoolNameEn || ''
       const name = s?.church?.schoolNameEn || s?.name || ''
       const nameAr = s?.church?.schoolNameAr || s?.nameAr || ''
-      const churchLogoUrl = s?.church?.logoUrl ? API_ORIGIN + s.church.logoUrl : null
-      const logoUrl = s?.logoUrl ? API_ORIGIN + s.logoUrl : null
+      const churchLogoUrl = s?.church?.logoUrl ? (s.church.logoUrl.startsWith('http') ? s.church.logoUrl : API_ORIGIN + s.church.logoUrl) : null
+      const logoUrl = s?.logoUrl ? (s.logoUrl.startsWith('http') ? s.logoUrl : API_ORIGIN + s.logoUrl) : null
       setSchoolIdentity({ name, nameAr, churchName, logoUrl, churchLogoUrl })
     }).catch(() => {})
   }, [refresh])
@@ -238,7 +238,7 @@ export default function PortalPage() {
                 <div className="flex items-start gap-4">
                   <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-blue-100 text-blue-700 text-lg font-bold overflow-hidden">
                     {s.photoUrl ? (
-                      <Image src={API_ORIGIN + s.photoUrl} alt="" width={56} height={56} className="h-full w-full object-cover" />
+                      <Image src={s.photoUrl.startsWith('http') ? s.photoUrl : API_ORIGIN + s.photoUrl} alt="" width={56} height={56} className="h-full w-full object-cover" />
                     ) : (
                       <span>{s.firstName[0]}{s.lastName[0]}</span>
                     )}

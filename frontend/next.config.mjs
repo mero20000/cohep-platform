@@ -29,6 +29,8 @@ const nextConfig = {
       { protocol: 'http',  hostname: 'localhost', port: '3001' },
       // Render backend
       { protocol: 'https', hostname: '*.onrender.com' },
+      // Cloudinary
+      { protocol: 'https', hostname: 'res.cloudinary.com' },
       ...(uploadsUrl ? [{
         protocol: uploadsUrl.protocol.replace(':', ''),
         hostname: uploadsUrl.hostname,

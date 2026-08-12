@@ -235,7 +235,7 @@ export default function StudentHomePage() {
             <div className="relative">
               <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-400 to-orange-500 text-white text-xl font-black shadow-lg shadow-amber-500/30 overflow-hidden flex-shrink-0">
                 {student.photoUrl ? (
-                  <Image src={API_ORIGIN + student.photoUrl} alt="" width={64} height={64} className="h-full w-full object-cover" />
+                  <Image src={student.photoUrl.startsWith('http') ? student.photoUrl : API_ORIGIN + student.photoUrl} alt="" width={64} height={64} className="h-full w-full object-cover" />
                 ) : (
                   <span>{name[0]}</span>
                 )}
