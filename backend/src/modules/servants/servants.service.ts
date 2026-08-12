@@ -325,12 +325,29 @@ export class ServantsService {
       where: { servantId: userId, deletedAt: null },
     })
 
-    const totalStudents = await this.prisma.attendanceRecord.groupBy({
-      by: ['studentId'],
-      where: {
-        attendanceSession: { servantId: userId, deletedAt: null },
-      },
-    }).then(records => records.length)
+    // Calculate students based on current metadata assignment
+    let totalStudents = 0
+    const studentWhere: any = { schoolId, deletedAt: null, status: 'active' }
+    
+    if (metadata.groupId) {
+      // If assigned to a group, count students in that group
+      studentWhere.groupId = metadata.groupId
+      if (metadata.levelId) {
+        studentWhere.levelId = metadata.levelId
+      }
+      if (metadata.gradeId) {
+        studentWhere.gradeId = metadata.gradeId
+      }
+      totalStudents = await this.prisma.student.count({ where: studentWhere })
+    } else {
+      // Fallback: count students from attendance records
+      totalStudents = await this.prisma.attendanceRecord.groupBy({
+        by: ['studentId'],
+        where: {
+          attendanceSession: { servantId: userId, deletedAt: null },
+        },
+      }).then(records => records.length)
+    }
 
     const totalHymns = await this.prisma.subjectItem.count({
       where: {
