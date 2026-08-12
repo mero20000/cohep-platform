@@ -315,7 +315,11 @@ export class ServantsService {
     if (!user) return null
 
     const now = new Date()
-    const yearsOfService = Math.floor((now.getTime() - user.createdAt.getTime()) / (365.25 * 24 * 60 * 60 * 1000))
+    const metadata = (user.metadata as any) || {}
+    
+    // Use dateJoined from metadata if available, otherwise fall back to createdAt
+    const joinDate = metadata.dateJoined ? new Date(metadata.dateJoined) : user.createdAt
+    const yearsOfService = Math.floor((now.getTime() - joinDate.getTime()) / (365.25 * 24 * 60 * 60 * 1000))
 
     const totalSessions = await this.prisma.attendanceSession.count({
       where: { servantId: userId, deletedAt: null },

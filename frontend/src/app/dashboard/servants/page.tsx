@@ -96,6 +96,7 @@ export default function ServantsPage() {
     groupId: '',
     teachingSubjects: [] as string[],
     grade: '',
+    dateJoined: '',
   })
   const [formError, setFormError] = useState('')
   const [emailError, setEmailError] = useState('')
@@ -246,7 +247,7 @@ export default function ServantsPage() {
 
   const openCreate = () => {
     setEditing(null)
-    setForm({ firstName: '', lastName: '', firstNameAr: '', lastNameAr: '', email: '', phone: '', password: '', roleName: 'servant', levelId: '', groupId: '', teachingSubjects: [], grade: '' })
+    setForm({ firstName: '', lastName: '', firstNameAr: '', lastNameAr: '', email: '', phone: '', password: '', roleName: 'servant', levelId: '', groupId: '', teachingSubjects: [], grade: '', dateJoined: '' })
     revokePhoto()
     setFormError('')
     setEmailError('')
@@ -266,6 +267,7 @@ export default function ServantsPage() {
       groupId: meta.groupId || '',
       teachingSubjects: meta.teachingSubjects || [],
       grade: meta.grade || '',
+      dateJoined: meta.dateJoined || '',
     })
     revokePhoto()
     setFormError('')
@@ -318,6 +320,7 @@ export default function ServantsPage() {
           levelId: form.levelId || undefined,
           groupId: form.groupId || undefined,
           grade: form.grade || undefined,
+          dateJoined: form.dateJoined || undefined,
         },
       }
       if (avatarUrl) body.avatarUrl = avatarUrl
@@ -792,6 +795,9 @@ export default function ServantsPage() {
               <FormField label={lang === 'ar' ? 'البريد الإلكتروني' : 'Email'} required type="email" value={form.email} onChange={e => updateField('email', e.target.value)} onBlur={() => setEmailError(validateEmail(form.email))} error={emailError} />
             </div>
             <FormField label={lang === 'ar' ? 'الهاتف' : 'Phone'} type="tel" value={form.phone} onChange={e => updateField('phone', e.target.value)} />
+          </div>
+          <div>
+            <FormField label={lang === 'ar' ? 'تاريخ الانضمام' : 'Date Joined'} type="date" value={form.dateJoined} onChange={e => updateField('dateJoined', e.target.value)} hint={lang === 'ar' ? 'يُستخدم لحساب سنوات الخدمة' : 'Used to calculate years of service'} />
           </div>
           {!editing && (
             <FormField label={lang === 'ar' ? 'كلمة المرور' : 'Password'} type="password" value={form.password} onChange={e => updateField('password', e.target.value)} hint={lang === 'ar' ? 'اتركه فارغاً لاستخدام كلمة المرور الافتراضية: Password123!' : 'Leave blank to use the default password: Password123!'} placeholder={lang === 'ar' ? 'أدخل كلمة مرور' : 'Enter a password'} />
