@@ -8,6 +8,7 @@ import { extname, join } from 'path';
 import { v4 as uuid } from 'uuid';
 import { readFile, unlink } from 'fs/promises';
 import { Roles, STAFF_ROLES } from '../../common/decorators/roles.decorator';
+import { createCloudinaryStorage, isCloudinaryConfigured } from '../../common/config/cloudinary';
 
 // SVG is intentionally excluded: it executes scripts when served inline
 // (stored XSS). Only raster image formats are accepted for uploads.
@@ -37,8 +38,6 @@ function createImageFileFilter() {
       cb(new BadRequestException(`Invalid file type. Allowed: ${ALLOWED_TYPES.join(', ')}`), false);
       return;
     }
-    // With diskStorage, buffer isn't streamed into memory here; extension gate
-    // applies above, and content magic bytes are verified after save below.
     cb(null, true);
   };
 }
@@ -52,91 +51,120 @@ async function validateImageContent(fullPath: string, filename: string): Promise
   }
 }
 
+function imageStorage(subfolder: string) {
+  if (isCloudinaryConfigured) {
+    return createCloudinaryStorage(subfolder);
+  }
+  return diskStorage({
+    destination: join(__dirname, '..', '..', '..', 'uploads', subfolder),
+    filename: (_req, file, cb) => {
+      const ext = extname(file.originalname).toLowerCase();
+      cb(null, `${subfolder === 'church-logos' ? '' : `${subfolder}-`}${uuid()}${ext}`);
+    },
+  });
+}
+
+function uploadResult(file: Express.Multer.File, subfolder: string, filename?: string): { url: string } {
+  if (isCloudinaryConfigured && file.path) {
+    return { url: file.path };
+  }
+  const fname = filename || file.filename;
+  return { url: `/uploads/${subfolder}/${fname}` };
+}
+
 @Roles(...STAFF_ROLES)
 @Controller('upload')
 export class UploadController {
-    @Post('church-logo')
+  @Post('church-logo')
   @UseInterceptors(
     FileInterceptor('file', {
-      storage: diskStorage({
-        destination: join(__dirname, '..', '..', '..', 'uploads', 'church-logos'),
-        filename: (req, file, cb) => {
-          const ext = extname(file.originalname).toLowerCase();
-          cb(null, `${uuid()}${ext}`);
-        },
-      }),
+      storage: (() => {
+        if (isCloudinaryConfigured) return createCloudinaryStorage('church-logos');
+        return diskStorage({
+          destination: join(__dirname, '..', '..', '..', 'uploads', 'church-logos'),
+          filename: (_req, file, cb) => { cb(null, `${uuid()}${extname(file.originalname).toLowerCase()}`); },
+        });
+      })(),
       limits: { fileSize: MAX_SIZE },
       fileFilter: createImageFileFilter(),
     }),
   )
   async uploadChurchLogo(@UploadedFile() file: Express.Multer.File) {
     if (!file) throw new BadRequestException('No file uploaded');
-    const fullPath = join(__dirname, '..', '..', '..', 'uploads', 'church-logos', file.filename);
-    await validateImageContent(fullPath, file.filename);
-    return { url: `/uploads/church-logos/${file.filename}`, filename: file.filename };
+    if (!isCloudinaryConfigured) {
+      const fullPath = join(__dirname, '..', '..', '..', 'uploads', 'church-logos', file.filename);
+      await validateImageContent(fullPath, file.filename);
+    }
+    return uploadResult(file, 'church-logos');
   }
 
-    @Post('school-logo')
+  @Post('school-logo')
   @UseInterceptors(
     FileInterceptor('file', {
-      storage: diskStorage({
-        destination: join(__dirname, '..', '..', '..', 'uploads', 'church-logos'),
-        filename: (req, file, cb) => {
-          const ext = extname(file.originalname).toLowerCase();
-          cb(null, `school-${uuid()}${ext}`);
-        },
-      }),
+      storage: (() => {
+        if (isCloudinaryConfigured) return createCloudinaryStorage('school-logos');
+        return diskStorage({
+          destination: join(__dirname, '..', '..', '..', 'uploads', 'church-logos'),
+          filename: (_req, file, cb) => { cb(null, `school-${uuid()}${extname(file.originalname).toLowerCase()}`); },
+        });
+      })(),
       limits: { fileSize: MAX_SIZE },
       fileFilter: createImageFileFilter(),
     }),
   )
   async uploadSchoolLogo(@UploadedFile() file: Express.Multer.File) {
     if (!file) throw new BadRequestException('No file uploaded');
-    const fullPath = join(__dirname, '..', '..', '..', 'uploads', 'church-logos', file.filename);
-    await validateImageContent(fullPath, file.filename);
-    return { url: `/uploads/church-logos/${file.filename}`, filename: file.filename };
+    if (!isCloudinaryConfigured) {
+      const fullPath = join(__dirname, '..', '..', '..', 'uploads', 'church-logos', file.filename);
+      await validateImageContent(fullPath, file.filename);
+    }
+    return uploadResult(file, 'school-logos');
   }
 
   @Post('avatar')
   @UseInterceptors(
     FileInterceptor('file', {
-      storage: diskStorage({
-        destination: join(__dirname, '..', '..', '..', 'uploads', 'avatars'),
-        filename: (req, file, cb) => {
-          const ext = extname(file.originalname).toLowerCase();
-          cb(null, `avatar-${uuid()}${ext}`);
-        },
-      }),
+      storage: (() => {
+        if (isCloudinaryConfigured) return createCloudinaryStorage('avatars');
+        return diskStorage({
+          destination: join(__dirname, '..', '..', '..', 'uploads', 'avatars'),
+          filename: (_req, file, cb) => { cb(null, `avatar-${uuid()}${extname(file.originalname).toLowerCase()}`); },
+        });
+      })(),
       limits: { fileSize: MAX_SIZE },
       fileFilter: createImageFileFilter(),
     }),
   )
   async uploadAvatar(@UploadedFile() file: Express.Multer.File) {
     if (!file) throw new BadRequestException('No file uploaded');
-    const fullPath = join(__dirname, '..', '..', '..', 'uploads', 'avatars', file.filename);
-    await validateImageContent(fullPath, file.filename);
-    return { url: `/uploads/avatars/${file.filename}`, filename: file.filename };
+    if (!isCloudinaryConfigured) {
+      const fullPath = join(__dirname, '..', '..', '..', 'uploads', 'avatars', file.filename);
+      await validateImageContent(fullPath, file.filename);
+    }
+    return uploadResult(file, 'avatars');
   }
 
-    @Post('student-photo')
+  @Post('student-photo')
   @UseInterceptors(
     FileInterceptor('file', {
-      storage: diskStorage({
-        destination: join(__dirname, '..', '..', '..', 'uploads', 'student-photos'),
-        filename: (req, file, cb) => {
-          const ext = extname(file.originalname).toLowerCase();
-          cb(null, `student-${uuid()}${ext}`);
-        },
-      }),
+      storage: (() => {
+        if (isCloudinaryConfigured) return createCloudinaryStorage('student-photos');
+        return diskStorage({
+          destination: join(__dirname, '..', '..', '..', 'uploads', 'student-photos'),
+          filename: (_req, file, cb) => { cb(null, `student-${uuid()}${extname(file.originalname).toLowerCase()}`); },
+        });
+      })(),
       limits: { fileSize: MAX_SIZE },
       fileFilter: createImageFileFilter(),
     }),
   )
   async uploadStudentPhoto(@UploadedFile() file: Express.Multer.File) {
     if (!file) throw new BadRequestException('No file uploaded');
-    const fullPath = join(__dirname, '..', '..', '..', 'uploads', 'student-photos', file.filename);
-    await validateImageContent(fullPath, file.filename);
-    return { url: `/uploads/student-photos/${file.filename}`, filename: file.filename };
+    if (!isCloudinaryConfigured) {
+      const fullPath = join(__dirname, '..', '..', '..', 'uploads', 'student-photos', file.filename);
+      await validateImageContent(fullPath, file.filename);
+    }
+    return uploadResult(file, 'student-photos');
   }
 
   @Post('presentation')
@@ -144,7 +172,7 @@ export class UploadController {
     FileInterceptor('file', {
       storage: diskStorage({
         destination: join(__dirname, '..', '..', '..', 'uploads', 'presentations'),
-        filename: (req, file, cb) => {
+        filename: (_req, file, cb) => {
           const ext = extname(file.originalname).toLowerCase();
           cb(null, `pres-${uuid()}${ext}`);
         },

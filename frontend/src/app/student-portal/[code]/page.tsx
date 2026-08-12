@@ -162,8 +162,6 @@ export default function StudentDashboard() {
     ? (student.photoUrl.startsWith('http') ? student.photoUrl : `${API_ORIGIN}${student.photoUrl}`)
     : null
 
-  console.log('[StudentPortal] API_ORIGIN:', API_ORIGIN, 'photoUrl:', student.photoUrl, 'photoSrc:', photoSrc)
-
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}

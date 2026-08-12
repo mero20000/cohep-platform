@@ -10,6 +10,7 @@ import { StudentsService } from './students.service';
 import { HymnLearningService } from '../curriculum/hymn-learning.service';
 import { StudentLoginDto } from './dto/student-login.dto';
 import { Public } from '../../common/decorators/public.decorator';
+import { createCloudinaryStorage, isCloudinaryConfigured } from '../../common/config/cloudinary';
 
 @ApiTags('student-portal')
 @Controller('student-portal')
@@ -100,13 +101,16 @@ export class StudentPortalController {
   @ApiOperation({ summary: 'Upload a practice recording' })
   @ApiConsumes('multipart/form-data')
   @UseInterceptors(FileInterceptor('file', {
-    storage: diskStorage({
-      destination: 'uploads/recordings',
-      filename: (_req, file, cb) => {
-        const uniqueName = `${uuidv4()}${extname(file.originalname)}`;
-        cb(null, uniqueName);
-      },
-    }),
+    storage: (() => {
+      if (isCloudinaryConfigured) return createCloudinaryStorage('recordings');
+      return diskStorage({
+        destination: 'uploads/recordings',
+        filename: (_req, file, cb) => {
+          const uniqueName = `${uuidv4()}${extname(file.originalname)}`;
+          cb(null, uniqueName);
+        },
+      });
+    })(),
     limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
     fileFilter: (_req, file, cb) => {
       const allowed = ['.webm', '.mp3', '.m4a', '.ogg'];
@@ -117,6 +121,9 @@ export class StudentPortalController {
   }))
   async uploadRecording(@UploadedFile() file: Express.Multer.File) {
     if (!file) throw new Error('No file uploaded');
+    if (isCloudinaryConfigured && file.path) {
+      return { url: file.path };
+    }
     return { url: `/uploads/recordings/${file.filename}` };
   }
 }
