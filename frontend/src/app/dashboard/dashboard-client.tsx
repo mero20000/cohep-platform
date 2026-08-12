@@ -786,6 +786,344 @@ function StartClassCard({ lang }: { lang: string }) {
   )
 }
 
+function TodaysSessionCard({ lang }: { lang: string }) {
+  const [session, setSession] = useState<any>(null)
+  const [students, setStudents] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [starting, setStarting] = useState(false)
+  const { toast } = useToast()
+  const router = useRouter()
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await http.get('/attendance/sessions', { schoolId: getSchoolId(), status: 'in_progress' }) as any
+        const todaySession = res.data?.[0]
+        if (todaySession) {
+          setSession(todaySession)
+          // Fetch students for this session
+          const studentRes = await http.get(`/attendance/sessions/${todaySession.id}`) as any
+          setStudents(studentRes.attendanceRecords || [])
+        }
+      } catch { /* ignore */ }
+      setLoading(false)
+    })()
+  }, [])
+
+  const handleStart = async () => {
+    setStarting(true)
+    try {
+      const res = await http.post('/attendance/start-class') as any
+      if (res.requiresGroupPick) {
+        toast('info', lang === 'ar' ? 'اختر المجموعة من صفحة الحضور' : 'Pick your group from the attendance page')
+        router.push('/dashboard/attendance')
+        return
+      }
+      toast('success', lang === 'ar' ? 'تم بدء الفصل!' : 'Class started!')
+      router.push(`/dashboard/attendance?sessionId=${res.session.id}&mode=exceptions`)
+    } catch {
+      toast('error', lang === 'ar' ? 'فشل بدء الفصل' : 'Failed to start class')
+    }
+    setStarting(false)
+  }
+
+  const updateAttendance = async (studentId: string, status: string) => {
+    try {
+      await http.patch(`/attendance/sessions/${session.id}/records`, { studentId, status })
+      setStudents(prev => prev.map(s => s.studentId === studentId ? { ...s, status } : s))
+      toast('success', lang === 'ar' ? 'تم التحديث' : 'Updated')
+    } catch {
+      toast('error', lang === 'ar' ? 'فشل التحديث' : 'Failed to update')
+    }
+  }
+
+  if (loading) return <CardSkeleton className="h-32" />
+
+  // No active session - show start button
+  if (!session) {
+    return (
+      <div className="rounded-xl border-2 border-dashed border-emerald-200 bg-gradient-to-br from-emerald-50 to-white p-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900">{lang === 'ar' ? 'ابدأ فصل اليوم' : "Today's Session"}</h3>
+            <p className="text-sm text-gray-500 mt-1">{lang === 'ar' ? 'اضغط لبدء الفصل — سيتم تسجيل جميع الطلاب كحاضرين مسبقًا' : 'Start your class — students pre-marked present'}</p>
+          </div>
+          <button onClick={handleStart} disabled={starting}
+            className="flex items-center gap-2 px-6 py-3 rounded-xl font-semibold text-sm bg-emerald-600 text-white hover:bg-emerald-700 active:scale-95 transition-all disabled:opacity-50 shadow-lg shadow-emerald-200">
+            {starting ? <Loader2 className="w-5 h-5 animate-spin" /> : <PlayCircle className="w-5 h-5" />}
+            {starting ? (lang === 'ar' ? 'جاري...' : 'Starting...') : (lang === 'ar' ? 'بدء الفصل' : 'Start Class')}
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  // Active session - show quick attendance
+  const presentCount = students.filter(s => s.status === 'present').length
+  const absentCount = students.filter(s => s.status === 'absent').length
+  const lateCount = students.filter(s => s.status === 'late').length
+
+  return (
+    <div className="rounded-xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-white p-5">
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <div className="flex items-center gap-2">
+            <span className="relative flex h-3 w-3">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+            </span>
+            <h3 className="text-lg font-semibold text-gray-900">{lang === 'ar' ? 'الفصل النشط' : 'Active Session'}</h3>
+          </div>
+          <p className="text-sm text-gray-500 mt-1">{session.group?.name} · {session.level?.name}</p>
+        </div>
+        <Link href={`/dashboard/attendance?sessionId=${session.id}&mode=exceptions`}
+          className="text-sm font-medium text-emerald-600 hover:text-emerald-700 flex items-center gap-1">
+          {lang === 'ar' ? 'الحضور' : 'Attendance'} <ChevronRight className="h-4 w-4" />
+        </Link>
+      </div>
+
+      {/* Quick Stats */}
+      <div className="grid grid-cols-3 gap-3 mb-4">
+        <div className="rounded-lg bg-white p-3 text-center border border-gray-100">
+          <div className="text-2xl font-bold text-emerald-600">{presentCount}</div>
+          <div className="text-xs text-gray-500">{lang === 'ar' ? 'حاضرين' : 'Present'}</div>
+        </div>
+        <div className="rounded-lg bg-white p-3 text-center border border-gray-100">
+          <div className="text-2xl font-bold text-red-500">{absentCount}</div>
+          <div className="text-xs text-gray-500">{lang === 'ar' ? 'غائبين' : 'Absent'}</div>
+        </div>
+        <div className="rounded-lg bg-white p-3 text-center border border-gray-100">
+          <div className="text-2xl font-bold text-amber-500">{lateCount}</div>
+          <div className="text-xs text-gray-500">{lang === 'ar' ? 'متأخرين' : 'Late'}</div>
+        </div>
+      </div>
+
+      {/* Quick Attendance Toggles */}
+      <div className="space-y-2 max-h-48 overflow-y-auto">
+        {students.slice(0, 6).map((record) => (
+          <div key={record.studentId} className="flex items-center justify-between bg-white rounded-lg p-2 border border-gray-100">
+            <span className="text-sm font-medium text-gray-700 truncate">
+              {record.student?.firstName} {record.student?.lastName}
+            </span>
+            <div className="flex gap-1">
+              <button onClick={() => updateAttendance(record.studentId, 'present')}
+                className={`px-2 py-1 rounded text-xs font-medium transition-colors ${record.status === 'present' ? 'bg-emerald-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-emerald-100'}`}>
+                P
+              </button>
+              <button onClick={() => updateAttendance(record.studentId, 'absent')}
+                className={`px-2 py-1 rounded text-xs font-medium transition-colors ${record.status === 'absent' ? 'bg-red-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-red-100'}`}>
+                A
+              </button>
+              <button onClick={() => updateAttendance(record.studentId, 'late')}
+                className={`px-2 py-1 rounded text-xs font-medium transition-colors ${record.status === 'late' ? 'bg-amber-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-amber-100'}`}>
+                L
+              </button>
+            </div>
+          </div>
+        ))}
+        {students.length > 6 && (
+          <p className="text-xs text-gray-400 text-center py-1">
+            +{students.length - 6} {lang === 'ar' ? 'طالب' : 'more students'}
+          </p>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function WeekScheduleCard({ lang }: { lang: string }) {
+  const [sessions, setSessions] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const today = new Date()
+        const weekStart = new Date(today)
+        weekStart.setDate(today.getDate() - today.getDay())
+        const weekEnd = new Date(weekStart)
+        weekEnd.setDate(weekStart.getDate() + 6)
+
+        const res = await http.get('/attendance/sessions', {
+          schoolId: getSchoolId(),
+          from: weekStart.toISOString().split('T')[0],
+          to: weekEnd.toISOString().split('T')[0],
+        }) as any
+        setSessions(res.data || [])
+      } catch { /* ignore */ }
+      setLoading(false)
+    })()
+  }, [])
+
+  if (loading) return <CardSkeleton className="h-40" />
+  if (sessions.length === 0) return null
+
+  const dayNames = lang === 'ar'
+    ? ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت']
+    : ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+
+  return (
+    <div className="rounded-xl border border-gray-200/60 bg-white overflow-hidden">
+      <div className="flex items-center justify-between border-b border-[var(--hymn-border)] px-5 py-4 bg-[var(--hymn-surface-header)]">
+        <div className="flex items-center gap-2">
+          <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[var(--hymn-surface-header)] text-blue-700 ring-1 ring-gold-200/50">
+            <CalendarClock className="h-4 w-4" />
+          </div>
+          <h2 className="font-semibold text-gray-900">{lang === 'ar' ? 'جدول هذا الأسبوع' : 'This Week'}</h2>
+        </div>
+        <Link href="/dashboard/attendance" className="text-xs text-blue-700 font-medium hover:text-blue-800 flex items-center gap-0.5">
+          {lang === 'ar' ? 'الحضور' : 'Attendance'} <ChevronRight className="h-3 w-3" />
+        </Link>
+      </div>
+      <div className="p-4">
+        <div className="grid grid-cols-7 gap-2">
+          {dayNames.map((day, i) => {
+            const daySessions = sessions.filter(s => {
+              const sessionDate = new Date(s.scheduledDate)
+              return sessionDate.getDay() === i
+            })
+            const isToday = new Date().getDay() === i
+            return (
+              <div key={day} className={`text-center p-2 rounded-lg ${isToday ? 'bg-blue-50 border border-blue-200' : ''}`}>
+                <div className={`text-xs font-medium ${isToday ? 'text-blue-600' : 'text-gray-500'}`}>{day}</div>
+                <div className={`text-lg font-bold ${isToday ? 'text-blue-700' : 'text-gray-900'}`}>{daySessions.length}</div>
+                {daySessions.length > 0 && (
+                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 mx-auto mt-1"></div>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function SessionSummaryModal({ session, students, lang, onClose }: { session: any; students: any[]; lang: string; onClose: () => void }) {
+  const presentCount = students.filter(s => s.status === 'present').length
+  const absentCount = students.filter(s => s.status === 'absent').length
+  const lateCount = students.filter(s => s.status === 'late').length
+  const excusedCount = students.filter(s => s.status === 'excused').length
+  const total = students.length
+  const attendanceRate = total > 0 ? Math.round((presentCount / total) * 100) : 0
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+      <div className="bg-white rounded-2xl shadow-xl max-w-md w-full mx-4 overflow-hidden">
+        <div className="bg-gradient-to-r from-emerald-500 to-emerald-600 p-6 text-white">
+          <div className="flex items-center justify-between">
+            <h3 className="text-xl font-semibold">{lang === 'ar' ? 'ملخص الفصل' : 'Session Summary'}</h3>
+            <button onClick={onClose} className="text-white/80 hover:text-white">
+              <XCircle className="h-6 w-6" />
+            </button>
+          </div>
+          <p className="text-emerald-100 mt-1">{session.group?.name} · {session.level?.name}</p>
+        </div>
+        <div className="p-6">
+          <div className="grid grid-cols-2 gap-4 mb-6">
+            <div className="text-center p-4 bg-emerald-50 rounded-xl">
+              <div className="text-3xl font-bold text-emerald-600">{attendanceRate}%</div>
+              <div className="text-sm text-gray-600">{lang === 'ar' ? 'نسبة الحضور' : 'Attendance'}</div>
+            </div>
+            <div className="text-center p-4 bg-blue-50 rounded-xl">
+              <div className="text-3xl font-bold text-blue-600">{total}</div>
+              <div className="text-sm text-gray-600">{lang === 'ar' ? 'إجمالي الطلاب' : 'Total Students'}</div>
+            </div>
+          </div>
+          <div className="grid grid-cols-4 gap-2 text-center">
+            <div className="p-2 bg-gray-50 rounded-lg">
+              <div className="text-lg font-bold text-emerald-600">{presentCount}</div>
+              <div className="text-xs text-gray-500">{lang === 'ar' ? 'حاضرين' : 'Present'}</div>
+            </div>
+            <div className="p-2 bg-gray-50 rounded-lg">
+              <div className="text-lg font-bold text-red-500">{absentCount}</div>
+              <div className="text-xs text-gray-500">{lang === 'ar' ? 'غائبين' : 'Absent'}</div>
+            </div>
+            <div className="p-2 bg-gray-50 rounded-lg">
+              <div className="text-lg font-bold text-amber-500">{lateCount}</div>
+              <div className="text-xs text-gray-500">{lang === 'ar' ? 'متأخرين' : 'Late'}</div>
+            </div>
+            <div className="p-2 bg-gray-50 rounded-lg">
+              <div className="text-lg font-bold text-gray-500">{excusedCount}</div>
+              <div className="text-xs text-gray-500">{lang === 'ar' ? 'مستأذنين' : 'Excused'}</div>
+            </div>
+          </div>
+          <div className="mt-6 flex gap-3">
+            <Link href="/dashboard/assessments" className="flex-1 text-center py-2.5 rounded-xl bg-blue-600 text-white font-medium hover:bg-blue-700 transition-colors">
+              {lang === 'ar' ? 'تقييم' : 'Grade'}
+            </Link>
+            <Link href="/dashboard/announcements" className="flex-1 text-center py-2.5 rounded-xl bg-gray-100 text-gray-700 font-medium hover:bg-gray-200 transition-colors">
+              {lang === 'ar' ? 'إعلان' : 'Announce'}
+            </Link>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function ContactParentButton({ student, lang }: { student: any; lang: string }) {
+  const [showContact, setShowContact] = useState(false)
+  const parent = student?.studentParents?.[0]?.parent
+
+  if (!parent) return null
+
+  return (
+    <>
+      <button onClick={() => setShowContact(true)}
+        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-50 text-blue-600 text-sm font-medium hover:bg-blue-100 transition-colors">
+        <User className="h-4 w-4" />
+        {lang === 'ar' ? 'تواصل مع الوالد' : 'Contact Parent'}
+      </button>
+      {showContact && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-xl max-w-sm w-full mx-4 p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">{lang === 'ar' ? 'تواصل مع الوالد' : 'Contact Parent'}</h3>
+              <button onClick={() => setShowContact(false)} className="text-gray-400 hover:text-gray-600">
+                <XCircle className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="space-y-3">
+              <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
+                <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
+                  <User className="h-5 w-5 text-blue-600" />
+                </div>
+                <div>
+                  <div className="font-medium text-gray-900">{parent.firstName} {parent.lastName}</div>
+                  <div className="text-sm text-gray-500">{lang === 'ar' ? 'والد' : 'Parent'} {student.firstName}</div>
+                </div>
+              </div>
+              {parent.phone && (
+                <a href={`tel:${parent.phone}`} className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors">
+                  <div className="h-10 w-10 rounded-full bg-emerald-100 flex items-center justify-center">
+                    <span className="text-emerald-600">📞</span>
+                  </div>
+                  <div>
+                    <div className="font-medium text-gray-900">{parent.phone}</div>
+                    <div className="text-sm text-gray-500">{lang === 'ar' ? 'اتصال' : 'Call'}</div>
+                  </div>
+                </a>
+              )}
+              {parent.email && (
+                <a href={`mailto:${parent.email}`} className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors">
+                  <div className="h-10 w-10 rounded-full bg-purple-100 flex items-center justify-center">
+                    <span className="text-purple-600">✉️</span>
+                  </div>
+                  <div>
+                    <div className="font-medium text-gray-900">{parent.email}</div>
+                    <div className="text-sm text-gray-500">{lang === 'ar' ? 'بريد إلكتروني' : 'Email'}</div>
+                  </div>
+                </a>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  )
+}
+
 function LiturgyHeatmapCard({ lang }: { lang: string }) {
   const [data, setData] = useState<any>(null)
   const [loading, setLoading] = useState(true)
@@ -1207,15 +1545,22 @@ function MinistryDashboard({ data, loading, error, onRetry }: { data: any; loadi
       {ministryStats}
      </DashboardHero>
 
-      {/* Start Class button */}
+      {/* Today's Session */}
       <motion.div variants={fadeUp}>
-        <StartClassCard lang={lang} />
+        <TodaysSessionCard lang={lang} />
       </motion.div>
 
       {/* Servant Journey Card */}
       {['servant', 'group_leader', 'level_leader'].includes(d.role || '') && (
         <motion.div variants={fadeUp}>
           <ServantJourneyCard />
+        </motion.div>
+      )}
+
+      {/* This Week Schedule */}
+      {['servant', 'group_leader', 'level_leader'].includes(d.role || '') && (
+        <motion.div variants={fadeUp}>
+          <WeekScheduleCard lang={lang} />
         </motion.div>
       )}
 

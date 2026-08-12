@@ -1,7 +1,7 @@
 'use client'
 import Image from 'next/image'
 import { useState, useEffect, useRef } from 'react'
-import { X, Loader2, Pencil, Calendar, User, MapPin, Phone, Layers, Users, Church, GraduationCap, Mail, UserCheck, Copy, Check, QrCode } from 'lucide-react'
+import { X, Loader2, Pencil, Calendar, User, MapPin, Phone, Layers, Users, Church, GraduationCap, Mail, UserCheck, Copy, Check, QrCode, MessageSquare } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { http } from '@/lib/http-client'
@@ -17,6 +17,7 @@ export function StudentDetailModal({ student:s, onClose, onEdit, onPreviewPhoto,
   const [logLoading, setLogLoading] = useState(false)
   const [copied, setCopied] = useState(false)
   const [showQr, setShowQr] = useState(false)
+  const [showContactParent, setShowContactParent] = useState(false)
   const dialogRef = useRef<HTMLDivElement>(null)
   const t = (en: string, ar: string) => lang==='ar'?ar:en
 
@@ -69,6 +70,18 @@ export function StudentDetailModal({ student:s, onClose, onEdit, onPreviewPhoto,
             <div className="rounded-lg border border-gray-100 p-3"><div className="text-xs text-gray-500">{t('Enrolled','تاريخ التسجيل')}</div><div className="text-sm font-medium text-gray-900">{new Date(s.enrollmentDate).toLocaleDateString('en-GB',{day:'2-digit',month:'2-digit',year:'numeric'})}</div></div>
           </div>
           {s.metadata?.notes&&<div className="mt-4 rounded-lg border border-gray-100 p-3"><div className="text-xs text-gray-500">{t('Notes','ملاحظات')}</div><div className="text-sm text-gray-900 mt-1 whitespace-pre-wrap">{s.metadata.notes}</div></div>}
+          
+          {/* Contact Parent Button */}
+          {s.studentParents && s.studentParents.length > 0 && (
+            <div className="mt-4">
+              <button onClick={() => setShowContactParent(true)}
+                className="flex items-center gap-2 w-full px-4 py-2.5 rounded-xl bg-blue-50 text-blue-600 font-medium hover:bg-blue-100 transition-colors">
+                <MessageSquare className="h-4 w-4" />
+                {t('Contact Parentتواصل مع الوالد')}
+              </button>
+            </div>
+          )}
+
           {s.portalAccessKey && (
             <div className="mt-4 rounded-lg border border-gray-100 p-3">
               <div className="text-xs text-gray-500 mb-2">{t('Portal Access Key','مفتاح الوصول للبوابة')}</div>
@@ -115,6 +128,47 @@ export function StudentDetailModal({ student:s, onClose, onEdit, onPreviewPhoto,
               <Button variant="ghost" size="icon" onClick={() => setShowQr(false)}><X className="h-4 w-4" /></Button>
             </div>
             <StudentQrCard student={{ id: s.id, firstName: s.firstName, lastName: s.lastName, studentCode: s.studentCode, portalAccessKey: s.portalAccessKey }} />
+          </div>
+        </div>
+      )}
+      
+      {/* Contact Parent Modal */}
+      {showContactParent && s.studentParents && s.studentParents.length > 0 && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4" onClick={() => setShowContactParent(false)}>
+          <div className="bg-white rounded-2xl p-6 max-w-sm w-full" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-semibold text-gray-900">{t('Contact Parentتواصل مع الوالد')}</h3>
+              <Button variant="ghost" size="icon" onClick={() => setShowContactParent(false)}><X className="h-4 w-4" /></Button>
+            </div>
+            <div className="space-y-3">
+              {s.studentParents.map((sp: any) => {
+                const parent = sp.parent
+                if (!parent) return null
+                return (
+                  <div key={parent.id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
+                    <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
+                      <User className="h-5 w-5 text-blue-600" />
+                    </div>
+                    <div className="flex-1">
+                      <div className="font-medium text-gray-900">{parent.firstName} {parent.lastName}</div>
+                      <div className="text-sm text-gray-500">{sp.relationship || t('Parent','والد')}</div>
+                    </div>
+                    <div className="flex gap-2">
+                      {parent.phone && (
+                        <a href={`tel:${parent.phone}`} className="p-2 rounded-lg bg-emerald-100 text-emerald-600 hover:bg-emerald-200 transition-colors">
+                          <Phone className="h-4 w-4" />
+                        </a>
+                      )}
+                      {parent.email && (
+                        <a href={`mailto:${parent.email}`} className="p-2 rounded-lg bg-purple-100 text-purple-600 hover:bg-purple-200 transition-colors">
+                          <Mail className="h-4 w-4" />
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
           </div>
         </div>
       )}
