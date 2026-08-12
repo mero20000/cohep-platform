@@ -118,6 +118,7 @@ const ROLE_DEFAULT_PERMS: Record<string, Permission[]> = {
 
   servant: [
     'student:view',
+    'student:create',
     'attendance:record',
     'assessment:grade',
     'curriculum:view',

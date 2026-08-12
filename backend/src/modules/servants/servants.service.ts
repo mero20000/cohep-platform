@@ -339,14 +339,26 @@ export class ServantsService {
       where: { reviewedBy: userId },
     })
 
+    let currentLevelName: string | null = null
+    let currentGroupName: string | null = null
+
+    if (metadata.levelId) {
+      const level = await this.prisma.level.findUnique({ where: { id: metadata.levelId }, select: { name: true } })
+      currentLevelName = level?.name || null
+    }
+    if (metadata.groupId) {
+      const group = await this.prisma.group.findUnique({ where: { id: metadata.groupId }, select: { name: true } })
+      currentGroupName = group?.name || null
+    }
+
     return {
       yearsOfService,
       totalStudents,
       totalSessions,
       totalHymns,
       totalReviews,
-      currentLevelName: null as string | null,
-      currentGroupName: null as string | null,
+      currentLevelName,
+      currentGroupName,
     }
   }
 
