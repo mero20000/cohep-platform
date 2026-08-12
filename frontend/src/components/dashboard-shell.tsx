@@ -185,10 +185,10 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
       .then((s) => {
         if (s?.name) setSchoolName(s.name)
         if (s?.nameAr) setSchoolNameAr(s.nameAr)
-        if (s?.logoUrl) setSchoolLogo(API_ORIGIN + s.logoUrl)
+        if (s?.logoUrl) setSchoolLogo(s.logoUrl.startsWith('http') ? s.logoUrl : API_ORIGIN + s.logoUrl)
         else setSchoolLogo(null)
         if (s?.church) {
-          if (s.church.logoUrl) setChurchLogo(API_ORIGIN + s.church.logoUrl)
+          if (s.church.logoUrl) setChurchLogo(s.church.logoUrl.startsWith('http') ? s.church.logoUrl : API_ORIGIN + s.church.logoUrl)
           else setChurchLogo(null)
           if (s.church.name) setChurchName(s.church.name)
           if (s.church.schoolNameEn) setSchoolName(s.church.schoolNameEn)
@@ -216,11 +216,11 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
     if (!s) return
     if (s.name) setSchoolName(s.name)
     if (s.nameAr) setSchoolNameAr(s.nameAr)
-    if (s.logoUrl) setSchoolLogo(API_ORIGIN + s.logoUrl)
+    if (s.logoUrl) setSchoolLogo(s.logoUrl.startsWith('http') ? s.logoUrl : API_ORIGIN + s.logoUrl)
     else setSchoolLogo(null)
     const church = s.churchId ? allChurches.find((c: any) => c.id === s.churchId) : null
     if (church) {
-      if (church.logoUrl) setChurchLogo(API_ORIGIN + church.logoUrl)
+      if (church.logoUrl) setChurchLogo(church.logoUrl.startsWith('http') ? church.logoUrl : API_ORIGIN + church.logoUrl)
       else setChurchLogo(null)
       if (church.name) setChurchName(church.name)
       if (church.schoolNameEn) setSchoolName(church.schoolNameEn)

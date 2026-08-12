@@ -68,7 +68,11 @@ export function DashboardSidebar({
         />
       )}
       <div className="flex items-center gap-3 border-b border-gray-200 px-4 h-[72px]">
-        <Image src="/cohep-logo.png" alt="COHEP" width={56} height={56} className="h-14 w-14 rounded-lg object-contain flex-shrink-0" />
+        {schoolLogo ? (
+          <Image src={schoolLogo} alt={schoolName} width={56} height={56} className="h-14 w-14 rounded-lg object-contain flex-shrink-0" unoptimized />
+        ) : (
+          <Image src="/cohep-logo.png" alt="COHEP" width={56} height={56} className="h-14 w-14 rounded-lg object-contain flex-shrink-0" />
+        )}
         <Button variant="ghost" size="icon" onClick={() => onSetSidebarOpen(false)} aria-label={language === 'ar' ? 'إغلاق' : 'Close sidebar'} className={`lg:hidden text-gray-400 hover:text-gray-600 h-7 w-7 flex-shrink-0 ${language === 'ar' ? 'mr-auto' : 'ml-auto'}`}>
           <X className="h-4 w-4" />
         </Button>
