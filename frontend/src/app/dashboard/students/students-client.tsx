@@ -1,6 +1,6 @@
 'use client'
 import { useState, useEffect, useCallback, useRef, useMemo, useOptimistic, startTransition } from 'react'
-import { Download, Upload, Plus, X, AlertCircle, RefreshCw } from 'lucide-react'
+import { Download, Upload, Plus, X, AlertCircle, RefreshCw, Star, Search } from 'lucide-react'
 import { ErrorBoundary } from '@/components/ui/error-boundary'
 import { Button } from '@/components/ui/button'
 import { useToast } from '@/components/ui/toast'
@@ -20,6 +20,7 @@ import { StudentImportModal } from './_components/student-import-modal'
 import { StudentBulkModals }  from './_components/student-bulk-modals'
 import { AssignedServants, type Servant } from './_components/assigned-servants'
 import { type Student, type Group, type ChurchItem, type PaginatedResponse, type StudentStats as StatsType } from './_components/student-types'
+import { useStudentFavorites } from './_components/use-student-favorites'
 
 type BulkModal = 'delete'|'status'|'level'|'grade'
 type LevelOption = { id: string; name: string; number: number; status?: string }
@@ -28,6 +29,7 @@ export default function StudentsClient() {
   const { toast } = useToast()
   const lang = useLanguage()
   const { can } = usePermission()
+  const { favorites, toggleFavorite, isFavorite } = useStudentFavorites()
   // Data
   const [students, setStudents]     = useState<Student[]>([])
   const [optimisticStudents, addOptimisticStudent] = useOptimistic(students,
@@ -46,6 +48,7 @@ export default function StudentsClient() {
   const [filterChurch, setFilterChurch] = useState('')
   const [filterGrade, setFilterGrade]   = useState('')
   const [filterGender, setFilterGender] = useState('')
+  const [showFavoritesOnly, setShowFavoritesOnly] = useState(false)
   // Sort
   const [sortKey, setSortKey] = useState('')
   const [sortDir, setSortDir] = useState<'asc'|'desc'>('asc')
@@ -75,12 +78,15 @@ export default function StudentsClient() {
   // Derived
   const activeLevels     = useMemo(()=>levels.filter(l=>l.status!=='inactive'),[levels])
   const filterGroups     = allGroups
-  const hasActiveFilters = !!(search||filterLevel||filterGroup||filterStatus||filterChurch||filterGrade||filterGender)
+  const hasActiveFilters = !!(search||filterLevel||filterGroup||filterStatus||filterChurch||filterGrade||filterGender||showFavoritesOnly)
   const allSelected      = optimisticStudents.length>0&&selectedIds.size===optimisticStudents.length
   const levelNameMap     = useMemo(()=>{const m:Record<string,string>={};for(const l of activeLevels)m[l.id]=l.name;return m},[activeLevels])
   const sortedStudents   = useMemo(()=>{
+    if (showFavoritesOnly) {
+      return optimisticStudents.filter(s => favorites.includes(s.id))
+    }
     return optimisticStudents
-  },[optimisticStudents])
+  },[optimisticStudents, showFavoritesOnly, favorites])
 
   const fetchStudents = useCallback(async(page=1)=>{
     setLoading(true)
@@ -150,7 +156,7 @@ export default function StudentsClient() {
     window.addEventListener('keydown',fn); return ()=>window.removeEventListener('keydown',fn)
   },[showForm,selectedIds,optimisticStudents])
 
-  const clearFilters = ()=>{setSearch('');setFilterLevel('');setFilterGroup('');setFilterStatus('');setFilterChurch('');setFilterGrade('');setFilterGender('')}
+  const clearFilters = ()=>{setSearch('');setFilterLevel('');setFilterGroup('');setFilterStatus('');setFilterChurch('');setFilterGrade('');setFilterGender('');setShowFavoritesOnly(false)}
   const toggleSort   = (k:string)=>{if(k==='phone')return;if(sortKey===k)setSortDir(d=>d==='asc'?'desc':'asc');else{setSortKey(k);setSortDir('asc')}}
   const toggleAll    = ()=>setSelectedIds(allSelected?new Set():new Set(optimisticStudents.map(s=>s.id)))
   const toggleId     = (id:string,shiftKey?:boolean)=>{
@@ -226,6 +232,31 @@ export default function StudentsClient() {
         activeLevels={activeLevels} filterGroups={filterGroups} gradeOptions={gradeOptions} churches={churches}
         hasActiveFilters={hasActiveFilters} onClearFilters={clearFilters} lang={lang}/>
 
+      {/* Quick Search & Favorites */}
+      <div className="flex items-center gap-3">
+        <div className="relative flex-1 max-w-md">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+          <input
+            type="text"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder={t('Quick search by name or code...', 'بحث سريع بالاسم أو الكود...')}
+            className="w-full pl-9 pr-4 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          />
+        </div>
+        <button
+          onClick={() => setShowFavoritesOnly(!showFavoritesOnly)}
+          className={`flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
+            showFavoritesOnly
+              ? 'bg-amber-100 text-amber-700 border border-amber-200'
+              : 'bg-gray-100 text-gray-600 hover:bg-gray-200 border border-transparent'
+          }`}
+        >
+          <Star className={`h-4 w-4 ${showFavoritesOnly ? 'fill-amber-500' : ''}`} />
+          {t('Favorites', 'المفضلة')} ({favorites.length})
+        </button>
+      </div>
+
       {selectedIds.size>0&&<StudentBulkToolbar
         selectedCount={selectedIds.size}
         onDelete={()=>setBulkOpen(b=>({...b,delete:true}))} onChangeStatus={()=>setBulkOpen(b=>({...b,status:true}))}
@@ -241,7 +272,8 @@ export default function StudentsClient() {
         hasActiveFilters={hasActiveFilters} onClearFilters={clearFilters} onOpenCreate={openCreate}
         pagination={pagination} onPageChange={p=>{fetchStudents(p)}}
         pageSize={pageSize} onPageSizeChange={s=>{setPageSize(s);fetchStudents(1)}}
-        onPreviewPhoto={setPreviewPhotoUrl} lang={lang}/>
+        onPreviewPhoto={setPreviewPhotoUrl} lang={lang}
+        favorites={favorites} onToggleFavorite={toggleFavorite}/>
       </ErrorBoundary>
 
       {filterLevel&&filterGroup&&<AssignedServants servants={assignedServants} loading={servantsLoading} show={showAssignedServants} onToggle={()=>setShowAssignedServants(v=>!v)} lang={lang}/>}

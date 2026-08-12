@@ -1,6 +1,6 @@
 'use client'
 import Image from 'next/image'
-import { Loader2, AlertCircle, User, ArrowUpDown, Eye, Pencil, Trash2, RefreshCw } from 'lucide-react'
+import { Loader2, AlertCircle, User, ArrowUpDown, Eye, Pencil, Trash2, RefreshCw, Star } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Pagination } from '@/components/ui/pagination'
@@ -19,6 +19,7 @@ interface Props {
   pagination: Pag; onPageChange: (p: number) => void
   pageSize?: number; onPageSizeChange?: (s: number) => void
   onPreviewPhoto: (url: string) => void; lang: 'en'|'ar'
+  favorites?: string[]; onToggleFavorite?: (id: string) => void
 }
 const COLS = [
   ['name','Student','الطالب'],['code','Student Code','رمز الطالب'],['gender','Gender','الجنس'],
@@ -26,7 +27,7 @@ const COLS = [
   ['age','Age','العمر'],['church','Church','الكنيسة'],['grade','Grade','المرحلة'],['status','Status','الحالة'],
 ] as const
 
-export function StudentTable({ students, loading, fetchError, selectedIds, allSelected, toggleId, toggleAll, sortKey, sortDir, toggleSort, onView, onEdit, onDelete, onRetry, hasActiveFilters, onClearFilters, onOpenCreate, pagination, onPageChange, pageSize, onPageSizeChange, onPreviewPhoto, lang }: Props) {
+export function StudentTable({ students, loading, fetchError, selectedIds, allSelected, toggleId, toggleAll, sortKey, sortDir, toggleSort, onView, onEdit, onDelete, onRetry, hasActiveFilters, onClearFilters, onOpenCreate, pagination, onPageChange, pageSize, onPageSizeChange, onPreviewPhoto, lang, favorites = [], onToggleFavorite }: Props) {
   const t = (en: string, ar: string) => lang === 'ar' ? ar : en
   if (loading) return (
     <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
@@ -95,7 +96,14 @@ export function StudentTable({ students, loading, fetchError, selectedIds, allSe
                   </div>
                 </div>
               </div>
-              <div onClick={e => e.stopPropagation()}><Actions s={s} onView={onView} onEdit={onEdit} onDelete={onDelete} lang={lang} /></div>
+              <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
+                {onToggleFavorite && (
+                  <button onClick={() => onToggleFavorite(s.id)} className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors">
+                    <Star className={`h-4 w-4 ${favorites.includes(s.id) ? 'fill-amber-500 text-amber-500' : 'text-gray-400'}`} />
+                  </button>
+                )}
+                <Actions s={s} onView={onView} onEdit={onEdit} onDelete={onDelete} lang={lang} />
+              </div>
             </div>
             <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-500 ms-10">
               {s.level?.name && <span>{s.level.name}{s.group?.name ? ` · ${s.group.name}` : ''}</span>}
@@ -152,7 +160,16 @@ export function StudentTable({ students, loading, fetchError, selectedIds, allSe
                 <td className="hidden md:table-cell px-4 py-3 text-sm text-gray-600 max-w-[120px] truncate">{s.churchName||'—'}</td>
                 <td className="hidden md:table-cell px-4 py-3 text-sm text-gray-900">{s.grade?.name||'—'}</td>
                 <td className="px-4 py-3"><StatusBadge status={s.status} lang={lang} /></td>
-                <td className="px-4 py-3 text-end" onClick={e => e.stopPropagation()}><Actions s={s} onView={onView} onEdit={onEdit} onDelete={onDelete} lang={lang} /></td>
+                <td className="px-4 py-3 text-end" onClick={e => e.stopPropagation()}>
+                  <div className="flex items-center justify-end gap-1">
+                    {onToggleFavorite && (
+                      <button onClick={() => onToggleFavorite(s.id)} className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors">
+                        <Star className={`h-4 w-4 ${favorites.includes(s.id) ? 'fill-amber-500 text-amber-500' : 'text-gray-400'}`} />
+                      </button>
+                    )}
+                    <Actions s={s} onView={onView} onEdit={onEdit} onDelete={onDelete} lang={lang} />
+                  </div>
+                </td>
               </tr>
             ))}
           </tbody>

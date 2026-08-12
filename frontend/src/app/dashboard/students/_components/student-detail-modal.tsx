@@ -77,7 +77,7 @@ export function StudentDetailModal({ student:s, onClose, onEdit, onPreviewPhoto,
               <button onClick={() => setShowContactParent(true)}
                 className="flex items-center gap-2 w-full px-4 py-2.5 rounded-xl bg-blue-50 text-blue-600 font-medium hover:bg-blue-100 transition-colors">
                 <MessageSquare className="h-4 w-4" />
-                {t('Contact Parentتواصل مع الوالد')}
+                {t('Contact Parent', 'تواصل مع الوالد')}
               </button>
             </div>
           )}
@@ -137,7 +137,7 @@ export function StudentDetailModal({ student:s, onClose, onEdit, onPreviewPhoto,
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4" onClick={() => setShowContactParent(false)}>
           <div className="bg-white rounded-2xl p-6 max-w-sm w-full" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-sm font-semibold text-gray-900">{t('Contact Parentتواصل مع الوالد')}</h3>
+              <h3 className="text-sm font-semibold text-gray-900">{t('Contact Parent', 'تواصل مع الوالد')}</h3>
               <Button variant="ghost" size="icon" onClick={() => setShowContactParent(false)}><X className="h-4 w-4" /></Button>
             </div>
             <div className="space-y-3">

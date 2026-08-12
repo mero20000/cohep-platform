@@ -1006,6 +1006,21 @@ function SessionSummaryModal({ session, students, lang, onClose }: { session: an
   const excusedCount = students.filter(s => s.status === 'excused').length
   const total = students.length
   const attendanceRate = total > 0 ? Math.round((presentCount / total) * 100) : 0
+  const [notes, setNotes] = useState(session?.notes || '')
+  const [savingNotes, setSavingNotes] = useState(false)
+  const [saved, setSaved] = useState(false)
+
+  const handleSaveNotes = async () => {
+    setSavingNotes(true)
+    try {
+      await http.put(`/attendance/sessions/${session.id}/notes`, { notes })
+      setSaved(true)
+      setTimeout(() => setSaved(false), 2000)
+    } catch {
+      // ignore
+    }
+    setSavingNotes(false)
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
@@ -1055,6 +1070,25 @@ function SessionSummaryModal({ session, students, lang, onClose }: { session: an
             <Link href="/dashboard/announcements" className="flex-1 text-center py-2.5 rounded-xl bg-gray-100 text-gray-700 font-medium hover:bg-gray-200 transition-colors">
               {lang === 'ar' ? 'إعلان' : 'Announce'}
             </Link>
+          </div>
+          
+          {/* Session Notes */}
+          <div className="mt-4">
+            <label className="block text-sm font-medium text-gray-700 mb-2">{lang === 'ar' ? 'ملاحظات الفصل' : 'Session Notes'}</label>
+            <textarea
+              value={notes}
+              onChange={e => setNotes(e.target.value)}
+              placeholder={lang === 'ar' ? 'أضف ملاحظات حول الفصل...' : 'Add notes about the session...'}
+              className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent resize-none"
+              rows={3}
+            />
+            <button
+              onClick={handleSaveNotes}
+              disabled={savingNotes || notes === (session?.notes || '')}
+              className="mt-2 px-4 py-2 text-sm font-medium text-emerald-600 hover:text-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {savingNotes ? (lang === 'ar' ? 'جاري الحفظ...' : 'Saving...') : saved ? (lang === 'ar' ? 'تم الحفظ ✓' : 'Saved ✓') : (lang === 'ar' ? 'حفظ الملاحظات' : 'Save Notes')}
+            </button>
           </div>
         </div>
       </div>
@@ -1116,6 +1150,124 @@ function ContactParentButton({ student, lang }: { student: any; lang: string }) 
                   </div>
                 </a>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  )
+}
+
+function RecurringSessionsButton({ lang }: { lang: string }) {
+  const [showModal, setShowModal] = useState(false)
+  const [groups, setGroups] = useState<any[]>([])
+  const [levels, setLevels] = useState<any[]>([])
+  const [selectedGroup, setSelectedGroup] = useState('')
+  const [selectedLevel, setSelectedLevel] = useState('')
+  const [dayOfWeek, setDayOfWeek] = useState(0)
+  const [time, setTime] = useState('10:00')
+  const [weeks, setWeeks] = useState(4)
+  const [creating, setCreating] = useState(false)
+  const [created, setCreated] = useState<number | null>(null)
+
+  useEffect(() => {
+    if (showModal) {
+      http.get<any[]>('/curriculum/levels', { schoolId: getSchoolId() }).then(d => setLevels(d || [])).catch(console.error)
+      http.get<any[]>('/students/groups/all', { schoolId: getSchoolId() }).then(d => setGroups((d || []).filter((g: any) => g.status !== 'inactive'))).catch(console.error)
+    }
+  }, [showModal])
+
+  const handleCreate = async () => {
+    if (!selectedGroup || !selectedLevel) return
+    setCreating(true)
+    try {
+      const res = await http.post('/attendance/sessions/recurring', {
+        groupId: selectedGroup,
+        levelId: selectedLevel,
+        dayOfWeek,
+        time,
+        weeks,
+      }, { schoolId: getSchoolId() }) as any
+      setCreated(res.created)
+      setTimeout(() => { setCreated(null); setShowModal(false) }, 2000)
+    } catch {
+      // ignore
+    }
+    setCreating(false)
+  }
+
+  const dayNames = lang === 'ar'
+    ? ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت']
+    : ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+
+  return (
+    <>
+      <button onClick={() => setShowModal(true)}
+        className="flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-50 text-blue-600 font-medium hover:bg-blue-100 transition-colors">
+        <CalendarClock className="h-4 w-4" />
+        {lang === 'ar' ? 'جلسات متكررة' : 'Recurring Sessions'}
+      </button>
+
+      {showModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-xl max-w-md w-full mx-4 p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">{lang === 'ar' ? 'إنشاء جلسات متكررة' : 'Create Recurring Sessions'}</h3>
+              <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600">
+                <XCircle className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{lang === 'ar' ? 'المستوى' : 'Level'}</label>
+                <select value={selectedLevel} onChange={e => setSelectedLevel(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                  <option value="">{lang === 'ar' ? 'اختر المستوى' : 'Select level'}</option>
+                  {levels.map((l: any) => <option key={l.id} value={l.id}>{l.name}</option>)}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{lang === 'ar' ? 'المجموعة' : 'Group'}</label>
+                <select value={selectedGroup} onChange={e => setSelectedGroup(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                  <option value="">{lang === 'ar' ? 'اختر المجموعة' : 'Select group'}</option>
+                  {groups.filter((g: any) => !selectedLevel || g.levelId === selectedLevel).map((g: any) => <option key={g.id} value={g.id}>{g.name}</option>)}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{lang === 'ar' ? 'يوم الأسبوع' : 'Day of Week'}</label>
+                <select value={dayOfWeek} onChange={e => setDayOfWeek(Number(e.target.value))}
+                  className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                  {dayNames.map((day, i) => <option key={i} value={i}>{day}</option>)}
+                </select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{lang === 'ar' ? 'الوقت' : 'Time'}</label>
+                  <input type="time" value={time} onChange={e => setTime(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{lang === 'ar' ? 'عدد الأسابيع' : 'Weeks'}</label>
+                  <input type="number" min={1} max={12} value={weeks} onChange={e => setWeeks(Number(e.target.value))}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-6 flex gap-3">
+              <button onClick={() => setShowModal(false)}
+                className="flex-1 py-2.5 rounded-xl bg-gray-100 text-gray-700 font-medium hover:bg-gray-200 transition-colors">
+                {lang === 'ar' ? 'إلغاء' : 'Cancel'}
+              </button>
+              <button onClick={handleCreate} disabled={creating || !selectedGroup || !selectedLevel}
+                className="flex-1 py-2.5 rounded-xl bg-blue-600 text-white font-medium hover:bg-blue-700 transition-colors disabled:opacity-50">
+                {creating ? (lang === 'ar' ? 'جاري الإنشاء...' : 'Creating...') : created ? (lang === 'ar' ? `تم إنشاء ${created} جلسات ✓` : `Created ${created} sessions ✓`) : (lang === 'ar' ? 'إنشاء' : 'Create')}
+              </button>
             </div>
           </div>
         </div>
@@ -1561,6 +1713,13 @@ function MinistryDashboard({ data, loading, error, onRetry }: { data: any; loadi
       {['servant', 'group_leader', 'level_leader'].includes(d.role || '') && (
         <motion.div variants={fadeUp}>
           <WeekScheduleCard lang={lang} />
+        </motion.div>
+      )}
+
+      {/* Recurring Sessions Button */}
+      {['servant', 'group_leader', 'level_leader'].includes(d.role || '') && (
+        <motion.div variants={fadeUp}>
+          <RecurringSessionsButton lang={lang} />
         </motion.div>
       )}
 

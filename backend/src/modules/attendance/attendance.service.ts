@@ -926,6 +926,95 @@ export class AttendanceService {
     });
     return { deleted: true };
   }
+
+  async createRecurringSessions(servantId: string, schoolIdentifier: string, body: { groupId: string; levelId: string; dayOfWeek: number; time: string; weeks?: number }) {
+    const schoolId = await this.schoolResolver.resolve(schoolIdentifier);
+    const { groupId, levelId, dayOfWeek, time, weeks = 4 } = body;
+
+    const sessions = [];
+    const now = new Date();
+
+    for (let i = 0; i < weeks; i++) {
+      const targetDate = new Date(now);
+      targetDate.setDate(targetDate.getDate() + (i * 7) + ((dayOfWeek - targetDate.getDay() + 7) % 7));
+      
+      const existing = await this.prisma.attendanceSession.findFirst({
+        where: { schoolId, groupId, scheduledDate: targetDate, deletedAt: null },
+      });
+
+      if (!existing) {
+        const session = await this.prisma.attendanceSession.create({
+          data: {
+            schoolId,
+            servantId,
+            levelId,
+            groupId,
+            scheduledDate: targetDate,
+            scheduledTime: time,
+            status: 'scheduled',
+          },
+        });
+
+        const students = await this.prisma.student.findMany({
+          where: { levelId, groupId, deletedAt: null },
+          select: { id: true },
+        });
+
+        if (students.length > 0) {
+          await this.prisma.attendanceRecord.createMany({
+            data: students.map(s => ({
+              attendanceSessionId: session.id,
+              studentId: s.id,
+              status: 'unmarked',
+              recordedBy: servantId,
+            })),
+          });
+        }
+
+        sessions.push(session);
+      }
+    }
+
+    return { created: sessions.length, sessions };
+  }
+
+  async batchUpdateRecords(sessionId: string, updates: Array<{ studentId: string; status: string }>) {
+    const session = await this.prisma.attendanceSession.findUnique({ where: { id: sessionId } });
+    if (!session) throw new NotFoundException('Attendance session not found');
+
+    const results = [];
+    for (const update of updates) {
+      const record = await this.prisma.attendanceRecord.upsert({
+        where: {
+          attendanceSessionId_studentId: {
+            attendanceSessionId: sessionId,
+            studentId: update.studentId,
+          },
+        },
+        update: { status: update.status },
+        create: {
+          attendanceSessionId: sessionId,
+          studentId: update.studentId,
+          status: update.status,
+        },
+      });
+      results.push(record);
+    }
+
+    return { updated: results.length };
+  }
+
+  async updateSessionNotes(sessionId: string, notes: string) {
+    const session = await this.prisma.attendanceSession.findUnique({ where: { id: sessionId } });
+    if (!session) throw new NotFoundException('Attendance session not found');
+
+    await this.prisma.attendanceSession.update({
+      where: { id: sessionId },
+      data: { notes },
+    });
+
+    return { updated: true };
+  }
 }
 
 function getISOWeeks(date: Date): string {

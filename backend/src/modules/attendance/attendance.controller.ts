@@ -105,6 +105,34 @@ export class AttendanceController {
     return this.attendanceService.generateSessions(schoolId);
   }
 
+  @Post('sessions/recurring')
+  @ApiOperation({ summary: 'Create recurring weekly sessions' })
+  async createRecurringSessions(
+    @Req() req: any,
+    @Body() body: { groupId: string; levelId: string; dayOfWeek: number; time: string; weeks?: number },
+    @Query('schoolId') schoolId: string = '',
+  ) {
+    return this.attendanceService.createRecurringSessions(req.user.id, schoolId, body);
+  }
+
+  @Put('sessions/:id/records/batch')
+  @ApiOperation({ summary: 'Batch update attendance records' })
+  async batchUpdateRecords(
+    @Param('id') id: string,
+    @Body() body: { updates: Array<{ studentId: string; status: string }> },
+  ) {
+    return this.attendanceService.batchUpdateRecords(id, body.updates);
+  }
+
+  @Put('sessions/:id/notes')
+  @ApiOperation({ summary: 'Update session notes' })
+  async updateSessionNotes(
+    @Param('id') id: string,
+    @Body() body: { notes: string },
+  ) {
+    return this.attendanceService.updateSessionNotes(id, body.notes);
+  }
+
   @Post('qr-checkin')
   @ApiOperation({ summary: 'QR check-in — mark a student present by scanning their QR code' })
   async qrCheckIn(@Req() req: any, @Body() dto: QrCheckInDto) {
