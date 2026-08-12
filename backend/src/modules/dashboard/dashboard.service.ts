@@ -331,8 +331,14 @@ export class DashboardService {
       }),
       this.prisma.group.findMany({
         where: { id: { in: groupIds }, deletedAt: null },
-        include: {
-          _count: { select: { students: true } },
+        select: {
+          id: true,
+          name: true,
+          nameAr: true,
+          students: {
+            where: assignedGradeId ? { gradeId: assignedGradeId, deletedAt: null } : { deletedAt: null },
+            select: { id: true },
+          },
         },
       }),
       this.prisma.student.count({ where: studentWhere }),
@@ -401,7 +407,7 @@ export class DashboardService {
       groups: groups.map((g: any) => ({
         id: g.id,
         name: g.name,
-        studentCount: g._count.students,
+        studentCount: g.students?.length ?? 0,
       })),
       studentsCount,
       attendanceRate,
