@@ -931,7 +931,7 @@ export class AttendanceService {
     const schoolId = await this.schoolResolver.resolve(schoolIdentifier);
     const { groupId, levelId, dayOfWeek, time, weeks = 4 } = body;
 
-    const sessions = [];
+    const sessions: any[] = [];
     const now = new Date();
 
     for (let i = 0; i < weeks; i++) {
@@ -982,7 +982,7 @@ export class AttendanceService {
     const session = await this.prisma.attendanceSession.findUnique({ where: { id: sessionId } });
     if (!session) throw new NotFoundException('Attendance session not found');
 
-    const results = [];
+    const results: any[] = [];
     for (const update of updates) {
       const record = await this.prisma.attendanceRecord.upsert({
         where: {
