@@ -271,16 +271,22 @@ export class DashboardService {
     });
     const ownGroupIds = [...new Set(own.map((s: any) => s.groupId).filter(Boolean))] as string[];
 
-    // Also check user metadata for group assignment
+    // Read metadata assignments for this servant
     const userRecord = await this.prisma.user.findUnique({
       where: { id: user.id },
       select: { metadata: true },
     });
-    const metaGroupId = (userRecord?.metadata as any)?.groupId;
-    if (metaGroupId && !ownGroupIds.includes(metaGroupId)) {
-      ownGroupIds.push(metaGroupId);
+    const meta = (userRecord?.metadata as any) || {};
+    const assignedGroupId = meta.groupId as string | undefined;
+    const assignedLevelId = meta.levelId as string | undefined;
+    const assignedGradeId = meta.gradeId as string | undefined;
+
+    if (assignedGroupId && !ownGroupIds.includes(assignedGroupId)) {
+      ownGroupIds.push(assignedGroupId);
     }
 
+    // Determine the effective group IDs to scope to
+    // Priority: metadata groupId > attendance session groups > all school groups
     const scoped = ownGroupIds.length > 0;
     const groupIds = scoped
       ? ownGroupIds
@@ -289,9 +295,34 @@ export class DashboardService {
           select: { id: true },
         })).map((g: any) => g.id);
 
+    // Build filter conditions based on assignments
+    const sessionWhere: any = { schoolId, groupId: { in: groupIds }, status: 'scheduled' };
+    const studentWhere: any = { schoolId, groupId: { in: groupIds }, deletedAt: null };
+    const gradeWhereBase: any = { submission: { assessment: { schoolId }, student: { groupId: { in: groupIds } } } };
+
+    // If levelId is assigned, further restrict to that level
+    if (assignedLevelId) {
+      sessionWhere.levelId = assignedLevelId;
+      // For students, we need to filter by level through the group relation
+      const levelGroupIds = (await this.prisma.group.findMany({
+        where: { schoolId, levelId: assignedLevelId, deletedAt: null },
+        select: { id: true },
+      })).map((g: any) => g.id);
+      // Intersect with already-scoped groups
+      const effectiveGroupIds = groupIds.filter((id: string) => levelGroupIds.includes(id));
+      sessionWhere.groupId = { in: effectiveGroupIds };
+      studentWhere.groupId = { in: effectiveGroupIds };
+      gradeWhereBase.submission.student.groupId = { in: effectiveGroupIds };
+    }
+
+    // If gradeId is assigned, further restrict students to that school grade
+    if (assignedGradeId) {
+      studentWhere.gradeId = assignedGradeId;
+    }
+
     const [sessions, groups, studentsCount, completedSessions, totalSessions, recentGrades] = await Promise.all([
       this.prisma.attendanceSession.findMany({
-        where: { schoolId, groupId: { in: groupIds }, status: 'scheduled' },
+        where: sessionWhere,
         orderBy: { scheduledDate: 'asc' },
         take: 8,
         include: {
@@ -305,12 +336,12 @@ export class DashboardService {
           _count: { select: { students: true } },
         },
       }),
-      this.prisma.student.count({ where: { schoolId, groupId: { in: groupIds }, deletedAt: null } }),
+      this.prisma.student.count({ where: studentWhere }),
       this.prisma.attendanceSession.count({ where: { schoolId, groupId: { in: groupIds }, status: 'completed' } }),
       this.prisma.attendanceSession.count({ where: { schoolId, groupId: { in: groupIds }, deletedAt: null } }),
       this.prisma.grade.findMany({
         where: {
-          submission: { assessment: { schoolId }, student: { groupId: { in: groupIds } } },
+          ...gradeWhereBase,
           questionId: null,
         },
         orderBy: { createdAt: 'desc' },
@@ -326,6 +357,23 @@ export class DashboardService {
       }),
     ]);
 
+    // Resolve assigned names for the response
+    let assignedGroupName: string | null = null;
+    let assignedLevelName: string | null = null;
+    let assignedGradeName: string | null = null;
+    if (assignedGroupId) {
+      const g = await this.prisma.group.findUnique({ where: { id: assignedGroupId }, select: { name: true } });
+      assignedGroupName = g?.name || null;
+    }
+    if (assignedLevelId) {
+      const l = await this.prisma.level.findUnique({ where: { id: assignedLevelId }, select: { name: true } });
+      assignedLevelName = l?.name || null;
+    }
+    if (assignedGradeId) {
+      const gr = await this.prisma.schoolGrade.findUnique({ where: { id: assignedGradeId }, select: { name: true } });
+      assignedGradeName = gr?.name || null;
+    }
+
     const attendanceRate = totalSessions > 0 ? Math.round((completedSessions / totalSessions) * 100) : 0;
 
     return {
@@ -333,6 +381,14 @@ export class DashboardService {
       role: roleToUse,
       scoped,
       school,
+      assigned: {
+        groupId: assignedGroupId || null,
+        groupName: assignedGroupName,
+        levelId: assignedLevelId || null,
+        levelName: assignedLevelName,
+        gradeId: assignedGradeId || null,
+        gradeName: assignedGradeName,
+      },
       sessions: sessions.map((s: any) => ({
         id: s.id,
         scheduledDate: s.scheduledDate,

@@ -1129,6 +1129,7 @@ function MinistryDashboard({ data, loading, error, onRetry }: { data: any; loadi
  const groups: any[] = d.groups || []
  const recentGrades: any[] = d.recentGrades || []
  const school = d.school || {}
+ const assigned = d.assigned || {}
  const churchName = school?.church?.name || ''
  const churchLogo = school?.church?.logoUrl
   ? (school.church.logoUrl.startsWith('http') ? school.church.logoUrl : (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api').replace('/api', '') + school.church.logoUrl)
@@ -1222,6 +1223,18 @@ function MinistryDashboard({ data, loading, error, onRetry }: { data: any; loadi
      <div className="flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
       <Info className="h-4 w-4 shrink-0" />
       <span>{lang === 'ar' ? 'أنت غير معيَّن لمجموعة بعد — يتم عرض نشاط المدرسة كاملاً.' : 'You are not assigned to a group yet — showing school-wide activity.'}</span>
+     </div>
+    )}
+
+    {d.scoped && (assigned.groupName || assigned.levelName || assigned.gradeName) && (
+     <div className="flex items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+      <Info className="h-4 w-4 shrink-0" />
+      <span>
+       {lang === 'ar' ? 'أنت معين إلى:' : 'You are assigned to:'}
+       {assigned.groupName && <span className="font-semibold"> {assigned.groupName}</span>}
+       {assigned.levelName && <span className="font-semibold"> · {assigned.levelName}</span>}
+       {assigned.gradeName && <span className="font-semibold"> · {assigned.gradeName}</span>}
+      </span>
      </div>
     )}
 
