@@ -414,6 +414,46 @@ export class ServantsService {
         })
 
         await this.checkAndLogMilestones(profile.id, servant.id, stats)
+
+        // Role change detection
+        const roles = await this.prisma.userRole.findMany({
+          where: { userId: servant.id },
+          include: { role: true },
+        })
+        const currentRoles = roles.map(ur => ur.role.name)
+        const previousRoles = profile.previousRoles || []
+        const newRoles = currentRoles.filter(r => !previousRoles.includes(r))
+
+        if (newRoles.length > 0) {
+          const ROLE_LABELS: Record<string, string> = {
+            servant: 'Joined as servant',
+            group_leader: 'Promoted to Group Leader',
+            level_leader: 'Promoted to Level Leader',
+          }
+          const ROLE_HIERARCHY = ['servant', 'group_leader', 'level_leader']
+
+          for (const newRole of newRoles) {
+            const existing = await this.prisma.servantMilestone.findFirst({
+              where: { userId: servant.id, type: 'role_change', label: ROLE_LABELS[newRole] },
+            })
+            if (!existing) {
+              await this.prisma.servantMilestone.create({
+                data: {
+                  userId: servant.id,
+                  profileId: profile.id,
+                  type: 'role_change',
+                  threshold: ROLE_HIERARCHY.indexOf(newRole),
+                  label: ROLE_LABELS[newRole],
+                },
+              })
+            }
+          }
+
+          await this.prisma.servantProfile.update({
+            where: { userId: servant.id },
+            data: { previousRoles: currentRoles },
+          })
+        }
       } catch (error) {
         this.logger.error(`Failed to update servant ${servant.id}: ${error}`)
       }
