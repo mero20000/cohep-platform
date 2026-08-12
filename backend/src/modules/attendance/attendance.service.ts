@@ -996,6 +996,7 @@ export class AttendanceService {
           attendanceSessionId: sessionId,
           studentId: update.studentId,
           status: update.status,
+          recordedBy: session.servantId || '',
         },
       });
       results.push(record);
