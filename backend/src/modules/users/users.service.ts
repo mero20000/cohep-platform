@@ -287,16 +287,25 @@ export class UsersService {
     const role = await this.prisma.role.findFirst({ where: { name: roleName } });
     if (!role) throw new NotFoundException(`Role "${roleName}" not found`);
 
-    const permissions = await this.prisma.permission.findMany({
+    // Auto-create any missing permissions so the frontend can save freely
+    const existingPerms = await this.prisma.permission.findMany({
       where: { name: { in: permissionNames } },
       select: { id: true, name: true },
     });
-    const foundNames = new Set(permissions.map(p => p.name));
-    const missing = permissionNames.filter(n => !foundNames.has(n));
-    if (missing.length > 0) {
-      throw new NotFoundException(`Unknown permissions: ${missing.join(', ')}`);
+    const existingNames = new Set(existingPerms.map(p => p.name));
+    const missingNames = permissionNames.filter(n => !existingNames.has(n));
+
+    let createdPerms: { id: string; name: string }[] = [];
+    if (missingNames.length > 0) {
+      createdPerms = await Promise.all(
+        missingNames.map(name =>
+          this.prisma.permission.create({ data: { name }, select: { id: true, name: true } }),
+        ),
+      );
     }
-    const permissionIds = permissions.map(p => p.id);
+
+    const allPerms = [...existingPerms, ...createdPerms];
+    const permissionIds = allPerms.map(p => p.id);
 
     await this.prisma.$transaction([
       this.prisma.rolePermission.deleteMany({ where: { roleId: role.id } }),
