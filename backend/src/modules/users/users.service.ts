@@ -298,9 +298,14 @@ export class UsersService {
     let createdPerms: { id: string; name: string }[] = [];
     if (missingNames.length > 0) {
       createdPerms = await Promise.all(
-        missingNames.map(name =>
-          this.prisma.permission.create({ data: { name }, select: { id: true, name: true } }),
-        ),
+        missingNames.map(name => {
+          const [resource, action] = name.split(':');
+          const displayName = name.split('-').map(s => s.charAt(0).toUpperCase() + s.slice(1)).join(' ');
+          return this.prisma.permission.create({
+            data: { name, displayName, resource, action },
+            select: { id: true, name: true },
+          });
+        }),
       );
     }
 
