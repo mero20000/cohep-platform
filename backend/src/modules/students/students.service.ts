@@ -17,7 +17,7 @@ export class StudentsService {
     private readonly analytics: AnalyticsService,
   ) {}
 
-  async findAll(queryDto: QueryStudentDto, schoolIdentifier: string) {
+  async findAll(queryDto: QueryStudentDto, schoolIdentifier: string, user?: any) {
     const schoolId = await this.schoolResolver.resolve(schoolIdentifier);
     const { levelId, groupId, status, churchName, gradeId, gender, search, page = 1, limit: rawLimit = 20, sortBy, sortDir } = queryDto;
     const limit = Math.min(rawLimit, 100);
@@ -27,6 +27,34 @@ export class StudentsService {
       deletedAt: null,
     };
 
+    // Auto-filter by servant's metadata assignments
+    if (user) {
+      const userRecord = await this.prisma.user.findUnique({
+        where: { id: user.id },
+        select: { metadata: true, userRoles: { select: { role: { select: { name: true } } } } },
+      });
+      const meta = (userRecord?.metadata as any) || {};
+      const isServant = userRecord?.userRoles?.some((ur: any) =>
+        ['servant', 'group_leader', 'level_leader'].includes(ur.role.name)
+      );
+
+      if (isServant) {
+        // If metadata has groupId, only show students from that group
+        if (meta.groupId) {
+          where.groupId = meta.groupId;
+        }
+        // If metadata has levelId, only show students from that level
+        if (meta.levelId) {
+          where.levelId = meta.levelId;
+        }
+        // If metadata has gradeId, only show students from that grade
+        if (meta.gradeId) {
+          where.gradeId = meta.gradeId;
+        }
+      }
+    }
+
+    // Apply explicit query filters (these override metadata if provided)
     if (levelId) where.levelId = levelId;
     if (groupId) where.groupId = groupId;
     if (status) where.status = status;

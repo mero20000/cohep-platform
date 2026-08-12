@@ -8,6 +8,7 @@ import {
   Body,
   Param,
   Query,
+  Req,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { Roles, STAFF_ROLES } from '../../common/decorators/roles.decorator';
@@ -45,8 +46,8 @@ export class StudentsController {
     @Get()
   @ApiOperation({ summary: 'Get all students' })
   @ApiResponse({ status: 200, description: 'Students retrieved successfully' })
-  async findAll(@Query() queryDto: QueryStudentDto, @Query('schoolId') schoolId: string = '') {
-    return this.studentsService.findAll(queryDto, schoolId);
+  async findAll(@Req() req: any, @Query() queryDto: QueryStudentDto, @Query('schoolId') schoolId: string = '') {
+    return this.studentsService.findAll(queryDto, schoolId, req.user);
   }
 
     @Get('levels/all')
