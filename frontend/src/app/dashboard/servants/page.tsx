@@ -97,6 +97,7 @@ export default function ServantsPage() {
     teachingSubjects: [] as string[],
     grade: '',
     dateJoined: '',
+    dateOfBirth: '',
   })
   const [formError, setFormError] = useState('')
   const [emailError, setEmailError] = useState('')
@@ -247,7 +248,7 @@ export default function ServantsPage() {
 
   const openCreate = () => {
     setEditing(null)
-    setForm({ firstName: '', lastName: '', firstNameAr: '', lastNameAr: '', email: '', phone: '', password: '', roleName: 'servant', levelId: '', groupId: '', teachingSubjects: [], grade: '', dateJoined: '' })
+    setForm({ firstName: '', lastName: '', firstNameAr: '', lastNameAr: '', email: '', phone: '', password: '', roleName: 'servant', levelId: '', groupId: '', teachingSubjects: [], grade: '', dateJoined: '', dateOfBirth: '' })
     revokePhoto()
     setFormError('')
     setEmailError('')
@@ -268,6 +269,7 @@ export default function ServantsPage() {
       teachingSubjects: meta.teachingSubjects || [],
       grade: meta.grade || '',
       dateJoined: meta.dateJoined || '',
+      dateOfBirth: meta.dateOfBirth || '',
     })
     revokePhoto()
     setFormError('')
@@ -321,6 +323,7 @@ export default function ServantsPage() {
           groupId: form.groupId || undefined,
           grade: form.grade || undefined,
           dateJoined: form.dateJoined || undefined,
+          dateOfBirth: form.dateOfBirth || undefined,
         },
       }
       if (avatarUrl) body.avatarUrl = avatarUrl
@@ -798,6 +801,9 @@ export default function ServantsPage() {
           </div>
           <div>
             <FormField label={lang === 'ar' ? 'تاريخ الانضمام' : 'Date Joined'} type="date" value={form.dateJoined} onChange={e => updateField('dateJoined', e.target.value)} hint={lang === 'ar' ? 'يُستخدم لحساب سنوات الخدمة' : 'Used to calculate years of service'} />
+          </div>
+          <div>
+            <FormField label={lang === 'ar' ? 'تاريخ الميلاد' : 'Date of Birth'} type="date" value={form.dateOfBirth} onChange={e => updateField('dateOfBirth', e.target.value)} />
           </div>
           {!editing && (
             <FormField label={lang === 'ar' ? 'كلمة المرور' : 'Password'} type="password" value={form.password} onChange={e => updateField('password', e.target.value)} hint={lang === 'ar' ? 'اتركه فارغاً لاستخدام كلمة المرور الافتراضية: Password123!' : 'Leave blank to use the default password: Password123!'} placeholder={lang === 'ar' ? 'أدخل كلمة مرور' : 'Enter a password'} />
