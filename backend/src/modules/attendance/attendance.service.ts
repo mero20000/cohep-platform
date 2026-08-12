@@ -377,7 +377,7 @@ export class AttendanceService {
   }
 
   async startClass(servantId: string) {
-    const servant = await this.prisma.user.findUnique({ where: { id: servantId }, select: { schoolId: true } });
+    const servant = await this.prisma.user.findUnique({ where: { id: servantId }, select: { schoolId: true, metadata: true } });
     if (!servant) throw new NotFoundException('Servant not found');
 
     const today = new Date();
@@ -400,7 +400,12 @@ export class AttendanceService {
     });
     if (existing) return { session: existing, created: false };
 
-    // Find servant's group(s) from their recent sessions
+    // Check user metadata for assigned group/level
+    const meta = (servant.metadata as any) || {};
+    const metaGroupId = meta.groupId as string | undefined;
+    const metaLevelId = meta.levelId as string | undefined;
+
+    // Find servant's group(s) from their recent sessions or metadata
     const recentSessions = await this.prisma.attendanceSession.findMany({
       where: { servantId, deletedAt: null },
       include: { group: { select: { id: true, name: true } }, level: { select: { id: true, name: true, number: true } } },
@@ -408,24 +413,46 @@ export class AttendanceService {
       take: 1,
     });
 
-    if (recentSessions.length === 0) {
-      throw new BadRequestException('No groups assigned. Ask your admin to set up your schedule.');
+    let groupId: string | undefined = metaGroupId;
+    let levelId: string | undefined = metaLevelId;
+
+    // If no metadata assignment, try to get from recent sessions
+    if (!groupId && recentSessions.length > 0) {
+      groupId = recentSessions[0].groupId;
+      levelId = levelId || recentSessions[0].levelId;
     }
 
-    const ref = recentSessions[0];
-    const groups = await this.prisma.group.findMany({
-      where: { schoolId: servant.schoolId, deletedAt: null, status: { not: 'inactive' } },
-    });
-
-    let groupId: string;
-    let levelId: string;
-
-    if (groups.length === 1) {
-      groupId = groups[0].id;
-      levelId = ref.levelId;
-    } else {
-      // Multiple groups — return them for the client to pick
+    if (!groupId) {
+      // No assignment found — return all school groups for the client to pick
+      const groups = await this.prisma.group.findMany({
+        where: { schoolId: servant.schoolId, deletedAt: null, status: { not: 'inactive' } },
+      });
+      if (groups.length === 0) {
+        throw new BadRequestException('No groups found in this school.');
+      }
       return { groups: groups.map(g => ({ id: g.id, name: g.name })), requiresGroupPick: true };
+    }
+
+    if (!levelId) {
+      // Try to find level from a recent session for this group
+      const groupSession = await this.prisma.attendanceSession.findFirst({
+        where: { servantId, groupId, deletedAt: null },
+        select: { levelId: true },
+      });
+      if (groupSession) {
+        levelId = groupSession.levelId;
+      } else {
+        // Get the first level for this school
+        const firstLevel = await this.prisma.level.findFirst({
+          where: { schoolId: servant.schoolId, deletedAt: null },
+          select: { id: true },
+        });
+        levelId = firstLevel?.id;
+      }
+    }
+
+    if (!levelId) {
+      throw new BadRequestException('No level found. Ask your admin to set up levels.');
     }
 
     const session = await this.prisma.attendanceSession.create({
