@@ -12,6 +12,7 @@ import { useToast } from '@/components/ui/toast'
 import { Button } from '@/components/ui/button'
 import { Modal } from '@/components/ui/modal'
 import { FormField } from '@/components/ui/form-field'
+import { DatePicker } from '@/components/ui/date-picker'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { http } from '@/lib/http-client'
 import { getSchoolId } from '@/lib/school'
@@ -801,11 +802,16 @@ export default function ServantsPage() {
             </div>
             <FormField label={lang === 'ar' ? 'الهاتف' : 'Phone'} type="tel" value={form.phone} onChange={e => updateField('phone', e.target.value)} />
           </div>
-          <div>
-            <FormField label={lang === 'ar' ? 'تاريخ الانضمام' : 'Date Joined'} type="date" value={form.dateJoined} onChange={e => updateField('dateJoined', e.target.value)} hint={lang === 'ar' ? 'يُستخدم لحساب سنوات الخدمة' : 'Used to calculate years of service'} />
-          </div>
-          <div>
-            <FormField label={lang === 'ar' ? 'تاريخ الميلاد' : 'Date of Birth'} type="date" value={form.dateOfBirth} onChange={e => updateField('dateOfBirth', e.target.value)} />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">{lang === 'ar' ? 'تاريخ الانضمام' : 'Date Joined'}</label>
+              <DatePicker value={form.dateJoined} onChange={v => updateField('dateJoined', v)} />
+              <p className="mt-1 text-xs text-gray-500">{lang === 'ar' ? 'يُستخدم لحساب سنوات الخدمة' : 'Used to calculate years of service'}</p>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">{lang === 'ar' ? 'تاريخ الميلاد' : 'Date of Birth'}</label>
+              <DatePicker value={form.dateOfBirth} onChange={v => updateField('dateOfBirth', v)} max={new Date().toISOString().split('T')[0]} />
+            </div>
           </div>
           {!editing && (
             <FormField label={lang === 'ar' ? 'كلمة المرور' : 'Password'} type="password" value={form.password} onChange={e => updateField('password', e.target.value)} hint={lang === 'ar' ? 'اتركه فارغاً لاستخدام كلمة المرور الافتراضية: Password123!' : 'Leave blank to use the default password: Password123!'} placeholder={lang === 'ar' ? 'أدخل كلمة مرور' : 'Enter a password'} />
