@@ -26,7 +26,7 @@ export default function ServantProfilePage() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
-          <p className="text-gray-500">Servant not found or you don't have access.</p>
+          <p className="text-gray-500">Servant not found or you don&apos;t have access.</p>
           <Link href="/dashboard" className="text-blue-600 hover:underline mt-2 inline-block">
             Back to Dashboard
           </Link>
