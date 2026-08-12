@@ -271,13 +271,17 @@ export class DashboardService {
     });
     const ownGroupIds = [...new Set(own.map((s: any) => s.groupId).filter(Boolean))] as string[];
 
-    // Also check ServantProfile for group assignment
-    const profile = await this.prisma.servantProfile.findUnique({
-      where: { userId: user.id },
-      select: { currentGroupName: true, currentLevelName: true },
+    // Also check user metadata for group assignment
+    const userRecord = await this.prisma.user.findUnique({
+      where: { id: user.id },
+      select: { metadata: true },
     });
+    const metaGroupId = (userRecord?.metadata as any)?.groupId;
+    if (metaGroupId && !ownGroupIds.includes(metaGroupId)) {
+      ownGroupIds.push(metaGroupId);
+    }
 
-    const scoped = ownGroupIds.length > 0 || !!(profile?.currentGroupName);
+    const scoped = ownGroupIds.length > 0;
     const groupIds = scoped
       ? ownGroupIds
       : (await this.prisma.group.findMany({
