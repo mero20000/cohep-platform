@@ -128,10 +128,10 @@ export function DashboardHeader({
 
       <Link href="/dashboard" className="flex items-center gap-2.5 flex-shrink-0 hover:opacity-80 transition-opacity">
         {schoolLogo ? (
-          <Image src={schoolLogo} alt={language === 'ar' && schoolNameAr ? schoolNameAr : schoolName} width={56} height={56} className="rounded-xl object-cover border border-gray-200 flex-shrink-0" unoptimized />
+          <Image src={schoolLogo} alt={language === 'ar' && schoolNameAr ? schoolNameAr : schoolName} width={72} height={72} className="rounded-xl object-cover border border-gray-200 flex-shrink-0" unoptimized />
         ) : (
-          <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-blue-500 text-white flex-shrink-0">
-            <Cross className="h-6 w-6" />
+          <div className="flex h-[72px] w-[72px] items-center justify-center rounded-xl bg-blue-500 text-white flex-shrink-0">
+            <Cross className="h-8 w-8" />
           </div>
         )}
         <span className="hidden sm:block text-sm font-bold text-gray-900">{language === 'ar' && schoolNameAr ? schoolNameAr : schoolName}</span>
