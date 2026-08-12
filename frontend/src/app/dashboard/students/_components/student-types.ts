@@ -15,6 +15,7 @@ export interface Student {
   metadata?: { phone?: string; email?: string; address?: string; notes?: string; churchToolId?: string }
   parentEmail?: string
   portalAccessKey?: string
+  studentParents?: Array<{ parent?: { id: string; firstName: string; lastName: string; phone?: string; email?: string }; relationship?: string }>
 }
 
 export interface PaginatedResponse {
