@@ -18,20 +18,22 @@ export class AttendanceController {
   @Get('sessions')
   @ApiOperation({ summary: 'Get attendance sessions' })
   async getSessions(
+    @Req() req: any,
     @Query('schoolId') schoolId: string = '',
     @Query('page') page?: string,
     @Query('limit') limit?: string,
     @Query('status') status?: string,
     @Query('levelId') levelId?: string,
     @Query('groupId') groupId?: string,
+    @Query('servantId') servantId?: string,
     @Query('from') from?: string,
     @Query('to') to?: string,
   ) {
     return this.attendanceService.getSessions(schoolId, {
       page: page ? parseInt(page, 10) : 1,
       limit: limit ? parseInt(limit, 10) : 50,
-      status, levelId, groupId, from, to,
-    });
+      status, levelId, groupId, servantId, from, to,
+    }, req.user);
   }
 
   @Get('stats')

@@ -24,16 +24,33 @@ export class AttendanceService {
 
   async getSessions(schoolIdentifier: string, filters: {
     page?: number; limit?: number; status?: string; levelId?: string;
-    groupId?: string; from?: string; to?: string;
-  }) {
+    groupId?: string; servantId?: string; from?: string; to?: string;
+  }, user?: any) {
     const schoolId = await this.schoolResolver.resolve(schoolIdentifier);
-    const { page = 1, limit: rawLimit = 50, status, levelId, groupId, from, to } = filters;
+    const { page = 1, limit: rawLimit = 50, status, levelId, groupId, servantId, from, to } = filters;
     const limit = Math.min(rawLimit, 1000);
 
     const where: any = { schoolId, deletedAt: null };
     if (status) where.status = status;
     if (levelId) where.levelId = levelId;
     if (groupId) where.groupId = groupId;
+    
+    // If servantId is provided or user is a servant, filter by their sessions
+    if (servantId) {
+      where.servantId = servantId;
+    } else if (user) {
+      const userRecord = await this.prisma.user.findUnique({
+        where: { id: user.id },
+        select: { userRoles: { select: { role: { select: { name: true } } } } },
+      });
+      const isServant = userRecord?.userRoles?.some((ur: any) =>
+        ['servant', 'group_leader', 'level_leader'].includes(ur.role.name)
+      );
+      if (isServant) {
+        where.servantId = user.id;
+      }
+    }
+    
     if (from || to) {
       where.scheduledDate = {};
       if (from) where.scheduledDate.gte = new Date(from);
