@@ -303,13 +303,14 @@ export class DashboardService {
     // If levelId is assigned, further restrict to that level
     if (assignedLevelId) {
       sessionWhere.levelId = assignedLevelId;
-      // For students, we need to filter by level through the group relation
-      const levelGroupIds = (await this.prisma.group.findMany({
+      // For students, we need to find groups that have sessions with this level
+      const levelGroupIds = (await this.prisma.attendanceSession.findMany({
         where: { schoolId, levelId: assignedLevelId, deletedAt: null },
-        select: { id: true },
-      })).map((g: any) => g.id);
+        select: { groupId: true },
+      })).map((s: any) => s.groupId);
+      const uniqueLevelGroupIds = [...new Set(levelGroupIds)];
       // Intersect with already-scoped groups
-      const effectiveGroupIds = groupIds.filter((id: string) => levelGroupIds.includes(id));
+      const effectiveGroupIds = groupIds.filter((id: string) => uniqueLevelGroupIds.includes(id));
       sessionWhere.groupId = { in: effectiveGroupIds };
       studentWhere.groupId = { in: effectiveGroupIds };
       gradeWhereBase.submission.student.groupId = { in: effectiveGroupIds };
