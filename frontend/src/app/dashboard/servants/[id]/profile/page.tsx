@@ -7,6 +7,8 @@ import { useServantProfile, useServantTimeline } from '@/components/servants/hoo
 import { MinistryTimeline } from '@/components/servants/ministry-timeline'
 import { ArrowLeft, Cross, Loader2 } from 'lucide-react'
 
+const API_ORIGIN = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api').replace('/api', '')
+
 export default function ServantProfilePage() {
   const params = useParams()
   const id = params?.id as string
@@ -52,10 +54,11 @@ export default function ServantProfilePage() {
             <div className="flex h-16 w-16 items-center justify-center rounded-full bg-blue-50">
               {profile.photoUrl ? (
                 <Image
-                  src={profile.photoUrl}
+                  src={profile.photoUrl.startsWith('http') ? profile.photoUrl : `${API_ORIGIN}${profile.photoUrl}`}
                   alt={profile.name}
                   width={64}
                   height={64}
+                  unoptimized
                   className="h-full w-full object-cover rounded-full"
                 />
               ) : (
