@@ -763,10 +763,29 @@ async getPortalData(portalAccessKey: string) {
   async getStats(schoolIdentifier: string, filters?: {
     levelId?: string; groupId?: string; status?: string; gradeId?: string;
     gender?: string; churchName?: string; search?: string;
-  }) {
+  }, user?: any) {
     const schoolId = await this.schoolResolver.resolve(schoolIdentifier);
     const where: any = { deletedAt: null, schoolId };
 
+    // Auto-filter by servant's metadata assignments
+    if (user) {
+      const userRecord = await this.prisma.user.findUnique({
+        where: { id: user.id },
+        select: { metadata: true, userRoles: { select: { role: { select: { name: true } } } } },
+      });
+      const meta = (userRecord?.metadata as any) || {};
+      const isServant = userRecord?.userRoles?.some((ur: any) =>
+        ['servant', 'group_leader', 'level_leader'].includes(ur.role.name)
+      );
+
+      if (isServant) {
+        if (meta.groupId) where.groupId = meta.groupId;
+        if (meta.levelId) where.levelId = meta.levelId;
+        if (meta.gradeId) where.gradeId = meta.gradeId;
+      }
+    }
+
+    // Apply explicit query filters (override metadata)
     if (filters?.levelId) where.levelId = filters.levelId;
     if (filters?.groupId) where.groupId = filters.groupId;
     if (filters?.status) where.status = filters.status;

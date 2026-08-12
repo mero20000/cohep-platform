@@ -31,6 +31,7 @@ export class StudentsController {
     @Get('stats')
   @ApiOperation({ summary: 'Get student stats' })
   async getStats(
+    @Req() req: any,
     @Query('schoolId') schoolId: string = '',
     @Query('levelId') levelId?: string,
     @Query('groupId') groupId?: string,
@@ -40,7 +41,7 @@ export class StudentsController {
     @Query('churchName') churchName?: string,
     @Query('search') search?: string,
   ) {
-    return this.studentsService.getStats(schoolId, { levelId, groupId, status, gradeId, gender, churchName, search });
+    return this.studentsService.getStats(schoolId, { levelId, groupId, status, gradeId, gender, churchName, search }, req.user);
   }
 
     @Get()
