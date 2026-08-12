@@ -39,6 +39,8 @@ interface ServantUser {
     grade?: string;
     levelId?: string;
     groupId?: string;
+    dateJoined?: string;
+    dateOfBirth?: string;
   }
 }
 
