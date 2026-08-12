@@ -332,7 +332,6 @@ export class ServantsService {
       },
     }).then(records => records.length)
 
-    const metadata = (user.metadata as any) || {}
     const totalHymns = await this.prisma.subjectItem.count({
       where: {
         lessons: { some: { schoolId: user.schoolId } },
