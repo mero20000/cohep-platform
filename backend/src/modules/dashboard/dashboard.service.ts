@@ -265,12 +265,6 @@ export class DashboardService {
   }
 
   private async getMinistryView(user: any, schoolId: string, roleToUse: string, school: any) {
-    const own = await this.prisma.attendanceSession.findMany({
-      where: { schoolId, servantId: user.id },
-      select: { groupId: true },
-    });
-    const ownGroupIds = [...new Set(own.map((s: any) => s.groupId).filter(Boolean))] as string[];
-
     // Read metadata assignments for this servant
     const userRecord = await this.prisma.user.findUnique({
       where: { id: user.id },
@@ -281,39 +275,39 @@ export class DashboardService {
     const assignedLevelId = meta.levelId as string | undefined;
     const assignedGradeId = meta.gradeId as string | undefined;
 
-    if (assignedGroupId && !ownGroupIds.includes(assignedGroupId)) {
-      ownGroupIds.push(assignedGroupId);
-    }
+    // If the servant has a metadata group assignment, use ONLY that group
+    // Otherwise fall back to attendance session groups
+    let groupIds: string[];
+    let scoped: boolean;
 
-    // Determine the effective group IDs to scope to
-    // Priority: metadata groupId > attendance session groups > all school groups
-    const scoped = ownGroupIds.length > 0;
-    const groupIds = scoped
-      ? ownGroupIds
-      : (await this.prisma.group.findMany({
-          where: { schoolId, deletedAt: null },
-          select: { id: true },
-        })).map((g: any) => g.id);
+    if (assignedGroupId) {
+      // Metadata assignment takes precedence — only show this group
+      groupIds = [assignedGroupId];
+      scoped = true;
+    } else {
+      // Fall back to attendance session groups
+      const own = await this.prisma.attendanceSession.findMany({
+        where: { schoolId, servantId: user.id },
+        select: { groupId: true },
+      });
+      const ownGroupIds = [...new Set(own.map((s: any) => s.groupId).filter(Boolean))] as string[];
+      scoped = ownGroupIds.length > 0;
+      groupIds = scoped
+        ? ownGroupIds
+        : (await this.prisma.group.findMany({
+            where: { schoolId, deletedAt: null },
+            select: { id: true },
+          })).map((g: any) => g.id);
+    }
 
     // Build filter conditions based on assignments
     const sessionWhere: any = { schoolId, groupId: { in: groupIds }, status: 'scheduled' };
     const studentWhere: any = { schoolId, groupId: { in: groupIds }, deletedAt: null };
     const gradeWhereBase: any = { submission: { assessment: { schoolId }, student: { groupId: { in: groupIds } } } };
 
-    // If levelId is assigned, further restrict to that level
+    // If levelId is assigned, further restrict sessions to that level
     if (assignedLevelId) {
       sessionWhere.levelId = assignedLevelId;
-      // For students, we need to find groups that have sessions with this level
-      const levelGroupIds = (await this.prisma.attendanceSession.findMany({
-        where: { schoolId, levelId: assignedLevelId, deletedAt: null },
-        select: { groupId: true },
-      })).map((s: any) => s.groupId);
-      const uniqueLevelGroupIds = [...new Set(levelGroupIds)];
-      // Intersect with already-scoped groups
-      const effectiveGroupIds = groupIds.filter((id: string) => uniqueLevelGroupIds.includes(id));
-      sessionWhere.groupId = { in: effectiveGroupIds };
-      studentWhere.groupId = { in: effectiveGroupIds };
-      gradeWhereBase.submission.student.groupId = { in: effectiveGroupIds };
     }
 
     // If gradeId is assigned, further restrict students to that school grade
