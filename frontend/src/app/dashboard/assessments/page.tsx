@@ -141,7 +141,7 @@ export default function AssessmentsPage() {
   const [subjects, setSubjects] = useState<Subject[]>([])
   const [lessons, setLessons] = useState<Lesson[]>([])
   const [academicYears, setAcademicYears] = useState<AcademicYear[]>([])
-  const [gradeOptions, setGradeOptions] = useState<string[]>([])
+  const [gradeOptions, setGradeOptions] = useState<GradeItem[]>([])
 
   const [showForm, setShowForm] = useState(false)
   const [showDelete, setShowDelete] = useState(false)
@@ -238,7 +238,7 @@ export default function AssessmentsPage() {
       .then((data: AcademicYear[]) => setAcademicYears(data))
       .catch(console.error)
     fetchActiveGrades()
-      .then((grades: GradeItem[]) => { if (grades.length) setGradeOptions(grades.map(g => g.name)) })
+      .then((grades: GradeItem[]) => { if (grades.length) setGradeOptions(grades) })
       .catch(console.error)
   }, [schoolId])
 
@@ -922,9 +922,13 @@ export default function AssessmentsPage() {
               <option value="">{lang === 'ar' ? 'جميع المجموعات' : 'All Groups'}</option>
               {groups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
             </FormField>
-            <FormField label={lang === 'ar' ? 'الصف' : 'Grade'} as="select" value={form.grade} onChange={e => updateForm({ grade: e.target.value })}>
+            <FormField label={lang === 'ar' ? 'الصف' : 'Grade'} as="select" value={form.grade} onChange={e => {
+              const gradeName = e.target.value
+              const selectedGrade = gradeOptions.find(g => g.name === gradeName)
+              updateForm({ grade: gradeName, groupId: selectedGrade?.groupId || form.groupId })
+            }}>
               <option value="">{lang === 'ar' ? 'جميع الصفوف' : 'All Grades'}</option>
-              {gradeOptions.map(g => <option key={g} value={g}>{g}</option>)}
+              {gradeOptions.map(g => <option key={g.id} value={g.name}>{g.name}</option>)}
             </FormField>
             <FormField label={lang === 'ar' ? 'المادة' : 'Subject'} required as="select" value={form.subjectId} onChange={e => updateForm({ subjectId: e.target.value })}>
               <option value="">{lang === 'ar' ? 'اختر المادة' : 'Select subject'}</option>
