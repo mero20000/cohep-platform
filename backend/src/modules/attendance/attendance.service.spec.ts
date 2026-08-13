@@ -143,4 +143,64 @@ describe('AttendanceService', () => {
       expect(prisma.attendanceSession.create).toHaveBeenCalled();
     });
   });
+
+  describe('updateSession', () => {
+    let storedSession: any;
+
+    const baseSession = {
+      id: 'sess-1',
+      schoolId,
+      servantId: 'u1',
+      groupId: 'group-1',
+      levelId: 'level-1',
+      status: 'in_progress',
+      actualStartTime: null,
+      actualEndTime: null,
+    };
+
+    beforeEach(() => {
+      storedSession = { ...baseSession };
+      prisma.attendanceSession.findUnique.mockImplementation(() =>
+        Promise.resolve(storedSession),
+      );
+      prisma.attendanceSession.update.mockImplementation(({ data }: any) => {
+        storedSession = { ...storedSession, ...data };
+        return Promise.resolve(storedSession);
+      });
+      prisma.student.findMany.mockResolvedValue([]);
+      prisma.attendanceRecord.findMany.mockResolvedValue([]);
+      prisma.attendanceRecord.deleteMany.mockResolvedValue({ count: 0 });
+      prisma.attendanceRecord.createMany.mockResolvedValue({ count: 0 });
+    });
+
+    it('records actualEndTime when status becomes completed', async () => {
+      await service.updateSession('sess-1', { status: 'completed' } as any);
+
+      const data = prisma.attendanceSession.update.mock.calls[0][0].data;
+      expect(data.status).toBe('completed');
+      expect(data.actualEndTime).toBeInstanceOf(Date);
+    });
+
+    it('records actualStartTime when status becomes in_progress and it is null', async () => {
+      prisma.attendanceSession.findUnique.mockResolvedValue({
+        ...baseSession,
+        status: 'scheduled',
+      });
+
+      await service.updateSession('sess-1', { status: 'in_progress' } as any);
+
+      const data = prisma.attendanceSession.update.mock.calls[0][0].data;
+      expect(data.actualStartTime).toBeInstanceOf(Date);
+    });
+
+    it('re-syncs students when groupId changes', async () => {
+      prisma.student.findMany.mockResolvedValue([{ id: 'st1' }, { id: 'st2' }]);
+
+      await service.updateSession('sess-1', { groupId: 'group-2' } as any);
+
+      expect(prisma.student.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: expect.objectContaining({ groupId: 'group-2' }) }),
+      );
+    });
+  });
 });

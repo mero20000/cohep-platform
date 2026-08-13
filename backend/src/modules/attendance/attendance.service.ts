@@ -801,6 +801,10 @@ export class AttendanceService {
     const session = await this.prisma.attendanceSession.findUnique({ where: { id } });
     if (!session) throw new NotFoundException('Attendance session not found');
 
+    const statusChanged = !!dto.status && dto.status !== session.status;
+    const groupChanged = !!dto.groupId && dto.groupId !== session.groupId;
+    const now = new Date();
+
     const updated = await this.prisma.attendanceSession.update({
       where: { id },
       data: {
@@ -811,6 +815,8 @@ export class AttendanceService {
         ...(dto.scheduledTime && { scheduledTime: dto.scheduledTime }),
         ...(dto.status && { status: dto.status }),
         ...(dto.notes !== undefined && { notes: dto.notes }),
+        ...(statusChanged && dto.status === 'in_progress' && !session.actualStartTime && { actualStartTime: now }),
+        ...(statusChanged && dto.status === 'completed' && { actualEndTime: now }),
       },
       include: {
         level: { select: { id: true, name: true, number: true } },
@@ -819,8 +825,8 @@ export class AttendanceService {
       },
     });
 
-    // Sync students when status changes
-    if (dto.status && dto.status !== session.status) {
+    // Sync students when status or group changes
+    if (statusChanged || groupChanged) {
       await this.syncSessionStudents(id, dto.servantId || session.servantId);
     }
 
