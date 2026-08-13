@@ -20,7 +20,7 @@ vi.mock('lucide-react', () => {
     'AlertCircle', 'AlertTriangle', 'ArrowUpDown', 'Award', 'Calendar', 'CalendarDays', 'Camera',
     'Check', 'CheckCircle', 'ChevronDown', 'ChevronLeft', 'ChevronRight', 'Church', 'Download',
     'Eye', 'FileSpreadsheet', 'GraduationCap', 'Layers', 'Loader', 'Loader2', 'Mail', 'MapPin',
-    'MessageCircle', 'Pencil', 'Phone', 'Plus', 'RefreshCw', 'Search', 'Shield', 'Trash', 'Trash2',
+    'MessageCircle', 'Pencil', 'Phone', 'Plus', 'RefreshCw', 'Search', 'Shield', 'Star', 'Trash', 'Trash2',
     'Upload', 'User', 'UserCheck', 'Users', 'X',
   ]
   for (const name of iconNames) {
