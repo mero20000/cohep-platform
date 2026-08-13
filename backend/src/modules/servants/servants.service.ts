@@ -14,6 +14,7 @@ export interface ServantProfileData {
   assignedGroup: string | null
   teachingSubjects: string[]
   yearsOfService: number
+  dateJoined: string | null
   totalStudents: number
   totalSessions: number
   totalHymns: number
@@ -244,6 +245,7 @@ export class ServantsService {
       assignedGroup: profile?.currentGroupName || null,
       teachingSubjects: metadata.teachingSubjects || [],
       yearsOfService: profile?.yearsOfService || 0,
+      dateJoined: metadata.dateJoined || user.createdAt.toISOString(),
       totalStudents: profile?.totalStudents || 0,
       totalSessions: profile?.totalSessions || 0,
       totalHymns: profile?.totalHymns || 0,
@@ -301,6 +303,7 @@ export class ServantsService {
         assignedGroup: profile?.currentGroupName || null,
         teachingSubjects: metadata.teachingSubjects || [],
         yearsOfService: profile?.yearsOfService || 0,
+        dateJoined: metadata.dateJoined || user.createdAt.toISOString(),
         totalStudents: profile?.totalStudents || 0,
         totalSessions: profile?.totalSessions || 0,
         totalHymns: profile?.totalHymns || 0,

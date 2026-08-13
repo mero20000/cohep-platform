@@ -96,6 +96,7 @@ describe('getServantProfile', () => {
     schoolId: 'school-1',
     deletedAt: null,
     avatarUrl: null,
+    createdAt: new Date('2021-06-01T00:00:00.000Z'),
     userRoles: [{ role: { name: 'servant' } }],
     servantProfile: {
       yearsOfService: 5,
@@ -183,6 +184,32 @@ describe('getServantProfile', () => {
     });
     const result = await service.getServantProfile('servant-1', 'viewer-1');
     expect(result).toBeNull();
+  });
+
+  it('returns metadata.dateJoined when set', async () => {
+    const userWithDateJoined = {
+      ...mockUser,
+      metadata: { dateJoined: '2020-01-15', teachingSubjects: [] },
+    };
+    prisma.user.findUnique.mockImplementation(async (args) => {
+      if (args.where.id === 'servant-1') return userWithDateJoined;
+      if (args.where.id === 'viewer-1') return mockViewerSameSchool;
+      return null;
+    });
+
+    const result = await service.getServantProfile('servant-1', 'viewer-1');
+    expect(result?.dateJoined).toBe('2020-01-15');
+  });
+
+  it('falls back to user.createdAt when metadata.dateJoined is absent', async () => {
+    prisma.user.findUnique.mockImplementation(async (args) => {
+      if (args.where.id === 'servant-1') return mockUser;
+      if (args.where.id === 'viewer-1') return mockViewerSameSchool;
+      return null;
+    });
+
+    const result = await service.getServantProfile('servant-1', 'viewer-1');
+    expect(result?.dateJoined).toBe('2021-06-01T00:00:00.000Z');
   });
 });
 
