@@ -75,7 +75,7 @@ export class AttendanceService {
         },
         skip: (page - 1) * limit,
         take: limit,
-        orderBy: { scheduledDate: 'desc' },
+        orderBy: { scheduledDate: 'asc' },
       }),
       this.prisma.attendanceSession.count({ where }),
     ]);

@@ -93,6 +93,17 @@ describe('AttendanceService', () => {
       );
     });
 
+    it('sorts sessions ascending by scheduled date', async () => {
+      prisma.attendanceSession.findMany.mockResolvedValue([]);
+      prisma.attendanceSession.count.mockResolvedValue(0);
+
+      await service.getSessions(schoolId, {});
+
+      expect(prisma.attendanceSession.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ orderBy: { scheduledDate: 'asc' } }),
+      );
+    });
+
     it('excludes attendance records of soft-deleted students from the summary', async () => {
       prisma.attendanceSession.findMany.mockResolvedValue([
         {
