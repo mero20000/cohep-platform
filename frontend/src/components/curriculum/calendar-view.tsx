@@ -157,7 +157,6 @@ export function CalendarView({
 
   const handleCalendarDrop = async (weekNumber: number, subjectName: string) => {
     if (!selectedYear) return
-    if (!selectedLevelId) return
     const week = weeks.find(w => w.weekNumber === weekNumber && w.term === selectedTerm)
     if (!week || !week.isAvailable) return
 
@@ -324,6 +323,61 @@ export function CalendarView({
       return
     }
 
+    if (draggedSubjectItem) {
+      setCreatingAllocation(true)
+      try {
+        const item = draggedSubjectItem
+        const itemLevel = item.levels?.[0]
+        const level = itemLevel ? levels.find(l => l.number === itemLevel.levelNumber) : null
+        const levelId = level?.id || ''
+        const matchingSubject = item.subject ? subjects.find(s => s.id === item.subject?.id) : undefined
+        const subjectId = matchingSubject?.id || subjects[0]?.id || ''
+
+        let lessonId: string
+        const existingLesson = lessons.find(l => l.subjectItemId === item.id)
+        if (existingLesson) {
+          lessonId = existingLesson.id
+        } else {
+          const existingSubjLessons = lessons.filter(l => l.subject.name === (matchingSubject?.name || ''))
+          const maxOrder = existingSubjLessons.reduce((m, l) => Math.max(m, l.orderIndex), 0)
+          const res = await fetch(`${API}/curriculum/lessons?schoolId=${getSchoolId()}`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+            body: JSON.stringify({
+              title: item.name, titleAr: item.nameAr || '', titleCoptic: item.nameCoptic || '',
+              levelId, subjectId, subjectItemId: item.id,
+              sessionsCount: 1, orderIndex: maxOrder + 1, status: 'published',
+            }),
+          })
+          if (!res.ok) return
+          const createdLesson = await res.json()
+          lessonId = createdLesson.id || createdLesson._id
+        }
+
+        const ok = await onCreateAllocation({
+          academicYearId: selectedYear,
+          levelId,
+          subjectId,
+          lessonId,
+          groupNumber: selectedGroup,
+          term,
+          weekNumber,
+          orderIndex: nextOrder,
+          scheduledDate: dateStr,
+          status: 'published',
+        })
+        if (ok) {
+          await fetch(`${API}/curriculum/items/${item.id}/status`, {
+            method: 'PATCH', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+            body: JSON.stringify({ status: 'allocated' }),
+          })
+          await onRefresh()
+        }
+      } catch { /* ignore */ }
+      setCreatingAllocation(false)
+      setDraggedSubjectItem(null)
+      return
+    }
+
     if (!draggedLesson) return
     const matchingSubject = subjects.find(s => s.name === draggedLesson.subject.name)
     setCreatingAllocation(true)
@@ -380,7 +434,7 @@ export function CalendarView({
               {sortedLevels.map(l => <option key={l.id} value={l.id}>{l.name} (L{l.number})</option>)}
             </select>
             {!selectedLevelId && (
-              <span className="text-[11px] text-gray-500 italic">{lang === 'ar' ? 'اختر مستوى لتفعيل التوزيع' : 'Select a level to enable allocation'}</span>
+              <span className="text-[11px] text-gray-500 italic">{lang === 'ar' ? 'عرض جميع المستويات' : 'Showing all levels'}</span>
             )}
             <select value={selectedGroup} onChange={e => setSelectedGroup(Number(e.target.value))}
               aria-label={lang === 'ar' ? 'المجموعة' : 'Group'}
@@ -461,7 +515,7 @@ export function CalendarView({
                       return (
                         <td key={`${week.id}-${subj.id}`}
                            className={`px-2 py-1.5 border-e border-gray-100 align-top ${isInactive ? '' : ''}`}
-                          onDragOver={e => { if (!isInactive && selectedLevelId) { e.preventDefault() } }}
+                          onDragOver={e => { if (!isInactive) { e.preventDefault() } }}
                           onDrop={e => { e.preventDefault(); if (!isInactive) handleCalendarDrop(week.weekNumber, subj.name) }}
                           style={isInactive ? { background: 'repeating-linear-gradient(45deg, transparent, transparent 4px, rgba(0,0,0,0.02) 4px, rgba(0,0,0,0.02) 8px)' } : {}}
                         >
@@ -502,9 +556,9 @@ export function CalendarView({
                             )
                           }) : (
                             <div className={`min-h-[32px] rounded border-2 border-dashed transition-colors ${
-                              isInactive || !selectedLevelId ? 'border-gray-100' : 'border-gray-200 hover:border-blue-300 hover:bg-blue-50/30'
+                              isInactive ? 'border-gray-100' : 'border-gray-200 hover:border-blue-300 hover:bg-blue-50/30'
                             }`}
-                              onDragOver={e => { if (!isInactive && selectedLevelId) { e.preventDefault() } }}
+                              onDragOver={e => { if (!isInactive) { e.preventDefault() } }}
                               onDrop={e => { e.preventDefault(); if (!isInactive) handleCalendarDrop(week.weekNumber, subj.name) }}
                             />
                           )}
