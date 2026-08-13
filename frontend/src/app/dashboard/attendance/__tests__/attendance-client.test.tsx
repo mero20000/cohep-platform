@@ -102,3 +102,62 @@ it('shows the assigned group as the dropdown default and updates on change', asy
     expect(mockPut).toHaveBeenCalledWith('/attendance/sessions/sess-1', { groupId: 'group-2' })
   })
 })
+
+it('defaults the select to the assigned group when the session has no group', async () => {
+  mockGet.mockImplementation((path: string) => {
+    if (path === '/curriculum/levels') return Promise.resolve(levels)
+    if (path === '/students/groups/all') return Promise.resolve(groups)
+    if (path === '/attendance/sessions') return Promise.resolve({ data: [{ ...session, group: null }] })
+    if (path.startsWith('/attendance/sessions/')) {
+      return Promise.resolve({ ...session, group: null, attendanceRecords: [] })
+    }
+    return Promise.resolve([])
+  })
+  render(<AttendanceClient />)
+  const row = await screen.findByRole('button', { name: /^session /i })
+  fireEvent.click(row)
+  const groupSelect = await screen.findByLabelText('Group')
+  expect(groupSelect).toHaveValue('group-1')
+})
+
+it('shows the assigned hint when the assigned group differs from the session group', async () => {
+  localStorage.setItem('user', JSON.stringify({ id: 'u1', metadata: { groupId: 'group-2' } }))
+  render(<AttendanceClient />)
+  const row = await screen.findByRole('button', { name: /^session /i })
+  fireEvent.click(row)
+  await screen.findByLabelText('Group')
+  await waitFor(() => {
+    expect(screen.getByText('Assigned: Group B')).toBeTruthy()
+  })
+})
+
+it('renders read-only group text for completed sessions', async () => {
+  mockGet.mockImplementation((path: string) => {
+    if (path === '/curriculum/levels') return Promise.resolve(levels)
+    if (path === '/students/groups/all') return Promise.resolve(groups)
+    if (path === '/attendance/sessions') return Promise.resolve({ data: [{ ...session, status: 'completed' }] })
+    if (path.startsWith('/attendance/sessions/')) {
+      return Promise.resolve({ ...session, status: 'completed', attendanceRecords: [] })
+    }
+    return Promise.resolve([])
+  })
+  render(<AttendanceClient />)
+  const row = await screen.findByRole('button', { name: /^session /i })
+  fireEvent.click(row)
+  await waitFor(() => {
+    expect(screen.getByText('Group A')).toBeTruthy()
+  })
+  expect(screen.queryByLabelText('Group')).toBeNull()
+})
+
+it('shows an error toast when the group update fails', async () => {
+  render(<AttendanceClient />)
+  const row = await screen.findByRole('button', { name: /^session /i })
+  fireEvent.click(row)
+  const groupSelect = await screen.findByLabelText('Group')
+  mockPut.mockRejectedValueOnce(new Error('boom'))
+  fireEvent.change(groupSelect, { target: { value: 'group-2' } })
+  await waitFor(() => {
+    expect(mockToast).toHaveBeenCalledWith('error', expect.anything())
+  })
+})

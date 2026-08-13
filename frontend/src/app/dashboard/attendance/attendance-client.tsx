@@ -35,7 +35,7 @@ interface SessionDetail extends Session {
   }>;
 }
 interface Level { id: string; name: string; number: number; status?: string }
-interface Group { id: string; name: string; status?: string }
+interface Group { id: string; name: string; levelId?: string; status?: string }
 interface Stats {
   totalSessions: number; completedSessions: number; scheduledSessions: number; inProgressSessions: number;
   totalRecords: number; presentCount: number; lateCount: number; absentCount: number; excusedCount: number;
@@ -246,6 +246,7 @@ export function AttendanceClient() {
       await http.put(`/attendance/sessions/${selectedSession.id}`, { groupId })
       toast('success', lang === 'ar' ? 'تم تحديث المجموعة' : 'Group updated')
       fetchSessionDetail(selectedSession.id)
+      fetchSessions()
     } catch {
       toast('error', lang === 'ar' ? 'فشل تحديث المجموعة' : 'Failed to update group')
     }
@@ -571,16 +572,38 @@ export function AttendanceClient() {
                   {isCompleted ? (
                     selectedSession.group?.name || '?'
                   ) : (
-                    <select
-                      aria-label={lang === 'ar' ? 'المجموعة' : 'Group'}
-                      value={selectedSession.group?.id || assignedGroupId}
-                      onChange={e => handleChangeSessionGroup(e.target.value)}
-                      className="rounded-lg border border-gray-300 px-2 py-1 text-xs min-h-[28px] focus:border-gold-500 focus:outline-none"
-                    >
-                      {groups.map(g => (
-                        <option key={g.id} value={g.id}>{g.name}</option>
-                      ))}
-                    </select>
+                    (() => {
+                      const currentGroupId = selectedSession.group?.id
+                      const optionIds = new Set(groups.map(g => g.id))
+                      const optionGroups = [...groups]
+                      if (currentGroupId && !optionIds.has(currentGroupId)) {
+                        optionGroups.push({ id: currentGroupId, name: selectedSession.group?.name || currentGroupId, levelId: selectedSession.level?.id || '', status: 'active' })
+                      }
+                      if (assignedGroupId && !optionIds.has(assignedGroupId)) {
+                        const assignedName = groups.find(g => g.id === assignedGroupId)?.name || assignedGroupId
+                        optionGroups.push({ id: assignedGroupId, name: assignedName, levelId: '', status: 'active' })
+                      }
+                      const selectValue = currentGroupId || assignedGroupId || ''
+                      return (
+                        <>
+                          <select
+                            aria-label={lang === 'ar' ? 'المجموعة' : 'Group'}
+                            value={selectValue}
+                            onChange={e => handleChangeSessionGroup(e.target.value)}
+                            className="rounded-lg border border-gray-300 px-2 py-1 text-xs min-h-[28px] focus:border-gold-500 focus:outline-none"
+                          >
+                            {optionGroups.map(g => (
+                              <option key={g.id} value={g.id}>{g.name}</option>
+                            ))}
+                          </select>
+                          {assignedGroupId && assignedGroupId !== selectValue && (
+                            <span className="block text-[10px] text-gray-400 mt-0.5">
+                              {lang === 'ar' ? `المجموعة المخصصة: ${optionGroups.find(g => g.id === assignedGroupId)?.name || assignedGroupId}` : `Assigned: ${optionGroups.find(g => g.id === assignedGroupId)?.name || assignedGroupId}`}
+                            </span>
+                          )}
+                        </>
+                      )
+                    })()
                   )}
                 </div>
                 <div className="text-xs text-gray-500">{new Date(selectedSession.scheduledDate).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })} {selectedSession.scheduledTime}</div>
