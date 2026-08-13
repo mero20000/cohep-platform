@@ -39,7 +39,7 @@ export function emailTemplate({
   const footerHtml = `
     <div style="margin-top:32px;padding-top:20px;border-top:1px solid #f3f4f6;text-align:center;">
       <p style="color:#9ca3af;font-size:11px;margin:0 0 6px;letter-spacing:0.5px;text-transform:uppercase;">COHEP Platform</p>
-      <p style="color:#d1d5db;font-size:11px;margin:0;">Coptic Orthodox Holy Education Program</p>
+      <p style="color:#d1d5db;font-size:11px;margin:0;">Coptic Orthodox Holy Education Platform</p>
       ${footer ? `<p style="color:#9ca3af;font-size:11px;margin:12px 0 0;">${footer}</p>` : ''}
     </div>
   `
