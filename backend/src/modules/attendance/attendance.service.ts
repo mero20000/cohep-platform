@@ -804,7 +804,6 @@ export class AttendanceService {
 
     const statusChanged = !!dto.status && dto.status !== session.status;
     const groupChanged = !!dto.groupId && dto.groupId !== session.groupId;
-    const now = new Date();
 
     const updated = await this.prisma.attendanceSession.update({
       where: { id },
@@ -816,8 +815,8 @@ export class AttendanceService {
         ...(dto.scheduledTime && { scheduledTime: dto.scheduledTime }),
         ...(dto.status && { status: dto.status }),
         ...(dto.notes !== undefined && { notes: dto.notes }),
-        ...(statusChanged && dto.status === 'in_progress' && !session.actualStartTime && { actualStartTime: now }),
-        ...(statusChanged && dto.status === 'completed' && { actualEndTime: now }),
+        ...(statusChanged && dto.status === 'in_progress' && !session.actualStartTime && { actualStartTime: new Date() }),
+        ...(statusChanged && dto.status === 'completed' && { actualEndTime: new Date() }),
       },
       include: {
         level: { select: { id: true, name: true, number: true } },

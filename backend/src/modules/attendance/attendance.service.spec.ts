@@ -239,5 +239,22 @@ describe('AttendanceService', () => {
         expect.objectContaining({ where: expect.objectContaining({ groupId: 'group-2' }) }),
       );
     });
+
+    it('does NOT re-sync students when neither status nor group changes', async () => {
+      await service.updateSession('sess-1', { notes: 'just a note' } as any);
+
+      expect(prisma.student.findMany).not.toHaveBeenCalled();
+    });
+
+    it('does NOT overwrite actualStartTime when already set', async () => {
+      const started = new Date('2026-01-01T00:00:00.000Z');
+      storedSession = { ...baseSession, status: 'in_progress', actualStartTime: started };
+
+      await service.updateSession('sess-1', { status: 'in_progress' } as any);
+
+      const data = prisma.attendanceSession.update.mock.calls[0][0].data;
+      expect(data.actualStartTime).toBeUndefined();
+      expect(storedSession.actualStartTime).toBe(started);
+    });
   });
 });
