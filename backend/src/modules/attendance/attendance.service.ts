@@ -481,6 +481,7 @@ export class AttendanceService {
         scheduledDate: new Date(),
         scheduledTime: new Date().toTimeString().slice(0, 5),
         status: 'in_progress',
+        actualStartTime: new Date(),
       },
     });
 

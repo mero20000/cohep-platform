@@ -37,6 +37,9 @@ describe('AttendanceService', () => {
     user: {
       findUnique: jest.fn(),
     },
+    level: {
+      findFirst: jest.fn(),
+    },
     $transaction: jest.fn(),
   };
 
@@ -109,6 +112,40 @@ describe('AttendanceService', () => {
 
       expect(data[0].summary).toEqual({ present: 1, absent: 1, late: 0, excused: 0, total: 2 });
       expect(data[0].attendanceRecords).toBeUndefined();
+    });
+  });
+
+  describe('startClass', () => {
+    beforeEach(() => {
+      prisma.user.findUnique.mockResolvedValue({
+        id: 'u1',
+        schoolId,
+        metadata: { groupId: 'group-1', levelId: 'level-1' },
+      });
+      prisma.attendanceSession.findFirst.mockResolvedValue(null);
+      prisma.attendanceSession.findMany.mockResolvedValue([]);
+      prisma.attendanceSession.create.mockImplementation(({ data }: any) =>
+        Promise.resolve({ id: 'sess-1', ...data }),
+      );
+      prisma.attendanceSession.findUnique.mockImplementation(({ where }: any) =>
+        Promise.resolve({
+          id: where.id,
+          levelId: 'level-1',
+          groupId: 'group-1',
+          attendanceRecords: [],
+        }),
+      );
+      prisma.attendanceRecord.findMany.mockResolvedValue([]);
+      prisma.student.findMany.mockResolvedValue([]);
+      prisma.attendanceRecord.createMany.mockResolvedValue({ count: 0 });
+    });
+
+    it('records actualStartTime when creating an in_progress session', async () => {
+      await service.startClass('u1');
+
+      const data = prisma.attendanceSession.create.mock.calls[0][0].data;
+      expect(data.status).toBe('in_progress');
+      expect(data.actualStartTime).toBeInstanceOf(Date);
     });
   });
 
