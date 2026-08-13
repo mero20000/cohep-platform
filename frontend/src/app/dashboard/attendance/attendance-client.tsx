@@ -240,6 +240,17 @@ export function AttendanceClient() {
     setMarking(false)
   }
 
+  const handleChangeSessionGroup = async (groupId: string) => {
+    if (!selectedSession || !groupId) return
+    try {
+      await http.put(`/attendance/sessions/${selectedSession.id}`, { groupId })
+      toast('success', lang === 'ar' ? 'تم تحديث المجموعة' : 'Group updated')
+      fetchSessionDetail(selectedSession.id)
+    } catch {
+      toast('error', lang === 'ar' ? 'فشل تحديث المجموعة' : 'Failed to update group')
+    }
+  }
+
   const handleStartClass = async () => {
     setStartingClass(true)
     track('onboarding.start', 'activation', { feature: 'start_class' })
@@ -380,6 +391,11 @@ export function AttendanceClient() {
   }
 
   const safeRecords = selectedSession?.attendanceRecords?.filter(r => r?.student) || []
+  const assignedGroupId = (() => {
+    try {
+      return (JSON.parse(localStorage.getItem('user') || '{}').metadata?.groupId) || ''
+    } catch { return '' }
+  })()
   const isCompleted = selectedSession?.status === 'completed'
   const presentCount = safeRecords.filter(r => tempMarks[r.student.id] === 'present').length || 0
   const lateCount = safeRecords.filter(r => tempMarks[r.student.id] === 'late').length || 0
@@ -501,7 +517,7 @@ export function AttendanceClient() {
             </div>
             <div className="divide-y divide-gray-100 max-h-[500px] overflow-y-auto">
               {filteredSessions.map(s => (
-                <button key={s.id} onClick={() => fetchSessionDetail(s.id)}
+                <button key={s.id} aria-label={`session ${s.group?.name || s.id}`} onClick={() => fetchSessionDetail(s.id)}
                   className={`w-full flex items-center gap-3 px-5 py-3 text-start transition-colors hover:bg-gray-50 active:bg-gray-100 ${
                     selectedSession?.id === s.id ? 'bg-blue-50/50 border-s-2 border-gold-500' : ''
                   }`}>
@@ -550,7 +566,23 @@ export function AttendanceClient() {
                     </Button>
                   </div>
                 </div>
-                <div className="text-xs text-gray-500 mt-1">L{selectedSession.level?.number || '?'} &middot; {selectedSession.group?.name || '?'}</div>
+                <div className="text-xs text-gray-500 mt-1">
+                  L{selectedSession.level?.number || '?'} &middot;{' '}
+                  {isCompleted ? (
+                    selectedSession.group?.name || '?'
+                  ) : (
+                    <select
+                      aria-label={lang === 'ar' ? 'المجموعة' : 'Group'}
+                      value={selectedSession.group?.id || assignedGroupId}
+                      onChange={e => handleChangeSessionGroup(e.target.value)}
+                      className="rounded-lg border border-gray-300 px-2 py-1 text-xs min-h-[28px] focus:border-gold-500 focus:outline-none"
+                    >
+                      {groups.map(g => (
+                        <option key={g.id} value={g.id}>{g.name}</option>
+                      ))}
+                    </select>
+                  )}
+                </div>
                 <div className="text-xs text-gray-500">{new Date(selectedSession.scheduledDate).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })} {selectedSession.scheduledTime}</div>
               </div>
 
