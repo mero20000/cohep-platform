@@ -13,7 +13,7 @@ import {
   ArrowUpRight, Zap, GraduationCap, Star,
    CalendarPlus, User, Shield, Crown, Heart, CalendarClock, UserCog,
    ListChecks, Flame, Info, XCircle, Baby, ChevronDown, Church,
-   BookMarked, AlertTriangle, CheckCircle, Bell, Moon, PlayCircle, Music, ArrowUp, ArrowDown, Minus
+   BookMarked, AlertTriangle, CheckCircle, Bell, Moon, PlayCircle, Music, ArrowUp, ArrowDown, Minus, Square
 } from 'lucide-react'
 import { StatCard } from '@/components/ui/stat-card'
 import { Button } from '@/components/ui/button'
@@ -786,7 +786,7 @@ function StartClassCard({ lang }: { lang: string }) {
   )
 }
 
-function TodaysSessionCard({ lang }: { lang: string }) {
+export function TodaysSessionCard({ lang }: { lang: string }) {
   const [session, setSession] = useState<any>(null)
   const [students, setStudents] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -825,6 +825,22 @@ function TodaysSessionCard({ lang }: { lang: string }) {
       toast('error', lang === 'ar' ? 'فشل بدء الفصل' : 'Failed to start class')
     }
     setStarting(false)
+  }
+
+  const [ending, setEnding] = useState(false)
+
+  const handleEndClass = async () => {
+    if (!session) return
+    setEnding(true)
+    try {
+      await http.put(`/attendance/sessions/${session.id}`, { status: 'completed' })
+      toast('success', lang === 'ar' ? 'تم إنهاء الفصل' : 'Class ended')
+      setSession(null)
+      setStudents([])
+    } catch {
+      toast('error', lang === 'ar' ? 'فشل إنهاء الفصل' : 'Failed to end class')
+    }
+    setEnding(false)
   }
 
   const updateAttendance = async (studentId: string, status: string) => {
@@ -876,10 +892,20 @@ function TodaysSessionCard({ lang }: { lang: string }) {
           </div>
           <p className="text-sm text-gray-500 mt-1">{session.group?.name} · {session.level?.name}</p>
         </div>
-        <Link href={`/dashboard/attendance?sessionId=${session.id}&mode=exceptions`}
-          className="text-sm font-medium text-emerald-600 hover:text-emerald-700 flex items-center gap-1">
-          {lang === 'ar' ? 'الحضور' : 'Attendance'} <ChevronRight className="h-4 w-4" />
-        </Link>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleEndClass}
+            disabled={ending}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium bg-red-50 text-red-600 hover:bg-red-100 transition-colors disabled:opacity-50"
+          >
+            {ending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Square className="h-4 w-4" />}
+            {lang === 'ar' ? 'إنهاء الفصل' : 'End Class'}
+          </button>
+          <Link href={`/dashboard/attendance?sessionId=${session.id}&mode=exceptions`}
+            className="text-sm font-medium text-emerald-600 hover:text-emerald-700 flex items-center gap-1">
+            {lang === 'ar' ? 'الحضور' : 'Attendance'} <ChevronRight className="h-4 w-4" />
+          </Link>
+        </div>
       </div>
 
       {/* Quick Stats */}

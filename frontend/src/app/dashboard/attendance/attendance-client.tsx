@@ -694,7 +694,7 @@ export function AttendanceClient() {
                     <Button onClick={() => handleSaveAttendance(true)} disabled={marking}
                       className="flex-1 bg-green-600 hover:bg-green-700 text-white">
                       {marking ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
-                      {lang === 'ar' ? 'إكمال وإنهاء' : 'Completed'}
+                      {lang === 'ar' ? 'إنهاء الفصل' : 'End Class'}
                     </Button>
                   </>
                 )}
