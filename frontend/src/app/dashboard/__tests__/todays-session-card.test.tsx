@@ -8,8 +8,9 @@ vi.mock('@/lib/http-client', () => ({
   http: { get: (...a: any[]) => mockGet(...a), post: vi.fn(), put: (...a: any[]) => mockPut(...a), patch: vi.fn(), delete: vi.fn() },
 }))
 
+const mockToast = vi.fn()
 vi.mock('@/components/ui/toast', () => ({
-  useToast: () => ({ toast: vi.fn() }),
+  useToast: () => ({ toast: mockToast }),
   ToastProvider: ({ children }: any) => <>{children}</>,
 }))
 
@@ -33,6 +34,7 @@ vi.mock('@/lib/school', () => ({
 beforeEach(() => {
   mockGet.mockReset()
   mockPut.mockReset()
+  mockToast.mockReset()
 })
 
 it('ends an active class from the dashboard card', async () => {
@@ -56,4 +58,12 @@ it('ends an active class from the dashboard card', async () => {
   await waitFor(() => {
     expect(mockPut).toHaveBeenCalledWith('/attendance/sessions/sess-1', { status: 'completed' })
   })
+
+  await waitFor(() => {
+    expect(mockToast).toHaveBeenCalledWith('success', 'Class ended')
+  })
+  await waitFor(() => {
+    expect(screen.queryByRole('button', { name: /end class/i })).toBeNull()
+  })
+  expect(screen.getByRole('button', { name: /start class/i })).toBeTruthy()
 })
