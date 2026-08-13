@@ -161,3 +161,21 @@ it('shows an error toast when the group update fails', async () => {
     expect(mockToast).toHaveBeenCalledWith('error', expect.anything())
   })
 })
+
+it('never renders a blank select when the session group is not in the groups list', async () => {
+  mockGet.mockImplementation((path: string) => {
+    if (path === '/curriculum/levels') return Promise.resolve(levels)
+    if (path === '/students/groups/all') return Promise.resolve([{ id: 'group-2', name: 'Group B', levelId: 'level-1', status: 'active' }])
+    if (path === '/attendance/sessions') return Promise.resolve({ data: [session] })
+    if (path.startsWith('/attendance/sessions/')) {
+      return Promise.resolve({ ...session, attendanceRecords: [] })
+    }
+    return Promise.resolve([])
+  })
+  render(<AttendanceClient />)
+  const row = await screen.findByRole('button', { name: /^session /i })
+  fireEvent.click(row)
+  const groupSelect = await screen.findByLabelText('Group')
+  expect(groupSelect).toHaveValue('group-1')
+  expect(screen.getByRole('option', { name: 'Group A' })).toBeTruthy()
+})

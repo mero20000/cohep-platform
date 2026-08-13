@@ -578,10 +578,12 @@ export function AttendanceClient() {
                       const optionGroups = [...groups]
                       if (currentGroupId && !optionIds.has(currentGroupId)) {
                         optionGroups.push({ id: currentGroupId, name: selectedSession.group?.name || currentGroupId, levelId: selectedSession.level?.id || '', status: 'active' })
+                        optionIds.add(currentGroupId)
                       }
                       if (assignedGroupId && !optionIds.has(assignedGroupId)) {
                         const assignedName = groups.find(g => g.id === assignedGroupId)?.name || assignedGroupId
                         optionGroups.push({ id: assignedGroupId, name: assignedName, levelId: '', status: 'active' })
+                        optionIds.add(assignedGroupId)
                       }
                       const selectValue = currentGroupId || assignedGroupId || ''
                       return (
