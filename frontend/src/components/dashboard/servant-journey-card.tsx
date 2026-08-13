@@ -22,6 +22,10 @@ export function ServantJourneyCard() {
 
   if (!profile) return null
 
+  const yearsOfService = profile.dateJoined
+    ? Math.max(0, Math.floor((Date.now() - new Date(profile.dateJoined).getTime()) / (365.25 * 24 * 3600 * 1000)))
+    : profile.yearsOfService
+
   return (
     <div className="rounded-xl bg-white border border-gray-200 p-6">
       <div className="flex items-center gap-2 mb-4">
@@ -31,7 +35,7 @@ export function ServantJourneyCard() {
 
       <div className="flex items-center gap-8 mb-4">
         <div className="text-center">
-          <div className="text-2xl font-bold text-gray-900">{profile.yearsOfService}</div>
+          <div className="text-2xl font-bold text-gray-900">{yearsOfService}</div>
           <div className="text-xs text-gray-500">years</div>
         </div>
         <div className="text-center">

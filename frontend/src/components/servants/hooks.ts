@@ -12,6 +12,7 @@ export interface ServantProfileData {
   assignedGroup: string | null
   teachingSubjects: string[]
   yearsOfService: number
+  dateJoined: string | null
   totalStudents: number
   totalSessions: number
   totalHymns: number
