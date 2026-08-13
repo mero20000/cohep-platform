@@ -35,7 +35,7 @@ interface SessionDetail extends Session {
   }>;
 }
 interface Level { id: string; name: string; number: number; status?: string }
-interface Group { id: string; name: string; levelId: string; status?: string }
+interface Group { id: string; name: string; status?: string }
 interface Stats {
   totalSessions: number; completedSessions: number; scheduledSessions: number; inProgressSessions: number;
   totalRecords: number; presentCount: number; lateCount: number; absentCount: number; excusedCount: number;
@@ -149,12 +149,12 @@ export function AttendanceClient() {
 
   const fetchLevelsGroups = useCallback(async () => {
     try {
-      const [allLevels, levelGroups] = await Promise.all([
+      const [allLevels, allGroups] = await Promise.all([
         http.get<Level[]>('/curriculum/levels', { schoolId }),
-        http.get<{ groups: Group[] }[]>('/students/groups/all', { schoolId }),
+        http.get<Group[]>('/students/groups/all', { schoolId }),
       ])
       setLevels(allLevels.filter(l => l.status !== 'inactive'))
-      setGroups(levelGroups.flatMap(lg => lg.groups).filter(g => g.status !== 'inactive'))
+      setGroups((allGroups || []).filter(g => g.status !== 'inactive'))
     } catch (e) { console.error(e) }
   }, [schoolId])
 
@@ -477,7 +477,7 @@ export function AttendanceClient() {
               <select value={filterGroup} onChange={e => setFilterGroup(e.target.value)}
                 className="rounded-lg border border-gray-300 px-2 py-1.5 text-xs min-h-[40px] focus:border-gold-500 focus:outline-none">
                 <option value="">{lang === 'ar' ? 'جميع المجموعات' : 'All Groups'}</option>
-                {groups.filter(g => !filterLevel || g.levelId === filterLevel).map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
+                {groups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
               </select>
               <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)}
                 className="rounded-lg border border-gray-300 px-2 py-1.5 text-xs min-h-[40px] focus:border-gold-500 focus:outline-none">
@@ -894,7 +894,7 @@ export function AttendanceClient() {
                     <label className="block text-xs font-medium text-gray-500 mb-1">{lang === 'ar' ? 'المجموعة' : 'Group'}</label>
                   <select value={editForm.groupId} onChange={e => setEditForm({ ...editForm, groupId: e.target.value })}
                     className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gold-500 focus:outline-none">
-                    {groups.filter(g => g.levelId === editForm.levelId).map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
+                    {groups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
                   </select>
                 </div>
               </div>
@@ -959,7 +959,7 @@ export function AttendanceClient() {
                     <select value={createForm.groupId} onChange={e => setCreateForm({ ...createForm, groupId: e.target.value })}
                       className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gold-500 focus:outline-none">
                       <option value="">{lang === 'ar' ? 'اختر المجموعة...' : 'Select group...'}</option>
-                    {groups.filter(g => g.levelId === createForm.levelId).map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
+                    {groups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
                   </select>
                 </div>
               </div>

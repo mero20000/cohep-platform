@@ -1233,7 +1233,7 @@ function RecurringSessionsButton({ lang }: { lang: string }) {
                 <select value={selectedGroup} onChange={e => setSelectedGroup(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
                   <option value="">{lang === 'ar' ? 'اختر المجموعة' : 'Select group'}</option>
-                  {groups.filter((g: any) => !selectedLevel || g.levelId === selectedLevel).map((g: any) => <option key={g.id} value={g.id}>{g.name}</option>)}
+                  {groups.map((g: any) => <option key={g.id} value={g.id}>{g.name}</option>)}
                 </select>
               </div>
 
