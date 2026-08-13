@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { ServantJourneyCard } from '../servant-journey-card'
@@ -13,7 +13,14 @@ function renderWithClient(ui: React.ReactElement) {
   return render(<QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>)
 }
 
-beforeEach(() => mockGet.mockReset())
+beforeEach(() => {
+  mockGet.mockReset()
+  vi.spyOn(Date, 'now').mockReturnValue(new Date('2026-08-13T00:00:00Z').getTime())
+})
+
+afterEach(() => {
+  vi.restoreAllMocks()
+})
 
 it('computes years from dateJoined', async () => {
   mockGet.mockResolvedValue({
@@ -24,9 +31,8 @@ it('computes years from dateJoined', async () => {
     totalHymns: 3,
   })
   renderWithClient(<ServantJourneyCard />)
-  const expected = Math.floor((Date.now() - new Date('2020-01-15').getTime()) / (365.25 * 24 * 3600 * 1000))
   await waitFor(() => {
-    expect(screen.getByText(String(expected))).toBeTruthy()
+    expect(screen.getByText('6')).toBeTruthy()
   })
 })
 
