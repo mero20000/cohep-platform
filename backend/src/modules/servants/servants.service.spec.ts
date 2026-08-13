@@ -343,3 +343,59 @@ describe('checkAndLogMilestones', () => {
     );
   });
 });
+
+describe('getSchoolServantSummary', () => {
+  let service: ServantsService;
+  let prisma: any;
+
+  const prismaMock = { user: { findMany: jest.fn() } };
+
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        ServantsService,
+        { provide: PrismaService, useValue: prismaMock },
+        { provide: GamificationService, useValue: { addXp: jest.fn(), awardBadge: jest.fn() } },
+      ],
+    }).compile();
+    service = module.get<ServantsService>(ServantsService);
+    prisma = module.get(PrismaService);
+    jest.clearAllMocks();
+  });
+
+  it('returns metadata.dateJoined when set', async () => {
+    prisma.user.findMany.mockResolvedValue([
+      {
+        id: 'u2',
+        firstName: 'A',
+        lastName: 'B',
+        avatarUrl: null,
+        createdAt: new Date('2021-06-01T00:00:00.000Z'),
+        metadata: { dateJoined: '2020-01-15' },
+        servantProfile: null,
+        userRoles: [{ role: { name: 'servant' } }],
+      },
+    ] as any);
+
+    const result = await service.getSchoolServantSummary('school-1');
+    expect(result[0].dateJoined).toBe('2020-01-15');
+  });
+
+  it('falls back to user.createdAt when metadata.dateJoined is absent', async () => {
+    prisma.user.findMany.mockResolvedValue([
+      {
+        id: 'u2',
+        firstName: 'A',
+        lastName: 'B',
+        avatarUrl: null,
+        createdAt: new Date('2021-06-01T00:00:00.000Z'),
+        metadata: {},
+        servantProfile: null,
+        userRoles: [{ role: { name: 'servant' } }],
+      },
+    ] as any);
+
+    const result = await service.getSchoolServantSummary('school-1');
+    expect(result[0].dateJoined).toBe(new Date('2021-06-01T00:00:00.000Z').toISOString());
+  });
+});
