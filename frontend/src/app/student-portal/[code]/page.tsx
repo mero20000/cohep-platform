@@ -9,7 +9,7 @@ const API_ORIGIN = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/ap
 import {
   Cross, Loader2, Calendar, CheckCircle2, XCircle, Clock, AlertCircle,
   Award, Star, BookOpen, ArrowLeft, Trophy, Play, Music,
-  ChevronDown, ChevronRight, Search, Filter
+  ChevronDown, ChevronRight, Search, Filter, ClipboardCheck,
 } from 'lucide-react'
 import Link from 'next/link'
 import { useStudentHymnMap, useStudentThisSunday, useStudentDueReview, useStudentStats, useStudentPractice } from '@/components/hymn-learning/student-hooks'
@@ -34,6 +34,13 @@ interface PortalData {
   totalXp: number
   upcomingSessions: Array<{ id: string; date: string; time?: string }>
   recentHomework: Array<{ date: string; status: string }>
+  assessments: Array<{
+    id: string; title: string; titleAr?: string; type: string;
+    totalPoints: number; passingScore: number; dueDate?: string;
+    level: { id: string; name: string };
+    subject: { id: string; name: string; nameAr?: string };
+    submissionStatus: string; submissionId: string; submittedAt: string;
+  }>
 }
 
 const STATUS_ICONS: Record<string, any> = { present: CheckCircle2, late: Clock, absent: XCircle, excused: AlertCircle }
@@ -155,7 +162,7 @@ export default function StudentDashboard() {
     </div>
   )
 
-  const { student, school, attendance, recentAttendance, badges, totalXp, upcomingSessions, recentHomework } = data
+  const { student, school, attendance, recentAttendance, badges, totalXp, upcomingSessions, recentHomework, assessments } = data
   const attendanceRate = attendance.total > 0 ? Math.round((attendance.present / attendance.total) * 100) : 0
 
   const photoSrc = student.photoUrl
@@ -359,6 +366,63 @@ export default function StudentDashboard() {
                       </div>
                     </div>
                   ))}
+                </div>
+              </section>
+            )}
+
+            {/* Assigned Assessments */}
+            {assessments.length > 0 && (
+              <section>
+                <h2 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                  <ClipboardCheck className="h-4 w-4 text-indigo-500" />
+                  Assigned Assessments ({assessments.length})
+                </h2>
+                <div className="space-y-2">
+                  {assessments.map(a => {
+                    const isCompleted = a.submissionStatus === 'completed'
+                    const isOverdue = a.dueDate && new Date(a.dueDate) < new Date() && !isCompleted
+                    return (
+                      <div key={a.id} className={`rounded-xl border px-4 py-3 ${
+                        isCompleted ? 'bg-green-50 border-green-200' : isOverdue ? 'bg-red-50 border-red-200' : 'bg-white border-gray-200'
+                      }`}>
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0 flex-1">
+                            <div className="text-sm font-medium text-gray-900 truncate">
+                              {a.titleAr || a.title}
+                            </div>
+                            <div className="flex flex-wrap items-center gap-2 mt-1">
+                              <span className="text-xs px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 font-medium">
+                                {a.type}
+                              </span>
+                              <span className="text-xs text-gray-500">{a.subject.nameAr || a.subject.name}</span>
+                              <span className="text-xs text-gray-400">&middot;</span>
+                              <span className="text-xs text-gray-500">{a.totalPoints} pts</span>
+                            </div>
+                            {a.dueDate && (
+                              <div className={`text-xs mt-1 ${isOverdue ? 'text-red-600 font-medium' : 'text-gray-500'}`}>
+                                Due: {new Date(a.dueDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                              </div>
+                            )}
+                          </div>
+                          <div className="flex-shrink-0">
+                            {isCompleted ? (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2.5 py-1 text-xs font-medium text-green-700">
+                                <CheckCircle2 className="h-3.5 w-3.5" /> Done
+                              </span>
+                            ) : isOverdue ? (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2.5 py-1 text-xs font-medium text-red-700">
+                                <AlertCircle className="h-3.5 w-3.5" /> Overdue
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2.5 py-1 text-xs font-medium text-blue-700">
+                                <Clock className="h-3.5 w-3.5" /> Pending
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })}
                 </div>
               </section>
             )}

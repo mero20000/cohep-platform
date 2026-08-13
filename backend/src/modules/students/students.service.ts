@@ -672,7 +672,7 @@ async getPortalData(portalAccessKey: string) {
     });
     if (!student) throw new NotFoundException('Student not found');
 
-    const [attRecords, badges, xpResult, upcoming] = await Promise.all([
+    const [attRecords, badges, xpResult, upcoming, assignedAssessments] = await Promise.all([
       this.prisma.attendanceRecord.findMany({
         where: { studentId: student.id },
         include: { attendanceSession: { select: { scheduledDate: true, scheduledTime: true } } },
@@ -693,6 +693,24 @@ async getPortalData(portalAccessKey: string) {
         where: { groupId: student.groupId, scheduledDate: { gte: new Date() }, deletedAt: null },
         orderBy: { scheduledDate: 'asc' },
         take: 5,
+      }),
+      this.prisma.assessmentSubmission.findMany({
+        where: {
+          studentId: student.id,
+          assessment: { status: 'published', deletedAt: null, schoolId: student.schoolId },
+        },
+        include: {
+          assessment: {
+            select: {
+              id: true, title: true, titleAr: true, type: true, totalPoints: true,
+              passingScore: true, dueDate: true, status: true,
+              level: { select: { id: true, name: true } },
+              subject: { select: { id: true, name: true, nameAr: true } },
+            },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 20,
       }),
     ]);
 
@@ -757,6 +775,20 @@ async getPortalData(portalAccessKey: string) {
         time: s.scheduledTime,
       })),
       recentHomework,
+      assessments: assignedAssessments.map((sub: any) => ({
+        id: sub.assessment.id,
+        title: sub.assessment.title,
+        titleAr: sub.assessment.titleAr,
+        type: sub.assessment.type,
+        totalPoints: Number(sub.assessment.totalPoints),
+        passingScore: Number(sub.assessment.passingScore),
+        dueDate: sub.assessment.dueDate,
+        level: sub.assessment.level,
+        subject: sub.assessment.subject,
+        submissionStatus: sub.status,
+        submissionId: sub.id,
+        submittedAt: sub.submittedAt,
+      })),
     };
   }
 
