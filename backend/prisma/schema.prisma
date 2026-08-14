@@ -534,6 +534,8 @@ model SubjectItem {
   hazzat            String?  @map("hazzat")
   educationLanguages Json?   @map("education_languages")
   metadata          Json?
+  recordingUrl      String?  @map("recording_url")
+  recordingMeta     Json?    @map("recording_meta")
   active            Boolean  @default(true) @map("is_active")
   status            String   @default("pending") @map("status")
   createdAt         DateTime @default(now()) @map("created_at")
@@ -762,6 +764,8 @@ model Assessment {
   status              String    @default("draft")
   publishedAt         DateTime? @map("published_at")
   metadata            Json?
+  referenceRecordingUrl  String?  @map("reference_recording_url")
+  referenceRecordingName String?  @map("reference_recording_name")
   createdBy           String    @map("created_by")
   createdAt           DateTime  @default(now()) @map("created_at")
   updatedAt           DateTime  @updatedAt @map("updated_at")
