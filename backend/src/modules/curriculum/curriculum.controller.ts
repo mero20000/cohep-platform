@@ -1,8 +1,9 @@
 import { Controller, Get, Post, Put, Patch, Delete, Body, Param, Query, UploadedFile, UseInterceptors, BadRequestException } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { diskStorage } from 'multer';
+import { diskStorage, memoryStorage } from 'multer';
 import { extname } from 'path';
 import { v4 as uuidv4 } from 'uuid';
+import { uploadRecording } from '@/common/storage/r2';
 import { ApiTags, ApiOperation, ApiConsumes } from '@nestjs/swagger';
 import { Roles, STAFF_ROLES } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
@@ -230,10 +231,41 @@ export class CurriculumController {
     },
     limits: { fileSize: 15 * 1024 * 1024 },
   }))
-  uploadAudio(@Param('id') id: string, @UploadedFile() file: Express.Multer.File) {
+   uploadAudio(@Param('id') id: string, @UploadedFile() file: Express.Multer.File) {
     const audioUrl = `/uploads/audio/${file.filename}`
     return this.curriculumService.updateLesson(id, { audioUrl, audioOriginalName: file.originalname })
   }
+
+    @Post('subjects/items/:id/recording')
+    @ApiOperation({ summary: 'Upload a hymn recording for a subject item (Cloudflare R2)' })
+    @ApiConsumes('multipart/form-data')
+    @UseInterceptors(FileInterceptor('file', {
+      storage: memoryStorage(),
+      fileFilter: (_req, file, cb) => {
+        const allowed = ['.mp3', '.m4a', '.ogg', '.webm'];
+        const ext = extname(file.originalname).toLowerCase();
+        if (allowed.includes(ext)) cb(null, true);
+        else cb(new BadRequestException(`Invalid audio format. Allowed: ${allowed.join(', ')}`), false);
+      },
+      limits: { fileSize: 15 * 1024 * 1024 },
+    }))
+    async uploadItemRecording(@Param('id') id: string, @UploadedFile() file: Express.Multer.File) {
+      if (!file) throw new BadRequestException('No file uploaded');
+      const ext = extname(file.originalname).toLowerCase();
+      const key = `recordings/subject-items/${id}-${uuidv4()}${ext}`;
+      const url = await uploadRecording(file.buffer, key, file.mimetype);
+      return this.curriculumService.setItemRecording(id, url, {
+        originalName: file.originalname,
+        sizeBytes: file.size,
+        contentType: file.mimetype,
+      });
+    }
+
+    @Delete('subjects/items/:id/recording')
+    @ApiOperation({ summary: 'Remove the hymn recording from a subject item' })
+    async removeItemRecording(@Param('id') id: string) {
+      return this.curriculumService.clearItemRecording(id);
+    }
 
     @Delete('lessons/:id')
   @ApiOperation({ summary: 'Delete a lesson' })

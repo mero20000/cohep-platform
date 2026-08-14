@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../database/prisma.service';
 import { CreateAllocationDto, UpdateAllocationDto, ReorderAllocationDto } from './dto/curriculum.dto';
 import { SchoolResolver } from '../../common/utils/school-resolver';
@@ -197,6 +198,14 @@ export class CurriculumService {
       data: rest,
       include: { levels: { select: { levelNumber: true } } },
     });
+  }
+
+  async setItemRecording(id: string, recordingUrl: string, recordingMeta: any) {
+    return this.prisma.subjectItem.update({ where: { id }, data: { recordingUrl, recordingMeta } });
+  }
+
+  async clearItemRecording(id: string) {
+    return this.prisma.subjectItem.update({ where: { id }, data: { recordingUrl: null, recordingMeta: Prisma.JsonNull } });
   }
 
   async updateItemStatus(id: string, status: string) {
