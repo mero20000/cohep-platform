@@ -10,6 +10,7 @@ import { motion } from 'motion/react'
 import {
   Baby, UserPlus, Link2, AlertCircle, Search,
   CalendarClock, UserCheck, Crown, Trash2, Star,
+  ClipboardCheck, Loader2,
 } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
 import { EmptyState } from '@/components/ui/empty-state'
@@ -46,11 +47,86 @@ interface LinkedChild {
   student: ChildStudent
 }
 
+interface ChildAssessment {
+  id: string
+  assessmentId: string
+  title: string
+  titleAr?: string
+  subject?: string
+  subjectAr?: string
+  status: string
+  score: number
+  maxScore: number
+  percentage: number
+  passed: boolean
+  gradedAt?: string | null
+  referenceRecordingUrl?: string | null
+  referenceRecordingName?: string | null
+}
+
 const RELATIONSHIPS = [
   { value: 'father', en: 'Father', ar: 'أب' },
   { value: 'mother', en: 'Mother', ar: 'أم' },
   { value: 'guardian', en: 'Guardian', ar: 'ولي أمر' },
 ]
+
+function ChildAssessments({ studentId, lang }: { studentId: string; lang: string }) {
+  const t = (en: string, ar: string) => (lang === 'ar' ? ar : en)
+  const [assessments, setAssessments] = useState<ChildAssessment[] | null>(null)
+
+  useEffect(() => {
+    let active = true
+    setAssessments(null)
+    http.get<ChildAssessment[]>(`/parents/me/children/${studentId}/assessments`)
+      .then((d) => { if (active) setAssessments(d || []) })
+      .catch(() => { if (active) setAssessments([]) })
+    return () => { active = false }
+  }, [studentId])
+
+  if (assessments === null) {
+    return <Skeleton className="h-16 w-full" />
+  }
+
+  if (assessments.length === 0) {
+    return (
+      <p className="text-sm text-gray-400 py-2">{t('No assessment results yet', 'لا توجد نتائج تقييم بعد')}</p>
+    )
+  }
+
+  return (
+    <div className="space-y-3">
+      {assessments.map((a) => (
+        <div key={a.id} className="rounded-xl border border-gray-200 bg-white p-4">
+          <div className="flex items-start justify-between">
+            <div className="flex-1 min-w-0">
+              <h5 className="font-semibold text-gray-900">{lang === 'ar' && a.titleAr ? a.titleAr : a.title}</h5>
+              <div className="flex flex-wrap items-center gap-2 mt-1 text-xs text-gray-500">
+                {a.subject && <span>{a.subject}</span>}
+                <span className={`font-medium ${a.passed ? 'text-green-600' : 'text-red-600'}`}>
+                  {a.passed ? t('Passed', 'ناجح') : t('Not passed', 'غير ناجح')}
+                </span>
+                <span>{t('Score', 'الدرجة')}: {a.score}/{a.maxScore} ({a.percentage}%)</span>
+              </div>
+            </div>
+            <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl font-bold text-sm ${
+              a.percentage >= 80 ? 'bg-green-100 text-green-700' :
+              a.percentage >= 50 ? 'bg-amber-100 text-amber-700' :
+              'bg-red-100 text-red-700'
+            }`}>
+              {a.percentage}%
+            </div>
+          </div>
+          {a.referenceRecordingUrl && (
+            <div className="mt-2">
+              <div className="text-xs text-gray-500">{t('Reference recording', 'تسجيل المرجع')}</div>
+              <audio controls src={a.referenceRecordingUrl} className="w-full" />
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  )
+}
 
 export default function ParentsPage() {
   const lang = useLanguage()
@@ -325,6 +401,13 @@ export default function ParentsPage() {
                       <span className="text-sm text-gray-700">{lang === 'ar' ? 'الجلسات القادمة' : 'Upcoming Sessions'}</span>
                     </div>
                     <span className="text-lg font-bold text-indigo-700">{s.upcomingSessions}</span>
+                  </div>
+                  <div className="space-y-3">
+                    <h4 className="flex items-center gap-2 text-sm font-semibold text-gray-800">
+                      <ClipboardCheck className="h-4 w-4 text-gold-500" />
+                      {lang === 'ar' ? 'التقييمات' : 'Assessments'}
+                    </h4>
+                    <ChildAssessments studentId={s.id} lang={lang} />
                   </div>
                 </div>
               </motion.div>
