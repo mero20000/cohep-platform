@@ -33,13 +33,15 @@ export async function uploadRecording(
     await writeFile(join(dir, filename), buffer);
     return `/uploads/audio/${filename}`;
   }
+  // NOTE: R2 buckets have object ACLs disabled by default. Make the bucket
+  // "Public" (bucket-level setting) so objects are readable via PUBLIC_URL.
+  // Do NOT set an object-level ACL here — it errors on default R2 buckets.
   await getClient().send(
     new PutObjectCommand({
       Bucket: BUCKET,
       Key: key,
       Body: buffer,
       ContentType: contentType,
-      ACL: 'public-read',
     }),
   );
   return `${PUBLIC_URL!.replace(/\/$/, '')}/${key}`;
