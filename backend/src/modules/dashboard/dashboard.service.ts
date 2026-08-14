@@ -319,7 +319,7 @@ export class DashboardService {
       gradeWhereBase.submission.student.gradeId = assignedGradeId;
     }
 
-    const [sessions, groups, studentsCount, completedSessions, totalSessions, recentGrades] = await Promise.all([
+    const [sessions, groups, studentsCount, completedSessions, totalSessions, attendanceRecords, recentGrades] = await Promise.all([
       this.prisma.attendanceSession.findMany({
         where: sessionWhere,
         orderBy: { scheduledDate: 'asc' },
@@ -344,6 +344,13 @@ export class DashboardService {
       this.prisma.student.count({ where: studentWhere }),
       this.prisma.attendanceSession.count({ where: { schoolId, groupId: { in: groupIds }, status: 'completed' } }),
       this.prisma.attendanceSession.count({ where: { schoolId, groupId: { in: groupIds }, deletedAt: null } }),
+      this.prisma.attendanceRecord.findMany({
+        where: {
+          attendanceSession: { schoolId, groupId: { in: groupIds } },
+          student: { deletedAt: null },
+        },
+        select: { status: true },
+      }),
       this.prisma.grade.findMany({
         where: {
           ...gradeWhereBase,
@@ -379,7 +386,11 @@ export class DashboardService {
       assignedGradeName = gr?.name || null;
     }
 
-    const attendanceRate = totalSessions > 0 ? Math.round((completedSessions / totalSessions) * 100) : 0;
+    let attendanceRate = 0;
+    if (attendanceRecords.length > 0) {
+      const present = attendanceRecords.filter(r => r.status === 'present' || r.status === 'late').length;
+      attendanceRate = Math.round((present / attendanceRecords.length) * 100);
+    }
 
     return {
       category: 'ministry',
