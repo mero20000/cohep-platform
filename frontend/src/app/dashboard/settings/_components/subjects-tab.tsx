@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { Button } from '@/components/ui/button'
-import { Plus, Pencil, Trash2, Loader2, X, Search, Presentation, Download, Upload, Check, Power, PowerOff } from 'lucide-react'
+import { Plus, Pencil, Trash2, Loader2, X, Search, Presentation, Download, Upload, Check, Power, PowerOff, Play } from 'lucide-react'
 import { useToast } from '@/components/ui/toast'
 import { Modal } from '@/components/ui/modal'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
@@ -79,6 +79,7 @@ export function SubjectsTab() {
   const [items, setItems] = useState<SubjectItem[]>([])
   const [loadingItems, setLoadingItems] = useState(false)
   const [showItemForm, setShowItemForm] = useState(false)
+  const [playingItemId, setPlayingItemId] = useState<string | null>(null)
 
   const [editingItem, setEditingItem] = useState<SubjectItem | null>(null)
   const [itemForm, setItemForm] = useState(emptyItemForm)
@@ -547,7 +548,7 @@ export function SubjectsTab() {
                 <tbody className="divide-y divide-gray-100">
                   {filteredItems.map((item, idx) => {
                     const whenColor = WHEN_COLORS[item.whenLabel || ''] || { bg: 'bg-gray-100', text: 'text-gray-700' }
-                    return (
+                    return (<>
                       <tr key={item.id} onClick={e => { if ((e.target as HTMLElement).tagName !== 'INPUT' && (e.target as HTMLElement).tagName !== 'BUTTON') setDrawerItem(item) }}
                         className="hover:bg-gray-50 active:bg-gray-100 cursor-pointer">
                         <td className="px-2 py-1.5 text-center" onClick={e => e.stopPropagation()}>
@@ -566,6 +567,14 @@ export function SubjectsTab() {
                           {item.name}
                           {(item.presentationData || item.presentationUrl) && (
                             <Presentation className="h-3 w-3 inline ml-1.5 text-purple-500" />
+                          )}
+                          {item.recordingUrl && (
+                            <button
+                              onClick={e => { e.stopPropagation(); setPlayingItemId(prev => (prev === item.id ? null : item.id)) }}
+                              className="inline-flex items-center justify-center h-4 w-4 ml-1.5 rounded-full bg-blue-50 text-blue-600 hover:bg-blue-100 align-middle"
+                              aria-label={lang === 'ar' ? 'تشغيل التسجيل المرجعي' : 'Play reference recording'}>
+                              <Play className="h-2.5 w-2.5" />
+                            </button>
                           )}
                         </td>
                         <td className="px-2 py-1.5 text-center" data-label="Active" onClick={e => e.stopPropagation()}>
@@ -615,6 +624,14 @@ export function SubjectsTab() {
                           </Button>
                         </td>
                       </tr>
+                      {playingItemId === item.id && (
+                        <tr key={`${item.id}-audio`} onClick={e => e.stopPropagation()}>
+                          <td colSpan={9} className="px-2 py-2 bg-gray-50">
+                            <audio controls autoPlay src={item.recordingUrl} className="w-full h-9" />
+                          </td>
+                        </tr>
+                      )}
+                    </>
                     )
                   })}
                 </tbody>
@@ -946,6 +963,17 @@ export function SubjectsTab() {
                   )}
                   {drawerItem.presentationUrl && !drawerItem.presentationData && (
                     <p className="text-xs text-amber-600 mt-1">{lang === 'ar' ? 'ملف PowerPoint مضمن — انقر "عرض" للتشغيل' : 'PowerPoint file attached — click "Present" to view'}</p>
+                  )}
+                </div>
+              </DetailSection>
+            )}
+
+            {drawerItem.recordingUrl && (
+              <DetailSection label={lang === 'ar' ? 'تسجيل المرجع' : 'Reference Recording'}>
+                <div className="border border-gray-200 rounded-lg p-3 bg-gray-50">
+                  <audio controls src={drawerItem.recordingUrl} className="w-full h-9" />
+                  {drawerItem.recordingMeta?.originalName && (
+                    <p className="text-xs text-gray-400 mt-1">{drawerItem.recordingMeta.originalName}</p>
                   )}
                 </div>
               </DetailSection>

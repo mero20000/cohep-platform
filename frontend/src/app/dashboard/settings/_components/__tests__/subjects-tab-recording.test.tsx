@@ -41,7 +41,7 @@ vi.mock('@/lib/analytics', () => ({
 
 vi.mock('lucide-react', () => {
   const icons: Record<string, any> = {}
-  for (const name of ['Plus', 'Pencil', 'Trash2', 'Loader2', 'X', 'Search', 'Presentation', 'Download', 'Upload', 'Check', 'Power', 'PowerOff']) {
+   for (const name of ['Plus', 'Pencil', 'Trash2', 'Loader2', 'X', 'Search', 'Presentation', 'Download', 'Upload', 'Check', 'Power', 'PowerOff', 'Play']) {
     icons[name] = (props: any) => <span data-testid={`icon-${name}`} {...props} />
   }
   return icons
@@ -133,6 +133,29 @@ describe('SubjectsTab recording control', () => {
     })
 
     // After a successful upload an <audio> element should appear
+    await waitFor(() => {
+      const audio = document.querySelector('audio')
+      expect(audio).toBeTruthy()
+      expect(audio?.getAttribute('src')).toBe('https://cdn/rec.mp3')
+    })
+  })
+
+  it('shows a play button for an item with a recording and toggles an inline player', async () => {
+    mocks.get.mockImplementation((url: string) => {
+      if (url === '/curriculum/subjects') return Promise.resolve(mockSubjects)
+      if (url === '/curriculum/levels') return Promise.resolve(mockLevels)
+      if (url.startsWith('/curriculum/subjects/') && url.endsWith('/items'))
+        return Promise.resolve([{ ...mockItems[0], recordingUrl: 'https://cdn/rec.mp3', recordingMeta: { originalName: 'rec.mp3' } }])
+      return Promise.reject(new Error(`Unhandled get: ${url}`))
+    })
+    const user = userEvent.setup()
+    render(<SubjectsTab />)
+
+    await user.click(await screen.findByText('Coptic Hymns'))
+    const playBtn = await screen.findByLabelText('Play reference recording')
+    expect(playBtn).toBeInTheDocument()
+
+    await user.click(playBtn)
     await waitFor(() => {
       const audio = document.querySelector('audio')
       expect(audio).toBeTruthy()
