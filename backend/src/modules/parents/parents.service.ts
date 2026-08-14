@@ -279,6 +279,8 @@ export class ParentsService {
         percentage,
         passed: percentage >= Number(s.assessment.passingScore),
         gradedAt: s.grades.length > 0 ? s.grades[0]?.gradedAt : null,
+        referenceRecordingUrl: s.assessment.referenceRecordingUrl ?? null,
+        referenceRecordingName: s.assessment.referenceRecordingName ?? null,
       };
     });
   }

@@ -174,6 +174,9 @@ export class HymnLearningService {
           select: { id: true, type: true, fileUrl: true, language: true, durationSeconds: true },
           take: 3,
         },
+        subjectItem: {
+          select: { id: true, name: true, recordingUrl: true, recordingMeta: true },
+        },
       },
       orderBy: [{ level: { number: 'asc' } }, { orderIndex: 'asc' }],
     })
@@ -190,6 +193,8 @@ export class HymnLearningService {
       resources: l.resources,
       audioUrl: (l as any).audioUrl ?? l.resources[0]?.fileUrl ?? null,
       progress: (l.lessonProgress as any[])[0] ?? null,
+      referenceRecordingUrl: (l as any).subjectItem?.recordingUrl ?? null,
+      referenceRecordingName: (l as any).subjectItem?.recordingMeta?.originalName ?? null,
     }))
   }
 
