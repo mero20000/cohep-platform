@@ -1025,6 +1025,50 @@ function WeekScheduleCard({ lang }: { lang: string }) {
   )
 }
 
+export function WeekSummaryCard({ thisWeek, lang }: { thisWeek?: any; lang: string }) {
+  if (!thisWeek) return null
+  const total = thisWeek.total ?? 0
+  const rate = thisWeek.attendanceRate ?? 0
+  const items = [
+    { key: 'present', label: lang === 'ar' ? 'حاضر' : 'Present', count: thisWeek.present ?? 0, dot: 'bg-green-500', Icon: UserCheck },
+    { key: 'late', label: lang === 'ar' ? 'متأخر' : 'Late', count: thisWeek.late ?? 0, dot: 'bg-amber-500', Icon: Clock },
+    { key: 'absent', label: lang === 'ar' ? 'غائب' : 'Absent', count: thisWeek.absent ?? 0, dot: 'bg-red-500', Icon: XCircle },
+    { key: 'excused', label: lang === 'ar' ? 'معذور' : 'Excused', count: thisWeek.excused ?? 0, dot: 'bg-gray-400', Icon: AlertTriangle },
+  ]
+  return (
+    <div className="rounded-xl border border-gray-200/60 bg-white overflow-hidden">
+      <div className="flex items-center justify-between border-b border-[var(--hymn-border)] px-5 py-4 bg-[var(--hymn-surface-header)]">
+        <div className="flex items-center gap-2">
+          <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[var(--hymn-surface-header)] text-emerald-600 ring-1 ring-emerald-200/50">
+            <ClipboardCheck className="h-4 w-4" />
+          </div>
+          <h2 className="font-semibold text-gray-900">{lang === 'ar' ? 'ملخص هذا الأسبوع' : 'This Week Summary'}</h2>
+        </div>
+        <Link href="/dashboard/attendance" className="text-xs text-emerald-600 font-medium hover:text-emerald-700">
+          {lang === 'ar' ? 'الحضور' : 'Attendance'}
+        </Link>
+      </div>
+      <div className="p-4">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          {items.map((it) => (
+            <div key={it.key} className="rounded-lg border border-gray-100 bg-gray-50 px-3 py-2.5">
+              <div className="flex items-center gap-1.5 mb-1">
+                <span className={`h-2 w-2 rounded-full ${it.dot}`} />
+                <span className="text-[11px] text-gray-500">{it.label}</span>
+              </div>
+              <div className="text-xl font-bold text-gray-900">{it.count}</div>
+            </div>
+          ))}
+        </div>
+        <div className="mt-3 flex items-center justify-between rounded-lg bg-emerald-50 px-4 py-2.5">
+          <span className="text-sm font-medium text-emerald-700">{lang === 'ar' ? `الإجمالي: ${total}` : `Total: ${total}`}</span>
+          <span className="text-sm font-bold text-emerald-700">{lang === 'ar' ? `معدل الحضور: ${rate}٪` : `Attendance Rate: ${rate}%`}</span>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function SessionSummaryModal({ session, students, lang, onClose }: { session: any; students: any[]; lang: string; onClose: () => void }) {
   const presentCount = students.filter(s => s.status === 'present').length
   const absentCount = students.filter(s => s.status === 'absent').length
@@ -1739,6 +1783,13 @@ function MinistryDashboard({ data, loading, error, onRetry }: { data: any; loadi
       {['servant', 'group_leader', 'level_leader'].includes(d.role || '') && (
         <motion.div variants={fadeUp}>
           <WeekScheduleCard lang={lang} />
+        </motion.div>
+      )}
+
+      {/* This Week Summary */}
+      {['servant', 'group_leader', 'level_leader'].includes(d.role || '') && (
+        <motion.div variants={fadeUp}>
+          <WeekSummaryCard thisWeek={d.thisWeek} lang={lang} />
         </motion.div>
       )}
 
