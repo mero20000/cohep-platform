@@ -63,6 +63,14 @@ export class CreateAssessmentDto {
   subjectId: string;
 
   @IsOptional()
+  @IsString()
+  referenceRecordingUrl?: string;
+
+  @IsOptional()
+  @IsString()
+  referenceRecordingName?: string;
+
+  @IsOptional()
   @IsUUID()
   academicYearId?: string;
 
@@ -127,6 +135,14 @@ export class UpdateAssessmentDto {
   @IsOptional()
   @IsUUID()
   subjectId?: string;
+
+  @IsOptional()
+  @IsString()
+  referenceRecordingUrl?: string;
+
+  @IsOptional()
+  @IsString()
+  referenceRecordingName?: string;
 
   @IsOptional()
   @IsUUID()

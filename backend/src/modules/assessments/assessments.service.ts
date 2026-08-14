@@ -83,6 +83,8 @@ export class AssessmentsService {
       subjectId: dto.subjectId,
       title: dto.title,
       description: dto.description,
+      referenceRecordingUrl: dto.referenceRecordingUrl || null,
+      referenceRecordingName: dto.referenceRecordingName || null,
       type: 'general',
       totalPoints: dto.totalPoints,
       passingScore: dto.passingPoints,
@@ -134,6 +136,8 @@ export class AssessmentsService {
     if (dto.groupId !== undefined) data.groupId = dto.groupId || null;
     if (dto.lessonId !== undefined) data.lessonId = dto.lessonId || null;
     if (dto.subjectId !== undefined) data.subjectId = dto.subjectId;
+    if (dto.referenceRecordingUrl !== undefined) data.referenceRecordingUrl = dto.referenceRecordingUrl || null;
+    if (dto.referenceRecordingName !== undefined) data.referenceRecordingName = dto.referenceRecordingName || null;
     if (dto.totalPoints !== undefined) data.totalPoints = dto.totalPoints;
     if (dto.passingPoints !== undefined) data.passingScore = dto.passingPoints;
     if (dto.dueDate !== undefined) data.dueDate = dto.dueDate ? new Date(dto.dueDate) : null;
