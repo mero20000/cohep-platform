@@ -28,6 +28,7 @@
     "studio": "prisma studio"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1110.0",
     "@google/generative-ai": "^0.24.1",
     "@nestjs/cli": "^10.3.0",
     "@nestjs/common": "^10.3.0",
