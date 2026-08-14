@@ -28,6 +28,7 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
   const [bannerAnnouncement, setBannerAnnouncement] = useState<{ id: string; title: string; titleAr?: string; body: string; bodyAr?: string; priority: string } | null>(null)
   const [bannerDismissed, setBannerDismissed] = useState<string | null>(null)
   const [sidebarWidth, setSidebarWidth] = useState(256)
+  const [isDesktop, setIsDesktop] = useState(false)
   const [isResizing, setIsResizing] = useState(false)
   const dragStart = useRef({ x: 0, width: 256 })
   const resizeFrame = useRef<number | null>(null)
@@ -58,6 +59,14 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
       if (w >= 180 && w <= 450) { setSidebarWidth(w); dragStart.current.width = w }
     }
   }, [lang])
+
+  useEffect(() => {
+    const mq = window.matchMedia('(min-width: 1024px)')
+    const update = () => setIsDesktop(mq.matches)
+    update()
+    mq.addEventListener('change', update)
+    return () => mq.removeEventListener('change', update)
+  }, [])
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
@@ -250,7 +259,7 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
       </aside>
 
       <div className={`${isResizing ? '' : 'transition-all duration-200'}`}
-        style={{ [lang === 'ar' ? 'paddingRight' : 'paddingLeft']: sidebarWidth }}>
+        style={{ [lang === 'ar' ? 'paddingRight' : 'paddingLeft']: isDesktop ? sidebarWidth : 0 }}>
         <header className="sticky top-0 z-30 flex h-16 items-center gap-4 border-b border-gray-200 bg-white px-4 sm:px-6">
           <Button onClick={() => setSidebarOpen(true)} variant="ghost" size="icon" className="lg:hidden text-gray-500 hover:text-gray-700">
             <Menu className="h-5 w-5" />
@@ -273,7 +282,7 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
             </Button>
 
             {showNotiPanel && (
-              <div className={`absolute ${lang === 'ar' ? 'left-0' : 'right-0'} top-full mt-2 w-80 rounded-xl bg-white shadow-xl border border-gray-200 overflow-hidden z-50`}>
+              <div className={`absolute ${lang === 'ar' ? 'left-0' : 'right-0'} top-full mt-2 w-[calc(100vw-2rem)] max-w-80 rounded-xl bg-white shadow-xl border border-gray-200 overflow-hidden z-50`}>
                 <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
                   <h3 className="text-sm font-semibold text-gray-900">{t('Notifications', 'الإشعارات')}</h3>
                   {unreadCount > 0 && (

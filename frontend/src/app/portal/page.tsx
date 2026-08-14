@@ -163,14 +163,14 @@ export default function PortalPage() {
               <div className="relative shrink-0">
                 <div className="absolute inset-0 rounded-2xl bg-white/10 blur-xl" />
                 <Image src={schoolIdentity.churchLogoUrl} alt="Church Logo" width={100} height={100}
-                  className="relative h-24 w-24 rounded-2xl border-2 border-white/20 bg-white/10 object-cover shadow-xl" />
+                  className="relative h-16 w-16 sm:h-24 sm:w-24 rounded-2xl border-2 border-white/20 bg-white/10 object-cover shadow-xl" />
               </div>
             )}
             {schoolIdentity?.logoUrl && (
               <div className="relative shrink-0">
                 <div className="absolute inset-0 rounded-2xl bg-white/10 blur-xl" />
                 <Image src={schoolIdentity.logoUrl} alt="School Logo" width={100} height={100}
-                  className="relative h-24 w-24 rounded-2xl border-2 border-white/20 bg-white/10 object-cover shadow-xl" />
+                  className="relative h-16 w-16 sm:h-24 sm:w-24 rounded-2xl border-2 border-white/20 bg-white/10 object-cover shadow-xl" />
               </div>
             )}
           </>
