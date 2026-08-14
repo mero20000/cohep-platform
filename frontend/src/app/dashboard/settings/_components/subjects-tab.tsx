@@ -28,7 +28,9 @@ interface SubjectItem {
   presentationUrl?: string; presentationData?: PresentationData; hazzat?: string; educationLanguages?: string[];
   _count?: { lessons: number };
   levels?: Array<{ levelNumber: number }>;
-  active?: boolean
+  active?: boolean;
+  recordingUrl?: string;
+  recordingMeta?: { originalName?: string; sizeBytes?: number; contentType?: string }
 }
 
 interface Level {
@@ -89,6 +91,7 @@ export function SubjectsTab() {
   const [drawerItem, setDrawerItem] = useState<SubjectItem | null>(null)
   const [showPresentation, setShowPresentation] = useState(false)
   const presentingRef = useRef<SubjectItem | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const [filterWhen, setFilterWhen] = useState('')
   const [filterLevel, setFilterLevel] = useState('')
@@ -287,6 +290,31 @@ export function SubjectsTab() {
       toast('success', lang === 'ar' ? 'تم رفع الملف' : 'File uploaded')
     } catch { toast('error', lang === 'ar' ? 'فشل رفع الملف' : 'Failed to upload file') }
     e.target.value = ''
+  }
+  const onUploadRecording = async (file: File) => {
+    if (!editingItem) return
+    const fd = new FormData()
+    fd.append('file', file)
+    try {
+      const res: any = await http.upload(`/curriculum/subjects/items/${editingItem.id}/recording`, fd)
+      setItems(prev => prev.map(it => it.id === editingItem.id ? { ...it, recordingUrl: res.recordingUrl, recordingMeta: res.recordingMeta } : it))
+      setEditingItem({ ...editingItem, recordingUrl: res.recordingUrl, recordingMeta: res.recordingMeta })
+      toast('success', lang === 'ar' ? 'تم رفع التسجيل' : 'Recording uploaded')
+    } catch {
+      toast('error', lang === 'ar' ? 'فشل رفع التسجيل' : 'Failed to upload recording')
+    }
+  }
+
+  const onRemoveRecording = async () => {
+    if (!editingItem) return
+    try {
+      await http.delete(`/curriculum/subjects/items/${editingItem.id}/recording`, { schoolId: getSchoolId() })
+      setItems(prev => prev.map(it => it.id === editingItem.id ? { ...it, recordingUrl: undefined, recordingMeta: undefined } : it))
+      setEditingItem({ ...editingItem, recordingUrl: undefined, recordingMeta: undefined })
+      toast('success', lang === 'ar' ? 'تم الحذف' : 'Removed')
+    } catch {
+      toast('error', lang === 'ar' ? 'فشل الحذف' : 'Failed to remove')
+    }
   }
   const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -579,7 +607,7 @@ export function SubjectsTab() {
                           ) : <span className="text-gray-300">—</span>}
                         </td>
                         <td className="px-2 py-1.5 text-right" data-label="Actions" onClick={e => e.stopPropagation()}>
-                          <Button variant="ghost" size="icon" onClick={() => startEditItem(item)} className="rounded p-1 text-gray-400 hover:bg-amber-50 hover:text-amber-600 mr-1">
+                          <Button variant="ghost" size="icon" aria-label="Edit Item" onClick={() => startEditItem(item)} className="rounded p-1 text-gray-400 hover:bg-amber-50 hover:text-amber-600 mr-1">
                             <Pencil className="h-3.5 w-3.5" />
                           </Button>
                           <Button variant="ghost" size="icon" onClick={() => { setDeleteItemTarget(item); setShowDeleteItem(true) }} className="rounded p-1 text-gray-400 hover:bg-red-50 hover:text-red-600">
@@ -766,6 +794,21 @@ export function SubjectsTab() {
                 <input ref={pptxInputRef} type="file" accept=".pptx" onChange={handlePptxUpload} className="hidden" />
               </div>
               <p className="text-xs text-gray-400 mt-1">{lang === 'ar' ? 'اختر ملف PowerPoint للرفع' : 'Upload a PowerPoint file'}</p>
+            </div>
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-gray-700">{lang === 'ar' ? 'تسجيل المرجع' : 'Reference recording'}</label>
+              {editingItem?.recordingUrl ? (
+                <div className="flex items-center gap-3">
+                  <audio controls src={editingItem.recordingUrl} className="h-9 flex-1" />
+                  <button type="button" onClick={() => fileInputRef.current?.click()} className="text-xs text-blue-600">{lang === 'ar' ? 'استبدال' : 'Replace'}</button>
+                  <button type="button" onClick={onRemoveRecording} className="text-xs text-red-600">{lang === 'ar' ? 'حذف' : 'Remove'}</button>
+                </div>
+              ) : (
+                <input ref={fileInputRef} type="file" accept="audio/*" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) onUploadRecording(f); e.target.value = '' }} />
+              )}
+              {!editingItem?.recordingUrl && (
+                <button type="button" onClick={() => fileInputRef.current?.click()} className="text-sm text-blue-600">{lang === 'ar' ? 'رفع تسجيل' : 'Upload recording'}</button>
+              )}
             </div>
             <div className="col-span-2 border border-gray-200 rounded-lg p-4">
               <SlideEditor
