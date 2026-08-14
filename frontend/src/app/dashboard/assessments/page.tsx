@@ -75,6 +75,8 @@ interface Assessment {
   subject: { id: string; name: string }
   questions?: AssessmentQuestion[]
   _count: { questions: number; submissions: number }
+  referenceRecordingUrl?: string
+  referenceRecordingName?: string
 }
 
 interface PaginatedResponse {
@@ -119,6 +121,8 @@ const emptyForm = {
   term: '',
   status: 'draft',
   questions: [] as QuestionDraft[],
+  referenceRecordingUrl: '',
+  referenceRecordingName: '',
 }
 
 export default function AssessmentsPage() {
@@ -148,6 +152,7 @@ export default function AssessmentsPage() {
   const [showStudents, setShowStudents] = useState(false)
   const [selectedAssessment, setSelectedAssessment] = useState<Assessment | null>(null)
   const [form, setForm] = useState(emptyForm)
+  const [recordingOptions, setRecordingOptions] = useState<{ url: string; name: string }[]>([])
   const [formError, setFormError] = useState('')
   const [saving, setSaving] = useState(false)
   const [formDirty, setFormDirty] = useState(false)
@@ -261,6 +266,15 @@ export default function AssessmentsPage() {
       .catch(console.error)
   }, [form.levelId, form.subjectId, schoolId])
 
+  useEffect(() => {
+    if (!form.subjectId) { setRecordingOptions([]); return }
+    http.get<any[]>('/curriculum/subjects/' + form.subjectId + '/items', { schoolId })
+      .then((items: any[]) => setRecordingOptions(items
+        .filter(i => i.recordingUrl)
+        .map(i => ({ url: i.recordingUrl, name: i.name + (i.recordingMeta?.originalName ? ` (${i.recordingMeta.originalName})` : '') }))))
+      .catch(console.error)
+  }, [form.subjectId, schoolId])
+
   const openCreate = () => {
     setForm(emptyForm)
     setFormDirty(false)
@@ -289,14 +303,16 @@ export default function AssessmentsPage() {
         dueDate: detail.dueDate ? detail.dueDate.split('T')[0] : '',
         term: meta.term ? String(meta.term) : '',
         status: detail.status,
-        questions: (detail.questions || []).map(q => ({
-          text: q.questionText,
-          type: q.type as QuestionDraft['type'],
-          options: Array.isArray(q.options) ? q.options.join('\n') : (q.options || ''),
-          correctAnswer: q.correctAnswer,
-          points: String(q.points),
-        })),
-      })
+          questions: (detail.questions || []).map(q => ({
+            text: q.questionText,
+            type: q.type as QuestionDraft['type'],
+            options: Array.isArray(q.options) ? q.options.join('\n') : (q.options || ''),
+            correctAnswer: q.correctAnswer,
+            points: String(q.points),
+          })),
+          referenceRecordingUrl: detail.referenceRecordingUrl || '',
+          referenceRecordingName: detail.referenceRecordingName || '',
+        })
       setFormDirty(false)
       setSelectedAssessment(detail)
     } catch (err) {
@@ -533,6 +549,8 @@ export default function AssessmentsPage() {
         status: form.status,
         term: form.term ? parseInt(form.term, 10) : undefined,
         academicYearId: currentYear?.id || undefined,
+        referenceRecordingUrl: form.referenceRecordingUrl || undefined,
+        referenceRecordingName: form.referenceRecordingName || undefined,
         questions: form.questions.map((q, i) => ({
           text: q.text,
           type: q.type,
@@ -938,6 +956,19 @@ export default function AssessmentsPage() {
               <option value="">{lang === 'ar' ? 'اختر عنصر المنهج' : 'Select curriculum item'}</option>
               {lessons.map(l => <option key={l.id} value={l.id}>{l.title}</option>)}
             </FormField>
+          </div>
+
+          <div>
+            <label htmlFor="reference-recording" className="block text-sm font-medium text-gray-700">{lang === 'ar' ? 'تسجيل المرجع' : 'Reference recording'}</label>
+            <select id="reference-recording" value={form.referenceRecordingUrl} onChange={e => {
+              const opt = recordingOptions.find(o => o.url === e.target.value)
+              updateForm({ referenceRecordingUrl: e.target.value, referenceRecordingName: opt?.name || '' })
+            }}
+              className="mt-1.5 block w-full rounded-lg border border-gray-300 px-3.5 py-2.5 text-sm bg-white focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-gold-500">
+              <option value="">{lang === 'ar' ? 'بدون' : 'None'}</option>
+              {recordingOptions.map(o => <option key={o.url} value={o.url}>{o.name}</option>)}
+            </select>
+            {form.referenceRecordingUrl && <audio controls src={form.referenceRecordingUrl} className="h-9 w-full mt-2" />}
           </div>
 
           <div className="grid grid-cols-3 gap-4">
