@@ -27,25 +27,27 @@ export function Modal({ open, onClose, title, description, children, footer, siz
       triggerRef.current = document.activeElement
     }
     return () => {
-      if (!open && triggerRef.current instanceof HTMLElement) {
+      // Restore focus to the trigger only when the modal actually closes
+      // (open was true when this effect was created).
+      if (open && triggerRef.current instanceof HTMLElement) {
         triggerRef.current.focus()
       }
     }
   }, [open])
 
+  const onCloseRef = useRef(onClose)
+  onCloseRef.current = onClose
+
   useEffect(() => {
     if (!open) return
-    const handleEscape = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    const handleEscape = (e: KeyboardEvent) => { if (e.key === 'Escape') onCloseRef.current() }
     document.addEventListener('keydown', handleEscape)
     document.body.style.overflow = 'hidden'
     return () => {
       document.removeEventListener('keydown', handleEscape)
       document.body.style.overflow = ''
-      if (triggerRef.current instanceof HTMLElement) {
-        triggerRef.current.focus()
-      }
     }
-  }, [open, onClose])
+  }, [open])
 
   useEffect(() => {
     if (open && contentRef.current) contentRef.current.focus()
