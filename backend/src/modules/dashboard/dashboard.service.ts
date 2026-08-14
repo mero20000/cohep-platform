@@ -319,7 +319,16 @@ export class DashboardService {
       gradeWhereBase.submission.student.gradeId = assignedGradeId;
     }
 
-    const [sessions, groups, studentsCount, completedSessions, totalSessions, attendanceRecords, recentGrades] = await Promise.all([
+    const now = new Date();
+    const daysSinceSat = (now.getDay() + 1) % 7;
+    const saturday = new Date(now);
+    saturday.setDate(now.getDate() - daysSinceSat);
+    saturday.setHours(0, 0, 0, 0);
+    const sunday = new Date(saturday);
+    sunday.setDate(saturday.getDate() + 1);
+    sunday.setHours(23, 59, 59, 999);
+
+    const [sessions, groups, studentsCount, completedSessions, totalSessions, attendanceRecords, recentGrades, weekRecords] = await Promise.all([
       this.prisma.attendanceSession.findMany({
         where: sessionWhere,
         orderBy: { scheduledDate: 'asc' },
@@ -367,6 +376,17 @@ export class DashboardService {
           },
         },
       }),
+      this.prisma.attendanceRecord.findMany({
+        where: {
+          attendanceSession: {
+            schoolId,
+            groupId: { in: groupIds },
+            scheduledDate: { gte: saturday, lte: sunday },
+          },
+          student: { deletedAt: null },
+        },
+        select: { status: true },
+      }),
     ]);
 
     // Resolve assigned names for the response
@@ -391,6 +411,20 @@ export class DashboardService {
       const present = attendanceRecords.filter(r => r.status === 'present' || r.status === 'late').length;
       attendanceRate = Math.round((present / attendanceRecords.length) * 100);
     }
+
+    const weekPresent = weekRecords.filter((r: any) => r.status === 'present').length;
+    const weekLate = weekRecords.filter((r: any) => r.status === 'late').length;
+    const weekAbsent = weekRecords.filter((r: any) => r.status === 'absent').length;
+    const weekExcused = weekRecords.filter((r: any) => r.status === 'excused').length;
+    const weekTotal = weekRecords.length;
+    const thisWeek = {
+      present: weekPresent,
+      late: weekLate,
+      absent: weekAbsent,
+      excused: weekExcused,
+      total: weekTotal,
+      attendanceRate: weekTotal > 0 ? Math.round(((weekPresent + weekLate) / weekTotal) * 100) : 0,
+    };
 
     return {
       category: 'ministry',
@@ -435,6 +469,7 @@ export class DashboardService {
         passed: Number(g.score) >= Number(g.submission.assessment.passingScore),
         gradedAt: g.createdAt,
       })),
+      thisWeek,
     };
   }
 
