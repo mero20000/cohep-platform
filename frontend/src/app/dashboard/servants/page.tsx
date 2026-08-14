@@ -47,11 +47,28 @@ interface ServantUser {
 
 interface Level { id: string; name: string; number: number; status?: string }
 
+interface CurriculumSubject { id: string; name: string; nameAr?: string; nameCoptic?: string; color?: string }
+
 const TEACHING_SUBJECTS = [
   { value: 'coptic_hymns', label: 'Coptic Hymns', arabicLabel: 'ألحان قبطية' },
   { value: 'coptic_rites', label: 'Coptic Rites', arabicLabel: 'الطقوس القبطية' },
   { value: 'coptic_language', label: 'Coptic Language', arabicLabel: 'اللغة القبطية' },
 ]
+
+// Map a servant teaching subject to the matching curriculum Subject name so the
+// badge can reuse the curriculum subject's color.
+const TEACHING_SUBJECT_NAME: Record<string, string> = {
+  coptic_hymns: 'Coptic Hymns',
+  coptic_rites: 'Coptic Rites',
+  coptic_language: 'Coptic Language',
+}
+
+// Tint a badge with a hex color at low opacity (matching the existing
+// `bg-*-50 text-*` aesthetic). Falls back to the default blue when no color.
+const tintStyle = (color?: string): React.CSSProperties | undefined => {
+  if (!color || !color.startsWith('#')) return undefined
+  return { backgroundColor: `${color}1a`, color }
+}
 
 const ROLE_BADGE: Record<string, { bg: string; text: string }> = {
   servant: { bg: 'bg-blue-50', text: 'text-blue-700' },
@@ -88,6 +105,7 @@ export default function ServantsPage() {
   const [levels, setLevels] = useState<Level[]>([])
   const [activeGroups, setActiveGroups] = useState<GroupOption[]>([])
   const [grades, setGrades] = useState<GradeItem[]>([])
+  const [subjects, setSubjects] = useState<CurriculumSubject[]>([])
 
   const [showForm, setShowForm] = useState(false)
   const [editing, setEditing] = useState<ServantUser | null>(null)
@@ -146,6 +164,7 @@ export default function ServantsPage() {
   useEffect(() => {
     fetchServants(); fetchLevels()
     fetchActiveGrades().then(setGrades).catch(() => {})
+    http.get<CurriculumSubject[]>('/curriculum/subjects', { schoolId: getSchoolId() }).then(setSubjects).catch(() => {})
   }, [fetchServants, fetchLevels])
 
   useEffect(() => {
@@ -167,6 +186,24 @@ export default function ServantsPage() {
       return { id: v, name: v, displayName: lang === 'ar' ? r.labelAr : r.label }
     })
   , [lang])
+
+  // Curriculum subjects carry a color; reuse it for the teaching badges.
+  const teachingColorByName = useMemo(() => {
+    const map = new Map<string, string>()
+    for (const s of subjects) {
+      if (s.color) {
+        map.set(s.name.toLowerCase(), s.color)
+        if (s.nameAr) map.set(s.nameAr.toLowerCase(), s.color)
+        if (s.nameCoptic) map.set(s.nameCoptic.toLowerCase(), s.color)
+      }
+    }
+    return map
+  }, [subjects])
+
+  const teachingColor = (value: string): string | undefined => {
+    const name = TEACHING_SUBJECT_NAME[value]
+    return name ? teachingColorByName.get(name.toLowerCase()) : undefined
+  }
 
   const gradeOptions = useMemo(() => {
     const seen = new Set<string>()
@@ -620,11 +657,14 @@ export default function ServantsPage() {
                       <td data-label="Teaching" className="px-6 py-3.5 hidden lg:table-cell">
                         <div className="flex flex-wrap gap-1">
                           {(meta.teachingSubjects || []).length > 0
-                            ? meta.teachingSubjects!.map(sub => (
-                                <span key={sub} className="text-xs bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded">
-                                  {lang === 'ar' ? (TEACHING_SUBJECTS.find(t => t.value === sub)?.arabicLabel) || sub : (TEACHING_SUBJECTS.find(t => t.value === sub)?.label || sub)}
-                                </span>
-                              ))
+                            ? meta.teachingSubjects!.map(sub => {
+                                const color = teachingColor(sub)
+                                return (
+                                  <span key={sub} className={`text-xs px-1.5 py-0.5 rounded ${color ? '' : 'bg-blue-50 text-blue-700'}`} style={tintStyle(color)}>
+                                    {lang === 'ar' ? (TEACHING_SUBJECTS.find(t => t.value === sub)?.arabicLabel) || sub : (TEACHING_SUBJECTS.find(t => t.value === sub)?.label || sub)}
+                                  </span>
+                                )
+                              })
                             : <span className="text-sm text-gray-400">—</span>}
                         </div>
                       </td>
@@ -717,11 +757,14 @@ export default function ServantsPage() {
 
                   {(meta.teachingSubjects || []).length > 0 && (
                     <div className="mt-2 flex flex-wrap gap-1">
-                      {meta.teachingSubjects!.slice(0, 2).map(sub => (
-                        <span key={sub} className="text-xs bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded">
-                          {lang === 'ar' ? (TEACHING_SUBJECTS.find(t => t.value === sub)?.arabicLabel) || sub : (TEACHING_SUBJECTS.find(t => t.value === sub)?.label || sub)}
-                        </span>
-                      ))}
+                      {meta.teachingSubjects!.slice(0, 2).map(sub => {
+                        const color = teachingColor(sub)
+                        return (
+                          <span key={sub} className={`text-xs px-1.5 py-0.5 rounded ${color ? '' : 'bg-blue-50 text-blue-700'}`} style={tintStyle(color)}>
+                            {lang === 'ar' ? (TEACHING_SUBJECTS.find(t => t.value === sub)?.arabicLabel) || sub : (TEACHING_SUBJECTS.find(t => t.value === sub)?.label || sub)}
+                          </span>
+                        )
+                      })}
                       {(meta.teachingSubjects!.length > 2) && (
                         <span className="text-xs text-gray-400">+{meta.teachingSubjects!.length - 2}</span>
                       )}

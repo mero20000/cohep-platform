@@ -61,6 +61,12 @@ const baseUser = {
 const servants = [
   { id: 'u1', ...baseUser, firstName: 'Malak', lastName: 'Ahmed', email: 'malak@x.com', metadata: { groupId: 'group-1', grade: 'Grade 4' } },
   { id: 'u2', ...baseUser, firstName: 'John', lastName: 'Doe', email: 'john@x.com', metadata: { levelId: 'level-1', groupId: 'group-1' } },
+  { id: 'u3', ...baseUser, firstName: 'Sara', lastName: 'Noshy', email: 'sara@x.com', metadata: { teachingSubjects: ['coptic_hymns', 'coptic_rites'] } },
+]
+
+const curriculumSubjects = [
+  { id: 'sub-1', name: 'Coptic Hymns', color: '#6B21A8' },
+  { id: 'sub-2', name: 'Coptic Rites', color: '#B45309' },
 ]
 
 beforeEach(() => {
@@ -71,6 +77,7 @@ beforeEach(() => {
   mockGet.mockImplementation((path: string) => {
     if (path === '/servants') return Promise.resolve(servants)
     if (path === '/curriculum/levels') return Promise.resolve(levels)
+    if (path === '/curriculum/subjects') return Promise.resolve(curriculumSubjects)
     if (path.startsWith('/users/schools/me')) return Promise.resolve({})
     return Promise.resolve([])
   })
@@ -107,13 +114,26 @@ it('sends grade + group in create metadata and renders grade badge on cards', as
   expect(await screen.findByText('Grade 4', { selector: 'span' })).toBeInTheDocument()
 })
 
+it('tints teaching badges with the matching curriculum subject color', async () => {
+  render(<ServantsPage />)
+  await userEvent.click(screen.getByRole('button', { name: 'Table' }))
+  const table = await screen.findByRole('table')
+
+  const hymnsBadge = within(table).getByText('Coptic Hymns')
+  expect(hymnsBadge).toBeInTheDocument()
+  expect(hymnsBadge).toHaveStyle({ backgroundColor: '#6B21A81a', color: '#6B21A8' })
+
+  const ritesBadge = within(table).getByText('Coptic Rites')
+  expect(ritesBadge).toHaveStyle({ backgroundColor: '#B453091a', color: '#B45309' })
+})
+
 it('selects multiple rows, shows toolbar, and bulk-deletes', async () => {
   render(<ServantsPage />)
   await userEvent.click(screen.getByRole('button', { name: 'Table' }))
   const table = await screen.findByRole('table')
   expect(table).toBeInTheDocument()
   const rowCbs = screen.getAllByRole('checkbox', { name: 'Select' })
-  expect(rowCbs).toHaveLength(2)
+  expect(rowCbs).toHaveLength(3)
   await userEvent.click(rowCbs[0])
   await userEvent.click(rowCbs[1])
   expect(screen.getByText('Delete selected (2)')).toBeInTheDocument()
