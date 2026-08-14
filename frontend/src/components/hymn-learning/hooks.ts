@@ -26,6 +26,8 @@ export interface HymnMapItem {
   liturgicalTags?: { seasons?: string[]; weekdayTypes?: string[]; feasts?: string[] }
   resources: { id: string; type: string; fileUrl: string; language: string; durationSeconds?: number }[]
   progress: HymnProgress | null
+  referenceRecordingUrl?: string | null
+  referenceRecordingName?: string | null
 }
 
 export interface DueReviewItem {

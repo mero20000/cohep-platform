@@ -58,6 +58,7 @@ type Tab = 'dashboard' | 'practice'
 export default function StudentDashboard() {
   const params = useParams()
   const code = params?.code as string
+  const lang: string = 'en'
   const [data, setData] = useState<PortalData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -581,6 +582,12 @@ export default function StudentDashboard() {
       {practiceLesson && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setPracticeLesson(null)}>
           <div className="bg-white rounded-2xl max-w-lg w-full max-h-[85vh] overflow-y-auto p-6" onClick={e => e.stopPropagation()}>
+            {practiceLesson?.referenceRecordingUrl && (
+              <div className="mt-3 rounded-lg border border-gray-200 p-3">
+                <div className="text-xs font-medium text-gray-500 mb-1">{lang === 'ar' ? 'تسجيل المرجع' : 'Reference recording'}{practiceLesson.referenceRecordingName ? ` — ${practiceLesson.referenceRecordingName}` : ''}</div>
+                <audio controls src={practiceLesson.referenceRecordingUrl} className="w-full" />
+              </div>
+            )}
             <PracticeRecorder
               lessonId={practiceLesson.id}
               lessonTitle={practiceLesson.title}
