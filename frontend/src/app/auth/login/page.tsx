@@ -283,7 +283,7 @@ export default function LoginPage() {
               {isAr ? 'تسجيل الدخول' : 'Sign in'}
             </h2>
             <p className="mt-3 text-sm text-gray-600">
-              {isAr ? 'ليس لديك حساب؟' : "Don&apos;t have an account?"}{' '}
+              {isAr ? 'ليس لديك حساب؟' : "Don't have an account?"}{' '}
               <Link href="/auth/register" className="inline-flex items-center gap-1 font-semibold text-gold-700 hover:text-gold-500 transition-colors">
                 {isAr ? 'أنشئ حسابًا مجانًا' : 'Create one free'} <ArrowRight className="h-3.5 w-3.5 rtl-flip" />
               </Link>
