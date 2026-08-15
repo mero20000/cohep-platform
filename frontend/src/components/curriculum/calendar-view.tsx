@@ -8,7 +8,7 @@ import { DatePicker } from '@/components/ui/date-picker'
 import { Modal } from '@/components/ui/modal'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { useLanguage } from '@/lib/use-language'
-import { getSchoolId } from '@/lib/school'
+import { useToast } from '@/components/ui/toast'
 import { API, TERM_SHORT, getSubjectStyle } from './constants'
 import type { Allocation, Lesson, Level, Subject, AcademicWeek, SubjectItem } from './types'
 
@@ -30,6 +30,7 @@ interface CalendarViewProps {
   }) => Promise<void>
   onDeleteAllocation: (id: string) => Promise<void>
   onClearAllocations: (scope: 'all' | 'term' | 'level') => void
+  onCreateLesson: (data: Record<string, unknown>) => Promise<unknown>
 }
 
 function formatDate(d: string | Date): string {
@@ -39,9 +40,10 @@ function formatDate(d: string | Date): string {
 
 export function CalendarView({
   allocations, lessons, teachingItems, levels, subjects, weeks, selectedYear,
-  onRefresh, onCreateAllocation, onMoveAllocation, onDeleteAllocation, onClearAllocations,
+  onRefresh, onCreateAllocation, onMoveAllocation, onDeleteAllocation, onClearAllocations, onCreateLesson,
 }: CalendarViewProps) {
   const lang = useLanguage()
+  const { toast } = useToast()
   const [viewMode, setViewMode] = useState<'grid' | 'month'>('grid')
   const [calendarMonth, setCalendarMonth] = useState(new Date())
   const [calendarSidebarLevel, setCalendarSidebarLevel] = useState('')
@@ -227,23 +229,22 @@ export function CalendarView({
         } else {
           const existingSubjLessons = lessons.filter(l => l.subject.name === subjectName)
           const maxOrder = existingSubjLessons.reduce((m, l) => Math.max(m, l.orderIndex), 0)
-          const res = await fetch(`${API}/curriculum/lessons?schoolId=${getSchoolId()}`, {
-            method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
-            body: JSON.stringify({
-              title: item.name, titleAr: item.nameAr || '', titleCoptic: item.nameCoptic || '',
-              levelId, subjectId: matchingSubject.id, subjectItemId: item.id,
-              sessionsCount: sessions || 1, orderIndex: maxOrder + 1, status: 'published',
-            }),
-          })
-          if (!res.ok) return
-          const createdLesson = await res.json()
-          lessonId = createdLesson.id || createdLesson._id
+          const created = await onCreateLesson({
+            title: item.name, titleAr: item.nameAr || '', titleCoptic: item.nameCoptic || '',
+            levelId, subjectId: matchingSubject.id, subjectItemId: item.id,
+            sessionsCount: sessions || 1, orderIndex: maxOrder + 1, status: 'published',
+          }) as { id?: string; _id?: string }
+          lessonId = created?.id || created?._id || ''
+          if (!lessonId) throw new Error('Lesson creation did not return an id')
         }
 
         await createAllocsForWeeks(lessonId, levelId, sessions || 1, item.id)
-      } catch { /* ignore */ }
-      setCreatingAllocation(false)
-      setDraggedSubjectItem(null)
+      } catch (e: any) {
+        toast('error', e?.message || (lang === 'ar' ? 'تعذر إنشاء التوزيع' : 'Could not create allocation'))
+      } finally {
+        setCreatingAllocation(false)
+        setDraggedSubjectItem(null)
+      }
       return
     }
 
@@ -340,17 +341,13 @@ export function CalendarView({
         } else {
           const existingSubjLessons = lessons.filter(l => l.subject.name === (matchingSubject?.name || ''))
           const maxOrder = existingSubjLessons.reduce((m, l) => Math.max(m, l.orderIndex), 0)
-          const res = await fetch(`${API}/curriculum/lessons?schoolId=${getSchoolId()}`, {
-            method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
-            body: JSON.stringify({
-              title: item.name, titleAr: item.nameAr || '', titleCoptic: item.nameCoptic || '',
-              levelId, subjectId, subjectItemId: item.id,
-              sessionsCount: 1, orderIndex: maxOrder + 1, status: 'published',
-            }),
-          })
-          if (!res.ok) return
-          const createdLesson = await res.json()
-          lessonId = createdLesson.id || createdLesson._id
+          const created = await onCreateLesson({
+            title: item.name, titleAr: item.nameAr || '', titleCoptic: item.nameCoptic || '',
+            levelId, subjectId, subjectItemId: item.id,
+            sessionsCount: 1, orderIndex: maxOrder + 1, status: 'published',
+          }) as { id?: string; _id?: string }
+          lessonId = created?.id || created?._id || ''
+          if (!lessonId) throw new Error('Lesson creation did not return an id')
         }
 
         const ok = await onCreateAllocation({
@@ -372,9 +369,12 @@ export function CalendarView({
           })
           await onRefresh()
         }
-      } catch { /* ignore */ }
-      setCreatingAllocation(false)
-      setDraggedSubjectItem(null)
+      } catch (e: any) {
+        toast('error', e?.message || (lang === 'ar' ? 'تعذر إنشاء التوزيع' : 'Could not create allocation'))
+      } finally {
+        setCreatingAllocation(false)
+        setDraggedSubjectItem(null)
+      }
       return
     }
 

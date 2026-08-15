@@ -354,6 +354,7 @@ function CurriculumContent() {
           selectedYear={selectedYear}
           onRefresh={invalidateAllocs}
           onCreateAllocation={handleCreateAllocation}
+          onCreateLesson={createLesson.mutateAsync}
           onMoveAllocation={handleMoveAllocation}
           onDeleteAllocation={handleDeleteAllocation}
           onClearAllocations={(scope) => setClearConfirm({ scope })}
