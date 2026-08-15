@@ -75,6 +75,27 @@ function track(id, label) {
   if (id) TRACKED.push({ id, label })
 }
 
+// Teardown: soft-delete every record the harness created so QA runs never
+// leave orphaned test data (e.g. "Peter Test-<timestamp>") in the database.
+// Best-effort: failures are logged but do not fail the run.
+async function teardown() {
+  if (TRACKED.length === 0) return
+  section('Teardown — removing tracked QA records')
+  let removed = 0, skipped = 0, failed = 0
+  for (const { id, label } of TRACKED) {
+    if (!id || label.includes('code')) { skipped++; continue }
+    let endpoint = null
+    if (label.includes('group')) endpoint = `/students/groups/${id}`
+    else if (label.includes('parent user') || label.includes('user')) endpoint = `/users/${id}`
+    else if (label.includes('student')) endpoint = `/students/${id}`
+    else { skipped++; continue }
+    const res = await api('DELETE', `${endpoint}?schoolId=${SCHOOL_ID}`)
+    if (res.ok || res.status === 404) { removed++; console.log(`  🧹 removed ${label} (${id})`) }
+    else { failed++; console.log(`  ⚠️  could not remove ${label} (${id}): ${res.status}`) }
+  }
+  console.log(`   teardown: ${removed} removed, ${skipped} skipped, ${failed} failed`)
+}
+
 function pass(name, detail = '') {
   RESULTS.push({ status: 'PASS', name, detail })
   console.log(`  ✅ PASS  ${name}${detail ? ` — ${detail}` : ''}`)
@@ -170,7 +191,10 @@ async function main() {
     }
   }
 
-  console.log(`\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`)
+  // Clean up every tracked QA record so test data never lingers in the DB.
+  await teardown()
+
+  console.log(`\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━`)
   const passed = RESULTS.filter(r => r.status === 'PASS').length
   const failed = RESULTS.filter(r => r.status === 'FAIL').length
   console.log(`RESULTS: ${passed} passed, ${failed} failed, ${RESULTS.length} total`)
