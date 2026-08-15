@@ -27,7 +27,7 @@ import { getGreeting, getGreetingAr, getDayName, getDayNameAr } from '@/lib/date
 import { useActiveRole, roleCategory } from '@/lib/use-active-role'
 import DashboardHero from './hero'
 import { ServantJourneyCard } from '@/components/dashboard/servant-journey-card'
-import { useAcademicYearsQuery, useWeeksQuery, useAllAllocationsQuery, useLessonsQuery } from '@/components/curriculum/hooks'
+import { useAcademicYearsQuery, useAllAllocationsQuery, useLessonsQuery } from '@/components/curriculum/hooks'
 import type { Allocation } from '@/components/curriculum/types'
 
 interface GradeDistItem { grade: string; count: number }
@@ -1038,24 +1038,6 @@ function NextSessionCard({ lang, assigned, groups }: { lang: string; assigned?: 
     () => years.data?.find((y) => y.isCurrent) || years.data?.[0] || null,
     [years.data],
   )
-  const weeks = useWeeksQuery(currentYear?.id)
-  const today = useMemo(() => new Date(), [])
-
-  const currentWeek = useMemo(() => {
-    const list: any[] = weeks.data || []
-    if (!list.length) return null
-    const inRange = list.find((w) => {
-      const s = new Date(w.startDate)
-      const e = new Date(w.endDate)
-      return today >= s && today <= e
-    })
-    if (inRange) return inRange
-    return [...list].sort(
-      (a, b) =>
-        Math.abs(new Date(a.startDate).getTime() - today.getTime()) -
-        Math.abs(new Date(b.startDate).getTime() - today.getTime()),
-    )[0]
-  }, [weeks.data, today])
 
   const allocations = useAllAllocationsQuery(currentYear?.id || '', levelId || undefined)
   const lessons = useLessonsQuery(levelId || undefined)
@@ -1066,29 +1048,75 @@ function NextSessionCard({ lang, assigned, groups }: { lang: string; assigned?: 
     return m
   }, [lessons.data])
 
+  const isSameUtcDay = (dateStr: string, ref: Date) => {
+    const d = new Date(dateStr)
+    return (
+      d.getUTCFullYear() === ref.getUTCFullYear() &&
+      d.getUTCMonth() === ref.getUTCMonth() &&
+      d.getUTCDate() === ref.getUTCDate()
+    )
+  }
+
+  const { items, dateLabel, scope } = useMemo(() => {
+    const all = (allocations.data || []) as Allocation[]
+    const dated = all.filter((a) => a.scheduledDate)
+    const now = new Date()
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+
+    if (dated.length) {
+      const todayItems = dated.filter((a) => isSameUtcDay(a.scheduledDate as string, now))
+      if (todayItems.length) {
+        return {
+          items: todayItems,
+          dateLabel: formatDate(today.toISOString(), lang === 'ar' ? 'ar-EG' : 'en-GB'),
+          scope: 'today',
+        }
+      }
+      const upcoming = dated
+        .filter((a) => new Date(a.scheduledDate as string) >= today)
+        .sort((a, b) => new Date(a.scheduledDate as string).getTime() - new Date(b.scheduledDate as string).getTime())
+      if (upcoming.length) {
+        const d = new Date(upcoming[0].scheduledDate as string)
+        return {
+          items: dated.filter((a) => isSameUtcDay(a.scheduledDate as string, d)),
+          dateLabel: formatDate(d.toISOString(), lang === 'ar' ? 'ar-EG' : 'en-GB'),
+          scope: 'upcoming',
+        }
+      }
+      const past = dated
+        .slice()
+        .sort((a, b) => new Date(b.scheduledDate as string).getTime() - new Date(a.scheduledDate as string).getTime())
+      const d = new Date(past[0].scheduledDate as string)
+      return {
+        items: dated.filter((a) => isSameUtcDay(a.scheduledDate as string, d)),
+        dateLabel: formatDate(d.toISOString(), lang === 'ar' ? 'ar-EG' : 'en-GB'),
+        scope: 'recent',
+      }
+    }
+
+    // No scheduled dates — fall back to showing the level's allocated items.
+    if (all.length) return { items: all, dateLabel: '', scope: 'plan' }
+    return { items: [] as Allocation[], dateLabel: '', scope: 'plan' }
+  }, [allocations.data, lang])
+
   if (!levelId) return null
 
   const loading =
-    (years.isLoading || weeks.isLoading || allocations.isLoading || lessons.isLoading) &&
-    !(allocations.data || lessons.data)
-
-  const weekAllocations = ((allocations.data || []) as Allocation[]).filter(
-    (a) => currentWeek && a.term === currentWeek.term && a.weekNumber === currentWeek.weekNumber,
-  )
+    (years.isLoading || allocations.isLoading || lessons.isLoading) && !(allocations.data || lessons.data)
 
   if (loading) return <CardSkeleton count={2} />
-  if (!weekAllocations.length)
+  if (!items.length)
     return (
       <div className="rounded-xl border border-gray-200/60 bg-white overflow-hidden">
-        <NextSessionHeader lang={lang} term={currentWeek?.term} week={currentWeek?.weekNumber} />
+        <NextSessionHeader lang={lang} dateLabel="" scope="plan" />
         <div className="px-5 py-8">
           <EmptyState
             icon={BookOpen}
             title={lang === 'ar' ? 'لا توجد عناصر منهج مجدولة' : 'No curriculum items scheduled'}
             description={
               lang === 'ar'
-                ? 'ستظهر عناصر المنهج المخصصة لهذا الأسبوع هنا.'
-                : 'Curriculum items allocated for this week will appear here.'
+                ? 'ستظهر عناصر المنهج المخصصة لهذا اليوم هنا.'
+                : 'Curriculum items allocated for the day will appear here.'
             }
           />
         </div>
@@ -1097,9 +1125,9 @@ function NextSessionCard({ lang, assigned, groups }: { lang: string; assigned?: 
 
   return (
     <div className="rounded-xl border border-gray-200/60 bg-white overflow-hidden">
-      <NextSessionHeader lang={lang} term={currentWeek?.term} week={currentWeek?.weekNumber} />
+      <NextSessionHeader lang={lang} dateLabel={dateLabel} scope={scope} />
       <div className="divide-y divide-gray-100">
-        {weekAllocations.map((a) => {
+        {items.map((a) => {
           const lesson = lessonMap.get(a.lesson?.id || '')
           const item = lesson?.subjectItem
           const label = item
@@ -1144,9 +1172,6 @@ function NextSessionCard({ lang, assigned, groups }: { lang: string; assigned?: 
                       {lesson.estimatedDurationMinutes} {lang === 'ar' ? 'دقيقة' : 'min'}
                     </span>
                   ) : null}
-                  <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700">
-                    {lang === 'ar' ? `الأسبوع ${a.weekNumber}` : `Week ${a.weekNumber}`}
-                  </span>
                 </div>
               </div>
             </div>
@@ -1157,7 +1182,21 @@ function NextSessionCard({ lang, assigned, groups }: { lang: string; assigned?: 
   )
 }
 
-function NextSessionHeader({ lang, term, week }: { lang: string; term?: number; week?: number }) {
+function NextSessionHeader({ lang, dateLabel, scope }: { lang: string; dateLabel: string; scope: string }) {
+  const scopeLabel =
+    scope === 'today'
+      ? lang === 'ar'
+        ? 'اليوم'
+        : 'Today'
+      : scope === 'upcoming'
+        ? lang === 'ar'
+          ? 'القادمة'
+          : 'Upcoming'
+        : scope === 'recent'
+          ? lang === 'ar'
+            ? 'الأخيرة'
+            : 'Recent'
+          : ''
   return (
     <div className="flex items-center justify-between border-b border-[var(--hymn-border)] px-5 py-4 bg-[var(--hymn-surface-header)]">
       <div className="flex items-center gap-2">
@@ -1167,9 +1206,9 @@ function NextSessionHeader({ lang, term, week }: { lang: string; term?: number; 
         <h2 className="font-semibold text-gray-900">{lang === 'ar' ? 'الجلسة القادمة' : 'Next Session'}</h2>
       </div>
       <div className="flex items-center gap-2">
-        {term !== undefined && week !== undefined && (
+        {dateLabel && (
           <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-medium text-blue-700">
-            {lang === 'ar' ? `الفصل ${term} · أسبوع ${week}` : `Term ${term} · Week ${week}`}
+            {scopeLabel ? `${scopeLabel} · ${dateLabel}` : dateLabel}
           </span>
         )}
         <Link
