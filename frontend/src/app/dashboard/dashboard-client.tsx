@@ -1099,7 +1099,7 @@ function NextSessionCard({ lang, assigned, groups }: { lang: string; assigned?: 
     return { items: [] as Allocation[], dateLabel: '', scope: 'plan' }
   }, [allocations.data, lang])
 
-  if (!levelId) return null
+  const scopedToLevel = !!levelId
 
   const loading =
     (years.isLoading || allocations.isLoading || lessons.isLoading) && !(allocations.data || lessons.data)
@@ -1160,6 +1160,11 @@ function NextSessionCard({ lang, assigned, groups }: { lang: string; assigned?: 
                         style={{ backgroundColor: lesson.subject.color || '#3b82f6' }}
                       />
                       {lesson.subject.name}
+                    </span>
+                  )}
+                  {!scopedToLevel && a.level?.name && (
+                    <span className="rounded-full bg-purple-50 px-2 py-0.5 text-[11px] font-medium text-purple-700">
+                      {a.level.name}
                     </span>
                   )}
                   {item?.optional && (
@@ -2722,6 +2727,13 @@ export default function DashboardPage() {
     {/* Hero */}
     <ErrorBoundary onRetry={handleRetry}>
      <HeroSection stats={primary.data?.stats ?? null} churchLogo={primary.data?.churchLogo ?? null} churchName={primary.data?.churchName ?? ''} loading={primary.loading} />
+    </ErrorBoundary>
+
+    {/* Next Session — curriculum subject items allocated for the day (all levels for admin) */}
+    <ErrorBoundary onRetry={handleRetry}>
+     <motion.div variants={fadeUp}>
+      <NextSessionCard lang={lang} />
+     </motion.div>
     </ErrorBoundary>
 
     {/* Quick Actions */}
