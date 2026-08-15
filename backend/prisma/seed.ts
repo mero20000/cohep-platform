@@ -473,6 +473,40 @@ async function main() {
   } else {
     console.log('Lessons already exist:', lessonsCount);
   }
+
+  // ── Sample allocations (demo) ───────────────────────────────────────
+  // Allocations only display once academic weeks exist (generate them in
+  // Settings → Calendar). We guard on weeks so the seed never fails.
+  const weeksForAlloc = await prisma.academicWeek.findMany({ where: { academicYearId: academicYear.id } })
+  if (weeksForAlloc.length > 0) {
+    const lessonsForAlloc = await prisma.lesson.findMany({ where: { schoolId: school.id } })
+    let allocCount = 0
+    for (const lesson of lessonsForAlloc) {
+      const target = weeksForAlloc.find(w => w.term === 1 && w.weekNumber === 1) || weeksForAlloc[0]
+      const exists = await prisma.curriculumAllocation.findFirst({
+        where: { lessonId: lesson.id, term: target.term, weekNumber: target.weekNumber, groupNumber: 1 },
+      })
+      if (exists) continue
+      await prisma.curriculumAllocation.create({
+        data: {
+          academicYearId: academicYear.id,
+          levelId: lesson.levelId,
+          subjectId: lesson.subjectId,
+          lessonId: lesson.id,
+          groupNumber: 1,
+          term: target.term,
+          weekNumber: target.weekNumber,
+          orderIndex: 1,
+          scheduledDate: target.startDate,
+          status: 'published',
+        },
+      })
+      allocCount++
+    }
+    console.log(`Created ${allocCount} sample allocations`)
+  } else {
+    console.log('No academic weeks found — skipped sample allocations (generate weeks in Settings → Calendar).')
+  }
   } // /if (buildDemo)
   if (!buildDemo) {
     console.log('Skipped demo content (requires SUPER_ADMIN_* env and SEED_DEMO_USERS=true).');

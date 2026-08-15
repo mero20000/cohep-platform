@@ -53,9 +53,7 @@ function CurriculumContent() {
   const [deletingLevelId, setDeletingLevelId] = useState<string | null>(null)
   const deleteLevel = useDeleteLevelMutation()
   const [teachingLevel, setTeachingLevel] = useState<number>(1)
-  const { data: teachingItems = [] } = useAllItemsQuery(
-    activeTab === 'teaching' || activeTab === 'calendar' ? teachingLevel : undefined
-  )
+  const { data: teachingItems = [] } = useAllItemsQuery()
   const createSubject = useCreateSubjectMutation()
   const updateSubject = useUpdateSubjectMutation()
   const deleteSubject = useDeleteSubjectMutation()
@@ -78,6 +76,14 @@ function CurriculumContent() {
       if (current) setSelectedYear(current.id)
     }
   }, [selectedYear, academicYears])
+
+  // Auto-select the first level so the Levels tab shows content immediately.
+  useEffect(() => {
+    if (!selectedLevelId && levels.length > 0) {
+      const first = [...levels].sort((a, b) => a.number - b.number)[0]
+      setSelectedLevelId(first.id)
+    }
+  }, [selectedLevelId, levels])
 
 
   const saveAllocation = async (weekNumber: number, levelNum: number, subjectName: string, lessonId: string | null) => {

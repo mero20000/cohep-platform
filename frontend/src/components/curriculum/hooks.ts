@@ -233,13 +233,13 @@ export function useDeleteLessonMutation() {
 
 export function useAllItemsQuery(levelNumber?: number) {
   return useQuery({
-    queryKey: ['curriculum', 'items', levelNumber],
+    queryKey: ['curriculum', 'items', levelNumber ?? 'all'],
     queryFn: () => {
       const params = new URLSearchParams({ schoolId: getSchoolId() })
       if (levelNumber !== undefined) params.set('levelNumber', String(levelNumber))
       return fetchJson<SubjectItem[]>(`${API}/curriculum/items?${params}`)
     },
-    enabled: levelNumber !== undefined,
+    enabled: true,
   })
 }
 

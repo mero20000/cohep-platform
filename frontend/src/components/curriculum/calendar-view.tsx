@@ -204,13 +204,17 @@ export function CalendarView({
         })
         created = true
       }
-      if (subjectItemId && created) {
-        await fetch(`${API}/curriculum/items/${subjectItemId}/status`, {
-          method: 'PATCH', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
-          body: JSON.stringify({ status: 'allocated' }),
-        })
-      }
       await onRefresh()
+      if (subjectItemId && created) {
+        try {
+          await fetch(`${API}/curriculum/items/${subjectItemId}/status`, {
+            method: 'PATCH', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+            body: JSON.stringify({ status: 'allocated' }),
+          })
+        } catch {
+          /* item status flag is best-effort; refresh already happened */
+        }
+      }
     }
 
     if (draggedSubjectItem) {

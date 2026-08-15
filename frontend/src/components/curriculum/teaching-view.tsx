@@ -217,7 +217,7 @@ export function TeachingView({ items, subjects, levels, lessons = [], allocation
         <select value={levelNumber} onChange={e => onLevelChange(Number(e.target.value))}
           aria-label={lang === 'ar' ? 'المستوى' : 'Level'}
           className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
-          {levels.sort((a, b) => a.number - b.number).map(l => (
+          {[...levels].sort((a, b) => a.number - b.number).map(l => (
             <option key={l.id} value={l.number}>{lang === 'ar' ? `المستوى ${l.number} - ${l.name}` : `${l.name} (Level ${l.number})`}</option>
           ))}
         </select>
