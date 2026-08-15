@@ -27,6 +27,8 @@ import { getGreeting, getGreetingAr, getDayName, getDayNameAr } from '@/lib/date
 import { useActiveRole, roleCategory } from '@/lib/use-active-role'
 import DashboardHero from './hero'
 import { ServantJourneyCard } from '@/components/dashboard/servant-journey-card'
+import { useAcademicYearsQuery, useWeeksQuery, useAllAllocationsQuery, useLessonsQuery } from '@/components/curriculum/hooks'
+import type { Allocation } from '@/components/curriculum/types'
 
 interface GradeDistItem { grade: string; count: number }
 interface StudentsPerLevel { levelName: string; count: number }
@@ -1025,6 +1027,162 @@ function WeekScheduleCard({ lang }: { lang: string }) {
   )
 }
 
+function NextSessionCard({ lang, assigned, groups }: { lang: string; assigned?: any; groups?: any[] }) {
+  const levelId =
+    assigned?.levelId ||
+    groups?.find((g: any) => g.id === assigned?.groupId)?.levelId ||
+    null
+
+  const years = useAcademicYearsQuery()
+  const currentYear = useMemo(
+    () => years.data?.find((y) => y.isCurrent) || years.data?.[0] || null,
+    [years.data],
+  )
+  const weeks = useWeeksQuery(currentYear?.id)
+  const today = useMemo(() => new Date(), [])
+
+  const currentWeek = useMemo(() => {
+    const list: any[] = weeks.data || []
+    if (!list.length) return null
+    const inRange = list.find((w) => {
+      const s = new Date(w.startDate)
+      const e = new Date(w.endDate)
+      return today >= s && today <= e
+    })
+    if (inRange) return inRange
+    return [...list].sort(
+      (a, b) =>
+        Math.abs(new Date(a.startDate).getTime() - today.getTime()) -
+        Math.abs(new Date(b.startDate).getTime() - today.getTime()),
+    )[0]
+  }, [weeks.data, today])
+
+  const allocations = useAllAllocationsQuery(currentYear?.id || '', levelId || undefined)
+  const lessons = useLessonsQuery(levelId || undefined)
+
+  const lessonMap = useMemo(() => {
+    const m = new Map<string, any>()
+    ;(lessons.data || []).forEach((l: any) => m.set(l.id, l))
+    return m
+  }, [lessons.data])
+
+  if (!levelId) return null
+
+  const loading =
+    (years.isLoading || weeks.isLoading || allocations.isLoading || lessons.isLoading) &&
+    !(allocations.data || lessons.data)
+
+  const weekAllocations = ((allocations.data || []) as Allocation[]).filter(
+    (a) => currentWeek && a.term === currentWeek.term && a.weekNumber === currentWeek.weekNumber,
+  )
+
+  if (loading) return <CardSkeleton count={2} />
+  if (!weekAllocations.length)
+    return (
+      <div className="rounded-xl border border-gray-200/60 bg-white overflow-hidden">
+        <NextSessionHeader lang={lang} term={currentWeek?.term} week={currentWeek?.weekNumber} />
+        <div className="px-5 py-8">
+          <EmptyState
+            icon={BookOpen}
+            title={lang === 'ar' ? 'لا توجد عناصر منهج مجدولة' : 'No curriculum items scheduled'}
+            description={
+              lang === 'ar'
+                ? 'ستظهر عناصر المنهج المخصصة لهذا الأسبوع هنا.'
+                : 'Curriculum items allocated for this week will appear here.'
+            }
+          />
+        </div>
+      </div>
+    )
+
+  return (
+    <div className="rounded-xl border border-gray-200/60 bg-white overflow-hidden">
+      <NextSessionHeader lang={lang} term={currentWeek?.term} week={currentWeek?.weekNumber} />
+      <div className="divide-y divide-gray-100">
+        {weekAllocations.map((a) => {
+          const lesson = lessonMap.get(a.lesson?.id || '')
+          const item = lesson?.subjectItem
+          const label = item
+            ? lang === 'ar'
+              ? item.nameAr || item.name
+              : item.name
+            : lang === 'ar'
+              ? lesson?.titleAr || lesson?.title
+              : lesson?.title
+          const lessonLabel = lesson
+            ? lang === 'ar'
+              ? lesson.titleAr || lesson.title
+              : lesson.title
+            : ''
+          return (
+            <div key={a.id} className="flex items-start gap-3 px-5 py-3.5 hover:bg-gray-50 transition-colors">
+              <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
+                <BookOpen className="h-4 w-4" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="text-sm font-medium text-gray-900 truncate">{label}</div>
+                {item && lessonLabel && lessonLabel !== label && (
+                  <div className="text-xs text-gray-500 truncate">{lessonLabel}</div>
+                )}
+                <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                  {lesson?.subject?.name && (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-medium text-blue-700">
+                      <span
+                        className="h-1.5 w-1.5 rounded-full"
+                        style={{ backgroundColor: lesson.subject.color || '#3b82f6' }}
+                      />
+                      {lesson.subject.name}
+                    </span>
+                  )}
+                  {item?.optional && (
+                    <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-medium text-gray-600">
+                      {lang === 'ar' ? 'اختياري' : 'Optional'}
+                    </span>
+                  )}
+                  {lesson?.estimatedDurationMinutes ? (
+                    <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-700">
+                      {lesson.estimatedDurationMinutes} {lang === 'ar' ? 'دقيقة' : 'min'}
+                    </span>
+                  ) : null}
+                  <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700">
+                    {lang === 'ar' ? `الأسبوع ${a.weekNumber}` : `Week ${a.weekNumber}`}
+                  </span>
+                </div>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+function NextSessionHeader({ lang, term, week }: { lang: string; term?: number; week?: number }) {
+  return (
+    <div className="flex items-center justify-between border-b border-[var(--hymn-border)] px-5 py-4 bg-[var(--hymn-surface-header)]">
+      <div className="flex items-center gap-2">
+        <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[var(--hymn-surface-header)] text-blue-700 ring-1 ring-blue-200/50">
+          <BookOpen className="h-4 w-4" />
+        </div>
+        <h2 className="font-semibold text-gray-900">{lang === 'ar' ? 'الجلسة القادمة' : 'Next Session'}</h2>
+      </div>
+      <div className="flex items-center gap-2">
+        {term !== undefined && week !== undefined && (
+          <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-medium text-blue-700">
+            {lang === 'ar' ? `الفصل ${term} · أسبوع ${week}` : `Term ${term} · Week ${week}`}
+          </span>
+        )}
+        <Link
+          href="/dashboard/curriculum"
+          className="text-xs text-blue-700 font-medium hover:text-blue-800 flex items-center gap-0.5"
+        >
+          {lang === 'ar' ? 'المنهج' : 'Curriculum'} <ChevronRight className="h-3 w-3" />
+        </Link>
+      </div>
+    </div>
+  )
+}
+
 export function WeekSummaryCard({ thisWeek, lang }: { thisWeek?: any; lang: string }) {
   if (!thisWeek) return null
   const total = thisWeek.total ?? 0
@@ -1771,6 +1929,13 @@ function MinistryDashboard({ data, loading, error, onRetry }: { data: any; loadi
       <motion.div variants={fadeUp}>
         <TodaysSessionCard lang={lang} />
       </motion.div>
+
+      {/* Next Session — curriculum subject items allocated for the day/week */}
+      {['servant', 'group_leader', 'level_leader'].includes(d.role || '') && (
+        <motion.div variants={fadeUp}>
+          <NextSessionCard lang={lang} assigned={assigned} groups={groups} />
+        </motion.div>
+      )}
 
       {/* Servant Journey Card */}
       {['servant', 'group_leader', 'level_leader'].includes(d.role || '') && (
