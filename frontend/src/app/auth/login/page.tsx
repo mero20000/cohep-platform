@@ -15,12 +15,12 @@ import {
 } from 'lucide-react'
 
 const features = [
-  { icon: BookOpen, text: '255+ Coptic Hymns' },
-  { icon: Trophy, text: 'Gamified Learning & XP' },
-  { icon: Calendar, text: 'Smart Academic Calendar' },
-  { icon: Users, text: 'Multi-Role Access' },
-  { icon: Music, text: 'Coptic Script & Audio' },
-  { icon: Globe, text: 'English & Arabic' },
+  { icon: BookOpen, text: '255+ Living Coptic Hymns' },
+  { icon: Trophy, text: 'XP & Badges That Motivate' },
+  { icon: Calendar, text: 'Smart Church Calendar' },
+  { icon: Users, text: 'Every Role, One App' },
+  { icon: Music, text: 'Coptic Text & Audio' },
+  { icon: Globe, text: 'English & العربية' },
 ]
 
 const INPUT_CLASS =
@@ -232,14 +232,13 @@ export default function LoginPage() {
             <h1 className="text-4xl xl:text-5xl font-bold text-white leading-tight">
               {isAr ? 'واصل رحلتك في' : 'Continue Your'}{' '}
               <span className="bg-gradient-to-r from-gold-400 to-blue-500 bg-clip-text text-transparent">
-                {isAr ? 'تعليم الترانيم' : 'Hymn Education'}
-              </span>{' '}
-              {isAr ? '' : 'Journey'}
+                {isAr ? 'التّرانيم القبطية' : 'Hymn Journey'}
+              </span>
             </h1>
             <p className="mt-5 text-lg text-gray-400 leading-relaxed">
               {isAr
-                ? 'سجّل الدخول للوصول إلى فصولك ومتابعة نقاط XP وشاراتك، وواصل إتقان الترانيم القبطية.'
-                : 'Sign in to access your classes, track your XP and badges, and continue mastering Coptic hymns.'}
+                ? 'سجّل الدخول لترجع إلى فصولك، وترى نقاط XP وشاراتك تتراكم، وتواصل إتقان التراث الحيّ للترانيم القبطية.'
+                : 'Sign in to step back into your classes, watch your XP and badges climb, and keep mastering the living tradition of Coptic hymns.'}
             </p>
 
             {/* Feature pills */}
