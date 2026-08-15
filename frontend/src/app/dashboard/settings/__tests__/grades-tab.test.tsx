@@ -11,7 +11,7 @@ vi.mock('@/components/ui/modal', () => ({
 
 vi.mock('lucide-react', () => {
   const icons: Record<string, any> = {}
-  for (const name of ['Plus', 'Pencil', 'Trash2', 'Loader2', 'GraduationCap', 'X']) {
+  for (const name of ['Plus', 'Pencil', 'Trash2', 'Loader2', 'GraduationCap', 'Search', 'X']) {
     icons[name] = (props: any) => <span data-testid={`icon-${name}`} {...props} />
   }
   return icons
@@ -80,12 +80,12 @@ describe('GradesTab', () => {
 
     expect(await screen.findByText('Grade 4')).toBeInTheDocument()
     expect(screen.getByText('Grade 5')).toBeInTheDocument()
-    expect(screen.getByText('Group A')).toBeInTheDocument()
-    expect(screen.getByText('Group B')).toBeInTheDocument()
+    expect(screen.getByText('Group A', { selector: 'td' })).toBeInTheDocument()
+    expect(screen.getByText('Group B', { selector: 'td' })).toBeInTheDocument()
     expect(screen.getByText('12')).toBeInTheDocument()
     expect(screen.getByText('0')).toBeInTheDocument()
-    expect(screen.getByText('Active')).toBeInTheDocument()
-    expect(screen.getByText('Inactive')).toBeInTheDocument()
+    expect(screen.getByText('Active', { selector: '[data-testid="badge"]' })).toBeInTheDocument()
+    expect(screen.getByText('Inactive', { selector: '[data-testid="badge"]' })).toBeInTheDocument()
   })
 
   it('creates a grade and posts to /grades with the selected group', async () => {
