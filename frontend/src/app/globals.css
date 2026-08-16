@@ -486,3 +486,28 @@
 html {
   scroll-behavior: smooth;
 }
+
+/* ── FullCalendar (curriculum month view) ─────────────────────────── */
+.cohep-calendar {
+  --fc-border-color: #e5e7eb;
+  --fc-today-bg-color: rgba(59, 130, 246, 0.06);
+  --fc-page-bg-color: #fff;
+  font-size: 0.8rem;
+  background: #fff;
+}
+.cohep-calendar .fc-toolbar-title { font-size: 1rem; font-weight: 600; color: #111827; }
+.cohep-calendar .fc-button { text-transform: none; font-size: 0.75rem; padding: 0.3rem 0.6rem; box-shadow: none; }
+.cohep-calendar .fc-button-primary { background: #3b82f6; border-color: #3b82f6; }
+.cohep-calendar .fc-button-primary:hover { background: #2563eb; border-color: #2563eb; }
+.cohep-calendar .fc-button-primary:not(:disabled).fc-button-active { background: #1d4ed8; border-color: #1d4ed8; }
+.cohep-calendar .fc-col-header-cell-cushion { color: #374151; font-weight: 600; padding: 0.4rem; }
+.cohep-calendar .fc-daygrid-day-number { color: #6b7280; font-size: 0.75rem; }
+.cohep-calendar .fc-day-today .fc-daygrid-day-number { color: #2563eb; font-weight: 700; }
+.cohep-calendar .fc-daygrid-day-frame { min-height: 5rem; }
+.cohep-calendar .fc-day-other .fc-daygrid-day-number { color: #cbd5e1; }
+.cohep-calendar .fc-scrollgrid { border-radius: 0.75rem; overflow: hidden; border-color: var(--fc-border-color); }
+.cohep-calendar .fc-scrollgrid-section > td { border-color: var(--fc-border-color); }
+.cohep-calendar .fc-timegrid-slot { height: 2rem; }
+.cohep-calendar .fc-more-link { font-size: 0.7rem; color: #2563eb; }
+.cohep-calendar .fc-event { border: none; border-radius: 0.375rem; font-size: 0.7rem; cursor: pointer; }
+.cohep-calendar .cohep-event { border-left-width: 3px; border-left-style: solid; }

@@ -29,6 +29,9 @@ import DashboardHero from './hero'
 import { ServantJourneyCard } from '@/components/dashboard/servant-journey-card'
 import { useAcademicYearsQuery, useAllAllocationsQuery, useLessonsQuery } from '@/components/curriculum/hooks'
 import type { Allocation } from '@/components/curriculum/types'
+import { parseISO, isSameDay, startOfDay, startOfWeek, addDays, format } from 'date-fns'
+import { enGB, ar } from 'date-fns/locale'
+import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, Cell, PieChart, Pie } from 'recharts'
 
 interface GradeDistItem { grade: string; count: number }
 interface StudentsPerLevel { levelName: string; count: number }
@@ -396,56 +399,111 @@ function StatsSection({ stats, loading }: { stats: DashboardData | null; loading
 }
 
 function AttendanceChartSection({ stats, loading }: { stats: DashboardData | null; loading: boolean }) {
- const lang = useLanguage()
- if (loading && !stats) return <SectionFallback />
- const s = stats ?? EMPTY_STATS
- if (!s.weeklyStats?.length) return null
+  const lang = useLanguage()
+  if (loading && !stats) return <SectionFallback />
+  const s = stats ?? EMPTY_STATS
+  if (!s.weeklyStats?.length) return null
 
- const dayLocale = lang === 'ar' ? 'ar-EG' : 'en-GB'
- const dayMap = new Map<string, number>()
- s.weeklyStats.forEach(item => {
-  const d = new Date(item.scheduledDate).toLocaleDateString(dayLocale, { weekday: 'short' })
-  dayMap.set(d, (dayMap.get(d) || 0) + item._count.attendanceRecords)
- })
- const days = Array.from(dayMap.keys())
- const counts = Array.from(dayMap.values())
- const max = Math.max(...counts, 1)
+const dayLocale = lang === 'ar' ? 'ar-EG' : 'en-GB'
+  const dayMap = new Map<string, number>()
+  s.weeklyStats.forEach(item => {
+    const d = new Date(item.scheduledDate).toLocaleDateString(dayLocale, { weekday: 'short' })
+    dayMap.set(d, (dayMap.get(d) || 0) + item._count.attendanceRecords)
+  })
+  const data = Array.from(dayMap.keys()).map(day => ({ day, count: dayMap.get(day) || 0 }))
+  const total = s.weeklyStats.reduce((a, item) => a + item._count.attendanceRecords, 0)
+  const completed = s.weeklyStats.filter(item => item.status === 'completed').length
 
- const chartRef = (el: HTMLDivElement | null) => {
-  if (!el) return
-  const bars = el.querySelectorAll('[data-bar]')
-  const observer = new IntersectionObserver(
-   (entries) => entries.forEach(e => { if (e.isIntersecting) (e.target as HTMLElement).style.opacity = '1' }),
-   { threshold: 0.3 }
-  )
-  bars.forEach(b => observer.observe(b))
-  return () => observer.disconnect()
- }
+  const GOLD = '#c9a030'
+  const BLUE = '#3b82f6'
 
- return (
-  <div className="p-5">
-   <div ref={chartRef} className="flex items-end gap-2 h-40">
-    {days.map((day, i) => (
-     <div key={day} className="flex-1 flex flex-col items-center gap-1.5 group">
-      <span className="text-xs font-medium text-gray-500 opacity-0 group-hover:opacity-100 transition-opacity">{counts[i]}</span>
-      <div className="w-full bg-gray-100 rounded-xl relative overflow-hidden" style={{ height: '120px' }}>
-       <motion.div data-bar
-        initial={{ height: 0, opacity: 0 }}
-        animate={{ height: `${(counts[i] / max) * 100}%`, opacity: 1 }}
-        transition={{ delay: 0.1 * i, duration: 0.6, ease: 'easeOut' }}
-        className="absolute bottom-0 w-full rounded-xl bg-gradient-to-t from-gold-600 via-gold-400 to-gold-300 group-hover:from-blue-500 group-hover:to-gold-200 transition-all duration-300"
-        style={{ boxShadow: '0 0 12px rgba(201,160,48,0.3)' }} />
+  return (
+    <div className="p-5">
+      <div className="h-64">
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart data={data} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
+            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
+            <XAxis dataKey="day" tick={{ fontSize: 12, fill: '#6b7280' }} axisLine={false} tickLine={false} />
+            <YAxis tick={{ fontSize: 12, fill: '#6b7280' }} axisLine={false} tickLine={false} allowDecimals={false} />
+            <Tooltip
+              cursor={{ fill: 'rgba(59,130,246,0.08)' }}
+              contentStyle={{ borderRadius: 12, border: '1px solid #e5e7eb', fontSize: 12 }}
+            />
+            <Bar dataKey="count" name={lang === 'ar' ? 'السجلات' : 'records'} radius={[8, 8, 0, 0]}>
+              {data.map((_, i) => (
+                <Cell key={i} fill={i % 2 === 0 ? GOLD : BLUE} />
+              ))}
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
       </div>
-      <span className="text-xs text-gray-400 font-medium">{day}</span>
-     </div>
-    ))}
-   </div>
-   <div className="mt-4 flex items-center justify-between text-xs text-gray-500 border-t border-gray-100 pt-3">
-    <span className="flex items-center gap-1"><Zap className="h-3 w-3 text-gold-400" />{lang === 'ar' ? 'إجمالي السجلات:' : 'Total records:'} {s.weeklyStats.reduce((a, item) => a + item._count.attendanceRecords, 0)}</span>
-    <span className="bg-blue-50 text-blue-700 font-semibold px-2 py-0.5 rounded-full">{s.weeklyStats.filter(item => item.status === 'completed').length} {lang === 'ar' ? 'جلسات' : 'sessions'}</span>
-   </div>
-  </div>
- )
+      <div className="mt-4 flex items-center justify-between text-xs text-gray-500 border-t border-gray-100 pt-3">
+        <span className="flex items-center gap-1"><Zap className="h-3 w-3 text-gold-400" />{lang === 'ar' ? 'إجمالي السجلات:' : 'Total records:'} {total}</span>
+        <span className="bg-blue-50 text-blue-700 font-semibold px-2 py-0.5 rounded-full">{completed} {lang === 'ar' ? 'جلسات' : 'sessions'}</span>
+      </div>
+    </div>
+  )
+}
+
+function AnalyticsSection({ stats, loading }: { stats: DashboardData | null; loading: boolean }) {
+  const lang = useLanguage()
+  if (loading && !stats) return <SectionFallback />
+  const s = stats ?? EMPTY_STATS
+  const perLevel = (s.studentsPerLevel ?? []).map(p => ({ name: p.levelName, count: p.count }))
+  const gradeDist = (s.gradeDistribution ?? []).map(g => ({ name: g.grade, value: g.count }))
+  if (!perLevel.length && !gradeDist.length) return null
+
+  const PALETTE = ['#3b82f6', '#c9a030', '#10b981', '#8b5cf6', '#ef4444', '#f59e0b', '#06b6d4', '#ec4899']
+
+  return (
+    <div className="grid gap-4 sm:grid-cols-2">
+      {perLevel.length > 0 && (
+        <div className="rounded-xl border border-gray-200/60 bg-white overflow-hidden">
+          <div className="px-5 py-4 border-b border-[var(--hymn-border)] bg-[var(--hymn-surface-header)]">
+            <h3 className="font-semibold text-gray-900">{lang === 'ar' ? 'الطلاب حسب المستوى' : 'Students per Level'}</h3>
+          </div>
+          <div className="p-5 h-64">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={perLevel} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
+                <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#6b7280' }} axisLine={false} tickLine={false} interval={0} angle={-15} textAnchor="end" height={50} />
+                <YAxis tick={{ fontSize: 12, fill: '#6b7280' }} axisLine={false} tickLine={false} allowDecimals={false} />
+                <Tooltip cursor={{ fill: 'rgba(59,130,246,0.08)' }} contentStyle={{ borderRadius: 12, border: '1px solid #e5e7eb', fontSize: 12 }} />
+                <Bar dataKey="count" name={lang === 'ar' ? 'الطلاب' : 'students'} radius={[8, 8, 0, 0]} fill="#3b82f6" />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      )}
+      {gradeDist.length > 0 && (
+        <div className="rounded-xl border border-gray-200/60 bg-white overflow-hidden">
+          <div className="px-5 py-4 border-b border-[var(--hymn-border)] bg-[var(--hymn-surface-header)]">
+            <h3 className="font-semibold text-gray-900">{lang === 'ar' ? 'توزيع الدرجات' : 'Grade Distribution'}</h3>
+          </div>
+          <div className="p-5 h-64">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie data={gradeDist} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={50} outerRadius={80} paddingAngle={2}>
+                  {gradeDist.map((_, i) => (
+                    <Cell key={i} fill={PALETTE[i % PALETTE.length]} />
+                  ))}
+                </Pie>
+                <Tooltip contentStyle={{ borderRadius: 12, border: '1px solid #e5e7eb', fontSize: 12 }} />
+              </PieChart>
+            </ResponsiveContainer>
+            <div className="flex flex-wrap justify-center gap-x-3 gap-y-1 mt-1">
+              {gradeDist.map((g, i) => (
+                <span key={g.name} className="inline-flex items-center gap-1 text-[11px] text-gray-500">
+                  <span className="h-2 w-2 rounded-full" style={{ backgroundColor: PALETTE[i % PALETTE.length] }} />
+                  {g.name} ({g.value})
+                </span>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
 }
 
 function LeaderboardSection({ stats, loading }: { stats: DashboardData | null; loading: boolean }) {
@@ -967,10 +1025,8 @@ function WeekScheduleCard({ lang }: { lang: string }) {
     (async () => {
       try {
         const today = new Date()
-        const weekStart = new Date(today)
-        weekStart.setDate(today.getDate() - today.getDay())
-        const weekEnd = new Date(weekStart)
-        weekEnd.setDate(weekStart.getDate() + 6)
+        const weekStart = startOfWeek(today, { weekStartsOn: 0 })
+        const weekEnd = addDays(weekStart, 6)
 
         const res = await http.get('/attendance/sessions', {
           schoolId: getSchoolId(),
@@ -1048,48 +1104,43 @@ function NextSessionCard({ lang, assigned, groups }: { lang: string; assigned?: 
     return m
   }, [lessons.data])
 
-  const isSameUtcDay = (dateStr: string, ref: Date) => {
-    const d = new Date(dateStr)
-    return (
-      d.getUTCFullYear() === ref.getUTCFullYear() &&
-      d.getUTCMonth() === ref.getUTCMonth() &&
-      d.getUTCDate() === ref.getUTCDate()
-    )
+  // Treat the stored date-only scheduledDate as the calendar day it was picked on
+  // (its UTC date parts), avoiding timezone off-by-one drift when comparing to today.
+  const toLocalDay = (s: string) => {
+    const d = parseISO(s)
+    return new Date(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate())
   }
+  const fmtDate = (d: Date) =>
+    format(d, 'd MMM yyyy', { locale: lang === 'ar' ? ar : enGB })
 
   const { items, dateLabel, scope } = useMemo(() => {
     const all = (allocations.data || []) as Allocation[]
     const dated = all.filter((a) => a.scheduledDate)
-    const now = new Date()
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+    const today = startOfDay(new Date())
 
     if (dated.length) {
-      const todayItems = dated.filter((a) => isSameUtcDay(a.scheduledDate as string, now))
+      const todayItems = dated.filter((a) => isSameDay(toLocalDay(a.scheduledDate as string), today))
       if (todayItems.length) {
-        return {
-          items: todayItems,
-          dateLabel: formatDate(today.toISOString(), lang === 'ar' ? 'ar-EG' : 'en-GB'),
-          scope: 'today',
-        }
+        return { items: todayItems, dateLabel: fmtDate(today), scope: 'today' }
       }
       const upcoming = dated
-        .filter((a) => new Date(a.scheduledDate as string) >= today)
-        .sort((a, b) => new Date(a.scheduledDate as string).getTime() - new Date(b.scheduledDate as string).getTime())
+        .filter((a) => toLocalDay(a.scheduledDate as string) >= today)
+        .sort((a, b) => toLocalDay(a.scheduledDate as string).getTime() - toLocalDay(b.scheduledDate as string).getTime())
       if (upcoming.length) {
-        const d = new Date(upcoming[0].scheduledDate as string)
+        const d = toLocalDay(upcoming[0].scheduledDate as string)
         return {
-          items: dated.filter((a) => isSameUtcDay(a.scheduledDate as string, d)),
-          dateLabel: formatDate(d.toISOString(), lang === 'ar' ? 'ar-EG' : 'en-GB'),
+          items: dated.filter((a) => isSameDay(toLocalDay(a.scheduledDate as string), d)),
+          dateLabel: fmtDate(d),
           scope: 'upcoming',
         }
       }
       const past = dated
         .slice()
-        .sort((a, b) => new Date(b.scheduledDate as string).getTime() - new Date(a.scheduledDate as string).getTime())
-      const d = new Date(past[0].scheduledDate as string)
+        .sort((a, b) => toLocalDay(b.scheduledDate as string).getTime() - toLocalDay(a.scheduledDate as string).getTime())
+      const d = toLocalDay(past[0].scheduledDate as string)
       return {
-        items: dated.filter((a) => isSameUtcDay(a.scheduledDate as string, d)),
-        dateLabel: formatDate(d.toISOString(), lang === 'ar' ? 'ar-EG' : 'en-GB'),
+        items: dated.filter((a) => isSameDay(toLocalDay(a.scheduledDate as string), d)),
+        dateLabel: fmtDate(d),
         scope: 'recent',
       }
     }
@@ -2766,6 +2817,13 @@ export default function DashboardPage() {
     {/* Servants */}
     <ErrorBoundary onRetry={handleRetry}>
      <ServantSection counts={servants.data} loading={servants.loading} />
+    </ErrorBoundary>
+
+    {/* Analytics — recharts */}
+    <ErrorBoundary onRetry={handleRetry}>
+     <motion.div variants={fadeUp}>
+      <AnalyticsSection stats={primary.data?.stats ?? null} loading={primary.loading} />
+     </motion.div>
     </ErrorBoundary>
 
     {/* Main Grid: Charts + Leaderboard */}

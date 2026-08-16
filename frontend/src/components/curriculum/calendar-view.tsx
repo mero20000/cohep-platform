@@ -11,6 +11,11 @@ import { useLanguage } from '@/lib/use-language'
 import { useToast } from '@/components/ui/toast'
 import { API, TERM_SHORT, getSubjectStyle } from './constants'
 import type { Allocation, Lesson, Level, Subject, AcademicWeek, SubjectItem } from './types'
+import FullCalendar from '@fullcalendar/react'
+import dayGridPlugin from '@fullcalendar/daygrid'
+import interactionPlugin from '@fullcalendar/interaction'
+import arLocale from '@fullcalendar/core/locales/ar'
+import type { EventInput, EventDropArg, EventClickArg } from '@fullcalendar/core'
 
 interface CalendarViewProps {
   allocations: Allocation[]
@@ -36,6 +41,10 @@ interface CalendarViewProps {
 function formatDate(d: string | Date): string {
   const date = typeof d === 'string' ? new Date(d) : d
   return date.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit' })
+}
+
+function toISODate(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
 export function CalendarView({
@@ -414,6 +423,99 @@ export function CalendarView({
     setMoveModal(null)
   }
 
+  const calendarEvents = useMemo<EventInput[]>(() => {
+    return allocations
+      .filter(a => (a.groupNumber ?? 1) === selectedGroup)
+      .filter(a => !levelNumber || a.level.number === levelNumber)
+      .filter(a => a.scheduledDate)
+      .map(a => {
+        const style = getSubjectStyle(a.subject.name)
+        return {
+          id: a.id,
+          title: `L${a.level.number} · ${a.lesson.title}`,
+          start: (a.scheduledDate as string).slice(0, 10),
+          classNames: ['cohep-event', style.bg, style.text, style.border, style.dot ? '' : ''].filter(Boolean),
+          extendedProps: { allocation: a },
+        }
+      })
+  }, [allocations, selectedGroup, levelNumber])
+
+  const handleCalendarEventDrop = async (info: EventDropArg) => {
+    if (!info.event.start) { info.revert(); return }
+    const dateStr = toISODate(info.event.start)
+    try {
+      const dayAllocations = allocations.filter(a => a.scheduledDate?.startsWith(dateStr))
+      await onMoveAllocation(info.event.id, {
+        weekNumber: getWeekNumberFromDate(new Date(dateStr)),
+        orderIndex: dayAllocations.length + 1,
+        scheduledDate: dateStr,
+      })
+      await onRefresh()
+    } catch {
+      info.revert()
+    }
+  }
+
+  const handleCalendarEventClick = (info: EventClickArg) => {
+    const a = (info.event.extendedProps?.allocation as Allocation) || undefined
+    if (!a) return
+    setMoveModal({ allocation: a, date: a.scheduledDate || '' })
+    setMoveDate(a.scheduledDate || '')
+  }
+
+  const renderFullCalendar = () => {
+    return (
+      <div className="flex-1 bg-white rounded-xl border border-gray-200 flex flex-col overflow-hidden min-h-[60vh] lg:min-h-0">
+        <div className="flex flex-wrap items-center justify-between px-5 py-3 border-b border-gray-200">
+          <div className="flex items-center gap-2">
+            <select value={selectedLevelId} onChange={e => setSelectedLevelId(e.target.value)}
+              aria-label={lang === 'ar' ? 'المستوى' : 'Level'}
+              className="rounded-lg border border-gray-300 px-2.5 py-1.5 text-xs min-h-[40px] focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
+              <option value="">{lang === 'ar' ? 'جميع المستويات' : 'All Levels'}</option>
+              {sortedLevels.map(l => <option key={l.id} value={l.id}>{l.name} (L{l.number})</option>)}
+            </select>
+            <select value={selectedGroup} onChange={e => setSelectedGroup(Number(e.target.value))}
+              aria-label={lang === 'ar' ? 'المجموعة' : 'Group'}
+              className="rounded-lg border border-gray-300 px-2.5 py-1.5 text-xs min-h-[40px] focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
+              {[1, 2, 3, 4].map(g => (
+                <option key={g} value={g}>{lang === 'ar' ? `المجموعة ${g}` : `Group ${g}`}</option>
+              ))}
+            </select>
+            <span className="mx-1 text-xs text-gray-300">|</span>
+            {[1, 2, 3].map(t => (
+              <button key={t} onClick={() => jumpToTerm(t)}
+                className={`px-2 py-1 text-xs font-medium rounded transition-colors ${selectedTerm === t ? 'bg-blue-100 text-blue-700 font-semibold' : 'text-gray-500 hover:bg-gray-100'}`}>
+                {TERM_SHORT[t]}
+              </button>
+            ))}
+          </div>
+          <button onClick={() => setViewMode('grid')}
+            className="flex items-center gap-1 rounded-lg border border-gray-200 px-2.5 py-1 text-xs font-medium text-gray-500 hover:bg-gray-50">
+            <Grid3x3 className="h-3 w-3" />{lang === 'ar' ? 'أسبوعي' : 'Weekly'}
+          </button>
+        </div>
+
+        <div dir={lang === 'ar' ? 'rtl' : 'ltr'} className="cohep-calendar p-3 flex-1 overflow-auto">
+          <FullCalendar
+            plugins={[dayGridPlugin, interactionPlugin]}
+            initialView="dayGridMonth"
+            initialDate={calendarMonth}
+            editable
+            selectable={false}
+            dayMaxEvents={3}
+            events={calendarEvents}
+            eventDrop={handleCalendarEventDrop}
+            eventClick={handleCalendarEventClick}
+            locale={lang === 'ar' ? 'ar' : 'en-gb'}
+            locales={[arLocale]}
+            height="100%"
+            eventTimeFormat={{ hour: '2-digit', minute: '2-digit' }}
+          />
+        </div>
+      </div>
+    )
+  }
+
   const jumpToTerm = (t: number) => {
     setSelectedTerm(t)
     const weeksInTerm = weeks.filter(w => w.term === t && w.isAvailable)
@@ -768,7 +870,7 @@ export function CalendarView({
             {lang === 'ar' ? 'أنشئ أسابيع العطلة من الإعدادات ← التقويم ثم عد هنا للتوزيع.' : 'Generate the weekend weeks from Settings → Calendar, then return here to allocate.'}
           </p>
         </div>
-      ) : viewMode === 'grid' ? renderGrid() : renderMonth()}
+      ) : viewMode === 'grid' ? renderGrid() : renderFullCalendar()}
 
       <Modal open={!!moveModal} onClose={() => setMoveModal(null)}
         title={lang === 'ar' ? 'نقل التوزيع' : 'Move Allocation'} size="sm">
