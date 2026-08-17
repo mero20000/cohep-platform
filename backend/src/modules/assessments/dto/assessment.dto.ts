@@ -10,6 +10,7 @@ import {
   ValidateNested,
   Min,
   Max,
+  IsIn,
 } from 'class-validator';
 import { Type, Expose } from 'class-transformer';
 
@@ -34,6 +35,10 @@ export class CreateQuestionDto {
   @IsInt()
   @Min(0)
   orderIndex: number;
+
+  @IsOptional()
+  @IsUUID()
+  id?: string;
 }
 
 export class CreateAssessmentDto {
@@ -43,6 +48,10 @@ export class CreateAssessmentDto {
   @IsOptional()
   @IsString()
   description?: string;
+
+  @IsOptional()
+  @IsIn(['quiz', 'test', 'exam', 'oral', 'homework'])
+  type?: string;
 
   @IsUUID()
   levelId: string;
@@ -115,6 +124,10 @@ export class UpdateAssessmentDto {
   @IsOptional()
   @IsString()
   description?: string;
+
+  @IsOptional()
+  @IsIn(['quiz', 'test', 'exam', 'oral', 'homework'])
+  type?: string;
 
   @IsOptional()
   @IsUUID()

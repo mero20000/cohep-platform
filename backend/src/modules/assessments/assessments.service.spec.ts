@@ -3,7 +3,8 @@ import { NotFoundException } from '@nestjs/common';
 import { AssessmentsService } from './assessments.service';
 import { PrismaService } from '../../database/prisma.service';
 import { SchoolResolver } from '../../common/utils/school-resolver';
-import { CreateAssessmentDto } from './dto/assessment.dto';
+import { CreateAssessmentDto, CreateQuestionDto } from './dto/assessment.dto';
+import { validate } from 'class-validator';
 
 describe('AssessmentsService', () => {
   let service: AssessmentsService;
@@ -125,5 +126,34 @@ describe('AssessmentsService', () => {
         service.update('a1', { totalPoints: 100, passingPoints: 60, title: 'X' }),
       ).rejects.toThrow(NotFoundException);
     });
+  });
+});
+
+describe('DTO validation', () => {
+  it('accepts a question with an optional id', async () => {
+    const q = new CreateQuestionDto();
+    q.id = '550e8400-e29b-41d4-a716-446655440000';
+    q.text = 'Q1';
+    q.type = 'multiple_choice';
+    q.options = ['A', 'B'];
+    q.correctAnswer = 'A';
+    q.points = 10;
+    q.orderIndex = 0;
+    const errors = await validate(q);
+    expect(errors).toHaveLength(0);
+  });
+
+  it.each(['quiz', 'test', 'exam', 'oral', 'homework'])('accepts type %s', async (t) => {
+    const dto = new CreateAssessmentDto();
+    (dto as any).type = t;
+    const errors = await validate(dto as any);
+    expect(errors.filter(e => e.property === 'type')).toHaveLength(0);
+  });
+
+  it('rejects an invalid type', async () => {
+    const dto = new CreateAssessmentDto();
+    (dto as any).type = 'general';
+    const errors = await validate(dto as any);
+    expect(errors.filter(e => e.property === 'type').length).toBeGreaterThan(0);
   });
 });
