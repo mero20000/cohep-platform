@@ -208,6 +208,65 @@ describe('AssessmentsService', () => {
       expect(args.where.grades.none).toEqual({});
     });
   });
+
+  describe('create validation', () => {
+    it('throws when question points exceed totalPoints', async () => {
+      prisma.user.findFirst.mockResolvedValue({ id: 'user-1' });
+      await expect(
+        service.create(
+          {
+            ...baseDto,
+            totalPoints: 10,
+            questions: [
+              { text: 'A', type: 'multiple_choice', options: ['A', 'B'], correctAnswer: 'A', points: 20, orderIndex: 0 },
+            ],
+          },
+          'school-1',
+        ),
+      ).rejects.toThrow('exceed total points');
+    });
+
+    it('throws when multiple-choice correctAnswer is not an option', async () => {
+      prisma.user.findFirst.mockResolvedValue({ id: 'user-1' });
+      await expect(
+        service.create(
+          {
+            ...baseDto,
+            questions: [
+              { text: 'A', type: 'multiple_choice', options: ['A', 'B'], correctAnswer: 'Z', points: 10, orderIndex: 0 },
+            ],
+          },
+          'school-1',
+        ),
+      ).rejects.toThrow('Correct answer must be one of the options');
+    });
+  });
+
+  describe('submit validation', () => {
+    it('rejects a duplicate submission', async () => {
+      prisma.assessment.findUnique.mockResolvedValue({
+        id: 'a1', deletedAt: null, status: 'published', questions: [],
+      });
+      prisma.assessmentSubmission.findFirst.mockResolvedValue({ id: 's1', status: 'submitted' });
+
+      await expect(
+        service.submit('a1', 'stu-1', { answers: [] }),
+      ).rejects.toThrow('already submitted');
+    });
+  });
+
+  describe('markStudent validation', () => {
+    it('throws when score exceeds maxScore', async () => {
+      prisma.assessment.findUnique.mockResolvedValue({ id: 'a1', deletedAt: null, totalPoints: 100 });
+      prisma.assessmentSubmission.findFirst.mockResolvedValue(null);
+      prisma.assessmentSubmission.create.mockResolvedValue({ id: 's1' });
+      prisma.user.findFirst.mockResolvedValue({ id: 'u1' });
+
+      await expect(
+        service.markStudent('a1', 'stu-1', 90, 80, 'ok', 'u1'),
+      ).rejects.toThrow('score cannot exceed maxScore');
+    });
+  });
 });
 
 describe('DTO validation', () => {

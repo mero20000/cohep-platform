@@ -101,6 +101,7 @@ export class AssessmentsService {
     };
 
     if (dto.questions && dto.questions.length > 0) {
+      this.validateQuestions(dto.questions, dto.totalPoints);
       data.questions = {
         create: dto.questions.map(q => ({
           questionText: q.text,
@@ -224,6 +225,13 @@ export class AssessmentsService {
     }
     if (assessment.status !== 'published') {
       throw new BadRequestException('Assessment is not open for submission');
+    }
+
+    const already = await this.prisma.assessmentSubmission.findFirst({
+      where: { assessmentId, studentId, status: { in: ['submitted', 'completed'] } },
+    });
+    if (already) {
+      throw new BadRequestException('This student has already submitted this assessment');
     }
 
     const submission = await this.prisma.$transaction(async (tx) => {
@@ -360,6 +368,17 @@ export class AssessmentsService {
     const assessment = await this.prisma.assessment.findUnique({ where: { id: assessmentId } });
     if (!assessment || assessment.deletedAt) {
       throw new NotFoundException('Assessment not found');
+    }
+
+    const total = Number(assessment.totalPoints);
+    if (maxScore <= 0) {
+      throw new BadRequestException('maxScore must be greater than zero');
+    }
+    if (score < 0 || score > maxScore) {
+      throw new BadRequestException('score cannot exceed maxScore');
+    }
+    if (Number(maxScore) > total) {
+      throw new BadRequestException('maxScore cannot exceed the assessment total');
     }
 
     let submission = await this.prisma.assessmentSubmission.findFirst({
