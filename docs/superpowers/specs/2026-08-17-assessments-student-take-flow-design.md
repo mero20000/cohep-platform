@@ -30,11 +30,19 @@ Build **one** reusable React "TakeAssessment" component and surface it in both t
 
 All in `backend/src/modules/assessments/`.
 
-### 1. New: `GET /api/assessments/:id/questions`
+### 1. Question-fetch endpoints (two surfaces)
 
-Returns the assessment's questions **without `correctAnswer`**, plus assessment header info.
+The `assessments` controller is `@Roles(...STAFF_ROLES)` and the app installs `JwtAuthGuard` globally, while the portal is `@Public()` and authenticated by the `portalAccessKey`. So the take flow is split across two surfaces:
 
-Response shape:
+**Portal (student self-service)** — new routes on the existing `@Public()` `student-portal` controller (`student-portal.controller.ts`), resolving the student server-side from the access key via the existing `resolveStudent(code)` pattern:
+- `GET /api/student-portal/:code/assessments/:id` → assessment header + questions (no `correctAnswer`).
+
+**Dashboard (servant on a student's behalf)** — new route on the staff-gated `assessments` controller:
+- `GET /api/assessments/:id/questions?studentId=<uuid>` → assessment header + questions (no `correctAnswer`).
+
+Both call a single shared service method `getTakeQuestions(assessmentId, studentId)` (the portal controller resolves `studentId` from the access key first).
+
+Response shape (both):
 ```ts
 {
   assessment: {
@@ -51,13 +59,11 @@ Response shape:
 }
 ```
 
-Authorization / gates:
+Gates (in `getTakeQuestions`):
 - 404 if the assessment is missing or deleted.
 - 400 if `assessment.status !== 'published'`.
-- The requester must be an assigned student with a non-`completed` submission. Identity is resolved **server-side**, not trusted from a raw client ID:
-  - **Portal:** accept the `portalAccessKey`; resolve the student from it; use that student's id.
-  - **Dashboard:** the caller is an authenticated servant (JWT); authorize the `studentId` query param within the same school (mirrors the existing `getStudentsForAssessment` scoping).
-- 400 if the student is not assigned (no `assessmentSubmission` row) or already `completed`.
+- 400 if the student is not assigned (no `assessmentSubmission` row with that `studentId`) or already `completed`.
+- Portal identity is resolved server-side from the access key (never trusted from a raw client ID); dashboard identity is the authenticated servant's chosen `studentId` (school-scoped, mirroring `getStudentsForAssessment`).
 
 ### 2. Harden `submit()`
 
@@ -70,7 +76,10 @@ Add an optional `durationMinutes?: number | null` to the assessment, stored in t
 - `create()` / `update()`: accept `durationMinutes`; set `metadata.durationMinutes` when provided.
 - Questions endpoint: surface `durationMinutes` from `metadata`.
 
-### 4. Result exposure
+### 4. Submission + result exposure
+
+- **Dashboard (servant):** reuse the existing staff-gated `POST /api/assessments/:id/submit?studentId=<uuid>`.
+- **Portal (student self-service):** add `POST /api/student-portal/:code/assessments/:id/submit` on the `@Public()` controller; resolve `studentId` from the access key, then call the same hardened `submit()` service method.
 
 `submit()` already returns the submission with `grades`. The take flow reads those grades (per-question `score`/`maxScore`) to render the result. No grading logic changes.
 
@@ -113,10 +122,10 @@ Bilingual AR/EN labels for all controls, matching existing portal/dashboard styl
 ## Testing
 
 - **Backend** (extend `assessments.service.spec.ts`):
-  - questions endpoint returns questions without `correctAnswer` and returns assessment header.
-  - questions endpoint 400 for non-`published`; 400/403 when not assigned.
+  - `getTakeQuestions` returns questions without `correctAnswer` and the assessment header (incl. `durationMinutes`).
+  - `getTakeQuestions` 400 for non-`published`; 400 when the student is not assigned or already `completed`.
   - `submit()` rejects when no assignment exists (new test) and still blocks double-submit.
-  - `create()`/`update()` persist `durationMinutes` into `metadata`; questions endpoint surfaces it.
+  - `create()`/`update()` persist `durationMinutes` into `metadata`; `getTakeQuestions` surfaces it.
 - **Frontend:**
   - `npx tsc --noEmit` clean.
   - vitest for a pure helper that maps `grades` → per-question { correct / incorrect / pending } and computes the overall score, and for the countdown logic.
