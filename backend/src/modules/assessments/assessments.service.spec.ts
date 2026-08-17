@@ -39,6 +39,7 @@ describe('AssessmentsService', () => {
     assessmentSubmission: {
       findMany: jest.fn(),
       findFirst: jest.fn(),
+      findUnique: jest.fn(),
       create: jest.fn(),
       createMany: jest.fn(),
       update: jest.fn(),
@@ -46,6 +47,9 @@ describe('AssessmentsService', () => {
     },
     user: {
       findFirst: jest.fn(),
+    },
+    grade: {
+      createMany: jest.fn(),
     },
   };
 
@@ -278,6 +282,31 @@ describe('AssessmentsService', () => {
       await expect(
         service.submit('a1', 'stu-1', { answers: [] }),
       ).rejects.toThrow('already submitted');
+    });
+  });
+
+  describe('submit assignment', () => {
+    it('rejects when the student is not assigned', async () => {
+      prisma.assessment.findUnique.mockResolvedValue({ id: 'a1', status: 'published', deletedAt: null, questions: [] });
+      prisma.assessmentSubmission.findFirst.mockResolvedValue(null);
+      await expect(service.submit('a1', 'stu-1', { answers: [] })).rejects.toThrow('not assigned');
+    });
+
+    it('does not create a grade row for essay questions', async () => {
+      prisma.assessment.findUnique.mockResolvedValue({
+        id: 'a1', status: 'published', deletedAt: null,
+        questions: [
+          { id: 'q1', type: 'essay', correctAnswer: null, points: 10 },
+        ],
+      });
+      prisma.assessmentSubmission.findFirst.mockResolvedValue({ id: 's1', status: 'assigned' });
+      prisma.assessmentSubmission.create.mockResolvedValue({ id: 'sub1' });
+      prisma.assessmentSubmission.findUnique.mockResolvedValue({ id: 'sub1', grades: [], student: null });
+      prisma.grade.createMany = jest.fn().mockResolvedValue({ count: 0 });
+
+      await service.submit('a1', 'stu-1', { answers: [{ questionId: 'q1', answer: 'My essay' }] });
+
+      expect(prisma.grade.createMany).not.toHaveBeenCalled();
     });
   });
 

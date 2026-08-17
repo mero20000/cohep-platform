@@ -230,10 +230,13 @@ export class AssessmentsService {
       throw new BadRequestException('Assessment is not open for submission');
     }
 
-    const already = await this.prisma.assessmentSubmission.findFirst({
-      where: { assessmentId, studentId, status: { in: ['submitted', 'completed'] } },
+    const assignment = await this.prisma.assessmentSubmission.findFirst({
+      where: { assessmentId, studentId },
     });
-    if (already) {
+    if (!assignment) {
+      throw new BadRequestException('This student is not assigned to this assessment');
+    }
+    if (['submitted', 'completed'].includes(assignment.status)) {
       throw new BadRequestException('This student has already submitted this assessment');
     }
 
@@ -252,6 +255,7 @@ export class AssessmentsService {
         .map((answer) => {
           const question = assessment.questions.find(q => q.id === answer.questionId);
           if (!question) return null;
+          if (question.type === 'essay') return null; // not auto-graded; graded manually
           const isCorrect = question.correctAnswer
             ? answer.answer.toLowerCase().trim() === question.correctAnswer.toLowerCase().trim()
             : false;
