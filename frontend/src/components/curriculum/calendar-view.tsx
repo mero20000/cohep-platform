@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, useCallback } from 'react'
+import { useState, useMemo } from 'react'
 import {
   ChevronRight, Loader2, Trash2, GripVertical, X, CalendarDays, Grid3x3,
 } from 'lucide-react'
@@ -282,135 +282,10 @@ export function CalendarView({
     setDraggedLesson(null)
   }
 
-  /* ─── Month view helpers ─── */
-  interface DayData { date: Date; isCurrentMonth: boolean; allocations: Allocation[] }
-
-  const getCalendarDays = useCallback((): DayData[] => {
-    const year = calendarMonth.getFullYear()
-    const month = calendarMonth.getMonth()
-    const firstDay = new Date(year, month, 1)
-    const lastDay = new Date(year, month + 1, 0)
-    const startPad = firstDay.getDay()
-    const days: DayData[] = []
-    for (let i = startPad - 1; i >= 0; i--) {
-      days.push({ date: new Date(year, month, -i), isCurrentMonth: false, allocations: [] })
-    }
-    for (let d = 1; d <= lastDay.getDate(); d++) {
-      const date = new Date(year, month, d)
-      const dateStr = date.toISOString().split('T')[0]
-      days.push({
-        date, isCurrentMonth: true,
-        allocations: allocations.filter(a => (a.groupNumber ?? 1) === selectedGroup && a.scheduledDate?.startsWith(dateStr)),
-      })
-    }
-    for (let i = 1; i <= 42 - days.length; i++) {
-      days.push({ date: new Date(year, month + 1, i), isCurrentMonth: false, allocations: [] })
-    }
-    return days
-  }, [calendarMonth, allocations, selectedGroup])
-
   const getWeekNumberFromDate = (date: Date): number => {
     const dateStr = date.toISOString().split('T')[0]
     const match = weeks.find(w => dateStr >= w.startDate && dateStr <= w.endDate)
     return match?.weekNumber || 0
-  }
-
-  const getTermFromDate = (date: Date): number => {
-    const dateStr = date.toISOString().split('T')[0]
-    const match = weeks.find(w => dateStr >= w.startDate && dateStr <= w.endDate)
-    return match?.term || 1
-  }
-
-  const handleMonthDrop = async (date: Date) => {
-    if (!selectedYear) return
-    const dateStr = date.toISOString().split('T')[0]
-    const weekNumber = getWeekNumberFromDate(date)
-    const term = getTermFromDate(date)
-    const dayAllocations = allocations.filter(a => a.scheduledDate?.startsWith(dateStr))
-    const nextOrder = dayAllocations.length + 1
-
-    if (draggedAllocation) {
-      await onMoveAllocation(draggedAllocation.id, {
-        weekNumber, orderIndex: nextOrder, scheduledDate: dateStr,
-      })
-      setDraggedAllocation(null)
-      return
-    }
-
-    if (draggedSubjectItem) {
-      setCreatingAllocation(true)
-      try {
-        const item = draggedSubjectItem
-        const itemLevel = item.levels?.[0]
-        const level = itemLevel ? levels.find(l => l.number === itemLevel.levelNumber) : null
-        const levelId = level?.id || ''
-        const matchingSubject = item.subject ? subjects.find(s => s.id === item.subject?.id) : undefined
-        const subjectId = matchingSubject?.id || subjects[0]?.id || ''
-
-        let lessonId: string
-        const existingLesson = lessons.find(l => l.subjectItemId === item.id)
-        if (existingLesson) {
-          lessonId = existingLesson.id
-        } else {
-          const existingSubjLessons = lessons.filter(l => l.subject.name === (matchingSubject?.name || ''))
-          const maxOrder = existingSubjLessons.reduce((m, l) => Math.max(m, l.orderIndex), 0)
-          const created = await onCreateLesson({
-            title: item.name, titleAr: item.nameAr || '', titleCoptic: item.nameCoptic || '',
-            levelId, subjectId, subjectItemId: item.id,
-            sessionsCount: 1, orderIndex: maxOrder + 1, status: 'published',
-          }) as { id?: string; _id?: string }
-          lessonId = created?.id || created?._id || ''
-          if (!lessonId) throw new Error('Lesson creation did not return an id')
-        }
-
-        const ok = await onCreateAllocation({
-          academicYearId: selectedYear,
-          levelId,
-          subjectId,
-          lessonId,
-          groupNumber: selectedGroup,
-          term,
-          weekNumber,
-          orderIndex: nextOrder,
-          scheduledDate: dateStr,
-          status: 'published',
-        })
-        if (ok) {
-          await fetch(`${API}/curriculum/items/${item.id}/status`, {
-            method: 'PATCH', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
-            body: JSON.stringify({ status: 'allocated' }),
-          })
-          await onRefresh()
-        }
-      } catch (e: any) {
-        toast('error', e?.message || (lang === 'ar' ? 'تعذر إنشاء التوزيع' : 'Could not create allocation'))
-      } finally {
-        setCreatingAllocation(false)
-        setDraggedSubjectItem(null)
-      }
-      return
-    }
-
-    if (!draggedLesson) return
-    const matchingSubject = subjects.find(s => s.name === draggedLesson.subject.name)
-    setCreatingAllocation(true)
-    try {
-      const ok = await onCreateAllocation({
-        academicYearId: selectedYear,
-        levelId: levels.find(l => l.number === draggedLesson.level.number)?.id || '',
-        subjectId: matchingSubject?.id || subjects[0]?.id || '',
-        lessonId: draggedLesson.id,
-        groupNumber: selectedGroup,
-        term,
-        weekNumber,
-        orderIndex: nextOrder,
-        scheduledDate: dateStr,
-        status: 'published',
-      })
-      if (ok) await onRefresh()
-    } catch { /* ignore */ }
-    setCreatingAllocation(false)
-    setDraggedLesson(null)
   }
 
   const handleMoveAllocation = async (allocId: string, dateStr: string) => {
@@ -524,8 +399,6 @@ export function CalendarView({
       setCalendarMonth(new Date(midWeek.startDate))
     }
   }
-
-  const todayStr = new Date().toISOString().split('T')[0]
 
   const renderGrid = () => {
     return (
@@ -681,96 +554,7 @@ export function CalendarView({
     )
   }
 
-  const renderMonth = () => {
-    const days = getCalendarDays()
-    return (
-      <div className="flex-1 bg-white rounded-xl border border-gray-200 flex flex-col overflow-hidden min-h-[60vh] lg:min-h-0">
-        <div className="flex flex-wrap items-center justify-between px-5 py-3 border-b border-gray-200">
-          <div className="flex items-center gap-2">
-            <button onClick={() => setCalendarMonth(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() - 1))}
-              className="p-1 hover:bg-gray-100 rounded" aria-label={lang === 'ar' ? 'الشهر السابق' : 'Previous month'}>
-              <ChevronRight className="h-5 w-5 text-gray-600 rotate-180" />
-            </button>
-            <h3 className="font-semibold text-gray-900">
-              {calendarMonth.toLocaleString(lang === 'ar' ? 'ar-EG' : 'en', { month: 'long', year: 'numeric' })}
-            </h3>
-            <button onClick={() => setCalendarMonth(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1))}
-              className="p-1 hover:bg-gray-100 rounded" aria-label={lang === 'ar' ? 'الشهر التالي' : 'Next month'}>
-              <ChevronRight className="h-5 w-5 text-gray-600" />
-            </button>
-            <span className="mx-2 text-xs text-gray-400">|</span>
-            {[1, 2, 3].map(t => (
-              <button key={t} onClick={() => jumpToTerm(t)}
-                className={`px-2 py-1 text-xs font-medium rounded transition-colors ${selectedTerm === t ? 'bg-blue-100 text-blue-700 font-semibold' : 'text-gray-500 hover:bg-gray-100'}`}>
-                {TERM_SHORT[t]}
-              </button>
-            ))}
-          </div>
-          <button onClick={() => setViewMode('grid')}
-            className="flex items-center gap-1 rounded-lg border border-gray-200 px-2.5 py-1 text-xs font-medium text-gray-500 hover:bg-gray-50">
-            <Grid3x3 className="h-3 w-3" />{lang === 'ar' ? 'أسبوعي' : 'Weekly'}
-          </button>
-        </div>
-
-        <div className="grid grid-cols-7 border-b border-gray-200">
-          {(lang === 'ar' ? ['أحد', 'إثنين', 'ثلاثاء', 'أربعاء', 'خميس', 'جمعة', 'سبت'] : ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']).map(d => (
-            <div key={d} className="px-2 py-2 text-center text-xs font-medium text-gray-500 bg-gray-50">{d}</div>
-          ))}
-        </div>
-
-        <div className="grid grid-cols-7 flex-1 overflow-y-auto">
-          {days.map((day, idx) => {
-            const dateStr = day.date.toISOString().split('T')[0]
-            return (
-              <div key={idx}
-                onDragOver={e => { e.preventDefault() }}
-                onDrop={e => { e.preventDefault(); handleMonthDrop(day.date) }}
-                className={`min-h-[100px] border-b border-e border-gray-100 p-1.5 transition-colors ${
-                  day.isCurrentMonth ? 'bg-white' : 'bg-gray-50'
-                }`}>
-                <div className={`text-xs font-medium mb-1 ${
-                  day.isCurrentMonth ? 'text-gray-700' : 'text-gray-300'
-                } ${dateStr === todayStr ? 'text-blue-700 font-bold' : ''}`}>
-                  {day.date.getDate()}
-                </div>
-                <div className="space-y-0.5">
-                  {day.allocations.sort((a, b) => a.orderIndex - b.orderIndex).map(a => {
-                    const style = getSubjectStyle(a.subject.name)
-                    return (
-                      <div key={a.id} draggable
-                        onDragStart={() => setDraggedAllocation(a)}
-                        onDragEnd={() => setDraggedAllocation(null)}
-                        className={`group text-[11px] px-1.5 py-0.5 rounded cursor-grab active:cursor-grabbing flex items-center gap-0.5 ${
-                          style.bg} ${style.text} border ${style.border} ${
-                          draggedAllocation?.id === a.id ? 'opacity-50 ring-2 ring-gold-400' : ''
-                        }`}
-                        title={`${a.lesson.title} - L${a.level.number}`}>
-                        <span className={`w-1.5 h-1.5 rounded-full ${style.dot} flex-shrink-0`} />
-                        <span className="font-medium flex-shrink-0">L{a.level.number}</span>
-                        <span className="truncate">{a.lesson.title}</span>
-                        <button onClick={e => { e.stopPropagation(); setMoveModal({ allocation: a, date: dateStr }); setMoveDate(dateStr) }}
-                          className="flex-shrink-0 opacity-0 group-hover:opacity-100 focus:opacity-100 hover:bg-black/10 rounded transition-opacity"
-                          style={{ minWidth: '24px', minHeight: '24px' }}
-                          aria-label={lang === 'ar' ? 'نقل' : 'Move'}>
-                          <ChevronRight className="h-3 w-3 rotate-90" />
-                        </button>
-                         <button onClick={e => { e.stopPropagation(); setDeleteAllocTarget(a) }}
-                           className="flex-shrink-0 opacity-0 group-hover:opacity-100 hover:bg-black/10 rounded transition-opacity"
-                           style={{ minWidth: '24px', minHeight: '24px' }}
-                           aria-label={lang === 'ar' ? 'إلغاء' : 'Unallocate'}>
-                           <X className="h-3 w-3" />
-                        </button>
-                      </div>
-                    )
-                  })}
-                </div>
-              </div>
-            )
-          })}
-        </div>
-      </div>
-    )
-  }
+  
 
   return (
     <div role="tabpanel" id="panel-calendar" aria-labelledby="tab-calendar" className="flex flex-col gap-4 lg:h-[calc(100vh-260px)] lg:flex-row">
