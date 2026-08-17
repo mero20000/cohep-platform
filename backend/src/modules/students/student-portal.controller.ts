@@ -8,6 +8,8 @@ import { v4 as uuidv4 } from 'uuid';
 import { ApiTags, ApiOperation, ApiConsumes } from '@nestjs/swagger';
 import { StudentsService } from './students.service';
 import { HymnLearningService } from '../curriculum/hymn-learning.service';
+import { AssessmentsService } from '../assessments/assessments.service';
+import { SubmitAssessmentDto } from '../assessments/dto/assessment.dto';
 import { StudentLoginDto } from './dto/student-login.dto';
 import { Public } from '../../common/decorators/public.decorator';
 import { createCloudinaryStorage, isCloudinaryConfigured } from '../../common/config/cloudinary';
@@ -19,6 +21,7 @@ export class StudentPortalController {
   constructor(
     private readonly studentsService: StudentsService,
     private readonly hymnLearning: HymnLearningService,
+    private readonly assessmentsService: AssessmentsService,
   ) {}
 
   @Post('login')
@@ -31,6 +34,25 @@ export class StudentPortalController {
   @ApiOperation({ summary: 'Get student portal data by portal access key' })
   async getPortal(@Param('portalAccessKey') portalAccessKey: string) {
     return this.studentsService.getPortalData(portalAccessKey);
+  }
+
+  @Get(':code/assessments/:id')
+  @ApiOperation({ summary: 'Get an assigned assessment questions for the student to take (answers not exposed)' })
+  async takeAssessment(@Param('code') code: string, @Param('id') id: string) {
+    const student = await this.resolveStudent(code);
+    return this.assessmentsService.getTakeQuestions(id, student.id);
+  }
+
+  @Post(':code/assessments/:id/submit')
+  @HttpCode(201)
+  @ApiOperation({ summary: 'Submit answers for an assessment as this student' })
+  async submitAssessment(
+    @Param('code') code: string,
+    @Param('id') id: string,
+    @Body() body: SubmitAssessmentDto,
+  ) {
+    const student = await this.resolveStudent(code);
+    return this.assessmentsService.submit(id, student.id, body);
   }
 
   // ─── Hymn Learning endpoints (code-scoped) ───────────────────────────────

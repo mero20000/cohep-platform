@@ -160,4 +160,13 @@ export class AssessmentsController {
   ) {
     return this.assessmentsService.getStudentsForAssessment(id, gradeId);
   }
+
+  @Get(':id/questions')
+  @ApiOperation({ summary: 'Get assessment questions for a student to take (answers not exposed)' })
+  async getTakeQuestions(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Query('studentId', ParseUUIDPipe) studentId: string,
+  ) {
+    return this.assessmentsService.getTakeQuestions(id, studentId);
+  }
 }
