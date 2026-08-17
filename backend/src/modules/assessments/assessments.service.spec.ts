@@ -95,6 +95,38 @@ describe('AssessmentsService', () => {
       expect(data.referenceRecordingUrl).toBeNull();
       expect(data.referenceRecordingName).toBeNull();
     });
+
+    it('persists the provided type', async () => {
+      prisma.user.findFirst.mockResolvedValue({ id: 'user-1' });
+      prisma.assessment.create.mockResolvedValue({ id: 'a1' });
+
+      await service.create({ ...baseDto, type: 'exam' }, 'school-1');
+
+      const data = prisma.assessment.create.mock.calls[0][0].data;
+      expect(data.type).toBe('exam');
+    });
+
+    it('defaults type to quiz when omitted', async () => {
+      prisma.user.findFirst.mockResolvedValue({ id: 'user-1' });
+      prisma.assessment.create.mockResolvedValue({ id: 'a1' });
+
+      await service.create({ ...baseDto }, 'school-1');
+
+      const data = prisma.assessment.create.mock.calls[0][0].data;
+      expect(data.type).toBe('quiz');
+    });
+  });
+
+  describe('findAll', () => {
+    it('filters by type', async () => {
+      prisma.assessment.findMany.mockResolvedValue([]);
+      prisma.assessment.count.mockResolvedValue(0);
+
+      await service.findAll('school-1', { type: 'exam' });
+
+      const where = prisma.assessment.findMany.mock.calls[0][0].where;
+      expect(where.type).toBe('exam');
+    });
   });
 
   describe('update', () => {

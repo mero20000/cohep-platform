@@ -38,6 +38,7 @@ export class AssessmentsController {
     @Query('levelId') levelId?: string,
     @Query('subjectId') subjectId?: string,
     @Query('status') status?: string,
+    @Query('type') type?: string,
   ) {
     return this.assessmentsService.findAll(schoolId, {
       page: page ? parseInt(page, 10) : 1,
@@ -45,6 +46,7 @@ export class AssessmentsController {
       levelId,
       subjectId,
       status,
+      type,
     });
   }
 

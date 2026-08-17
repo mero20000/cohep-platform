@@ -16,14 +16,16 @@ export class AssessmentsService {
     levelId?: string;
     subjectId?: string;
     status?: string;
+    type?: string;
   }) {
     const schoolId = await this.schoolResolver.resolve(schoolIdentifier);
-    const { page = 1, limit = 20, levelId, subjectId, status } = filters;
+    const { page = 1, limit = 20, levelId, subjectId, status, type } = filters;
 
     const where: any = { schoolId, deletedAt: null };
     if (levelId) where.levelId = levelId;
     if (subjectId) where.subjectId = subjectId;
     if (status) where.status = status;
+    if (type) where.type = type;
 
     const [data, total] = await Promise.all([
       this.prisma.assessment.findMany({
@@ -85,7 +87,7 @@ export class AssessmentsService {
       description: dto.description,
       referenceRecordingUrl: dto.referenceRecordingUrl || null,
       referenceRecordingName: dto.referenceRecordingName || null,
-      type: 'general',
+      type: dto.type || 'quiz',
       totalPoints: dto.totalPoints,
       passingScore: dto.passingPoints,
       dueDate: dto.dueDate ? new Date(dto.dueDate) : undefined,
