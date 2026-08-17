@@ -21,6 +21,11 @@ describe('validateQuestions', () => {
     expect(issues.some(i => i.message.includes('one of the options'))).toBe(true);
   });
 
+  it('flags multiple-choice with an empty option', () => {
+    const issues = validateQuestions([mk({ options: 'A\n\nB' })], 10);
+    expect(issues.some(i => i.message.includes('cannot be empty'))).toBe(true);
+  });
+
   it('returns no issues for a valid question set', () => {
     const issues = validateQuestions([mk(), mk({ type: 'true_false', options: '', correctAnswer: 'true' })], 100);
     expect(issues).toHaveLength(0);

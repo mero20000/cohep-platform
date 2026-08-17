@@ -19,7 +19,7 @@ export function validateQuestions(questions: QuestionDraftLike[], totalPoints: n
   }
   questions.forEach((q, i) => {
     if (q.type !== 'multiple_choice') return
-    const opts = q.options.split('\n').map(o => o.trim()).filter(Boolean)
+    const opts = q.options.split('\n').map(o => o.trim())
     if (opts.some(o => !o)) {
       issues.push({ questionIndex: i, message: 'Multiple-choice options cannot be empty' })
     }
