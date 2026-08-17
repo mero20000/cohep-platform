@@ -293,6 +293,51 @@ describe('AssessmentsService', () => {
       ).rejects.toThrow('score cannot exceed maxScore');
     });
   });
+
+  describe('getTakeQuestions', () => {
+    const pubAssess = (over: any = {}) => ({
+      id: 'a1', title: 'Quiz', titleAr: null, type: 'quiz', status: 'published',
+      totalPoints: 10, passingScore: 5, dueDate: null,
+      metadata: { durationMinutes: 30 },
+      subject: { id: 'sub1', name: 'Hymns', nameAr: null },
+      questions: [
+        { id: 'q1', questionText: 'What?', type: 'multiple_choice', options: ['A', 'B'], correctAnswer: 'A', points: 5, orderIndex: 0 },
+        { id: 'q2', questionText: 'Explain', type: 'essay', options: null, correctAnswer: null, points: 5, orderIndex: 1 },
+      ],
+      ...over,
+    });
+
+    it('returns questions without correctAnswer and the assessment header', async () => {
+      prisma.assessment.findUnique.mockResolvedValue(pubAssess());
+      prisma.assessmentSubmission.findFirst.mockResolvedValue({ id: 's1', status: 'assigned' });
+
+      const res = await service.getTakeQuestions('a1', 'stu-1');
+
+      expect(res.assessment.durationMinutes).toBe(30);
+      expect(res.questions).toHaveLength(2);
+      expect(res.questions[0]).toEqual({
+        id: 'q1', text: 'What?', type: 'multiple_choice', options: ['A', 'B'], points: 5, orderIndex: 0,
+      });
+      expect(JSON.stringify(res.questions)).not.toContain('correctAnswer');
+    });
+
+    it('throws BadRequestException when not published', async () => {
+      prisma.assessment.findUnique.mockResolvedValue(pubAssess({ status: 'draft' }));
+      await expect(service.getTakeQuestions('a1', 'stu-1')).rejects.toThrow('not open');
+    });
+
+    it('throws BadRequestException when the student is not assigned', async () => {
+      prisma.assessment.findUnique.mockResolvedValue(pubAssess());
+      prisma.assessmentSubmission.findFirst.mockResolvedValue(null);
+      await expect(service.getTakeQuestions('a1', 'stu-1')).rejects.toThrow('not assigned');
+    });
+
+    it('throws BadRequestException when already completed', async () => {
+      prisma.assessment.findUnique.mockResolvedValue(pubAssess());
+      prisma.assessmentSubmission.findFirst.mockResolvedValue({ id: 's1', status: 'completed' });
+      await expect(service.getTakeQuestions('a1', 'stu-1')).rejects.toThrow('already submitted');
+    });
+  });
 });
 
 describe('DTO validation', () => {

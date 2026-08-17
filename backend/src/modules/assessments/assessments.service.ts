@@ -298,6 +298,55 @@ export class AssessmentsService {
     });
   }
 
+  async getTakeQuestions(assessmentId: string, studentId: string) {
+    const assessment = await this.prisma.assessment.findUnique({
+      where: { id: assessmentId },
+      include: {
+        questions: { orderBy: { orderIndex: 'asc' } },
+        subject: { select: { id: true, name: true, nameAr: true } },
+      },
+    });
+    if (!assessment || assessment.deletedAt) {
+      throw new NotFoundException('Assessment not found');
+    }
+    if (assessment.status !== 'published') {
+      throw new BadRequestException('Assessment is not open for submission');
+    }
+
+    const submission = await this.prisma.assessmentSubmission.findFirst({
+      where: { assessmentId, studentId },
+    });
+    if (!submission) {
+      throw new BadRequestException('This student is not assigned to this assessment');
+    }
+    if (['submitted', 'completed'].includes(submission.status)) {
+      throw new BadRequestException('This student has already submitted this assessment');
+    }
+
+    const metadata = (assessment.metadata as any) || {};
+    return {
+      assessment: {
+        id: assessment.id,
+        title: assessment.title,
+        titleAr: assessment.titleAr,
+        type: assessment.type,
+        subject: assessment.subject,
+        totalPoints: Number(assessment.totalPoints),
+        passingScore: Number(assessment.passingScore),
+        dueDate: assessment.dueDate,
+        durationMinutes: metadata.durationMinutes ?? null,
+      },
+      questions: assessment.questions.map((q: any) => ({
+        id: q.id,
+        text: q.questionText,
+        type: q.type,
+        options: q.options || null,
+        points: Number(q.points),
+        orderIndex: q.orderIndex,
+      })),
+    };
+  }
+
   async assignStudents(assessmentId: string, studentIds: string[]) {
     const assessment = await this.prisma.assessment.findUnique({ where: { id: assessmentId } });
     if (!assessment || assessment.deletedAt) {
