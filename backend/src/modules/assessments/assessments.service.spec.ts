@@ -118,6 +118,14 @@ describe('AssessmentsService', () => {
       const data = prisma.assessment.create.mock.calls[0][0].data;
       expect(data.type).toBe('quiz');
     });
+
+    it('persists durationMinutes into metadata on create', async () => {
+      prisma.user.findFirst.mockResolvedValue({ id: 'user-1' });
+      prisma.assessment.create.mockResolvedValue({ id: 'a1' });
+      await service.create({ ...baseDto, durationMinutes: 45 }, 'school-1');
+      const data = prisma.assessment.create.mock.calls[0][0].data;
+      expect(data.metadata.durationMinutes).toBe(45);
+    });
   });
 
   describe('findAll', () => {
@@ -217,6 +225,14 @@ describe('AssessmentsService', () => {
       expect(args.where.id.notIn).toEqual(['q1']);
       expect(args.where.grades.none).toEqual({});
     });
+
+    it('persists durationMinutes into metadata on update', async () => {
+      prisma.assessment.findUnique.mockResolvedValue({ id: 'a1', metadata: {}, totalPoints: 100 });
+      prisma.assessment.update.mockResolvedValue({ id: 'a1' });
+      await service.update('a1', { totalPoints: 100, passingPoints: 60, durationMinutes: 30 });
+      const data = prisma.assessment.update.mock.calls[0][0].data;
+      expect(data.metadata.durationMinutes).toBe(30);
+    });
   });
 
   describe('create validation', () => {
@@ -305,5 +321,29 @@ describe('DTO validation', () => {
     (dto as any).type = 'general';
     const errors = await validate(dto as any);
     expect(errors.filter(e => e.property === 'type').length).toBeGreaterThan(0);
+  });
+
+  it('accepts durationMinutes', async () => {
+    const dto = new CreateAssessmentDto();
+    (dto as any).title = 'Quiz';
+    (dto as any).levelId = 'fa4c1d37-6f2c-4fdb-b30e-4eb6d9e03395';
+    (dto as any).subjectId = '7587acbb-92bd-4557-b2b2-9d217d3b34c1';
+    (dto as any).totalPoints = 10;
+    (dto as any).passingPoints = 5;
+    (dto as any).durationMinutes = 30;
+    const errors = await validate(dto as any);
+    expect(errors).toEqual([]);
+  });
+
+  it('rejects a negative durationMinutes', async () => {
+    const dto = new CreateAssessmentDto();
+    (dto as any).title = 'Quiz';
+    (dto as any).levelId = 'fa4c1d37-6f2c-4fdb-b30e-4eb6d9e03395';
+    (dto as any).subjectId = '7587acbb-92bd-4557-b2b2-9d217d3b34c1';
+    (dto as any).totalPoints = 10;
+    (dto as any).passingPoints = 5;
+    (dto as any).durationMinutes = -5;
+    const errors = await validate(dto as any);
+    expect(errors.length).toBeGreaterThan(0);
   });
 });

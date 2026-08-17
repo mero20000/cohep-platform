@@ -97,6 +97,7 @@ export class AssessmentsService {
         academicYearId: dto.academicYearId,
         term: dto.term,
         grade: dto.grade || null,
+        durationMinutes: dto.durationMinutes ?? null,
       },
     };
 
@@ -147,11 +148,12 @@ export class AssessmentsService {
     if (dto.status !== undefined) data.status = dto.status;
     if (dto.type !== undefined) data.type = dto.type;
 
-    if (dto.academicYearId !== undefined || dto.term !== undefined || dto.grade !== undefined) {
+    if (dto.academicYearId !== undefined || dto.term !== undefined || dto.grade !== undefined || dto.durationMinutes !== undefined) {
       const metadata = (existing.metadata as any) || {};
       if (dto.academicYearId !== undefined) metadata.academicYearId = dto.academicYearId;
       if (dto.term !== undefined) metadata.term = dto.term;
       if (dto.grade !== undefined) metadata.grade = dto.grade || null;
+      if (dto.durationMinutes !== undefined) metadata.durationMinutes = dto.durationMinutes;
       data.metadata = metadata;
     }
 

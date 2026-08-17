@@ -89,6 +89,11 @@ export class CreateAssessmentDto {
   @Max(3)
   term?: number;
 
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  durationMinutes?: number;
+
   @IsInt()
   @Min(1)
   totalPoints: number;
@@ -166,6 +171,11 @@ export class UpdateAssessmentDto {
   @Min(1)
   @Max(3)
   term?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  durationMinutes?: number;
 
   @IsOptional()
   @IsInt()
