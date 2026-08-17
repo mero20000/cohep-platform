@@ -2,7 +2,7 @@
 
 **Run:** 2026-08-01 (full platform endpoint validation)
 **Environment:** Production (Render)
-**Status:** ⏳ AWAITING VALIDATION (cleanup not yet performed)
+**Status:** ✅ CLEANUP PERFORMED 2026-08-17 (via `cleanup-tracked-qa.mjs`)
 
 ## Summary
 
@@ -12,7 +12,8 @@
 | Tests passed | 176 |
 | Tests failed | 1 (G-3 seasonal badge — correct off-season behavior, not a code bug) |
 | Records created | 34 |
-| Records deleted | 0 (awaiting user validation) |
+| Records deleted (2026-08-17 cleanup) | 33 handled — 15 deleted + 18 already-gone (404) |
+| Records remaining | 1 (lesson `fb5e60fc-…` blocked by non-cascading FK child) |
 
 ## New product bug found (1)
 
@@ -98,6 +99,8 @@ Workaround currently in harness: send `totalPoints` + `passingPoints` with every
 | Upload | 5 | ✅ all pass |
 
 ## Cleanup Plan
+
+> **Done 2026-08-17** via `docs/superpowers/tests/harness/cleanup-tracked-qa.mjs` (super_admin API auth). 15 records deleted; 18 already gone. Remaining: QA lesson `fb5e60fc-aa2a-4a5c-930d-3220660240c6` — DELETE returns 400 FK constraint from a non-cascading child row (Resource/LessonProgress/FamilyPractice) that has no delete endpoint; needs direct DB access (Render Postgres `niangelos-db`) to remove the child row. Upload files + hymn practice session + notification have no delete API (server-side residue).
 
 Deletion order (dependents first):
 
