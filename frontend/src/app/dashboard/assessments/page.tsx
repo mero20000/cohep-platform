@@ -86,6 +86,7 @@ interface PaginatedResponse {
 }
 
 interface QuestionDraft {
+  id?: string
   text: string
   type: 'multiple_choice' | 'true_false' | 'short_answer' | 'essay'
   options: string
@@ -121,6 +122,7 @@ const emptyForm = {
   dueDate: '',
   term: '',
   status: 'draft',
+  type: 'quiz',
   questions: [] as QuestionDraft[],
   referenceRecordingUrl: '',
   referenceRecordingName: '',
@@ -304,7 +306,9 @@ export default function AssessmentsPage() {
         dueDate: detail.dueDate ? detail.dueDate.split('T')[0] : '',
         term: meta.term ? String(meta.term) : '',
         status: detail.status,
+        type: detail.type || 'quiz',
           questions: (detail.questions || []).map(q => ({
+            id: q.id,
             text: q.questionText,
             type: q.type as QuestionDraft['type'],
             options: Array.isArray(q.options) ? q.options.join('\n') : (q.options || ''),
@@ -339,7 +343,6 @@ export default function AssessmentsPage() {
     let rows: StudentRow[] = []
     try {
       const p: Record<string, string> = {}
-      if (grade) p.gradeId = grade
       const payload: any = await http.get(`/assessments/${a.id}/students`, p)
       rows = Array.isArray(payload)
         ? payload
@@ -548,11 +551,13 @@ export default function AssessmentsPage() {
         passingPoints: parseInt(form.passingPoints, 10),
         dueDate: form.dueDate || undefined,
         status: form.status,
+        type: form.type,
         term: form.term ? parseInt(form.term, 10) : undefined,
         academicYearId: currentYear?.id || undefined,
         referenceRecordingUrl: form.referenceRecordingUrl || undefined,
         referenceRecordingName: form.referenceRecordingName || undefined,
         questions: form.questions.map((q, i) => ({
+          id: q.id || undefined,
           text: q.text,
           type: q.type,
           options: q.type === 'multiple_choice'
@@ -988,10 +993,18 @@ export default function AssessmentsPage() {
               <option value="2">{lang === 'ar' ? 'الفصل الثاني (يناير-مارس)' : 'Term 2 (Jan-Mar)'}</option>
               <option value="3">{lang === 'ar' ? 'الفصل الثالث (أبريل-يونيو)' : 'Term 3 (Apr-Jun)'}</option>
             </FormField>
+            <FormField label={lang === 'ar' ? 'النوع' : 'Type'} as="select" value={form.type} onChange={e => updateForm({ type: e.target.value })}>
+              <option value="quiz">{lang === 'ar' ? 'مسابقة' : 'Quiz'}</option>
+              <option value="test">{lang === 'ar' ? 'اختبار' : 'Test'}</option>
+              <option value="exam">{lang === 'ar' ? 'امتحان' : 'Exam'}</option>
+              <option value="oral">{lang === 'ar' ? 'شفوي' : 'Oral'}</option>
+              <option value="homework">{lang === 'ar' ? 'واجب' : 'Homework'}</option>
+            </FormField>
             <FormField label={lang === 'ar' ? 'الحالة' : 'Status'} as="select" value={form.status} onChange={e => updateForm({ status: e.target.value })}>
               <option value="draft">{lang === 'ar' ? 'مسودة' : 'Draft'}</option>
               <option value="published">{lang === 'ar' ? 'منشور' : 'Published'}</option>
               <option value="archived">{lang === 'ar' ? 'مؤرشف' : 'Archived'}</option>
+              <option value="closed">{lang === 'ar' ? 'مغلق' : 'Closed'}</option>
             </FormField>
           </div>
 
