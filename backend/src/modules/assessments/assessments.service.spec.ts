@@ -22,6 +22,7 @@ describe('AssessmentsService', () => {
   };
 
   const prismaMock = {
+    $transaction: jest.fn(async (fn: any) => fn(prismaMock)),
     assessment: {
       findUnique: jest.fn(),
       findMany: jest.fn(),
@@ -32,6 +33,8 @@ describe('AssessmentsService', () => {
     },
     assessmentQuestion: {
       deleteMany: jest.fn(),
+      update: jest.fn(),
+      create: jest.fn(),
     },
     assessmentSubmission: {
       findMany: jest.fn(),
@@ -157,6 +160,52 @@ describe('AssessmentsService', () => {
       await expect(
         service.update('a1', { totalPoints: 100, passingPoints: 60, title: 'X' }),
       ).rejects.toThrow(NotFoundException);
+    });
+
+    it('upserts questions preserving existing ids', async () => {
+      prisma.assessment.findUnique.mockResolvedValue({ id: 'a1', metadata: {}, deletedAt: null, totalPoints: 100 });
+      prisma.assessment.update.mockResolvedValue({ id: 'a1' });
+      prisma.assessmentQuestion.update.mockResolvedValue({});
+      prisma.assessmentQuestion.create.mockResolvedValue({});
+      prisma.assessmentQuestion.deleteMany.mockResolvedValue({});
+
+      await service.update('a1', {
+        totalPoints: 100,
+        passingPoints: 60,
+        questions: [
+          { id: 'q1', text: 'Kept', type: 'multiple_choice', options: ['A', 'B'], correctAnswer: 'A', points: 50, orderIndex: 0 },
+          { text: 'New', type: 'true_false', correctAnswer: 'true', points: 50, orderIndex: 1 },
+        ],
+      });
+
+      expect(prisma.assessmentQuestion.update).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { id: 'q1' } }),
+      );
+      expect(prisma.assessmentQuestion.create).toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({ assessmentId: 'a1', questionText: 'New' }) }),
+      );
+    });
+
+    it('does not delete questions that have grades', async () => {
+      prisma.assessment.findUnique.mockResolvedValue({ id: 'a1', metadata: {}, deletedAt: null, totalPoints: 100 });
+      prisma.assessment.update.mockResolvedValue({ id: 'a1' });
+      prisma.assessmentQuestion.update.mockResolvedValue({});
+      prisma.assessmentQuestion.create.mockResolvedValue({});
+      prisma.assessmentQuestion.deleteMany.mockResolvedValue({});
+
+      await service.update('a1', {
+        totalPoints: 100,
+        passingPoints: 60,
+        questions: [
+          { id: 'q1', text: 'Kept', type: 'multiple_choice', options: ['A', 'B'], correctAnswer: 'A', points: 100, orderIndex: 0 },
+        ],
+      });
+
+      // keptIds = ['q1']; deleteMany must exclude q1 and only target questions with no grades
+      const args = prisma.assessmentQuestion.deleteMany.mock.calls[0][0];
+      expect(args.where.assessmentId).toBe('a1');
+      expect(args.where.id.notIn).toEqual(['q1']);
+      expect(args.where.grades.none).toEqual({});
     });
   });
 });

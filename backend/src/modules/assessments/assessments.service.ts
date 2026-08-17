@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 import { SchoolResolver } from '../../common/utils/school-resolver';
-import { CreateAssessmentDto, UpdateAssessmentDto, SubmitAssessmentDto } from './dto/assessment.dto';
+import { CreateAssessmentDto, UpdateAssessmentDto, SubmitAssessmentDto, CreateQuestionDto } from './dto/assessment.dto';
 
 @Injectable()
 export class AssessmentsService {
@@ -154,19 +154,37 @@ export class AssessmentsService {
     }
 
     if (dto.questions !== undefined) {
-      await this.prisma.assessmentQuestion.deleteMany({ where: { assessmentId: id } });
-      if (dto.questions.length > 0) {
-        data.questions = {
-          create: dto.questions.map(q => ({
+      const questions = dto.questions;
+      this.validateQuestions(questions, dto.totalPoints ?? Number(existing.totalPoints));
+      await this.prisma.$transaction(async (tx) => {
+        const keptIds = questions.filter(q => q.id).map(q => q.id as string);
+        if (keptIds.length > 0) {
+          await tx.assessmentQuestion.deleteMany({
+            where: { assessmentId: id, id: { notIn: keptIds }, grades: { none: {} } },
+          });
+        } else {
+          await tx.assessmentQuestion.deleteMany({
+            where: { assessmentId: id, grades: { none: {} } },
+          });
+        }
+        for (const q of questions) {
+          const questionData = {
             questionText: q.text,
             type: q.type,
             options: q.options || undefined,
             correctAnswer: q.correctAnswer,
             points: q.points,
             orderIndex: q.orderIndex,
-          })),
-        };
-      }
+          };
+          if (q.id) {
+            await tx.assessmentQuestion.update({ where: { id: q.id }, data: questionData });
+          } else {
+            await tx.assessmentQuestion.create({
+              data: { assessmentId: id, ...questionData },
+            });
+          }
+        }
+      });
     }
 
     return this.prisma.assessment.update({
@@ -524,5 +542,23 @@ export class AssessmentsService {
       byStatus: byStatus.map(s => ({ status: s.status, count: s._count.id })),
       grading: { gradedCount, passCount, passRate, avgScore },
     };
+  }
+
+  private validateQuestions(questions: CreateQuestionDto[], totalPoints: number) {
+    const sum = questions.reduce((a, q) => a + q.points, 0);
+    if (sum > totalPoints) {
+      throw new BadRequestException(`Question points (${sum}) exceed total points (${totalPoints})`);
+    }
+    for (const q of questions) {
+      if (q.type === 'multiple_choice') {
+        const opts = Array.isArray(q.options) ? q.options.map(String) : [];
+        if (opts.some(o => !o || !String(o).trim())) {
+          throw new BadRequestException('Multiple-choice options cannot be empty');
+        }
+        if (q.correctAnswer && !opts.includes(String(q.correctAnswer))) {
+          throw new BadRequestException('Correct answer must be one of the options');
+        }
+      }
+    }
   }
 }
