@@ -154,6 +154,16 @@ describe('AssessmentsService', () => {
       );
     });
 
+    it('persists the provided type', async () => {
+      prisma.assessment.findUnique.mockResolvedValue({ id: 'a1', metadata: {}, deletedAt: null });
+      prisma.assessment.update.mockResolvedValue({ id: 'a1' });
+
+      await service.update('a1', { totalPoints: 100, passingPoints: 60, type: 'exam' });
+
+      const data = prisma.assessment.update.mock.calls[0][0].data;
+      expect(data.type).toBe('exam');
+    });
+
     it('throws NotFoundException for unknown assessment', async () => {
       prisma.assessment.findUnique.mockResolvedValue(null);
 

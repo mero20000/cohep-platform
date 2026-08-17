@@ -145,6 +145,7 @@ export class AssessmentsService {
     if (dto.passingPoints !== undefined) data.passingScore = dto.passingPoints;
     if (dto.dueDate !== undefined) data.dueDate = dto.dueDate ? new Date(dto.dueDate) : null;
     if (dto.status !== undefined) data.status = dto.status;
+    if (dto.type !== undefined) data.type = dto.type;
 
     if (dto.academicYearId !== undefined || dto.term !== undefined || dto.grade !== undefined) {
       const metadata = (existing.metadata as any) || {};
