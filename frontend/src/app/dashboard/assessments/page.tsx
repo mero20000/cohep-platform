@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useLanguage } from '@/lib/use-language'
+import { validateQuestions } from './validation'
 import {
   ClipboardCheck, Plus, Pencil, Trash2, Loader2, ChevronRight, Zap,
   Calendar, FileText, Clock, Eye, Users, Check, Download, Printer, X, UserX, CheckCircle, XCircle,
@@ -155,6 +156,7 @@ export default function AssessmentsPage() {
   const [showStudents, setShowStudents] = useState(false)
   const [selectedAssessment, setSelectedAssessment] = useState<Assessment | null>(null)
   const [form, setForm] = useState(emptyForm)
+  const formIssues = useMemo(() => validateQuestions(form.questions, parseInt(form.totalPoints, 10) || 0), [form.questions, form.totalPoints])
   const [recordingOptions, setRecordingOptions] = useState<{ url: string; name: string }[]>([])
   const [formError, setFormError] = useState('')
   const [saving, setSaving] = useState(false)
@@ -1021,6 +1023,14 @@ export default function AssessmentsPage() {
 
             {form.questions.length === 0 && (
               <p className="text-xs text-gray-400">{lang === 'ar' ? 'لم تتم إضافة أسئلة. يمكنك نشر تقييم بدون أسئلة، أو إضافة أسئلة أعلاه.' : 'No questions added. You can publish an assessment without questions, or add questions above.'}</p>
+            )}
+
+            {formIssues.length > 0 && (
+              <div className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
+                {formIssues.map((iss, idx) => (
+                  <div key={idx}>{iss.message}</div>
+                ))}
+              </div>
             )}
 
             <div className="space-y-3">
