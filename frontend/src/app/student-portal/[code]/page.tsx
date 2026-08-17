@@ -383,11 +383,11 @@ export default function StudentDashboard() {
                   {assessments.map(a => {
                     const isCompleted = a.submissionStatus === 'completed'
                     const isOverdue = a.dueDate && new Date(a.dueDate) < new Date() && !isCompleted
-                    return (
-                      <div key={a.id} className={`rounded-xl border px-4 py-3 ${
-                        isCompleted ? 'bg-green-50 border-green-200' : isOverdue ? 'bg-red-50 border-red-200' : 'bg-white border-gray-200'
-                      }`}>
-                        <div className="flex items-start justify-between gap-3">
+                    const cardClasses = `rounded-xl border px-4 py-3 ${
+                      isCompleted ? 'bg-green-50 border-green-200' : isOverdue ? 'bg-red-50 border-red-200' : 'bg-white border-gray-200'
+                    }`
+                    const cardInner = (
+                      <div className="flex items-start justify-between gap-3">
                           <div className="min-w-0 flex-1">
                             <div className="text-sm font-medium text-gray-900 truncate">
                               {a.titleAr || a.title}
@@ -421,8 +421,12 @@ export default function StudentDashboard() {
                               </span>
                             )}
                           </div>
-                        </div>
                       </div>
+                    )
+                    return isCompleted ? (
+                      <div key={a.id} className={cardClasses}>{cardInner}</div>
+                    ) : (
+                      <Link key={a.id} href={`/student-portal/${code}/assessment/${a.id}/take`} className={`block ${cardClasses}`}>{cardInner}</Link>
                     )
                   })}
                 </div>

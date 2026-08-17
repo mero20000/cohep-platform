@@ -1161,6 +1161,12 @@ export default function AssessmentsPage() {
                           {r.gradeName && <span className="ml-2 text-xs text-gray-400">{r.gradeName}</span>}
                         </div>
                         <div className="text-xs text-gray-400 font-mono">{r.studentCode || '—'}</div>
+                        <a
+                          href={`/dashboard/assessments/${selectedAssessment?.id}/take?student=${r.id}`}
+                          className="mt-0.5 inline-block text-xs font-medium text-indigo-600 hover:text-indigo-800"
+                        >
+                          {lang === 'ar' ? 'أداء الاختبار' : 'Take for student'}
+                        </a>
                       </div>
 
                       {!r.assigned ? (
