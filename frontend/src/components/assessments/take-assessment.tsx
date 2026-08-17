@@ -47,7 +47,10 @@ export default function TakeAssessment({ assessmentId, mode, accessKey, studentI
     let cancelled = false
     ;(async () => {
       try {
-        const data = await http.get<TakePayload>(`/assessments/${assessmentId}/questions`, qp as any)
+        const fetchUrl = mode === 'portal'
+          ? `/student-portal/${accessKey}/assessments/${assessmentId}`
+          : `/assessments/${assessmentId}/questions`
+        const data = await http.get<TakePayload>(fetchUrl, mode === 'portal' ? undefined : (qp as any))
         if (cancelled) return
         setPayload(data)
         if (data.assessment.durationMinutes) setSecondsLeft(data.assessment.durationMinutes * 60)
@@ -82,8 +85,8 @@ export default function TakeAssessment({ assessmentId, mode, accessKey, studentI
       const url = mode === 'portal'
         ? `/student-portal/${accessKey}/assessments/${assessmentId}/submit`
         : `/assessments/${assessmentId}/submit`
-      const body = mode === 'portal' ? { answers: answerList } : { ...qp, answers: answerList }
-      const res = await http.post(url, body)
+      const body = { answers: answerList }
+      const res = await http.post(url, body, mode === 'portal' ? undefined : (qp as any))
       setSubmission(res)
     } catch (e: any) {
       setError(e?.message || 'Submit failed')
