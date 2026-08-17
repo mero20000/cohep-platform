@@ -26,7 +26,7 @@ import { fetchActiveGrades, type GradeItem } from '@/lib/grades'
 import { http } from '@/lib/http-client'
 
 interface Level { id: string; name: string; number: number; status?: string }
-interface Group { id: string; name: string; levelId: string; status?: string }
+interface Group { id: string; name: string; levelId?: string; status?: string }
 interface Subject { id: string; name: string }
 interface Lesson { id: string; title: string }
 interface AcademicYear { id: string; name: string; isCurrent: boolean }
@@ -253,14 +253,10 @@ export default function AssessmentsPage() {
   }, [schoolId])
 
   useEffect(() => {
-    if (!form.levelId) { setGroups([]); return }
-    http.get<{ id: string; groups: Group[] }[]>('/students/groups/all', { schoolId })
-      .then((data) => {
-        const level = data.find(l => l.id === form.levelId)
-        setGroups((level?.groups || []).filter(g => g.status !== 'inactive'))
-      })
+    http.get<Group[]>('/students/groups/all', { schoolId })
+      .then((data) => setGroups((data || []).filter(g => g.status !== 'inactive')))
       .catch(console.error)
-  }, [form.levelId, schoolId])
+  }, [schoolId])
 
   useEffect(() => {
     if (!form.levelId) { setLessons([]); return }

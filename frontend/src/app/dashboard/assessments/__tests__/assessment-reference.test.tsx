@@ -62,6 +62,12 @@ const items = [
   { id: 'i3', name: 'No Recording', recordingUrl: null },
 ]
 
+// Flat, school-wide groups list — the current backend /students/groups/all contract
+const flatGroups = [
+  { id: 'g1', name: 'Group A', status: 'active' },
+  { id: 'g2', name: 'Group B', status: 'inactive' },
+]
+
 beforeEach(() => {
   Object.values(mocks).forEach((m) => m.mockReset())
   localStorage.clear()
@@ -73,6 +79,7 @@ beforeEach(() => {
     if (path === '/curriculum/levels') return Promise.resolve(levels)
     if (path === '/curriculum/subjects') return Promise.resolve(subjects)
     if (path === '/curriculum/academic-years') return Promise.resolve(years)
+    if (path === '/students/groups/all') return Promise.resolve(flatGroups)
     if (typeof path === 'string' && path.startsWith('/curriculum/subjects/') && path.endsWith('/items')) {
       return Promise.resolve(items)
     }
@@ -131,5 +138,21 @@ describe('Assessment reference recording picker', () => {
       referenceRecordingUrl: 'https://cdn/rec1.mp3',
       referenceRecordingName: 'Lesson One (hymn-one.mp3)',
     })
+  })
+
+  it('populates the group dropdown from the flat school-wide groups list', async () => {
+    const user = userEvent.setup()
+    render(<AssessmentsPage />)
+
+    await user.click(await screen.findByText('New Assessment'))
+    const dialog = await screen.findByRole('dialog')
+    const form = within(dialog)
+
+    await user.selectOptions(form.getByLabelText(/Level/), 'l1')
+
+    await waitFor(() => {
+      expect(form.getByText('Group A')).toBeInTheDocument()
+    })
+    expect(form.queryByText('Group B')).not.toBeInTheDocument()
   })
 })
