@@ -23,7 +23,7 @@ import { ErrorBoundary } from '@/components/ui/error-boundary'
 import { useToast } from '@/components/ui/toast'
 import { http } from '@/lib/http-client'
 import { getSchoolId } from '@/lib/school'
-import { getGreeting, getGreetingAr, getDayName, getDayNameAr } from '@/lib/datetime'
+import { getGreeting, getGreetingAr, getFullDay } from '@/lib/datetime'
 import { useActiveRole, roleCategory } from '@/lib/use-active-role'
 import DashboardHero from './hero'
 import { ServantJourneyCard } from '@/components/dashboard/servant-journey-card'
@@ -271,7 +271,7 @@ function HeroSection({ stats, churchLogo, churchName, loading }: { stats: Dashbo
           {churchName}
         </span>
       )}
-      <p className="text-gray-400 text-sm">{lang === 'ar' ? getDayNameAr() : getDayName()}</p>
+      <p className="text-gray-400 text-sm">{getFullDay(lang)}</p>
     </>
   )
 
@@ -1958,7 +1958,7 @@ function MinistryDashboard({ data, loading, error, onRetry }: { data: any; loadi
      {churchName}
     </span>
    )}
-   <p className="text-white/60 text-sm">{lang === 'ar' ? getDayNameAr() : getDayName()}</p>
+   <p className="text-white/60 text-sm">{getFullDay(lang)}</p>
    <RoleBadge role={d.role || 'servant'} lang={lang} />
   </>
  )
@@ -2583,7 +2583,7 @@ function ParentDashboard({ data, loading, error, onRetry }: { data: any; loading
   </>
  )
 
- const parentBadges = <p className="text-white/60 text-sm">{lang === 'ar' ? getDayNameAr() : getDayName()}</p>
+ const parentBadges = <p className="text-white/60 text-sm">{getFullDay(lang)}</p>
 
  return (
   <>
