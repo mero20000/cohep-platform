@@ -550,5 +550,9 @@ main()
     process.exit(1);
   })
   .finally(async () => {
-    await prisma.$disconnect();
+    await prisma.$disconnect().catch(() => {});
+    // On some runtimes (Node 20 + Prisma 5.8) a lingering handle keeps the
+    // event loop alive after $disconnect(), so the seed process never exits and
+    // blocks the `&&` chain that starts the server. Force a clean exit.
+    process.exit(0);
   });
