@@ -14,6 +14,8 @@ export const PERMISSIONS = {
   'servant:create':      'Add new servants',
   'servant:edit':        'Edit servant profiles',
   'servant:delete':      'Delete servants',
+  'servant:import':      'Import servants from CSV',
+  'servant:export':      'Export servants to CSV',
   'servant:self-edit':   'Edit own profile',
 
   'attendance:view':     'View attendance records',
@@ -76,7 +78,7 @@ const ROLE_DEFAULT_PERMS: Record<string, Permission[]> = {
 
   admin: [
     'student:view','student:create','student:edit','student:edit-sensitive','student:delete','student:bulk-delete','student:import','student:export',
-    'servant:view','servant:create','servant:edit','servant:delete',
+    'servant:view','servant:create','servant:edit','servant:delete','servant:import','servant:export',
     'attendance:view','attendance:record','attendance:manage',
     'assessment:view','assessment:create','assessment:edit','assessment:delete','assessment:grade',
     'curriculum:view','curriculum:edit',
@@ -90,7 +92,7 @@ const ROLE_DEFAULT_PERMS: Record<string, Permission[]> = {
 
   principal: [
     'student:view','student:edit',
-    'servant:view',
+    'servant:view','servant:import','servant:export',
     'attendance:view','attendance:record','attendance:manage',
     'assessment:view','assessment:create','assessment:edit','assessment:grade',
     'curriculum:view','curriculum:edit',
