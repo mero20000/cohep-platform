@@ -26,6 +26,7 @@ import { getSchoolId } from '@/lib/school'
 import { getGreeting, getGreetingAr, getFullDay } from '@/lib/datetime'
 import { useActiveRole, roleCategory } from '@/lib/use-active-role'
 import DashboardHero from './hero'
+import { PhoneLink } from '@/app/dashboard/students/_components/phone-link'
 import { ServantJourneyCard } from '@/components/dashboard/servant-journey-card'
 import { useAcademicYearsQuery, useAllAllocationsQuery, useLessonsQuery } from '@/components/curriculum/hooks'
 import type { Allocation } from '@/components/curriculum/types'
@@ -1935,6 +1936,16 @@ function ServantWellbeingPanel({ lang, schoolId }: { lang: string; schoolId: str
 
 function MinistryDashboard({ data, loading, error, onRetry }: { data: any; loading: boolean; error: boolean; onRetry: () => void }) {
  const lang = useLanguage()
+ const [groupMates, setGroupMates] = useState<any[] | null>(null)
+
+ useEffect(() => {
+   let cancelled = false
+   http.get('/servants/group-mates')
+     .then((d: any) => { if (!cancelled) setGroupMates(d || []) })
+     .catch(() => { if (!cancelled) setGroupMates([]) })
+   return () => { cancelled = true }
+ }, [])
+
  if (loading && !data) return <MineFallback />
  if (error) return <RetryCard onRetry={onRetry} lang={lang} />
  const d = data || {}
@@ -2029,6 +2040,39 @@ function MinistryDashboard({ data, loading, error, onRetry }: { data: any; loadi
       {['servant', 'group_leader', 'level_leader'].includes(d.role || '') && (
         <motion.div variants={fadeUp}>
           <NextSessionCard lang={lang} assigned={assigned} groups={groups} />
+        </motion.div>
+      )}
+
+      {/* My Group · Servants */}
+      {groupMates !== null && (
+        <motion.div variants={fadeUp} className="rounded-2xl border border-white/10 bg-white/5 p-5 backdrop-blur-sm">
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="font-semibold text-white">{lang === 'ar' ? 'خدام مجموعتي' : 'My Group · Servants'}</h2>
+            <span className="text-xs text-white/60">{groupMates.length}</span>
+          </div>
+          {groupMates.length === 0 ? (
+            <p className="text-sm text-white/60">{lang === 'ar' ? 'لا يوجد خدام آخرون في مجموعتك' : 'No other servants in your group'}</p>
+          ) : (
+            <ul className="space-y-2">
+              {groupMates.map((m: any) => (
+                <li key={m.id} className="flex items-center gap-3 rounded-lg bg-white/10 px-3 py-2">
+                  {m.avatarUrl ? (
+                    <img src={m.avatarUrl} alt="" className="h-8 w-8 rounded-full object-cover" />
+                  ) : (
+                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-500/30 text-sm font-bold text-white">
+                      {(m.firstName || '?')[0]}
+                    </div>
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium text-white">
+                      {lang === 'ar' && m.firstNameAr ? `${m.firstNameAr} ${m.lastNameAr || ''}` : `${m.firstName} ${m.lastName}`}
+                    </p>
+                  </div>
+                  {m.phone && <PhoneLink phone={m.phone} lang={lang} />}
+                </li>
+              ))}
+            </ul>
+          )}
         </motion.div>
       )}
 
