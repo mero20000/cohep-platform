@@ -117,6 +117,7 @@ export default function ServantsPage() {
     groupId: '',
     teachingSubjects: [] as string[],
     grade: '',
+    gender: '',
     dateJoined: '',
     dateOfBirth: '',
   })
@@ -288,7 +289,7 @@ export default function ServantsPage() {
 
   const openCreate = () => {
     setEditing(null)
-    setForm({ firstName: '', lastName: '', firstNameAr: '', lastNameAr: '', email: '', phone: '', password: '', roleName: 'servant', levelId: '', groupId: '', teachingSubjects: [], grade: '', dateJoined: '', dateOfBirth: '' })
+    setForm({ firstName: '', lastName: '', firstNameAr: '', lastNameAr: '', email: '', phone: '', password: '', roleName: 'servant', levelId: '', groupId: '', teachingSubjects: [], grade: '', gender: '', dateJoined: '', dateOfBirth: '' })
     revokePhoto()
     setFormError('')
     setEmailError('')
@@ -308,6 +309,7 @@ export default function ServantsPage() {
       groupId: meta.groupId || '',
       teachingSubjects: meta.teachingSubjects || [],
       grade: meta.grade || '',
+      gender: (s as any).gender || '',
       dateJoined: meta.dateJoined || '',
       dateOfBirth: meta.dateOfBirth || '',
     })
@@ -339,6 +341,10 @@ export default function ServantsPage() {
       setFormError(lang === 'ar' ? 'الاسم مطلوب' : 'Name is required')
       return
     }
+    if (!form.gender) {
+      setFormError(lang === 'ar' ? 'الجنس مطلوب' : 'Gender is required')
+      return
+    }
     setSaving(true)
     try {
       let avatarUrl = editing?.avatarUrl
@@ -357,6 +363,7 @@ export default function ServantsPage() {
         phone: form.phone.trim() || undefined,
         roleName: form.roleName,
         schoolId,
+        gender: form.gender,
         metadata: {
           teachingSubjects: form.teachingSubjects,
           levelId: form.levelId || undefined,
@@ -856,6 +863,23 @@ export default function ServantsPage() {
               <DatePicker value={form.dateOfBirth} onChange={v => updateField('dateOfBirth', v)} max={new Date().toISOString().split('T')[0]} />
             </div>
           </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">{lang === 'ar' ? 'الجنس *' : 'Gender *'}</label>
+            <div className="flex gap-2">
+              {(['female', 'male'] as const).map((g) => (
+                <button
+                  key={g}
+                  type="button"
+                  onClick={() => updateField('gender', g)}
+                  className={`rounded-lg border px-4 py-2 text-sm font-medium transition-colors ${
+                    form.gender === g ? 'border-blue-600 bg-blue-600 text-white' : 'border-gray-300 bg-white text-gray-700 hover:border-blue-400'
+                  }`}
+                >
+                  {lang === 'ar' ? (g === 'female' ? 'أنثى' : 'ذكر') : g === 'female' ? 'Female' : 'Male'}
+                </button>
+              ))}
+            </div>
+          </div>
           {!editing && (
             <FormField label={lang === 'ar' ? 'كلمة المرور' : 'Password'} type="password" value={form.password} onChange={e => updateField('password', e.target.value)} hint={lang === 'ar' ? 'اتركه فارغاً لاستخدام كلمة المرور الافتراضية: Password123!' : 'Leave blank to use the default password: Password123!'} placeholder={lang === 'ar' ? 'أدخل كلمة مرور' : 'Enter a password'} />
           )}
@@ -916,6 +940,15 @@ export default function ServantsPage() {
                 </label>
               ))}
             </div>
+          </div>
+
+          <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 text-sm">
+            <p className="mb-2 font-semibold text-gray-900">{lang === 'ar' ? 'الكنيسة والمدرسة' : 'Church & School'}</p>
+            <div className="flex flex-col gap-1 text-gray-600">
+              {schoolIdentity?.churchName && <p>🏛️ {schoolIdentity.churchName}</p>}
+              {schoolIdentity?.name && <p>🏫 {schoolIdentity.name}</p>}
+            </div>
+            <p className="mt-1 text-xs text-gray-400">{lang === 'ar' ? 'يتم تعيين الخادم تلقائيًا لكنيسته ومدرسته' : 'Servant is automatically linked to their church and school'}</p>
           </div>
         </div>
       </Modal>

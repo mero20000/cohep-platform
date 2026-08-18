@@ -109,9 +109,23 @@ it('sends grade + group in create metadata and renders grade badge on cards', as
   fireEvent.change(screen.getByLabelText('Last Name *'), { target: { value: 'Ahmed' } })
   fireEvent.change(screen.getByLabelText('Email *'), { target: { value: 'malak@x.com' } })
   await userEvent.selectOptions(screen.getByLabelText('Grade'), 'Grade 4')
+  await userEvent.click(screen.getByRole('button', { name: 'Female' }))
   await userEvent.click(within(screen.getByRole('dialog')).getByText('Add Servant'))
   await waitFor(() => expect(mockPost).toHaveBeenCalledWith('/users', expect.objectContaining({ metadata: expect.objectContaining({ grade: 'Grade 4' }) })))
   expect(await screen.findByText('Grade 4', { selector: 'span' })).toBeInTheDocument()
+})
+
+it('requires gender and sends it in create body', async () => {
+  render(<ServantsPage />)
+  await userEvent.click(screen.getByText('Add Servant'))
+  fireEvent.change(screen.getByLabelText('First Name *'), { target: { value: 'Malak' } })
+  fireEvent.change(screen.getByLabelText('Last Name *'), { target: { value: 'Ahmed' } })
+  fireEvent.change(screen.getByLabelText('Email *'), { target: { value: 'malak@x.com' } })
+  await userEvent.click(within(screen.getByRole('dialog')).getByText('Add Servant'))
+  expect(screen.getByText('Gender is required')).toBeInTheDocument()
+  await userEvent.click(screen.getByRole('button', { name: 'Female' }))
+  await userEvent.click(within(screen.getByRole('dialog')).getByText('Add Servant'))
+  await waitFor(() => expect(mockPost).toHaveBeenCalledWith('/users', expect.objectContaining({ gender: 'female' })))
 })
 
 it('tints teaching badges with the matching curriculum subject color', async () => {
