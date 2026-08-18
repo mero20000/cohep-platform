@@ -147,6 +147,7 @@ model User {
   lastName        String    @map("last_name")
   firstNameAr     String?   @map("first_name_ar")
   lastNameAr      String?   @map("last_name_ar")
+  gender          String    @map("gender")
   avatarUrl       String?   @map("avatar_url")
   locale          String    @default("en")
   timezone        String    @default("UTC")

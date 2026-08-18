@@ -123,6 +123,7 @@ export class UsersService {
         ...(data.email !== undefined && { email: data.email }),
         ...(data.firstName !== undefined && { firstName: data.firstName }),
         ...(data.lastName !== undefined && { lastName: data.lastName }),
+        ...(data.gender !== undefined && { gender: data.gender }),
         ...(data.firstNameAr !== undefined && { firstNameAr: data.firstNameAr }),
         ...(data.lastNameAr !== undefined && { lastNameAr: data.lastNameAr }),
         ...(data.phone !== undefined && { phone: data.phone }),
@@ -246,6 +247,7 @@ export class UsersService {
       data: {
         email: data.email, passwordHash,
         firstName: data.firstName, lastName: data.lastName,
+        gender: data.gender,
         firstNameAr: data.firstNameAr, lastNameAr: data.lastNameAr,
         phone: data.phone, schoolId, locale: 'en', timezone: 'UTC',
         ...(data.metadata !== undefined && { metadata: data.metadata }),
