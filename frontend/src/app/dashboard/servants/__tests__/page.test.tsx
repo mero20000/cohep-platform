@@ -200,8 +200,8 @@ it('exports selected servants to CSV', async () => {
   const createURL = vi.fn((blob: Blob) => { capturedBlob = blob; return 'blob:x' })
   URL.createObjectURL = createURL as any
   URL.revokeObjectURL = vi.fn()
-  let capturedAnchor: HTMLAnchorElement | undefined
-  const clickSpy = vi.fn(function (this: HTMLAnchorElement) { capturedAnchor = this })
+  let capturedDownload: string | undefined
+  const clickSpy = vi.fn(function (this: HTMLAnchorElement) { capturedDownload = this.download })
   HTMLAnchorElement.prototype.click = clickSpy as any
 
   render(<ServantsPage />)
@@ -212,7 +212,7 @@ it('exports selected servants to CSV', async () => {
 
   expect(createURL).toHaveBeenCalled()
   expect(clickSpy).toHaveBeenCalled()
-  expect(capturedAnchor?.download).toBe(`servants-selected-${new Date().toISOString().split('T')[0]}.csv`)
+  expect(capturedDownload).toBe(`servants-selected-${new Date().toISOString().split('T')[0]}.csv`)
 
   const readBlobBuffer = (blob: Blob) => new Promise<ArrayBuffer>((resolve, reject) => {
     const r = new FileReader()

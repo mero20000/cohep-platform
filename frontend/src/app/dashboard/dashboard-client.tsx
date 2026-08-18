@@ -22,6 +22,7 @@ import { EmptyState } from '@/components/ui/empty-state'
 import { ErrorBoundary } from '@/components/ui/error-boundary'
 import { useToast } from '@/components/ui/toast'
 import { http } from '@/lib/http-client'
+const API_ORIGIN = process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'http://localhost:3001'
 import { getSchoolId } from '@/lib/school'
 import { getGreeting, getGreetingAr, getFullDay } from '@/lib/datetime'
 import { useActiveRole, roleCategory } from '@/lib/use-active-role'
@@ -2057,7 +2058,7 @@ function MinistryDashboard({ data, loading, error, onRetry }: { data: any; loadi
               {groupMates.map((m: any) => (
                 <li key={m.id} className="flex items-center gap-3 rounded-lg bg-white/10 px-3 py-2">
                   {m.avatarUrl ? (
-                    <img src={m.avatarUrl} alt="" className="h-8 w-8 rounded-full object-cover" />
+                    <Image src={m.avatarUrl.startsWith('http') ? m.avatarUrl : `${API_ORIGIN}${m.avatarUrl}`} alt="" width={32} height={32} className="h-8 w-8 rounded-full object-cover" unoptimized />
                   ) : (
                     <div className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-500/30 text-sm font-bold text-white">
                       {(m.firstName || '?')[0]}
