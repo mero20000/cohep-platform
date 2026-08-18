@@ -125,7 +125,7 @@ export class ServantsService {
   async getGroupMates(userId: string) {
     const me = await this.prisma.user.findUnique({
       where: { id: userId },
-      select: { metadata: true },
+      select: { metadata: true, schoolId: true },
     });
     const meta = (me?.metadata as any) || {};
     const groupId = meta.groupId as string | undefined;
@@ -134,8 +134,14 @@ export class ServantsService {
     const mates = await this.prisma.user.findMany({
       where: {
         id: { not: userId },
+        schoolId: me?.schoolId,
         deletedAt: null,
         userRoles: { some: { role: { name: { in: [...SERVANT_ROLE_NAMES] } } } },
+      },
+      select: {
+        id: true, firstName: true, lastName: true,
+        firstNameAr: true, lastNameAr: true, avatarUrl: true, phone: true,
+        metadata: true,
       },
       orderBy: { firstName: 'asc' },
     });

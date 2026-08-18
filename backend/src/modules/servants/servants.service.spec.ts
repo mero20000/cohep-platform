@@ -109,13 +109,13 @@ describe('getGroupMates', () => {
   });
 
   it('returns [] when the caller has no metadata.groupId', async () => {
-    prisma.user.findUnique.mockResolvedValue({ metadata: {} });
+    prisma.user.findUnique.mockResolvedValue({ metadata: {}, schoolId: 'school-1' });
     const result = await service.getGroupMates('me');
     expect(result).toEqual([]);
   });
 
   it('returns only servants sharing the same groupId, excluding self', async () => {
-    prisma.user.findUnique.mockResolvedValue({ metadata: { groupId: 'g1' } });
+    prisma.user.findUnique.mockResolvedValue({ metadata: { groupId: 'g1' }, schoolId: 'school-1' });
     prisma.user.findMany.mockResolvedValue([
       { id: 'a', firstName: 'A', lastName: 'B', firstNameAr: null, lastNameAr: null, avatarUrl: null, phone: '+1', metadata: { groupId: 'g1' } },
       { id: 'b', firstName: 'C', lastName: 'D', firstNameAr: null, lastNameAr: null, avatarUrl: null, phone: null, metadata: { groupId: 'g2' } },
@@ -123,6 +123,26 @@ describe('getGroupMates', () => {
     const result = await service.getGroupMates('me');
     expect(result).toHaveLength(1);
     expect(result[0].id).toBe('a');
+  });
+
+  it('scopes the findMany to the caller school and never selects passwordHash', async () => {
+    prisma.user.findUnique.mockResolvedValue({ metadata: { groupId: 'g1' }, schoolId: 'school-1' });
+    prisma.user.findMany.mockResolvedValue([
+      { id: 'a', firstName: 'A', lastName: 'B', firstNameAr: null, lastNameAr: null, avatarUrl: null, phone: '+1', metadata: { groupId: 'g1' } },
+    ]);
+    await service.getGroupMates('me');
+
+    const findManyArgs = prisma.user.findMany.mock.calls[0][0];
+    expect(findManyArgs.where.schoolId).toBe('school-1');
+    expect(findManyArgs.select).toEqual({
+      id: true, firstName: true, lastName: true,
+      firstNameAr: true, lastNameAr: true, avatarUrl: true, phone: true,
+      metadata: true,
+    });
+    expect(findManyArgs.select.passwordHash).toBeUndefined();
+
+    const findUniqueArgs = prisma.user.findUnique.mock.calls[0][0];
+    expect(findUniqueArgs.select.schoolId).toBe(true);
   });
 });
 
