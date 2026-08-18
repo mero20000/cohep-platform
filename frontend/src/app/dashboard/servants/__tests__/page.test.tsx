@@ -250,6 +250,19 @@ it('imports valid rows sending the default password', async () => {
   })))
 })
 
+it('uses a valid fallback email for CSV rows without an email', async () => {
+  render(<ServantsPage />)
+  await userEvent.click(screen.getByText('Import'))
+  const csv = 'FirstName,LastName,Gender\nMina,Gad,male'
+  const file = new File([csv], 'servants.csv', { type: 'text/csv' })
+  await userEvent.upload(screen.getByLabelText('CSV file'), file)
+  await waitFor(() => expect(screen.getByText('Mina Gad')).toBeInTheDocument())
+  await userEvent.click(within(screen.getByRole('dialog')).getByText('Import'))
+  await waitFor(() => expect(mockPost).toHaveBeenCalledWith('/users', expect.objectContaining({
+    email: 'mina.gad@servant.example.com',
+  })))
+})
+
 it('filters servants by gender', async () => {
   const withGender = servants.map((s, i) => ({ ...s, gender: i % 2 === 0 ? 'female' : 'male' }))
   mockGet.mockImplementation((path: string) => {

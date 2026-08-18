@@ -104,6 +104,8 @@ export default function ServantsPage() {
   const canEdit = can('servant:edit')
   const canDelete = can('servant:delete')
   const canCreate = can('servant:create')
+  const canImport = can('servant:import')
+  const canExport = can('servant:export')
 
   const [servants, setServants] = useState<ServantUser[]>([])
   const [loading, setLoading] = useState(true)
@@ -559,7 +561,7 @@ export default function ServantsPage() {
         await http.post('/users', {
           firstName: r.firstName, lastName: r.lastName,
           firstNameAr: r.firstNameAr || undefined, lastNameAr: r.lastNameAr || undefined,
-          email: r.email || `${r.firstName.toLowerCase()}.${r.lastName.toLowerCase()}@servant.local`,
+          email: r.email || `${r.firstName.toLowerCase()}.${r.lastName.toLowerCase()}@servant.example.com`,
           phone: r.phone || undefined, gender: r.gender || 'male', roleName: r.roleName || 'servant',
           schoolId,
           password: 'Password123!',
@@ -630,9 +632,11 @@ export default function ServantsPage() {
               <Plus className="h-4 w-4" /> {lang === 'ar' ? 'إضافة خادم' : 'Add Servant'}
             </Button>
           )}
-          <Button variant="outline" size="sm" onClick={() => setShowImport(true)}>
-            <Upload className="h-4 w-4" /> {lang === 'ar' ? 'استيراد' : 'Import'}
-          </Button>
+          {canImport && (
+            <Button variant="outline" size="sm" onClick={() => setShowImport(true)}>
+              <Upload className="h-4 w-4" /> {lang === 'ar' ? 'استيراد' : 'Import'}
+            </Button>
+          )}
           <div className="flex items-center rounded-lg border border-gray-200 bg-white p-0.5">
             <button type="button" onClick={() => toggleView('cards')}
               className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${view === 'cards' ? 'bg-gold-500 text-white' : 'text-gray-600 hover:text-gray-900'}`}>
@@ -714,18 +718,22 @@ export default function ServantsPage() {
           )}
         </div>
 
-        {selectedIds.length > 0 && canDelete && (
+        {selectedIds.length > 0 && (canDelete || canExport) && (
           <div className="flex items-center gap-3 border-t border-gray-100 bg-gray-50/60 px-6 py-2.5 text-sm">
             <span className="font-medium text-gray-700">
               {lang === 'ar' ? `${selectedIds.length} تم تحديد` : `${selectedIds.length} selected`}
             </span>
-            <Button variant="outline" size="sm" onClick={handleExport}>
-              <Upload className="h-4 w-4 rotate-180" /> {lang === 'ar' ? 'تصدير' : 'Export'}
-            </Button>
-            <Button variant="destructive" size="sm" onClick={() => setShowBulkDelete(true)}>
-              <Trash2 className="h-4 w-4" />
-              {lang === 'ar' ? `حذف (${selectedIds.length})` : `Delete selected (${selectedIds.length})`}
-            </Button>
+            {canExport && (
+              <Button variant="outline" size="sm" onClick={handleExport}>
+                <Upload className="h-4 w-4 rotate-180" /> {lang === 'ar' ? 'تصدير' : 'Export'}
+              </Button>
+            )}
+            {canDelete && (
+              <Button variant="destructive" size="sm" onClick={() => setShowBulkDelete(true)}>
+                <Trash2 className="h-4 w-4" />
+                {lang === 'ar' ? `حذف (${selectedIds.length})` : `Delete selected (${selectedIds.length})`}
+              </Button>
+            )}
             <Button variant="ghost" size="sm" onClick={() => setSelectedIds([])}>
               {lang === 'ar' ? 'إلغاء التحديد' : 'Clear selection'}
             </Button>
