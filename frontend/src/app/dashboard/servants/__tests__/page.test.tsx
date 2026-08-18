@@ -235,6 +235,21 @@ it('opens import modal and shows template download', async () => {
   expect(screen.getByText('Download template')).toBeInTheDocument()
 })
 
+it('imports valid rows sending the default password', async () => {
+  render(<ServantsPage />)
+  await userEvent.click(screen.getByText('Import'))
+  const csv = 'FirstName,LastName,Email,Gender,Level,Group,TeachingSubjects\nMina,Gad,mina@x.com,male,Level 1,Group A,coptic_hymns'
+  const file = new File([csv], 'servants.csv', { type: 'text/csv' })
+  await userEvent.upload(screen.getByLabelText('CSV file'), file)
+  await waitFor(() => expect(screen.getByText('Mina Gad')).toBeInTheDocument())
+  await userEvent.click(within(screen.getByRole('dialog')).getByText('Import'))
+  await waitFor(() => expect(mockPost).toHaveBeenCalledWith('/users', expect.objectContaining({
+    password: 'Password123!',
+    email: 'mina@x.com',
+    metadata: expect.objectContaining({ levelId: 'level-1', groupId: 'group-1', teachingSubjects: ['coptic_hymns'] }),
+  })))
+})
+
 it('filters servants by gender', async () => {
   const withGender = servants.map((s, i) => ({ ...s, gender: i % 2 === 0 ? 'female' : 'male' }))
   mockGet.mockImplementation((path: string) => {

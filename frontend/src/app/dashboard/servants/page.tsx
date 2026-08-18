@@ -562,6 +562,7 @@ export default function ServantsPage() {
           email: r.email || `${r.firstName.toLowerCase()}.${r.lastName.toLowerCase()}@servant.local`,
           phone: r.phone || undefined, gender: r.gender || 'male', roleName: r.roleName || 'servant',
           schoolId,
+          password: 'Password123!',
           metadata: {
             teachingSubjects: r.teachingSubjects,
             levelId: r.levelId || undefined,
@@ -1156,7 +1157,7 @@ export default function ServantsPage() {
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1.5">{lang === 'ar' ? 'ملف CSV' : 'CSV file'}</label>
-            <input type="file" accept=".csv,text/csv" onChange={(e) => {
+            <input type="file" accept=".csv,text/csv" aria-label={lang === 'ar' ? 'ملف CSV' : 'CSV file'} onChange={(e) => {
               const file = e.target.files?.[0]
               if (file) onImportFile(file)
             }} />
