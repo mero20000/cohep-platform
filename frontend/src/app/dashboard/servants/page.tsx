@@ -54,6 +54,13 @@ interface Level { id: string; name: string; number: number; status?: string }
 
 interface CurriculumSubject { id: string; name: string; nameAr?: string; nameCoptic?: string; color?: string }
 
+interface ImportRow {
+  firstName: string; lastName: string; firstNameAr?: string; lastNameAr?: string;
+  email?: string; phone?: string; gender?: string; roleName?: string;
+  levelId?: string; groupId?: string; teachingSubjects: string[];
+  _valid: boolean; _error?: string;
+}
+
 const TEACHING_SUBJECTS = [
   { value: 'coptic_hymns', label: 'Coptic Hymns', arabicLabel: 'ألحان قبطية' },
   { value: 'coptic_rites', label: 'Coptic Rites', arabicLabel: 'الطقوس القبطية' },
@@ -114,6 +121,10 @@ export default function ServantsPage() {
   const [subjects, setSubjects] = useState<CurriculumSubject[]>([])
 
   const [showForm, setShowForm] = useState(false)
+  const [showImport, setShowImport] = useState(false)
+  const [importRows, setImportRows] = useState<ImportRow[]>([])
+  const [importFileError, setImportFileError] = useState('')
+  const [importing, setImporting] = useState(false)
   const [editing, setEditing] = useState<ServantUser | null>(null)
   const [form, setForm] = useState({
     firstName: '', lastName: '', firstNameAr: '', lastNameAr: '',
@@ -476,6 +487,98 @@ export default function ServantsPage() {
     URL.revokeObjectURL(url)
   }
 
+  const downloadTemplate = () => {
+    const tpl = [['FirstName','LastName','FirstNameAr','LastNameAr','Email','Phone','Gender','Role','Level','Group','TeachingSubjects']].map((r) =>
+      r.map((c) => `"${c}"`).join(',')).join('\n')
+    const blob = new Blob([`\uFEFF${tpl}`], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url; a.download = 'servants-import-template.csv'; a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  const parseCSV = (text: string): string[][] => {
+    const rows: string[][] = []
+    let row: string[] = [], cur = '', inQ = false
+    for (let i = 0; i < text.length; i++) {
+      const c = text[i]
+      if (inQ) {
+        if (c === '"') {
+          if (text[i + 1] === '"') { cur += '"'; i++ } else inQ = false
+        } else cur += c
+      } else if (c === '"') inQ = true
+      else if (c === ',') { row.push(cur); cur = '' }
+      else if (c === '\n' || c === '\r') { if (c === '\r' && text[i + 1] === '\n') i++; row.push(cur); cur = ''; if (row.some((x) => x.trim() !== '')) rows.push(row); row = [] }
+      else cur += c
+    }
+    if (cur !== '' || row.length > 0) { row.push(cur); if (row.some((x) => x.trim() !== '')) rows.push(row) }
+    return rows
+  }
+
+  const onImportFile = (file: File) => {
+    setImportFileError('')
+    const reader = new FileReader()
+    reader.onload = () => {
+      const text = String(reader.result || '')
+      const parsed = parseCSV(text)
+      if (parsed.length === 0) { setImportFileError(lang === 'ar' ? 'ملف فارغ' : 'Empty file'); return }
+      const header = parsed[0].map((h) => h.trim())
+      const idx = (name: string) => header.indexOf(name)
+      const rows = parsed.slice(1).map((r) => {
+        const get = (n: string) => (idx(n) >= 0 ? (r[idx(n)] || '').trim() : '')
+        const firstName = get('FirstName')
+        const lastName = get('LastName')
+        const email = get('Email')
+        const gender = get('Gender').toLowerCase()
+        const levelName = get('Level')
+        const groupName = get('Group')
+        const teaching = get('TeachingSubjects').split(';').map((s) => s.trim()).filter(Boolean)
+        const roleName = get('Role') || 'servant'
+        let _error = ''
+        if (!firstName || !lastName) _error = lang === 'ar' ? 'الاسم مطلوب' : 'Name required'
+        else if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) _error = lang === 'ar' ? 'بريد غير صالح' : 'Invalid email'
+        else if (gender && !['female', 'male'].includes(gender)) _error = lang === 'ar' ? 'جنس غير صالح' : 'Invalid gender'
+        const levelId = levelName ? levels.find((l) => l.name === levelName)?.id || '' : ''
+        const groupId = groupName ? activeGroups.find((g) => g.name === groupName)?.id || '' : ''
+        if (levelName && !levelId) _error = _error || (lang === 'ar' ? `مستوى غير موجود: ${levelName}` : `Unknown level: ${levelName}`)
+        if (groupName && !groupId) _error = _error || (lang === 'ar' ? `مجموعة غير موجودة: ${groupName}` : `Unknown group: ${groupName}`)
+        return { firstName, lastName, firstNameAr: get('FirstNameAr'), lastNameAr: get('LastNameAr'), email, phone: get('Phone'), gender, roleName, levelId, groupId, teachingSubjects: teaching, _valid: !_error, _error }
+      })
+      setImportRows(rows)
+    }
+    reader.readAsText(file)
+  }
+
+  const runImport = async () => {
+    const valid = importRows.filter((r) => r._valid)
+    if (valid.length === 0) return
+    setImporting(true)
+    let created = 0, failed = 0
+    for (const r of valid) {
+      try {
+        await http.post('/users', {
+          firstName: r.firstName, lastName: r.lastName,
+          firstNameAr: r.firstNameAr || undefined, lastNameAr: r.lastNameAr || undefined,
+          email: r.email || `${r.firstName.toLowerCase()}.${r.lastName.toLowerCase()}@servant.local`,
+          phone: r.phone || undefined, gender: r.gender || 'male', roleName: r.roleName || 'servant',
+          schoolId,
+          metadata: {
+            teachingSubjects: r.teachingSubjects,
+            levelId: r.levelId || undefined,
+            groupId: r.groupId || undefined,
+          },
+        })
+        created++
+      } catch { failed++ }
+    }
+    setImporting(false)
+    setShowImport(false)
+    setImportRows([])
+    fetchServants()
+    toast(created > 0 ? 'success' : 'error',
+      lang === 'ar' ? `تم إنشاء ${created} خادم، فشل ${failed}` : `Created ${created} servants, ${failed} failed`)
+  }
+
   const toggleSubject = (sub: string) => {
     setForm(prev => ({
       ...prev,
@@ -526,6 +629,9 @@ export default function ServantsPage() {
               <Plus className="h-4 w-4" /> {lang === 'ar' ? 'إضافة خادم' : 'Add Servant'}
             </Button>
           )}
+          <Button variant="outline" size="sm" onClick={() => setShowImport(true)}>
+            <Upload className="h-4 w-4" /> {lang === 'ar' ? 'استيراد' : 'Import'}
+          </Button>
           <div className="flex items-center rounded-lg border border-gray-200 bg-white p-0.5">
             <button type="button" onClick={() => toggleView('cards')}
               className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${view === 'cards' ? 'bg-gold-500 text-white' : 'text-gray-600 hover:text-gray-900'}`}>
@@ -1025,6 +1131,72 @@ export default function ServantsPage() {
             </div>
             <p className="mt-1 text-xs text-gray-400">{lang === 'ar' ? 'يتم تعيين الخادم تلقائيًا لكنيسته ومدرسته' : 'Servant is automatically linked to their church and school'}</p>
           </div>
+        </div>
+      </Modal>
+
+      {/* Import Modal */}
+      <Modal open={showImport} onClose={() => { if (!importing) { setShowImport(false); setImportRows([]); setImportFileError('') } }}
+        title={lang === 'ar' ? 'استيراد الخدام' : 'Import Servants'}
+        size="lg"
+        footer={
+          <div className="flex items-center justify-end gap-3">
+            <Button variant="outline" onClick={() => { setShowImport(false); setImportRows([]); setImportFileError('') }} disabled={importing}>
+              {lang === 'ar' ? 'إلغاء' : 'Cancel'}
+            </Button>
+            <Button onClick={runImport} disabled={importing || importRows.filter((r) => r._valid).length === 0}>
+              {importing && <Loader2 className="h-4 w-4 animate-spin" />}
+              {lang === 'ar' ? 'استيراد' : 'Import'}
+            </Button>
+          </div>
+        }>
+        <div className="space-y-4">
+          <Button variant="outline" size="sm" onClick={downloadTemplate}>
+            {lang === 'ar' ? 'تحميل القالب' : 'Download template'}
+          </Button>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">{lang === 'ar' ? 'ملف CSV' : 'CSV file'}</label>
+            <input type="file" accept=".csv,text/csv" onChange={(e) => {
+              const file = e.target.files?.[0]
+              if (file) onImportFile(file)
+            }} />
+            <p className="mt-1 text-xs text-gray-500">{lang === 'ar' ? 'استخدم القالب أعلاه لتنسيق البيانات.' : 'Use the template above for the expected format.'}</p>
+          </div>
+
+          {importFileError && (
+            <div className="rounded-lg bg-red-50 border border-red-200 p-3 text-sm text-red-700" role="alert">{importFileError}</div>
+          )}
+
+          {importRows.length > 0 && (
+            <div className="overflow-x-auto border border-gray-200 rounded-lg">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-gray-50 text-start text-xs font-medium uppercase tracking-wider text-gray-500">
+                    <th className="px-4 py-2 text-start">{lang === 'ar' ? 'الاسم' : 'Name'}</th>
+                    <th className="px-4 py-2 text-start">{lang === 'ar' ? 'الحالة' : 'Status'}</th>
+                    <th className="px-4 py-2 text-start">{lang === 'ar' ? 'السبب' : 'Reason'}</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {importRows.map((r, i) => (
+                    <tr key={i}>
+                      <td className="px-4 py-2 text-gray-900">{r.firstName} {r.lastName}</td>
+                      <td className="px-4 py-2">
+                        {r._valid
+                          ? <span className="text-green-700">{lang === 'ar' ? 'صالح' : 'Valid'}</span>
+                          : <span className="text-red-600">{lang === 'ar' ? 'غير صالح' : 'Invalid'}</span>}
+                      </td>
+                      <td className="px-4 py-2 text-gray-500">{r._error || '—'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          <p className="text-xs text-gray-500">
+            {lang === 'ar' ? `${importRows.filter((r) => r._valid).length} صالح، ${importRows.filter((r) => !r._valid).length} غير صالح` : `${importRows.filter((r) => r._valid).length} valid, ${importRows.filter((r) => !r._valid).length} invalid`}
+          </p>
         </div>
       </Modal>
 

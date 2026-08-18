@@ -229,6 +229,12 @@ it('exports selected servants to CSV', async () => {
   expect(lines[1]).toBe('"Joe Rock ""Roll""","","joe@x.com","\'=formula","male","group_leader","Level 1","Group A","coptic_hymns","","","",""')
 })
 
+it('opens import modal and shows template download', async () => {
+  render(<ServantsPage />)
+  await userEvent.click(screen.getByText('Import'))
+  expect(screen.getByText('Download template')).toBeInTheDocument()
+})
+
 it('filters servants by gender', async () => {
   const withGender = servants.map((s, i) => ({ ...s, gender: i % 2 === 0 ? 'female' : 'male' }))
   mockGet.mockImplementation((path: string) => {
