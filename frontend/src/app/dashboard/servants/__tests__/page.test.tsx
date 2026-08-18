@@ -157,6 +157,20 @@ it('selects multiple rows, shows toolbar, and bulk-deletes', async () => {
   await waitFor(() => expect(screen.queryByText('Delete selected (2)')).not.toBeInTheDocument())
 })
 
+it('exports selected servants to CSV', async () => {
+  const createURL = vi.fn(() => 'blob:x')
+  URL.createObjectURL = createURL as any
+  URL.revokeObjectURL = vi.fn()
+  const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {})
+  render(<ServantsPage />)
+  await userEvent.click(screen.getByRole('button', { name: 'Table' }))
+  const table = await screen.findByRole('table')
+  await userEvent.click(screen.getAllByRole('checkbox', { name: 'Select' })[0])
+  await userEvent.click(screen.getByText('Export'))
+  expect(createURL).toHaveBeenCalled()
+  expect(clickSpy).toHaveBeenCalled()
+})
+
 it('filters servants by gender', async () => {
   const withGender = servants.map((s, i) => ({ ...s, gender: i % 2 === 0 ? 'female' : 'male' }))
   mockGet.mockImplementation((path: string) => {

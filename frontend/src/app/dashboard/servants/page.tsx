@@ -439,6 +439,43 @@ export default function ServantsPage() {
     }
   }
 
+  const handleExport = () => {
+    const selected = servants.filter((s) => selectedIds.includes(s.id))
+    if (selected.length === 0) return
+    const escape = (v: any) => String(v ?? '')
+    const rows = [
+      ['Name', 'Name (Ar)', 'Email', 'Phone', 'Gender', 'Role', 'Level', 'Group', 'Teaching Subjects', 'Church', 'School', 'Date Joined', 'Date of Birth'],
+      ...selected.map((s) => {
+        const meta = s.metadata || {}
+        const role = servantRole(s)?.name || ''
+        const levelName = meta.levelId ? levels.find((l) => l.id === meta.levelId)?.name || '' : ''
+        const groupName = meta.groupId ? activeGroups.find((g) => g.id === meta.groupId)?.name || '' : ''
+        return [
+          `${s.firstName} ${s.lastName}`.trim(),
+          `${s.firstNameAr || ''} ${s.lastNameAr || ''}`.trim(),
+          s.email, s.phone || '', s.gender || '',
+          role,
+          levelName, groupName,
+          (meta.teachingSubjects || []).join('; '),
+          s.school?.church?.name || '', s.school?.name || '',
+          meta.dateJoined || '', meta.dateOfBirth || '',
+        ]
+      }),
+    ]
+    const csv = rows.map((r) => r.map((c) => {
+      let val = escape(c).replace(/"/g, '""')
+      if (/^[=+\-@]/.test(val)) val = `'${val}`
+      return `"${val}"`
+    }).join(',')).join('\n')
+    const blob = new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `servants-selected-${new Date().toISOString().split('T')[0]}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
   const toggleSubject = (sub: string) => {
     setForm(prev => ({
       ...prev,
@@ -575,6 +612,9 @@ export default function ServantsPage() {
             <span className="font-medium text-gray-700">
               {lang === 'ar' ? `${selectedIds.length} تم تحديد` : `${selectedIds.length} selected`}
             </span>
+            <Button variant="outline" size="sm" onClick={handleExport}>
+              <Upload className="h-4 w-4 rotate-180" /> {lang === 'ar' ? 'تصدير' : 'Export'}
+            </Button>
             <Button variant="destructive" size="sm" onClick={() => setShowBulkDelete(true)}>
               <Trash2 className="h-4 w-4" />
               {lang === 'ar' ? `حذف (${selectedIds.length})` : `Delete selected (${selectedIds.length})`}
