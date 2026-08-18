@@ -1,6 +1,6 @@
 import { render, screen, waitFor, within, fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { it, expect, vi, beforeEach } from 'vitest'
+import { it, expect, vi, beforeEach, afterEach, beforeAll } from 'vitest'
 import ServantsPage from '../page'
 
 vi.mock('next/image', () => ({
@@ -68,6 +68,22 @@ const curriculumSubjects = [
   { id: 'sub-1', name: 'Coptic Hymns', color: '#6B21A8' },
   { id: 'sub-2', name: 'Coptic Rites', color: '#B45309' },
 ]
+
+let origCreateObjectURL: typeof URL.createObjectURL
+let origRevokeObjectURL: typeof URL.revokeObjectURL
+let origAnchorClick: typeof HTMLAnchorElement.prototype.click
+
+beforeAll(() => {
+  origCreateObjectURL = URL.createObjectURL
+  origRevokeObjectURL = URL.revokeObjectURL
+  origAnchorClick = HTMLAnchorElement.prototype.click
+})
+
+afterEach(() => {
+  URL.createObjectURL = origCreateObjectURL
+  URL.revokeObjectURL = origRevokeObjectURL
+  HTMLAnchorElement.prototype.click = origAnchorClick
+})
 
 beforeEach(() => {
   mockGet.mockReset()
@@ -158,17 +174,59 @@ it('selects multiple rows, shows toolbar, and bulk-deletes', async () => {
 })
 
 it('exports selected servants to CSV', async () => {
-  const createURL = vi.fn(() => 'blob:x')
+  const exportServants = [
+    {
+      id: 'x1',
+      email: 'joe@x.com',
+      firstName: 'Joe',
+      lastName: 'Rock "Roll"',
+      gender: 'male',
+      phone: '=formula',
+      schoolId: 'school-1',
+      isActive: true,
+      userRoles: [{ role: { id: 'r1', name: 'group_leader', displayName: 'Group Leader' } }],
+      metadata: { levelId: 'level-1', groupId: 'group-1', teachingSubjects: ['coptic_hymns'] },
+    },
+  ]
+  mockGet.mockImplementation((path: string) => {
+    if (path === '/servants') return Promise.resolve(exportServants)
+    if (path === '/curriculum/levels') return Promise.resolve(levels)
+    if (path === '/curriculum/subjects') return Promise.resolve(curriculumSubjects)
+    if (path.startsWith('/users/schools/me')) return Promise.resolve({})
+    return Promise.resolve([])
+  })
+
+  let capturedBlob: Blob | undefined
+  const createURL = vi.fn((blob: Blob) => { capturedBlob = blob; return 'blob:x' })
   URL.createObjectURL = createURL as any
   URL.revokeObjectURL = vi.fn()
-  const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {})
+  let capturedAnchor: HTMLAnchorElement | undefined
+  const clickSpy = vi.fn(function (this: HTMLAnchorElement) { capturedAnchor = this })
+  HTMLAnchorElement.prototype.click = clickSpy as any
+
   render(<ServantsPage />)
   await userEvent.click(screen.getByRole('button', { name: 'Table' }))
-  const table = await screen.findByRole('table')
+  await screen.findByRole('table')
   await userEvent.click(screen.getAllByRole('checkbox', { name: 'Select' })[0])
   await userEvent.click(screen.getByText('Export'))
+
   expect(createURL).toHaveBeenCalled()
   expect(clickSpy).toHaveBeenCalled()
+  expect(capturedAnchor?.download).toBe(`servants-selected-${new Date().toISOString().split('T')[0]}.csv`)
+
+  const readBlobBuffer = (blob: Blob) => new Promise<ArrayBuffer>((resolve, reject) => {
+    const r = new FileReader()
+    r.onload = () => resolve(r.result as ArrayBuffer)
+    r.onerror = () => reject(r.error)
+    r.readAsArrayBuffer(blob)
+  })
+  const bytes = new Uint8Array(await readBlobBuffer(capturedBlob!))
+  expect([bytes[0], bytes[1], bytes[2]]).toEqual([0xEF, 0xBB, 0xBF])
+
+  const csv = new TextDecoder().decode(bytes)
+  const lines = csv.replace(/^\uFEFF/, '').split('\n')
+  expect(lines[0]).toBe('"Name","Name (Ar)","Email","Phone","Gender","Role","Level","Group","Teaching Subjects","Church","School","Date Joined","Date of Birth"')
+  expect(lines[1]).toBe('"Joe Rock ""Roll""","","joe@x.com","\'=formula","male","group_leader","Level 1","Group A","coptic_hymns","","","",""')
 })
 
 it('filters servants by gender', async () => {
