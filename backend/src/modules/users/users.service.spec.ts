@@ -17,6 +17,8 @@ describe('UsersService roles', () => {
     permission: { findMany: jest.fn() },
     user: {
       findUnique: jest.fn(),
+      findFirst: jest.fn(),
+      create: jest.fn(),
       update: jest.fn(),
       updateMany: jest.fn(),
     },
@@ -95,6 +97,37 @@ describe('UsersService roles', () => {
         expect.objectContaining({ data: expect.objectContaining({ roleId: 'role-1' }) }),
       );
       expect(result.id).toBe('user-1');
+    });
+  });
+
+  describe('createUser', () => {
+    const baseData = {
+      email: 'user@example.com',
+      password: 'Password123!',
+      firstName: 'John',
+      lastName: 'Doe',
+    };
+    const requester = { id: 'caller-1', schoolId: 'school-1', roles: ['servant'] };
+
+    it('persists gender when provided', async () => {
+      prisma.user.findFirst.mockResolvedValue(null);
+      prisma.user.create.mockResolvedValue({ id: 'user-1' });
+
+      await service.createUser(requester, undefined, { ...baseData, gender: 'female' });
+
+      expect(prisma.user.create).toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({ gender: 'female' }) }),
+      );
+    });
+
+    it('creates a user without gender, relying on the Prisma-side default', async () => {
+      prisma.user.findFirst.mockResolvedValue(null);
+      prisma.user.create.mockResolvedValue({ id: 'user-1' });
+
+      await expect(service.createUser(requester, undefined, baseData)).resolves.toEqual({ id: 'user-1' });
+
+      const args = prisma.user.create.mock.calls[0][0];
+      expect(args.data.gender).toBeUndefined();
     });
   });
 
