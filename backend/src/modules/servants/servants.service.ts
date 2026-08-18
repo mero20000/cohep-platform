@@ -29,6 +29,16 @@ export interface ServantMilestoneData {
   reachedAt: Date
 }
 
+export interface GroupMate {
+  id: string;
+  firstName: string;
+  lastName: string;
+  firstNameAr: string | null;
+  lastNameAr: string | null;
+  avatarUrl: string | null;
+  phone: string | null;
+}
+
 const MILESTONE_THRESHOLDS = {
   years_of_service: [1, 3, 5, 10, 15, 20],
   students_taught: [10, 50, 100, 500],
@@ -82,6 +92,13 @@ export class ServantsService {
         email: true, phone: true, avatarUrl: true, isActive: true, lastLoginAt: true, deletedAt: true,
         userRoles: { select: { role: { select: { id: true, name: true, displayName: true } } } },
         metadata: true,
+        gender: true,
+        school: {
+          select: {
+            id: true, name: true, nameAr: true, logoUrl: true,
+            church: { select: { id: true, name: true, nameAr: true, logoUrl: true } },
+          },
+        },
       },
       orderBy: { firstName: 'asc' },
     });
@@ -92,6 +109,8 @@ export class ServantsService {
         id: u.id, firstName: u.firstName, lastName: u.lastName, firstNameAr: u.firstNameAr,
         lastNameAr: u.lastNameAr, email: u.email, phone: u.phone, avatarUrl: u.avatarUrl,
         isActive: u.isActive, lastLoginAt: u.lastLoginAt,
+        gender: (u as any).gender,
+        school: (u as any).school,
         userRoles: u.userRoles,
         metadata: (u.metadata as any) || undefined,
       }))
@@ -101,6 +120,33 @@ export class ServantsService {
         if (query.teachingSubject && !(u.metadata?.teachingSubjects ?? []).includes(query.teachingSubject)) return false;
         return true;
       });
+  }
+
+  async getGroupMates(userId: string) {
+    const me = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { metadata: true },
+    });
+    const meta = (me?.metadata as any) || {};
+    const groupId = meta.groupId as string | undefined;
+    if (!groupId) return [];
+
+    const mates = await this.prisma.user.findMany({
+      where: {
+        id: { not: userId },
+        deletedAt: null,
+        userRoles: { some: { role: { name: { in: [...SERVANT_ROLE_NAMES] } } } },
+      },
+      orderBy: { firstName: 'asc' },
+    });
+
+    return mates
+      .filter((u: any) => ((u.metadata as any) || {}).groupId === groupId)
+      .map((u: any) => ({
+        id: u.id, firstName: u.firstName, lastName: u.lastName,
+        firstNameAr: u.firstNameAr, lastNameAr: u.lastNameAr,
+        avatarUrl: u.avatarUrl, phone: u.phone,
+      }));
   }
 
   async getPendingLiturgies(userId: string) {

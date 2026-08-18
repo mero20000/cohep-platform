@@ -50,6 +50,13 @@ export class ServantsController {
     return this.servantsService.rejectLiturgy(id, req.user.id);
   }
 
+  @Get('group-mates')
+  @Roles('servant', 'group_leader', 'level_leader')
+  @ApiOperation({ summary: 'Get other servants in the same group as the caller' })
+  async getGroupMates(@CurrentUser() user: any) {
+    return this.servantsService.getGroupMates(user.id);
+  }
+
   @Get(':id/profile')
   @Roles('servant', 'group_leader', 'level_leader', 'admin', 'principal', 'super_admin')
   @ApiOperation({ summary: 'Get servant profile with ministry stats' })

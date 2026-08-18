@@ -85,6 +85,47 @@ describe('ServantsService.listServants', () => {
   });
 });
 
+describe('getGroupMates', () => {
+  let service: ServantsService;
+  let prisma: any;
+
+  beforeEach(async () => {
+    const prismaMock = {
+      user: {
+        findUnique: jest.fn(),
+        findMany: jest.fn(),
+      },
+    };
+    const module = await Test.createTestingModule({
+      providers: [
+        ServantsService,
+        { provide: PrismaService, useValue: prismaMock },
+        { provide: GamificationService, useValue: { addXp: jest.fn(), awardBadge: jest.fn() } },
+      ],
+    }).compile();
+    service = module.get<ServantsService>(ServantsService);
+    prisma = module.get(PrismaService);
+    jest.clearAllMocks();
+  });
+
+  it('returns [] when the caller has no metadata.groupId', async () => {
+    prisma.user.findUnique.mockResolvedValue({ metadata: {} });
+    const result = await service.getGroupMates('me');
+    expect(result).toEqual([]);
+  });
+
+  it('returns only servants sharing the same groupId, excluding self', async () => {
+    prisma.user.findUnique.mockResolvedValue({ metadata: { groupId: 'g1' } });
+    prisma.user.findMany.mockResolvedValue([
+      { id: 'a', firstName: 'A', lastName: 'B', firstNameAr: null, lastNameAr: null, avatarUrl: null, phone: '+1', metadata: { groupId: 'g1' } },
+      { id: 'b', firstName: 'C', lastName: 'D', firstNameAr: null, lastNameAr: null, avatarUrl: null, phone: null, metadata: { groupId: 'g2' } },
+    ]);
+    const result = await service.getGroupMates('me');
+    expect(result).toHaveLength(1);
+    expect(result[0].id).toBe('a');
+  });
+});
+
 describe('getServantProfile', () => {
   let service: ServantsService;
   let prisma: any;
