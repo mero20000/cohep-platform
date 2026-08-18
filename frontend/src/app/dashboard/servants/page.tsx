@@ -34,6 +34,11 @@ interface ServantUser {
   firstNameAr?: string; lastNameAr?: string;
   avatarUrl?: string; isActive: boolean;
   lastLoginAt?: string; schoolId: string;
+  gender?: string;
+  school?: {
+    id: string; name: string; nameAr?: string; logoUrl?: string | null;
+    church?: { id: string; name: string; nameAr?: string; logoUrl?: string | null };
+  };
   userRoles: Array<{ role: ServantRole }>;
   metadata?: {
     teachingSubjects?: string[];
@@ -101,6 +106,7 @@ export default function ServantsPage() {
   const [filterGroup, setFilterGroup] = useState('')
   const [filterSubject, setFilterSubject] = useState('')
   const [filterGrade, setFilterGrade] = useState('')
+  const [filterGender, setFilterGender] = useState('')
 
   const [levels, setLevels] = useState<Level[]>([])
   const [activeGroups, setActiveGroups] = useState<GroupOption[]>([])
@@ -230,9 +236,10 @@ export default function ServantsPage() {
       if (filterGroup && meta.groupId !== filterGroup) return false
       if (filterGrade && meta.grade !== filterGrade) return false
       if (filterSubject && !meta.teachingSubjects?.includes(filterSubject)) return false
+      if (filterGender && s.gender !== filterGender) return false
       return true
     })
-  }, [servants, search, filterRole, filterLevel, filterGroup, filterGrade, filterSubject])
+  }, [servants, search, filterRole, filterLevel, filterGroup, filterGrade, filterSubject, filterGender])
 
   const servantRole = (u: ServantUser): ServantRole | undefined => {
     for (const rn of SERVANT_ROLES) {
@@ -451,7 +458,7 @@ export default function ServantsPage() {
     setDirty(true)
   }
 
-  const hasActiveFilters = search || filterRole || filterLevel || filterGroup || filterSubject || filterGrade
+  const hasActiveFilters = search || filterRole || filterLevel || filterGroup || filterSubject || filterGrade || filterGender
 
   return (
     <div className="space-y-6">
@@ -549,8 +556,14 @@ export default function ServantsPage() {
               <option key={g} value={g}>{g}</option>
             ))}
           </select>
+          <select aria-label={lang === 'ar' ? 'تصفية حسب الجنس' : 'Filter by gender'} value={filterGender} onChange={e => setFilterGender(e.target.value)}
+            className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
+            <option value="">{lang === 'ar' ? 'كل الجنس' : 'All genders'}</option>
+            <option value="female">{lang === 'ar' ? 'أنثى' : 'Female'}</option>
+            <option value="male">{lang === 'ar' ? 'ذكر' : 'Male'}</option>
+          </select>
           {hasActiveFilters && (
-            <Button variant="ghost" size="sm" onClick={() => { setSearch(''); setFilterRole(''); setFilterLevel(''); setFilterGroup(''); setFilterSubject(''); setFilterGrade('') }}
+            <Button variant="ghost" size="sm" onClick={() => { setSearch(''); setFilterRole(''); setFilterLevel(''); setFilterGroup(''); setFilterSubject(''); setFilterGrade(''); setFilterGender('') }}
               >
               <X className="h-4 w-4 inline ms-1" />{lang === 'ar' ? 'مسح' : 'Clear'}
             </Button>
@@ -587,7 +600,7 @@ export default function ServantsPage() {
             icon={UserCheck}
             action={
               hasActiveFilters ? (
-                <Button variant="outline" size="sm" onClick={() => { setSearch(''); setFilterRole(''); setFilterLevel(''); setFilterGroup(''); setFilterSubject(''); setFilterGrade('') }}>
+                <Button variant="outline" size="sm" onClick={() => { setSearch(''); setFilterRole(''); setFilterLevel(''); setFilterGroup(''); setFilterSubject(''); setFilterGrade(''); setFilterGender('') }}>
                   <X className="h-4 w-4 inline ms-1" />{lang === 'ar' ? 'مسح الفلاتر' : 'Clear Filters'}
                 </Button>
               ) : canCreate ? (
@@ -612,6 +625,8 @@ export default function ServantsPage() {
                   )}
                   <th className="px-6 py-3 text-start text-xs font-medium uppercase tracking-wider text-gray-500">{lang === 'ar' ? 'الخادم' : 'Servant'}</th>
                   <th className="px-6 py-3 text-start text-xs font-medium uppercase tracking-wider text-gray-500">{lang === 'ar' ? 'الدور' : 'Role'}</th>
+                  <th className="px-6 py-3 text-start text-xs font-medium uppercase tracking-wider text-gray-500 hidden md:table-cell">{lang === 'ar' ? 'الجنس' : 'Gender'}</th>
+                  <th className="px-6 py-3 text-start text-xs font-medium uppercase tracking-wider text-gray-500 hidden lg:table-cell">{lang === 'ar' ? 'الكنيسة / المدرسة' : 'Church / School'}</th>
                   <th className="px-6 py-3 text-start text-xs font-medium uppercase tracking-wider text-gray-500 hidden md:table-cell">{lang === 'ar' ? 'المستوى / المجموعة' : 'Level / Group'}</th>
                   <th className="px-6 py-3 text-start text-xs font-medium uppercase tracking-wider text-gray-500 hidden lg:table-cell">{lang === 'ar' ? 'التدريس' : 'Teaching'}</th>
                   <th className="px-6 py-3 text-start text-xs font-medium uppercase tracking-wider text-gray-500 hidden lg:table-cell">{lang === 'ar' ? 'الاتصال' : 'Contact'}</th>
@@ -657,6 +672,21 @@ export default function ServantsPage() {
                         <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium border ${badgeStyle.bg} ${badgeStyle.text} border-transparent`}>
                           {role?.displayName || (lang === 'ar' ? 'خادم' : 'Servant')}
                         </span>
+                      </td>
+                      <td data-label="Gender" className="px-6 py-3.5 hidden md:table-cell">
+                        {s.gender ? (
+                          <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${s.gender === 'female' ? 'bg-pink-50 text-pink-700' : 'bg-blue-50 text-blue-700'}`}>
+                            {lang === 'ar' ? (s.gender === 'female' ? 'أنثى' : 'ذكر') : s.gender === 'female' ? 'Female' : 'Male'}
+                          </span>
+                        ) : '—'}
+                      </td>
+                      <td data-label="Church / School" className="px-6 py-3.5 hidden lg:table-cell text-sm text-gray-600">
+                        {s.school ? (
+                          <div className="flex flex-col">
+                            {s.school.church?.name && <span>{s.school.church.name}</span>}
+                            <span className="text-xs text-gray-400">{s.school.name}</span>
+                          </div>
+                        ) : '—'}
                       </td>
                       <td data-label="Level / Group" className="px-6 py-3.5 text-sm text-gray-600 hidden md:table-cell">
                         {assignmentLabel(meta)}
@@ -755,6 +785,11 @@ export default function ServantsPage() {
                     <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium border ${badgeStyle.bg} ${badgeStyle.text} border-transparent`}>
                       {role?.displayName || (lang === 'ar' ? 'خادم' : 'Servant')}
                     </span>
+                    {s.gender && (
+                      <span className={`ms-2 inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${s.gender === 'female' ? 'bg-pink-50 text-pink-700' : 'bg-blue-50 text-blue-700'}`}>
+                        {lang === 'ar' ? (s.gender === 'female' ? 'أنثى' : 'ذكر') : s.gender === 'female' ? 'Female' : 'Male'}
+                      </span>
+                    )}
                     {assignmentLabel(meta) !== '—' && (
                       <span className="ms-2 inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-700">
                         {assignmentLabel(meta)}

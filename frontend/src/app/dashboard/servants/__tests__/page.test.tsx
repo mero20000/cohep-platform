@@ -156,3 +156,18 @@ it('selects multiple rows, shows toolbar, and bulk-deletes', async () => {
   await waitFor(() => expect(mockPost).toHaveBeenCalledWith('/users/bulk-delete', { ids: ['u1', 'u2'] }))
   await waitFor(() => expect(screen.queryByText('Delete selected (2)')).not.toBeInTheDocument())
 })
+
+it('filters servants by gender', async () => {
+  const withGender = servants.map((s, i) => ({ ...s, gender: i % 2 === 0 ? 'female' : 'male' }))
+  mockGet.mockImplementation((path: string) => {
+    if (path === '/servants') return Promise.resolve(withGender)
+    return Promise.resolve([])
+  })
+  render(<ServantsPage />)
+  await userEvent.click(screen.getByRole('button', { name: 'Table' }))
+  const table = await screen.findByRole('table')
+  const genderSelect = screen.getByLabelText('Filter by gender')
+  await userEvent.selectOptions(genderSelect, 'female')
+  expect(within(table).getAllByText('Female')).toHaveLength(2)
+  expect(within(table).queryByText('Male')).not.toBeInTheDocument()
+})
