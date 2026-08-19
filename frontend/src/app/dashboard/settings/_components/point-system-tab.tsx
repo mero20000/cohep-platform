@@ -6,6 +6,7 @@ import { useToast } from '@/components/ui/toast'
 import { http } from '@/lib/http-client'
 import { getSchoolId } from '@/lib/school'
 import { Button } from '@/components/ui/button'
+import { TableSkeleton } from '@/components/ui/skeleton'
 import { Loader2, Save } from 'lucide-react'
 
 interface PointRules {
@@ -50,7 +51,7 @@ export function PointSystemTab() {
     setSaving(false)
   }
 
-  if (loading) return <div className="flex items-center justify-center py-16"><Loader2 className="h-8 w-8 animate-spin text-gold-500" /></div>
+  if (loading) return <div className="py-16 px-4"><TableSkeleton rows={6} cols={2} /></div>
 
   return (
     <div className="space-y-6">

@@ -1,10 +1,11 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
-import { Mail, Loader2, Trash2 } from 'lucide-react'
+import { Mail, Trash2 } from 'lucide-react'
 import { http } from '@/lib/http-client'
 import { useLanguage } from '@/lib/use-language'
 import { useToast } from '@/components/ui/toast'
 import { Button } from '@/components/ui/button'
+import { TableSkeleton } from '@/components/ui/skeleton'
 
 interface Subscriber {
   id: string
@@ -67,7 +68,7 @@ export default function SubscribersPage() {
       </div>
 
       {loading ? (
-        <div className="flex items-center justify-center py-16"><Loader2 className="h-6 w-6 animate-spin text-gray-400" /></div>
+        <div className="px-4 py-16"><TableSkeleton rows={6} cols={3} /></div>
       ) : list.length === 0 ? (
         <div className="flex flex-col items-center justify-center rounded-xl border border-gray-200 bg-white py-16">
           <Mail className="h-12 w-12 text-gray-300" />

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Pencil, Trash2, Loader2, Search, UserPlus, Power, PowerOff } from 'lucide-react'
+import { TableSkeleton } from '@/components/ui/skeleton'
 import { Modal } from '@/components/ui/modal'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { FormField } from '@/components/ui/form-field'
@@ -168,7 +169,7 @@ export function UsersTab() {
           </select>
         </div>
         {loading ? (
-          <div className="flex items-center justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-gold-500" /></div>
+          <div className="px-6 py-12"><TableSkeleton rows={5} cols={4} /></div>
         ) : users.length === 0 ? (
           <div className="px-6 py-8 text-center text-sm text-gray-400">{lang === 'ar' ? 'لم يتم العثور على مستخدمين.' : 'No users found.'}</div>
         ) : (

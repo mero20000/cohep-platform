@@ -1,7 +1,8 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
-import { Bell, Filter, X, Loader2, CheckCheck, Info, Calendar, Award, ClipboardCheck, UserCheck } from 'lucide-react'
+import { Bell, Filter, X, CheckCheck, Info, Calendar, Award, ClipboardCheck, UserCheck } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { TableSkeleton } from '@/components/ui/skeleton'
 import { http } from '@/lib/http-client'
 import { getSchoolId } from '@/lib/school'
 import { useLanguage } from '@/lib/use-language'
@@ -119,7 +120,7 @@ export default function NotificationsPage() {
       </div>
 
       {loading ? (
-        <div className="flex items-center justify-center py-16"><Loader2 className="h-6 w-6 animate-spin text-gray-400" /></div>
+        <div className="px-4 py-16"><TableSkeleton rows={6} cols={3} /></div>
       ) : list.length === 0 ? (
         <div className="flex flex-col items-center justify-center rounded-xl border border-gray-200 bg-white py-16">
           <Bell className="h-12 w-12 text-gray-300" />

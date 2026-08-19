@@ -259,8 +259,10 @@ function ServantSectionFallback() {
     <div className="h-5 w-24 bg-gray-200 rounded" />
     <div className="h-3 w-12 bg-gray-200 rounded" />
    </div>
-   <div className="flex items-center justify-center py-8">
-    <Loader2 className="h-5 w-5 animate-spin text-gold-400" />
+   <div className="space-y-3 px-5 py-6">
+    <div className="h-4 w-full bg-gray-200 rounded" />
+    <div className="h-4 w-5/6 bg-gray-200 rounded" />
+    <div className="h-4 w-2/3 bg-gray-200 rounded" />
    </div>
   </div>
  )
@@ -781,8 +783,10 @@ function MineFallback() {
    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
     {Array.from({ length: 4 }).map((_, i) => <div key={i} className="h-20 rounded-xl bg-gray-100 animate-pulse" />)}
    </div>
-   <div className="rounded-xl border border-[var(--hymn-border)] bg-[var(--hymn-surface)] h-48 flex items-center justify-center">
-    <Loader2 className="h-5 w-5 animate-spin text-gold-400" />
+   <div className="rounded-xl border border-[var(--hymn-border)] bg-[var(--hymn-surface)] h-48 p-4 space-y-3">
+    <div className="h-4 w-full bg-gray-100 rounded animate-pulse" />
+    <div className="h-4 w-5/6 bg-gray-100 rounded animate-pulse" />
+    <div className="h-4 w-2/3 bg-gray-100 rounded animate-pulse" />
    </div>
   </div>
  )
@@ -2523,7 +2527,7 @@ function ChildCard({ child, lang }: { child: any; lang: string }) {
     </div>
    )}
     <Button variant="ghost" size="sm" onClick={() => setShowMore(!showMore)}
-     className="w-full justify-center gap-1 py-4 text-[11px] font-medium text-blue-700 hover:text-blue-800 hover:bg-blue-50/30 transition-colors border-t border-gray-100 rounded-none">
+     className="w-full justify-center gap-1 py-4 text-[11px] font-medium text-blue-700 hover:text-blue-800 hover:bg-blue-50/30 transition-colors border-t border-gray-100 rounded-b-xl">
      {showMore ? (lang === 'ar' ? 'عرض أقل' : 'Show less') : (lang === 'ar' ? 'عرض المزيد' : `Show more (${secondaryTiles.length} more)`)}
      <ChevronDown className={`h-3 w-3 transition-transform ${showMore ? 'rotate-180' : ''}`} />
     </Button>

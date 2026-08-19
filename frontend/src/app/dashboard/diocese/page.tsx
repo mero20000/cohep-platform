@@ -4,9 +4,10 @@ import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import {
   Church, Users, Award, AlertTriangle, CheckCircle2, TrendingUp,
-  TrendingDown, Minus, ArrowUp, ArrowDown, Loader2, RefreshCw,
+  TrendingDown, Minus, ArrowUp, ArrowDown, RefreshCw,
   Globe, Heart, Star, BookOpen, Shield, Zap, BarChart3, Crown,
 } from 'lucide-react'
+import { CardSkeleton } from '@/components/ui/skeleton'
 import { http } from '@/lib/http-client'
 import { useLanguage } from '@/lib/use-language'
 
@@ -338,9 +339,9 @@ export default function DiocesePage() {
       </div>
 
       {loading && (
-        <div className="flex flex-col items-center justify-center py-20 gap-3">
-          <Loader2 className="h-8 w-8 animate-spin text-indigo-400" />
-          <p className="text-sm text-gray-400">{t('Gathering diocese data...', 'جمع بيانات الأبرشية...')}</p>
+        <div className="py-20">
+          <p className="text-sm text-gray-400 mb-4">{t('Gathering diocese data...', 'جمع بيانات الأبرشية...')}</p>
+          <CardSkeleton count={4} />
         </div>
       )}
 

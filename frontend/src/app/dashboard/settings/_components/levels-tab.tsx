@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Plus, Pencil, Loader2, Check, X } from 'lucide-react'
+import { TableSkeleton } from '@/components/ui/skeleton'
 import { useToast } from '@/components/ui/toast'
 import { Modal } from '@/components/ui/modal'
 import { FormField } from '@/components/ui/form-field'
@@ -117,8 +118,8 @@ export function LevelsTab() {
       </div>
 
       {loading ? (
-        <div className="flex items-center justify-center py-12">
-          <Loader2 className="h-6 w-6 animate-spin text-gold-500" />
+        <div className="px-4 py-12">
+          <TableSkeleton rows={5} cols={3} />
         </div>
       ) : levels.length === 0 ? (
         <div className="rounded-lg border border-dashed border-gray-300 p-12 text-center">

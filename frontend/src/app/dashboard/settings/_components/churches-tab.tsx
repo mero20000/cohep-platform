@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import Image from 'next/image'
 import { Button } from '@/components/ui/button'
 import { Plus, Pencil, Trash2, Church, Loader2, ImagePlus, Upload, CheckCircle2, Ban } from 'lucide-react'
+import { TableSkeleton } from '@/components/ui/skeleton'
 import { Modal } from '@/components/ui/modal'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { FormField } from '@/components/ui/form-field'
@@ -119,7 +120,7 @@ export function ChurchesTab() {
         </div>
 
         {loading ? (
-          <div className="flex items-center justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-gold-500" /></div>
+          <div className="px-4 py-12"><TableSkeleton rows={5} cols={4} /></div>
         ) : churches.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12">
             <Church className="h-10 w-10 text-gray-300" />

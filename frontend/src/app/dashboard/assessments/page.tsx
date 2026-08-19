@@ -18,7 +18,7 @@ import { FormField } from '@/components/ui/form-field'
 import { DatePicker } from '@/components/ui/date-picker'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { Pagination } from '@/components/ui/pagination'
-import { CardSkeleton } from '@/components/ui/skeleton'
+import { CardSkeleton, TableSkeleton } from '@/components/ui/skeleton'
 import { EmptyState } from '@/components/ui/empty-state'
 import { assetUrl } from '@/lib/asset-url'
 import { getSchoolId } from '@/lib/school'
@@ -1035,9 +1035,12 @@ export default function AssessmentsPage() {
                   <div className="flex items-start gap-2">
                     <span className="mt-2 text-xs font-medium text-gray-500">#{qi + 1}</span>
                     <div className="flex-1">
+                      <label className="mb-1 block text-xs font-medium text-gray-600">
+                        {lang === 'ar' ? 'نص السؤال' : 'Question text'}
+                      </label>
                       <input value={q.text} onChange={e => {
                         const questions = [...form.questions]; questions[qi].text = e.target.value; updateForm({ questions })
-                      }} placeholder={lang === 'ar' ? 'نص السؤال' : 'Question text'}
+                      }} aria-label={lang === 'ar' ? 'نص السؤال' : 'Question text'}
                         className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-blue-500" />
                     </div>
                     <Button variant="ghost" size="icon" onClick={() => updateForm({ questions: form.questions.filter((_, i) => i !== qi) })}
@@ -1046,31 +1049,52 @@ export default function AssessmentsPage() {
                     </Button>
                   </div>
                   <div className="grid grid-cols-2 gap-2 pl-6">
-                    <select value={q.type} onChange={e => {
-                      const questions = [...form.questions]; questions[qi].type = e.target.value as QuestionDraft['type']; updateForm({ questions })
-                    }}
-                      className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
-                      <option value="multiple_choice">{lang === 'ar' ? 'اختيار من متعدد' : 'Multiple Choice'}</option>
-                      <option value="true_false">{lang === 'ar' ? 'صواب / خطأ' : 'True / False'}</option>
-                      <option value="short_answer">{lang === 'ar' ? 'إجابة قصيرة' : 'Short Answer'}</option>
-                      <option value="essay">{lang === 'ar' ? 'مقال' : 'Essay'}</option>
-                    </select>
-                    <input type="number" min="1" value={q.points} onChange={e => {
-                      const questions = [...form.questions]; questions[qi].points = e.target.value; updateForm({ questions })
-                    }} placeholder={lang === 'ar' ? 'الدرجات' : 'Points'}
-                      className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-blue-500" />
+                    <div>
+                      <label className="mb-1 block text-xs font-medium text-gray-600">
+                        {lang === 'ar' ? 'النوع' : 'Type'}
+                      </label>
+                      <select value={q.type} onChange={e => {
+                        const questions = [...form.questions]; questions[qi].type = e.target.value as QuestionDraft['type']; updateForm({ questions })
+                      }}
+                        aria-label={lang === 'ar' ? 'النوع' : 'Type'}
+                        className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
+                        <option value="multiple_choice">{lang === 'ar' ? 'اختيار من متعدد' : 'Multiple Choice'}</option>
+                        <option value="true_false">{lang === 'ar' ? 'صواب / خطأ' : 'True / False'}</option>
+                        <option value="short_answer">{lang === 'ar' ? 'إجابة قصيرة' : 'Short Answer'}</option>
+                        <option value="essay">{lang === 'ar' ? 'مقال' : 'Essay'}</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-xs font-medium text-gray-600">
+                        {lang === 'ar' ? 'الدرجات' : 'Points'}
+                      </label>
+                      <input type="number" min="1" value={q.points} onChange={e => {
+                        const questions = [...form.questions]; questions[qi].points = e.target.value; updateForm({ questions })
+                      }} aria-label={lang === 'ar' ? 'الدرجات' : 'Points'}
+                        className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-blue-500" />
+                    </div>
                   </div>
                   {q.type === 'multiple_choice' && (
-                    <textarea value={q.options} onChange={e => {
-                      const questions = [...form.questions]; questions[qi].options = e.target.value; updateForm({ questions })
-                    }} placeholder={lang === 'ar' ? 'الخيارات (واحد لكل سطر)' : 'Options (one per line)'}
-                      rows={3}
-                      className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-blue-500 pl-6" />
+                    <div>
+                      <label className="mb-1 block text-xs font-medium text-gray-600">
+                        {lang === 'ar' ? 'الخيارات (واحد لكل سطر)' : 'Options (one per line)'}
+                      </label>
+                      <textarea value={q.options} onChange={e => {
+                        const questions = [...form.questions]; questions[qi].options = e.target.value; updateForm({ questions })
+                      }} aria-label={lang === 'ar' ? 'الخيارات (واحد لكل سطر)' : 'Options (one per line)'}
+                        rows={3}
+                        className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-blue-500 pl-6" />
+                    </div>
                   )}
-                  <input value={q.correctAnswer} onChange={e => {
-                    const questions = [...form.questions]; questions[qi].correctAnswer = e.target.value; updateForm({ questions })
-                  }} placeholder={q.type === 'true_false' ? (lang === 'ar' ? 'صواب / خطأ' : 'true / false') : (lang === 'ar' ? 'الإجابة الصحيحة' : 'Correct answer')}
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-blue-500 pl-6" />
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-gray-600">
+                      {q.type === 'true_false' ? (lang === 'ar' ? 'الإجابة الصحيحة (صواب / خطأ)' : 'Correct answer (true / false)') : (lang === 'ar' ? 'الإجابة الصحيحة' : 'Correct answer')}
+                    </label>
+                    <input value={q.correctAnswer} onChange={e => {
+                      const questions = [...form.questions]; questions[qi].correctAnswer = e.target.value; updateForm({ questions })
+                    }} aria-label={lang === 'ar' ? 'الإجابة الصحيحة' : 'Correct answer'}
+                      className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-blue-500 pl-6" />
+                  </div>
                 </div>
               ))}
             </div>
@@ -1142,8 +1166,8 @@ export default function AssessmentsPage() {
               </div>
 
               {studentsLoading ? (
-                <div className="flex items-center justify-center py-10">
-                  <Loader2 className="h-6 w-6 animate-spin text-gold-500" />
+                <div className="py-4">
+                  <TableSkeleton rows={5} cols={4} />
                 </div>
               ) : visibleStudents.length === 0 ? (
                 <p className="py-10 text-center text-sm text-gray-500">{lang === 'ar' ? 'لم يتم العثور على طلاب لهذا المستوى/المجموعة.' : 'No students found for this level/group.'}</p>

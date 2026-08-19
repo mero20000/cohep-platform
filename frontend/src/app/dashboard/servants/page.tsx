@@ -8,6 +8,7 @@ import {
 } from 'lucide-react'
 import { StatCard } from '@/components/ui/stat-card'
 import { EmptyState } from '@/components/ui/empty-state'
+import { TableSkeleton } from '@/components/ui/skeleton'
 import { useToast } from '@/components/ui/toast'
 import { Button } from '@/components/ui/button'
 import { Modal } from '@/components/ui/modal'
@@ -742,8 +743,8 @@ export default function ServantsPage() {
 
         {/* Table */}
         {loading ? (
-          <div className="flex items-center justify-center py-12">
-            <Loader2 className="h-6 w-6 animate-spin text-gold-500" />
+          <div className="py-6">
+            <TableSkeleton rows={6} cols={5} />
           </div>
         ) : filteredServants.length === 0 ? (
           <EmptyState

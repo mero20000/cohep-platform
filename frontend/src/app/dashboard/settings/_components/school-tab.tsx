@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import Image from 'next/image'
 import { Button } from '@/components/ui/button'
 import { Plus, Pencil, Building2, Loader2, ImagePlus, Upload, Trash2, CheckCircle2, Ban } from 'lucide-react'
+import { TableSkeleton } from '@/components/ui/skeleton'
 import { Modal } from '@/components/ui/modal'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { FormField } from '@/components/ui/form-field'
@@ -129,7 +130,7 @@ export function SchoolTab() {
         </div>
 
         {loading ? (
-          <div className="flex items-center justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-gold-500" /></div>
+          <div className="px-4 py-12"><TableSkeleton rows={5} cols={4} /></div>
         ) : schools.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12">
             <Building2 className="h-10 w-10 text-gray-300" />

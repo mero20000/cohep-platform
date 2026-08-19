@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { Button } from '@/components/ui/button'
 import { Plus, Pencil, Trash2, Loader2, GraduationCap, Search, X } from 'lucide-react'
+import { TableSkeleton } from '@/components/ui/skeleton'
 import { Modal } from '@/components/ui/modal'
 import { FormField } from '@/components/ui/form-field'
 import { Badge } from '@/components/ui/badge'
@@ -194,8 +195,8 @@ export function GradesTab() {
 
   if (loading) {
     return (
-      <div className="rounded-xl border border-gray-200 bg-white flex items-center justify-center py-16">
-        <Loader2 className="h-6 w-6 animate-spin text-gold-500" />
+      <div className="rounded-xl border border-gray-200 bg-white px-4 py-16">
+        <TableSkeleton rows={6} cols={4} />
       </div>
     )
   }

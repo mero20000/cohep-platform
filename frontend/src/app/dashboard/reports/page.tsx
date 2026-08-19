@@ -5,7 +5,7 @@ import Link from 'next/link'
 import {
   BarChart3, TrendingUp, TrendingDown, Users, AlertTriangle,
   CheckCircle2, Star, Heart, Calendar, Award, Flame, BookOpen,
-  ArrowUp, ArrowDown, Minus, Loader2, RefreshCw, ChevronRight,
+  ArrowUp, ArrowDown, Minus, RefreshCw, ChevronRight,
   Church, Shield, Zap, Crown, Cross, Music,
 } from 'lucide-react'
 import { http } from '@/lib/http-client'

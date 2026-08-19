@@ -6,6 +6,7 @@ import { useToast } from '@/components/ui/toast'
 import { http } from '@/lib/http-client'
 import { Loader2, Mail, Building2, MapPin, Phone, User, ArrowLeft, Pencil, XCircle, CheckCircle2, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { TableSkeleton } from '@/components/ui/skeleton'
 import Link from 'next/link'
 import { Tabs } from '@/components/ui/tabs'
 import { Modal } from '@/components/ui/modal'
@@ -140,9 +141,7 @@ export default function PendingRegistrationsPage() {
       />
 
       {loading && (
-        <div className="flex items-center justify-center py-20">
-          <Loader2 className="h-8 w-8 animate-spin text-gold-500" />
-        </div>
+        <div className="px-4 py-20"><TableSkeleton rows={5} cols={3} /></div>
       )}
 
       {error && (

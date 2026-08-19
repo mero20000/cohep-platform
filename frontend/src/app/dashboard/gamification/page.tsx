@@ -19,7 +19,7 @@ import { Modal } from '@/components/ui/modal'
 import { FormField } from '@/components/ui/form-field'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { EmptyState } from '@/components/ui/empty-state'
-import { CardSkeleton } from '@/components/ui/skeleton'
+import { CardSkeleton, TableSkeleton, Skeleton } from '@/components/ui/skeleton'
 import { getSchoolId } from '@/lib/school'
 import { http } from '@/lib/http-client'
 
@@ -153,7 +153,7 @@ function GrowthMirrorPanel({ entry, lang }: { entry: LeaderboardEntry; lang: str
       .catch(() => setLoading(false))
   }, [entry.id])
 
-  if (loading) return <div className="flex justify-center py-8"><Loader2 className="h-5 w-5 animate-spin text-gold-500" /></div>
+  if (loading) return <div className="py-8 space-y-3"><Skeleton className="h-4 w-40" /><Skeleton className="h-4 w-52" /><Skeleton className="h-24 w-full" /></div>
   if (!data) return <p className="text-sm text-gray-500 text-center py-4">{lang === 'ar' ? 'لا توجد بيانات' : 'No data available'}</p>
 
   const maxMonthlyXp = Math.max(...data.monthlyXp.map(m => m.xp), 1)
@@ -279,7 +279,7 @@ function SeasonalBadgePanel({ lang, schoolId, onToast }: { lang: string; schoolI
     setCreating(false)
   }
 
-  if (loading) return <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-gold-500" /></div>
+  if (loading) return <div className="py-12"><CardSkeleton count={4} /></div>
 
   if (!data?.activeSeason) {
     return (
@@ -401,7 +401,7 @@ function GroupTrophyPanel({ lang, schoolId }: { lang: string; schoolId: string }
 
       {/* Group selector */}
       {loadingGroups ? (
-        <div className="flex justify-center py-6"><Loader2 className="h-5 w-5 animate-spin text-gold-500" /></div>
+        <div className="flex flex-wrap gap-2 py-6"><Skeleton className="h-9 w-24" /><Skeleton className="h-9 w-32" /><Skeleton className="h-9 w-20" /></div>
       ) : groups.length === 0 ? (
         <EmptyState icon={Users} title={lang === 'ar' ? 'لا توجد مجموعات' : 'No groups found'} description={lang === 'ar' ? 'أنشئ مجموعات في قسم الطلاب أولاً' : 'Create groups in the Students section first'} />
       ) : (
@@ -419,7 +419,7 @@ function GroupTrophyPanel({ lang, schoolId }: { lang: string; schoolId: string }
       )}
 
       {/* Trophy display */}
-      {loading && <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-gold-500" /></div>}
+      {loading && <div className="py-8 space-y-3"><Skeleton className="h-6 w-56" /><Skeleton className="h-28 w-full" /><Skeleton className="h-4 w-full" /><Skeleton className="h-4 w-3/4" /></div>}
 
       {trophy && !loading && (
         <div className="space-y-4">
@@ -543,7 +543,7 @@ function ServantRecognitionPanel({ lang, schoolId }: { lang: string; schoolId: s
       </div>
 
       {loadingServants ? (
-        <div className="flex justify-center py-6"><Loader2 className="h-5 w-5 animate-spin text-gold-500" /></div>
+        <div className="flex flex-wrap gap-2 py-6"><Skeleton className="h-9 w-24" /><Skeleton className="h-9 w-32" /><Skeleton className="h-9 w-20" /></div>
       ) : servants.length === 0 ? (
         <EmptyState icon={UserCheck} title={lang === 'ar' ? 'لا يوجد خدام' : 'No servants found'} description="" />
       ) : (
@@ -560,7 +560,7 @@ function ServantRecognitionPanel({ lang, schoolId }: { lang: string; schoolId: s
         </div>
       )}
 
-      {loading && <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-gold-500" /></div>}
+      {loading && <div className="py-8 space-y-3"><Skeleton className="h-6 w-56" /><Skeleton className="h-28 w-full" /><Skeleton className="h-4 w-full" /><Skeleton className="h-4 w-3/4" /></div>}
 
       {data && !loading && (
         <div className="space-y-4">
@@ -871,7 +871,7 @@ export default function GamificationPage() {
                   />
                 </div>
                 {leaderboardLoading ? (
-                  <div className="flex justify-center py-8"><Loader2 className="h-5 w-5 animate-spin text-gold-500" /></div>
+                  <div className="px-4 py-8"><TableSkeleton rows={6} cols={3} /></div>
                 ) : (
                   <div className="max-h-[460px] overflow-y-auto divide-y divide-gray-50">
                     {filteredLeaderboard.map(s => (
@@ -1036,7 +1036,7 @@ export default function GamificationPage() {
       <Modal open={!!drillDownStudent} onClose={() => setDrillDownStudent(null)} size="lg"
         title={drillDownStudent ? `${drillDownStudent.firstName} ${drillDownStudent.lastName}` : ''}
         description={drillDownStudent ? `${drillDownStudent.xp.toLocaleString()} XP · Level ${drillDownStudent.level} · ${drillDownStudent.badgeCount} ${t('badges', 'شارات')}` : ''}>
-        {transactionsLoading ? <div className="flex justify-center py-10"><Loader2 className="h-6 w-6 animate-spin text-gold-500" /></div>
+        {transactionsLoading ? <div className="py-10"><TableSkeleton rows={5} cols={3} /></div>
           : transactions.length === 0 ? <p className="py-10 text-center text-sm text-gray-500">{t('No XP transactions found.', 'لا توجد معاملات نقاط خبرة.')}</p>
           : <div className="max-h-[55vh] overflow-y-auto divide-y divide-gray-100">
               {transactions.map((tx: any) => (

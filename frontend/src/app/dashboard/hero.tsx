@@ -38,7 +38,7 @@ export default function DashboardHero({
   const curveY = useSpring(useTransform(scrollY, [0, 400], [0, reduce ? 0 : -6]), springConfig)
 
   return (
-    <div className="relative overflow-hidden rounded-b-[2rem] p-6 sm:p-8" style={{ backgroundColor: bg }}>
+    <div className="relative overflow-hidden rounded-b-2xl p-6 sm:p-8" style={{ backgroundColor: bg }}>
       <motion.div className="absolute -top-6 left-1/2 -translate-x-1/2 w-[120%] h-12 rounded-[50%] bg-blue-500/5" style={{ y: curveY }} />
       <motion.div className="absolute top-0 left-1/4 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl" style={{ y: orb1Y }} />
       <motion.div className={`absolute bottom-0 right-1/4 w-48 h-48 ${orbTint} rounded-full blur-3xl`} style={{ y: orb2Y }} />

@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import { Plus, Pencil, Trash2, Loader2, X, Search, Presentation, Download, Upload, Check, Power, PowerOff, Play } from 'lucide-react'
+import { TableSkeleton } from '@/components/ui/skeleton'
 import { useToast } from '@/components/ui/toast'
 import { Modal } from '@/components/ui/modal'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
@@ -405,7 +406,7 @@ export function SubjectsTab() {
           </Button>
         </div>
         {loading ? (
-          <div className="flex items-center justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-gold-500" /></div>
+          <div className="px-4 py-12"><TableSkeleton rows={5} cols={4} /></div>
         ) : subjects.length === 0 ? (
           <div className="px-6 py-8 text-center text-sm text-gray-500">{lang === 'ar' ? 'لا توجد مواد بعد.' : 'No subjects yet.'}</div>
         ) : (
@@ -524,7 +525,7 @@ export function SubjectsTab() {
 
           {/* Items Table */}
           {loadingItems ? (
-            <div className="flex items-center justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-gold-500" /></div>
+            <div className="px-4 py-8"><TableSkeleton rows={5} cols={3} /></div>
           ) : filteredItems.length === 0 ? (
             <div className="py-8 text-center text-sm text-gray-500">{items.length === 0 ? (lang === 'ar' ? 'لا توجد عناصر بعد.' : 'No items yet.') : (lang === 'ar' ? 'لا توجد عناصر تطابق الفلاتر.' : 'No items match filters.')}</div>
           ) : (

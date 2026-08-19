@@ -19,6 +19,7 @@ import { QrScanner } from '@/components/qr/qr-scanner'
 import { http } from '@/lib/http-client'
 import { getSchoolId } from '@/lib/school'
 import { track } from '@/lib/analytics'
+import { TableSkeleton } from '@/components/ui/skeleton'
 
 interface Session {
   id: string; scheduledDate: string; scheduledTime?: string; status: string; notes?: string;
@@ -405,7 +406,7 @@ export function AttendanceClient() {
   const totalStudents = safeRecords.length
 
   if (loading && !sessions.length) {
-    return <div className="flex items-center justify-center h-96"><Loader2 className="h-8 w-8 animate-spin text-gold-500" /></div>
+    return <div className="h-96 px-4 py-6"><TableSkeleton rows={6} cols={4} /></div>
   }
 
   return (

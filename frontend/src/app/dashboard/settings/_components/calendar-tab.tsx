@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Plus, Pencil, Trash2, Loader2, ChevronDown, ChevronRight, AlertTriangle, CalendarPlus } from 'lucide-react'
+import { TableSkeleton } from '@/components/ui/skeleton'
 import { Modal } from '@/components/ui/modal'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { FormField } from '@/components/ui/form-field'
@@ -358,7 +359,7 @@ export function CalendarTab() {
           </div>
 
           {loadingWeeks ? (
-            <div className="flex items-center justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-gold-500" /></div>
+            <div className="px-4 py-12"><TableSkeleton rows={5} cols={4} /></div>
           ) : weeks.length === 0 ? (
             <div className="px-6 py-8 text-center text-sm text-gray-400">{lang === 'ar' ? 'لا توجد أسابيع لهذه السنة.' : 'No weeks for this year.'}</div>
           ) : (
@@ -530,7 +531,7 @@ export function CalendarTab() {
             </Button>
           </div>
           {loadingEvents ? (
-            <div className="flex items-center justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-gold-500" /></div>
+            <div className="px-4 py-12"><TableSkeleton rows={5} cols={4} /></div>
           ) : events.length === 0 ? (
             <div className="px-6 py-8 text-center text-sm text-gray-400">{lang === 'ar' ? 'لم تتم إضافة أيام إضافية بعد.' : 'No additional days added yet.'}</div>
           ) : (

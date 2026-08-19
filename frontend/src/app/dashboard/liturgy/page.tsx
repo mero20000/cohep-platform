@@ -3,7 +3,8 @@
 import { useState, useEffect, useCallback } from 'react'
 import { http } from '@/lib/http-client'
 import { useLanguage } from '@/lib/use-language'
-import { Church, CheckCircle, XCircle, Loader2 } from 'lucide-react'
+import { Church, CheckCircle, XCircle } from 'lucide-react'
+import { TableSkeleton } from '@/components/ui/skeleton'
 
 interface PendingLiturgy {
   id: string
@@ -68,7 +69,7 @@ export default function LiturgyVerificationPage() {
       )}
 
       {loading ? (
-        <div className="flex justify-center py-12"><Loader2 className="w-8 h-8 animate-spin text-gray-400" /></div>
+        <div className="px-4 py-12"><TableSkeleton rows={5} cols={3} /></div>
       ) : records.length === 0 ? (
         <div className="text-center py-12 text-gray-500">{t('No pending liturgy verifications', 'لا توجد طلبات تحقق معلقة')}</div>
       ) : (
