@@ -64,6 +64,16 @@ export class DashboardController {
     return this.service.getPracticeStats(user, schoolId);
   }
 
+  @Get('class-overview')
+  @Roles(...STAFF_ROLES)
+  @ApiOperation({ summary: 'Get servant class at-a-glance — roster, likely absent, follow-up, today lesson' })
+  async getClassOverview(
+    @CurrentUser() user: any,
+    @Query('schoolId') schoolId: string = '',
+  ) {
+    return this.service.getClassOverview(user, schoolId);
+  }
+
   @Post('absence-cascade')
   @Roles('admin', 'principal', 'super_admin')
   @ApiOperation({ summary: 'Run absence cascade — notify parents and servants of students with 3+ consecutive absences' })

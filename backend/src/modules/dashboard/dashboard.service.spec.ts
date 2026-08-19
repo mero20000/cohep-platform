@@ -13,11 +13,14 @@ describe('DashboardService', () => {
   const prismaMock = {
     school: { findUnique: jest.fn() },
     user: { findUnique: jest.fn() },
-    attendanceSession: { findMany: jest.fn(), count: jest.fn() },
+    attendanceSession: { findMany: jest.fn(), findFirst: jest.fn(), count: jest.fn() },
     attendanceRecord: { findMany: jest.fn() },
     group: { findMany: jest.fn(), findUnique: jest.fn() },
     student: { count: jest.fn(), findMany: jest.fn() },
     grade: { findMany: jest.fn() },
+    curriculumAllocation: { findFirst: jest.fn() },
+    lessonProgress: { findMany: jest.fn() },
+    assessmentSubmission: { findMany: jest.fn() },
   };
 
   beforeEach(async () => {
@@ -123,6 +126,80 @@ describe('DashboardService', () => {
       prisma.student.findMany.mockResolvedValue([]);
       const result = await (service as any).resolveServantClass('user-1', schoolId);
       expect(result.studentIds).toEqual([]);
+    });
+  });
+
+  describe('getClassOverview', () => {
+    function baseline() {
+      (prisma.attendanceSession.findMany as jest.Mock).mockResolvedValue([{ groupId: 'g1', levelId: 'l1' }]);
+      (prisma.student.findMany as jest.Mock).mockResolvedValue([
+        { id: 's1', firstName: 'Mina', lastName: 'A', firstNameAr: null, lastNameAr: null, photoUrl: null },
+        { id: 's2', firstName: 'John', lastName: 'B', firstNameAr: null, lastNameAr: null, photoUrl: null },
+      ]);
+      (prisma.attendanceSession.findFirst as jest.Mock).mockResolvedValue({
+        id: 'n1', scheduledDate: new Date('2026-08-23T00:00:00Z'), levelId: 'l1',
+        level: { id: 'l1', name: 'Level 3', number: 3 }, group: { id: 'g1', name: 'Group A' },
+      });
+      (prisma.curriculumAllocation.findFirst as jest.Mock).mockResolvedValue({
+        lessonId: 'les1', scheduledDate: new Date(),
+        lesson: { id: 'les1', title: 'Kyrie', titleAr: null, titleCoptic: 'ⲕⲩⲣⲓⲉ' },
+        level: { id: 'l1', name: 'Level 3', number: 3 },
+        subject: { name: 'Tasbeha' },
+      });
+      (prisma.attendanceRecord.findMany as jest.Mock).mockResolvedValue([
+        { studentId: 's1', status: 'present', recordedAt: new Date(), note: null, noteCategory: null, isPrivateNote: false },
+        { studentId: 's2', status: 'present', recordedAt: new Date(), note: null, noteCategory: null, isPrivateNote: false },
+      ]);
+      (prisma.lessonProgress.findMany as jest.Mock)
+        .mockResolvedValueOnce([{ studentId: 's1', masteryStatus: 'known' }]) // for today lesson
+        .mockResolvedValue([]); // overdue review scan
+      (prisma.assessmentSubmission.findMany as jest.Mock).mockResolvedValue([]);
+    }
+
+    it('returns roster with today lesson and null flags when attendance is strong', async () => {
+      baseline();
+      const result = await service.getClassOverview(user, schoolId);
+      expect(result.todayLesson.title).toBe('Kyrie');
+      expect(result.nextSession.groupName).toBe('Group A');
+      expect(result.roster).toHaveLength(2);
+      expect(result.roster.every((r: any) => r.likelyAbsent === false)).toBe(true);
+      expect(result.roster.every((r: any) => r.needsFollowUp === false)).toBe(true);
+    });
+
+    it('flags likelyAbsent when attendance rate is below 60%', async () => {
+      baseline();
+      (prisma.attendanceRecord.findMany as jest.Mock).mockResolvedValue(
+        Array.from({ length: 5 }, (_, i) => ({
+          studentId: 's1', status: i % 2 === 0 ? 'absent' : 'present',
+          recordedAt: new Date(), note: null, noteCategory: null, isPrivateNote: false,
+        })),
+      );
+      const result = await service.getClassOverview(user, schoolId);
+      const mina = result.roster.find((r: any) => r.studentId === 's1');
+      expect(mina.likelyAbsent).toBe(true);
+    });
+
+    it('collects follow-up reason tokens', async () => {
+      baseline();
+      (prisma.lessonProgress.findMany as jest.Mock)
+        .mockReset()
+        .mockResolvedValueOnce([{ studentId: 's1', masteryStatus: 'not_started' }]) // low mastery
+        .mockResolvedValueOnce([{ studentId: 's1' }]); // overdue review
+      (prisma.assessmentSubmission.findMany as jest.Mock).mockResolvedValue([{ studentId: 's1' }]); // ungraded
+      const result = await service.getClassOverview(user, schoolId);
+      const mina = result.roster.find((r: any) => r.studentId === 's1');
+      expect(mina.followUpReasons).toEqual(expect.arrayContaining(['low_mastery', 'overdue_review', 'ungraded_assessment']));
+      expect(mina.needsFollowUp).toBe(true);
+    });
+
+    it('returns empty roster and null today lesson when servant has no students', async () => {
+      (prisma.attendanceSession.findMany as jest.Mock).mockResolvedValue([]);
+      (prisma.attendanceSession.findFirst as jest.Mock).mockResolvedValue(null);
+      (prisma.curriculumAllocation.findFirst as jest.Mock).mockResolvedValue(null);
+      const result = await service.getClassOverview(user, schoolId);
+      expect(result.roster).toEqual([]);
+      expect(result.todayLesson).toBeNull();
+      expect(result.nextSession).toBeNull();
     });
   });
 });
