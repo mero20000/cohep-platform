@@ -17,8 +17,8 @@ function CrossIllustration({ className = '' }: { className?: string }) {
       {/* Soft gold glow */}
       <circle cx="60" cy="55" r="45" fill="url(#emptyGlow)" opacity="0.15" />
       {/* Decorative circles */}
-      <circle cx="60" cy="55" r="35" stroke="#D4A843" strokeWidth="0.5" opacity="0.2" />
-      <circle cx="60" cy="55" r="25" stroke="#D4A843" strokeWidth="0.5" opacity="0.15" />
+      <circle cx="60" cy="55" r="35" stroke="#D4A843" strokeWidth="1" opacity="0.2" />
+      <circle cx="60" cy="55" r="25" stroke="#D4A843" strokeWidth="1" opacity="0.15" />
       {/* Cross */}
       <rect x="55" y="25" width="10" height="60" rx="2" fill="#D4A843" opacity="0.25" />
       <rect x="38" y="42" width="44" height="10" rx="2" fill="#D4A843" opacity="0.25" />

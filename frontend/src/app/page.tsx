@@ -913,7 +913,7 @@ export default function Home() {
               </p>
 
               <h1
-                className="reveal text-5xl sm:text-6xl lg:text-7xl font-bold tracking-tight text-white leading-[1.08] mb-6"
+                className="reveal text-5xl sm:text-6xl lg:text-6xl font-bold tracking-tight text-white leading-[1.08] mb-6"
                 data-variant="up"
                 style={{ whiteSpace: 'pre-line', transitionDelay: '0.15s' }}
               >
@@ -930,7 +930,7 @@ export default function Home() {
               </div>
 
               <p
-                className="reveal text-base sm:text-lg text-gray-400 leading-relaxed max-w-2xl mx-auto mb-9"
+                className="reveal text-base sm:text-lg text-gray-400 leading-relaxed max-w-2xl mx-auto mb-7"
                 data-variant="up"
                 style={{ transitionDelay: '0.45s' }}
               >
