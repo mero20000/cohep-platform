@@ -572,7 +572,7 @@ export class AuthService {
 
 
   async loginDemo() {
-    const demoEmail = 'admin@niangelos.app'
+    const demoEmail = 'demo@niangelos.app'
     const demoSchoolSlug = 'niangelos-main'
 
     // Resolve school from slug
@@ -582,10 +582,44 @@ export class AuthService {
     })
     if (!school) throw new NotFoundException('Demo school not found')
 
-    const user = await this.prisma.user.findFirst({
+    // Ensure an active demo user exists. A dedicated demo account is used rather
+    // than the legacy admin@niangelos.app, which the seed deliberately deactivates
+    // for security. Creating/reactivating here keeps the demo working across daily
+    // data resets without re-running the seed.
+    let user: any = await this.prisma.user.findFirst({
       where: { email: demoEmail, schoolId: school.id, deletedAt: null },
     })
-    if (!user) throw new NotFoundException('Demo user not found')
+
+    if (!user) {
+      const passwordHash = await bcrypt.hash(uuid(), 12)
+      user = await this.prisma.user.create({
+        data: {
+          schoolId: school.id,
+          email: demoEmail,
+          passwordHash,
+          firstName: 'Demo',
+          lastName: 'Admin',
+          isActive: true,
+          emailVerifiedAt: new Date(),
+        },
+      })
+    } else if (!user.isActive) {
+      user = await this.prisma.user.update({
+        where: { id: user.id },
+        data: { isActive: true, deletedAt: null },
+      })
+    }
+
+    const superAdminRole = await this.prisma.role.findUnique({
+      where: { name: 'super_admin' },
+    })
+    if (superAdminRole) {
+      await this.prisma.userRole.upsert({
+        where: { userId_roleId: { userId: user.id, roleId: superAdminRole.id } },
+        update: {},
+        create: { userId: user.id, roleId: superAdminRole.id },
+      })
+    }
 
     const userRoles = await this.prisma.userRole.findMany({
       where: { userId: user.id },
