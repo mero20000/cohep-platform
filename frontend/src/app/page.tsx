@@ -1053,7 +1053,7 @@ export default function Home() {
         </section>
 
         {/* ── PLATFORM PREVIEW ──────────────────────────────────────────── */}
-        <section id="platform-preview" aria-labelledby="preview-heading" className="py-20 sm:py-28 bg-gray-50 overflow-hidden">
+        <section id="platform-preview" aria-labelledby="preview-heading" className="py-20 sm:py-28 bg-gray-100 overflow-hidden">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <FadeIn className="mx-auto max-w-2xl text-center mb-12" variant="up">
               <Eyebrow>{isAr ? 'نظرة على المنصة' : 'Platform Preview'}</Eyebrow>
@@ -1151,7 +1151,7 @@ export default function Home() {
         </section>
 
         {/* ── HOW IT WORKS ──────────────────────────────────────────────── */}
-        <section aria-labelledby="how-heading" className="py-20 sm:py-28 bg-gray-50">
+        <section aria-labelledby="how-heading" className="py-20 sm:py-28 bg-gray-100">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <FadeIn className="mx-auto max-w-2xl text-center mb-16" variant="up">
               <h2 id="how-heading" className="text-3xl sm:text-4xl font-bold tracking-tight text-gray-900">{t.howItWorks.headline}</h2>
@@ -1187,13 +1187,15 @@ export default function Home() {
               <h2 id="oss-heading" className="text-3xl sm:text-4xl font-bold tracking-tight text-white">{t.openSource.headline}</h2>
               <p className="mt-3 text-base text-gray-400">{t.openSource.sub}</p>
             </FadeIn>
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 max-w-5xl mx-auto mb-10">
+            <div className="grid gap-4 sm:grid-cols-2 max-w-5xl mx-auto mb-10">
               {t.openSource.items.map((item, i) => (
                 <FadeIn key={item.title} delay={i * 0.06} className="h-full">
-                  <div className="rounded-xl border border-gray-700 bg-gray-800/60 p-5 transition-all hover:bg-gray-800 hover:border-gold-500/30 h-full flex flex-col">
-                    <item.icon className="h-6 w-6 text-gold-400 mb-3" />
-                    <h3 className="text-sm font-bold text-white">{item.title}</h3>
-                    <p className="mt-1 text-xs text-gray-400 leading-relaxed">{item.desc}</p>
+                  <div className="rounded-xl border border-gray-700 bg-gray-800/60 p-5 transition-all hover:bg-gray-800 hover:border-gold-500/30 h-full flex items-start gap-4">
+                    <item.icon className="h-6 w-6 text-gold-400 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <h3 className="text-sm font-bold text-white">{item.title}</h3>
+                      <p className="mt-1 text-xs text-gray-400 leading-relaxed">{item.desc}</p>
+                    </div>
                   </div>
                 </FadeIn>
               ))}
@@ -1214,7 +1216,7 @@ export default function Home() {
         </section>
 
         {/* ── FEATURES ──────────────────────────────────────────────────── */}
-        <section id="features" aria-labelledby="features-heading" className="py-20 sm:py-28 bg-gray-50">
+        <section id="features" aria-labelledby="features-heading" className="py-20 sm:py-28 bg-gray-100">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <FadeIn className="mx-auto max-w-2xl text-center mb-12" variant="up">
               <h2 id="features-heading" className="text-3xl sm:text-4xl font-bold tracking-tight text-gray-900">{t.features.headline}</h2>
@@ -1308,14 +1310,6 @@ export default function Home() {
                 >
                   {t.cta.btn1} <ArrowRight className="h-4 w-4 rtl-flip" />
                 </motion.a>
-                <motion.button
-                  onClick={() => { const el = document.getElementById('platform-preview'); if (el) requestAnimationFrame(() => el.scrollIntoView({ behavior: 'smooth', block: 'start' })) }}
-                  whileHover={reduce ? {} : { scale: 1.02 }}
-                  whileTap={reduce ? {} : { scale: 0.98 }}
-                  className={ctaSecondaryClass}
-                >
-                  {t.cta.btn2}
-                </motion.button>
                 <a
                   href="https://github.com/mero20000/cohep-platform"
                   target="_blank"

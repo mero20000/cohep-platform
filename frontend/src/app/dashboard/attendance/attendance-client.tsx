@@ -20,6 +20,7 @@ import { http } from '@/lib/http-client'
 import { getSchoolId } from '@/lib/school'
 import { track } from '@/lib/analytics'
 import { TableSkeleton } from '@/components/ui/skeleton'
+import { EmptyState } from '@/components/ui/empty-state'
 
 interface Session {
   id: string; scheduledDate: string; scheduledTime?: string; status: string; notes?: string;
@@ -926,7 +927,7 @@ export function AttendanceClient() {
             </div>
           )}
           {studentResults.length === 0 && searchQuery && !searching && (
-            <div className="py-12 text-center text-gray-500"><p>{lang === 'ar' ? `لا توجد نتائج مطابقة "${searchQuery}"` : `No students found matching "${searchQuery}"`}</p></div>
+            <EmptyState size="sm" title={lang === 'ar' ? `لا توجد نتائج مطابقة "${searchQuery}"` : `No students found matching "${searchQuery}"`} />
           )}
         </div>
       )}

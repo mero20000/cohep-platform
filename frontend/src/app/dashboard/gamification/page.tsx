@@ -154,7 +154,7 @@ function GrowthMirrorPanel({ entry, lang }: { entry: LeaderboardEntry; lang: str
   }, [entry.id])
 
   if (loading) return <div className="py-8 space-y-3"><Skeleton className="h-4 w-40" /><Skeleton className="h-4 w-52" /><Skeleton className="h-24 w-full" /></div>
-  if (!data) return <p className="text-sm text-gray-500 text-center py-4">{lang === 'ar' ? 'لا توجد بيانات' : 'No data available'}</p>
+  if (!data) return <EmptyState size="sm" title={lang === 'ar' ? 'لا توجد بيانات' : 'No data available'} />
 
   const maxMonthlyXp = Math.max(...data.monthlyXp.map(m => m.xp), 1)
 
@@ -891,7 +891,7 @@ export default function GamificationPage() {
                       </button>
                     ))}
                     {filteredLeaderboard.length === 0 && (
-                      <p className="text-center text-sm text-gray-500 py-8">{t('No students yet', 'لا يوجد طلاب بعد')}</p>
+                      <EmptyState size="sm" title={t('No students yet', 'لا يوجد طلاب بعد')} />
                     )}
                   </div>
                 )}

@@ -4,6 +4,7 @@ import { useState, useMemo, useEffect } from 'react'
 import { Play, BookOpen, Languages, CheckCircle2, Circle, Clock, CalendarCheck, BarChart3, Filter, Eye, EyeOff } from 'lucide-react'
 import { useLanguage } from '@/lib/use-language'
 import { useToast } from '@/components/ui/toast'
+import { EmptyState } from '@/components/ui/empty-state'
 import { PresentationViewer } from './presentation-viewer'
 import { API, normalizeItemStatus } from './constants'
 import { useUpdateItemStatusMutation } from './hooks'
@@ -323,10 +324,7 @@ export function TeachingView({ items, subjects, levels, lessons = [], allocation
       })}
 
       {Object.keys(filteredSubjects).length === 0 && (
-        <div className="text-center py-16 text-gray-500">
-          <BookOpen className="h-10 w-10 mx-auto mb-3 opacity-50" />
-          <p>{lang === 'ar' ? 'لا توجد عناصر لهذا المستوى' : 'No items found for this level'}</p>
-        </div>
+        <EmptyState title={lang === 'ar' ? 'لا توجد عناصر لهذا المستوى' : 'No items found for this level'} />
       )}
     </div>
   )

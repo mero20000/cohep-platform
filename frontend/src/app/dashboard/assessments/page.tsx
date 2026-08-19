@@ -1170,7 +1170,7 @@ export default function AssessmentsPage() {
                   <TableSkeleton rows={5} cols={4} />
                 </div>
               ) : visibleStudents.length === 0 ? (
-                <p className="py-10 text-center text-sm text-gray-500">{lang === 'ar' ? 'لم يتم العثور على طلاب لهذا المستوى/المجموعة.' : 'No students found for this level/group.'}</p>
+                <EmptyState size="sm" title={lang === 'ar' ? 'لم يتم العثور على طلاب لهذا المستوى/المجموعة.' : 'No students found for this level/group.'} />
               ) : (
                 <div className="max-h-[50vh] overflow-y-auto divide-y divide-gray-100">
                   {visibleStudents.map(r => (

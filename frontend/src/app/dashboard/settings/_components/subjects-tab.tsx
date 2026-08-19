@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import { Plus, Pencil, Trash2, Loader2, X, Search, Presentation, Download, Upload, Check, Power, PowerOff, Play } from 'lucide-react'
 import { TableSkeleton } from '@/components/ui/skeleton'
+import { EmptyState } from '@/components/ui/empty-state'
 import { useToast } from '@/components/ui/toast'
 import { Modal } from '@/components/ui/modal'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
@@ -527,7 +528,7 @@ export function SubjectsTab() {
           {loadingItems ? (
             <div className="px-4 py-8"><TableSkeleton rows={5} cols={3} /></div>
           ) : filteredItems.length === 0 ? (
-            <div className="py-8 text-center text-sm text-gray-500">{items.length === 0 ? (lang === 'ar' ? 'لا توجد عناصر بعد.' : 'No items yet.') : (lang === 'ar' ? 'لا توجد عناصر تطابق الفلاتر.' : 'No items match filters.')}</div>
+            <EmptyState size="sm" title={items.length === 0 ? (lang === 'ar' ? 'لا توجد عناصر بعد.' : 'No items yet.') : (lang === 'ar' ? 'لا توجد عناصر تطابق الفلاتر.' : 'No items match filters.')} />
           ) : (
             <div className="overflow-x-auto table-to-cards">
               <table className="min-w-full text-xs">

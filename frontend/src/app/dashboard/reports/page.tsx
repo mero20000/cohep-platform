@@ -11,6 +11,7 @@ import {
 import { http } from '@/lib/http-client'
 import { useLanguage } from '@/lib/use-language'
 import { getSchoolId } from '@/lib/school'
+import { EmptyState } from '@/components/ui/empty-state'
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -402,10 +403,7 @@ function ServantContributionsSection({ schoolId, lang }: { schoolId: string; lan
           </span>
         </div>
         {data.servants.length === 0 ? (
-          <div className="p-8 text-center">
-            <Users className="mx-auto h-8 w-8 text-gray-200 mb-2" />
-            <p className="text-sm text-gray-500">{t('No servants found.', 'لا يوجد خدام.')}</p>
-          </div>
+          <EmptyState size="sm" title={t('No servants found.', 'لا يوجد خدام.')} />
         ) : (
           <div className="divide-y divide-gray-50">
             {data.servants.map((servant, i) => {
