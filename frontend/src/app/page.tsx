@@ -544,7 +544,7 @@ function PreviewCarousel({ isAr }: { isAr: boolean }) {
               <span className="text-[10px] text-gray-400 font-medium">cohep.church</span>
             </div>
           </div>
-          <div className="relative aspect-[16/10] overflow-hidden rounded-lg bg-white">
+          <div className="relative aspect-[4/5] sm:aspect-[16/10] overflow-hidden rounded-lg bg-white">
             <AnimatePresence mode="wait">
               <motion.div
                 key={activeTab}
@@ -809,7 +809,7 @@ export default function Home() {
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
 
       {/* ── NAVBAR ──────────────────────────────────────────────────────── */}
-      <header className={`sticky top-0 z-50 border-b transition-all duration-300 ${scrolled ? 'border-gray-200 bg-white/95 backdrop-blur shadow-sm' : 'border-transparent bg-white/80 backdrop-blur'}`}>
+      <header className={`sticky [top:env(safe-area-inset-top)] z-50 border-b transition-all duration-300 ${scrolled ? 'border-gray-200 bg-white/95 backdrop-blur shadow-sm' : 'border-transparent bg-white/80 backdrop-blur'}`}>
         <div className="mx-auto flex h-[88px] max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
           <Link href="/" className="flex items-center gap-3 flex-shrink-0">
             <Image src="/cohep-logo.png" alt="COHEP" width={72} height={72} className="h-[72px] w-[72px] rounded-xl object-contain shadow-lg shadow-gold-200/50" />
@@ -847,6 +847,9 @@ export default function Home() {
             </Link>
             <Link href="/auth/register" className="hidden sm:block">
               <Button size="lg" className="bg-gold-500 text-gray-950 hover:bg-gold-400 shadow-lg shadow-gold-200/50">{t.nav.getStarted}</Button>
+            </Link>
+            <Link href="/auth/register" className="sm:hidden" aria-label={t.nav.getStarted}>
+              <Button size="sm" className="h-11 bg-gold-500 text-gray-950 hover:bg-gold-400 shadow-md shadow-gold-200/50 px-3 whitespace-nowrap">{isAr ? 'سجّل' : 'Register'}</Button>
             </Link>
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
