@@ -192,6 +192,22 @@ describe('DashboardService', () => {
       expect(mina.needsFollowUp).toBe(true);
     });
 
+    it('flags absent_3plus when the last 3 attendance records are absent', async () => {
+      baseline();
+      const base = new Date('2026-08-19T00:00:00Z');
+      (prisma.attendanceRecord.findMany as jest.Mock).mockResolvedValue(
+        [0, 1, 2].map(i => ({
+          studentId: 's1', status: 'absent',
+          recordedAt: new Date(base.getTime() - i * 24 * 60 * 60 * 1000),
+          note: null, noteCategory: null, isPrivateNote: false,
+        })),
+      );
+      const result = await service.getClassOverview(user, schoolId);
+      const mina = result.roster.find((r: any) => r.studentId === 's1');
+      expect(mina.followUpReasons).toContain('absent_3plus');
+      expect(mina.needsFollowUp).toBe(true);
+    });
+
     it('returns empty roster and null today lesson when servant has no students', async () => {
       (prisma.attendanceSession.findMany as jest.Mock).mockResolvedValue([]);
       (prisma.attendanceSession.findFirst as jest.Mock).mockResolvedValue(null);

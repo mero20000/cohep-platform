@@ -1,7 +1,7 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { ChevronDown, Clock, AlertTriangle, Mic, BookOpen, User, CalendarDays } from 'lucide-react'
+import { useCallback, useEffect, useState } from 'react'
+import { ChevronDown, AlertTriangle, BookOpen, User, CalendarDays } from 'lucide-react'
 import { http } from '@/lib/http-client'
 import { useLanguage } from '@/lib/use-language'
 import { assetUrl } from '@/lib/asset-url'
@@ -52,17 +52,21 @@ export default function MyClassPage() {
   const t = (en: string, ar: string) => lang === 'ar' ? ar : en
   const [data, setData] = useState<ClassOverview | null>(null)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(false)
   const [openStudent, setOpenStudent] = useState<string | null>(null)
 
-  useEffect(() => {
-    let mounted = true
+  const load = useCallback(() => {
+    setError(false)
     setLoading(true)
     http.get<ClassOverview>('/dashboard/class-overview')
-      .then((res) => { if (mounted) setData(res) })
-      .catch(() => { if (mounted) setData({ servant: { id: '' }, nextSession: null, todayLesson: null, roster: [] }) })
-      .finally(() => { if (mounted) setLoading(false) })
-    return () => { mounted = false }
+      .then((res) => setData(res))
+      .catch(() => setError(true))
+      .finally(() => setLoading(false))
   }, [])
+
+  useEffect(() => {
+    load()
+  }, [load])
 
   const flagged = (data?.roster ?? []).filter(s => s.likelyAbsent || s.needsFollowUp)
   const settled = (data?.roster ?? []).filter(s => !(s.likelyAbsent || s.needsFollowUp))
@@ -72,6 +76,29 @@ export default function MyClassPage() {
       <div className="mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:px-8">
         <div className="mb-6"><div className="h-6 w-40 bg-gray-200 rounded animate-pulse" /></div>
         <TableSkeleton rows={5} cols={3} />
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:px-8">
+        <h1 className="text-2xl font-bold tracking-tight text-gray-900">{t('My Class', 'صفي')}</h1>
+        <div className="mt-4 rounded-xl border border-gray-200 bg-white">
+          <EmptyState
+            title={t("Couldn't load your class", 'تعذر تحميل الفصل')}
+            description={t('Something went wrong. Please try again.', 'حدث خطأ ما. حاول مرة أخرى.')}
+            action={
+              <button
+                type="button"
+                onClick={load}
+                className="rounded-lg bg-gold-500 px-4 py-2 text-sm font-medium text-gray-950 hover:bg-gold-600 transition-colors"
+              >
+                {t('Retry', 'إعادة المحاولة')}
+              </button>
+            }
+          />
+        </div>
       </div>
     )
   }
@@ -113,7 +140,7 @@ export default function MyClassPage() {
           </div>
           <h2 className="mt-2 text-lg font-bold text-gray-900">{lang === 'ar' ? data.todayLesson.titleAr || data.todayLesson.title : data.todayLesson.title}</h2>
           <p className="mt-1 text-sm text-gray-600">
-            {data.todayLesson.titleCoptic && <span className="coptic">{data.todayLesson.titleCoptic} · </span>}
+            {data.todayLesson.titleCoptic && <span className="coptic-text">{data.todayLesson.titleCoptic} · </span>}
             {data.todayLesson.subjectName} · {data.todayLesson.levelName}
           </p>
         </div>

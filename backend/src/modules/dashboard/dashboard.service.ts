@@ -952,7 +952,7 @@ export class DashboardService {
 
   async getClassOverview(user: any, schoolIdentifier: string): Promise<any> {
     const schoolId = await this.schoolResolver.resolve(schoolIdentifier);
-    const { groupIds, levelIds, studentIds } = await this.resolveServantClass(user.id, schoolId);
+    const { levelIds, studentIds } = await this.resolveServantClass(user.id, schoolId);
 
     const nextSession = await this.prisma.attendanceSession.findFirst({
       where: { schoolId, servantId: user.id, status: 'scheduled', scheduledDate: { gte: new Date() } },

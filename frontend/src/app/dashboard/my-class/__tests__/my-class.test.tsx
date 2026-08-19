@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, within } from '@testing-library/react'
+import { render, screen, fireEvent } from '@testing-library/react'
 import { it, expect, vi, beforeEach } from 'vitest'
 import MyClassPage from '../page'
 
@@ -22,7 +22,6 @@ vi.mock('@/lib/asset-url', () => ({ assetUrl: (u?: string | null) => u ?? '' }))
 describe('MyClassPage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    localStorage.clear()
     mockGet.mockReset()
   })
 
@@ -53,8 +52,27 @@ describe('MyClassPage', () => {
     expect(screen.getByText('Mina A')).toBeInTheDocument()
     expect(screen.getByText('John B')).toBeInTheDocument()
     // follow-up chip and likely-absent badge visible
-    expect(screen.getAllByText('Follow up').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('Follow up')).toHaveLength(2)
     expect(screen.getByText('Likely absent')).toBeInTheDocument()
+  })
+
+  it('shows an error state with retry when the request fails', async () => {
+    mockGet.mockRejectedValue(new Error('boom'))
+    render(<MyClassPage />)
+
+    expect(await screen.findByText("Couldn't load your class")).toBeInTheDocument()
+    expect(screen.getByText('Retry')).toBeInTheDocument()
+
+    mockGet.mockResolvedValue({
+      servant: { id: 'u1', firstName: 'S', lastName: 'T' },
+      nextSession: null,
+      todayLesson: null,
+      roster: [
+        { studentId: 's1', firstName: 'Mina', lastName: 'A', attendanceRate: 80, lastAttendanceStatus: 'present', likelyAbsent: false, needsFollowUp: false, followUpReasons: [], notes: [] },
+      ],
+    })
+    fireEvent.click(screen.getByText('Retry'))
+    expect(await screen.findByText('Mina A')).toBeInTheDocument()
   })
 
   it('expands a student row to show notes', async () => {
