@@ -969,15 +969,14 @@ export default function Home() {
         {/* ── KEY NUMBERS ───────────────────────────────────────────────── */}
         <section aria-label={isAr ? 'أرقام رئيسية' : 'Key numbers'} className="bg-gray-50 py-14 sm:py-16">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-            <dl className="grid grid-cols-2 gap-8 lg:grid-cols-4">
+            <div className="grid grid-cols-2 gap-8 lg:grid-cols-4">
               {t.stats.items.map((s, i) => (
                 <FadeIn key={s.label} delay={i * 0.06} className="text-center">
-                  <dt className="sr-only">{s.label}</dt>
-                  <dd className="text-3xl sm:text-4xl font-bold tracking-tight text-gold-600">{s.value}</dd>
+                  <div className="text-3xl sm:text-4xl font-bold tracking-tight text-gold-600">{s.value}</div>
                   <p className="mt-1 text-xs sm:text-sm text-gray-600">{s.label}</p>
                 </FadeIn>
               ))}
-            </dl>
+            </div>
           </div>
         </section>
 
