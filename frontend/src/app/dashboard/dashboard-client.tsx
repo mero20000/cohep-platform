@@ -644,7 +644,7 @@ function ActivitySection({ stats, loading }: { stats: DashboardData | null; load
  const activity = s.recentActivity ?? []
  if (!activity.length) return <EmptyState icon={Clock} title={lang === 'ar' ? 'لا يوجد نشاط حديث' : 'No recent activity'} description={lang === 'ar' ? 'سيظهر النشاط هنا.' : 'Activity will appear here.'} />
  return (
-  <div className="divide-y divide-gray-100 max-h-80 overflow-y-auto">
+  <div role="region" aria-label={lang === 'ar' ? 'النشاط الحديث' : 'Recent activity'} tabIndex={0} className="divide-y divide-gray-100 max-h-80 overflow-y-auto">
    {activity.slice(0, 8).map((a, i) => {
     const IconComp = ACTIVITY_ICONS[a.action] || TrendingUp
     const colorClass = ACTIVITY_COLORS[a.action] || 'bg-gradient-to-br from-gray-100 to-gray-50 text-gray-600'
@@ -688,10 +688,10 @@ function UpcomingSection({ stats, loading }: { stats: DashboardData | null; load
        <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 uppercase border border-emerald-200">{sess.status}</span>
       </div>
       <div className="text-xs text-gray-500 mt-0.5 flex items-center gap-1">
-       <User className="h-3 w-3 inline" /> {sess.servant.firstName} {sess.servant.lastName} · {formatDate(sess.scheduledDate, lang === 'ar' ? 'ar-EG' : 'en-GB')} <span className="text-gold-500 font-medium">{formatTime(sess.scheduledDate, lang === 'ar' ? 'ar-EG' : 'en-GB')}</span>
+       <User className="h-3 w-3 inline" /> {sess.servant.firstName} {sess.servant.lastName} · {formatDate(sess.scheduledDate, lang === 'ar' ? 'ar-EG' : 'en-GB')} <span className="text-gold-700 font-medium">{formatTime(sess.scheduledDate, lang === 'ar' ? 'ar-EG' : 'en-GB')}</span>
       </div>
      </div>
-     <ChevronRight className="h-4 w-4 text-gray-300 group-hover:text-gold-500 group-hover:translate-x-0.5 transition-all" />
+     <ChevronRight className="h-4 w-4 text-gray-300 group-hover:text-gold-700 group-hover:translate-x-0.5 transition-all" />
     </motion.div>
    ))}
   </div>

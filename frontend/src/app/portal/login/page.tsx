@@ -96,7 +96,7 @@ export default function PortalLoginPage() {
                 type="button"
                 onClick={() => setShowForgot(!showForgot)}
                 aria-expanded={showForgot}
-                className="text-sm font-semibold text-gold-700 hover:text-gold-500 transition-colors py-2 min-h-[44px]"
+                className="text-sm font-semibold text-gold-700 hover:text-gold-700 transition-colors py-2 min-h-[44px]"
               >
                 Forgot password?
               </button>

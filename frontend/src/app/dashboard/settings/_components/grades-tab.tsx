@@ -217,7 +217,7 @@ export function GradesTab() {
         <div className="flex flex-col items-center justify-center py-12">
           <GraduationCap className="h-10 w-10 text-gray-300" />
           <p className="mt-2 text-sm text-gray-500">{t('No grades yet', 'لا توجد صفوف بعد')}</p>
-          <Button variant="link" onClick={openCreate} className="mt-2 text-sm font-medium text-blue-700 hover:text-gold-500">{t('Add first grade', 'إضافة أول صف')}</Button>
+          <Button variant="link" onClick={openCreate} className="mt-2 text-sm font-medium text-blue-700 hover:text-gold-700">{t('Add first grade', 'إضافة أول صف')}</Button>
         </div>
       ) : (
         <>
@@ -259,7 +259,7 @@ export function GradesTab() {
             <div className="flex flex-col items-center justify-center py-12">
               <Search className="h-10 w-10 text-gray-300" />
               <p className="mt-2 text-sm text-gray-500">{t('No grades match your filters', 'لا توجد صفوف تطابق عوامل التصفية')}</p>
-              <Button variant="link" onClick={clearFilters} className="mt-2 text-sm font-medium text-blue-700 hover:text-gold-500">{t('Clear filters', 'مسح عوامل التصفية')}</Button>
+              <Button variant="link" onClick={clearFilters} className="mt-2 text-sm font-medium text-blue-700 hover:text-gold-700">{t('Clear filters', 'مسح عوامل التصفية')}</Button>
             </div>
           ) : (
             <div className="overflow-x-auto table-to-cards">

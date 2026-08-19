@@ -140,6 +140,8 @@ export default function PendingRegistrationsPage() {
         onChange={(id) => setTab(id as Tab)}
       />
 
+      <div id={`panel-${tab}`} role="tabpanel" aria-labelledby={`tab-${tab}`}>
+
       {loading && (
         <div className="px-4 py-20"><TableSkeleton rows={5} cols={3} /></div>
       )}
@@ -261,6 +263,8 @@ export default function PendingRegistrationsPage() {
           })}
         </div>
       )}
+
+      </div>
 
       <EditModal reg={editingReg} lang={lang === 'ar' ? 'ar' : 'en'} onClose={() => setEditingReg(null)}
         onSaved={() => { setEditingReg(null); refresh() }} />

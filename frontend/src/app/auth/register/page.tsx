@@ -370,7 +370,7 @@ export default function RegisterPage() {
             </h2>
             <p className="mt-2 text-sm text-gray-500">
               {isAr ? 'لديك حساب بالفعل؟' : 'Already have an account?'}{' '}
-              <Link href="/auth/login" className="inline-flex items-center gap-1 font-semibold text-gold-700 hover:text-gold-500 transition-colors">
+              <Link href="/auth/login" className="inline-flex items-center gap-1 font-semibold text-gold-700 hover:text-gold-700 transition-colors">
                 {isAr ? 'تسجيل الدخول' : 'Sign in'} <ArrowRight className="h-3.5 w-3.5 rtl-flip" />
               </Link>
             </p>

@@ -34,7 +34,7 @@ export function StudentStats({ stats, loading, lang, onGradeClick, onStatusClick
           <span className="font-medium text-gray-700">{t('Grades:','المراحل الدراسية:')}</span>
           {stats.gradeDistribution.map(g => (
             <Button key={g.grade} variant="ghost" size="sm" onClick={() => onGradeClick?.(g.grade)} className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-medium text-blue-700 hover:bg-blue-100 hover:text-blue-800">
-              {g.grade} <span className="text-gold-500">({g.count})</span>
+              {g.grade} <span className="text-gold-700">({g.count})</span>
             </Button>
           ))}
           {(stats.active ?? 0) < (stats.total ?? 0) && (

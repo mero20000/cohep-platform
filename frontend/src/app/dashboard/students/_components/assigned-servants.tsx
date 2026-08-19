@@ -13,7 +13,7 @@ export function AssignedServants({ servants, loading, show, onToggle, lang }: Pr
   return (
     <div className="rounded-xl border border-gray-200 bg-white">
       <button onClick={onToggle} className="flex items-center justify-between w-full px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 rounded-xl">
-        <span className="flex items-center gap-2"><Shield className="h-4 w-4 text-gold-500"/>{t('Assigned Servants','الخدم المعينون')}<span className="text-xs text-gray-500 font-normal">({servants.length})</span>{loading&&<Loader2 className="h-3 w-3 animate-spin text-gray-500"/>}</span>
+        <span className="flex items-center gap-2"><Shield className="h-4 w-4 text-gold-700"/>{t('Assigned Servants','الخدم المعينون')}<span className="text-xs text-gray-500 font-normal">({servants.length})</span>{loading&&<Loader2 className="h-3 w-3 animate-spin text-gray-500"/>}</span>
         <ChevronDown className={`h-4 w-4 transition-transform ${show?'':'-rotate-90'}`}/>
       </button>
       {show&&(<div className="px-4 pb-3">

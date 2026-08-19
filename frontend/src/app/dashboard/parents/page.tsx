@@ -405,7 +405,7 @@ export default function ParentsPage() {
                   </div>
                   <div className="space-y-3">
                     <h4 className="flex items-center gap-2 text-sm font-semibold text-gray-800">
-                      <ClipboardCheck className="h-4 w-4 text-gold-500" />
+                      <ClipboardCheck className="h-4 w-4 text-gold-700" />
                       {lang === 'ar' ? 'التقييمات' : 'Assessments'}
                     </h4>
                     <ChildAssessments studentId={s.id} lang={lang} />

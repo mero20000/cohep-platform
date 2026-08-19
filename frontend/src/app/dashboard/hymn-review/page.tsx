@@ -88,7 +88,7 @@ export default function HymnReviewPage() {
                   <span className="truncate text-sm font-semibold text-gray-900">
                     {item.student.firstName} {item.student.lastName}
                   </span>
-                  <span className="flex shrink-0 items-center gap-0.5 text-gold-500">
+                  <span className="flex shrink-0 items-center gap-0.5 text-gold-700">
                     {STARS.map((s) => (
                       <Star key={s} className={`h-3 w-3 ${s <= item.selfRating ? 'fill-gold-500' : 'fill-gray-200 text-gray-200'}`} aria-hidden="true" />
                     ))}
@@ -152,7 +152,7 @@ export default function HymnReviewPage() {
                     aria-label={`${s} stars`}
                     className="transition-transform hover:scale-110"
                   >
-                    <Star className={`h-7 w-7 ${s <= (hovered || rating) ? 'fill-gold-500 text-gold-500' : 'fill-gray-200 text-gray-200'}`} />
+                    <Star className={`h-7 w-7 ${s <= (hovered || rating) ? 'fill-gold-500 text-gold-700' : 'fill-gray-200 text-gray-200'}`} />
                   </button>
                 ))}
               </div>

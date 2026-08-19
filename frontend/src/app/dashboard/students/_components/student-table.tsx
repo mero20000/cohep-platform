@@ -98,7 +98,7 @@ export function StudentTable({ students, loading, fetchError, selectedIds, allSe
               </div>
               <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
                 {onToggleFavorite && (
-                  <button onClick={() => onToggleFavorite(s.id)} className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors">
+                  <button onClick={() => onToggleFavorite(s.id)} aria-label={favorites.includes(s.id) ? (lang === 'ar' ? 'إزالة من المفضلة' : 'Remove from favorites') : (lang === 'ar' ? 'إضافة للمفضلة' : 'Add to favorites')} className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors">
                     <Star className={`h-4 w-4 ${favorites.includes(s.id) ? 'fill-amber-500 text-amber-500' : 'text-gray-400'}`} />
                   </button>
                 )}
@@ -131,7 +131,7 @@ export function StudentTable({ students, loading, fetchError, selectedIds, allSe
                   className={`px-4 py-3 text-start text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer select-none hover:text-gray-700 ${key!=='name'&&key!=='status'?'hidden md:table-cell':''} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-inset`}>
                   <span className="inline-flex items-center gap-1">
                     {lang==='ar'?ar:en}
-                    <ArrowUpDown className={`h-3 w-3 transition-opacity ${sortKey===key?'opacity-100 text-gold-500':'opacity-30'}`} />
+                    <ArrowUpDown className={`h-3 w-3 transition-opacity ${sortKey===key?'opacity-100 text-gold-700':'opacity-30'}`} />
                   </span>
                 </th>
               ))}
@@ -163,7 +163,7 @@ export function StudentTable({ students, loading, fetchError, selectedIds, allSe
                 <td className="px-4 py-3 text-end" onClick={e => e.stopPropagation()}>
                   <div className="flex items-center justify-end gap-1">
                     {onToggleFavorite && (
-                      <button onClick={() => onToggleFavorite(s.id)} className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors">
+                      <button onClick={() => onToggleFavorite(s.id)} aria-label={favorites.includes(s.id) ? (lang === 'ar' ? 'إزالة من المفضلة' : 'Remove from favorites') : (lang === 'ar' ? 'إضافة للمفضلة' : 'Add to favorites')} className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors">
                         <Star className={`h-4 w-4 ${favorites.includes(s.id) ? 'fill-amber-500 text-amber-500' : 'text-gray-400'}`} />
                       </button>
                     )}

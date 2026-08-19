@@ -114,7 +114,7 @@ export function ChildrenTab() {
     return (
       <div className="rounded-xl border border-gray-200 bg-white p-6">
         <div className="flex items-center justify-center py-12">
-          <Loader2 className="h-6 w-6 animate-spin text-gold-500" />
+          <Loader2 className="h-6 w-6 animate-spin text-gold-700" />
         </div>
       </div>
     )

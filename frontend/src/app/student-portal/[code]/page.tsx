@@ -145,7 +145,7 @@ export default function StudentDashboard() {
   if (loading) return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
       <div className="text-center">
-        <Loader2 className="h-10 w-10 animate-spin text-gold-500 mx-auto mb-4" />
+        <Loader2 className="h-10 w-10 animate-spin text-gold-700 mx-auto mb-4" />
         <p className="text-sm text-gray-500">Loading your dashboard...</p>
       </div>
     </div>
@@ -249,7 +249,7 @@ export default function StudentDashboard() {
             {/* Stats Grid */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               <div className="rounded-xl bg-white border border-gray-200 p-4 text-center">
-                <Trophy className="h-5 w-5 text-gold-500 mx-auto mb-1" />
+                <Trophy className="h-5 w-5 text-gold-700 mx-auto mb-1" />
                 <div className="text-xl font-bold text-gray-900">{totalXp}</div>
                 <div className="text-xs text-gray-500">Total XP</div>
               </div>
@@ -526,7 +526,7 @@ export default function StudentDashboard() {
               </div>
 
               {hymnMapLoading ? (
-                <div className="flex items-center justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-gold-500" /></div>
+                <div className="flex items-center justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-gold-700" /></div>
               ) : Object.keys(groupedByLevel).length === 0 ? (
                 <div className="text-center py-8 text-sm text-gray-400">No hymns found</div>
               ) : (

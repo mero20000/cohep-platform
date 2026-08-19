@@ -164,7 +164,7 @@ function GrowthMirrorPanel({ entry, lang }: { entry: LeaderboardEntry; lang: str
       <div className="rounded-xl border border-gray-200 bg-white p-4">
         <div className="flex items-center justify-between mb-3">
           <h4 className="text-sm font-bold text-gray-900 flex items-center gap-1.5">
-            <TrendingUp className="h-4 w-4 text-gold-500" />
+            <TrendingUp className="h-4 w-4 text-gold-700" />
             {lang === 'ar' ? 'مسار نقاط الخبرة' : 'XP Trajectory'}
           </h4>
           <ImprovementPill value={data.growthPercent} suffix="%" />
@@ -224,7 +224,7 @@ function GrowthMirrorPanel({ entry, lang }: { entry: LeaderboardEntry; lang: str
       {data.badgeTimeline.length > 0 && (
         <div className="rounded-xl border border-gray-200 bg-white p-4">
           <h4 className="text-xs font-bold text-gray-700 mb-3 flex items-center gap-1.5">
-            <Award className="h-3.5 w-3.5 text-gold-500" />
+            <Award className="h-3.5 w-3.5 text-gold-700" />
             {lang === 'ar' ? 'رحلة الشارات' : 'Badge Journey'}
             <span className="text-gray-500 font-normal">({data.totalBadges})</span>
           </h4>
@@ -588,7 +588,7 @@ function ServantRecognitionPanel({ lang, schoolId }: { lang: string; schoolId: s
           {/* Milestones */}
           <div className="rounded-xl border border-gray-200 bg-white p-4">
             <h4 className="text-sm font-bold text-gray-900 mb-3 flex items-center gap-1.5">
-              <Medal className="h-4 w-4 text-gold-500" />
+              <Medal className="h-4 w-4 text-gold-700" />
               {lang === 'ar' ? 'الإنجازات' : 'Milestones'}
               <span className="text-gray-500 font-normal text-xs">({data.achievedCount}/{data.milestones.length})</span>
             </h4>
@@ -847,7 +847,7 @@ export default function GamificationPage() {
 
       {/* ── Growth Mirror Tab ── */}
       {activeTab === 'growth' && (
-        <div className="space-y-4">
+        <div id="panel-growth" role="tabpanel" aria-labelledby="tab-growth" className="space-y-4">
           <div className="rounded-xl border border-blue-100 bg-blue-50 p-4 flex items-start gap-3">
             <Info className="h-4 w-4 text-blue-600 mt-0.5 shrink-0" />
             <p className="text-sm text-blue-800">
@@ -932,17 +932,17 @@ export default function GamificationPage() {
       )}
 
       {/* ── Group Trophy Tab ── */}
-      {activeTab === 'group' && <GroupTrophyPanel lang={lang} schoolId={schoolId} />}
+      {activeTab === 'group' && <div id="panel-group" role="tabpanel" aria-labelledby="tab-group"><GroupTrophyPanel lang={lang} schoolId={schoolId} /></div>}
 
       {/* ── Seasonal Badges Tab ── */}
-      {activeTab === 'seasonal' && <SeasonalBadgePanel lang={lang} schoolId={schoolId} onToast={(t, m) => toast(t, m)} />}
+      {activeTab === 'seasonal' && <div id="panel-seasonal" role="tabpanel" aria-labelledby="tab-seasonal"><SeasonalBadgePanel lang={lang} schoolId={schoolId} onToast={(t, m) => toast(t, m)} /></div>}
 
       {/* ── Servant Awards Tab ── */}
-      {activeTab === 'servants' && <ServantRecognitionPanel lang={lang} schoolId={schoolId} />}
+      {activeTab === 'servants' && <div id="panel-servants" role="tabpanel" aria-labelledby="tab-servants"><ServantRecognitionPanel lang={lang} schoolId={schoolId} /></div>}
 
       {/* ── Badges Tab ── */}
       {activeTab === 'badges' && (
-        <div>
+        <div id="panel-badges" role="tabpanel" aria-labelledby="tab-badges">
           <div className="flex items-center justify-between mb-4 gap-3">
             <div className="relative flex-1 max-w-xs">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500" />

@@ -46,7 +46,7 @@ export function HelpButton() {
             <div className="overflow-y-auto p-5 space-y-5">
               <section>
                 <h3 className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-3">
-                  <Keyboard className="h-4 w-4 text-gold-500" />
+                  <Keyboard className="h-4 w-4 text-gold-700" />
                   {lang === 'ar' ? 'اختصارات لوحة المفاتيح' : 'Keyboard Shortcuts'}
                 </h3>
                 <div className="space-y-2">
@@ -67,15 +67,15 @@ export function HelpButton() {
                 </h3>
                 <ul className="space-y-2 text-xs text-gray-600">
                   <li className="flex items-start gap-2">
-                    <ChevronRight className="h-3 w-3 text-gold-500 mt-0.5 shrink-0" />
+                    <ChevronRight className="h-3 w-3 text-gold-700 mt-0.5 shrink-0" />
                     {lang === 'ar' ? 'بياناتك تُحدَّث تلقائياً كل دقيقتين.' : 'Dashboard data refreshes automatically every 2 minutes.'}
                   </li>
                   <li className="flex items-start gap-2">
-                    <ChevronRight className="h-3 w-3 text-gold-500 mt-0.5 shrink-0" />
+                    <ChevronRight className="h-3 w-3 text-gold-700 mt-0.5 shrink-0" />
                     {lang === 'ar' ? 'يمكنك تغيير دور العرض من القائمة العلوية.' : 'Switch your view role from the top toolbar.'}
                   </li>
                   <li className="flex items-start gap-2">
-                    <ChevronRight className="h-3 w-3 text-gold-500 mt-0.5 shrink-0" />
+                    <ChevronRight className="h-3 w-3 text-gold-700 mt-0.5 shrink-0" />
                     {lang === 'ar' ? 'اختر مدرسة مختلفة من قائمة المدارس في الأعلى.' : 'Switch between schools using the school picker.'}
                   </li>
                 </ul>

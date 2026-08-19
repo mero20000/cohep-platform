@@ -35,7 +35,7 @@ export function Breadcrumbs() {
 
   return (
     <nav aria-label={lang === 'ar' ? 'مسار التنقل' : 'Breadcrumb'} className="flex items-center gap-1.5 text-xs text-gray-500 mb-4 overflow-x-auto">
-      <Link href="/dashboard" className="flex items-center gap-1 hover:text-blue-700 transition-colors shrink-0">
+      <Link href="/dashboard" aria-label={lang === 'ar' ? 'الرئيسية' : 'Home'} className="flex items-center gap-1 hover:text-blue-700 transition-colors shrink-0">
         <Home className="h-3 w-3" />
         <span className="hidden sm:inline">{crumbs.length > 1 ? (lang === 'ar' ? 'الرئيسية' : 'Home') : ''}</span>
       </Link>

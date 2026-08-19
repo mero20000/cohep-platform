@@ -155,7 +155,7 @@ export function PracticeRecorder({ lessonId, lessonTitle, referenceAudioUrl, onS
             <p className="text-sm text-amber-600">{t('Microphone not available — you can still rate without recording.', 'الميكروفون غير متاح — يمكنك التقييم بدون تسجيل.')}</p>
           )}
           {!canRecord && (
-            <button onClick={() => setStage('rating')} className="mt-3 text-sm font-medium text-gold-700 hover:text-gold-500">
+            <button onClick={() => setStage('rating')} className="mt-3 text-sm font-medium text-gold-700 hover:text-gold-700">
               {t('Skip to rating', 'تخطّ إلى التقييم')} →
             </button>
           )}

@@ -60,7 +60,7 @@ export function EmptyState({ icon: Icon, title, description, action, illustratio
           <CrossIllustration className={`${iconSizeClasses[size]} text-gold-400`} />
           {Icon && (
             <div className={`absolute inset-0 flex items-center justify-center`}>
-              <Icon className={`${iconInnerSizeClasses[size]} text-gold-500`} />
+              <Icon className={`${iconInnerSizeClasses[size]} text-gold-700`} />
             </div>
           )}
         </div>

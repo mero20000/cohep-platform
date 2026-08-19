@@ -311,6 +311,7 @@ function CurriculumContent() {
       </div>
 
       {activeTab === 'levels' && (
+        <div id="panel-levels" role="tabpanel" aria-labelledby="tab-levels">
         <LevelsTab
           levels={levels}
           subjects={subjects}
@@ -329,9 +330,11 @@ function CurriculumContent() {
           onExportExcel={exportExcel}
           deletingLevelId={deletingLevelId}
         />
+        </div>
       )}
 
       {activeTab === 'allocation' && (
+        <div id="panel-allocation" role="tabpanel" aria-labelledby="tab-allocation">
         <AllocationGrid
           weeks={weeks}
           allocations={allocations}
@@ -347,9 +350,11 @@ function CurriculumContent() {
           onSaveAllocation={saveAllocation}
           onClearAllocations={(scope) => setClearConfirm({ scope })}
         />
+        </div>
       )}
 
       {activeTab === 'calendar' && (
+        <div id="panel-calendar" role="tabpanel" aria-labelledby="tab-calendar">
         <CalendarView
           allocations={allocations}
           lessons={lessons}
@@ -365,9 +370,11 @@ function CurriculumContent() {
           onDeleteAllocation={handleDeleteAllocation}
           onClearAllocations={(scope) => setClearConfirm({ scope })}
         />
+        </div>
       )}
 
       {activeTab === 'teaching' && (
+        <div id="panel-teaching" role="tabpanel" aria-labelledby="tab-teaching">
         <TeachingView
           items={teachingItems}
           subjects={subjects}
@@ -377,6 +384,7 @@ function CurriculumContent() {
           levelNumber={teachingLevel}
           onLevelChange={setTeachingLevel}
         />
+        </div>
       )}
 
       <ConfirmDialog

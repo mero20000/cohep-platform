@@ -93,7 +93,7 @@ function ResetPasswordForm() {
 
   if (step === 'verifying') return (
     <div className="flex flex-col items-center gap-4 py-12">
-      <Loader2 className="h-8 w-8 animate-spin text-gold-500" />
+      <Loader2 className="h-8 w-8 animate-spin text-gold-700" />
       <p className="text-sm text-gray-500">Verifying your reset link…</p>
     </div>
   )
@@ -290,7 +290,7 @@ export default function ResetPasswordPage() {
         <div className="rounded-2xl border border-gray-800 bg-gray-900/80 backdrop-blur p-6 shadow-2xl">
           <Suspense fallback={
             <div className="flex justify-center py-8">
-              <Loader2 className="h-6 w-6 animate-spin text-gold-500" />
+              <Loader2 className="h-6 w-6 animate-spin text-gold-700" />
             </div>
           }>
             <ResetPasswordForm />

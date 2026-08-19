@@ -30,7 +30,7 @@ export function StudentFilters(p: Props) {
         <input type="text" aria-label={t('Search students','بحث عن الطلاب')} placeholder={t('Search by name or code...','البحث بالاسم أو الرمز...')} value={p.search}
           onChange={e => p.onSearchChange(e.target.value)}
           className="w-full rounded-lg border border-gray-200 bg-white ps-10 pe-4 py-2 text-sm placeholder:text-gray-400 focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-blue-500" />
-        {p.isSearching && <Loader2 className="absolute end-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gold-500 animate-spin" />}
+        {p.isSearching && <Loader2 className="absolute end-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gold-700 animate-spin" />}
       </div>
       <select aria-label={t('Filter by level','تصفية حسب المستوى')} value={p.filterLevel} onChange={e => p.onLevelChange(e.target.value)} className={sel}>
         <option value="">{t('All Levels','جميع المستويات')}</option>

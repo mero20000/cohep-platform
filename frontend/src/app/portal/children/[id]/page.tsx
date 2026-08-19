@@ -368,7 +368,7 @@ export default function ChildDetailPage() {
 
   if (loading) return (
     <div className="flex items-center justify-center py-20">
-      <Loader2 className="h-8 w-8 animate-spin text-gold-500" />
+      <Loader2 className="h-8 w-8 animate-spin text-gold-700" />
     </div>
   )
 
@@ -571,7 +571,7 @@ export default function ChildDetailPage() {
         <div className="grid gap-6 md:grid-cols-2">
           <div className="rounded-xl border border-gray-200 bg-white p-5">
             <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
-              <Calendar className="h-4 w-4 text-gold-500" /> {t('Recent Sessions', 'الجلسات الأخيرة')}
+              <Calendar className="h-4 w-4 text-gold-700" /> {t('Recent Sessions', 'الجلسات الأخيرة')}
             </h3>
             {!progress || progress.sessions.length === 0 ? (
               <p className="text-sm text-gray-400 py-4 text-center">{t('No completed sessions', 'لا توجد جلسات مكتملة')}</p>
@@ -592,7 +592,7 @@ export default function ChildDetailPage() {
 
           <div className="rounded-xl border border-gray-200 bg-white p-5">
             <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
-              <Award className="h-4 w-4 text-gold-500" /> {t('Assessment Progress', 'تقدم التقييمات')}
+              <Award className="h-4 w-4 text-gold-700" /> {t('Assessment Progress', 'تقدم التقييمات')}
             </h3>
             {!progress || progress.assessments.length === 0 ? (
               <p className="text-sm text-gray-400 py-4 text-center">{t('No graded assessments', 'لا توجد تقييمات مصححة')}</p>

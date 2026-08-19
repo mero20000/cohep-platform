@@ -74,7 +74,7 @@ export function NotificationPreferencesTab() {
   if (loading) {
     return (
       <div className="rounded-xl border border-gray-200 bg-white p-6">
-        <div className="flex items-center justify-center py-8"><Loader2 className="h-5 w-5 animate-spin text-gold-500" /></div>
+        <div className="flex items-center justify-center py-8"><Loader2 className="h-5 w-5 animate-spin text-gold-700" /></div>
       </div>
     )
   }

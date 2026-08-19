@@ -125,7 +125,7 @@ export function ChurchesTab() {
           <div className="flex flex-col items-center justify-center py-12">
             <Church className="h-10 w-10 text-gray-300" />
             <p className="mt-2 text-sm text-gray-500">{lang === 'ar' ? 'لا توجد كنائس بعد' : 'No churches yet'}</p>
-            <Button variant="link" onClick={openCreate} className="mt-2 text-sm font-medium text-blue-700 hover:text-gold-500">{lang === 'ar' ? 'إضافة أول كنيسة' : 'Add first church'}</Button>
+            <Button variant="link" onClick={openCreate} className="mt-2 text-sm font-medium text-blue-700 hover:text-gold-700">{lang === 'ar' ? 'إضافة أول كنيسة' : 'Add first church'}</Button>
           </div>
         ) : (
           <div className="overflow-x-auto table-to-cards">

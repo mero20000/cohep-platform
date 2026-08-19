@@ -296,7 +296,7 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
                   )}
                 </div>
                 {notiLoading ? (
-                  <div className="flex items-center justify-center py-8"><Loader2 className="h-5 w-5 animate-spin text-gold-500" /></div>
+                  <div className="flex items-center justify-center py-8"><Loader2 className="h-5 w-5 animate-spin text-gold-700" /></div>
                 ) : notifications.length === 0 ? (
                   <div className="px-4 py-8 text-center text-xs text-gray-400">{t('No new notifications', 'لا توجد إشعارات جديدة')}</div>
                 ) : (

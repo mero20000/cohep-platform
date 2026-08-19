@@ -126,7 +126,7 @@ export default function PortalPage() {
 
   if (loading) return (
     <div className="flex items-center justify-center py-20">
-      <Loader2 className="h-8 w-8 animate-spin text-gold-500" />
+      <Loader2 className="h-8 w-8 animate-spin text-gold-700" />
     </div>
   )
 
@@ -249,7 +249,7 @@ export default function PortalPage() {
                       {secondaryName && (
                         <span className="text-sm text-gray-400 font-medium truncate">{secondaryName}</span>
                       )}
-                      <ChevronRight className="h-4 w-4 text-gray-300 group-hover:text-gold-500 transition-colors ml-auto shrink-0 rtl:rotate-180" />
+                      <ChevronRight className="h-4 w-4 text-gray-300 group-hover:text-gold-700 transition-colors ml-auto shrink-0 rtl:rotate-180" />
                     </div>
                     <div className="flex flex-wrap items-center gap-2 mt-1.5">
                       {relLabel && (

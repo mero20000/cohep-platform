@@ -151,7 +151,7 @@ export function DashboardHeader({
         <div ref={switchRef} className="relative">
           <Button variant="outline" size="sm" onClick={() => onSetSwitchOpen(!switchOpen)}
             className="h-auto gap-1.5">
-            <Building2 className="h-3.5 w-3.5 text-gold-500" />
+            <Building2 className="h-3.5 w-3.5 text-gold-700" />
             <span className="max-w-[140px] truncate">
               {activeSchoolId
                 ? (switchSchools.find(s => s.id === activeSchoolId)?.name || (language === 'ar' ? 'مدرسة' : 'School'))
@@ -167,7 +167,7 @@ export function DashboardHeader({
               <div className="max-h-80 overflow-y-auto py-1">
                 <button onClick={() => { onSetActiveSchool(null); onSetSwitchOpen(false) }}
                   className={`flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm hover:bg-gray-50 active:bg-gray-100 ${!activeSchoolId ? 'text-blue-700 font-medium bg-blue-50/40' : 'text-gray-700'}`}>
-                  <Building2 className="h-4 w-4 text-gold-500 shrink-0" />
+                  <Building2 className="h-4 w-4 text-gold-700 shrink-0" />
                   <span className="truncate">{language === 'ar' ? `مدرستي (${schoolName})` : `My School (${schoolName})`}</span>
                   {!activeSchoolId && <CheckCheck className={`h-4 w-4 ml-auto ${language === 'ar' ? 'mr-auto ml-0' : ''} text-blue-700`} />}
                 </button>
@@ -192,7 +192,7 @@ export function DashboardHeader({
         <div ref={roleRef} className="relative">
           <Button variant={isViewingAs ? "default" : "outline"} size="sm" onClick={() => onSetRoleOpen(!roleOpen)}
             className="h-auto gap-1.5">
-            <Crown className="h-3.5 w-3.5 text-gold-500" />
+            <Crown className="h-3.5 w-3.5 text-gold-700" />
             <span className="max-w-[140px] truncate">
               {roleOptions.find(o => o.value === effectiveRole)?.label || effectiveRole}
             </span>
@@ -210,7 +210,7 @@ export function DashboardHeader({
                   return (
                     <button key={o.value} onClick={() => { onSetRole(o.value); onSetRoleOpen(false) }}
                       className={`flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm hover:bg-gray-50 active:bg-gray-100 ${selected ? 'text-blue-700 font-medium bg-blue-50/40' : 'text-gray-700'}`}>
-                      <Icon className="h-4 w-4 text-gold-500 shrink-0" />
+                      <Icon className="h-4 w-4 text-gold-700 shrink-0" />
                       <span className="truncate">{language === 'ar' ? o.labelAr : o.label}</span>
                       {selected && <CheckCheck className={`h-4 w-4 ml-auto ${language === 'ar' ? 'mr-auto ml-0' : ''} text-blue-700`} />}
                     </button>
@@ -221,12 +221,12 @@ export function DashboardHeader({
                 </div>
                 <Link href="/portal/login" onClick={() => onSetRoleOpen(false)}
                   className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50 active:bg-gray-100">
-                  <Users className="h-4 w-4 text-gold-500 shrink-0" />
+                  <Users className="h-4 w-4 text-gold-700 shrink-0" />
                   <span className="truncate">{language === 'ar' ? 'بوابة ولي الأمر' : 'Parent Portal'}</span>
                 </Link>
                 <Link href="/student-portal/login" onClick={() => onSetRoleOpen(false)}
                   className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50 active:bg-gray-100">
-                  <GraduationCap className="h-4 w-4 text-gold-500 shrink-0" />
+                  <GraduationCap className="h-4 w-4 text-gold-700 shrink-0" />
                   <span className="truncate">{language === 'ar' ? 'بوابة الطالب' : 'Student Portal'}</span>
                 </Link>
                 {isViewingAs && (
@@ -275,7 +275,7 @@ export function DashboardHeader({
               </div>
               {notiLoading ? (
                 <div className="flex items-center justify-center py-8">
-                  <Loader2 className="h-5 w-5 animate-spin text-gold-500" />
+                  <Loader2 className="h-5 w-5 animate-spin text-gold-700" />
                 </div>
               ) : notifications.length === 0 ? (
                 <div className="px-4 py-8 text-center text-xs text-gray-400">

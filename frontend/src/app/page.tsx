@@ -901,7 +901,7 @@ export default function Home() {
         <section className="relative overflow-hidden bg-gradient-to-b from-gray-950 via-gray-900 to-gray-900 min-h-[90dvh] flex items-center">
           <HeroAlpha />
           <HeroCross3D />
-          <CrossPatternBg className="text-gold-500" />
+          <CrossPatternBg className="text-gold-700" />
           <GradientOrbs />
 
           <div className="relative mx-auto max-w-7xl px-4 pt-20 pb-16 sm:pt-24 sm:pb-20 lg:px-8 w-full">
@@ -982,7 +982,7 @@ export default function Home() {
 
         {/* ── WHY ───────────────────────────────────────────────────────── */}
         <section id="why" aria-labelledby="why-heading" className="py-24 sm:py-32 relative bg-gradient-to-b from-gray-950 to-gray-900 overflow-hidden">
-          <CrossPatternBg className="text-gold-500" />
+          <CrossPatternBg className="text-gold-700" />
           <GradientOrbs />
           <div className="relative mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
             <FadeIn variant="up" className="text-center mb-14">
@@ -1074,7 +1074,7 @@ export default function Home() {
 
         {/* ── CURRICULUM ────────────────────────────────────────────────── */}
         <section id="curriculum" aria-labelledby="curriculum-heading" className="py-20 sm:py-28 relative bg-gradient-to-b from-gray-950 to-gray-900 overflow-hidden">
-          <CrossPatternBg className="text-gold-500" />
+          <CrossPatternBg className="text-gold-700" />
           <GradientOrbs />
           <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <FadeIn className="mx-auto max-w-2xl text-center mb-12" variant="up">
@@ -1163,7 +1163,7 @@ export default function Home() {
               {t.howItWorks.steps.map((step, i) => (
                 <div key={step.num} className="sticky top-4 sm:top-8 mb-5 sm:mb-8">
                   <div className="relative overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-[0_18px_40px_-18px_rgba(0,0,0,0.18)]">
-                    <span className="pointer-events-none absolute -right-1 -top-7 select-none text-[7rem] font-bold leading-none text-gold-500/10" aria-hidden="true">
+                    <span className="pointer-events-none absolute -right-1 -top-7 select-none text-[7rem] font-bold leading-none text-gold-700/10" aria-hidden="true">
                       {step.num}
                     </span>
                     <div className="relative flex min-h-[48dvh] sm:min-h-[55dvh] flex-col justify-center p-8 sm:p-12">
@@ -1182,7 +1182,7 @@ export default function Home() {
 
         {/* ── OPEN SOURCE ───────────────────────────────────────────────── */}
         <section id="open-source" aria-labelledby="oss-heading" className="py-20 sm:py-28 relative bg-gradient-to-b from-gray-950 to-gray-900">
-          <CrossPatternBg className="text-gold-500" />
+          <CrossPatternBg className="text-gold-700" />
           <GradientOrbs />
           <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <FadeIn className="mx-auto max-w-2xl text-center mb-12" variant="up">
@@ -1295,7 +1295,7 @@ export default function Home() {
 
         {/* ── CTA ───────────────────────────────────────────────────────── */}
         <section aria-labelledby="cta-heading" className="py-20 sm:py-28 relative bg-gradient-to-b from-gray-950 to-gray-900">
-          <CrossPatternBg className="text-gold-500" />
+          <CrossPatternBg className="text-gold-700" />
           <GradientOrbs />
           <div className="relative mx-auto max-w-3xl px-4 sm:px-6 lg:px-8 text-center">
             <FadeIn variant="scale">

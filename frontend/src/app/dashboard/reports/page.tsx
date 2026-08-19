@@ -395,7 +395,7 @@ function ServantContributionsSection({ schoolId, lang }: { schoolId: string; lan
       <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
         <div className="border-b border-gray-100 px-5 py-3 flex items-center justify-between">
           <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
-            <Award className="h-4 w-4 text-gold-500" />
+            <Award className="h-4 w-4 text-gold-700" />
             {t('Servant Contributions', 'مساهمات الخدام')}
           </h3>
           <span className="text-[11px] text-gray-500">

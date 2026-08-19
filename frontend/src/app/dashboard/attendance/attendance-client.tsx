@@ -489,16 +489,19 @@ export function AttendanceClient() {
             {/* Filters */}
             <div className="flex flex-wrap items-center gap-2 px-5 py-3 border-b border-gray-100 bg-gray-50">
               <select value={filterLevel} onChange={e => { setFilterLevel(e.target.value); setFilterGroup('') }}
+                aria-label={lang === 'ar' ? 'تصفية حسب المستوى' : 'Filter by level'}
                 className="rounded-lg border border-gray-300 px-2 py-1.5 text-xs min-h-[40px] focus:border-gold-500 focus:outline-none">
                 <option value="">{lang === 'ar' ? 'جميع المستويات' : 'All Levels'}</option>
                 {levels.map(l => <option key={l.id} value={l.id}>{lang === 'ar' ? `المستوى ${l.number}` : `Level ${l.number}`}</option>)}
               </select>
               <select value={filterGroup} onChange={e => setFilterGroup(e.target.value)}
+                aria-label={lang === 'ar' ? 'تصفية حسب المجموعة' : 'Filter by group'}
                 className="rounded-lg border border-gray-300 px-2 py-1.5 text-xs min-h-[40px] focus:border-gold-500 focus:outline-none">
                 <option value="">{lang === 'ar' ? 'جميع المجموعات' : 'All Groups'}</option>
                 {groups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
               </select>
               <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)}
+                aria-label={lang === 'ar' ? 'تصفية حسب الحالة' : 'Filter by status'}
                 className="rounded-lg border border-gray-300 px-2 py-1.5 text-xs min-h-[40px] focus:border-gold-500 focus:outline-none">
                 <option value="">{lang === 'ar' ? 'جميع الحالات' : 'All Status'}</option>
                 <option value="scheduled">{lang === 'ar' ? 'مجدول' : 'Scheduled'}</option>
@@ -725,7 +728,7 @@ export function AttendanceClient() {
                         ) : (
                           <label className="flex items-center gap-1.5 cursor-pointer select-none">
                             <input type="checkbox" checked={lit} onChange={e => setTempLiturgy({ ...tempLiturgy, [record.student.id]: e.target.checked })}
-                              className="h-5 w-5 rounded border-gray-300 text-gold-500 focus:ring-blue-500" />
+                              className="h-5 w-5 rounded border-gray-300 text-gold-700 focus:ring-blue-500" />
                             <span className="text-xs text-gray-500 font-medium whitespace-nowrap">{lang === 'ar' ? 'القداس' : 'Liturgy'}</span>
                           </label>
                         )}

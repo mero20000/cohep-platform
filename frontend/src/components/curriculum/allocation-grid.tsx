@@ -216,7 +216,7 @@ export function AllocationGrid({
                               <option value="" disabled>{lang === 'ar' ? 'لا توجد تسبائح' : 'No lessons'}</option>
                             )}
                           </select>
-                          {isSaving && <Loader2 className="h-3 w-3 animate-spin text-gold-500 shrink-0" />}
+                          {isSaving && <Loader2 className="h-3 w-3 animate-spin text-gold-700 shrink-0" />}
                         </div>
                         {alloc && (
                           <div className="mt-0.5 flex items-center gap-1.5 px-1">
