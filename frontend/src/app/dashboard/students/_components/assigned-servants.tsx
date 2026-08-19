@@ -13,12 +13,12 @@ export function AssignedServants({ servants, loading, show, onToggle, lang }: Pr
   return (
     <div className="rounded-xl border border-gray-200 bg-white">
       <button onClick={onToggle} className="flex items-center justify-between w-full px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 rounded-xl">
-        <span className="flex items-center gap-2"><Shield className="h-4 w-4 text-gold-500"/>{t('Assigned Servants','الخدم المعينون')}<span className="text-xs text-gray-400 font-normal">({servants.length})</span>{loading&&<Loader2 className="h-3 w-3 animate-spin text-gray-400"/>}</span>
+        <span className="flex items-center gap-2"><Shield className="h-4 w-4 text-gold-500"/>{t('Assigned Servants','الخدم المعينون')}<span className="text-xs text-gray-500 font-normal">({servants.length})</span>{loading&&<Loader2 className="h-3 w-3 animate-spin text-gray-500"/>}</span>
         <ChevronDown className={`h-4 w-4 transition-transform ${show?'':'-rotate-90'}`}/>
       </button>
       {show&&(<div className="px-4 pb-3">
-        {loading?<div className="flex items-center justify-center py-4"><Loader2 className="h-4 w-4 animate-spin text-gray-400"/></div>
-        :servants.length===0?<p className="text-xs text-gray-400 py-2">{t('No servants assigned to this level/group','لا يوجد خدم معينون لهذا المستوى/المجموعة')}</p>
+        {loading?<div className="flex items-center justify-center py-4"><Loader2 className="h-4 w-4 animate-spin text-gray-500"/></div>
+        :servants.length===0?<p className="text-xs text-gray-500 py-2">{t('No servants assigned to this level/group','لا يوجد خدم معينون لهذا المستوى/المجموعة')}</p>
         :<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
           {servants.map(s=>{
             const role=s.userRoles?.find(ur=>['servant','group_leader','level_leader'].includes(ur.role.name))

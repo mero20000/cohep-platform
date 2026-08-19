@@ -176,7 +176,7 @@ function PriestPulseSection({ schoolId, lang }: { schoolId: string; lang: string
             </p>
             <div className="flex items-end gap-3">
               <span className={`text-5xl font-black ${healthColor}`}>{pulse.healthScore}</span>
-              <span className="text-xl text-gray-400 mb-1">/100</span>
+              <span className="text-xl text-gray-500 mb-1">/100</span>
             </div>
             <p className="text-sm text-gray-600 mt-1">
               {pulse.healthScore >= 80
@@ -190,9 +190,9 @@ function PriestPulseSection({ schoolId, lang }: { schoolId: string; lang: string
             <Church className={`h-8 w-8 ${healthColor}`} />
           </div>
         </div>
-        <div className="mt-3 text-[11px] text-gray-400">
+        <div className="mt-3 text-[11px] text-gray-500">
           {t('Generated', 'تم التوليد')} {new Date(data.generatedAt).toLocaleTimeString(lang === 'ar' ? 'ar-EG' : 'en-GB', { hour: '2-digit', minute: '2-digit' })}
-          <button onClick={refresh} className="ml-3 inline-flex items-center gap-1 text-gray-400 hover:text-gray-600 transition-colors">
+          <button onClick={refresh} className="ml-3 inline-flex items-center gap-1 text-gray-500 hover:text-gray-600 transition-colors">
             <RefreshCw className="h-3 w-3" /> {t('Refresh', 'تحديث')}
           </button>
         </div>
@@ -233,7 +233,7 @@ function PriestPulseSection({ schoolId, lang }: { schoolId: string; lang: string
               <div className="mt-3">
                 <div className="text-2xl font-black text-gray-900">{card.value}</div>
                 <div className="text-xs text-gray-500 mt-0.5">{card.label}</div>
-                <div className="text-[11px] text-gray-400 mt-0.5">{card.sub}</div>
+                <div className="text-[11px] text-gray-500 mt-0.5">{card.sub}</div>
               </div>
             </div>
           )
@@ -252,7 +252,7 @@ function LiturgicalEngagementSection({ schoolId, lang }: { schoolId: string; lan
   if (loading) return <div className="h-64 rounded-2xl bg-gray-100 animate-pulse" />
   if (error || !data) return (
     <div className="rounded-xl border border-gray-200 bg-gray-50 p-8 text-center">
-      <p className="text-sm text-gray-400">{t('No liturgical engagement data yet.', 'لا توجد بيانات مشاركة ليتورجية بعد.')}</p>
+      <p className="text-sm text-gray-500">{t('No liturgical engagement data yet.', 'لا توجد بيانات مشاركة ليتورجية بعد.')}</p>
     </div>
   )
 
@@ -276,11 +276,11 @@ function LiturgicalEngagementSection({ schoolId, lang }: { schoolId: string; lan
                 style={{ height: `${Math.max(4, (m.rate / maxMonthly) * 80)}px` }}
                 title={`${m.rate}%`}
               />
-              <span className="text-[9px] text-gray-400 truncate w-full text-center">{m.month}</span>
+              <span className="text-[9px] text-gray-500 truncate w-full text-center">{m.month}</span>
             </div>
           ))}
         </div>
-        <div className="mt-2 flex items-center gap-4 text-[11px] text-gray-400">
+        <div className="mt-2 flex items-center gap-4 text-[11px] text-gray-500">
           <span>{t('Hover bars for rate', 'مرر على الأعمدة للنسبة')}</span>
           <span className="ml-auto">{t('Sessions: ' + data.monthly.reduce((s, m) => s + m.sessions, 0), 'الجلسات: ' + data.monthly.reduce((s, m) => s + m.sessions, 0))}</span>
         </div>
@@ -337,7 +337,7 @@ function LiturgicalEngagementSection({ schoolId, lang }: { schoolId: string; lan
                   )}
                 </div>
               ) : (
-                <p className="text-[11px] text-gray-400">
+                <p className="text-[11px] text-gray-500">
                   {season.inPast ? t('No sessions recorded for this season.', 'لا جلسات مسجلة لهذا الموسم.') : t('Season not started yet.', 'لم يبدأ الموسم بعد.')}
                 </p>
               )}
@@ -362,7 +362,7 @@ function ServantContributionsSection({ schoolId, lang }: { schoolId: string; lan
   )
   if (error || !data) return (
     <div className="rounded-xl border border-gray-200 bg-gray-50 p-8 text-center">
-      <p className="text-sm text-gray-400">{t('No servant data yet.', 'لا توجد بيانات خدام بعد.')}</p>
+      <p className="text-sm text-gray-500">{t('No servant data yet.', 'لا توجد بيانات خدام بعد.')}</p>
     </div>
   )
 
@@ -383,7 +383,7 @@ function ServantContributionsSection({ schoolId, lang }: { schoolId: string; lan
               </p>
             </div>
             <div className="ml-auto text-right">
-              <p className="text-[10px] text-gray-400">{t('Total servants', 'إجمالي الخدام')}</p>
+              <p className="text-[10px] text-gray-500">{t('Total servants', 'إجمالي الخدام')}</p>
               <p className="text-base font-bold text-gray-700">{data.summary.totalServants}</p>
             </div>
           </div>
@@ -397,14 +397,14 @@ function ServantContributionsSection({ schoolId, lang }: { schoolId: string; lan
             <Award className="h-4 w-4 text-gold-500" />
             {t('Servant Contributions', 'مساهمات الخدام')}
           </h3>
-          <span className="text-[11px] text-gray-400">
+          <span className="text-[11px] text-gray-500">
             {data.summary.totalSessionsAllTime.toLocaleString()} {t('sessions total', 'جلسة إجمالاً')}
           </span>
         </div>
         {data.servants.length === 0 ? (
           <div className="p-8 text-center">
             <Users className="mx-auto h-8 w-8 text-gray-200 mb-2" />
-            <p className="text-sm text-gray-400">{t('No servants found.', 'لا يوجد خدام.')}</p>
+            <p className="text-sm text-gray-500">{t('No servants found.', 'لا يوجد خدام.')}</p>
           </div>
         ) : (
           <div className="divide-y divide-gray-50">
@@ -420,7 +420,7 @@ function ServantContributionsSection({ schoolId, lang }: { schoolId: string; lan
                       i === 0 ? 'bg-amber-100 text-amber-700' :
                       i === 1 ? 'bg-gray-100 text-gray-600' :
                       i === 2 ? 'bg-orange-50 text-orange-600' :
-                      'bg-gray-50 text-gray-400'
+                      'bg-gray-50 text-gray-500'
                     }`}>
                       {i + 1}
                     </div>
@@ -434,7 +434,7 @@ function ServantContributionsSection({ schoolId, lang }: { schoolId: string; lan
                         </div>
                         <div className="text-right shrink-0">
                           <p className="text-sm font-bold text-gray-900">{servant.totalSessions.toLocaleString()}</p>
-                          <p className="text-[10px] text-gray-400">{t('sessions', 'جلسة')}</p>
+                          <p className="text-[10px] text-gray-500">{t('sessions', 'جلسة')}</p>
                         </div>
                       </div>
                       {/* Appreciation message */}
@@ -444,7 +444,7 @@ function ServantContributionsSection({ schoolId, lang }: { schoolId: string; lan
                       {/* Bar + this month */}
                       <div className="mt-2 space-y-1">
                         <MiniBar value={servant.totalSessions} max={maxSessions} color="bg-indigo-300" />
-                        <div className="flex items-center justify-between text-[10px] text-gray-400">
+                        <div className="flex items-center justify-between text-[10px] text-gray-500">
                           <span>{t('This month:', 'هذا الشهر:')} <strong className="text-gray-600">{servant.sessionsThisMonth}</strong></span>
                           <TrendPill value={servant.trend} />
                           <span>{t('Students reached:', 'طلاب وصلوا:')} <strong className="text-gray-600">{servant.studentsReached}</strong></span>
@@ -459,7 +459,7 @@ function ServantContributionsSection({ schoolId, lang }: { schoolId: string; lan
         )}
       </div>
 
-      <p className="text-[11px] text-gray-400 text-center italic">
+      <p className="text-[11px] text-gray-500 text-center italic">
         {t('This report is for appreciation, not performance review. Every session taught is a gift to the Church.', 'هذا التقرير للتقدير، ليس لتقييم الأداء. كل جلسة علّمتها هي هدية للكنيسة.')}
       </p>
     </div>

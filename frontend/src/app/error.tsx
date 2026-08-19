@@ -13,7 +13,7 @@ export default function RootError({ error, reset }: { error: Error & { digest?: 
         <h1 className="text-xl font-bold text-gray-900">Something went wrong</h1>
         <p className="mt-2 text-sm text-gray-500">{error.message || 'An unexpected error occurred'}</p>
         <button onClick={reset}
-          className="mt-6 rounded-lg bg-blue-500 px-5 py-2.5 text-sm font-medium text-white hover:bg-gold-600 transition-colors">
+          className="mt-6 rounded-lg bg-gold-500 px-5 py-2.5 text-sm font-medium text-gray-950 hover:bg-gold-600 transition-colors">
           Try again
         </button>
       </div>

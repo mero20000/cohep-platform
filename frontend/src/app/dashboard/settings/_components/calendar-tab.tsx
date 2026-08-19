@@ -308,7 +308,7 @@ export function CalendarTab() {
                     } catch (e) { console.error(e) }
                   }}
                     className={`px-4 py-2.5 rounded-lg text-sm font-medium transition-all border ${
-                      active ? 'bg-blue-500 text-white border-gold-500 shadow-sm' : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'
+                      active ? 'bg-gold-500 text-gray-950 border-gold-600 shadow-sm' : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'
                     }`}>
                     {label}
                   </button>

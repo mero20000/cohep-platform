@@ -386,7 +386,7 @@ export default function RegisterPage() {
                   {n:3 as const,en:'Location',ar:'الموقع'},
                 ]).map((s,i)=>(
                   <div key={s.n} className="flex items-center gap-1.5 flex-1">
-                    <div className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-bold transition-all ${regStep>s.n?'bg-green-500 text-white':regStep===s.n?'bg-gold-500 text-white shadow shadow-gold-200':'bg-gray-100 text-gray-400'}`}>
+                    <div className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-bold transition-all ${regStep>s.n?'bg-green-500 text-white':regStep===s.n?'bg-gold-500 text-gray-950 shadow shadow-gold-200':'bg-gray-100 text-gray-400'}`}>
                       {regStep>s.n?'✓':s.n}
                     </div>
                     <span className={`text-[11px] font-medium hidden sm:block whitespace-nowrap ${regStep===s.n?'text-gray-700':'text-gray-400'}`}>{isAr?s.ar:s.en}</span>

@@ -153,7 +153,7 @@ export function ProfileTab() {
               variant="default"
               size="icon"
               onClick={() => fileRef.current?.click()}
-              className="absolute -bottom-1 -right-1 flex h-8 w-8 items-center justify-center rounded-full bg-blue-500 text-white shadow-lg hover:bg-gold-600 transition-colors"
+              className="absolute -bottom-1 -right-1 flex h-8 w-8 items-center justify-center rounded-full bg-gold-500 text-gray-950 shadow-lg hover:bg-gold-600 transition-colors"
               title={lang === 'ar' ? 'رفع صورة' : 'Upload photo'}
             >
               {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />}

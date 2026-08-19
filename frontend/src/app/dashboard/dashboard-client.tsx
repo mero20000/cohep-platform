@@ -536,7 +536,7 @@ function LeaderboardSection({ stats, loading }: { stats: DashboardData | null; l
       className="px-5 py-3.5 hover:bg-gradient-to-r hover:from-blue-50/30 hover:to-transparent transition-all duration-300 group">
       <div className="flex items-center gap-3">
        <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-bold transition-transform duration-300 group-hover:scale-110 ${
-        i === 0 ? 'bg-gradient-to-br from-gold-400 via-gold-500 to-gold-600 text-white shadow-lg shadow-blue-200' :
+        i === 0 ? 'bg-gradient-to-br from-gold-400 via-gold-500 to-gold-600 text-gray-950 shadow-lg shadow-blue-200' :
         i === 1 ? 'bg-gradient-to-br from-gray-300 to-gray-400 text-white shadow-md' :
         i === 2 ? 'bg-gradient-to-br from-orange-400 to-orange-500 text-white shadow-md' :
         'bg-gray-100 text-gray-600'
@@ -1399,7 +1399,7 @@ function SessionSummaryModal({ session, students, lang, onClose }: { session: an
             </div>
           </div>
           <div className="mt-6 flex gap-3">
-            <Link href="/dashboard/assessments" className="flex-1 text-center py-2.5 rounded-xl bg-blue-600 text-white font-medium hover:bg-blue-700 transition-colors">
+            <Link href="/dashboard/assessments" className="flex-1 text-center py-2.5 rounded-xl bg-gold-500 text-gray-950 font-medium hover:bg-gold-600 transition-colors">
               {lang === 'ar' ? 'تقييم' : 'Grade'}
             </Link>
             <Link href="/dashboard/announcements" className="flex-1 text-center py-2.5 rounded-xl bg-gray-100 text-gray-700 font-medium hover:bg-gray-200 transition-colors">
@@ -1600,7 +1600,7 @@ function RecurringSessionsButton({ lang }: { lang: string }) {
                 {lang === 'ar' ? 'إلغاء' : 'Cancel'}
               </button>
               <button onClick={handleCreate} disabled={creating || !selectedGroup || !selectedLevel}
-                className="flex-1 py-2.5 rounded-xl bg-blue-600 text-white font-medium hover:bg-blue-700 transition-colors disabled:opacity-50">
+                className="flex-1 py-2.5 rounded-xl bg-gold-500 text-gray-950 font-medium hover:bg-gold-600 transition-colors disabled:opacity-50">
                 {creating ? (lang === 'ar' ? 'جاري الإنشاء...' : 'Creating...') : created ? (lang === 'ar' ? `تم إنشاء ${created} جلسات ✓` : `Created ${created} sessions ✓`) : (lang === 'ar' ? 'إنشاء' : 'Create')}
               </button>
             </div>
@@ -1980,7 +1980,7 @@ export function MinistryDashboard({ data, loading, error, onRetry }: { data: any
      {churchName}
     </span>
    )}
-   <p className="text-white/60 text-sm">{getFullDay(lang)}</p>
+   <p className="text-white/80 text-sm">{getFullDay(lang)}</p>
    <RoleBadge role={d.role || 'servant'} lang={lang} />
   </>
  )
@@ -2015,7 +2015,7 @@ export function MinistryDashboard({ data, loading, error, onRetry }: { data: any
     <div key={item.label} className="rounded-xl bg-white/5 border border-white/10 px-4 py-3">
      <div className="flex items-center gap-2 mb-1">
       <item.icon className="h-3.5 w-3.5 text-gold-400" />
-      <span className="text-[11px] text-white/60">{lang === 'ar' ? (item as any).labelAr : item.label}</span>
+      <span className="text-[11px] text-white/80">{lang === 'ar' ? (item as any).labelAr : item.label}</span>
      </div>
      <div className="text-xl font-bold text-white tracking-wider">
       <AnimatedCounter value={item.value} suffix={'suffix' in item ? (item as any).suffix || '' : ''} />
@@ -2059,10 +2059,10 @@ export function MinistryDashboard({ data, loading, error, onRetry }: { data: any
         <motion.div variants={fadeUp} className="rounded-2xl border border-white/10 bg-white/5 p-5 backdrop-blur-sm">
           <div className="mb-3 flex items-center justify-between">
             <h2 className="font-semibold text-white">{lang === 'ar' ? 'خدام مجموعتي' : 'My Group · Servants'}</h2>
-            <span className="text-xs text-white/60">{groupMates.length}</span>
+            <span className="text-xs text-white/80">{groupMates.length}</span>
           </div>
           {groupMates.length === 0 ? (
-            <p className="text-sm text-white/60">{lang === 'ar' ? 'لا يوجد خدام آخرون في مجموعتك' : 'No other servants in your group'}</p>
+            <p className="text-sm text-white/80">{lang === 'ar' ? 'لا يوجد خدام آخرون في مجموعتك' : 'No other servants in your group'}</p>
           ) : (
             <ul className="space-y-2">
               {groupMates.map((m) => (
@@ -2070,7 +2070,7 @@ export function MinistryDashboard({ data, loading, error, onRetry }: { data: any
                   {m.avatarUrl ? (
                     <Image src={m.avatarUrl.startsWith('http') ? m.avatarUrl : `${API_ORIGIN}${m.avatarUrl}`} alt="" width={32} height={32} className="h-8 w-8 rounded-full object-cover" unoptimized />
                   ) : (
-                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-500/30 text-sm font-bold text-white">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-600 text-sm font-bold text-white">
                       {(m.firstName || '?')[0]}
                     </div>
                   )}
@@ -2638,7 +2638,7 @@ function ParentDashboard({ data, loading, error, onRetry }: { data: any; loading
   </>
  )
 
- const parentBadges = <p className="text-white/60 text-sm">{getFullDay(lang)}</p>
+ const parentBadges = <p className="text-white/80 text-sm">{getFullDay(lang)}</p>
 
  return (
   <>

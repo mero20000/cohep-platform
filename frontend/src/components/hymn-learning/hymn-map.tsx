@@ -57,7 +57,7 @@ export function HymnMap({ hymns, onSelect, lang }: Props) {
         <div className="flex items-center gap-1 flex-wrap">
           {FILTERS.map(f => (
             <button key={f.value} onClick={() => setFilter(f.value)}
-              className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${filter === f.value ? 'bg-gold-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+              className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${filter === f.value ? 'bg-gold-500 text-gray-950' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
               {lang === 'ar' ? f.labelAr : f.label}
             </button>
           ))}

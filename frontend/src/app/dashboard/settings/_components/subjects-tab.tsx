@@ -407,7 +407,7 @@ export function SubjectsTab() {
         {loading ? (
           <div className="flex items-center justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-gold-500" /></div>
         ) : subjects.length === 0 ? (
-          <div className="px-6 py-8 text-center text-sm text-gray-400">{lang === 'ar' ? 'لا توجد مواد بعد.' : 'No subjects yet.'}</div>
+          <div className="px-6 py-8 text-center text-sm text-gray-500">{lang === 'ar' ? 'لا توجد مواد بعد.' : 'No subjects yet.'}</div>
         ) : (
           <div className="p-6">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -433,14 +433,14 @@ export function SubjectsTab() {
                         subject.status === 'active' ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-500'
                       }`}>{subject.status}</span>
                     </div>
-                    {subject.description && <p className="text-xs text-gray-400 mt-2 line-clamp-2">{subject.description}</p>}
+                    {subject.description && <p className="text-xs text-gray-500 mt-2 line-clamp-2">{subject.description}</p>}
                     <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-100">
-                      <span className="text-[11px] text-gray-400">{selectedSubject?.id === subject.id ? (lang === 'ar' ? 'انقر للطي' : 'Click to collapse') : (lang === 'ar' ? 'انقر للتوسيع' : 'Click to expand')}</span>
+                      <span className="text-[11px] text-gray-500">{selectedSubject?.id === subject.id ? (lang === 'ar' ? 'انقر للطي' : 'Click to collapse') : (lang === 'ar' ? 'انقر للتوسيع' : 'Click to expand')}</span>
                       <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
-                        <Button variant="ghost" size="icon" onClick={() => openEdit(subject)} className="rounded-lg p-1.5 text-gray-400 hover:bg-amber-50 hover:text-amber-600">
+                        <Button variant="ghost" size="icon" onClick={() => openEdit(subject)} className="rounded-lg p-1.5 text-gray-500 hover:bg-amber-50 hover:text-amber-600">
                           <Pencil className="h-3.5 w-3.5" />
                         </Button>
-                        <Button variant="ghost" size="icon" onClick={() => { setDeleteTarget(subject); setShowDelete(true) }} className="rounded-lg p-1.5 text-gray-400 hover:bg-red-50 hover:text-red-600">
+                        <Button variant="ghost" size="icon" onClick={() => { setDeleteTarget(subject); setShowDelete(true) }} className="rounded-lg p-1.5 text-gray-500 hover:bg-red-50 hover:text-red-600">
                           <Trash2 className="h-3.5 w-3.5" />
                         </Button>
                       </div>
@@ -475,7 +475,7 @@ export function SubjectsTab() {
           {/* Filters */}
           <div className="border-b border-gray-100 px-6 py-3 flex flex-wrap items-center gap-3">
             <div className="relative flex-1 min-w-[180px] max-w-xs">
-              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-500" />
               <input type="text" placeholder={lang === 'ar' ? 'البحث عن اسم التسبيحة...' : 'Search hymn name...'} value={filterSearch}
                 onChange={e => setFilterSearch(e.target.value)}
                 className="w-full rounded-lg border border-gray-200 bg-white pl-8 pr-3 py-1.5 text-xs focus:border-gold-500 focus:outline-none" />
@@ -526,7 +526,7 @@ export function SubjectsTab() {
           {loadingItems ? (
             <div className="flex items-center justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-gold-500" /></div>
           ) : filteredItems.length === 0 ? (
-            <div className="py-8 text-center text-sm text-gray-400">{items.length === 0 ? (lang === 'ar' ? 'لا توجد عناصر بعد.' : 'No items yet.') : (lang === 'ar' ? 'لا توجد عناصر تطابق الفلاتر.' : 'No items match filters.')}</div>
+            <div className="py-8 text-center text-sm text-gray-500">{items.length === 0 ? (lang === 'ar' ? 'لا توجد عناصر بعد.' : 'No items yet.') : (lang === 'ar' ? 'لا توجد عناصر تطابق الفلاتر.' : 'No items match filters.')}</div>
           ) : (
             <div className="overflow-x-auto table-to-cards">
               <table className="min-w-full text-xs">
@@ -556,7 +556,7 @@ export function SubjectsTab() {
                           <input type="checkbox" checked={selectedItems.has(item.id)} onChange={() => toggleSelectItem(item.id)}
                             className="h-3.5 w-3.5 rounded border-gray-300 text-blue-700 focus:ring-blue-500" />
                         </td>
-                        <td className="px-2 py-1.5 text-center text-gray-400" data-label="Sn.">{idx + 1}</td>
+                        <td className="px-2 py-1.5 text-center text-gray-500" data-label="Sn.">{idx + 1}</td>
                         <td className="px-2 py-1.5" data-label="When">
                           {item.whenLabel && (
                             <span className={`inline-block px-2 py-0.5 rounded text-[11px] font-medium ${whenColor.bg} ${whenColor.text}`}>
@@ -617,10 +617,10 @@ export function SubjectsTab() {
                           ) : <span className="text-gray-300">—</span>}
                         </td>
                         <td className="px-2 py-1.5 text-right" data-label="Actions" onClick={e => e.stopPropagation()}>
-                          <Button variant="ghost" size="icon" aria-label="Edit Item" onClick={() => startEditItem(item)} className="rounded p-1 text-gray-400 hover:bg-amber-50 hover:text-amber-600 mr-1">
+                          <Button variant="ghost" size="icon" aria-label="Edit Item" onClick={() => startEditItem(item)} className="rounded p-1 text-gray-500 hover:bg-amber-50 hover:text-amber-600 mr-1">
                             <Pencil className="h-3.5 w-3.5" />
                           </Button>
-                          <Button variant="ghost" size="icon" onClick={() => { setDeleteItemTarget(item); setShowDeleteItem(true) }} className="rounded p-1 text-gray-400 hover:bg-red-50 hover:text-red-600">
+                          <Button variant="ghost" size="icon" onClick={() => { setDeleteItemTarget(item); setShowDeleteItem(true) }} className="rounded p-1 text-gray-500 hover:bg-red-50 hover:text-red-600">
                             <Trash2 className="h-3.5 w-3.5" />
                           </Button>
                         </td>
@@ -811,7 +811,7 @@ export function SubjectsTab() {
                 </Button>
                 <input ref={pptxInputRef} type="file" accept=".pptx" onChange={handlePptxUpload} className="hidden" />
               </div>
-              <p className="text-xs text-gray-400 mt-1">{lang === 'ar' ? 'اختر ملف PowerPoint للرفع' : 'Upload a PowerPoint file'}</p>
+              <p className="text-xs text-gray-500 mt-1">{lang === 'ar' ? 'اختر ملف PowerPoint للرفع' : 'Upload a PowerPoint file'}</p>
             </div>
             <div className="space-y-2">
               <label className="block text-sm font-medium text-gray-700">{lang === 'ar' ? 'تسجيل المرجع' : 'Reference recording'}</label>
@@ -952,13 +952,13 @@ export function SubjectsTab() {
                     <div className="max-h-48 overflow-y-auto space-y-1">
                       {drawerItem.presentationData.verses.slice(0, 10).map((v, i) => (
                         <div key={i} className="text-xs text-gray-600 border-b border-gray-100 pb-1 last:border-0">
-                          <span className="text-gray-400 mr-1">{i + 1}.</span>
+                          <span className="text-gray-500 mr-1">{i + 1}.</span>
                           {v.cop && <span className="coptic-text mr-2">{v.cop}</span>}
                           {v.en && <span className="text-gray-500">{v.en}</span>}
                         </div>
                       ))}
                       {drawerItem.presentationData.verses.length > 10 && (
-                        <p className="text-xs text-gray-400 pt-1">...{lang === 'ar' ? 'و' : 'and'} {drawerItem.presentationData.verses.length - 10} {lang === 'ar' ? 'أخرى' : 'more'}</p>
+                        <p className="text-xs text-gray-500 pt-1">...{lang === 'ar' ? 'و' : 'and'} {drawerItem.presentationData.verses.length - 10} {lang === 'ar' ? 'أخرى' : 'more'}</p>
                       )}
                     </div>
                   )}
@@ -974,7 +974,7 @@ export function SubjectsTab() {
                 <div className="border border-gray-200 rounded-lg p-3 bg-gray-50">
                   <audio controls src={assetUrl(drawerItem.recordingUrl)} className="w-full h-9" />
                   {drawerItem.recordingMeta?.originalName && (
-                    <p className="text-xs text-gray-400 mt-1">{drawerItem.recordingMeta.originalName}</p>
+                    <p className="text-xs text-gray-500 mt-1">{drawerItem.recordingMeta.originalName}</p>
                   )}
                 </div>
               </DetailSection>

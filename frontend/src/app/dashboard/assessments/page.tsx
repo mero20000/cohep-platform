@@ -646,7 +646,7 @@ export default function AssessmentsPage() {
         return t ? (
           <Badge variant="outline" size="sm">{termLabel(t, lang)}</Badge>
         ) : (
-          <span className="text-gray-400">—</span>
+          <span className="text-gray-500">—</span>
         )
       },
     },
@@ -692,17 +692,17 @@ export default function AssessmentsPage() {
         <div className="flex items-center justify-end gap-1">
           <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); openStudents(a) }}
             aria-label={lang === 'ar' ? `طلاب ${a.title}` : `Students for ${a.title}`}
-            className="text-gray-400 hover:bg-indigo-50 hover:text-indigo-600">
+            className="text-gray-500 hover:bg-indigo-50 hover:text-indigo-600">
             <Users className="h-4 w-4" />
           </Button>
           <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); openEdit(a) }}
             aria-label={lang === 'ar' ? `تعديل ${a.title}` : `Edit ${a.title}`}
-            className="text-gray-400 hover:bg-amber-50 hover:text-amber-600">
+            className="text-gray-500 hover:bg-amber-50 hover:text-amber-600">
             <Pencil className="h-4 w-4" />
           </Button>
           <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); openDelete(a) }}
             aria-label={lang === 'ar' ? `حذف ${a.title}` : `Delete ${a.title}`}
-            className="text-gray-400 hover:bg-red-50 hover:text-red-600">
+            className="text-gray-500 hover:bg-red-50 hover:text-red-600">
             <Trash2 className="h-4 w-4" />
           </Button>
         </div>
@@ -774,7 +774,7 @@ export default function AssessmentsPage() {
                 </div>
                 <div>
                   <p className="text-base font-bold text-gray-900">{batchCurrent.firstName} {batchCurrent.lastName}</p>
-                  <p className="text-xs text-gray-400">{batchCurrent.studentCode}</p>
+                  <p className="text-xs text-gray-500">{batchCurrent.studentCode}</p>
                 </div>
               </div>
               <div className="mb-5 rounded-lg bg-gray-50 border border-gray-100 px-3 py-2.5 text-xs text-gray-500 flex flex-wrap items-center gap-4">
@@ -1018,7 +1018,7 @@ export default function AssessmentsPage() {
             </div>
 
             {form.questions.length === 0 && (
-              <p className="text-xs text-gray-400">{lang === 'ar' ? 'لم تتم إضافة أسئلة. يمكنك نشر تقييم بدون أسئلة، أو إضافة أسئلة أعلاه.' : 'No questions added. You can publish an assessment without questions, or add questions above.'}</p>
+              <p className="text-xs text-gray-500">{lang === 'ar' ? 'لم تتم إضافة أسئلة. يمكنك نشر تقييم بدون أسئلة، أو إضافة أسئلة أعلاه.' : 'No questions added. You can publish an assessment without questions, or add questions above.'}</p>
             )}
 
             {formIssues.length > 0 && (
@@ -1033,7 +1033,7 @@ export default function AssessmentsPage() {
               {form.questions.map((q, qi) => (
                 <div key={qi} className="rounded-lg border border-gray-200 p-3 space-y-2">
                   <div className="flex items-start gap-2">
-                    <span className="mt-2 text-xs font-medium text-gray-400">#{qi + 1}</span>
+                    <span className="mt-2 text-xs font-medium text-gray-500">#{qi + 1}</span>
                     <div className="flex-1">
                       <input value={q.text} onChange={e => {
                         const questions = [...form.questions]; questions[qi].text = e.target.value; updateForm({ questions })
@@ -1146,7 +1146,7 @@ export default function AssessmentsPage() {
                   <Loader2 className="h-6 w-6 animate-spin text-gold-500" />
                 </div>
               ) : visibleStudents.length === 0 ? (
-                <p className="py-10 text-center text-sm text-gray-400">{lang === 'ar' ? 'لم يتم العثور على طلاب لهذا المستوى/المجموعة.' : 'No students found for this level/group.'}</p>
+                <p className="py-10 text-center text-sm text-gray-500">{lang === 'ar' ? 'لم يتم العثور على طلاب لهذا المستوى/المجموعة.' : 'No students found for this level/group.'}</p>
               ) : (
                 <div className="max-h-[50vh] overflow-y-auto divide-y divide-gray-100">
                   {visibleStudents.map(r => (
@@ -1154,9 +1154,9 @@ export default function AssessmentsPage() {
                       <div className="flex-1 min-w-0">
                         <div className="text-sm font-medium text-gray-900 truncate">
                           {r.firstName} {r.lastName}
-                          {r.gradeName && <span className="ml-2 text-xs text-gray-400">{r.gradeName}</span>}
+                          {r.gradeName && <span className="ml-2 text-xs text-gray-500">{r.gradeName}</span>}
                         </div>
-                        <div className="text-xs text-gray-400 font-mono">{r.studentCode || '—'}</div>
+                        <div className="text-xs text-gray-500 font-mono">{r.studentCode || '—'}</div>
                         <a
                           href={`/dashboard/assessments/${selectedAssessment?.id}/take?student=${r.id}`}
                           className="mt-0.5 inline-block text-xs font-medium text-indigo-600 hover:text-indigo-800"
@@ -1174,7 +1174,7 @@ export default function AssessmentsPage() {
                         <>
                           <div className="flex items-center gap-2">
                             <span className="text-sm font-semibold text-gray-900 min-w-[3rem] text-right">{r.mark ?? '—'}</span>
-                            <span className="text-xs text-gray-400">{r.maxMark}</span>
+                            <span className="text-xs text-gray-500">{r.maxMark}</span>
                             <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">{lang === 'ar' ? 'مكتمل' : 'Completed'}</span>
                               <Button variant="ghost" size="icon" onClick={() => deassignStudent(r.id)}
                                 className="text-red-600 hover:bg-red-50 border border-red-200"
@@ -1263,14 +1263,14 @@ export default function AssessmentsPage() {
                 >
                 <Printer className="h-3.5 w-3.5" /> {lang === 'ar' ? 'طباعة' : 'Print'}
               </Button>
-              <div className="ml-auto text-xs text-gray-400">
+              <div className="ml-auto text-xs text-gray-500">
                 {lang === 'ar' ? `${reportStats.assigned} تم التعيين · ${reportStats.graded} تم التقييم · ${reportStats.passed} نجح` : `${reportStats.assigned} assigned · ${reportStats.graded} graded · ${reportStats.passed} passed`}
               </div>
             </div>
 
             {/* Report table */}
             {assignedStudents.length === 0 ? (
-              <p className="py-8 text-center text-sm text-gray-400">{lang === 'ar' ? 'لم يتم تعيين طلاب بعد.' : 'No students assigned yet.'}</p>
+              <p className="py-8 text-center text-sm text-gray-500">{lang === 'ar' ? 'لم يتم تعيين طلاب بعد.' : 'No students assigned yet.'}</p>
             ) : (
               <div className="max-h-[45vh] overflow-y-auto overflow-x-auto table-to-cards border border-gray-200 rounded-lg">
                 <table className="w-full text-sm">
@@ -1307,7 +1307,7 @@ export default function AssessmentsPage() {
                                 {isPass ? (lang === 'ar' ? 'ناجح' : 'PASS') : (lang === 'ar' ? 'راسب' : 'FAIL')}
                               </span>
                             ) : (
-                              <span className="text-xs text-gray-400">—</span>
+                              <span className="text-xs text-gray-500">—</span>
                             )}
                           </td>
                         </tr>

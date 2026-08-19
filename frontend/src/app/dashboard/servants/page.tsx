@@ -639,12 +639,12 @@ export default function ServantsPage() {
           )}
           <div className="flex items-center rounded-lg border border-gray-200 bg-white p-0.5">
             <button type="button" onClick={() => toggleView('cards')}
-              className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${view === 'cards' ? 'bg-gold-500 text-white' : 'text-gray-600 hover:text-gray-900'}`}>
+              className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${view === 'cards' ? 'bg-gold-500 text-gray-950' : 'text-gray-600 hover:text-gray-900'}`}>
               <LayoutGrid className="h-3.5 w-3.5" />
               {lang === 'ar' ? 'بطاقات' : 'Cards'}
             </button>
             <button type="button" onClick={() => toggleView('table')}
-              className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${view === 'table' ? 'bg-gold-500 text-white' : 'text-gray-600 hover:text-gray-900'}`}>
+              className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${view === 'table' ? 'bg-gold-500 text-gray-950' : 'text-gray-600 hover:text-gray-900'}`}>
               <Rows3 className="h-3.5 w-3.5" />
               {lang === 'ar' ? 'جدول' : 'Table'}
             </button>

@@ -15,6 +15,7 @@ import { useActiveSchool } from '@/lib/use-active-school'
 import { useActiveRole } from '@/lib/use-active-role'
 import { http } from '@/lib/http-client'
 import { track } from '@/lib/analytics'
+import { MotionConfig } from 'motion/react'
 import { ROLES } from '@/lib/roles'
 import { usePermission } from '@/lib/use-permission'
 import { DashboardSidebar } from './dashboard/sidebar'
@@ -478,7 +479,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
           isRefreshing={isRefreshing}
           onRefresh={handleRefresh}
         >
-          {children}
+          <MotionConfig reducedMotion="user">{children}</MotionConfig>
         </DashboardMainContent>
       </div>
 

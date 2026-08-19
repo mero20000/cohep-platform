@@ -154,7 +154,7 @@ function GrowthMirrorPanel({ entry, lang }: { entry: LeaderboardEntry; lang: str
   }, [entry.id])
 
   if (loading) return <div className="flex justify-center py-8"><Loader2 className="h-5 w-5 animate-spin text-gold-500" /></div>
-  if (!data) return <p className="text-sm text-gray-400 text-center py-4">{lang === 'ar' ? 'لا توجد بيانات' : 'No data available'}</p>
+  if (!data) return <p className="text-sm text-gray-500 text-center py-4">{lang === 'ar' ? 'لا توجد بيانات' : 'No data available'}</p>
 
   const maxMonthlyXp = Math.max(...data.monthlyXp.map(m => m.xp), 1)
 
@@ -184,7 +184,7 @@ function GrowthMirrorPanel({ entry, lang }: { entry: LeaderboardEntry; lang: str
           <div className="space-y-1.5">
             {data.monthlyXp.map(m => (
               <div key={m.month} className="flex items-center gap-2">
-                <span className="text-[10px] text-gray-400 w-12 shrink-0">{m.month.slice(5)}</span>
+                <span className="text-[10px] text-gray-500 w-12 shrink-0">{m.month.slice(5)}</span>
                 <div className="flex-1 h-5 rounded-md bg-gray-100 overflow-hidden relative">
                   <div
                     className="h-full rounded-md bg-gradient-to-r from-gold-400 to-blue-500 transition-all duration-700"
@@ -206,7 +206,7 @@ function GrowthMirrorPanel({ entry, lang }: { entry: LeaderboardEntry; lang: str
             <ImprovementPill value={data.attendance.improvement} suffix="%" />
           </div>
           <div className="text-2xl font-black text-gray-900">{data.attendance.thisMonth}%</div>
-          <div className="text-[10px] text-gray-400">{lang === 'ar' ? 'الشهر الماضي:' : 'Last month:'} {data.attendance.lastMonth}%</div>
+          <div className="text-[10px] text-gray-500">{lang === 'ar' ? 'الشهر الماضي:' : 'Last month:'} {data.attendance.lastMonth}%</div>
           <MiniBar value={data.attendance.thisMonth} max={100} color="bg-green-400" />
         </div>
         <div className="rounded-xl border border-gray-200 bg-white p-4">
@@ -215,7 +215,7 @@ function GrowthMirrorPanel({ entry, lang }: { entry: LeaderboardEntry; lang: str
             <ImprovementPill value={data.assessments.improvement} />
           </div>
           <div className="text-2xl font-black text-gray-900">{data.assessments.passedThisMonth}</div>
-          <div className="text-[10px] text-gray-400">{lang === 'ar' ? 'الشهر الماضي:' : 'Last month:'} {data.assessments.passedLastMonth}</div>
+          <div className="text-[10px] text-gray-500">{lang === 'ar' ? 'الشهر الماضي:' : 'Last month:'} {data.assessments.passedLastMonth}</div>
           <MiniBar value={data.assessments.passedThisMonth} max={Math.max(data.assessments.passedLastMonth + 2, data.assessments.passedThisMonth + 1)} color="bg-blue-400" />
         </div>
       </div>
@@ -226,7 +226,7 @@ function GrowthMirrorPanel({ entry, lang }: { entry: LeaderboardEntry; lang: str
           <h4 className="text-xs font-bold text-gray-700 mb-3 flex items-center gap-1.5">
             <Award className="h-3.5 w-3.5 text-gold-500" />
             {lang === 'ar' ? 'رحلة الشارات' : 'Badge Journey'}
-            <span className="text-gray-400 font-normal">({data.totalBadges})</span>
+            <span className="text-gray-500 font-normal">({data.totalBadges})</span>
           </h4>
           <div className="flex flex-wrap gap-2">
             {data.badgeTimeline.map((b, i) => {
@@ -242,7 +242,7 @@ function GrowthMirrorPanel({ entry, lang }: { entry: LeaderboardEntry; lang: str
         </div>
       )}
 
-      <p className="text-[11px] text-gray-400 text-center italic">
+      <p className="text-[11px] text-gray-500 text-center italic">
         {lang === 'ar'
           ? '✨ هذا تقدمك الخاص — لا مقارنة مع زملائك'
           : '✨ This is your own journey — no comparison with peers'}
@@ -410,7 +410,7 @@ function GroupTrophyPanel({ lang, schoolId }: { lang: string; schoolId: string }
             <button
               key={g.id}
               onClick={() => loadTrophy(g.id)}
-              className={`rounded-xl border px-4 py-2 text-sm font-medium transition-all ${selected === g.id ? 'bg-gold-500 border-gold-500 text-white shadow-md' : 'bg-white border-gray-200 text-gray-700 hover:border-gold-300'}`}
+              className={`rounded-xl border px-4 py-2 text-sm font-medium transition-all ${selected === g.id ? 'bg-gold-500 border-gold-500 text-gray-950 shadow-md' : 'bg-white border-gray-200 text-gray-700 hover:border-gold-300'}`}
             >
               {g.name} {g.level?.number ? `(L${g.level.number})` : ''}
             </button>
@@ -428,7 +428,7 @@ function GroupTrophyPanel({ lang, schoolId }: { lang: string; schoolId: string }
             <div className="flex items-start justify-between gap-3 mb-4">
               <div>
                 <div className="flex items-center gap-2">
-                  <Trophy className={`h-5 w-5 ${trophy.allMilestonesComplete ? 'text-amber-500' : 'text-gray-400'}`} />
+                  <Trophy className={`h-5 w-5 ${trophy.allMilestonesComplete ? 'text-amber-500' : 'text-gray-500'}`} />
                   <h3 className="text-base font-bold text-gray-900">{trophy.groupName}</h3>
                   {trophy.levelName && <UIBadge variant="info">Level {trophy.levelNumber}</UIBadge>}
                 </div>
@@ -458,7 +458,7 @@ function GroupTrophyPanel({ lang, schoolId }: { lang: string; schoolId: string }
                 <div key={m.id} className={`rounded-xl border p-4 ${m.achieved ? 'bg-green-50 border-green-200' : 'bg-white border-gray-200'}`}>
                   <div className="flex items-start gap-3">
                     <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${m.achieved ? 'bg-green-100' : 'bg-gray-100'}`}>
-                      {m.achieved ? <CheckCircle2 className="h-5 w-5 text-green-600" /> : <Icon className="h-5 w-5 text-gray-400" />}
+                      {m.achieved ? <CheckCircle2 className="h-5 w-5 text-green-600" /> : <Icon className="h-5 w-5 text-gray-500" />}
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between gap-2">
@@ -495,7 +495,7 @@ function GroupTrophyPanel({ lang, schoolId }: { lang: string; schoolId: string }
                 </div>
               ))}
             </div>
-            <p className="mt-2 text-[10px] text-gray-400">
+            <p className="mt-2 text-[10px] text-gray-500">
               🟢 {lang === 'ar' ? 'حضر' : 'Attended'} · 🟡 {lang === 'ar' ? 'شارة' : 'Badge'} · 🔵 {lang === 'ar' ? 'اجتاز تقييماً' : 'Passed assessment'}
             </p>
           </div>
@@ -590,12 +590,12 @@ function ServantRecognitionPanel({ lang, schoolId }: { lang: string; schoolId: s
             <h4 className="text-sm font-bold text-gray-900 mb-3 flex items-center gap-1.5">
               <Medal className="h-4 w-4 text-gold-500" />
               {lang === 'ar' ? 'الإنجازات' : 'Milestones'}
-              <span className="text-gray-400 font-normal text-xs">({data.achievedCount}/{data.milestones.length})</span>
+              <span className="text-gray-500 font-normal text-xs">({data.achievedCount}/{data.milestones.length})</span>
             </h4>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
               {data.milestones.map(m => (
                 <div key={m.id} className={`flex items-center gap-3 rounded-xl border p-3 ${m.achieved ? 'bg-purple-50 border-purple-200' : 'bg-gray-50 border-gray-100'}`}>
-                  <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-black ${m.achieved ? 'bg-purple-100 text-purple-700' : 'bg-gray-200 text-gray-400'}`}>
+                  <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-black ${m.achieved ? 'bg-purple-100 text-purple-700' : 'bg-gray-200 text-gray-500'}`}>
                     {m.achieved ? '✓' : m.threshold.toLocaleString().slice(0, 3)}
                   </div>
                   <div className="flex-1 min-w-0">
@@ -603,7 +603,7 @@ function ServantRecognitionPanel({ lang, schoolId }: { lang: string; schoolId: s
                       {lang === 'ar' ? m.labelAr : m.label}
                     </p>
                     {!m.achieved && (
-                      <p className="text-[10px] text-gray-400">{m.current}/{m.threshold} {m.unit}</p>
+                      <p className="text-[10px] text-gray-500">{m.current}/{m.threshold} {m.unit}</p>
                     )}
                   </div>
                 </div>
@@ -862,7 +862,7 @@ export default function GamificationPage() {
             <div className="w-full lg:w-72 shrink-0">
               <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
                 <div className="flex items-center gap-2 border-b border-gray-100 p-3">
-                  <Search className="h-4 w-4 text-gray-400" />
+                  <Search className="h-4 w-4 text-gray-500" />
                   <input
                     value={leaderboardSearch}
                     onChange={e => setLeaderboardSearch(e.target.value)}
@@ -885,13 +885,13 @@ export default function GamificationPage() {
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="text-sm font-medium text-gray-900 truncate">{s.firstName} {s.lastName}</div>
-                          <div className="text-xs text-gray-400">{s.xp} XP · {s.badgeCount} {t('badges', 'شارات')}</div>
+                          <div className="text-xs text-gray-500">{s.xp} XP · {s.badgeCount} {t('badges', 'شارات')}</div>
                         </div>
                         <ChevronRight className="h-4 w-4 text-gray-300 shrink-0 rtl:rotate-180" />
                       </button>
                     ))}
                     {filteredLeaderboard.length === 0 && (
-                      <p className="text-center text-sm text-gray-400 py-8">{t('No students yet', 'لا يوجد طلاب بعد')}</p>
+                      <p className="text-center text-sm text-gray-500 py-8">{t('No students yet', 'لا يوجد طلاب بعد')}</p>
                     )}
                   </div>
                 )}
@@ -945,7 +945,7 @@ export default function GamificationPage() {
         <div>
           <div className="flex items-center justify-between mb-4 gap-3">
             <div className="relative flex-1 max-w-xs">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500" />
               <input value={badgeSearch} onChange={e => setBadgeSearch(e.target.value)} placeholder={t('Search badges...', 'ابحث عن شارة...')}
                 className="w-full rounded-lg border border-gray-200 bg-white pl-9 pr-3 py-2 text-sm focus:border-gold-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
             </div>
@@ -971,8 +971,8 @@ export default function GamificationPage() {
                     <div className="flex items-start justify-between">
                       <div className="text-2xl">{Icon ? <Icon className="h-7 w-7" /> : (badge.iconUrl || '🏅')}</div>
                       <div className="flex items-center gap-1">
-                        <Button variant="ghost" size="icon" onClick={() => { setBadgeToEdit(badge); setEditBadgeForm({ name: badge.name, description: badge.description || '', category: badge.category, iconUrl: badge.iconUrl || '', points: String(badge.points) }); setEditBadgeFormError(''); setShowEditBadge(true) }} className="text-gray-400 hover:bg-amber-50 hover:text-amber-600"><Pencil className="h-3.5 w-3.5" /></Button>
-                        <Button variant="ghost" size="icon" onClick={() => { setBadgeToDelete(badge); setShowDeleteBadge(true) }} className="text-gray-400 hover:bg-red-50 hover:text-red-600"><Trash2 className="h-3.5 w-3.5" /></Button>
+                        <Button variant="ghost" size="icon" onClick={() => { setBadgeToEdit(badge); setEditBadgeForm({ name: badge.name, description: badge.description || '', category: badge.category, iconUrl: badge.iconUrl || '', points: String(badge.points) }); setEditBadgeFormError(''); setShowEditBadge(true) }} className="text-gray-500 hover:bg-amber-50 hover:text-amber-600"><Pencil className="h-3.5 w-3.5" /></Button>
+                        <Button variant="ghost" size="icon" onClick={() => { setBadgeToDelete(badge); setShowDeleteBadge(true) }} className="text-gray-500 hover:bg-red-50 hover:text-red-600"><Trash2 className="h-3.5 w-3.5" /></Button>
                       </div>
                     </div>
                     <h3 className="mt-2 text-sm font-semibold text-gray-900">{badge.name}</h3>
@@ -1037,7 +1037,7 @@ export default function GamificationPage() {
         title={drillDownStudent ? `${drillDownStudent.firstName} ${drillDownStudent.lastName}` : ''}
         description={drillDownStudent ? `${drillDownStudent.xp.toLocaleString()} XP · Level ${drillDownStudent.level} · ${drillDownStudent.badgeCount} ${t('badges', 'شارات')}` : ''}>
         {transactionsLoading ? <div className="flex justify-center py-10"><Loader2 className="h-6 w-6 animate-spin text-gold-500" /></div>
-          : transactions.length === 0 ? <p className="py-10 text-center text-sm text-gray-400">{t('No XP transactions found.', 'لا توجد معاملات نقاط خبرة.')}</p>
+          : transactions.length === 0 ? <p className="py-10 text-center text-sm text-gray-500">{t('No XP transactions found.', 'لا توجد معاملات نقاط خبرة.')}</p>
           : <div className="max-h-[55vh] overflow-y-auto divide-y divide-gray-100">
               {transactions.map((tx: any) => (
                 <div key={tx.id} className="flex items-center justify-between py-3">
@@ -1047,7 +1047,7 @@ export default function GamificationPage() {
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-semibold text-blue-700">+{tx.amount} XP</span>
-                    <span className="text-xs text-gray-400">{t('Bal:', 'الرصيد:')} {tx.balanceAfter}</span>
+                    <span className="text-xs text-gray-500">{t('Bal:', 'الرصيد:')} {tx.balanceAfter}</span>
                   </div>
                 </div>
               ))}
