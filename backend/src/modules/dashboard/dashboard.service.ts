@@ -714,23 +714,26 @@ export class DashboardService {
 
   // ── Servant Digest ────────────────────────────────────────────────────────
 
-  async getServantDigest(user: any, schoolIdentifier: string) {
-    const schoolId = await this.schoolResolver.resolve(schoolIdentifier);
-
-    // Find groups this servant teaches
+  private async resolveServantClass(userId: string, schoolId: string) {
     const ownSessions = await this.prisma.attendanceSession.findMany({
-      where: { schoolId, servantId: user.id },
+      where: { schoolId, servantId: userId },
       select: { groupId: true, levelId: true },
     });
     const groupIds = [...new Set(ownSessions.map((s: any) => s.groupId).filter(Boolean))] as string[];
     const levelIds = [...new Set(ownSessions.map((s: any) => s.levelId).filter(Boolean))] as string[];
-
     const studentIds = groupIds.length > 0
       ? (await this.prisma.student.findMany({
           where: { groupId: { in: groupIds }, deletedAt: null },
           select: { id: true },
         })).map((s: any) => s.id)
       : [];
+    return { groupIds, levelIds, studentIds };
+  }
+
+  async getServantDigest(user: any, schoolIdentifier: string) {
+    const schoolId = await this.schoolResolver.resolve(schoolIdentifier);
+
+    const { groupIds, levelIds, studentIds } = await this.resolveServantClass(user.id, schoolId);
 
     // ── ONE STUDENT STORY ────────────────────────────────────────────────
     // Find a student with a recent positive milestone in the last 7 days

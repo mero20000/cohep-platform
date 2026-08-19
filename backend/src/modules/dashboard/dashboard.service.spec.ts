@@ -16,7 +16,7 @@ describe('DashboardService', () => {
     attendanceSession: { findMany: jest.fn(), count: jest.fn() },
     attendanceRecord: { findMany: jest.fn() },
     group: { findMany: jest.fn(), findUnique: jest.fn() },
-    student: { count: jest.fn() },
+    student: { count: jest.fn(), findMany: jest.fn() },
     grade: { findMany: jest.fn() },
   };
 
@@ -96,6 +96,33 @@ describe('DashboardService', () => {
 
       expect(result.thisWeek.attendanceRate).toBe(0);
       expect(result.thisWeek.total).toBe(0);
+    });
+  });
+
+  describe('resolveServantClass', () => {
+    it('derives groupIds, levelIds, and studentIds from sessions and students', async () => {
+      prisma.attendanceSession.findMany.mockResolvedValue([
+        { groupId: 'g1', levelId: 'l1' },
+        { groupId: 'g1', levelId: 'l2' },
+        { groupId: null, levelId: null },
+      ]);
+      prisma.student.findMany.mockResolvedValue([{ id: 's1' }, { id: 's2' }]);
+
+      const result = await (service as any).resolveServantClass('user-1', schoolId);
+
+      expect(result.groupIds).toEqual(['g1']);
+      expect(result.levelIds).toEqual(['l1', 'l2']);
+      expect(result.studentIds).toEqual(['s1', 's2']);
+      expect(prisma.student.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: expect.objectContaining({ groupId: { in: ['g1'] } }) })
+      );
+    });
+
+    it('returns empty studentIds when the servant has no groups', async () => {
+      prisma.attendanceSession.findMany.mockResolvedValue([]);
+      prisma.student.findMany.mockResolvedValue([]);
+      const result = await (service as any).resolveServantClass('user-1', schoolId);
+      expect(result.studentIds).toEqual([]);
     });
   });
 });
