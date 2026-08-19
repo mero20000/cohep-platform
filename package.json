@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "NiAngelos School for Hymns and Praises - Digital Platform",
   "private": true,
+  "license": "AGPL-3.0",
   "scripts": {
     "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
     "dev:backend": "cd backend && npm run start:dev",
