@@ -134,6 +134,11 @@ describe('getGroupMates', () => {
 
     const findManyArgs = prisma.user.findMany.mock.calls[0][0];
     expect(findManyArgs.where.schoolId).toBe('school-1');
+    expect(findManyArgs.where.id).toEqual({ not: 'me' });
+    expect(findManyArgs.where.deletedAt).toBeNull();
+    expect(findManyArgs.where.userRoles).toEqual({
+      some: { role: { name: { in: ['servant', 'group_leader', 'level_leader'] } } },
+    });
     expect(findManyArgs.select).toEqual({
       id: true, firstName: true, lastName: true,
       firstNameAr: true, lastNameAr: true, avatarUrl: true, phone: true,

@@ -92,7 +92,7 @@ const ROLE_DEFAULT_PERMS: Record<string, Permission[]> = {
 
   principal: [
     'student:view','student:edit',
-    'servant:view','servant:import','servant:export',
+    'servant:view','servant:export',
     'attendance:view','attendance:record','attendance:manage',
     'assessment:view','assessment:create','assessment:edit','assessment:grade',
     'curriculum:view','curriculum:edit',

@@ -830,7 +830,7 @@ export default function ServantsPage() {
                       </td>
                       <td data-label="Gender" className="px-6 py-3.5 hidden md:table-cell">
                         {s.gender ? (
-                          <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${s.gender === 'female' ? 'bg-pink-50 text-pink-700' : 'bg-blue-50 text-blue-700'}`}>
+                          <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${s.gender === 'female' ? 'bg-pink-50 text-pink-700' : 'bg-blue-50 text-blue-700'}`}>
                             {lang === 'ar' ? (s.gender === 'female' ? 'أنثى' : 'ذكر') : s.gender === 'female' ? 'Female' : 'Male'}
                           </span>
                         ) : '—'}

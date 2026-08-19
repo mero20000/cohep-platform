@@ -72,6 +72,16 @@ interface ServantCounts {
  levelLeaders: number
 }
 
+interface GroupMate {
+ id: string
+ firstName: string
+ lastName: string
+ firstNameAr: string | null
+ lastNameAr: string | null
+ avatarUrl: string | null
+ phone: string | null
+}
+
 const EMPTY_STATS: DashboardData = {
  totalStudents: 0, totalLevels: 0, totalLessons: 0, totalAllocations: 0,
  totalChurches: 0, totalUsers: 0, totalBadges: 0, activeStudents: 0,
@@ -1935,14 +1945,14 @@ function ServantWellbeingPanel({ lang, schoolId }: { lang: string; schoolId: str
   )
 }
 
-function MinistryDashboard({ data, loading, error, onRetry }: { data: any; loading: boolean; error: boolean; onRetry: () => void }) {
+export function MinistryDashboard({ data, loading, error, onRetry }: { data: any; loading: boolean; error: boolean; onRetry: () => void }) {
  const lang = useLanguage()
- const [groupMates, setGroupMates] = useState<any[] | null>(null)
+ const [groupMates, setGroupMates] = useState<GroupMate[] | null>(null)
 
  useEffect(() => {
    let cancelled = false
-   http.get('/servants/group-mates')
-     .then((d: any) => { if (!cancelled) setGroupMates(d || []) })
+   http.get<GroupMate[]>('/servants/group-mates')
+     .then((d) => { if (!cancelled) setGroupMates(d || []) })
      .catch(() => { if (!cancelled) setGroupMates([]) })
    return () => { cancelled = true }
  }, [])
@@ -2055,7 +2065,7 @@ function MinistryDashboard({ data, loading, error, onRetry }: { data: any; loadi
             <p className="text-sm text-white/60">{lang === 'ar' ? 'لا يوجد خدام آخرون في مجموعتك' : 'No other servants in your group'}</p>
           ) : (
             <ul className="space-y-2">
-              {groupMates.map((m: any) => (
+              {groupMates.map((m) => (
                 <li key={m.id} className="flex items-center gap-3 rounded-lg bg-white/10 px-3 py-2">
                   {m.avatarUrl ? (
                     <Image src={m.avatarUrl.startsWith('http') ? m.avatarUrl : `${API_ORIGIN}${m.avatarUrl}`} alt="" width={32} height={32} className="h-8 w-8 rounded-full object-cover" unoptimized />

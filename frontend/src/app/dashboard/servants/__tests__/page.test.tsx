@@ -26,8 +26,9 @@ vi.mock('@/components/ui/toast', () => ({
 
 const mockGet = vi.fn()
 const mockPost = vi.fn()
+const mockPatch = vi.fn()
 vi.mock('@/lib/http-client', () => ({
-  http: { get: (...a: any[]) => mockGet(...a), post: (...a: any[]) => mockPost(...a), patch: vi.fn(), delete: vi.fn() },
+  http: { get: (...a: any[]) => mockGet(...a), post: (...a: any[]) => mockPost(...a), patch: (...a: any[]) => mockPatch(...a), delete: vi.fn() },
 }))
 
 vi.mock('@/lib/school', () => ({
@@ -88,6 +89,7 @@ afterEach(() => {
 beforeEach(() => {
   mockGet.mockReset()
   mockPost.mockReset()
+  mockPatch.mockReset()
   localStorage.clear()
   localStorage.setItem('user', JSON.stringify({ id: 'u1', roles: ['super_admin'] }))
   mockGet.mockImplementation((path: string) => {
@@ -142,6 +144,30 @@ it('requires gender and sends it in create body', async () => {
   await userEvent.click(screen.getByRole('button', { name: 'Female' }))
   await userEvent.click(within(screen.getByRole('dialog')).getByText('Add Servant'))
   await waitFor(() => expect(mockPost).toHaveBeenCalledWith('/users', expect.objectContaining({ gender: 'female' })))
+})
+
+it('preserves gender on open-edit and sends it on PATCH', async () => {
+  const withGender = servants.map((s, i) => ({ ...s, gender: i % 2 === 0 ? 'male' : 'female' }))
+  mockGet.mockImplementation((path: string) => {
+    if (path === '/servants') return Promise.resolve(withGender)
+    if (path === '/curriculum/levels') return Promise.resolve(levels)
+    if (path === '/curriculum/subjects') return Promise.resolve(curriculumSubjects)
+    if (path.startsWith('/users/schools/me')) return Promise.resolve({})
+    return Promise.resolve([])
+  })
+
+  render(<ServantsPage />)
+  await userEvent.click(screen.getByRole('button', { name: 'Table' }))
+  await screen.findByRole('table')
+
+  await userEvent.click(screen.getByRole('button', { name: 'Edit Malak' }))
+
+  const maleButton = screen.getByRole('button', { name: 'Male' })
+  expect(maleButton).toHaveClass('bg-blue-600')
+
+  await userEvent.click(screen.getByRole('button', { name: 'Female' }))
+  await userEvent.click(within(screen.getByRole('dialog')).getByText('Save Changes'))
+  await waitFor(() => expect(mockPatch).toHaveBeenCalledWith('/users/u1', expect.objectContaining({ gender: 'female' })))
 })
 
 it('tints teaching badges with the matching curriculum subject color', async () => {
