@@ -60,7 +60,7 @@ export function StudentFilters(p: Props) {
         {p.churches.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
       </select>
       {p.hasActiveFilters && (
-        <Button onClick={p.onClearFilters} variant="outline" size="sm" className="whitespace-nowrap text-red-600 border-red-200 bg-red-50 hover:bg-red-100">
+        <Button onClick={p.onClearFilters} variant="outline" size="sm" className="whitespace-nowrap text-red-700 border-red-200 bg-red-50 hover:bg-red-100">
           {t('Clear Filters','مسح الفلتر')}
         </Button>
       )}

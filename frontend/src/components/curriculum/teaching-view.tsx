@@ -31,7 +31,7 @@ const STATUS_ORDER: ItemStatus[] = ['pending', 'allocated', 'in_progress', 'comp
 
 const STATUS_CARD: Record<string, { label: string; labelAr: string; color: string; bg: string; icon: typeof Circle }> = {
   all: { label: 'Total', labelAr: 'الإجمالي', color: 'text-gray-900', bg: 'bg-white', icon: BookOpen },
-  pending: { label: 'Pending', labelAr: 'معلق', color: 'text-gray-500', bg: 'bg-gray-100', icon: Circle },
+  pending: { label: 'Pending', labelAr: 'معلق', color: 'text-gray-600', bg: 'bg-gray-100', icon: Circle },
   allocated: { label: 'Allocated', labelAr: 'مخصص', color: 'text-blue-700', bg: 'bg-blue-100', icon: CalendarCheck },
   in_progress: { label: 'In Progress', labelAr: 'قيد التنفيذ', color: 'text-amber-700', bg: 'bg-amber-100', icon: Clock },
   completed: { label: 'Completed', labelAr: 'مكتمل', color: 'text-emerald-700', bg: 'bg-emerald-100', icon: CheckCircle2 },
@@ -253,7 +253,7 @@ export function TeachingView({ items, subjects, levels, lessons = [], allocation
           <div key={subjectId}>
             <div className="flex items-center gap-2 mb-3">
               <div className="w-1 h-6 rounded-full" style={{ background: meta?.color || '#D4AF37' }} />
-              <h3 className="text-lg font-semibold text-gray-800">{lang === 'ar' ? (meta?.nameAr || meta?.name || 'Subject') : (meta?.name || 'Subject')}</h3>
+              <h2 className="text-lg font-semibold text-gray-800">{lang === 'ar' ? (meta?.nameAr || meta?.name || 'Subject') : (meta?.name || 'Subject')}</h2>
               <span className="text-xs text-gray-500 ms-auto">{subjectItems.length} {lang === 'ar' ? 'عناصر' : 'items'}</span>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">

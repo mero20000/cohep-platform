@@ -618,7 +618,7 @@ function AssessmentSection({ stats, loading }: { stats: DashboardData | null; lo
     <div className="border-t border-gray-100 pt-3 flex flex-wrap gap-2">
      {s.assessmentsByStatus.map(st => (
       <div key={st.status} className="rounded-lg bg-[var(--hymn-surface-header)] px-3 py-1.5 text-xs border border-gray-100">
-       <span className="capitalize text-gray-500">{st.status}: </span>
+       <span className="capitalize text-gray-700">{st.status}: </span>
        <span className="font-semibold text-gray-900">{st.count}</span>
       </div>
      ))}
