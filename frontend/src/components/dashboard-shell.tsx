@@ -7,7 +7,7 @@ import {
   LayoutDashboard, Users, BookOpen, Calendar, ClipboardCheck,
   Trophy, Settings, UserCheck, Baby, ClipboardList, Megaphone,
   Crown, Shield, GraduationCap, Layers, Heart, Church, Mail,
-  Headphones,
+  Headphones, School,
 } from 'lucide-react'
 import { HelpButton } from './help-button'
 import { useDashboardHotkeys } from '@/hooks/use-hotkeys'
@@ -37,6 +37,7 @@ const navigation = [
   { name: 'Attendance', nameAr: 'الحضور', href: '/dashboard/attendance', icon: Calendar, perm: 'attendance:view' as const },
   { name: 'Assessments', nameAr: 'التقييمات', href: '/dashboard/assessments', icon: ClipboardCheck, perm: 'assessment:view' as const },
   { name: 'Hymn Review', nameAr: 'مراجعة التسابيح', href: '/dashboard/hymn-review', icon: Headphones, perm: 'practice:view' as const },
+  { name: 'My Class', nameAr: 'صفي', href: '/dashboard/my-class', icon: School, perm: 'attendance:record' as const },
   { name: 'Gamification', nameAr: 'الألعاب التحفيزية', href: '/dashboard/gamification', icon: Trophy, perm: 'gamification:view' as const },
   { name: 'Announcements', nameAr: 'الإعلانات', href: '/dashboard/announcements', icon: Megaphone, perm: 'announcement:view' as const },
   { name: 'Subscribers', nameAr: 'المشتركين', href: '/dashboard/subscribers', icon: Mail, superAdminOnly: true, perm: 'announcement:view' as const },
