@@ -35,7 +35,7 @@ export function SecurityTab() {
 
   return (
     <div className="rounded-xl border border-gray-200 bg-white p-6">
-      <h3 className="text-lg font-semibold text-gray-900">Change Password</h3>
+      <h2 className="text-lg font-semibold text-gray-900">Change Password</h2>
       <p className="mt-1 text-sm text-gray-500">Update your account password</p>
       {error && <div className="mt-4 rounded-lg bg-red-50 border border-red-200 p-3 text-sm text-red-700" role="alert">{error}</div>}
       {saved && <div className="mt-4 rounded-lg bg-green-50 border border-green-200 p-3 text-sm text-green-700" aria-live="polite">Password changed successfully!</div>}

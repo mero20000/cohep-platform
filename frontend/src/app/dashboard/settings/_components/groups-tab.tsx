@@ -153,7 +153,7 @@ export function GroupsTab() {
     <div className="rounded-xl border border-gray-200 bg-white p-6">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h3 className="text-lg font-semibold text-gray-900">{lang === 'ar' ? 'المجموعات' : 'Groups'}</h3>
+          <h2 className="text-lg font-semibold text-gray-900">{lang === 'ar' ? 'المجموعات' : 'Groups'}</h2>
           <p className="mt-1 text-sm text-gray-500">{lang === 'ar' ? 'إدارة المجموعات وإضافة مجموعات جديدة أو تبديل الحالة' : 'Manage groups, add new ones, or toggle active status'}</p>
         </div>
         <div className="flex items-center gap-2">

@@ -111,7 +111,7 @@ export function ChurchesTab() {
       <div className="rounded-xl border border-gray-200 bg-white">
         <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4">
           <div>
-            <h3 className="text-lg font-semibold text-gray-900">{lang === 'ar' ? 'الكنائس' : 'Churches'}</h3>
+            <h2 className="text-lg font-semibold text-gray-900">{lang === 'ar' ? 'الكنائس' : 'Churches'}</h2>
             <p className="text-sm text-gray-500">{lang === 'ar' ? 'إدارة مواقع الكنائس والإعدادات' : 'Manage church locations and settings'}</p>
           </div>
           <Button onClick={openCreate} aria-label={lang === 'ar' ? 'إضافة كنيسة' : 'Add church'} size="sm">

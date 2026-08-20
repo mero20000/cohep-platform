@@ -56,7 +56,7 @@ export function PointSystemTab() {
   return (
     <div className="space-y-6">
       <div>
-        <h3 className="text-lg font-semibold text-gray-900">{lang === 'ar' ? 'نظام النقاط' : 'Point System'}</h3>
+        <h2 className="text-lg font-semibold text-gray-900">{lang === 'ar' ? 'نظام النقاط' : 'Point System'}</h2>
         <p className="text-sm text-gray-500">{lang === 'ar' ? 'تحديد عدد النقاط الممنوحة للطلاب بناءً على الحضور والسلوك والمشاركة والقداس' : 'Configure points awarded to students based on attendance, behavior, participation, and liturgy'}</p>
       </div>
 

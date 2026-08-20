@@ -205,7 +205,7 @@ export function GradesTab() {
     <div className="rounded-xl border border-gray-200 bg-white">
       <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4">
         <div>
-          <h3 className="text-lg font-semibold text-gray-900">{t('Grades', 'الصفوف الدراسية')}</h3>
+          <h2 className="text-lg font-semibold text-gray-900">{t('Grades', 'الصفوف الدراسية')}</h2>
           <p className="text-sm text-gray-500">{t('Each grade is linked to a group', 'كل صف مرتبط بمجموعة')}</p>
         </div>
         <Button onClick={openCreate} aria-label={t('Add grade', 'إضافة صف')} size="sm">

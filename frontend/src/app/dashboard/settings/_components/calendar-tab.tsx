@@ -242,7 +242,7 @@ export function CalendarTab() {
       <div className="rounded-xl border border-gray-200 bg-white">
         <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4">
           <div>
-            <h3 className="text-lg font-semibold text-gray-900">{lang === 'ar' ? 'السنوات الدراسية' : 'Academic Years'}</h3>
+            <h2 className="text-lg font-semibold text-gray-900">{lang === 'ar' ? 'السنوات الدراسية' : 'Academic Years'}</h2>
             <p className="text-sm text-gray-500">{lang === 'ar' ? 'إدارة السنوات الدراسية وتحديد السنة الحالية' : 'Manage academic years and set the current year'}</p>
           </div>
           <Button onClick={openCreateYear} aria-label={lang === 'ar' ? 'إضافة سنة دراسية' : 'Add academic year'} size="sm">
@@ -288,7 +288,7 @@ export function CalendarTab() {
         <div className="rounded-xl border border-gray-200 bg-white">
           <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4">
             <div>
-              <h3 className="text-lg font-semibold text-gray-900">{lang === 'ar' ? 'الأيام النشطة' : 'Active Days'}</h3>
+              <h2 className="text-lg font-semibold text-gray-900">{lang === 'ar' ? 'الأيام النشطة' : 'Active Days'}</h2>
               <p className="text-sm text-gray-500">{lang === 'ar' ? 'اختر أيام الأسبوع التي بها فصول' : 'Select which days of the week have classes'}</p>
             </div>
           </div>
@@ -342,7 +342,7 @@ export function CalendarTab() {
         <div className="rounded-xl border border-gray-200 bg-white">
           <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4">
             <div>
-              <h3 className="text-lg font-semibold text-gray-900">{lang === 'ar' ? 'توفر الأسابيع' : 'Week Availability'}</h3>
+              <h2 className="text-lg font-semibold text-gray-900">{lang === 'ar' ? 'توفر الأسابيع' : 'Week Availability'}</h2>
               <p className="text-sm text-gray-500">{lang === 'ar' ? 'تفعيل/إلغاء الأسابيع المتاحة للفصول' : 'Toggle which weeks are available for classes'}</p>
             </div>
             <div className="flex items-center gap-2">
@@ -523,7 +523,7 @@ export function CalendarTab() {
         <div className="rounded-xl border border-gray-200 bg-white">
           <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4">
             <div>
-              <h3 className="text-lg font-semibold text-gray-900">{lang === 'ar' ? 'أيام/مناسبات إضافية' : 'Additional Days / Events'}</h3>
+              <h2 className="text-lg font-semibold text-gray-900">{lang === 'ar' ? 'أيام/مناسبات إضافية' : 'Additional Days / Events'}</h2>
               <p className="text-sm text-gray-500">{lang === 'ar' ? 'إضافة أيام إضافية للمناسبات الخاصة خارج الجدول الأسبوعي' : 'Add extra days for events, sessions, or special occasions outside the weekly schedule'}</p>
             </div>
             <Button onClick={openCreateEvent} size="sm">

@@ -121,7 +121,7 @@ export function SchoolTab() {
       <div className="rounded-xl border border-gray-200 bg-white">
         <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4">
           <div>
-            <h3 className="text-lg font-semibold text-gray-900">{lang === 'ar' ? 'المدارس' : 'Schools'}</h3>
+            <h2 className="text-lg font-semibold text-gray-900">{lang === 'ar' ? 'المدارس' : 'Schools'}</h2>
             <p className="text-sm text-gray-500">{lang === 'ar' ? 'إدارة المدارس وإعداداتها' : 'Manage schools and their settings'}</p>
           </div>
           <Button onClick={openCreate} aria-label={lang === 'ar' ? 'إضافة مدرسة' : 'Add school'} size="sm">

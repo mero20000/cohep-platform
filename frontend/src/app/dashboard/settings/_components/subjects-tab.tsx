@@ -399,7 +399,7 @@ export function SubjectsTab() {
       <div className="rounded-xl border border-gray-200 bg-white">
         <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4">
           <div>
-            <h3 className="text-lg font-semibold text-gray-900">{lang === 'ar' ? 'المواد الدراسية' : 'Curriculum Subjects'}</h3>
+            <h2 className="text-lg font-semibold text-gray-900">{lang === 'ar' ? 'المواد الدراسية' : 'Curriculum Subjects'}</h2>
             <p className="text-sm text-gray-500">{lang === 'ar' ? 'إدارة المواد المستخدمة في توزيع المنهج والتقييمات' : 'Manage subjects used in curriculum allocation and assessments'}</p>
           </div>
           <Button onClick={openCreate} size="sm">

@@ -51,7 +51,7 @@ export function AppearanceTab() {
     <div className="rounded-xl border border-gray-200 bg-white p-6">
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-lg font-semibold text-gray-900">Appearance</h3>
+          <h2 className="text-lg font-semibold text-gray-900">Appearance</h2>
           <p className="mt-1 text-sm text-gray-500">Customize the look and feel of the platform</p>
         </div>
         <Button onClick={handleSave} aria-label="Save appearance settings" className="bg-gold-500 hover:bg-gold-600">

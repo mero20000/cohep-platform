@@ -145,7 +145,7 @@ function SettingsContent() {
               className="w-full rounded-lg border border-gray-300 bg-white py-2 pl-9 pr-3 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-gold-500"
             />
           </div>
-          <nav role="tablist" aria-label="Settings tabs" aria-orientation="vertical" onKeyDown={onKeyDown}>
+          <nav aria-label="Settings tabs" onKeyDown={onKeyDown}>
             {visible.map((category) => {
               const isCollapsed = collapsed[category.label]
               return (
@@ -163,10 +163,8 @@ function SettingsContent() {
                     <div className="space-y-0.5">
                       {category.items.map((item) => (
                         <button key={item.id} ref={el => { tabsRef.current[item.id] = el }} onClick={() => selectTab(item.id)}
-                          role="tab"
                           tabIndex={activeTab === item.id ? 0 : -1}
-                          aria-selected={activeTab === item.id}
-                          aria-controls={`panel-${item.id}`}
+                          aria-current={activeTab === item.id ? 'true' : undefined}
                           className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
                             activeTab === item.id ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
                           }`}>
@@ -187,7 +185,7 @@ function SettingsContent() {
 
         {/* Content */}
         <div className="lg:col-span-3 space-y-6">
-          <div role="tabpanel" id={`panel-${activeTab}`} aria-labelledby={activeTab}>
+          <div id={`panel-${activeTab}`}>
             <Suspense fallback={<div className="flex items-center justify-center py-12"><div className="h-8 w-8 animate-spin rounded-full border-4 border-gold-500 border-t-transparent" /></div>}>
               {activeTab === 'profile' && <ProfileTab />}
               {activeTab === 'school' && <SchoolTab />}

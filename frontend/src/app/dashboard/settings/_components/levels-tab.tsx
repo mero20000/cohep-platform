@@ -109,7 +109,7 @@ export function LevelsTab() {
     <div className="rounded-xl border border-gray-200 bg-white p-6">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h3 className="text-lg font-semibold text-gray-900">{lang === 'ar' ? 'المستويات' : 'Levels'}</h3>
+          <h2 className="text-lg font-semibold text-gray-900">{lang === 'ar' ? 'المستويات' : 'Levels'}</h2>
           <p className="mt-1 text-sm text-gray-500">{lang === 'ar' ? 'إدارة المستويات وتبديل حالتها' : 'Manage levels and toggle their active status'}</p>
         </div>
         <Button onClick={openCreate} size="sm">

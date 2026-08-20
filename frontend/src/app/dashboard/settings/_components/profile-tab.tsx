@@ -134,7 +134,7 @@ export function ProfileTab() {
 
   return (
     <div className="rounded-xl border border-gray-200 bg-white p-6">
-      <h3 className="text-lg font-semibold text-gray-900">{lang === 'ar' ? 'إعدادات الملف الشخصي' : 'Profile Settings'}</h3>
+      <h2 className="text-lg font-semibold text-gray-900">{lang === 'ar' ? 'إعدادات الملف الشخصي' : 'Profile Settings'}</h2>
       <p className="mt-1 text-sm text-gray-500">{lang === 'ar' ? 'تحديث معلوماتك الشخصية' : 'Update your personal information'}</p>
 
       <div className="mt-6 space-y-6">

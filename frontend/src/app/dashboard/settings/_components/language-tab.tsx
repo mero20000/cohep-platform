@@ -35,7 +35,7 @@ export function LanguageTab() {
 
   return (
     <div className="rounded-xl border border-gray-200 bg-white p-6">
-      <h3 className="text-lg font-semibold text-gray-900">{lang === 'ar' ? 'اللغة والمنطقة' : 'Language & Region'}</h3>
+      <h2 className="text-lg font-semibold text-gray-900">{lang === 'ar' ? 'اللغة والمنطقة' : 'Language & Region'}</h2>
       <p className="mt-1 text-sm text-gray-500">{lang === 'ar' ? 'تعيين تفضيلات اللغة والمنطقة' : 'Set your language and regional preferences'}</p>
       <div className="mt-6 space-y-5 max-w-lg">
         <FormField label={lang === 'ar' ? 'لغة العرض' : 'Display Language'} as="select" value={locale} onChange={e => setLocale(e.target.value)}>
