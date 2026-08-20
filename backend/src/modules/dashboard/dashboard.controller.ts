@@ -75,6 +75,7 @@ export class DashboardController {
   }
 
   @Get('weekly-briefing')
+  @Roles(...STAFF_ROLES)
   @ApiOperation({ summary: 'Get servant weekly briefing — coptic context, next lesson, follow-up roster' })
   async getWeeklyBriefing(
     @CurrentUser() user: any,
