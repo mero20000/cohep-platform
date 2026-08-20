@@ -104,6 +104,7 @@ describe('DashboardService', () => {
 
   describe('resolveServantClass', () => {
     it('derives groupIds, levelIds, and studentIds from sessions and students', async () => {
+      prisma.user.findUnique.mockResolvedValue({ metadata: null });
       prisma.attendanceSession.findMany.mockResolvedValue([
         { groupId: 'g1', levelId: 'l1' },
         { groupId: 'g1', levelId: 'l2' },
@@ -122,15 +123,59 @@ describe('DashboardService', () => {
     });
 
     it('returns empty studentIds when the servant has no groups', async () => {
+      prisma.user.findUnique.mockResolvedValue({ metadata: null });
       prisma.attendanceSession.findMany.mockResolvedValue([]);
       prisma.student.findMany.mockResolvedValue([]);
       const result = await (service as any).resolveServantClass('user-1', schoolId);
       expect(result.studentIds).toEqual([]);
     });
+
+    it('uses the metadata group and level assignment when present', async () => {
+      prisma.user.findUnique.mockResolvedValue({ metadata: { groupId: 'g1', levelId: 'l1' } });
+      prisma.student.findMany.mockResolvedValue([{ id: 's1' }]);
+      const result = await (service as any).resolveServantClass('user-1', schoolId);
+      expect(result.groupIds).toEqual(['g1']);
+      expect(result.levelIds).toEqual(['l1']);
+      expect(result.studentIds).toEqual(['s1']);
+      expect(prisma.attendanceSession.findMany).not.toHaveBeenCalled();
+    });
+
+    it('derives students only from the assigned group', async () => {
+      prisma.user.findUnique.mockResolvedValue({ metadata: { groupId: 'g1' } });
+      prisma.student.findMany.mockResolvedValue([{ id: 's1' }]);
+      const result = await (service as any).resolveServantClass('user-1', schoolId);
+      expect(result.groupIds).toEqual(['g1']);
+      expect(prisma.student.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: expect.objectContaining({ groupId: { in: ['g1'] } }) })
+      );
+    });
+  });
+
+  describe('findNextUpcomingLesson', () => {
+    it('queries the allocation within the next session week window', async () => {
+      (prisma.curriculumAllocation.findFirst as jest.Mock).mockResolvedValue(null);
+      await (service as any).findNextUpcomingLesson(['l1'], schoolId, new Date('2026-08-23T00:00:00Z'));
+      const call = (prisma.curriculumAllocation.findFirst as jest.Mock).mock.calls[0][0];
+      expect(call.where.levelId).toEqual({ in: ['l1'] });
+      expect(call.where.scheduledDate.gte).toEqual(new Date('2026-08-23T00:00:00Z'));
+      expect(call.where.scheduledDate.lt).toEqual(new Date('2026-08-30T00:00:00Z'));
+    });
+
+    it('returns null when there is no upcoming session to prepare for', async () => {
+      const result = await (service as any).findNextUpcomingLesson(['l1'], schoolId, null);
+      expect(result).toBeNull();
+      expect(prisma.curriculumAllocation.findFirst).not.toHaveBeenCalled();
+    });
+
+    it('returns null when the servant has no levels', async () => {
+      const result = await (service as any).findNextUpcomingLesson([], schoolId, new Date());
+      expect(result).toBeNull();
+    });
   });
 
   describe('getClassOverview', () => {
     function baseline() {
+      (prisma.user.findUnique as jest.Mock).mockResolvedValue({ metadata: null });
       (prisma.attendanceSession.findMany as jest.Mock).mockResolvedValue([{ groupId: 'g1', levelId: 'l1' }]);
       (prisma.student.findMany as jest.Mock).mockResolvedValue([
         { id: 's1', firstName: 'Mina', lastName: 'A', firstNameAr: null, lastNameAr: null, photoUrl: null },
@@ -209,6 +254,7 @@ describe('DashboardService', () => {
     });
 
     it('returns empty roster and null today lesson when servant has no students', async () => {
+      (prisma.user.findUnique as jest.Mock).mockResolvedValue({ metadata: null });
       (prisma.attendanceSession.findMany as jest.Mock).mockResolvedValue([]);
       (prisma.attendanceSession.findFirst as jest.Mock).mockResolvedValue(null);
       (prisma.curriculumAllocation.findFirst as jest.Mock).mockResolvedValue(null);
@@ -221,6 +267,7 @@ describe('DashboardService', () => {
 
   describe('getWeeklyBriefing', () => {
     function briefingBaseline() {
+      (prisma.user.findUnique as jest.Mock).mockResolvedValue({ metadata: null });
       (prisma.attendanceSession.findMany as jest.Mock).mockResolvedValue([{ groupId: 'g1', levelId: 'l1' }]);
       (prisma.student.findMany as jest.Mock).mockResolvedValue([]);
       (prisma.attendanceSession.findFirst as jest.Mock).mockResolvedValue(null);
@@ -256,6 +303,26 @@ describe('DashboardService', () => {
       expect(result.nextLesson.title).toBe('Kyrie');
       expect(result.nextLesson.subjectName).toBe('Tasbeha');
       expect(result.roster).toEqual([]);
+    });
+
+    it('scopes the next session query to the assigned class group', async () => {
+      briefingBaseline();
+      (prisma.user.findUnique as jest.Mock).mockResolvedValue({ metadata: { groupId: 'g1', levelId: 'l1' } });
+      await service.getWeeklyBriefing(user, schoolId);
+      const call = (prisma.attendanceSession.findFirst as jest.Mock).mock.calls[0][0];
+      expect(call.where.groupId).toEqual({ in: ['g1'] });
+      expect(call.where.servantId).toBe('user-1');
+    });
+
+    it('shows no lesson when no allocation exists in the next session week', async () => {
+      briefingBaseline();
+      (prisma.attendanceSession.findFirst as jest.Mock).mockResolvedValue({
+        id: 'n1', scheduledDate: new Date('2026-08-23T00:00:00Z'), levelId: 'l1',
+        level: { id: 'l1', name: 'Level 3', number: 3 }, group: { id: 'g1', name: 'Group A' },
+      });
+      const result = await service.getWeeklyBriefing(user, schoolId);
+      expect(result.nextSession).not.toBeNull();
+      expect(result.nextLesson).toBeNull();
     });
   });
 });

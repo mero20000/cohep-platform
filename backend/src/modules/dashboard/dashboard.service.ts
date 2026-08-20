@@ -716,6 +716,25 @@ export class DashboardService {
   // ── Servant Digest ────────────────────────────────────────────────────────
 
   private async resolveServantClass(userId: string, schoolId: string) {
+    // Metadata assignment (servant module) takes precedence over session-derived class
+    const userRecord = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { metadata: true },
+    });
+    const meta = (userRecord?.metadata as any) || {};
+    const assignedGroupId = meta.groupId as string | undefined;
+    const assignedLevelId = meta.levelId as string | undefined;
+
+    if (assignedGroupId) {
+      const groupIds = [assignedGroupId];
+      const levelIds = assignedLevelId ? [assignedLevelId] : [];
+      const studentIds = (await this.prisma.student.findMany({
+        where: { groupId: { in: groupIds }, deletedAt: null },
+        select: { id: true },
+      })).map((s: any) => s.id);
+      return { groupIds, levelIds, studentIds };
+    }
+
     const ownSessions = await this.prisma.attendanceSession.findMany({
       where: { schoolId, servantId: userId },
       select: { groupId: true, levelId: true },
@@ -922,6 +941,7 @@ export class DashboardService {
       where: {
         schoolId,
         servantId: user.id,
+        groupId: { in: groupIds },
         status: 'scheduled',
         scheduledDate: { gte: new Date() },
       },
@@ -953,10 +973,10 @@ export class DashboardService {
 
   async getClassOverview(user: any, schoolIdentifier: string): Promise<any> {
     const schoolId = await this.schoolResolver.resolve(schoolIdentifier);
-    const { levelIds, studentIds } = await this.resolveServantClass(user.id, schoolId);
+    const { groupIds, levelIds, studentIds } = await this.resolveServantClass(user.id, schoolId);
 
     const nextSession = await this.prisma.attendanceSession.findFirst({
-      where: { schoolId, servantId: user.id, status: 'scheduled', scheduledDate: { gte: new Date() } },
+      where: { schoolId, servantId: user.id, groupId: { in: groupIds }, status: 'scheduled', scheduledDate: { gte: new Date() } },
       orderBy: { scheduledDate: 'asc' },
       include: {
         level: { select: { id: true, name: true, number: true } },
@@ -1116,13 +1136,18 @@ export class DashboardService {
     return roster;
   }
 
-  private async findNextUpcomingLesson(levelIds: string[], schoolId: string) {
+  private async findNextUpcomingLesson(levelIds: string[], schoolId: string, nextSessionDate: Date | null) {
     if (levelIds.length === 0) return null;
+    // Only surface a lesson that belongs to the upcoming session's week
+    if (!nextSessionDate) return null;
+    const weekStart = new Date(nextSessionDate);
+    const weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekEnd.getDate() + 7);
     const alloc = await this.prisma.curriculumAllocation.findFirst({
       where: {
         academicYear: { schoolId },
         levelId: { in: levelIds },
-        scheduledDate: { gte: new Date() },
+        scheduledDate: { gte: weekStart, lt: weekEnd },
       },
       orderBy: { scheduledDate: 'asc' },
       include: {
@@ -1147,10 +1172,16 @@ export class DashboardService {
 
   async getWeeklyBriefing(user: any, schoolIdentifier: string): Promise<any> {
     const schoolId = await this.schoolResolver.resolve(schoolIdentifier);
-    const { levelIds, studentIds } = await this.resolveServantClass(user.id, schoolId);
+    const { groupIds, levelIds, studentIds } = await this.resolveServantClass(user.id, schoolId);
 
     const nextSession = await this.prisma.attendanceSession.findFirst({
-      where: { schoolId, servantId: user.id, status: 'scheduled', scheduledDate: { gte: new Date() } },
+      where: {
+        schoolId,
+        servantId: user.id,
+        groupId: { in: groupIds },
+        status: 'scheduled',
+        scheduledDate: { gte: new Date() },
+      },
       orderBy: { scheduledDate: 'asc' },
       include: {
         level: { select: { id: true, name: true, number: true } },
@@ -1160,7 +1191,7 @@ export class DashboardService {
 
     const teachingDate = nextSession ? new Date(nextSession.scheduledDate) : new Date();
     const coptic = getCopticContext(teachingDate);
-    const nextLesson = await this.findNextUpcomingLesson(levelIds, schoolId);
+    const nextLesson = await this.findNextUpcomingLesson(levelIds, schoolId, nextSession ? new Date(nextSession.scheduledDate) : null);
     const nextSessionWeekday = nextSession ? new Date(nextSession.scheduledDate).getDay() : null;
     const roster = await this.buildClassRoster(studentIds, nextLesson ? nextLesson.lessonId : null, nextSessionWeekday);
 
