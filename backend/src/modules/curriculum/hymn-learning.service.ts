@@ -1,5 +1,9 @@
 import { Injectable } from '@nestjs/common'
 import { PrismaService } from '../../database/prisma.service'
+import {
+  COPTIC_MONTHS, gregorianToJD, jdToCoptic,
+  getCopticSeason, getUpcomingSundayDate,
+} from '../../common/utils/coptic-calendar'
 
 // ─── SM-2 Spaced Repetition ──────────────────────────────────────────────────
 // quality: 0-5  (0=blackout, 3=correct-with-effort, 5=perfect)
@@ -34,51 +38,6 @@ function masteryFromRepetitions(rep: number, selfRating: number): string {
   if (rep <= 2) return 'practicing'
   if (selfRating < 5) return 'known'
   return 'mastered'
-}
-
-// ─── Coptic Calendar helpers ─────────────────────────────────────────────────
-const COPTIC_EPOCH_JD = 1825029.5 // Julian Day for 1 Thout 1 AM (29 Aug 284 CE)
-const GREGORIAN_EPOCH_JD = 1721425.5
-
-function gregorianToJD(year: number, month: number, day: number): number {
-  const a = Math.floor((14 - month) / 12)
-  const y = year + 4800 - a
-  const m = month + 12 * a - 3
-  return day + Math.floor((153 * m + 2) / 5) + 365 * y + Math.floor(y / 4) -
-    Math.floor(y / 100) + Math.floor(y / 400) - 32045
-}
-
-function jdToCoptic(jd: number): { month: number; day: number; year: number } {
-  const copticDays = jd - COPTIC_EPOCH_JD
-  const year = Math.floor(copticDays / 365.25)
-  const remaining = copticDays - year * 365.25
-  const month = Math.floor(remaining / 30) + 1
-  const day = Math.floor(remaining % 30) + 1
-  return { year: Math.floor(year) + 1, month: Math.max(1, Math.min(13, month)), day: Math.max(1, Math.min(30, day)) }
-}
-
-// Coptic month names (1=Thout ... 13=Nasie)
-const COPTIC_MONTHS = ['', 'Thout', 'Paopi', 'Hathor', 'Kiahk', 'Tobi', 'Meshir', 'Paremhat', 'Parmouti', 'Pashons', 'Paoni', 'Epip', 'Mesori', 'Nasie']
-
-// Season detection from Coptic month
-function getCopticSeason(month: number, day: number): string {
-  // Kiahk (month 4) = Advent / Midnight Praises season
-  if (month === 4) return 'kiahk'
-  // Tobi 1-11 = Nativity octave
-  if (month === 5 && day <= 11) return 'nativity'
-  // Parmouti roughly = Great Lent start varies; simplified: month 8 = pre-lent
-  if (month === 7 || month === 8) return 'great_lent'
-  // Pashons 1 week = Bright week / Pentecost season
-  if (month === 9 && day <= 7) return 'bright_week'
-  return 'regular'
-}
-
-function getUpcomingSundayDate(from = new Date()): Date {
-  const d = new Date(from)
-  const day = d.getDay() // 0=Sun
-  const daysUntilSunday = day === 0 ? 7 : 7 - day
-  d.setDate(d.getDate() + daysUntilSunday)
-  return d
 }
 
 @Injectable()
