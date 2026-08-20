@@ -101,10 +101,7 @@ export function flattenGroups(data: Array<{ groups?: Group[] | null }>): Group[]
 export function useGroupsQuery() {
   return useQuery({
     queryKey: ['groups'],
-    queryFn: async () => {
-      const data = await fetchJson<Array<{ groups?: Group[] | null }>>(`${API}/students/groups/all?schoolId=${getSchoolId()}`)
-      return flattenGroups(data)
-    },
+    queryFn: () => fetchJson<Group[]>(`${API}/students/groups/all?schoolId=${getSchoolId()}`),
     staleTime: 5 * 60 * 1000,
   })
 }
