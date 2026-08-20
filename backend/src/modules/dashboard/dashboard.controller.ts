@@ -74,6 +74,15 @@ export class DashboardController {
     return this.service.getClassOverview(user, schoolId);
   }
 
+  @Get('weekly-briefing')
+  @ApiOperation({ summary: 'Get servant weekly briefing — coptic context, next lesson, follow-up roster' })
+  async getWeeklyBriefing(
+    @CurrentUser() user: any,
+    @Query('schoolId') schoolId: string = '',
+  ) {
+    return this.service.getWeeklyBriefing(user, schoolId);
+  }
+
   @Post('absence-cascade')
   @Roles('admin', 'principal', 'super_admin')
   @ApiOperation({ summary: 'Run absence cascade — notify parents and servants of students with 3+ consecutive absences' })

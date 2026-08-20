@@ -218,4 +218,44 @@ describe('DashboardService', () => {
       expect(result.nextSession).toBeNull();
     });
   });
+
+  describe('getWeeklyBriefing', () => {
+    function briefingBaseline() {
+      (prisma.attendanceSession.findMany as jest.Mock).mockResolvedValue([{ groupId: 'g1', levelId: 'l1' }]);
+      (prisma.student.findMany as jest.Mock).mockResolvedValue([]);
+      (prisma.attendanceSession.findFirst as jest.Mock).mockResolvedValue(null);
+      (prisma.curriculumAllocation.findFirst as jest.Mock).mockResolvedValue(null);
+    }
+
+    it('returns coptic context, null lesson, null session, and empty roster', async () => {
+      briefingBaseline();
+      const result = await service.getWeeklyBriefing(user, schoolId);
+      expect(result.coptic).toHaveProperty('season');
+      expect(result.coptic).toHaveProperty('seasonLabel');
+      expect(result.coptic).toHaveProperty('feastFast');
+      expect(result.nextLesson).toBeNull();
+      expect(result.nextSession).toBeNull();
+      expect(result.roster).toEqual([]);
+    });
+
+    it('uses the nextSession date for coptic context and returns nextLesson + roster', async () => {
+      briefingBaseline();
+      (prisma.attendanceSession.findFirst as jest.Mock).mockResolvedValue({
+        id: 'n1', scheduledDate: new Date('2026-08-23T00:00:00Z'), levelId: 'l1',
+        level: { id: 'l1', name: 'Level 3', number: 3 }, group: { id: 'g1', name: 'Group A' },
+      });
+      (prisma.curriculumAllocation.findFirst as jest.Mock).mockResolvedValue({
+        lessonId: 'les1', scheduledDate: new Date('2026-08-23T00:00:00Z'),
+        lesson: { id: 'les1', title: 'Kyrie', titleAr: null, titleCoptic: 'ⲕⲩⲣⲓⲉ' },
+        level: { id: 'l1', name: 'Level 3', number: 3 },
+        subject: { name: 'Tasbeha' },
+      });
+      (prisma.student.findMany as jest.Mock).mockResolvedValue([]);
+      const result = await service.getWeeklyBriefing(user, schoolId);
+      expect(result.nextSession.groupName).toBe('Group A');
+      expect(result.nextLesson.title).toBe('Kyrie');
+      expect(result.nextLesson.subjectName).toBe('Tasbeha');
+      expect(result.roster).toEqual([]);
+    });
+  });
 });

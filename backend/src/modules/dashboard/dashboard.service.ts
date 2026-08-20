@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 import { SchoolResolver } from '../../common/utils/school-resolver';
+import { getCopticContext } from '../../common/utils/coptic-calendar';
 
 @Injectable()
 export class DashboardService {
@@ -1113,6 +1114,71 @@ export class DashboardService {
     });
 
     return roster;
+  }
+
+  private async findNextUpcomingLesson(levelIds: string[], schoolId: string) {
+    if (levelIds.length === 0) return null;
+    const alloc = await this.prisma.curriculumAllocation.findFirst({
+      where: {
+        academicYear: { schoolId },
+        levelId: { in: levelIds },
+        scheduledDate: { gte: new Date() },
+      },
+      orderBy: { scheduledDate: 'asc' },
+      include: {
+        lesson: { select: { id: true, title: true, titleAr: true, titleCoptic: true } },
+        level: { select: { id: true, name: true, number: true } },
+        subject: { select: { name: true } },
+      },
+    });
+    if (!alloc) return null;
+    return {
+      lessonId: alloc.lessonId,
+      title: alloc.lesson.title,
+      titleAr: alloc.lesson.titleAr,
+      titleCoptic: alloc.lesson.titleCoptic,
+      levelId: alloc.levelId,
+      levelName: alloc.level.name,
+      levelNumber: alloc.level.number,
+      subjectName: alloc.subject.name,
+      scheduledDate: alloc.scheduledDate,
+    };
+  }
+
+  async getWeeklyBriefing(user: any, schoolIdentifier: string): Promise<any> {
+    const schoolId = await this.schoolResolver.resolve(schoolIdentifier);
+    const { levelIds, studentIds } = await this.resolveServantClass(user.id, schoolId);
+
+    const nextSession = await this.prisma.attendanceSession.findFirst({
+      where: { schoolId, servantId: user.id, status: 'scheduled', scheduledDate: { gte: new Date() } },
+      orderBy: { scheduledDate: 'asc' },
+      include: {
+        level: { select: { id: true, name: true, number: true } },
+        group: { select: { id: true, name: true } },
+      },
+    });
+
+    const teachingDate = nextSession ? new Date(nextSession.scheduledDate) : new Date();
+    const coptic = getCopticContext(teachingDate);
+    const nextLesson = await this.findNextUpcomingLesson(levelIds, schoolId);
+    const nextSessionWeekday = nextSession ? new Date(nextSession.scheduledDate).getDay() : null;
+    const roster = await this.buildClassRoster(studentIds, nextLesson ? nextLesson.lessonId : null, nextSessionWeekday);
+
+    return {
+      generatedAt: new Date(),
+      coptic,
+      nextSession: nextSession ? {
+        id: nextSession.id,
+        scheduledDate: nextSession.scheduledDate,
+        levelId: nextSession.levelId,
+        levelName: nextSession.level?.name,
+        levelNumber: nextSession.level?.number,
+        groupId: nextSession.groupId,
+        groupName: nextSession.group?.name,
+      } : null,
+      nextLesson,
+      roster,
+    };
   }
 
   // ── Absence Cascade ───────────────────────────────────────────────────────
