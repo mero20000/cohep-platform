@@ -29,8 +29,8 @@ import { useActiveRole, roleCategory } from '@/lib/use-active-role'
 import DashboardHero from './hero'
 import { PhoneLink } from '@/app/dashboard/students/_components/phone-link'
 import { ServantJourneyCard } from '@/components/dashboard/servant-journey-card'
-import { useAcademicYearsQuery, useAllAllocationsQuery, useLessonsQuery } from '@/components/curriculum/hooks'
-import type { Allocation } from '@/components/curriculum/types'
+import { useAcademicYearsQuery, useAllAllocationsQuery, useLessonsQuery, useLevelsQuery } from '@/components/curriculum/hooks'
+import type { Allocation, Level } from '@/components/curriculum/types'
 import { parseISO, isSameDay, startOfDay, startOfWeek, addDays, format } from 'date-fns'
 import { enGB, ar } from 'date-fns/locale'
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, Cell, PieChart, Pie } from 'recharts'
@@ -1099,7 +1099,7 @@ function WeekScheduleCard({ lang }: { lang: string }) {
   )
 }
 
-function NextSessionCard({ lang, assigned, groups }: { lang: string; assigned?: any; groups?: any[] }) {
+export function NextSessionCard({ lang, assigned, groups }: { lang: string; assigned?: any; groups?: any[] }) {
   const levelId =
     assigned?.levelId ||
     groups?.find((g: any) => g.id === assigned?.groupId)?.levelId ||
@@ -1113,6 +1113,19 @@ function NextSessionCard({ lang, assigned, groups }: { lang: string; assigned?: 
 
   const allocations = useAllAllocationsQuery(currentYear?.id || '', levelId || undefined)
   const lessons = useLessonsQuery(levelId || undefined)
+
+  // Super admin renders a tab per configured level (plus an "All" view). Servant /
+  // level_leader / group_leader are scoped to their own level and show no tabs.
+  const isAdminMode = !levelId
+  const [activeLevel, setActiveLevel] = useState<number | null>(null)
+  const levels = useLevelsQuery()
+  const configuredLevels = useMemo(
+    () =>
+      (levels.data || [])
+        .filter((l) => typeof l.number === 'number')
+        .sort((a, b) => a.number - b.number),
+    [levels.data],
+  )
 
   const lessonMap = useMemo(() => {
     const m = new Map<string, any>()
@@ -1131,7 +1144,12 @@ function NextSessionCard({ lang, assigned, groups }: { lang: string; assigned?: 
 
   const { items, dateLabel, scope } = useMemo(() => {
     const all = (allocations.data || []) as Allocation[]
-    const dated = all.filter((a) => a.scheduledDate)
+    const scoped = isAdminMode
+      ? activeLevel == null
+        ? all
+        : all.filter((a) => a.level?.number === activeLevel)
+      : all
+    const dated = scoped.filter((a) => a.scheduledDate)
     const today = startOfDay(new Date())
 
     if (dated.length) {
@@ -1162,20 +1180,50 @@ function NextSessionCard({ lang, assigned, groups }: { lang: string; assigned?: 
     }
 
     // No scheduled dates — fall back to showing the level's allocated items.
-    if (all.length) return { items: all, dateLabel: '', scope: 'plan' }
+    if (scoped.length) return { items: scoped, dateLabel: '', scope: 'plan' }
     return { items: [] as Allocation[], dateLabel: '', scope: 'plan' }
-  }, [allocations.data, lang])
+  }, [allocations.data, lang, isAdminMode, activeLevel])
 
-  const scopedToLevel = !!levelId
+  const showLevelBadge = isAdminMode && activeLevel == null
 
   const loading =
-    (years.isLoading || allocations.isLoading || lessons.isLoading) && !(allocations.data || lessons.data)
+    (years.isLoading || allocations.isLoading || lessons.isLoading || (isAdminMode && levels.isLoading)) &&
+    !(allocations.data || lessons.data)
 
   if (loading) return <CardSkeleton count={2} />
-  if (!items.length)
-    return (
-      <div className="rounded-xl border border-gray-200/60 bg-white overflow-hidden">
-        <NextSessionHeader lang={lang} dateLabel="" scope="plan" />
+
+  const tabBar =
+    isAdminMode && configuredLevels.length > 0 ? (
+      <div className="flex items-center gap-1 overflow-x-auto border-b border-[var(--hymn-border)] bg-white px-3 py-2">
+        <button
+          type="button"
+          onClick={() => setActiveLevel(null)}
+          className={`whitespace-nowrap rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+            activeLevel == null ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+          }`}
+        >
+          {lang === 'ar' ? 'الكل' : 'All'}
+        </button>
+        {configuredLevels.map((l) => (
+          <button
+            key={l.id}
+            type="button"
+            onClick={() => setActiveLevel(l.number)}
+            className={`whitespace-nowrap rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+              activeLevel === l.number ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+            }`}
+          >
+            {lang === 'ar' ? l.nameAr || l.name : l.name}
+          </button>
+        ))}
+      </div>
+    ) : null
+
+  return (
+    <div className="rounded-xl border border-gray-200/60 bg-white overflow-hidden">
+      <NextSessionHeader lang={lang} dateLabel={dateLabel} scope={scope} />
+      {tabBar}
+      {items.length === 0 ? (
         <div className="px-5 py-8">
           <EmptyState
             icon={BookOpen}
@@ -1187,13 +1235,8 @@ function NextSessionCard({ lang, assigned, groups }: { lang: string; assigned?: 
             }
           />
         </div>
-      </div>
-    )
-
-  return (
-    <div className="rounded-xl border border-gray-200/60 bg-white overflow-hidden">
-      <NextSessionHeader lang={lang} dateLabel={dateLabel} scope={scope} />
-      <div className="divide-y divide-gray-100">
+      ) : (
+        <div className="divide-y divide-gray-100">
         {items.map((a) => {
           const lesson = lessonMap.get(a.lesson?.id || '')
           const item = lesson?.subjectItem
@@ -1229,7 +1272,7 @@ function NextSessionCard({ lang, assigned, groups }: { lang: string; assigned?: 
                       {lesson.subject.name}
                     </span>
                   )}
-                  {!scopedToLevel && a.level?.name && (
+                  {showLevelBadge && a.level?.name && (
                     <span className="rounded-full bg-purple-50 px-2 py-0.5 text-[11px] font-medium text-purple-700">
                       {a.level.name}
                     </span>
@@ -1249,7 +1292,8 @@ function NextSessionCard({ lang, assigned, groups }: { lang: string; assigned?: 
             </div>
           )
         })}
-      </div>
+        </div>
+      )}
     </div>
   )
 }
