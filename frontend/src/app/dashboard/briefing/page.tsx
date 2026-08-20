@@ -175,7 +175,7 @@ export default function BriefingPage() {
             const open = openStudent === s.studentId
             return (
               <div key={s.studentId} className="rounded-xl border border-amber-200 bg-white">
-                <button type="button" onClick={() => setOpenStudent(open ? null : s.studentId)} className="flex w-full items-center gap-3 p-3 text-left">
+                <button type="button" onClick={() => setOpenStudent(open ? null : s.studentId)} className="flex w-full items-center gap-3 p-3 text-start">
                   <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-gray-100 text-gray-500">
                     {s.photoUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element
