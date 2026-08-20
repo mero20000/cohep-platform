@@ -45,6 +45,7 @@ interface TeachingViewProps {
   allocations?: Allocation[]
   levelNumber: number
   onLevelChange: (n: number) => void
+  groupOptions: Array<{ groupNumber: number; label: string; labelAr: string }>
 }
 
 function useMyLevel(levels: Array<{ number: number }>): number | null {
@@ -78,7 +79,7 @@ function getSchoolId(): string {
   return ''
 }
 
-export function TeachingView({ items, subjects, levels, lessons = [], allocations = [], levelNumber, onLevelChange }: TeachingViewProps) {
+export function TeachingView({ items, subjects, levels, lessons = [], allocations = [], levelNumber, onLevelChange, groupOptions }: TeachingViewProps) {
   const lang = useLanguage()
   const [showSubject, setShowSubject] = useState<string>('all')
   const [selectedGroup, setSelectedGroup] = useState<number>(1)
@@ -225,8 +226,8 @@ export function TeachingView({ items, subjects, levels, lessons = [], allocation
         <select value={selectedGroup} onChange={e => setSelectedGroup(Number(e.target.value))}
           aria-label={lang === 'ar' ? 'المجموعة' : 'Group'}
           className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
-          {[1, 2, 3, 4].map(g => (
-            <option key={g} value={g}>{lang === 'ar' ? `المجموعة ${g}` : `Group ${g}`}</option>
+          {groupOptions.map(o => (
+            <option key={o.groupNumber} value={o.groupNumber}>{lang === 'ar' ? o.labelAr : o.label}</option>
           ))}
         </select>
         <select value={showSubject} onChange={e => setShowSubject(e.target.value)}

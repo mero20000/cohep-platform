@@ -36,6 +36,7 @@ interface CalendarViewProps {
   onDeleteAllocation: (id: string) => Promise<void>
   onClearAllocations: (scope: 'all' | 'term' | 'level') => void
   onCreateLesson: (data: Record<string, unknown>) => Promise<unknown>
+  groupOptions: Array<{ groupNumber: number; label: string; labelAr: string }>
 }
 
 function formatDate(d: string | Date): string {
@@ -49,7 +50,7 @@ function toISODate(d: Date): string {
 
 export function CalendarView({
   allocations, lessons, teachingItems, levels, subjects, weeks, selectedYear,
-  onRefresh, onCreateAllocation, onMoveAllocation, onDeleteAllocation, onClearAllocations, onCreateLesson,
+  onRefresh, onCreateAllocation, onMoveAllocation, onDeleteAllocation, onClearAllocations, onCreateLesson, groupOptions,
 }: CalendarViewProps) {
   const lang = useLanguage()
   const { toast } = useToast()
@@ -352,8 +353,8 @@ export function CalendarView({
             <select value={selectedGroup} onChange={e => setSelectedGroup(Number(e.target.value))}
               aria-label={lang === 'ar' ? 'المجموعة' : 'Group'}
               className="rounded-lg border border-gray-300 px-2.5 py-1.5 text-xs min-h-[40px] focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
-              {[1, 2, 3, 4].map(g => (
-                <option key={g} value={g}>{lang === 'ar' ? `المجموعة ${g}` : `Group ${g}`}</option>
+              {groupOptions.map(o => (
+                <option key={o.groupNumber} value={o.groupNumber}>{lang === 'ar' ? o.labelAr : o.label}</option>
               ))}
             </select>
             <span className="mx-1 text-xs text-gray-300">|</span>
@@ -418,8 +419,8 @@ export function CalendarView({
             <select value={selectedGroup} onChange={e => setSelectedGroup(Number(e.target.value))}
               aria-label={lang === 'ar' ? 'المجموعة' : 'Group'}
               className="rounded-lg border border-gray-300 px-2.5 py-1.5 text-xs min-h-[40px] focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
-              {[1, 2, 3, 4].map(g => (
-                <option key={g} value={g}>{lang === 'ar' ? `المجموعة ${g}` : `Group ${g}`}</option>
+              {groupOptions.map(o => (
+                <option key={o.groupNumber} value={o.groupNumber}>{lang === 'ar' ? o.labelAr : o.label}</option>
               ))}
             </select>
             <span className="mx-1 text-xs text-gray-300">|</span>
@@ -579,8 +580,8 @@ export function CalendarView({
           <select value={selectedGroup} onChange={e => setSelectedGroup(Number(e.target.value))}
             aria-label={lang === 'ar' ? 'المجموعة' : 'Group'}
             className="w-full rounded-lg border border-gray-300 px-2.5 py-1.5 text-xs min-h-[40px] focus:border-gold-500 focus:ring-1 focus:ring-blue-500 focus:outline-none">
-            {[1, 2, 3, 4].map(g => (
-              <option key={g} value={g}>{lang === 'ar' ? `المجموعة ${g}` : `Group ${g}`}</option>
+            {groupOptions.map(o => (
+              <option key={o.groupNumber} value={o.groupNumber}>{lang === 'ar' ? o.labelAr : o.label}</option>
             ))}
           </select>
         </div>

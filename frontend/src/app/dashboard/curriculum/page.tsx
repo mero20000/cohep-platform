@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { BookOpen, Calendar, AlertCircle } from 'lucide-react'
 import { ErrorBoundary } from '@/components/ui/error-boundary'
 import { useToast } from '@/components/ui/toast'
@@ -69,6 +69,29 @@ function CurriculumContent() {
     selectedYear,
     activeTab === 'allocation' ? selectedAllocLevelId || undefined : undefined
   )
+
+  // Group dropdown options derived from the active groups under Settings → Groups.
+  // Each active group maps to a CurriculumAllocation groupNumber via the leading integer
+  // in its name (e.g. "Group 1A" → 1), deduplicated and sorted by orderIndex.
+  const groupOptions = useMemo(() => {
+    const opts: Array<{ groupNumber: number; label: string; labelAr: string }> = []
+    const seen = new Set<number>()
+    const active = groups.filter(g => g.status === 'active').sort((a, b) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0))
+    for (const g of active) {
+      const m = /^Group\s*(\d+)/i.exec(g.name) || /^(\d+)/.exec(g.name)
+      if (!m) continue
+      const n = parseInt(m[1], 10)
+      if (seen.has(n)) continue
+      seen.add(n)
+      opts.push({ groupNumber: n, label: g.name, labelAr: g.nameAr || g.name })
+    }
+    // Fallback to the group numbers actually present in the allocations if no active group names carry a number.
+    if (opts.length === 0) {
+      const nums = [...new Set(allocations.map(a => a.groupNumber).filter((n): n is number => typeof n === 'number'))].sort((a, b) => a - b)
+      return nums.map(n => ({ groupNumber: n, label: `Group ${n}`, labelAr: `المجموعة ${n}` }))
+    }
+    return opts
+  }, [groups, allocations])
 
   useEffect(() => {
     if (!selectedYear && academicYears.length > 0) {
@@ -363,6 +386,7 @@ function CurriculumContent() {
           subjects={subjects}
           weeks={weeks}
           selectedYear={selectedYear}
+          groupOptions={groupOptions}
           onRefresh={invalidateAllocs}
           onCreateAllocation={handleCreateAllocation}
           onCreateLesson={createLesson.mutateAsync}
@@ -383,6 +407,7 @@ function CurriculumContent() {
           allocations={allocations}
           levelNumber={teachingLevel}
           onLevelChange={setTeachingLevel}
+          groupOptions={groupOptions}
         />
         </div>
       )}

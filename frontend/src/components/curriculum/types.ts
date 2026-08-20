@@ -53,7 +53,7 @@ export interface AcademicWeek {
   startDate: string; endDate: string; isAvailable: boolean;
 }
 export interface Group {
-  id: string; name: string; levelId?: string;
+  id: string; name: string; nameAr?: string; status?: string; orderIndex?: number; levelId?: string;
 }
 export interface SubjectStyle {
   bg: string; text: string; border: string; dot: string; light: string; hover: string;

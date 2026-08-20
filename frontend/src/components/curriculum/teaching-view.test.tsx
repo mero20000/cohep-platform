@@ -17,6 +17,7 @@ vi.mock('@/components/curriculum/hooks', () => ({ useUpdateItemStatusMutation: (
 
 const subjects: Subject[] = [{ id: 's1', name: 'Coptic Hymns', nameAr: 'التراتيل' }]
 const levels: Level[] = [{ id: 'l1', number: 1, name: 'Level 1' }]
+const groupOptions = [{ groupNumber: 1, label: 'Group 1', labelAr: 'المجموعة 1' }]
 
 const items: SubjectItem[] = [
   {
@@ -43,7 +44,7 @@ beforeEach(() => {
 
 describe('TeachingView', () => {
   it('renders subject items grouped by subject with a status summary', () => {
-    render(<TeachingView items={items} subjects={subjects} levels={levels} lessons={[]} allocations={[]} levelNumber={1} onLevelChange={vi.fn()} />)
+    render(<TeachingView items={items} subjects={subjects} levels={levels} lessons={[]} allocations={[]} levelNumber={1} onLevelChange={vi.fn()} groupOptions={groupOptions} />)
     expect(screen.getByText('Tenħo')).toBeInTheDocument()
     expect(screen.getByText('Nabrubol')).toBeInTheDocument()
     // Summary cards: total = 2
@@ -51,14 +52,14 @@ describe('TeachingView', () => {
   })
 
   it('filters to completed items when the Completed summary card is clicked', () => {
-    render(<TeachingView items={items} subjects={subjects} levels={levels} lessons={[]} allocations={[]} levelNumber={1} onLevelChange={vi.fn()} />)
+    render(<TeachingView items={items} subjects={subjects} levels={levels} lessons={[]} allocations={[]} levelNumber={1} onLevelChange={vi.fn()} groupOptions={groupOptions} />)
     fireEvent.click(screen.getByRole('button', { name: (n: string) => n.includes('Completed') && !n.includes('Hide') }))
     expect(screen.getByText('Nabrubol')).toBeInTheDocument()
     expect(screen.queryByText('Tenħo')).not.toBeInTheDocument()
   })
 
   it('updates item status when the per-item status select changes', () => {
-    render(<TeachingView items={items} subjects={subjects} levels={levels} lessons={[]} allocations={[]} levelNumber={1} onLevelChange={vi.fn()} />)
+    render(<TeachingView items={items} subjects={subjects} levels={levels} lessons={[]} allocations={[]} levelNumber={1} onLevelChange={vi.fn()} groupOptions={groupOptions} />)
     const select = screen.getAllByLabelText('Item status')[0] as HTMLSelectElement
     fireEvent.change(select, { target: { value: 'in_progress' } })
     expect(mutate).toHaveBeenCalledWith(expect.objectContaining({ id: 'it1', status: 'in_progress' }), expect.anything())
@@ -74,7 +75,7 @@ describe('TeachingView', () => {
       lesson, level: { number: 1, name: 'Level 1' }, subject: { name: 'Coptic Hymns' }, groupNumber: 1,
       academicYear: { name: '2026' },
     }
-    render(<TeachingView items={items} subjects={subjects} levels={levels} lessons={[lesson]} allocations={[alloc]} levelNumber={1} onLevelChange={vi.fn()} />)
+    render(<TeachingView items={items} subjects={subjects} levels={levels} lessons={[lesson]} allocations={[alloc]} levelNumber={1} onLevelChange={vi.fn()} groupOptions={groupOptions} />)
     expect(screen.getByText(/Alloc G1/)).toBeInTheDocument()
   })
 })
