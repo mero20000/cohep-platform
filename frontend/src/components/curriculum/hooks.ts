@@ -94,12 +94,16 @@ export function useWeeksQuery(academicYearId?: string) {
   })
 }
 
+export function flattenGroups(data: Array<{ groups?: Group[] | null }>): Group[] {
+  return data.flatMap(l => (Array.isArray(l.groups) ? l.groups : []))
+}
+
 export function useGroupsQuery() {
   return useQuery({
     queryKey: ['groups'],
     queryFn: async () => {
-      const data = await fetchJson<Array<{ groups: Group[] }>>(`${API}/students/groups/all?schoolId=${getSchoolId()}`)
-      return data.flatMap(l => l.groups)
+      const data = await fetchJson<Array<{ groups?: Group[] | null }>>(`${API}/students/groups/all?schoolId=${getSchoolId()}`)
+      return flattenGroups(data)
     },
     staleTime: 5 * 60 * 1000,
   })

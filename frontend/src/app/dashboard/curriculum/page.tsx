@@ -76,7 +76,7 @@ function CurriculumContent() {
   const groupOptions = useMemo(() => {
     const opts: Array<{ groupNumber: number; label: string; labelAr: string }> = []
     const seen = new Set<number>()
-    const active = groups.filter(g => g.status === 'active').sort((a, b) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0))
+    const active = groups.filter(g => g && g.status === 'active').sort((a, b) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0))
     for (const g of active) {
       const m = /^Group\s*(\d+)/i.exec(g.name) || /^(\d+)/.exec(g.name)
       if (!m) continue
