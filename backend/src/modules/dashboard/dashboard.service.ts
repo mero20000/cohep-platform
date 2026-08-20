@@ -996,99 +996,8 @@ export class DashboardService {
       }
     }
 
-    const roster: any[] = [];
-    if (studentIds.length > 0) {
-      const students = await this.prisma.student.findMany({
-        where: { id: { in: studentIds }, deletedAt: null },
-        select: {
-          id: true, firstName: true, lastName: true,
-          firstNameAr: true, lastNameAr: true, photoUrl: true,
-        },
-      });
-
-      const records = await this.prisma.attendanceRecord.findMany({
-        where: { studentId: { in: studentIds } },
-        orderBy: { recordedAt: 'desc' },
-        select: {
-          studentId: true, status: true, recordedAt: true,
-          note: true, noteCategory: true, isPrivateNote: true,
-        },
-      });
-
-      let progressByStudent: Record<string, any> = {};
-      if (todayLesson) {
-        const progresses = await this.prisma.lessonProgress.findMany({
-          where: { lessonId: todayLesson.lessonId, studentId: { in: studentIds } },
-          select: { studentId: true, masteryStatus: true },
-        });
-        progressByStudent = Object.fromEntries(progresses.map(p => [p.studentId, p]));
-      }
-
-      const overdueIds = new Set(
-        (await this.prisma.lessonProgress.findMany({
-          where: { studentId: { in: studentIds }, nextReviewAt: { lt: new Date() } },
-          select: { studentId: true },
-        })).map(p => p.studentId),
-      );
-
-      const ungradedIds = new Set(
-        (await this.prisma.assessmentSubmission.findMany({
-          where: { studentId: { in: studentIds }, grades: { none: {} } },
-          select: { studentId: true },
-        })).map(s => s.studentId),
-      );
-
-      const nextWeekday = nextSession ? new Date(nextSession.scheduledDate).getDay() : null;
-
-      for (const student of students) {
-        const sr = records.filter(r => r.studentId === student.id);
-        const presentCount = sr.filter(r => r.status === 'present' || r.status === 'late').length;
-        const attendanceRate = sr.length ? Math.round(presentCount / sr.length * 100) : 0;
-        const lastStatus = sr[0]?.status ?? null;
-
-        const lastTwo = sr.slice(0, 2);
-        const lastTwoAbsent = lastTwo.length >= 2 && lastTwo.every(r => r.status === 'absent');
-        const historicallyAbsentOnWeekday = nextWeekday !== null
-          && sr.filter(r => r.status === 'absent' && new Date(r.recordedAt).getDay() === nextWeekday).length >= 2;
-        const likelyAbsent = attendanceRate < 60 || lastTwoAbsent || historicallyAbsentOnWeekday;
-
-        const reasons: string[] = [];
-        if (overdueIds.has(student.id)) reasons.push('overdue_review');
-        if (todayLesson) {
-          const p = progressByStudent[student.id];
-          if (p && (p.masteryStatus === 'not_started' || p.masteryStatus === 'introduced')) reasons.push('low_mastery');
-        }
-        if (sr.length >= 3 && sr.slice(0, 3).every(r => r.status === 'absent')) reasons.push('absent_3plus');
-        if (ungradedIds.has(student.id)) reasons.push('ungraded_assessment');
-
-        const notes = sr
-          .filter(r => r.note)
-          .slice(0, 5)
-          .map(r => ({ category: r.noteCategory, note: r.note, isPrivate: r.isPrivateNote, createdAt: r.recordedAt }));
-
-        roster.push({
-          studentId: student.id,
-          firstName: student.firstName,
-          lastName: student.lastName,
-          firstNameAr: student.firstNameAr,
-          lastNameAr: student.lastNameAr,
-          photoUrl: student.photoUrl,
-          attendanceRate,
-          lastAttendanceStatus: lastStatus,
-          likelyAbsent,
-          needsFollowUp: reasons.length > 0,
-          followUpReasons: reasons,
-          notes,
-        });
-      }
-
-      roster.sort((a, b) => {
-        const aFlag = a.likelyAbsent || a.needsFollowUp ? 0 : 1;
-        const bFlag = b.likelyAbsent || b.needsFollowUp ? 0 : 1;
-        if (aFlag !== bFlag) return aFlag - bFlag;
-        return (a.lastName || '').localeCompare(b.lastName || '');
-      });
-    }
+    const nextWeekday = nextSession ? new Date(nextSession.scheduledDate).getDay() : null;
+    const roster = await this.buildClassRoster(studentIds, todayLesson ? todayLesson.lessonId : null, nextWeekday);
 
     return {
       servant: { id: user.id, firstName: user.firstName, lastName: user.lastName },
@@ -1104,6 +1013,106 @@ export class DashboardService {
       todayLesson,
       roster,
     };
+  }
+
+  private async buildClassRoster(
+    studentIds: string[],
+    followUpLessonId: string | null,
+    nextSessionWeekday: number | null,
+  ): Promise<any[]> {
+    const roster: any[] = [];
+    if (studentIds.length === 0) return roster;
+
+    const students = await this.prisma.student.findMany({
+      where: { id: { in: studentIds }, deletedAt: null },
+      select: {
+        id: true, firstName: true, lastName: true,
+        firstNameAr: true, lastNameAr: true, photoUrl: true,
+      },
+    });
+
+    const records = await this.prisma.attendanceRecord.findMany({
+      where: { studentId: { in: studentIds } },
+      orderBy: { recordedAt: 'desc' },
+      select: {
+        studentId: true, status: true, recordedAt: true,
+        note: true, noteCategory: true, isPrivateNote: true,
+      },
+    });
+
+    let progressByStudent: Record<string, any> = {};
+    if (followUpLessonId) {
+      const progresses = await this.prisma.lessonProgress.findMany({
+        where: { lessonId: followUpLessonId, studentId: { in: studentIds } },
+        select: { studentId: true, masteryStatus: true },
+      });
+      progressByStudent = Object.fromEntries(progresses.map(p => [p.studentId, p]));
+    }
+
+    const overdueIds = new Set(
+      (await this.prisma.lessonProgress.findMany({
+        where: { studentId: { in: studentIds }, nextReviewAt: { lt: new Date() } },
+        select: { studentId: true },
+      })).map(p => p.studentId),
+    );
+
+    const ungradedIds = new Set(
+      (await this.prisma.assessmentSubmission.findMany({
+        where: { studentId: { in: studentIds }, grades: { none: {} } },
+        select: { studentId: true },
+      })).map(s => s.studentId),
+    );
+
+    for (const student of students) {
+      const sr = records.filter(r => r.studentId === student.id);
+      const presentCount = sr.filter(r => r.status === 'present' || r.status === 'late').length;
+      const attendanceRate = sr.length ? Math.round(presentCount / sr.length * 100) : 0;
+      const lastStatus = sr[0]?.status ?? null;
+
+      const lastTwo = sr.slice(0, 2);
+      const lastTwoAbsent = lastTwo.length >= 2 && lastTwo.every(r => r.status === 'absent');
+      const historicallyAbsentOnWeekday = nextSessionWeekday !== null
+        && sr.filter(r => r.status === 'absent' && new Date(r.recordedAt).getDay() === nextSessionWeekday).length >= 2;
+      const likelyAbsent = attendanceRate < 60 || lastTwoAbsent || historicallyAbsentOnWeekday;
+
+      const reasons: string[] = [];
+      if (overdueIds.has(student.id)) reasons.push('overdue_review');
+      if (followUpLessonId) {
+        const p = progressByStudent[student.id];
+        if (p && (p.masteryStatus === 'not_started' || p.masteryStatus === 'introduced')) reasons.push('low_mastery');
+      }
+      if (sr.length >= 3 && sr.slice(0, 3).every(r => r.status === 'absent')) reasons.push('absent_3plus');
+      if (ungradedIds.has(student.id)) reasons.push('ungraded_assessment');
+
+      const notes = sr
+        .filter(r => r.note)
+        .slice(0, 5)
+        .map(r => ({ category: r.noteCategory, note: r.note, isPrivate: r.isPrivateNote, createdAt: r.recordedAt }));
+
+      roster.push({
+        studentId: student.id,
+        firstName: student.firstName,
+        lastName: student.lastName,
+        firstNameAr: student.firstNameAr,
+        lastNameAr: student.lastNameAr,
+        photoUrl: student.photoUrl,
+        attendanceRate,
+        lastAttendanceStatus: lastStatus,
+        likelyAbsent,
+        needsFollowUp: reasons.length > 0,
+        followUpReasons: reasons,
+        notes,
+      });
+    }
+
+    roster.sort((a, b) => {
+      const aFlag = a.likelyAbsent || a.needsFollowUp ? 0 : 1;
+      const bFlag = b.likelyAbsent || b.needsFollowUp ? 0 : 1;
+      if (aFlag !== bFlag) return aFlag - bFlag;
+      return (a.lastName || '').localeCompare(b.lastName || '');
+    });
+
+    return roster;
   }
 
   // ── Absence Cascade ───────────────────────────────────────────────────────
