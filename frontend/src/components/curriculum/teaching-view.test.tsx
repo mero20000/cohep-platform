@@ -17,7 +17,7 @@ vi.mock('@/components/curriculum/hooks', () => ({ useUpdateItemStatusMutation: (
 
 const subjects: Subject[] = [{ id: 's1', name: 'Coptic Hymns', nameAr: 'التراتيل' }]
 const levels: Level[] = [{ id: 'l1', number: 1, name: 'Level 1' }]
-const groupOptions = [{ groupNumber: 1, label: 'Group 1', labelAr: 'المجموعة 1' }]
+const groupOptions = [{ id: 'g1', groupNumber: 1, label: 'Group 1', labelAr: 'المجموعة 1' }]
 
 const items: SubjectItem[] = [
   {

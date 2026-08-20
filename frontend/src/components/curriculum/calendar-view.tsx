@@ -36,7 +36,7 @@ interface CalendarViewProps {
   onDeleteAllocation: (id: string) => Promise<void>
   onClearAllocations: (scope: 'all' | 'term' | 'level') => void
   onCreateLesson: (data: Record<string, unknown>) => Promise<unknown>
-  groupOptions: Array<{ groupNumber: number; label: string; labelAr: string }>
+  groupOptions: Array<{ id: string; groupNumber: number; label: string; labelAr: string }>
 }
 
 function formatDate(d: string | Date): string {
@@ -354,7 +354,7 @@ export function CalendarView({
               aria-label={lang === 'ar' ? 'المجموعة' : 'Group'}
               className="rounded-lg border border-gray-300 px-2.5 py-1.5 text-xs min-h-[40px] focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
               {groupOptions.map(o => (
-                <option key={o.groupNumber} value={o.groupNumber}>{lang === 'ar' ? o.labelAr : o.label}</option>
+                <option key={o.id} value={o.groupNumber}>{lang === 'ar' ? o.labelAr : o.label}</option>
               ))}
             </select>
             <span className="mx-1 text-xs text-gray-300">|</span>
@@ -420,7 +420,7 @@ export function CalendarView({
               aria-label={lang === 'ar' ? 'المجموعة' : 'Group'}
               className="rounded-lg border border-gray-300 px-2.5 py-1.5 text-xs min-h-[40px] focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
               {groupOptions.map(o => (
-                <option key={o.groupNumber} value={o.groupNumber}>{lang === 'ar' ? o.labelAr : o.label}</option>
+                <option key={o.id} value={o.groupNumber}>{lang === 'ar' ? o.labelAr : o.label}</option>
               ))}
             </select>
             <span className="mx-1 text-xs text-gray-300">|</span>
@@ -581,7 +581,7 @@ export function CalendarView({
             aria-label={lang === 'ar' ? 'المجموعة' : 'Group'}
             className="w-full rounded-lg border border-gray-300 px-2.5 py-1.5 text-xs min-h-[40px] focus:border-gold-500 focus:ring-1 focus:ring-blue-500 focus:outline-none">
             {groupOptions.map(o => (
-              <option key={o.groupNumber} value={o.groupNumber}>{lang === 'ar' ? o.labelAr : o.label}</option>
+              <option key={o.id} value={o.groupNumber}>{lang === 'ar' ? o.labelAr : o.label}</option>
             ))}
           </select>
         </div>

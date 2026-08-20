@@ -46,7 +46,7 @@ describe('CalendarView', () => {
         onRefresh={onRefresh} onCreateAllocation={onCreateAllocation} onMoveAllocation={onMoveAllocation}
         onDeleteAllocation={onDeleteAllocation} onClearAllocations={onClearAllocations}
         onCreateLesson={onCreateLesson as any}
-        groupOptions={[{ groupNumber: 1, label: 'Group 1', labelAr: 'المجموعة 1' }]}
+        groupOptions={[{ id: 'g1', groupNumber: 1, label: 'Group 1', labelAr: 'المجموعة 1' }]}
       />,
     )
 

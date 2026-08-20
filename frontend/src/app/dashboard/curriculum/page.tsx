@@ -7,6 +7,7 @@ import { useToast } from '@/components/ui/toast'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { useQueryClient } from '@tanstack/react-query'
 import { toDateStr } from '@/components/curriculum/constants'
+import { buildGroupOptions } from '@/components/curriculum/group-options'
 import { useLanguage } from '@/lib/use-language'
 import {
   useLevelsQuery, useSubjectsQuery, useAcademicYearsQuery, useWeeksQuery,
@@ -73,25 +74,10 @@ function CurriculumContent() {
   // Group dropdown options derived from the active groups under Settings → Groups.
   // Each active group maps to a CurriculumAllocation groupNumber via the leading integer
   // in its name (e.g. "Group 1A" → 1), deduplicated and sorted by orderIndex.
-  const groupOptions = useMemo(() => {
-    const opts: Array<{ groupNumber: number; label: string; labelAr: string }> = []
-    const seen = new Set<number>()
-    const active = groups.filter(g => g && g.status === 'active').sort((a, b) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0))
-    for (const g of active) {
-      const m = /^Group\s*(\d+)/i.exec(g.name) || /^(\d+)/.exec(g.name)
-      if (!m) continue
-      const n = parseInt(m[1], 10)
-      if (seen.has(n)) continue
-      seen.add(n)
-      opts.push({ groupNumber: n, label: g.name, labelAr: g.nameAr || g.name })
-    }
-    // Fallback to the group numbers actually present in the allocations if no active group names carry a number.
-    if (opts.length === 0) {
-      const nums = [...new Set(allocations.map(a => a.groupNumber).filter((n): n is number => typeof n === 'number'))].sort((a, b) => a - b)
-      return nums.map(n => ({ groupNumber: n, label: `Group ${n}`, labelAr: `المجموعة ${n}` }))
-    }
-    return opts
-  }, [groups, allocations])
+const groupOptions = useMemo(
+    () => buildGroupOptions(groups, allocations),
+    [groups, allocations],
+  )
 
   useEffect(() => {
     if (!selectedYear && academicYears.length > 0) {
