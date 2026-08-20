@@ -16,12 +16,24 @@ import { UsersModule } from '../users/users.module';
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.registerAsync({
       imports: [ConfigModule],
-      useFactory: (configService: ConfigService) => ({
-        secret: configService.get('JWT_SECRET'),
-        signOptions: {
-          expiresIn: configService.get('JWT_EXPIRATION', '15m'),
-        },
-      }),
+      useFactory: (configService: ConfigService) => {
+        const secret = configService.get('JWT_SECRET') as string | undefined
+        const nodeEnv = configService.get('NODE_ENV', 'development')
+        const KNOWN_PLACEHOLDERS = [
+          'your-super-secret-jwt-key-change-in-production',
+          'your-production-jwt-secret',
+          'change-me',
+        ]
+        if (nodeEnv === 'production' && (!secret || KNOWN_PLACEHOLDERS.includes(secret.trim().toLowerCase()))) {
+          throw new Error('JWT_SECRET must be set to a strong, non-placeholder value in production')
+        }
+        return {
+          secret,
+          signOptions: {
+            expiresIn: configService.get('JWT_EXPIRATION', '15m'),
+          },
+        }
+      },
       inject: [ConfigService],
     }),
   ],

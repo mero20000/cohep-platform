@@ -324,7 +324,7 @@ export class ReportsService {
             }
             return count;
           }),
-        this.prisma.userRole.count({ where: { user: { schoolId: school.id }, role: { name: { in: ['servant', 'group_leader', 'level_leader', 'assistant_servant'] } } } }),
+        this.prisma.userRole.count({ where: { user: { schoolId: school.id }, role: { name: { in: ['servant', 'group_leader', 'level_leader', 'assistant_servant', 'curriculum_manager'] } } } }),
         this.prisma.attendanceSession.findMany({
           where: { schoolId: school.id, scheduledDate: { gte: weekAgo }, deletedAt: null },
           include: { attendanceRecords: { select: { status: true } } },
@@ -429,7 +429,7 @@ async getDioceseReport(churchId?: string) {
             this.prisma.userRole.count({
               where: {
                 user: { schoolId: school.id },
-                role: { name: { in: ['servant', 'group_leader', 'level_leader', 'assistant_servant'] } },
+                role: { name: { in: ['servant', 'group_leader', 'level_leader', 'assistant_servant', 'curriculum_manager'] } },
               },
             }),
 

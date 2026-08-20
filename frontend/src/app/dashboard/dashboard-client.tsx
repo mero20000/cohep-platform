@@ -82,6 +82,9 @@ interface GroupMate {
  phone: string | null
 }
 
+// Roles that belong to the ministry/servant team (used to gate dashboard sections).
+const SERVANT_ROLES = ['servant', 'group_leader', 'level_leader']
+
 const EMPTY_STATS: DashboardData = {
  totalStudents: 0, totalLevels: 0, totalLessons: 0, totalAllocations: 0,
  totalChurches: 0, totalUsers: 0, totalBadges: 0, activeStudents: 0,
@@ -188,7 +191,6 @@ const stagger = {
  }
 
 function fetchServantCounts(): Promise<ServantCounts> {
- const SERVANT_ROLES = ['servant', 'group_leader', 'level_leader']
  return http.get<any[]>('/users', { schoolId: getSchoolId() })
   .then(users => {
    const list = Array.isArray(users) ? users : []
@@ -2096,7 +2098,7 @@ export function MinistryDashboard({ data, loading, error, onRetry }: { data: any
       </motion.div>
 
       {/* Next Session — curriculum subject items allocated for the day/week */}
-      {['servant', 'group_leader', 'level_leader'].includes(d.role || '') && (
+      {SERVANT_ROLES.includes(d.role || '') && (
         <motion.div variants={fadeUp}>
           <NextSessionCard lang={lang} assigned={assigned} groups={groups} />
         </motion.div>
@@ -2136,28 +2138,28 @@ export function MinistryDashboard({ data, loading, error, onRetry }: { data: any
       )}
 
       {/* Servant Journey Card */}
-      {['servant', 'group_leader', 'level_leader'].includes(d.role || '') && (
+      {SERVANT_ROLES.includes(d.role || '') && (
         <motion.div variants={fadeUp}>
           <ServantJourneyCard />
         </motion.div>
       )}
 
       {/* This Week Schedule */}
-      {['servant', 'group_leader', 'level_leader'].includes(d.role || '') && (
+      {SERVANT_ROLES.includes(d.role || '') && (
         <motion.div variants={fadeUp}>
           <WeekScheduleCard lang={lang} />
         </motion.div>
       )}
 
       {/* This Week Summary */}
-      {['servant', 'group_leader', 'level_leader'].includes(d.role || '') && (
+      {SERVANT_ROLES.includes(d.role || '') && (
         <motion.div variants={fadeUp}>
           <WeekSummaryCard thisWeek={d.thisWeek} lang={lang} />
         </motion.div>
       )}
 
       {/* Recurring Sessions Button */}
-      {['servant', 'group_leader', 'level_leader'].includes(d.role || '') && (
+      {SERVANT_ROLES.includes(d.role || '') && (
         <motion.div variants={fadeUp}>
           <RecurringSessionsButton lang={lang} />
         </motion.div>

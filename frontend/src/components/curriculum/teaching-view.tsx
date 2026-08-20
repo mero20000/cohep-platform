@@ -68,7 +68,7 @@ function useMyLevel(levels: Array<{ number: number }>): number | null {
 function getSchoolId(): string {
   if (typeof window === 'undefined') return ''
   try {
-    const stored = localStorage.getItem('niangelos_active_school_id')
+    const stored = localStorage.getItem('niangelos_active_school')
     if (stored) return stored
     const user = localStorage.getItem('user')
     if (user) {

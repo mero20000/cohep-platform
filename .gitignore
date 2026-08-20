@@ -6,6 +6,13 @@ node_modules/
 backend/dist/
 frontend/.next/
 frontend/out/
+backend/.next/
+
+# Office temp/lock files
+~$*
+
+# Docx files may contain sensitive data (e.g. passwords.docx with live creds) — keep out of git
+*.docx
 
 # Environment files
 .env

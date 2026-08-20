@@ -572,6 +572,9 @@ export class AuthService {
 
 
   async loginDemo() {
+    if (this.configService.get('ENABLE_DEMO_LOGIN', 'false') !== 'true') {
+      throw new NotFoundException('Demo login is not enabled')
+    }
     const demoEmail = 'demo@niangelos.app'
     const demoSchoolSlug = 'niangelos-main'
 

@@ -226,7 +226,7 @@ async function main() {
   }
 
   const adminUserId = adminUser?.id;
-  const seedDemo = (process.env.SEED_DEMO_USERS || 'true') !== 'false';
+  const seedDemo = process.env.SEED_DEMO_USERS === 'true';
   const buildDemo = !!(adminUserId && seedDemo);
   const servantPw = await bcrypt.hash('Servant123!', 10);
 

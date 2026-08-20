@@ -30,6 +30,8 @@ services:
           property: connectionString
       - key: JWT_SECRET
         generateValue: true
+      - key: SEED_DEMO_USERS
+        value: 'false'
       - key: FRONTEND_URL
-        value: https://cohe-eight.vercel.app
+        value: https://cohep-platform.vercel.app
       # Render injects PORT automatically; main.ts listens on process.env.PORT.

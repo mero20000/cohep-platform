@@ -84,7 +84,9 @@ class HttpClient {
     if (res.status === 401 && path !== '/auth/refresh') {
       const refreshed = await this.refreshAuth()
       if (refreshed) {
-        const retryHeaders: Record<string, string> = {}
+        // Re-attach the (freshly refreshed) token on the retry — refreshAuth stores
+        // the new access token in localStorage, so authHeaders picks it up.
+        const retryHeaders: Record<string, string> = { ...this.authHeaders }
         if (!opts?.formData) retryHeaders['Content-Type'] = 'application/json'
         res = await fetch(url, {
           method,

@@ -9,7 +9,7 @@ A modern, scalable Education Management System (EMS) and Learning Management Sys
 ### Prerequisites
 
 - Node.js 20+ 
-- PostgreSQL 16+
+- PostgreSQL 15/16
 - Redis 7+
 - Docker & Docker Compose (optional)
 
@@ -124,16 +124,16 @@ niangelos-platform/
 ## 🛠️ Tech Stack
 
 ### Backend
-- **Runtime:** Node.js 22
+- **Runtime:** Node.js 20
 - **Framework:** NestJS 10
-- **Database:** PostgreSQL 16
+- **Database:** PostgreSQL 15/16
 - **ORM:** Prisma 5
 - **Cache:** Redis 7
 - **Search:** Meilisearch
 - **Auth:** JWT + Passport
 
 ### Frontend
-- **Framework:** Next.js 14 (App Router)
+- **Framework:** Next.js 15 (App Router)
 - **UI:** shadcn/ui + Tailwind CSS
 - **State:** React Server Components
 - **Icons:** Lucide React
@@ -187,11 +187,11 @@ npm run test
 
 ## 📦 Deployment
 
-See [Deployment Guide](./docs/deployment.md)
+See [Deployment Guide](./DEPLOY.md)
 
 ## 🤝 Contributing
 
-See [Contributing Guide](./docs/contributing.md)
+See [Brand & Design Guide](./BRAND.md)
 
 ## 📄 License
 

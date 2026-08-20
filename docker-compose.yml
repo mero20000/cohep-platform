@@ -64,7 +64,7 @@ services:
       PORT: 3001
       DATABASE_URL: postgresql://postgres:postgres@postgres:5432/niangelos
       REDIS_URL: redis://redis:6379
-      JWT_SECRET: ${JWT_SECRET:-your-production-jwt-secret}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be set to a strong secret}
       JWT_EXPIRATION: 15m
       JWT_REFRESH_EXPIRATION: 7d
       FRONTEND_URL: http://localhost:3000
