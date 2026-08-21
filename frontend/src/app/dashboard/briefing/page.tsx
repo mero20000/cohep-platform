@@ -2,12 +2,13 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
-import { Sun, CalendarDays, BookOpen, AlertTriangle, User, ChevronDown, CheckCircle2 } from 'lucide-react'
+import { Sun, CalendarDays, BookOpen, AlertTriangle, User, ChevronDown, CheckCircle2, FileText, Presentation } from 'lucide-react'
 import { http } from '@/lib/http-client'
 import { useLanguage } from '@/lib/use-language'
 import { assetUrl } from '@/lib/asset-url'
 import { TableSkeleton } from '@/components/ui/skeleton'
 import { EmptyState } from '@/components/ui/empty-state'
+import { AudioPlayer } from '@/components/audio-player'
 
 interface Note { category?: string; note?: string; isPrivate: boolean; createdAt: string }
 interface RosterStudent {
@@ -29,6 +30,10 @@ interface WeeklyBriefing {
   nextLesson: {
     lessonId: string; title: string; titleAr?: string; titleCoptic?: string
     levelName?: string; subjectName?: string; scheduledDate?: string
+    subjectColor?: string | null
+    audioUrl?: string | null
+    hazzat?: string | null
+    presentationUrl?: string | null
   } | null
   roster: RosterStudent[]
 }
@@ -38,6 +43,19 @@ const REASON_LABEL: Record<string, { en: string; ar: string }> = {
   low_mastery: { en: 'New lesson', ar: 'درس جديد' },
   absent_3plus: { en: 'Missed 3+', ar: 'تغيب 3+' },
   ungraded_assessment: { en: 'To grade', ar: 'بانتظار التقييم' },
+}
+
+// Resolve a readable subject chip (color comes from settings). Falls back to a neutral gray chip.
+function subjectChipStyle(hex?: string | null): { bg: string; fg: string } {
+  if (!hex || !/^#?[0-9a-fA-F]{6}$/.test(hex)) return { bg: 'bg-gray-100', fg: 'text-gray-700' }
+  const c = hex.replace('#', '')
+  const r = parseInt(c.slice(0, 2), 16)
+  const g = parseInt(c.slice(2, 4), 16)
+  const b = parseInt(c.slice(4, 6), 16)
+  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255
+  return luminance > 0.6
+    ? { bg: `bg-[#${c}]/10`, fg: `text-[#${c}]` }
+    : { bg: `bg-[#${c}]`, fg: 'text-white' }
 }
 
 export default function BriefingPage() {
@@ -138,15 +156,52 @@ export default function BriefingPage() {
           {t('Prepare this lesson', 'حضّر هذا الدرس')}
         </div>
         {data?.nextLesson ? (
-          <>
-            <h2 className="mt-2 text-lg font-bold text-gray-900">
-              {lang === 'ar' ? data.nextLesson.titleAr || data.nextLesson.title : data.nextLesson.title}
-            </h2>
-            <p className="mt-1 text-sm text-gray-600">
-              {data.nextLesson.titleCoptic && <span className="coptic-text">{data.nextLesson.titleCoptic} · </span>}
-              {data.nextLesson.subjectName} · {data.nextLesson.levelName}
-            </p>
-          </>
+          (() => {
+            const nl = data.nextLesson
+            const chip = subjectChipStyle(nl.subjectColor)
+            return (
+              <>
+                <h2 className="mt-2 text-lg font-bold text-gray-900">
+                  {lang === 'ar' ? nl.titleAr || nl.title : nl.title}
+                </h2>
+                <p className="mt-1 flex flex-wrap items-center gap-2 text-sm text-gray-600">
+                  {nl.titleCoptic && <span className="coptic-text">{nl.titleCoptic}</span>}
+                  {nl.subjectName && (
+                    <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-semibold ${chip.bg} ${chip.fg}`}>
+                      {nl.subjectName}
+                    </span>
+                  )}
+                  {nl.levelName && <span>· {nl.levelName}</span>}
+                </p>
+
+                {(nl.audioUrl || nl.hazzat || nl.presentationUrl) && (
+                  <div className="mt-3 flex flex-wrap items-center gap-3">
+                    {nl.audioUrl && <AudioPlayer src={assetUrl(nl.audioUrl)} compact />}
+                    {nl.hazzat && (
+                      <a
+                        href={assetUrl(nl.hazzat)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-700 transition-colors hover:bg-gray-50"
+                      >
+                        <FileText className="h-4 w-4" /> {t('Hazzat', 'الحزّات')}
+                      </a>
+                    )}
+                    {nl.presentationUrl && (
+                      <a
+                        href={assetUrl(nl.presentationUrl)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-700 transition-colors hover:bg-gray-50"
+                      >
+                        <Presentation className="h-4 w-4" /> {t('PowerPoint', 'باور بوينت')}
+                      </a>
+                    )}
+                  </div>
+                )}
+              </>
+            )
+          })()
         ) : (
           <p className="mt-2 text-sm text-gray-500">{t('No lesson scheduled yet.', 'لم يُجدول درس بعد.')}</p>
         )}

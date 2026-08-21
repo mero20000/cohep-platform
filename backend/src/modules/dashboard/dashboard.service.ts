@@ -1151,9 +1151,15 @@ export class DashboardService {
       },
       orderBy: { scheduledDate: 'asc' },
       include: {
-        lesson: { select: { id: true, title: true, titleAr: true, titleCoptic: true } },
+        lesson: {
+          select: {
+            id: true, title: true, titleAr: true, titleCoptic: true,
+            audioUrl: true,
+            subjectItem: { select: { hazzat: true, presentationUrl: true } },
+          },
+        },
         level: { select: { id: true, name: true, number: true } },
-        subject: { select: { name: true } },
+        subject: { select: { name: true, color: true } },
       },
     });
     if (!alloc) return null;
@@ -1166,6 +1172,10 @@ export class DashboardService {
       levelName: alloc.level.name,
       levelNumber: alloc.level.number,
       subjectName: alloc.subject.name,
+      subjectColor: alloc.subject.color,
+      audioUrl: alloc.lesson.audioUrl,
+      hazzat: alloc.lesson.subjectItem?.hazzat ?? null,
+      presentationUrl: alloc.lesson.subjectItem?.presentationUrl ?? null,
       scheduledDate: alloc.scheduledDate,
     };
   }
