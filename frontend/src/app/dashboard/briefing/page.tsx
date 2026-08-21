@@ -47,17 +47,19 @@ const REASON_LABEL: Record<string, { en: string; ar: string }> = {
 }
 
 // Resolve a readable subject chip (color comes from settings). Falls back to a neutral gray chip.
-function subjectChipStyle(hex?: string | null): { bg: string; fg: string } {
-  if (!hex || !/^#?[0-9a-fA-F]{6}$/.test(hex)) return { bg: 'bg-gray-100', fg: 'text-gray-700' }
-  const c = hex.replace('#', '')
-  const r = parseInt(c.slice(0, 2), 16)
-  const g = parseInt(c.slice(2, 4), 16)
-  const b = parseInt(c.slice(4, 6), 16)
-  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255
-  // Light colors (incl. white) need a dark foreground so the chip stays legible.
-  if (luminance > 0.6) return { bg: `bg-[#${c}]/15`, fg: 'text-gray-800' }
-  // Dark colors: use the color as the background with white text.
-  return { bg: `bg-[#${c}]`, fg: 'text-white' }
+// Uses inline styles (not dynamic Tailwind classes) so any hex color renders correctly.
+function subjectChipStyle(hex?: string | null): React.CSSProperties {
+  if (!hex || !/^#?[0-9a-fA-F]{6}$/.test(hex)) {
+    return { backgroundColor: '#f3f4f6', color: '#374151' };
+  }
+  const c = hex.replace('#', '');
+  const r = parseInt(c.slice(0, 2), 16);
+  const g = parseInt(c.slice(2, 4), 16);
+  const b = parseInt(c.slice(4, 6), 16);
+  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  // Light colors (incl. white) need a dark foreground; dark colors get white text.
+  if (luminance > 0.6) return { backgroundColor: `#${c}26`, color: '#1f2937' };
+  return { backgroundColor: `#${c}`, color: '#ffffff' };
 }
 
 export default function BriefingPage() {
@@ -169,7 +171,7 @@ export default function BriefingPage() {
                 <p className="mt-1 flex flex-wrap items-center gap-2 text-sm text-gray-600">
                   {nl.titleCoptic && <span className="coptic-text">{nl.titleCoptic}</span>}
                   {nl.subjectName && (
-                    <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-semibold ${chip.bg} ${chip.fg}`}>
+                    <span className="inline-flex items-center rounded-md px-2 py-0.5 text-xs font-semibold" style={chip}>
                       {nl.subjectName}
                     </span>
                   )}
