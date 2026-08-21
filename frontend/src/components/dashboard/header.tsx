@@ -8,6 +8,7 @@ import {
   Menu, X, Cross, ChevronDown, Search, User, Globe, Loader2,
   Bell, LogOut, Settings, Crown, CheckCheck, Building2,
   Calendar as CalendarIcon, Users, ClipboardCheck as ClipboardCheckIcon, Award, Info, GraduationCap,
+  CheckCircle2,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
@@ -278,8 +279,18 @@ export function DashboardHeader({
                   <Loader2 className="h-5 w-5 animate-spin text-gold-700" />
                 </div>
               ) : notifications.length === 0 ? (
-                <div className="px-4 py-8 text-center text-xs text-gray-400">
-                  {language === 'ar' ? 'لا توجد إشعارات جديدة' : 'No new notifications'}
+                <div className="flex flex-col items-center gap-3 px-4 py-10 text-center">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-green-50">
+                    <CheckCircle2 className="h-6 w-6 text-green-500" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-gray-700">
+                      {language === 'ar' ? 'أنت متابع لكل شيء ✓' : "You're all caught up ✓"}
+                    </p>
+                    <p className="text-xs text-gray-400 mt-0.5">
+                      {language === 'ar' ? 'لا توجد إشعارات جديدة في الوقت الحالي.' : 'No new notifications right now.'}
+                    </p>
+                  </div>
                 </div>
               ) : (
                 <div className="max-h-80 overflow-y-auto divide-y divide-gray-50">

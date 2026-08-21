@@ -47,11 +47,16 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     if (timer) { clearTimeout(timer); timersRef.current.delete(id) }
   }, [])
 
-  const addToast = useCallback((type: ToastType, title: string, description?: string, duration = 4000) => {
+  const addToast = useCallback((type: ToastType, title: string, description?: string, duration?: number) => {
     const id = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
-    setToasts(prev => [...prev.slice(-4), { id, type, title, description, duration }])
-    if (duration > 0) {
-      const timer = setTimeout(() => removeToast(id), duration)
+    // Scale duration with content length — Arabic reads slower
+    const text = title + (description || '')
+    const hasArabic = /[\u0600-\u06FF]/.test(text)
+    const auto = Math.min(8000, Math.max(hasArabic ? 5000 : 4000, Math.ceil(text.length * (hasArabic ? 80 : 50))))
+    const finalDuration = duration ?? auto
+    setToasts(prev => [...prev.slice(-4), { id, type, title, description, duration: finalDuration }])
+    if (finalDuration > 0) {
+      const timer = setTimeout(() => removeToast(id), finalDuration)
       timersRef.current.set(id, timer)
     }
   }, [removeToast])

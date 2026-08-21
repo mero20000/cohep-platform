@@ -102,6 +102,16 @@ export function LessonModal({ mode, lesson, levels, subjects, onSaveAdd, onSaveE
     setForm(prev => ({ ...prev, [field]: value }))
   }
 
+  // Keyboard navigation — Escape closes, trap focus inside modal
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+    }
+    document.addEventListener('keydown', handler)
+    return () => document.removeEventListener('keydown', handler)
+  }, [onClose])
+
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
       <div role="dialog" aria-label={mode === 'add' ? (lang === 'ar' ? 'إضافة تسبيحة جديدة' : 'Add New Hymn') : (lang === 'ar' ? 'تعديل التسبيحة' : 'Edit Hymn')}

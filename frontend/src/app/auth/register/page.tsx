@@ -256,6 +256,7 @@ export default function RegisterPage() {
 
   useEffect(() => {
     if (error && errorRef.current) {
+      errorRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' })
       errorRef.current.focus()
     }
   }, [error])

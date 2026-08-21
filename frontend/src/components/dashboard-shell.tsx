@@ -23,6 +23,7 @@ import { DashboardSidebar } from './dashboard/sidebar'
 import { DashboardHeader } from './dashboard/header'
 import { DashboardBanners } from './dashboard/banners'
 import { DashboardMainContent } from './dashboard/main-content'
+import { MobileBottomNav } from './dashboard/mobile-bottom-nav'
 
 interface NotificationItem {
   id: string; type: string; title: string; titleAr?: string; body: string; bodyAr?: string;
@@ -486,6 +487,19 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
           <MotionConfig reducedMotion="user">{children}</MotionConfig>
         </DashboardMainContent>
       </div>
+
+      {/* Mobile bottom navigation — top 5 nav items */}
+      <MobileBottomNav
+        items={mainNav.slice(0, 5).map((item: any) => ({
+          href: item.href,
+          name: item.name,
+          nameAr: item.nameAr || item.name,
+          icon: item.icon,
+        }))}
+        lang={language as 'en' | 'ar'}
+      />
+      {/* Bottom padding so content isn't hidden behind mobile bottom nav */}
+      <div className="h-16 lg:hidden" aria-hidden="true" />
 
       <HelpButton />
     </div>

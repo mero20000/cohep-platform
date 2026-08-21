@@ -50,6 +50,7 @@ export default function LoginPage() {
   const [schoolSearchLoading, setSchoolSearchLoading] = useState(false)
   const [showSuggestions, setShowSuggestions] = useState(false)
   const [selectedSuggestion, setSelectedSuggestion] = useState<string>('')
+  const errorRef = useRef<HTMLDivElement>(null)
   const schoolSearchRef = useRef<HTMLDivElement>(null)
   const schoolDebounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
 
@@ -186,6 +187,7 @@ export default function LoginPage() {
       setLoading(false)
       setColdStartWarning(false)
       clearTimeout(coldTimer)
+      setTimeout(() => { errorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }); errorRef.current?.focus() }, 50)
     }
   }
 
@@ -293,6 +295,8 @@ export default function LoginPage() {
             <form onSubmit={handleSubmit} noValidate className="space-y-5">
               {error && (
                 <div
+                  ref={errorRef}
+                  tabIndex={-1}
                   id="login-error"
                   role="alert"
                   className="rounded-xl bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700 flex items-start gap-3"

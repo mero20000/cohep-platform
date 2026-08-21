@@ -64,7 +64,7 @@ export function DashboardSidebar({
       {sidebarVisible && (
         <div
           onMouseDown={(e) => onStartResize(e)}
-          className={`absolute top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-gold-300/50 active:bg-blue-400/50 z-50 ${language === 'ar' ? 'left-0' : 'right-0'}`}
+          className={`absolute top-0 bottom-0 w-3 cursor-col-resize transition-colors z-50 flex items-center justify-center ${language === 'ar' ? 'left-0' : 'right-0'}`} title={language === 'ar' ? 'اسحب لتغيير الحجم' : 'Drag to resize'}
         />
       )}
       <div className="flex items-center gap-3 border-b border-gray-200 px-4 h-[72px]">
@@ -77,7 +77,7 @@ export function DashboardSidebar({
       <div className="flex flex-col h-[calc(100vh-4rem)] overflow-y-auto">
         <nav aria-label={language === 'ar' ? 'القائمة الرئيسية' : 'Main navigation'} className="flex-1 px-3 py-4 space-y-1">
           {mainNav.map((item: any) => {
-            const isActive = pathname === item.href
+            const isActive = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href))
             return (
               <Link key={item.name} href={item.href} onClick={() => onSetSidebarOpen(false)}
                 aria-current={isActive ? 'page' : undefined}
