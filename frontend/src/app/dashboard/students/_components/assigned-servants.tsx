@@ -2,6 +2,7 @@
 import Image from 'next/image'
 import { Loader2, Shield, ChevronDown } from 'lucide-react'
 import { photoSrc } from './student-types'
+import { SERVANT_ROLES } from '@/lib/roles'
 
 export interface Servant { id: string; firstName: string; lastName: string; avatarUrl?: string; userRoles?: {role:{name:string;displayName:string}}[]; metadata?: {teachingSubjects?:string[]} }
 interface Props { servants: Servant[]; loading: boolean; show: boolean; onToggle: () => void; lang: 'en'|'ar' }
@@ -21,7 +22,7 @@ export function AssignedServants({ servants, loading, show, onToggle, lang }: Pr
         :servants.length===0?<p className="text-xs text-gray-500 py-2">{t('No servants assigned to this level/group','لا يوجد خدم معينون لهذا المستوى/المجموعة')}</p>
         :<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
           {servants.map(s=>{
-            const role=s.userRoles?.find(ur=>['servant','group_leader','level_leader'].includes(ur.role.name))
+            const role=s.userRoles?.find(ur=>SERVANT_ROLES.includes(ur.role.name))
             const subjects=s.metadata?.teachingSubjects??[]
             const roleBg=role?.role?.name==='level_leader'?'bg-purple-50 text-purple-700 border-purple-200':role?.role?.name==='group_leader'?'bg-amber-50 text-amber-700 border-amber-200':'bg-blue-50 text-blue-700 border-blue-200'
             return <div key={s.id} className="flex items-center gap-3 rounded-lg border border-gray-100 bg-gray-50/50 p-2.5">

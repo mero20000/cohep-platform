@@ -22,6 +22,7 @@ import { EmptyState } from '@/components/ui/empty-state'
 import { ErrorBoundary } from '@/components/ui/error-boundary'
 import { useToast } from '@/components/ui/toast'
 import { http } from '@/lib/http-client'
+import { SERVANT_ROLES } from '@/lib/roles'
 const API_ORIGIN = process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'http://localhost:3001'
 import { getSchoolId } from '@/lib/school'
 import { getGreeting, getGreetingAr, getFullDay } from '@/lib/datetime'
@@ -83,8 +84,6 @@ interface GroupMate {
 }
 
 // Roles that belong to the ministry/servant team (used to gate dashboard sections).
-const SERVANT_ROLES = ['servant', 'group_leader', 'level_leader']
-
 const EMPTY_STATS: DashboardData = {
  totalStudents: 0, totalLevels: 0, totalLessons: 0, totalAllocations: 0,
  totalChurches: 0, totalUsers: 0, totalBadges: 0, activeStudents: 0,

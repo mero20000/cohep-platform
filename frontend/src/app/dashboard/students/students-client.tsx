@@ -8,6 +8,7 @@ import { useLanguage } from '@/lib/use-language'
 import { usePermission } from '@/lib/use-permission'
 import { http } from '@/lib/http-client'
 import { getSchoolId } from '@/lib/school'
+import { SERVANT_ROLES } from '@/lib/roles'
 import { fetchActiveGrades, type GradeItem } from '@/lib/grades'
 import { StudentStats }       from './_components/student-stats'
 import { StudentFilters }     from './_components/student-filters'
@@ -134,7 +135,7 @@ export default function StudentsClient() {
       const stored=localStorage.getItem('user')
       if(stored){
         const u=JSON.parse(stored)
-        const isServant=u.roles?.some((r:string)=>['servant','group_leader','level_leader'].includes(r))
+        const isServant=u.roles?.some((r:string)=>SERVANT_ROLES.includes(r))
         if(isServant&&u.metadata){
           if(u.metadata.levelId)setFilterLevel(u.metadata.levelId)
           if(u.metadata.groupId)setFilterGroup(u.metadata.groupId)

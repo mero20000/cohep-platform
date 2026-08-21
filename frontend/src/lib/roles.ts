@@ -12,7 +12,7 @@ export const ROLES = [
 export type RoleValue = (typeof ROLES)[number]['value']
 export type RoleCategory = (typeof ROLES)[number]['category']
 
-export const SERVANT_ROLES: readonly RoleValue[] = ['servant', 'group_leader', 'level_leader']
+export const SERVANT_ROLES: readonly string[] = ['servant', 'group_leader', 'level_leader']
 
 export const ROLE_PERMISSIONS: Record<RoleValue, { label: string; labelAr: string; permissions: { action: string; actionAr: string }[] }> = {
   super_admin: {
