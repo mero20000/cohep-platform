@@ -24,6 +24,38 @@ export class AttendanceService {
     private readonly assessments: AssessmentsService,
   ) {}
 
+  /**
+   * Resolve the group IDs a servant may see in the attendance module, based on
+   * the assignment stored in user.metadata (group, optionally + level, + grade).
+   * A grade is resolved through SchoolGrade (each grade maps to one or more groups).
+   */
+  private async resolveServantSessionGroupIds(meta: any, schoolId: string): Promise<string[]> {
+    const groupId = meta?.groupId as string | undefined;
+    const gradeId = meta?.gradeId as string | undefined;
+
+    let groupIds: string[] = [];
+    if (groupId) {
+      groupIds = [groupId];
+    } else if (gradeId) {
+      const grades = await this.prisma.schoolGrade.findMany({
+        where: { schoolId, id: gradeId },
+        select: { groupId: true },
+      });
+      groupIds = grades.map((g: any) => g.groupId).filter(Boolean);
+    }
+
+    if (gradeId && groupIds.length > 0) {
+      const grades = await this.prisma.schoolGrade.findMany({
+        where: { schoolId, id: gradeId, groupId: { in: groupIds } },
+        select: { groupId: true },
+      });
+      const gradeGroupIds = new Set(grades.map((g: any) => g.groupId));
+      groupIds = groupIds.filter((g) => gradeGroupIds.has(g));
+    }
+
+    return groupIds;
+  }
+
   async getSessions(schoolIdentifier: string, filters: {
     page?: number; limit?: number; status?: string; levelId?: string;
     groupId?: string; servantId?: string; from?: string; to?: string;
@@ -43,13 +75,22 @@ export class AttendanceService {
     } else if (user) {
       const userRecord = await this.prisma.user.findUnique({
         where: { id: user.id },
-        select: { userRoles: { select: { role: { select: { name: true } } } } },
+        select: { metadata: true, userRoles: { select: { role: { select: { name: true } } } } },
       });
       const isServant = userRecord?.userRoles?.some((ur: any) =>
         ['servant', 'group_leader', 'level_leader'].includes(ur.role.name)
       );
       if (isServant) {
-        where.servantId = user.id;
+        // Scope to the servant's assigned group/level/grade (servant module assignment).
+        const meta = (userRecord?.metadata as any) || {};
+        const groupIds = await this.resolveServantSessionGroupIds(meta, schoolId);
+        if (groupIds.length > 0) {
+          where.groupId = { in: groupIds };
+          if (meta.levelId) where.levelId = meta.levelId;
+        } else {
+          // No assignment set: fall back to sessions they personally created.
+          where.servantId = user.id;
+        }
       }
     }
     

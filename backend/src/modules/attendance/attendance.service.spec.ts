@@ -51,6 +51,9 @@ describe('AttendanceService', () => {
     curriculumAllocation: {
       findFirst: jest.fn(),
     },
+    schoolGrade: {
+      findMany: jest.fn(),
+    },
     $transaction: jest.fn(),
   };
 
@@ -353,6 +356,43 @@ describe('AttendanceService', () => {
       await expect(
         service.markSubjectItemStatus('sess-1', 'in_progress', 'si-bad'),
       ).rejects.toThrow();
+    });
+  });
+
+  describe('getSessions (servant scope)', () => {
+    const captureWhere = async (meta: any, gradeGroups: any[] = [{ groupId: 'G1' }]) => {
+      prisma.user.findUnique.mockResolvedValue({
+        metadata: meta,
+        userRoles: [{ role: { name: 'servant' } }],
+      });
+      prisma.schoolGrade.findMany.mockResolvedValue(gradeGroups);
+      let captured: any;
+      prisma.attendanceSession.findMany.mockImplementation((args: any) => {
+        captured = args;
+        return Promise.resolve([]);
+      });
+      prisma.attendanceSession.count.mockResolvedValue(0);
+      await service.getSessions(schoolId, {}, { id: 'u1' });
+      return captured.where;
+    };
+
+    it('scopes a servant to the assigned group (+ level, + grade) instead of servantId', async () => {
+      const where = await captureWhere({ groupId: 'G1', levelId: 'L1', gradeId: 'GR1' });
+      expect(where.servantId).toBeUndefined();
+      expect(where.groupId).toEqual({ in: ['G1'] });
+      expect(where.levelId).toEqual('L1');
+    });
+
+    it('falls back to own sessions when no assignment is set', async () => {
+      const where = await captureWhere({});
+      expect(where.servantId).toBe('u1');
+      expect(where.groupId).toBeUndefined();
+    });
+
+    it('resolves grade to its group IDs when no explicit group is assigned', async () => {
+      const where = await captureWhere({ gradeId: 'GR1' }, [{ groupId: 'G2' }, { groupId: 'G3' }]);
+      expect(where.servantId).toBeUndefined();
+      expect(where.groupId).toEqual({ in: ['G2', 'G3'] });
     });
   });
 });
