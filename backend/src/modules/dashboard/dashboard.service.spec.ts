@@ -314,6 +314,48 @@ describe('DashboardService', () => {
       expect(call.where.servantId).toBe('user-1');
     });
 
+    it('returns subject color, lesson audio, and linked subject-item hazzat/presentation', async () => {
+      briefingBaseline();
+      (prisma.attendanceSession.findFirst as jest.Mock).mockResolvedValue({
+        id: 'n1', scheduledDate: new Date('2026-08-23T00:00:00Z'), levelId: 'l1',
+        level: { id: 'l1', name: 'Level 3', number: 3 }, group: { id: 'g1', name: 'Group A' },
+      });
+      (prisma.curriculumAllocation.findFirst as jest.Mock).mockResolvedValue({
+        lessonId: 'les1', scheduledDate: new Date('2026-08-23T00:00:00Z'),
+        lesson: {
+          id: 'les1', title: 'Kyrie', titleAr: null, titleCoptic: 'ⲕⲩⲣⲓⲉ',
+          audioUrl: '/uploads/kyrie.mp3',
+          subjectItem: { hazzat: '/uploads/kyrie-hazzat.pdf', presentationUrl: '/uploads/kyrie.pptx' },
+        },
+        level: { id: 'l1', name: 'Level 3', number: 3 },
+        subject: { name: 'Tasbeha', color: '#D4A843' },
+      });
+      const result = await service.getWeeklyBriefing(user, schoolId);
+      expect(result.nextLesson.subjectColor).toBe('#D4A843');
+      expect(result.nextLesson.audioUrl).toBe('/uploads/kyrie.mp3');
+      expect(result.nextLesson.hazzat).toBe('/uploads/kyrie-hazzat.pdf');
+      expect(result.nextLesson.presentationUrl).toBe('/uploads/kyrie.pptx');
+    });
+
+    it('returns null audio/hazzat/presentation when the subject item is absent', async () => {
+      briefingBaseline();
+      (prisma.attendanceSession.findFirst as jest.Mock).mockResolvedValue({
+        id: 'n1', scheduledDate: new Date('2026-08-23T00:00:00Z'), levelId: 'l1',
+        level: { id: 'l1', name: 'Level 3', number: 3 }, group: { id: 'g1', name: 'Group A' },
+      });
+      (prisma.curriculumAllocation.findFirst as jest.Mock).mockResolvedValue({
+        lessonId: 'les1', scheduledDate: new Date('2026-08-23T00:00:00Z'),
+        lesson: { id: 'les1', title: 'Kyrie', titleAr: null, titleCoptic: null, subjectItem: null },
+        level: { id: 'l1', name: 'Level 3', number: 3 },
+        subject: { name: 'Tasbeha', color: null },
+      });
+      const result = await service.getWeeklyBriefing(user, schoolId);
+      expect(result.nextLesson.subjectColor).toBeNull();
+      expect(result.nextLesson.audioUrl).toBeUndefined();
+      expect(result.nextLesson.hazzat).toBeNull();
+      expect(result.nextLesson.presentationUrl).toBeNull();
+    });
+
     it('shows no lesson when no allocation exists in the next session week', async () => {
       briefingBaseline();
       (prisma.attendanceSession.findFirst as jest.Mock).mockResolvedValue({
