@@ -208,7 +208,7 @@ export class AttendanceService {
    */
   async markSubjectItemStatus(
     sessionId: string,
-    status: 'in_progress' | 'completed',
+    status: 'in_progress' | 'completed' | 'allocated',
     subjectItemId?: string,
   ): Promise<{
     subjectItemId: string;
@@ -217,8 +217,8 @@ export class AttendanceService {
     sessionsUsed: number | null;
     plannedSessions: number | null;
   }> {
-    if (status !== 'in_progress' && status !== 'completed') {
-      throw new BadRequestException('status must be in_progress or completed');
+    if (status !== 'in_progress' && status !== 'completed' && status !== 'allocated') {
+      throw new BadRequestException('status must be in_progress, completed, or allocated');
     }
     const session = await this.prisma.attendanceSession.findUnique({
       where: { id: sessionId },

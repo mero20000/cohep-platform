@@ -332,6 +332,17 @@ describe('AttendanceService', () => {
       expect(assessmentsMock.create).not.toHaveBeenCalled();
     });
 
+    it('resets the subject item status back to allocated (no assessment, no sessions math)', async () => {
+      const result = await service.markSubjectItemStatus('sess-1', 'allocated');
+      expect(result.status).toBe('allocated');
+      expect(prisma.subjectItem.update).toHaveBeenCalledWith(
+        expect.objectContaining({ data: { status: 'allocated' } }),
+      );
+      expect(assessmentsMock.create).not.toHaveBeenCalled();
+      expect(result.sessionsUsed).toBeNull();
+      expect(result.plannedSessions).toBeNull();
+    });
+
     it('on completed creates a draft assessment and reports sessions used vs planned', async () => {
       const result = await service.markSubjectItemStatus('sess-1', 'completed');
       expect(result.status).toBe('completed');

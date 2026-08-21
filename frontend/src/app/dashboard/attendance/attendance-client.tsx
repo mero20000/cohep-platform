@@ -261,7 +261,7 @@ export function AttendanceClient() {
     setMarking(false)
   }
 
-  const handleMarkSubjectItem = async (status: 'in_progress' | 'completed') => {
+  const handleMarkSubjectItem = async (status: 'in_progress' | 'completed' | 'allocated') => {
     if (!selectedSession) return
     const linkId = selectedSession.subjectItem?.id || arrivalSubjectItemId || undefined
     try {
@@ -280,7 +280,9 @@ export function AttendanceClient() {
       setArrivalSubjectItemId(result.subjectItemId)
       toast('success', status === 'completed'
         ? (lang === 'ar' ? 'تم إكمال عنصر المنهج' : 'Subject item completed')
-        : (lang === 'ar' ? 'تم بدء عنصر المنهج' : 'Subject item in progress'))
+        : status === 'allocated'
+          ? (lang === 'ar' ? 'تمت إعادة عنصر المنهج للتعيين' : 'Subject item reset to allocated')
+          : (lang === 'ar' ? 'تم بدء عنصر المنهج' : 'Subject item in progress'))
       fetchSessionDetail(selectedSession.id)
     } catch (e: any) {
       toast('error', lang === 'ar' ? 'فشل تحديث عنصر المنهج' : 'Failed to update subject item', e?.message || '')
@@ -703,7 +705,9 @@ export function AttendanceClient() {
                           ? (lang === 'ar' ? 'مكتمل' : 'Completed')
                           : subjectItemInfo.status === 'in_progress'
                             ? (lang === 'ar' ? 'قيد التنفيذ' : 'In progress')
-                            : (lang === 'ar' ? 'بانتظار البدء' : 'Pending')}
+                            : subjectItemInfo.status === 'allocated'
+                              ? (lang === 'ar' ? 'مخصص' : 'Allocated')
+                              : (lang === 'ar' ? 'بانتظار البدء' : 'Pending')}
                         {subjectItemInfo.status === 'completed' && (
                           <span className="ms-2">
                             {lang === 'ar' ? 'جلسات مستخدمة' : 'Sessions used'}: {subjectItemInfo.sessionsUsed ?? 0}
@@ -721,6 +725,11 @@ export function AttendanceClient() {
                         disabled={subjectItemInfo.status === 'completed'}
                         className="bg-green-600 hover:bg-green-700 text-white">
                         <CheckCircle2 className="h-3.5 w-3.5" />{lang === 'ar' ? 'إكمال' : 'Mark completed'}
+                      </Button>
+                      <Button variant="ghost" size="sm" onClick={() => handleMarkSubjectItem('allocated')}
+                        disabled={subjectItemInfo.status === 'allocated' || subjectItemInfo.status === 'pending'}
+                        className="text-gray-600 hover:bg-gray-100">
+                        <RotateCcw className="h-3.5 w-3.5" />{lang === 'ar' ? 'إعادة للتعيين' : 'Reset'}
                       </Button>
                     </div>
                   </div>
