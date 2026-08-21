@@ -54,9 +54,10 @@ function subjectChipStyle(hex?: string | null): { bg: string; fg: string } {
   const g = parseInt(c.slice(2, 4), 16)
   const b = parseInt(c.slice(4, 6), 16)
   const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255
-  return luminance > 0.6
-    ? { bg: `bg-[#${c}]/10`, fg: `text-[#${c}]` }
-    : { bg: `bg-[#${c}]`, fg: 'text-white' }
+  // Light colors (incl. white) need a dark foreground so the chip stays legible.
+  if (luminance > 0.6) return { bg: `bg-[#${c}]/15`, fg: 'text-gray-800' }
+  // Dark colors: use the color as the background with white text.
+  return { bg: `bg-[#${c}]`, fg: 'text-white' }
 }
 
 export default function BriefingPage() {
