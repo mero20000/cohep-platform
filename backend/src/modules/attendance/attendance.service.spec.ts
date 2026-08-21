@@ -8,6 +8,7 @@ import { GamificationService } from '../gamification/gamification.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { MailService } from '../mail/mail.service';
 import { AnalyticsService } from '../analytics/analytics.service';
+import { AssessmentsService } from '../assessments/assessments.service';
 
 describe('AttendanceService', () => {
   let service: AttendanceService;
@@ -40,8 +41,20 @@ describe('AttendanceService', () => {
     level: {
       findFirst: jest.fn(),
     },
+    group: {
+      findUnique: jest.fn(),
+    },
+    subjectItem: {
+      findUnique: jest.fn(),
+      update: jest.fn(),
+    },
+    curriculumAllocation: {
+      findFirst: jest.fn(),
+    },
     $transaction: jest.fn(),
   };
+
+  const assessmentsMock = { create: jest.fn() };
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -54,6 +67,7 @@ describe('AttendanceService', () => {
         { provide: NotificationsService, useValue: { createNotification: jest.fn() } },
         { provide: MailService, useValue: { sendAttendanceAlert: jest.fn() } },
         { provide: AnalyticsService, useValue: { record: jest.fn() } },
+        { provide: AssessmentsService, useValue: assessmentsMock },
       ],
     }).compile();
 
@@ -266,6 +280,79 @@ describe('AttendanceService', () => {
       const data = prisma.attendanceSession.update.mock.calls[0][0].data;
       expect(data.actualStartTime).toBeUndefined();
       expect(storedSession.actualStartTime).toBe(started);
+    });
+  });
+
+  describe('markSubjectItemStatus', () => {
+    const buildSession = (overrides: any = {}) => ({
+      id: 'sess-1',
+      schoolId,
+      servantId: 'u1',
+      groupId: 'group-1',
+      levelId: 'level-1',
+      scheduledDate: new Date('2026-01-05T10:00:00.000Z'),
+      subjectItemId: null,
+      ...overrides,
+    });
+
+    const subjectItem = {
+      id: 'si-1',
+      name: 'The Trinity',
+      subjectId: 'subj-1',
+      sessionsGroup1: 3,
+      sessionsGroup2: 0,
+      sessionsGroup3: 0,
+      sessionsGroup4: 0,
+    };
+
+    beforeEach(() => {
+      prisma.attendanceSession.findUnique.mockImplementation(({ where }: any) =>
+        Promise.resolve(buildSession(where.subjectItemId ? { subjectItemId: where.subjectItemId } : {})),
+      );
+      prisma.attendanceSession.update.mockImplementation(({ data }: any) => {
+        const s = buildSession();
+        if (data.subjectItemId) s.subjectItemId = data.subjectItemId;
+        return Promise.resolve(s);
+      });
+      prisma.subjectItem.findUnique.mockResolvedValue(subjectItem);
+      prisma.subjectItem.update.mockResolvedValue({ ...subjectItem, status: 'completed' });
+      prisma.group.findUnique.mockResolvedValue({ id: 'group-1' });
+      prisma.curriculumAllocation.findFirst.mockResolvedValue({ groupNumber: 1, lesson: { subjectItemId: 'si-1' } });
+      prisma.attendanceSession.count.mockResolvedValue(1);
+    });
+
+    it('marks the linked subject item in_progress without creating an assessment', async () => {
+      await service.markSubjectItemStatus('sess-1', 'in_progress');
+      expect(prisma.subjectItem.update).toHaveBeenCalledWith(
+        expect.objectContaining({ data: { status: 'in_progress' } }),
+      );
+      expect(assessmentsMock.create).not.toHaveBeenCalled();
+    });
+
+    it('on completed creates a draft assessment and reports sessions used vs planned', async () => {
+      const result = await service.markSubjectItemStatus('sess-1', 'completed');
+      expect(result.status).toBe('completed');
+      expect(result.subjectItemId).toBe('si-1');
+      expect(result.plannedSessions).toBe(3);
+      expect(result.sessionsUsed).toBe(2); // existing 1 + the one just completed
+      expect(assessmentsMock.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: 'Assessment: The Trinity',
+          status: 'draft',
+          groupId: 'group-1',
+          subjectId: 'subj-1',
+        }),
+        schoolId,
+      );
+    });
+
+    it('rejects an unknown subject item link', async () => {
+      prisma.subjectItem.findUnique.mockImplementation(({ where }: any) =>
+        where.id === 'si-bad' ? Promise.resolve(null) : Promise.resolve(subjectItem),
+      );
+      await expect(
+        service.markSubjectItemStatus('sess-1', 'in_progress', 'si-bad'),
+      ).rejects.toThrow();
     });
   });
 });

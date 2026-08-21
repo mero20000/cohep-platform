@@ -2,12 +2,13 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useSearchParams } from 'next/navigation'
+import Link from 'next/link'
 import { useLanguage } from '@/lib/use-language'
 import {
   Calendar, Clock, CheckCircle2, XCircle, AlertCircle, Minus,
   Plus, Search, Loader2,
   FileText, BarChart3, Users,
-  ArrowLeft, Save, UserCheck, UserX, X, Trash2, RotateCcw, Play, QrCode
+  ArrowLeft, Save, UserCheck, UserX, User, X, Trash2, RotateCcw, Play, QrCode
 } from 'lucide-react'
 import { useToast } from '@/components/ui/toast'
 import { Button } from '@/components/ui/button'
@@ -17,6 +18,7 @@ import { StatCard } from '@/components/ui/stat-card'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { QrScanner } from '@/components/qr/qr-scanner'
 import { http } from '@/lib/http-client'
+import { assetUrl } from '@/lib/asset-url'
 import { getSchoolId } from '@/lib/school'
 import { track } from '@/lib/analytics'
 import { TableSkeleton } from '@/components/ui/skeleton'
@@ -29,12 +31,14 @@ interface Session {
   servant: { id: string; firstName: string; lastName: string };
   summary?: { present: number; absent: number; late: number; excused: number; total: number };
 }
+interface SubjectItemInfo { id: string; name: string; nameAr?: string | null; status: string }
 interface SessionDetail extends Session {
   attendanceRecords: Array<{
     id: string; status: string; homeworkStatus: string; note?: string; recordedAt: string;
     behavior?: number; participation?: number; attendedLiturgy?: boolean;
-    student: { id: string; firstName: string; lastName: string; studentCode: string };
+    student: { id: string; firstName: string; lastName: string; studentCode: string; photoUrl?: string | null };
   }>;
+  subjectItem?: SubjectItemInfo | null;
 }
 interface Level { id: string; name: string; number: number; status?: string }
 interface Group { id: string; name: string; levelId?: string; status?: string }
@@ -92,6 +96,12 @@ export function AttendanceClient() {
 
   const [showQrScanner, setShowQrScanner] = useState(false)
   const [startingClass, setStartingClass] = useState(false)
+
+  const [arrivalSubjectItemId, setArrivalSubjectItemId] = useState<string | null>(null)
+  const [subjectItemInfo, setSubjectItemInfo] = useState<{
+    id: string; name: string; nameAr?: string | null; status: string
+    sessionsUsed?: number | null; plannedSessions?: number | null; assessmentId?: string
+  } | null>(null)
 
   const [searchQuery, setSearchQuery] = useState('')
   const [studentResults, setStudentResults] = useState<{
@@ -168,6 +178,8 @@ export function AttendanceClient() {
     if (arrivalTapHandled.current || loading) return
     const sessionId = searchParams?.get('sessionId')
     const prefill = searchParams?.get('prefill')
+    const subjectItemId = searchParams?.get('subjectItemId')
+    if (subjectItemId) setArrivalSubjectItemId(subjectItemId)
     if (!sessionId) return
     arrivalTapHandled.current = true
     fetchSessionDetail(sessionId)
@@ -186,6 +198,13 @@ export function AttendanceClient() {
     try {
       const data = await http.get<SessionDetail>(`/attendance/sessions/${id}`)
       setSelectedSession(data)
+      if (data.subjectItem) {
+        setSubjectItemInfo({ ...data.subjectItem })
+      } else if (arrivalSubjectItemId) {
+        setSubjectItemInfo({ id: arrivalSubjectItemId, name: '', status: 'pending' })
+      } else {
+        setSubjectItemInfo(null)
+      }
       const marks: Record<string, string> = {}
       const behavior: Record<string, number> = {}
       const participation: Record<string, number> = {}
@@ -240,6 +259,32 @@ export function AttendanceClient() {
       track('attendance.marked', 'action', { count: records.length, completed: markAsCompleted, sessionId: selectedSession.id })
     } catch (e) { console.error(e) }
     setMarking(false)
+  }
+
+  const handleMarkSubjectItem = async (status: 'in_progress' | 'completed') => {
+    if (!selectedSession) return
+    const linkId = selectedSession.subjectItem?.id || arrivalSubjectItemId || undefined
+    try {
+      const result = await http.post<{
+        subjectItemId: string; status: string; assessment?: { id: string }; sessionsUsed?: number | null; plannedSessions?: number | null
+      }>(`/attendance/sessions/${selectedSession.id}/subject-item`, { status, subjectItemId: linkId })
+      setSubjectItemInfo(prev => ({
+        id: result.subjectItemId,
+        name: prev?.name || '',
+        nameAr: prev?.nameAr,
+        status: result.status,
+        sessionsUsed: result.sessionsUsed ?? null,
+        plannedSessions: result.plannedSessions ?? null,
+        assessmentId: result.assessment?.id,
+      }))
+      setArrivalSubjectItemId(result.subjectItemId)
+      toast('success', status === 'completed'
+        ? (lang === 'ar' ? 'تم إكمال عنصر المنهج' : 'Subject item completed')
+        : (lang === 'ar' ? 'تم بدء عنصر المنهج' : 'Subject item in progress'))
+      fetchSessionDetail(selectedSession.id)
+    } catch (e: any) {
+      toast('error', lang === 'ar' ? 'فشل تحديث عنصر المنهج' : 'Failed to update subject item', e?.message || '')
+    }
   }
 
   const handleChangeSessionGroup = async (groupId: string) => {
@@ -644,6 +689,50 @@ export function AttendanceClient() {
                 <span className="text-gray-500 ms-auto">{totalStudents} {lang === 'ar' ? 'إجمالي' : 'total'}</span>
               </div>
 
+              {/* Subject Item Delivery */}
+              {subjectItemInfo?.id && (
+                <div className="border-b border-gray-100 bg-gold-50/60 px-5 py-3">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="text-xs font-semibold uppercase tracking-wider text-gray-400">{lang === 'ar' ? 'عنصر المنهج' : 'Subject Item'}</div>
+                      <div className="mt-0.5 truncate text-sm font-semibold text-gray-900">
+                        {subjectItemInfo.name || subjectItemInfo.nameAr || (lang === 'ar' ? 'عنصر منهج مرتبط' : 'Linked subject item')}
+                      </div>
+                      <div className="mt-0.5 text-xs text-gray-500">
+                        {subjectItemInfo.status === 'completed'
+                          ? (lang === 'ar' ? 'مكتمل' : 'Completed')
+                          : subjectItemInfo.status === 'in_progress'
+                            ? (lang === 'ar' ? 'قيد التنفيذ' : 'In progress')
+                            : (lang === 'ar' ? 'بانتظار البدء' : 'Pending')}
+                        {subjectItemInfo.status === 'completed' && (
+                          <span className="ms-2">
+                            {lang === 'ar' ? 'جلسات مستخدمة' : 'Sessions used'}: {subjectItemInfo.sessionsUsed ?? 0}
+                            {subjectItemInfo.plannedSessions != null && ` / ${subjectItemInfo.plannedSessions}`}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button variant="outline" size="sm" onClick={() => handleMarkSubjectItem('in_progress')}
+                        disabled={subjectItemInfo.status === 'in_progress' || subjectItemInfo.status === 'completed'}>
+                        {lang === 'ar' ? 'بدء التنفيذ' : 'Mark in progress'}
+                      </Button>
+                      <Button size="sm" onClick={() => handleMarkSubjectItem('completed')}
+                        disabled={subjectItemInfo.status === 'completed'}
+                        className="bg-green-600 hover:bg-green-700 text-white">
+                        <CheckCircle2 className="h-3.5 w-3.5" />{lang === 'ar' ? 'إكمال' : 'Mark completed'}
+                      </Button>
+                    </div>
+                  </div>
+                  {subjectItemInfo.status === 'completed' && subjectItemInfo.assessmentId && (
+                    <Link href={`/dashboard/assessments/${subjectItemInfo.assessmentId}`}
+                      className="mt-2 inline-flex items-center gap-1.5 text-xs font-medium text-blue-700 hover:text-blue-800">
+                      <FileText className="h-3.5 w-3.5" />{lang === 'ar' ? 'فتح التقييم المُنشأ' : 'Open created assessment'}
+                    </Link>
+                  )}
+                </div>
+              )}
+
               {/* Student List */}
               <div className="divide-y divide-gray-100 max-h-[600px] overflow-y-auto">
                 {safeRecords.map(record => {
@@ -654,8 +743,16 @@ export function AttendanceClient() {
                   return (
                     <div key={record.student.id} className={`px-4 sm:px-6 py-2.5 ${isCompleted ? 'opacity-80' : ''}`}>
                       {/* Row 1: Name + Status */}
-                      <div className="flex items-center gap-3">
-                        <div className="min-w-0 flex-1">
+                       <div className="flex items-center gap-3">
+                         {record.student.photoUrl ? (
+                           // eslint-disable-next-line @next/next/no-img-element
+                           <img src={assetUrl(record.student.photoUrl)} alt="" className="h-9 w-9 shrink-0 rounded-full bg-gray-100 object-cover" />
+                         ) : (
+                           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gray-100 text-gray-400">
+                             <User className="h-4 w-4" />
+                           </div>
+                         )}
+                         <div className="min-w-0 flex-1">
                           <div className="text-sm font-medium text-gray-900 truncate">{record.student.firstName} {record.student.lastName}</div>
                           <div className="text-xs text-gray-500">{record.student.studentCode}</div>
                         </div>

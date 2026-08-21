@@ -93,6 +93,15 @@ export class AttendanceController {
     return this.attendanceService.updateSession(id, dto);
   }
 
+  @Post('sessions/:id/subject-item')
+  @ApiOperation({ summary: 'Mark the delivered subject item in_progress/completed (creates a draft assessment + reports sessions used on completion)' })
+  async markSubjectItem(
+    @Param('id') id: string,
+    @Body() body: { status: 'in_progress' | 'completed'; subjectItemId?: string },
+  ) {
+    return this.attendanceService.markSubjectItemStatus(id, body.status, body.subjectItemId);
+  }
+
   @Delete('sessions/:id')
   @ApiOperation({ summary: 'Delete an attendance session (soft)' })
   async deleteSession(@Param('id') id: string) {

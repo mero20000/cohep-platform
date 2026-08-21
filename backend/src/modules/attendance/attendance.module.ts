@@ -5,9 +5,10 @@ import { AuditModule } from '../audit/audit.module';
 import { GamificationModule } from '../gamification/gamification.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { AnalyticsModule } from '../analytics/analytics.module';
+import { AssessmentsModule } from '../assessments/assessments.module';
 
 @Module({
-  imports: [AuditModule, forwardRef(() => GamificationModule), NotificationsModule, AnalyticsModule],
+  imports: [AuditModule, forwardRef(() => GamificationModule), NotificationsModule, AnalyticsModule, AssessmentsModule],
   controllers: [AttendanceController],
   providers: [AttendanceService],
   exports: [AttendanceService],

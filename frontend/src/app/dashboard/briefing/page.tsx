@@ -31,6 +31,7 @@ interface WeeklyBriefing {
     lessonId: string; title: string; titleAr?: string; titleCoptic?: string
     levelName?: string; subjectName?: string; scheduledDate?: string
     subjectColor?: string | null
+    subjectItemId?: string | null
     audioUrl?: string | null
     hazzat?: string | null
     presentationUrl?: string | null
@@ -142,7 +143,7 @@ export default function BriefingPage() {
             </div>
           </div>
           <Link
-            href={`/dashboard/attendance?sessionId=${data.nextSession.id}&prefill=present`}
+            href={`/dashboard/attendance?sessionId=${data.nextSession.id}&prefill=present${data.nextLesson?.subjectItemId ? `&subjectItemId=${data.nextLesson.subjectItemId}` : ''}`}
             className="rounded-lg bg-gold-500 px-4 py-2 text-sm font-semibold text-gray-950 hover:bg-gold-600"
           >
             {t('Start Class', 'ابدأ الفصل')}

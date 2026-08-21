@@ -6,6 +6,7 @@ import { GamificationService } from '../gamification/gamification.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { MailService } from '../mail/mail.service';
 import { AnalyticsService } from '../analytics/analytics.service';
+import { AssessmentsService } from '../assessments/assessments.service';
 import { CreateAttendanceSessionDto } from './dto/create-attendance-session.dto';
 import { MarkAttendanceDto } from './dto/mark-attendance.dto';
 
@@ -20,6 +21,7 @@ export class AttendanceService {
     private readonly notifications: NotificationsService,
     private readonly mail: MailService,
     private readonly analytics: AnalyticsService,
+    private readonly assessments: AssessmentsService,
   ) {}
 
   async getSessions(schoolIdentifier: string, filters: {
@@ -104,7 +106,7 @@ export class AttendanceService {
         attendanceRecords: {
           include: {
             student: {
-              select: { id: true, firstName: true, lastName: true, studentCode: true, levelId: true, groupId: true, deletedAt: true },
+              select: { id: true, firstName: true, lastName: true, studentCode: true, photoUrl: true, levelId: true, groupId: true, deletedAt: true },
             },
           },
           orderBy: { recordedAt: 'desc' },
@@ -114,7 +116,143 @@ export class AttendanceService {
     if (!session) throw new NotFoundException('Attendance session not found');
     // Filter out records belonging to soft-deleted students
     session.attendanceRecords = session.attendanceRecords.filter(r => r.student && !r.student.deletedAt);
-    return session;
+    const subjectItem = await this.resolveSessionSubjectItem(session);
+    return { ...session, subjectItem };
+  }
+
+  /**
+   * Resolve the subject item being delivered by a session.
+   * Prefers an explicitly linked subjectItemId, otherwise derives it from the
+   * curriculum allocation for the session's level/week (lesson -> subjectItem).
+   */
+  private async resolveSessionSubjectItem(session: { id: string; levelId: string; groupId: string; scheduledDate: Date; subjectItemId?: string | null }): Promise<{ id: string; name: string; nameAr?: string | null; status: string } | null> {
+    const load = (id: string) =>
+      this.prisma.subjectItem.findUnique({
+        where: { id },
+        select: { id: true, name: true, nameAr: true, status: true },
+      });
+
+    if (session.subjectItemId) {
+      const si = await load(session.subjectItemId);
+      return si ?? null;
+    }
+
+    const group = await this.prisma.group.findUnique({
+      where: { id: session.groupId },
+      select: { id: true },
+    });
+    void group;
+    const weekStart = new Date(session.scheduledDate);
+    weekStart.setHours(0, 0, 0, 0);
+    const weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekEnd.getDate() + 7);
+
+    const alloc = await this.prisma.curriculumAllocation.findFirst({
+      where: {
+        levelId: session.levelId,
+        scheduledDate: { gte: weekStart, lt: weekEnd },
+      },
+      orderBy: { scheduledDate: 'asc' },
+      include: { lesson: { select: { subjectItemId: true } } },
+    });
+    const subjectItemId = alloc?.lesson?.subjectItemId;
+    if (!subjectItemId) return null;
+    return (await load(subjectItemId)) ?? null;
+  }
+
+  /**
+   * Mark the subject item delivered by a session as in_progress / completed.
+   * On completion: create a minimal draft assessment for the group and report
+   * the actual vs planned number of sessions used to deliver the subject item.
+   */
+  async markSubjectItemStatus(
+    sessionId: string,
+    status: 'in_progress' | 'completed',
+    subjectItemId?: string,
+  ): Promise<{
+    subjectItemId: string;
+    status: string;
+    assessment?: any;
+    sessionsUsed: number | null;
+    plannedSessions: number | null;
+  }> {
+    if (status !== 'in_progress' && status !== 'completed') {
+      throw new BadRequestException('status must be in_progress or completed');
+    }
+    const session = await this.prisma.attendanceSession.findUnique({
+      where: { id: sessionId },
+    });
+    if (!session) throw new NotFoundException('Attendance session not found');
+
+    // Optionally link a subject item (e.g. supplied from the "Start Class" launch).
+    if (subjectItemId && subjectItemId !== session.subjectItemId) {
+      const si = await this.prisma.subjectItem.findUnique({ where: { id: subjectItemId }, select: { id: true } });
+      if (!si) throw new BadRequestException('Subject item not found');
+      await this.prisma.attendanceSession.update({
+        where: { id: sessionId },
+        data: { subjectItemId },
+      });
+      session.subjectItemId = subjectItemId;
+    }
+
+    const resolved = await this.resolveSessionSubjectItem(session);
+    const effectiveSubjectItemId = resolved?.id || session.subjectItemId;
+    if (!effectiveSubjectItemId) {
+      throw new BadRequestException('No subject item is linked to this session');
+    }
+
+    await this.prisma.subjectItem.update({
+      where: { id: effectiveSubjectItemId },
+      data: { status },
+    });
+
+    let assessment: any = undefined;
+    let sessionsUsed: number | null = null;
+    let plannedSessions: number | null = null;
+
+    if (status === 'completed') {
+      const si = await this.prisma.subjectItem.findUnique({
+        where: { id: effectiveSubjectItemId },
+        select: { name: true, subjectId: true },
+      });
+      const weekStart = new Date(session.scheduledDate);
+      weekStart.setHours(0, 0, 0, 0);
+      const weekEnd = new Date(weekStart);
+      weekEnd.setDate(weekEnd.getDate() + 7);
+      const alloc = await this.prisma.curriculumAllocation.findFirst({
+        where: {
+          levelId: session.levelId,
+          scheduledDate: { gte: weekStart, lt: weekEnd },
+          lesson: { subjectItemId: effectiveSubjectItemId },
+        },
+        select: { groupNumber: true },
+      });
+      const gn = alloc?.groupNumber ?? 1;
+      const planned = (si as any)[`sessionsGroup${gn}`] ?? 0;
+      const used = await this.prisma.attendanceSession.count({
+        where: { subjectItemId: effectiveSubjectItemId, status: 'completed' },
+      });
+
+      assessment = await this.assessments.create(
+        {
+          schoolId: session.schoolId,
+          levelId: session.levelId,
+          groupId: session.groupId,
+          subjectId: si!.subjectId,
+          title: `Assessment: ${si!.name}`,
+          totalPoints: 0,
+          passingPoints: 0,
+          type: 'quiz',
+          status: 'draft',
+        },
+        session.schoolId,
+      );
+
+      sessionsUsed = used + 1; // include the session just completed
+      plannedSessions = planned;
+    }
+
+    return { subjectItemId: effectiveSubjectItemId, status, assessment, sessionsUsed, plannedSessions };
   }
 
   async createSession(dto: CreateAttendanceSessionDto) {
