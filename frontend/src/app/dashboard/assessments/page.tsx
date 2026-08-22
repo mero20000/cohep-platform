@@ -477,11 +477,15 @@ export default function AssessmentsPage() {
         <tbody>${rows}</tbody>
       </table>
       <p style="color:#888;font-size:10px">${lang === 'ar' ? 'تم الإنشاء' : 'Generated'} ${new Date().toLocaleString()}</p>
-      <button class="no-print" onclick="window.print()" style="padding:8px 16px;background:#2563eb;color:#fff;border:none;border-radius:6px;cursor:pointer">${lang === 'ar' ? 'طباعة' : 'Print'}</button>
-      <script>window.print()</script>
+      <button id="print-btn" class="no-print" style="padding:8px 16px;background:#2563eb;color:#fff;border:none;border-radius:6px;cursor:pointer">${lang === 'ar' ? 'طباعة' : 'Print'}</button>
       </body></html>
     `)
     printWin.document.close()
+    // CSP-safe: the popup inherits our strict Content-Security-Policy (inline
+    // scripts/onclick are blocked), so wire printing from the opener instead.
+    printWin.focus()
+    printWin.print()
+    printWin.document.getElementById('print-btn')?.addEventListener('click', () => printWin.print())
   }
 
   const markStudent = async (student: StudentRow, score: number, maxScore: number) => {

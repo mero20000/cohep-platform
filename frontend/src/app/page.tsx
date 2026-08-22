@@ -790,23 +790,14 @@ export default function Home() {
     }
   }, [lang, isAr])
 
-  const jsonLd = {
-    '@context': 'https://schema.org',
-    '@type': 'WebApplication',
-    name: 'COHEP | Coptic Orthodox Hymn Education Platform',
-    applicationCategory: 'EducationalApplication',
-    operatingSystem: 'Web',
-    description: 'Free, open-source platform for Coptic Orthodox hymn education.',
-    offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
-    author: { '@type': 'Organization', name: 'COHEP Community' },
-  }
+  // Note: site JSON-LD moved to the root layout (server component) so it can
+  // carry the CSP nonce — inline scripts in client components are blocked.
 
   return (
     <div className={`min-h-screen bg-white ${isAr ? 'rtl' : 'ltr'}`} dir={isAr ? 'rtl' : 'ltr'}>
       <a href="#main-content" className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-[100] focus:rounded-lg focus:bg-gold-500 focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-gray-950 focus:shadow-lg">
         {isAr ? 'تخطي إلى المحتوى' : 'Skip to content'}
       </a>
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
 
       {/* ── NAVBAR ──────────────────────────────────────────────────────── */}
       <header className={`sticky [top:env(safe-area-inset-top)] z-50 border-b transition-all duration-300 ${scrolled ? 'border-gray-200 bg-white/95 backdrop-blur shadow-sm' : 'border-transparent bg-white/80 backdrop-blur'}`}>

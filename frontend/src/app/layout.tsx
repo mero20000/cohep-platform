@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import { headers } from 'next/headers'
 import { Inter } from 'next/font/google'
 import { Providers } from '@/components/providers'
 import { LangSync } from '@/components/lang-sync'
@@ -31,11 +32,34 @@ export const metadata: Metadata = {
   },
 }
 
-export default function RootLayout({
+/**
+ * Root layout (server component).
+ *
+ * The nonce comes from middleware, which also sets the CSP header. Passing it
+ * to our inline scripts is what allows them to execute under the strict,
+ * nonce-based Content-Security-Policy — without it they would be blocked as
+ * XSS-suspect inline code.
+ */
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
+  const nonce = (await headers()).get('x-nonce') ?? undefined
+
+  // Site-wide structured data (moved from the landing page so it can carry the
+  // CSP nonce; WebApplication schema is valid on every route).
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'WebApplication',
+    name: 'COHEP | Coptic Orthodox Hymn Education Platform',
+    applicationCategory: 'EducationalApplication',
+    operatingSystem: 'Web',
+    description: 'Free, open-source platform for Coptic hymn education.',
+    offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
+    author: { '@type': 'Organization', name: 'COHEP Community' },
+  }
+
   return (
     <html lang="en">
       <head>
@@ -49,12 +73,13 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-title" content="COHEP" />
         <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
         <link rel="apple-touch-icon" href="/cohep-logo.png" />
-        <script dangerouslySetInnerHTML={{
+        <script nonce={nonce} dangerouslySetInnerHTML={{
           __html: `document.documentElement.classList.add('js')`
         }} />
-        <script dangerouslySetInnerHTML={{
+        <script nonce={nonce} dangerouslySetInnerHTML={{
           __html: `if('serviceWorker' in navigator){window.addEventListener('load',()=>{navigator.serviceWorker.register('/sw.js').catch(()=>{})})}`
         }} />
+        <script type="application/ld+json" nonce={nonce} dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
       </head>
       <body className={inter.className}><Providers><LangSync />{children}</Providers></body>
     </html>
