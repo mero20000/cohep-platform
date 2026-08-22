@@ -53,6 +53,20 @@ class HttpClient {
     return {}
   }
 
+  /**
+   * Student-portal requests authenticate with the short-lived session token
+   * issued at /student-portal/login (the raw access key is never a credential
+   * for API calls). Kept separate from the parent JWT so both can coexist.
+   */
+  private get portalAuthHeaders(): Record<string, string> {
+    if (typeof window === 'undefined') return {}
+    try {
+      const token = sessionStorage.getItem('student_portal_token')
+      if (token) return { Authorization: `Bearer ${token}` }
+    } catch {}
+    return {}
+  }
+
   private buildUrl(path: string, params?: Record<string, string>): string {
     let url = `${this.baseUrl}${path}`
     if (params) {
@@ -63,7 +77,10 @@ class HttpClient {
   }
 
   private async request<T>(method: string, path: string, body?: unknown, opts?: { formData?: boolean; params?: Record<string, string> }): Promise<T> {
-    const headers: Record<string, string> = { ...this.authHeaders }
+    const isPortal = path.startsWith('/student-portal/')
+    const headers: Record<string, string> = {
+      ...(isPortal ? this.portalAuthHeaders : this.authHeaders),
+    }
     if (!opts?.formData) headers['Content-Type'] = 'application/json'
 
     const params = { ...opts?.params }

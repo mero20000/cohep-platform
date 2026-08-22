@@ -177,7 +177,11 @@ export default function StudentDashboard() {
       <header className="bg-gradient-to-br from-blue-800 via-indigo-800 to-purple-900 text-white">
         <div className="max-w-3xl mx-auto px-4 py-6">
           <div className="flex items-center justify-between mb-4">
-            <Link href="/student-portal/login" className="flex items-center gap-1.5 text-white/70 hover:text-white text-sm">
+            <Link
+              href="/student-portal/login"
+              onClick={() => { try { sessionStorage.removeItem('student_portal_token') } catch {} }}
+              className="flex items-center gap-1.5 text-white/70 hover:text-white text-sm"
+            >
               <ArrowLeft className="h-4 w-4" />
               Sign Out
             </Link>

@@ -25,6 +25,14 @@ export default function StudentLoginPage() {
         const err = await res.json().catch(() => ({ message: 'Access key not found' }))
         throw new Error(err.message)
       }
+      // Phase C: the access key is exchanged for a short-lived session token.
+      // The raw key no longer gates API calls — every portal request carries
+      // this Bearer token instead, so the key never has to live in URLs beyond
+      // the login round-trip.
+      const data = await res.json().catch(() => null)
+      if (data?.accessToken) {
+        try { sessionStorage.setItem('student_portal_token', data.accessToken) } catch {}
+      }
       router.push(`/student-portal/${code.trim()}`)
     } catch (err: any) {
       setError(err.message || 'Login failed')

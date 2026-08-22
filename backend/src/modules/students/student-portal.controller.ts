@@ -1,20 +1,25 @@
 import {
   Controller, Get, Param, Post, Body, HttpCode, UploadedFile, UseInterceptors, Query,
+  UseGuards, SetMetadata,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import { ApiTags, ApiOperation, ApiConsumes } from '@nestjs/swagger';
+import { JwtService } from '@nestjs/jwt';
+import { Throttle } from '@nestjs/throttler';
 import { StudentsService } from './students.service';
 import { HymnLearningService } from '../curriculum/hymn-learning.service';
 import { AssessmentsService } from '../assessments/assessments.service';
 import { SubmitAssessmentDto } from '../assessments/dto/assessment.dto';
 import { StudentLoginDto } from './dto/student-login.dto';
 import { Public } from '../../common/decorators/public.decorator';
+import { StudentPortalAuthGuard, SKIP_PORTAL_AUTH } from './student-portal-auth.guard';
 import { createCloudinaryStorage, isCloudinaryConfigured } from '../../common/config/cloudinary';
 
 @ApiTags('student-portal')
+@UseGuards(StudentPortalAuthGuard)
 @Controller('student-portal')
 @Public()
 export class StudentPortalController {
@@ -22,12 +27,23 @@ export class StudentPortalController {
     private readonly studentsService: StudentsService,
     private readonly hymnLearning: HymnLearningService,
     private readonly assessmentsService: AssessmentsService,
+    private readonly jwt: JwtService,
   ) {}
 
   @Post('login')
-  @ApiOperation({ summary: 'Student login via unguessable portal access key — returns portal data' })
+  @Public()
+  @SetMetadata(SKIP_PORTAL_AUTH, true)
+  // Brute-forcing access keys must be expensive; global throttle is looser.
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  @ApiOperation({ summary: 'Exchange a portal access key for a short-lived session token + initial data' })
   async login(@Body() dto: StudentLoginDto) {
-    return this.studentsService.getPortalData(dto.portalAccessKey);
+    const data = await this.studentsService.getPortalData(dto.portalAccessKey);
+    const studentId = (data as { student?: { id?: string } })?.student?.id;
+    const token = this.jwt.sign(
+      { sub: studentId, code: dto.portalAccessKey },
+      { secret: process.env.JWT_SECRET, expiresIn: '12h' },
+    );
+    return { ...data, accessToken: token, expiresIn: 12 * 60 * 60 };
   }
 
   @Get(':portalAccessKey')

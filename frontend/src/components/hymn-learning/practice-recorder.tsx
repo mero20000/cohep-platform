@@ -108,7 +108,15 @@ export function PracticeRecorder({ lessonId, lessonTitle, referenceAudioUrl, onS
           const uploadUrl = code
             ? `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/student-portal/${code}/recordings`
             : `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/upload/audio`
-          const res = await fetch(uploadUrl, { method: 'POST', credentials: 'include', body: fd })
+          const headers: Record<string, string> = {}
+          if (code) {
+            // Portal uploads authenticate with the session token, not cookies.
+            try {
+              const t = sessionStorage.getItem('student_portal_token')
+              if (t) headers['Authorization'] = `Bearer ${t}`
+            } catch {}
+          }
+          const res = await fetch(uploadUrl, { method: 'POST', credentials: 'include', headers, body: fd })
           if (res.ok) { const json = await res.json(); uploadedUrl = json.url }
         } catch {}
       }
