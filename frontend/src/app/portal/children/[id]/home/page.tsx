@@ -9,7 +9,7 @@ import { useLanguage } from '@/lib/use-language'
 import {
   ArrowLeft, Loader2, Star, Flame, Trophy, Music, CheckCircle2,
   Circle, ChevronRight, Sparkles, Crown, Calendar, Zap,
-  BookOpen, Award, Music2, Cross, Heart
+  BookOpen, Award, Music2, Cross, Heart, Clock
 } from 'lucide-react'
 
 const API_ORIGIN = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api').replace('/api', '')
@@ -40,6 +40,12 @@ interface HomeData {
   journey: Array<{ id: string; name: string; nameAr?: string; nameCoptic?: string; subject?: string; subjectAr?: string; status: 'completed' | 'current' | 'upcoming' }>
   challenge: { title: string; titleAr: string; description: string; descriptionAr: string; icon: string }
   recentActivity: Array<{ amount: number; type: string; description?: string; date: string }>
+  /* Phase A de-silo: same mastery model the student portal uses */
+  mastery?: {
+    stats: { totalHymns?: number; masteredHymns?: number; dueForReview?: number } | null
+    dueReviewCount: number
+    bySubject: Array<{ subjectId: string; subjectName: string; total: number; learned: number; inProgress: number; notStarted: number }>
+  }
 }
 
 // ── Animated counter ─────────────────────────────────────────────────────────
@@ -376,6 +382,34 @@ export default function StudentHomePage() {
           {/* Journey Tab */}
           {activeTab === 'journey' && (
             <div>
+              {/* Mastery by subject — one progress story shared with the student portal */}
+              {data.mastery?.bySubject?.length ? (
+                <div className="mb-5 rounded-2xl bg-white/5 border border-white/10 p-4">
+                  <h3 className="text-sm font-semibold text-white mb-3">{t('Mastery Progress', 'تقدم الإتقان')}</h3>
+                  <div className="space-y-3">
+                    {data.mastery.bySubject.map(sub => {
+                      const pct = sub.total ? Math.round(((sub.learned + sub.inProgress * 0.5) / sub.total) * 100) : 0
+                      return (
+                        <div key={sub.subjectId}>
+                          <div className="flex items-center justify-between text-xs mb-1">
+                            <span className="text-white/70">{sub.subjectName}</span>
+                            <span className="text-white/50 tabular-nums">{sub.learned}/{sub.total} {t('mastered', 'متقن')}</span>
+                          </div>
+                          <div className="h-2 rounded-full bg-white/10 overflow-hidden">
+                            <div className="h-full rounded-full bg-gradient-to-r from-gold-400 to-gold-600" style={{ width: `${pct}%` }} />
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                  {!!data.mastery.dueReviewCount && data.mastery.dueReviewCount > 0 && (
+                    <p className="mt-3 flex items-center gap-1.5 text-xs text-gold-300">
+                      <Clock className="h-3.5 w-3.5" />
+                      {t(`${data.mastery.dueReviewCount} hymns ready for review today`, `${data.mastery.dueReviewCount} ترنيمة جاهزة للمراجعة اليوم`)}
+                    </p>
+                  )}
+                </div>
+              ) : null}
               {journey.length === 0 ? (
                 <div className="rounded-2xl bg-white/5 border border-white/10 p-8 text-center">
                   <Music className="mx-auto h-10 w-10 text-white/20 mb-3" />
