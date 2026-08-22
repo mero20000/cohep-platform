@@ -1,9 +1,13 @@
 import { Injectable, NotFoundException, ForbiddenException, HttpException } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
+import { HymnLearningService } from '../curriculum/hymn-learning.service';
 
 @Injectable()
 export class ParentsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly hymnLearning: HymnLearningService,
+  ) {}
 
   async unlinkChild(studentId: string, userId: string) {
     const parent = await this.prisma.user.findUnique({
@@ -453,6 +457,54 @@ export class ParentsService {
       select: { amount: true, type: true, description: true, createdAt: true },
     });
 
+    // Mastery data — same hymn-learning model the student portal uses, so
+    // parents and students see ONE coherent progress story (Phase A de-silo).
+    let mastery: {
+      stats: unknown;
+      dueReviewCount: number;
+      bySubject: Array<{
+        subjectId: string;
+        subjectName: string;
+        total: number;
+        learned: number;
+        inProgress: number;
+        notStarted: number;
+      }>;
+    };
+    try {
+      const [hymnMap, dueReview, learningStats] = await Promise.all([
+        this.hymnLearning.getStudentHymnMap(studentId, student.schoolId),
+        this.hymnLearning.getDueForReview(studentId, student.schoolId),
+        this.hymnLearning.getStudentStats(studentId, student.schoolId),
+      ]);
+      const items = Array.isArray(hymnMap) ? hymnMap : [];
+      const bySubjectMap = new Map<string, { subjectId: string; subjectName: string; total: number; learned: number; inProgress: number; notStarted: number }>();
+      for (const item of items) {
+        const sid = item?.subject?.id || 'unknown';
+        if (!bySubjectMap.has(sid)) {
+          bySubjectMap.set(sid, {
+            subjectId: String(sid),
+            subjectName: item?.subject?.name || 'Unknown',
+            total: 0, learned: 0, inProgress: 0, notStarted: 0,
+          });
+        }
+        const bucket = bySubjectMap.get(sid)!;
+        bucket.total += 1;
+        // masteryStatus lives on the per-student LessonProgress row (may be absent)
+        const m = (item as { progress?: { masteryStatus?: string } | null })?.progress?.masteryStatus;
+        if (m === 'mastered' || m === 'known') bucket.learned += 1;
+        else if (m && m !== 'not_started') bucket.inProgress += 1;
+        else bucket.notStarted += 1;
+      }
+      mastery = {
+        stats: learningStats,
+        dueReviewCount: Array.isArray(dueReview) ? dueReview.length : 0,
+        bySubject: [...bySubjectMap.values()],
+      };
+    } catch {
+      mastery = { stats: null, dueReviewCount: 0, bySubject: [] };
+    }
+
     return {
       student: {
         id: student.id,
@@ -477,6 +529,7 @@ export class ParentsService {
       journey: journeyItems,
       challenge,
       recentActivity: recentActivity.map(t => ({ amount: t.amount, type: t.type, description: t.description, date: t.createdAt })),
+      mastery,
     };
   }
 

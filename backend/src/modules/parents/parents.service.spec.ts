@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ParentsService } from './parents.service';
 import { PrismaService } from '../../database/prisma.service';
+import { HymnLearningService } from '../curriculum/hymn-learning.service';
 
 describe('ParentsService getCurrentLesson', () => {
   let service: ParentsService;
@@ -42,6 +43,14 @@ describe('ParentsService getCurrentLesson', () => {
       providers: [
         ParentsService,
         { provide: PrismaService, useValue: prismaMock },
+        {
+          provide: HymnLearningService,
+          useValue: {
+            getStudentHymnMap: jest.fn().mockResolvedValue([]),
+            getDueForReview: jest.fn().mockResolvedValue([]),
+            getStudentStats: jest.fn().mockResolvedValue(null),
+          },
+        },
       ],
     }).compile();
 
