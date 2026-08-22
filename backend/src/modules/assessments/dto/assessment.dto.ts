@@ -219,6 +219,22 @@ export class SubmitAssessmentDto {
   @ValidateNested({ each: true })
   @Type(() => AnswerDto)
   answers: AnswerDto[];
+
+  @IsOptional()
+  @IsString()
+  notes?: string;
+
+  @IsOptional()
+  @IsString()
+  fileUrl?: string;
+
+  @IsOptional()
+  @IsString()
+  fileType?: string;
+
+  @IsOptional()
+  @Type(() => Number)
+  durationSeconds?: number;
 }
 
 export class AssignStudentsDto {

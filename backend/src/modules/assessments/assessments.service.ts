@@ -247,6 +247,10 @@ export class AssessmentsService {
           studentId,
           submissionType: 'online',
           submissionContent: JSON.stringify(dto.answers),
+          fileUrl: dto.fileUrl || null,
+          fileType: dto.fileType || null,
+          durationSeconds: dto.durationSeconds ?? null,
+          ...(dto.notes ? { metadata: { notes: dto.notes } } : {}),
           status: 'submitted',
         },
       });
@@ -308,6 +312,7 @@ export class AssessmentsService {
       include: {
         questions: { orderBy: { orderIndex: 'asc' } },
         subject: { select: { id: true, name: true, nameAr: true } },
+        lesson: { select: { subjectItem: { select: { hazzat: true, presentationUrl: true } } } },
       },
     });
     if (!assessment || assessment.deletedAt) {
@@ -339,6 +344,10 @@ export class AssessmentsService {
         passingScore: Number(assessment.passingScore),
         dueDate: assessment.dueDate,
         durationMinutes: metadata.durationMinutes ?? null,
+        referenceRecordingUrl: assessment.referenceRecordingUrl ?? null,
+        referenceRecordingName: assessment.referenceRecordingName ?? null,
+        hazzat: assessment.lesson?.subjectItem?.hazzat ?? null,
+        presentationUrl: assessment.lesson?.subjectItem?.presentationUrl ?? null,
       },
       questions: assessment.questions.map((q: any) => ({
         id: q.id,
