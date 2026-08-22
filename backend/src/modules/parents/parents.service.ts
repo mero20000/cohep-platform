@@ -663,6 +663,21 @@ export class ParentsService {
       return practice;
     });
 
+    // Phase B de-silo: parent-guided practice feeds the SAME mastery model the
+    // student portal uses (SM-2 spaced repetition), not just XP. A parent
+    // session is a guided run, so it logs a solid self-rating of 4/5. Never
+    // fail the XP flow if mastery logging hiccups.
+    try {
+      await this.hymnLearning.logPracticeSession({
+        studentId,
+        lessonId,
+        schoolId: student.schoolId,
+        selfRating: 4,
+      });
+    } catch {
+      // Mastery logging is best-effort; XP already recorded.
+    }
+
     return { practiced: true, xpAwarded: xpReward, weeklyCount: weeklyCount + 1, weeklyLimit };
   }
 
