@@ -14,7 +14,7 @@ describe('UsersService roles', () => {
       deleteMany: jest.fn(),
       create: jest.fn(),
     },
-    permission: { findMany: jest.fn() },
+    permission: { findMany: jest.fn(), create: jest.fn() },
     user: {
       findUnique: jest.fn(),
       findFirst: jest.fn(),
@@ -51,13 +51,19 @@ describe('UsersService roles', () => {
       ).rejects.toThrow(BadRequestException);
     });
 
-    it('rejects unknown permission names', async () => {
+    it('auto-creates unknown permission names', async () => {
       prisma.role.findFirst.mockResolvedValue({ id: 'role-1' });
       prisma.permission.findMany.mockResolvedValue([{ id: 'p-1', name: 'student:view' }]);
+      prisma.permission.create.mockResolvedValue({ id: 'p-2', name: 'nope:missing' });
+      prisma.$transaction.mockResolvedValue([]);
 
-      await expect(
-        service.setRolePermissions('servant', ['student:view', 'nope:missing'], { roles: ['admin'] }),
-      ).rejects.toThrow(NotFoundException);
+      const result = await service.setRolePermissions('servant', ['student:view', 'nope:missing'], { roles: ['admin'] });
+
+      expect(prisma.permission.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({ name: 'nope:missing' }),
+        select: { id: true, name: true },
+      });
+      expect(result.permissions).toEqual(['student:view', 'nope:missing']);
     });
 
     it('replaces role permissions for admin callers', async () => {

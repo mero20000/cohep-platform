@@ -3,6 +3,8 @@ import { NotFoundException, BadRequestException } from '@nestjs/common';
 import { AnnouncementsService } from './announcements.service';
 import { PrismaService } from '../../database/prisma.service';
 import { SchoolResolver } from '../../common/utils/school-resolver';
+import { MailService } from '../mail/mail.service';
+import { NewsletterService } from '../newsletter/newsletter.service';
 
 describe('AnnouncementsService', () => {
   let service: AnnouncementsService;
@@ -54,6 +56,8 @@ describe('AnnouncementsService', () => {
         AnnouncementsService,
         { provide: PrismaService, useValue: prismaMock },
         { provide: SchoolResolver, useValue: { resolve: jest.fn().mockResolvedValue(schoolId) } },
+        { provide: MailService, useValue: { sendAnnouncementEmail: jest.fn() } },
+        { provide: NewsletterService, useValue: { broadcast: jest.fn() } },
       ],
     }).compile();
 
@@ -154,7 +158,7 @@ describe('AnnouncementsService', () => {
         createdBy: userId,
         priority: 'normal',
       });
-      expect(data.attachments).toEqual({ targetRoles: ['parent'] });
+      expect(data.attachments).toEqual({ targetRoles: ['parent'], targetSubscribers: false });
     });
 
     it('sets status published and publishAt when publishedAt provided', async () => {

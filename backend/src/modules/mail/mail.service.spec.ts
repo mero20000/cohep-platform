@@ -51,7 +51,7 @@ describe("MailService", () => {
       "https://cohep-platform.vercel.app/reset-password?token=abc123",
     );
     expect(body.content[0].value).toContain("Reset Your Password");
-    expect(body.content[0].value).toContain("expires in 1 hour");
+    expect(body.content[0].value).toContain("expire in <strong>1 hour</strong>");
   });
 
   it("uses MAIL_FROM when configured", async () => {
