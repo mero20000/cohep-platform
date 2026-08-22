@@ -194,6 +194,7 @@ export default function PortalPage() {
           <select
             value={relationship}
             onChange={e => setRelationship(e.target.value)}
+            aria-label={t('Relationship to child', 'صلة القرابة')}
             className="rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm focus:border-gold-400 focus:outline-none focus:ring-2 focus:ring-gold-200 sm:w-48"
           >
             {RELATIONSHIPS.map(r => (

@@ -93,7 +93,9 @@ function LiturgySection({ childId, language }: { childId: string; language: stri
       </div>
 
       <div className="flex items-center gap-3 mb-4">
+        <label htmlFor="liturgy-date" className="sr-only">{t('Liturgy date', 'تاريخ القداس')}</label>
         <input
+          id="liturgy-date"
           type="date"
           value={selectedDate}
           onChange={e => setSelectedDate(e.target.value)}
@@ -546,7 +548,8 @@ export default function ChildDetailPage() {
         {tabs.map(t => {
           const isActive = tab === t.id
           return (
-            <Button key={t.id} onClick={() => setTab(t.id)} role="tab" aria-selected={isActive}
+            <Button key={t.id} onClick={() => setTab(t.id)}
+              aria-current={isActive ? 'page' : undefined}
               variant="ghost"
               className={`flex items-center gap-2 pb-3 text-sm font-medium border-b-2 ${
                 isActive ? 'border-gold-500 text-blue-700' : 'border-transparent text-gray-500 hover:text-gray-700'

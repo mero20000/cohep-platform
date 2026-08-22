@@ -237,7 +237,7 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
         <div className="flex h-[80px] items-center gap-3 border-b border-gray-200 px-5">
           <Image src="/cohep-logo.png" alt="COHEP" width={64} height={64} className="h-16 w-16 rounded-lg object-contain" />
           <span className="text-lg font-bold tracking-tight text-gray-900">{t('Parent Portal', 'بوابة أولياء الأمور')}</span>
-          <Button onClick={() => setSidebarOpen(false)} variant="ghost" size="icon" className="lg:hidden ml-auto text-gray-400 hover:text-gray-600">
+          <Button onClick={() => setSidebarOpen(false)} variant="ghost" size="icon" aria-label={t('Close menu', 'إغلاق القائمة')} className="lg:hidden ml-auto text-gray-400 hover:text-gray-600">
             <X className="h-5 w-5" />
           </Button>
         </div>
@@ -261,7 +261,7 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
       <div className={`${isResizing ? '' : 'transition-all duration-200'}`}
         style={{ [lang === 'ar' ? 'paddingRight' : 'paddingLeft']: isDesktop ? sidebarWidth : 0 }}>
         <header className="sticky top-0 z-30 flex h-16 items-center gap-4 border-b border-gray-200 bg-white px-4 sm:px-6">
-          <Button onClick={() => setSidebarOpen(true)} variant="ghost" size="icon" className="lg:hidden text-gray-500 hover:text-gray-700">
+          <Button onClick={() => setSidebarOpen(true)} variant="ghost" size="icon" aria-label={t('Open menu', 'فتح القائمة')} className="lg:hidden text-gray-500 hover:text-gray-700">
             <Menu className="h-5 w-5" />
           </Button>
 
@@ -272,6 +272,8 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
             <Button onClick={() => { setShowNotiPanel(!showNotiPanel); setShowMenu(false) }}
               variant="ghost"
               size="icon"
+              aria-label={`${t('Notifications', 'الإشعارات')}${unreadCount > 0 ? ` (${unreadCount} ${t('unread', 'غير مقروء')})` : ''}`}
+              aria-expanded={showNotiPanel}
               className="relative">
               <Bell className="h-5 w-5" />
               {unreadCount > 0 && (
@@ -347,6 +349,8 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
           <div ref={userMenuRef} className="relative">
             <Button onClick={() => { setShowMenu(!showMenu); setShowNotiPanel(false) }}
               variant="ghost"
+              aria-label={t('Account menu', 'قائمة الحساب')}
+              aria-expanded={showMenu}
               className="flex items-center gap-2 px-2 py-1.5">
               <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-100 text-sm font-bold text-blue-700">
                 {initials}
