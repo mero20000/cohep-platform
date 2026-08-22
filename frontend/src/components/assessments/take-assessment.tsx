@@ -2,8 +2,10 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { http } from '@/lib/http-client'
+import { assetUrl } from '@/lib/asset-url'
 import { computeResult, formatCountdown, type TakeQuestion } from '../../app/dashboard/assessments/take-helpers'
-import { Loader2, AlertCircle, CheckCircle2, XCircle, Clock, ClipboardCheck } from 'lucide-react'
+import { Loader2, AlertCircle, CheckCircle2, XCircle, Clock, ClipboardCheck, Music, FileText, Presentation, StickyNote, Mic, Square, Trash2 } from 'lucide-react'
+import { AudioPlayer } from '@/components/audio-player'
 
 interface TakePayload {
   assessment: {
@@ -14,6 +16,10 @@ interface TakePayload {
     totalPoints: number
     passingScore: number
     durationMinutes: number | null
+    referenceRecordingUrl?: string | null
+    referenceRecordingName?: string | null
+    hazzat?: string | null
+    presentationUrl?: string | null
   }
   questions: TakeQuestion[]
 }
@@ -38,6 +44,59 @@ export default function TakeAssessment({ assessmentId, mode, accessKey, studentI
   const [secondsLeft, setSecondsLeft] = useState<number | null>(null)
   const submittedRef = useRef(false)
   const answersRef = useRef<AnswerMap>({})
+
+  // Pre-submission extras: notes + voice recording
+  const [notes, setNotes] = useState('')
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null)
+  const chunksRef = useRef<Blob[]>([])
+  const [recording, setRecording] = useState(false)
+  const [recordedUrl, setRecordedUrl] = useState<string | null>(null)
+  const [recordedBlob, setRecordedBlob] = useState<Blob | null>(null)
+  const [uploadingAudio, setUploadingAudio] = useState(false)
+
+  // Pick a MIME the device actually supports (iOS Safari: audio/mp4; others: webm/ogg)
+  const pickRecorderMime = (): string | undefined => {
+    if (typeof MediaRecorder === 'undefined') return undefined
+    const candidates = ['audio/mp4', 'audio/webm;codecs=opus', 'audio/webm', 'audio/ogg']
+    return candidates.find(c => { try { return MediaRecorder.isTypeSupported(c) } catch { return false } })
+  }
+
+  const startRecording = async () => {
+    if (typeof MediaRecorder === 'undefined' || !navigator.mediaDevices?.getUserMedia) {
+      setError(lang === 'ar' ? 'التسجيل الصوتي غير مدعوم على هذا الجهاز' : 'Voice recording is not supported on this device')
+      return
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      const mimeType = pickRecorderMime()
+      const mr = new MediaRecorder(stream, mimeType ? { mimeType } : undefined)
+      chunksRef.current = []
+      mr.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data) }
+      mr.onstop = () => {
+        const type = mr.mimeType || mimeType || 'audio/webm'
+        const blob = new Blob(chunksRef.current, { type })
+        setRecordedBlob(blob)
+        setRecordedUrl(URL.createObjectURL(blob))
+        stream.getTracks().forEach(t => t.stop())
+      }
+      mr.start()
+      mediaRecorderRef.current = mr
+      setRecording(true)
+    } catch {
+      setError(lang === 'ar' ? 'تعذر الوصول إلى المايكروفون' : 'Microphone access denied')
+    }
+  }
+
+  const stopRecording = () => {
+    mediaRecorderRef.current?.stop()
+    setRecording(false)
+  }
+
+  const discardRecording = () => {
+    if (recordedUrl) URL.revokeObjectURL(recordedUrl)
+    setRecordedUrl(null)
+    setRecordedBlob(null)
+  }
 
   const qp = mode === 'portal'
     ? { accessKey }
@@ -85,7 +144,34 @@ export default function TakeAssessment({ assessmentId, mode, accessKey, studentI
       const url = mode === 'portal'
         ? `/student-portal/${accessKey}/assessments/${assessmentId}/submit`
         : `/assessments/${assessmentId}/submit`
-      const body = { answers: answerList }
+
+      let fileUrl: string | undefined
+      let fileType: string | undefined
+      if (recordedBlob) {
+        setUploadingAudio(true)
+        try {
+          const ext = recordedBlob.type.includes('mp4') ? 'm4a' : recordedBlob.type.includes('ogg') ? 'ogg' : 'webm'
+          const fd = new FormData()
+          fd.append('file', recordedBlob, `assessment-recording.${ext}`)
+          const up = await http.upload<{ url: string }>(
+            `/student-portal/${accessKey}/recordings`,
+            fd,
+            mode === 'portal' ? undefined : (qp as any),
+          )
+          fileUrl = up.url
+          fileType = recordedBlob.type
+        } catch (e: any) {
+          if (!window.confirm(lang === 'ar' ? 'فشل رفع التسجيل الصوتي. التسليم بدونه؟' : 'Voice upload failed. Submit without it?')) {
+            submittedRef.current = false
+            setUploadingAudio(false)
+            setSubmitting(false)
+            return
+          }
+        }
+        setUploadingAudio(false)
+      }
+
+      const body = { answers: answerList, notes: notes.trim() || undefined, fileUrl, fileType }
       const res = await http.post(url, body, mode === 'portal' ? undefined : (qp as any))
       setSubmission(res)
     } catch (e: any) {
@@ -195,6 +281,91 @@ export default function TakeAssessment({ assessmentId, mode, accessKey, studentI
       </div>
 
       <div className="mt-6 space-y-4">
+        {/* Reference materials */}
+        {(payload.assessment.referenceRecordingUrl || payload.assessment.hazzat || payload.assessment.presentationUrl) && (
+          <div className="rounded-xl border border-gold-200 bg-gold-50/60 p-4">
+            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-gray-400">
+              <Music className="h-4 w-4" /> {lang === 'ar' ? 'مراجع للمراجعة قبل التسليم' : 'Reference materials'}
+            </div>
+            <div className="mt-3 space-y-3">
+              {payload.assessment.referenceRecordingUrl && (
+                <div>
+                  <p className="mb-1 text-xs font-medium text-gray-600">
+                    {payload.assessment.referenceRecordingName || (lang === 'ar' ? 'التسجيل المرجعي' : 'Reference recording')}
+                  </p>
+                  <AudioPlayer src={assetUrl(payload.assessment.referenceRecordingUrl)} compact />
+                </div>
+              )}
+              {(payload.assessment.hazzat || payload.assessment.presentationUrl) && (
+                <div className="flex flex-wrap gap-2">
+                  {payload.assessment.hazzat && (
+                    <a href={assetUrl(payload.assessment.hazzat)} target="_blank" rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50">
+                      <FileText className="h-4 w-4" /> {lang === 'ar' ? 'الحزّات' : 'Hazzat'}
+                    </a>
+                  )}
+                  {payload.assessment.presentationUrl && (
+                    <a href={assetUrl(payload.assessment.presentationUrl)} target="_blank" rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50">
+                      <Presentation className="h-4 w-4" /> {lang === 'ar' ? 'العرض / المادة' : 'Material / Presentation'}
+                    </a>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Voice recording */}
+        <div className="rounded-xl border border-gray-200 bg-white p-4">
+          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-gray-400">
+            <Mic className="h-4 w-4" /> {lang === 'ar' ? 'تسجيل صوتي (اختياري)' : 'Voice recording (optional)'}
+          </div>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            {!recording && !recordedBlob && (
+              <button type="button" onClick={startRecording}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-red-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-600">
+                <Mic className="h-4 w-4" /> {lang === 'ar' ? 'بدء التسجيل' : 'Start recording'}
+              </button>
+            )}
+            {recording && (
+              <button type="button" onClick={stopRecording}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-gray-900 px-3 py-1.5 text-xs font-semibold text-white animate-pulse">
+                <Square className="h-4 w-4" /> {lang === 'ar' ? 'إيقاف' : 'Stop'}
+              </button>
+            )}
+            {recordedBlob && !recording && (
+              <>
+                <audio controls src={recordedUrl!} className="h-9 max-w-full flex-1" />
+                <button type="button" onClick={discardRecording}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 px-2.5 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50">
+                  <Trash2 className="h-4 w-4" /> {lang === 'ar' ? 'إعادة' : 'Re-record'}
+                </button>
+              </>
+            )}
+          </div>
+          {uploadingAudio && (
+            <p className="mt-2 inline-flex items-center gap-1.5 text-xs text-gray-500">
+              <Loader2 className="h-3.5 w-3.5 animate-spin" /> {lang === 'ar' ? 'جارٍ رفع التسجيل…' : 'Uploading recording…'}
+            </p>
+          )}
+        </div>
+
+        {/* Notes */}
+        <div className="rounded-xl border border-gray-200 bg-white p-4">
+          <label htmlFor="assessment-notes" className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-gray-400">
+            <StickyNote className="h-4 w-4" /> {lang === 'ar' ? 'ملاحظات (اختياري)' : 'Notes (optional)'}
+          </label>
+          <textarea
+            id="assessment-notes"
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            rows={3}
+            placeholder={lang === 'ar' ? 'أي ملاحظات تريد إرفاقها بتسليمك؟' : 'Anything you want to attach with your submission?'}
+            className="mt-2 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gold-500 focus:outline-none"
+          />
+        </div>
+
         {payload.questions.map((q, i) => (
           <div key={q.id} className="rounded-xl border border-gray-200 bg-white p-4">
             <p className="text-sm font-medium text-gray-900">{i + 1}. {q.text} <span className="text-xs font-normal text-gray-400">({q.points} pts)</span></p>
