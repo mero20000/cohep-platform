@@ -163,7 +163,7 @@ export class AttendanceService {
     let passedStudentIds: string[] = [];
     if (subjectItem) {
       const passes = await this.prisma.studentSubjectPass.findMany({
-        where: { subjectItemId: subjectItem.id, studentId: { in: session.attendanceRecords.map(r => r.student.id) } },
+        where: { subjectItemId: subjectItem.id, student: { deletedAt: null } },
         select: { studentId: true },
       });
       passedStudentIds = passes.map(x => x.studentId);
