@@ -216,7 +216,7 @@ export class ReportsService {
     const MINISTRY_ROLES = ['servant', 'group_leader', 'level_leader', 'assistant_servant', 'curriculum_manager'];
 
     const roleRecords = await this.prisma.userRole.findMany({
-      where: { user: { schoolId }, role: { name: { in: MINISTRY_ROLES } } },
+      where: { user: { schoolId, deletedAt: null, isActive: true }, role: { name: { in: MINISTRY_ROLES } } },
       include: {
         user: { select: { id: true, firstName: true, lastName: true, firstNameAr: true, lastNameAr: true, createdAt: true } },
         role: { select: { name: true, displayName: true } },

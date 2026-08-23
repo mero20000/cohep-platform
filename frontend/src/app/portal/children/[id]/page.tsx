@@ -373,7 +373,7 @@ export default function ChildDetailPage() {
         ])
         if (stuRes) {
           const s = stuRes
-          setStudent({ firstName: s.firstName, lastName: s.lastName, firstNameAr: s.firstNameAr, lastNameAr: s.lastNameAr, photoUrl: s.photoUrl, studentCode: s.studentCode, levelNumber: s.level?.number, levelName: s.level?.name, groupName: s.group?.name })
+          setStudent({ firstName: s.firstName, lastName: s.lastName, firstNameAr: s.firstNameAr, lastNameAr: s.lastNameAr, photoUrl: s.photoUrl, studentCode: s.studentCode, levelNumber: s.levelNumber ?? s.level?.number, levelName: s.levelName ?? s.level?.name, groupName: s.groupName ?? s.group?.name })
           if (s.rank || s.totalPoints || s.badges) {
             setGamification({ rank: s.rank, totalStudents: s.totalStudents, totalPoints: s.totalPoints, badges: s.badges, xpToNextLevel: s.xpToNextLevel })
           }
@@ -407,8 +407,8 @@ export default function ChildDetailPage() {
 
       {student && (
         <DashboardHero
-          bg="var(--hymn-indigo)"
-          orbTint="bg-indigo-500/10"
+          bg="var(--hymn-navy)"
+          orbTint="bg-blue-500/10"
           avatar={
             student.photoUrl ? (
               <Image src={student.photoUrl.startsWith('http') ? student.photoUrl : API_ORIGIN + student.photoUrl} alt="" width={64} height={64} className="h-16 w-16 object-cover" />
