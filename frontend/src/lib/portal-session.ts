@@ -1,17 +1,14 @@
 'use client'
 
+import { http } from '@/lib/http-client'
+
 /**
  * Ensure a student-portal session exists for the given access key.
  * Exchanges the long-lived access key for a short-lived JWT at
- * /student-portal/login and caches it in sessionStorage. No-op when a token
- * is already cached (validity is enforced by the API; on 401 the caller can
- * clear it and retry once).
+ * /student-portal/login and caches it in sessionStorage.
  */
 export async function ensurePortalSession(code: string): Promise<void> {
   if (typeof window === 'undefined' || !code) return
-  let token: string | null = null
-  try { token = sessionStorage.getItem('student_portal_token') } catch {}
-  if (token) return
   try {
     const base = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'
     const res = await fetch(`${base}/student-portal/login`, {
@@ -27,6 +24,27 @@ export async function ensurePortalSession(code: string): Promise<void> {
   } catch {}
 }
 
+export function hasPortalSession(): boolean {
+  try { return !!sessionStorage.getItem('student_portal_token') } catch { return false }
+}
+
 export function clearPortalSession(): void {
   try { sessionStorage.removeItem('student_portal_token') } catch {}
+}
+
+/**
+ * Authenticated portal GET: on 401 (missing/expired session) clears the cached
+ * token, re-exchanges the access key, and retries exactly once.
+ */
+export async function portalGet<T>(code: string, path: string): Promise<T> {
+  if (!hasPortalSession()) await ensurePortalSession(code)
+  try {
+    return await http.get<T>(path)
+  } catch (e: any) {
+    const msg = String(e?.message || '')
+    if (!/unauthorized|invalid or expired portal session|missing portal session/i.test(msg)) throw e
+    clearPortalSession()
+    await ensurePortalSession(code)
+    return http.get<T>(path)
+  }
 }

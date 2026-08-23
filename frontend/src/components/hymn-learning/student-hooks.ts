@@ -1,7 +1,7 @@
 'use client'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { http } from '@/lib/http-client'
-import { ensurePortalSession } from '@/lib/portal-session'
+import { portalGet, ensurePortalSession } from '@/lib/portal-session'
 import type { HymnMapItem, DueReviewItem, ThisSundayResponse, LearningStats } from './hooks'
 
 // ─── Student-code-scoped query keys ────────────────────────────────────────
@@ -20,7 +20,7 @@ export const studentHymnKeys = {
 export function useStudentHymnMap(code: string) {
   return useQuery({
     queryKey: studentHymnKeys.map(code),
-    queryFn: async () => { await ensurePortalSession(code); return http.get<HymnMapItem[]>(`/student-portal/${code}/hymn-map`) },
+    queryFn: () => portalGet<HymnMapItem[]>(code, `/student-portal/${code}/hymn-map`),
     enabled: !!code,
     staleTime: 30_000,
   })
@@ -29,7 +29,7 @@ export function useStudentHymnMap(code: string) {
 export function useStudentThisSunday(code: string) {
   return useQuery({
     queryKey: studentHymnKeys.thisSunday(code),
-    queryFn: async () => { await ensurePortalSession(code); return http.get<ThisSundayResponse>(`/student-portal/${code}/this-sunday`) },
+    queryFn: () => portalGet<ThisSundayResponse>(code, `/student-portal/${code}/this-sunday`),
     enabled: !!code,
     staleTime: 3_600_000,
   })
@@ -38,7 +38,7 @@ export function useStudentThisSunday(code: string) {
 export function useStudentDueReview(code: string) {
   return useQuery({
     queryKey: studentHymnKeys.dueReview(code),
-    queryFn: async () => { await ensurePortalSession(code); return http.get<DueReviewItem[]>(`/student-portal/${code}/due-review`) },
+    queryFn: () => portalGet<DueReviewItem[]>(code, `/student-portal/${code}/due-review`),
     enabled: !!code,
     staleTime: 30_000,
   })
@@ -47,7 +47,7 @@ export function useStudentDueReview(code: string) {
 export function useStudentStats(code: string) {
   return useQuery({
     queryKey: studentHymnKeys.stats(code),
-    queryFn: async () => { await ensurePortalSession(code); return http.get<LearningStats>(`/student-portal/${code}/stats`) },
+    queryFn: () => portalGet<LearningStats>(code, `/student-portal/${code}/stats`),
     enabled: !!code,
     staleTime: 30_000,
   })

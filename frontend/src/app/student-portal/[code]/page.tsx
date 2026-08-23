@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { useParams } from 'next/navigation'
 import Image from 'next/image'
 import { http } from '@/lib/http-client'
-import { ensurePortalSession } from '@/lib/portal-session'
+import { ensurePortalSession, clearPortalSession, portalGet } from '@/lib/portal-session'
 import { assetUrl } from '@/lib/asset-url'
 
 const API_ORIGIN = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api').replace('/api', '')
@@ -79,17 +79,12 @@ export default function StudentDashboard() {
     const load = async () => {
       setLoading(true)
       try {
-        const data = await http.get<PortalData>(`/student-portal/${encodeURIComponent(code)}`)
+        const data = await portalGet<PortalData>(code, `/student-portal/${encodeURIComponent(code)}`)
         if (!cancelled) setData(data)
       } catch (e: any) {
-        // No valid session yet: exchange the access key for one, then retry.
-        try {
-          await ensurePortalSession(code)
-          const data = await http.get<PortalData>(`/student-portal/${encodeURIComponent(code)}`)
-          if (!cancelled) setData(data)
-        } catch (e2: any) {
-          if (!cancelled) setError(e2?.message || 'Student not found')
-        }
+        // No valid session at all (bad/expired key): send to the login page.
+        try { sessionStorage.removeItem('student_portal_token') } catch {}
+        if (!cancelled) setError(e?.message || 'Student not found')
       } finally {
         if (!cancelled) setLoading(false)
       }
