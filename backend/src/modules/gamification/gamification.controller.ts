@@ -79,6 +79,7 @@ export class GamificationController {
 
   // ── Students ────────────────────────────────────────────────────────────
   @Get('students/:id/stats')
+  @Roles(...STAFF_ROLES, 'parent')
   @ApiOperation({ summary: 'Get student gamification stats' })
   async getStudentStats(@Param('id') id: string) {
     return this.gamificationService.getStudentStats(id);
@@ -91,6 +92,7 @@ export class GamificationController {
   }
 
   @Get('students/:id/transactions')
+  @Roles(...STAFF_ROLES, 'parent')
   @ApiOperation({ summary: 'Get student XP transactions' })
   async getStudentTransactions(
     @Param('id') id: string,
@@ -103,6 +105,7 @@ export class GamificationController {
   }
 
   @Get('students/:id/badges')
+  @Roles(...STAFF_ROLES, 'parent')
   @ApiOperation({ summary: 'Get student badges' })
   async getStudentBadges(@Param('id') id: string) {
     return this.gamificationService.getStudentBadges(id);

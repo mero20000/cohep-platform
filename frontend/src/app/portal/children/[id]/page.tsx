@@ -10,7 +10,7 @@ import DashboardHero from '../../../dashboard/hero'
 import {
   Calendar, ClipboardCheck, TrendingUp, Loader2, ArrowLeft, User,
   CheckCircle2, Clock, XCircle, AlertCircle, Award, FileText,
-  Star, Crown, Cross, Music, CheckCircle, Church, Plus, Sprout
+  Star, Crown, Cross, Music, CheckCircle, Church, Plus, Sprout, X
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { TermReportModal } from '@/components/term-report-modal'
@@ -330,6 +330,25 @@ export default function ChildDetailPage() {
   }, [lang])
 
   const [tab, setTab] = useState<TabType>('attendance')
+  const [drill, setDrill] = useState<null | 'xp' | 'badges'>(null)
+  const [drillLoading, setDrillLoading] = useState(false)
+  const [xpItems, setXpItems] = useState<Array<{ id: string; amount: number; type: string; description?: string; createdAt: string }>>([])
+  const [badgeItems, setBadgeItems] = useState<Array<{ id: string; awardedAt: string; badge: { id: string; name: string; nameAr?: string; description?: string; iconUrl?: string } }>>([])
+
+  const openDrill = async (kind: 'xp' | 'badges') => {
+    setDrill(kind)
+    setDrillLoading(true)
+    try {
+      if (kind === 'xp') {
+        const res = await http.get<{ items: typeof xpItems }>(`/gamification/students/${id}/transactions`)
+        setXpItems(res.items || [])
+      } else {
+        const res = await http.get<typeof badgeItems>(`/gamification/students/${id}/badges`)
+        setBadgeItems(res || [])
+      }
+    } catch { /* keep panel empty on failure */ }
+    setDrillLoading(false)
+  }
   const [student, setStudent] = useState<{ firstName: string; lastName: string; firstNameAr?: string; lastNameAr?: string; photoUrl?: string; studentCode: string; levelNumber: number; levelName: string; groupName: string } | null>(null)
   const [gamification, setGamification] = useState<GamificationData | null>(null)
   const [attendance, setAttendance] = useState<AttendanceRecord[]>([])
@@ -437,7 +456,9 @@ export default function ChildDetailPage() {
               </div>
             )}
             {gamification.totalPoints != null && (
-              <div className="rounded-lg bg-white/70 border border-gold-100 p-3 text-center">
+              <button type="button" onClick={() => openDrill('xp')}
+                className="rounded-lg bg-white/70 border border-gold-100 p-3 text-center transition-colors hover:bg-white"
+                title={t('View XP details', '\u0639\u0631\u0636 \u062a\u0641\u0627\u0635\u064a\u0644 \u0627\u0644\u0646\u0642\u0627\u0637')}>
                 <div className="text-2xl font-bold text-amber-600">{gamification.totalPoints}</div>
                 <div className="text-xs text-gray-500 mt-0.5">XP</div>
                 {gamification.xpToNextLevel != null && (
@@ -445,16 +466,74 @@ export default function ChildDetailPage() {
                     <div className="h-full rounded-full bg-gradient-to-r from-gold-400 to-blue-500" style={{ width: `${Math.min(100, ((gamification.totalPoints || 0) % 1000) / 10)}%` }} />
                   </div>
                 )}
-              </div>
+              </button>
             )}
             {gamification.badges != null && (
-              <div className="rounded-lg bg-white/70 border border-gold-100 p-3 text-center">
+              <button type="button" onClick={() => openDrill('badges')}
+                className="rounded-lg bg-white/70 border border-gold-100 p-3 text-center transition-colors hover:bg-white"
+                title={t('View badges', '\u0639\u0631\u0636 \u0627\u0644\u0634\u0627\u0631\u0627\u062a')}>
                 <div className="flex items-center justify-center gap-1 text-2xl font-bold text-purple-700">
                   <Crown className="h-5 w-5" /> {gamification.badges}
                 </div>
                 <div className="text-xs text-gray-500 mt-0.5">{t('Badges', 'الشارات')}</div>
-              </div>
+              </button>
             )}
+          </div>
+        </div>
+      )}
+
+      {drill && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setDrill(null)}>
+          <div role="dialog" aria-modal="true" className="max-h-[80vh] w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-xl" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between border-b border-gray-100 px-5 py-3">
+              <h3 className="font-semibold text-gray-900">
+                {drill === 'xp' ? t('XP History', 'سجل النقاط') : t('Earned Badges', 'الشارات المكتسبة')}
+              </h3>
+              <Button variant="ghost" size="sm" onClick={() => setDrill(null)} aria-label={t('Close', 'إغلاق')}><X className="h-4 w-4" /></Button>
+            </div>
+            <div className="max-h-[60vh] divide-y divide-gray-50 overflow-y-auto">
+              {drillLoading && (
+                <div className="flex items-center justify-center gap-2 py-10 text-sm text-gray-500">
+                  <Loader2 className="h-4 w-4 animate-spin" /> {t('Loading…', 'جاري التحميل…')}
+                </div>
+              )}
+              {!drillLoading && drill === 'xp' && xpItems.length === 0 && (
+                <p className="py-10 text-center text-sm text-gray-400">{t('No XP activity yet.', 'لا يوجد نشاط نقاط بعد.')}</p>
+              )}
+              {!drillLoading && drill === 'xp' && xpItems.map(x => (
+                <div key={x.id} className="flex items-center justify-between gap-3 px-5 py-3">
+                  <div className="min-w-0">
+                    <div className="truncate text-sm font-medium text-gray-900">{x.description || x.type}</div>
+                    <div className="text-xs text-gray-500">{new Date(x.createdAt).toLocaleDateString(lang === 'ar' ? 'ar' : 'en-GB', { day: 'numeric', month: 'short' })}</div>
+                  </div>
+                  <span className={`shrink-0 text-sm font-bold ${x.amount >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    {x.amount >= 0 ? '+' : ''}{x.amount}
+                  </span>
+                </div>
+              ))}
+              {!drillLoading && drill === 'badges' && badgeItems.length === 0 && (
+                <p className="py-10 text-center text-sm text-gray-400">{t('No badges earned yet.', 'لم يتم كسب شارات بعد.')}</p>
+              )}
+              {!drillLoading && drill === 'badges' && badgeItems.map(b => (
+                <div key={b.id} className="flex items-center gap-3 px-5 py-3">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-purple-100 text-lg">
+                    {b.badge.iconUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={b.badge.iconUrl} alt="" className="h-full w-full object-cover" />
+                    ) : (
+                      <Crown className="h-5 w-5 text-purple-600" />
+                    )}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-sm font-medium text-gray-900">
+                      {lang === 'ar' && b.badge.nameAr ? b.badge.nameAr : b.badge.name}
+                    </div>
+                    {b.badge.description && <div className="truncate text-xs text-gray-500">{b.badge.description}</div>}
+                  </div>
+                  <span className="shrink-0 text-xs text-gray-500">{new Date(b.awardedAt).toLocaleDateString(lang === 'ar' ? 'ar' : 'en-GB', { day: 'numeric', month: 'short' })}</span>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       )}
