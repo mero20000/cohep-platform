@@ -298,14 +298,22 @@ export function AttendanceClient() {
     if (!selectedSession) return
     setPassingId(studentId)
     try {
-      const res = await http.post<{ passed: boolean; whatsappSent: boolean }>(
+      const res = await http.post<{ passed: boolean; whatsappSent: boolean; whatsappLink?: string }>(
         `/attendance/sessions/${selectedSession.id}/subject-item/pass`,
         { studentId },
       )
       setPassedIds(prev => new Set(prev).add(studentId))
+      if (res.whatsappLink) {
+        // No automated provider configured: open WhatsApp with the message pre-written.
+        window.open(res.whatsappLink, '_blank', 'noopener')
+      }
       toast('success',
         lang === 'ar' ? 'تم تسجيل اجتياز الطالب' : 'Student marked as passed',
-        res.whatsappSent ? (lang === 'ar' ? 'تم إشعار ولي الأمر عبر واتساب' : 'Parent notified via WhatsApp') : undefined)
+        res.whatsappSent
+          ? (lang === 'ar' ? 'تم إشعار ولي الأمر عبر واتساب' : 'Parent notified via WhatsApp')
+          : res.whatsappLink
+            ? (lang === 'ar' ? 'افتح واتساب لإرسال الإشعار لولي الأمر' : 'WhatsApp opened — press send to notify the parent')
+            : undefined)
       track('subject_item.passed', 'action', { sessionId: selectedSession.id, studentId })
     } catch (e: any) {
       toast('error', lang === 'ar' ? 'فشل تسجيل الاجتياز' : 'Failed to mark passed', e?.message || '')

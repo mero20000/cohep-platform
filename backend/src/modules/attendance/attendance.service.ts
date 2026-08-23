@@ -332,18 +332,24 @@ export class AttendanceService {
       update: { passedAt: new Date(), sessionId, passedBy },
     });
 
-    // Parent awareness via WhatsApp (no-op when not configured / no phone)
+    // Parent awareness via WhatsApp (Twilio/Meta when configured; otherwise a
+    // wa.me deep link so the servant can send the pre-written message manually)
     const meta = (student.metadata as any) || {};
     const phone: string | undefined = meta.parentPhone || meta.parentWhatsApp;
     let whatsappSent = false;
+    let whatsappLink: string | undefined;
+    const name = student.firstNameAr || student.firstName;
+    const message = `${name} \u0642\u062f \u0623\u062c\u0627\u0632 "${subjectItem.name}" \u0628\u0646\u062c\u0627\u062d \u2705\n${student.firstName} has passed "${subjectItem.name}" \u2705`;
     if (phone) {
-      const name = student.firstNameAr || student.firstName;
-      const msg = `${name} \u0642\u062f \u0623\u062c\u0627\u0632 "${subjectItem.name}" \u0628\u0646\u062c\u0627\u062d \u2705\n${student.firstName} has passed "${subjectItem.name}" \u2705`;
-      const res = await this.whatsapp.sendText(phone, msg);
+      const res = await this.whatsapp.sendText(phone, message);
       whatsappSent = res.sent;
+      if (!whatsappSent) {
+        const digits = phone.replace(/[^\\d]/g, '').replace(/^\\+/, '');
+        whatsappLink = `https://wa.me/${digits}?text=${encodeURIComponent(message)}`;
+      }
     }
 
-    return { passed: true, studentId, subjectItemId: subjectItem.id, whatsappSent };
+    return { passed: true, studentId, subjectItemId: subjectItem.id, whatsappSent, whatsappLink };
   }
 
   async createSession(dto: CreateAttendanceSessionDto) {
