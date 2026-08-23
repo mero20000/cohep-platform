@@ -34,4 +34,23 @@ services:
         value: 'false'
       - key: FRONTEND_URL
         value: https://cohep-platform.vercel.app
+      # Persistent audio storage (R2). When set, recordings upload to R2 and are
+      # served from the CDN; when unset they fall back to the ephemeral local
+      # disk and are LOST on every deploy. Set these in the Render dashboard.
+      - key: CLOUDFLARE_R2_ACCOUNT_ID
+        sync: false
+      - key: CLOUDFLARE_R2_BUCKET
+        sync: false
+      - key: CLOUDFLARE_R2_ACCESS_KEY_ID
+        sync: false
+      - key: CLOUDFLARE_R2_SECRET_ACCESS_KEY
+        sync: false
+      - key: CLOUDFLARE_R2_PUBLIC_URL
+        sync: false
+      # WhatsApp parent-awareness (Meta Cloud API). When unset, notifications
+      # degrade to in-app only.
+      - key: WHATSAPP_TOKEN
+        sync: false
+      - key: WHATSAPP_PHONE_NUMBER_ID
+        sync: false
       # Render injects PORT automatically; main.ts listens on process.env.PORT.

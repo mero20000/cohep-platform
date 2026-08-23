@@ -409,6 +409,13 @@ export class ParentsService {
         if (ms > 0 && ts / ms >= 0.5) passedAssessmentIds.add(sub.assessmentId);
       }
 
+      // Servant-awarded manual passes: subject IDs the student passed outright
+      const manualPasses = await this.prisma.studentSubjectPass.findMany({
+        where: { studentId },
+        select: { subjectItem: { select: { subjectId: true } } },
+      });
+      const manuallyPassedSubjectIds = new Set(manualPasses.map(x => x.subjectItem.subjectId));
+
       // De-duplicate subjects
       const seenSubjects = new Set<string>();
       for (const alloc of allocations) {
@@ -420,7 +427,9 @@ export class ParentsService {
           where: { subjectId: alloc.subjectId },
           select: { id: true },
         });
-        const isPassed = subjectAssessments.some(a => passedAssessmentIds.has(a.id));
+        const isPassed =
+          subjectAssessments.some(a => passedAssessmentIds.has(a.id)) ||
+          manuallyPassedSubjectIds.has(alloc.subjectId);
 
         journeyItems.push({
           id: alloc.subject.id,

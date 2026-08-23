@@ -7,6 +7,7 @@ import { NotificationsService } from '../notifications/notifications.service';
 import { MailService } from '../mail/mail.service';
 import { AnalyticsService } from '../analytics/analytics.service';
 import { AssessmentsService } from '../assessments/assessments.service';
+import { WhatsAppService } from '../../common/whatsapp/whatsapp.service';
 import { CreateAttendanceSessionDto } from './dto/create-attendance-session.dto';
 import { MarkAttendanceDto } from './dto/mark-attendance.dto';
 
@@ -22,6 +23,7 @@ export class AttendanceService {
     private readonly mail: MailService,
     private readonly analytics: AnalyticsService,
     private readonly assessments: AssessmentsService,
+    private readonly whatsapp: WhatsAppService,
   ) {}
 
   /**
@@ -158,7 +160,15 @@ export class AttendanceService {
     // Filter out records belonging to soft-deleted students
     session.attendanceRecords = session.attendanceRecords.filter(r => r.student && !r.student.deletedAt);
     const subjectItem = await this.resolveSessionSubjectItem(session);
-    return { ...session, subjectItem };
+    let passedStudentIds: string[] = [];
+    if (subjectItem) {
+      const passes = await this.prisma.studentSubjectPass.findMany({
+        where: { subjectItemId: subjectItem.id, studentId: { in: session.attendanceRecords.map(r => r.student.id) } },
+        select: { studentId: true },
+      });
+      passedStudentIds = passes.map(x => x.studentId);
+    }
+    return { ...session, subjectItem, passedStudentIds };
   }
 
   /**
@@ -294,6 +304,46 @@ export class AttendanceService {
     }
 
     return { subjectItemId: effectiveSubjectItemId, status, assessment, sessionsUsed, plannedSessions };
+  }
+
+
+  /**
+   * Servant manually marks a student as having PASSED the session's subject
+   * item. Reflected automatically to the parent portal journey (and any view
+   * reading StudentSubjectPass). Sends a WhatsApp awareness message to the
+   * parent when the Cloud API is configured and a parent phone is known.
+   */
+  async markSubjectPassed(sessionId: string, studentId: string, passedBy?: string) {
+    const session = await this.prisma.attendanceSession.findUnique({ where: { id: sessionId } });
+    if (!session) throw new NotFoundException('Attendance session not found');
+
+    const subjectItem = await this.resolveSessionSubjectItem(session);
+    if (!subjectItem) throw new BadRequestException('No subject item is linked to this session');
+
+    const student = await this.prisma.student.findFirst({
+      where: { id: studentId, deletedAt: null },
+      select: { id: true, firstName: true, firstNameAr: true, metadata: true },
+    });
+    if (!student) throw new NotFoundException('Student not found');
+
+    await this.prisma.studentSubjectPass.upsert({
+      where: { studentId_subjectItemId: { studentId, subjectItemId: subjectItem.id } },
+      create: { studentId, subjectItemId: subjectItem.id, sessionId, passedBy },
+      update: { passedAt: new Date(), sessionId, passedBy },
+    });
+
+    // Parent awareness via WhatsApp (no-op when not configured / no phone)
+    const meta = (student.metadata as any) || {};
+    const phone: string | undefined = meta.parentPhone || meta.parentWhatsApp;
+    let whatsappSent = false;
+    if (phone) {
+      const name = student.firstNameAr || student.firstName;
+      const msg = `${name} \u0642\u062f \u0623\u062c\u0627\u0632 "${subjectItem.name}" \u0628\u0646\u062c\u0627\u062d \u2705\n${student.firstName} has passed "${subjectItem.name}" \u2705`;
+      const res = await this.whatsapp.sendText(phone, msg);
+      whatsappSent = res.sent;
+    }
+
+    return { passed: true, studentId, subjectItemId: subjectItem.id, whatsappSent };
   }
 
   async createSession(dto: CreateAttendanceSessionDto) {

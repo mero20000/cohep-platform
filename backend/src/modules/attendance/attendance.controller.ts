@@ -93,6 +93,16 @@ export class AttendanceController {
     return this.attendanceService.updateSession(id, dto);
   }
 
+  @Post('sessions/:id/subject-item/pass')
+  @ApiOperation({ summary: 'Servant marks a student as PASSED for this session\'s subject item (reflects to parent portal, optional WhatsApp)' })
+  async markSubjectPassed(
+    @Param('id') id: string,
+    @Body() body: { studentId: string },
+    @Req() req: any,
+  ) {
+    return this.attendanceService.markSubjectPassed(id, body.studentId, req.user?.id);
+  }
+
   @Post('sessions/:id/subject-item')
   @ApiOperation({ summary: 'Mark the delivered subject item in_progress/completed (creates a draft assessment + reports sessions used on completion)' })
   async markSubjectItem(

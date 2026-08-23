@@ -9,6 +9,7 @@ import { NotificationsService } from '../notifications/notifications.service';
 import { MailService } from '../mail/mail.service';
 import { AnalyticsService } from '../analytics/analytics.service';
 import { AssessmentsService } from '../assessments/assessments.service';
+import { WhatsAppService } from '../../common/whatsapp/whatsapp.service';
 
 describe('AttendanceService', () => {
   let service: AttendanceService;
@@ -71,6 +72,7 @@ describe('AttendanceService', () => {
         { provide: MailService, useValue: { sendAttendanceAlert: jest.fn() } },
         { provide: AnalyticsService, useValue: { record: jest.fn() } },
         { provide: AssessmentsService, useValue: assessmentsMock },
+        { provide: WhatsAppService, useValue: { sendText: jest.fn().mockResolvedValue({ sent: false }) } },
       ],
     }).compile();
 

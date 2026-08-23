@@ -39,6 +39,7 @@ interface SessionDetail extends Session {
     student: { id: string; firstName: string; lastName: string; studentCode: string; photoUrl?: string | null };
   }>;
   subjectItem?: SubjectItemInfo | null;
+  passedStudentIds?: string[];
 }
 interface Level { id: string; name: string; number: number; status?: string }
 interface Group { id: string; name: string; levelId?: string; status?: string }
@@ -198,6 +199,7 @@ export function AttendanceClient() {
     try {
       const data = await http.get<SessionDetail>(`/attendance/sessions/${id}`)
       setSelectedSession(data)
+      setPassedIds(new Set(data.passedStudentIds || []))
       if (data.subjectItem) {
         setSubjectItemInfo({ ...data.subjectItem })
       } else if (arrivalSubjectItemId) {
@@ -287,6 +289,28 @@ export function AttendanceClient() {
     } catch (e: any) {
       toast('error', lang === 'ar' ? 'فشل تحديث عنصر المنهج' : 'Failed to update subject item', e?.message || '')
     }
+  }
+
+  const [passedIds, setPassedIds] = useState<Set<string>>(new Set())
+  const [passingId, setPassingId] = useState<string | null>(null)
+
+  const handleMarkPassed = async (studentId: string) => {
+    if (!selectedSession) return
+    setPassingId(studentId)
+    try {
+      const res = await http.post<{ passed: boolean; whatsappSent: boolean }>(
+        `/attendance/sessions/${selectedSession.id}/subject-item/pass`,
+        { studentId },
+      )
+      setPassedIds(prev => new Set(prev).add(studentId))
+      toast('success',
+        lang === 'ar' ? 'تم تسجيل اجتياز الطالب' : 'Student marked as passed',
+        res.whatsappSent ? (lang === 'ar' ? 'تم إشعار ولي الأمر عبر واتساب' : 'Parent notified via WhatsApp') : undefined)
+      track('subject_item.passed', 'action', { sessionId: selectedSession.id, studentId })
+    } catch (e: any) {
+      toast('error', lang === 'ar' ? 'فشل تسجيل الاجتياز' : 'Failed to mark passed', e?.message || '')
+    }
+    setPassingId(null)
   }
 
   const handleChangeSessionGroup = async (groupId: string) => {
@@ -784,6 +808,23 @@ export function AttendanceClient() {
                             )
                           })}
                         </div>
+                        {subjectItemInfo?.id && (
+                          <button type="button" onClick={() => handleMarkPassed(record.student.id)}
+                            disabled={passingId === record.student.id || passedIds.has(record.student.id)}
+                            title={lang === 'ar' ? 'تسجيل اجتياز هذا العنصر للطالب' : 'Mark this student as passed'}
+                            className={`inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-medium transition-colors ${
+                              passedIds.has(record.student.id)
+                                ? 'bg-green-100 text-green-700'
+                                : 'border border-gray-200 text-gray-600 hover:bg-green-50 hover:text-green-700'
+                            }`}>
+                            {passingId === record.student.id ? (
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            ) : (
+                              <CheckCircle2 className="h-3.5 w-3.5" />
+                            )}
+                            {passedIds.has(record.student.id) ? (lang === 'ar' ? 'اجتاز' : 'Passed') : (lang === 'ar' ? 'اجتياز' : 'Pass')}
+                          </button>
+                        )}
                       </div>
                       {/* Row 2: Behavior / Participation / Liturgy */}
                       <div className="flex flex-wrap items-center gap-4 mt-1.5">

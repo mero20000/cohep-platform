@@ -340,6 +340,7 @@ model Student {
   certificates          Certificate[]
   xpTransactions        XPTransaction[]
   familyPractices       FamilyPractice[]
+  subjectPasses         StudentSubjectPass[]
   familyLiturgies       FamilyLiturgy[]
   hymns                 HymnPracticeSession[]
 
@@ -466,6 +467,22 @@ model Group {
   @@map("groups")
 }
 
+model StudentSubjectPass {
+  id            String   @id @default(uuid())
+  studentId     String   @map("student_id")
+  subjectItemId String   @map("subject_item_id")
+  sessionId     String?  @map("session_id")
+  passedAt      DateTime @default(now()) @map("passed_at")
+  passedBy      String?  @map("passed_by")
+
+  student     Student     @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  subjectItem SubjectItem @relation(fields: [subjectItemId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, subjectItemId])
+  @@index([subjectItemId])
+  @@map("student_subject_passes")
+}
+
 model SchoolGrade {
   id         String    @id @default(uuid())
   schoolId   String    @map("school_id")
@@ -545,6 +562,7 @@ model SubjectItem {
   subject Subject           @relation(fields: [subjectId], references: [id])
   lessons Lesson[]
   levels  SubjectItemLevel[]
+  studentPasses StudentSubjectPass[]
 
   @@index([subjectId])
   @@map("subject_items")
