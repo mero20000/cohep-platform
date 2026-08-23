@@ -335,7 +335,7 @@ export class AttendanceService {
     // Parent awareness via WhatsApp (Twilio/Meta when configured; otherwise a
     // wa.me deep link so the servant can send the pre-written message manually)
     const meta = (student.metadata as any) || {};
-    const phone: string | undefined = meta.parentPhone || meta.parentWhatsApp;
+    const phone: string | undefined = meta.parentPhone || meta.parentWhatsApp || meta.phone;
     let whatsappSent = false;
     let whatsappLink: string | undefined;
     const name = student.firstNameAr || student.firstName;
