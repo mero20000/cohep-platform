@@ -37,8 +37,10 @@ export class StudentPortalAuthGuard implements CanActivate {
         secret: process.env.JWT_SECRET,
       });
       // Only portal-session tokens qualify: they carry the portal code, and it
-      // must match the student whose code appears in the route.
-      if (!payload.code || !request.params?.code || payload.code !== request.params.code) {
+      // must match the code/portalAccessKey param on the route (the main data
+      // route names its param :portalAccessKey while sub-routes use :code).
+      const routeCode: string | undefined = request.params?.code ?? request.params?.portalAccessKey;
+      if (!payload.code || !routeCode || payload.code !== routeCode) {
         throw new UnauthorizedException('Token does not match this portal');
       }
       request.portalStudent = { id: payload.sub, code: payload.code };
