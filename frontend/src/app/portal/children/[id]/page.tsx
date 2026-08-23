@@ -10,7 +10,8 @@ import DashboardHero from '../../../dashboard/hero'
 import {
   Calendar, ClipboardCheck, TrendingUp, Loader2, ArrowLeft, User,
   CheckCircle2, Clock, XCircle, AlertCircle, Award, FileText,
-  Star, Crown, Cross, Music, CheckCircle, Church, Plus, Sprout, X
+  Star, Crown, Cross, Music, CheckCircle, Church, Plus, Sprout, X,
+  Play, Headphones, BookOpen, Home
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { TermReportModal } from '@/components/term-report-modal'
@@ -39,7 +40,7 @@ interface GamificationData {
   rank?: number; totalStudents?: number; totalPoints?: number; badges?: number; xpToNextLevel?: number;
 }
 
-type TabType = 'attendance' | 'assessments' | 'progress'
+type TabType = 'attendance' | 'assessments' | 'progress' | 'practice'
 
 const STATUS_COLORS: Record<string, string> = {
   present: 'bg-green-100 text-green-700', late: 'bg-amber-100 text-amber-700',
@@ -321,6 +322,227 @@ function PracticeTogetherCard({ childId, language }: { childId: string; language
   )
 }
 
+function PracticePanel({ childId, lang }: { childId: string; lang: string }) {
+  const t = (en: string, ar: string) => (lang === 'ar' ? ar : en)
+  const [lesson, setLesson] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+  const [practicing, setPracticing] = useState(false)
+  const [practiceResult, setPracticeResult] = useState<any>(null)
+  const [reportOpen, setReportOpen] = useState(false)
+  const [reportAssessmentId, setReportAssessmentId] = useState('')
+  const [reportScore, setReportScore] = useState('')
+  const [reportNotes, setReportNotes] = useState('')
+  const [reporting, setReporting] = useState(false)
+  const [reportResult, setReportResult] = useState<any>(null)
+  const [assessments, setAssessments] = useState<any[]>([])
+
+  useEffect(() => {
+    const load = async () => {
+      setLoading(true)
+      try {
+        const [lessonRes, asmRes] = await Promise.all([
+          http.get<any>(`/parents/me/children/${childId}/current-lesson`),
+          http.get<any[]>(`/parents/me/children/${childId}/assessments`),
+        ])
+        setLesson(lessonRes)
+        setAssessments(asmRes)
+      } catch {}
+      setLoading(false)
+    }
+    load()
+  }, [childId])
+
+  const handlePractice = async () => {
+    if (!lesson?.lesson?.id) return
+    setPracticing(true)
+    try {
+      const res = await http.post<any>(`/parents/me/children/${childId}/practice`, { lessonId: lesson.lesson.id })
+      setPracticeResult(res)
+    } catch {}
+    setPracticing(false)
+  }
+
+  const handleReport = async () => {
+    if (!reportAssessmentId || !reportScore) return
+    setReporting(true)
+    try {
+      const res = await http.post<any>(`/parents/me/children/${childId}/report-assessment`, {
+        assessmentId: reportAssessmentId,
+        score: Number(reportScore),
+        notes: reportNotes || undefined,
+      })
+      setReportResult(res)
+      setReportOpen(false)
+      setReportScore('')
+      setReportNotes('')
+    } catch {}
+    setReporting(false)
+  }
+
+  const assetUrl = (url: string) => url?.startsWith('http') ? url : `${API_ORIGIN}${url}`
+
+  if (loading) return (
+    <div className="flex items-center justify-center py-12">
+      <Loader2 className="h-6 w-6 animate-spin text-gold-600" />
+    </div>
+  )
+
+  if (!lesson) return (
+    <div className="rounded-xl border border-gray-200 bg-white p-12 text-center">
+      <BookOpen className="mx-auto h-10 w-10 text-gray-300 mb-3" />
+      <p className="text-gray-500 text-sm">{t('No current lesson available', 'لا يوجد درس حالي')}</p>
+    </div>
+  )
+
+  const si = lesson.subjectItem
+  const hasRecording = !!si?.recordingUrl
+  const hasHazzat = !!si?.hazzat
+  const hasPresentation = !!si?.presentationUrl
+
+  return (
+    <div className="space-y-4">
+      {/* Current lesson card */}
+      <div className="rounded-xl border border-blue-200 bg-gradient-to-r from-blue-50 to-amber-50 p-5">
+        <div className="flex items-center gap-2 mb-3">
+          <Headphones className="h-5 w-5 text-blue-600" />
+          <h3 className="font-semibold text-blue-800">
+            {t('Practice Together', 'تمرن مع بعض')}
+          </h3>
+        </div>
+        <div className="rounded-lg bg-white/70 border border-blue-100 p-4">
+          <p className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-1">
+            {lesson.subject?.nameAr && lang === 'ar' ? lesson.subject.nameAr : lesson.subject?.name}
+            {lesson.level && <span className="ml-2">· {t('Level', 'المستوى')} {lesson.level.number}</span>}
+          </p>
+          <h4 className="font-bold text-gray-900 text-lg">
+            {lang === 'ar' && lesson.lesson.titleAr ? lesson.lesson.titleAr : lesson.lesson.title}
+          </h4>
+          {lesson.lesson.titleCoptic && (
+            <p className="text-sm text-gray-400 mt-0.5">{lesson.lesson.titleCoptic}</p>
+          )}
+          {lesson.lesson.description && (
+            <p className="text-sm text-gray-600 mt-2 line-clamp-2">
+              {lang === 'ar' && lesson.lesson.descriptionAr ? lesson.lesson.descriptionAr : lesson.lesson.description}
+            </p>
+          )}
+        </div>
+
+        {/* Reference materials */}
+        {(hasRecording || hasHazzat || hasPresentation) && (
+          <div className="mt-3 space-y-2">
+            <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">
+              {t('Reference Materials', 'المراجع')}
+            </p>
+            {hasRecording && (
+              <div className="rounded-lg bg-white/70 border border-blue-100 p-3">
+                <div className="flex items-center gap-2 text-sm text-gray-700 mb-2">
+                  <Play className="h-4 w-4 text-blue-600" />
+                  {t('Listening Recording', 'تسجيل الاستماع')}
+                </div>
+                <audio controls className="w-full h-8" src={assetUrl(si.recordingUrl)}>
+                  {t('Your browser does not support audio', 'متصفحك لا يدعم الصوت')}
+                </audio>
+              </div>
+            )}
+            {hasHazzat && (
+              <a href={assetUrl(si.hazzat)} target="_blank" rel="noopener noreferrer"
+                className="flex items-center gap-2 rounded-lg bg-white/70 border border-blue-100 p-3 text-sm text-blue-700 hover:bg-blue-50 transition-colors">
+                <FileText className="h-4 w-4" />
+                {t('View Hazzat', 'عرض الحزّات')}
+              </a>
+            )}
+            {hasPresentation && (
+              <a href={assetUrl(si.presentationUrl)} target="_blank" rel="noopener noreferrer"
+                className="flex items-center gap-2 rounded-lg bg-white/70 border border-blue-100 p-3 text-sm text-blue-700 hover:bg-blue-50 transition-colors">
+                <BookOpen className="h-4 w-4" />
+                {t('View Presentation', 'عرض العرض التقديمي')}
+              </a>
+            )}
+          </div>
+        )}
+
+        {/* Sessions content */}
+        {lesson.lesson.sessions?.length > 0 && (
+          <div className="mt-3 space-y-1">
+            <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">
+              {t('Sessions', 'الحصص')}
+            </p>
+            {lesson.lesson.sessions.map((s: any) => (
+              <div key={s.id} className="rounded-lg bg-white/50 border border-blue-50 p-2 text-sm">
+                <span className="font-medium text-gray-700">{lang === 'ar' && s.titleAr ? s.titleAr : s.title}</span>
+                {s.contentCoptic && <span className="ml-2 text-gray-400 text-xs">({s.contentCoptic})</span>}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Practice button */}
+        <div className="mt-4 flex items-center gap-3">
+          <button onClick={handlePractice} disabled={practicing || !!practiceResult}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              practiceResult
+                ? 'bg-green-100 text-green-700 border border-green-200'
+                : 'bg-blue-600 text-white hover:bg-blue-700'
+            } disabled:opacity-50`}>
+            {practiceResult ? <CheckCircle className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+            {practiceResult
+              ? t(`Practiced! +${practiceResult.xpAwarded} XP`, `تم التمرين! +${practiceResult.xpAwarded} نقطة`)
+              : practicing ? t('Logging...', 'جاري التسجيل...') : t('Log Practice Session', 'تسجيل جلسة تمرين')
+            }
+          </button>
+        </div>
+      </div>
+
+      {/* Assessment reporting */}
+      <div className="rounded-xl border border-gray-200 bg-white p-5">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <ClipboardCheck className="h-5 w-5 text-amber-600" />
+            <h3 className="font-semibold text-gray-800">
+              {t('Report Assessment', 'تقييم الواجب المنزلي')}
+            </h3>
+          </div>
+          <button onClick={() => setReportOpen(!reportOpen)}
+            className="text-sm text-blue-600 hover:text-blue-800">
+            {reportOpen ? t('Cancel', 'إلغاء') : t('Report Result', 'إبلاغ النتيجة')}
+          </button>
+        </div>
+
+        {reportOpen && (
+          <div className="space-y-3 mt-3">
+            <select value={reportAssessmentId} onChange={e => setReportAssessmentId(e.target.value)}
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
+              <option value="">{t('Select assessment...', 'اختر التقييم...')}</option>
+              {assessments.map(a => (
+                <option key={a.assessmentId} value={a.assessmentId}>
+                  {lang === 'ar' && a.titleAr ? a.titleAr : a.title} ({a.subject})
+                </option>
+              ))}
+            </select>
+            <input type="number" min="0" placeholder={t('Score', 'الدرجة')}
+              value={reportScore} onChange={e => setReportScore(e.target.value)}
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" />
+            <textarea placeholder={t('Notes (optional)', 'ملاحظات (اختياري)')}
+              value={reportNotes} onChange={e => setReportNotes(e.target.value)}
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" rows={2} />
+            <button onClick={handleReport} disabled={reporting || !reportAssessmentId || !reportScore}
+              className="w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-amber-600 text-white hover:bg-amber-700 disabled:opacity-50 transition-colors">
+              {reporting ? t('Submitting...', 'جاري الإرسال...') : t('Submit Report', 'إرسال التقرير')}
+            </button>
+          </div>
+        )}
+
+        {reportResult && (
+          <div className="mt-3 rounded-lg bg-green-50 border border-green-200 p-3 text-sm text-green-700">
+            {t('Reported', 'تم الإبلاغ')}: {reportResult.title} — {reportResult.score}/{reportResult.maxScore} ({reportResult.percentage}%)
+            {reportResult.passed ? ' ✅' : ''}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 export default function ChildDetailPage() {
   const { id } = useParams()
   const lang = useLanguage()
@@ -396,6 +618,7 @@ export default function ChildDetailPage() {
   const tabs: { id: TabType; label: string; icon: any }[] = [
     { id: 'attendance', label: t('Attendance', 'الحضور'), icon: Calendar },
     { id: 'assessments', label: t('Assessments', 'التقييمات'), icon: ClipboardCheck },
+    { id: 'practice', label: t('Practice', 'التمرين'), icon: Headphones },
     { id: 'progress', label: t('Progress', 'التقدم'), icon: TrendingUp },
   ]
 
@@ -646,6 +869,11 @@ export default function ChildDetailPage() {
             ))
           )}
         </div>
+      )}
+
+      {/* Practice Tab */}
+      {tab === 'practice' && (
+        <PracticePanel childId={id as string} lang={lang} />
       )}
 
       {/* Progress Tab */}

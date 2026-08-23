@@ -147,4 +147,18 @@ export class ParentsController {
   ) {
     return this.parentsService.getTermReport(id, parseInt(term) || 1, academicYearId, req.user.id);
   }
+
+  @Post('me/children/:id/report-assessment')
+  @Roles('parent', 'admin')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Report an assessment result from home practice' })
+  async reportAssessment(
+    @Param('id') id: string,
+    @Body('assessmentId') assessmentId: string,
+    @Body('score') score: number,
+    @Body('notes') notes: string | undefined,
+    @Req() req: any,
+  ) {
+    return this.parentsService.reportHomeAssessment(id, assessmentId, score, notes, req.user.id);
+  }
 }

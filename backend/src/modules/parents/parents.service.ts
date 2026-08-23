@@ -576,6 +576,13 @@ export class ParentsService {
             sessions: { orderBy: { orderIndex: 'asc' } },
             subject: { select: { name: true, nameAr: true } },
             level: { select: { number: true, name: true } },
+            subjectItem: {
+              select: {
+                id: true, name: true, nameAr: true, nameCoptic: true,
+                recordingUrl: true, hazzat: true, presentationUrl: true,
+                presentationData: true,
+              },
+            },
           },
         },
         subject: { select: { name: true, nameAr: true } },
@@ -607,6 +614,7 @@ export class ParentsService {
       },
       subject: { name: allocation.subject.name, nameAr: allocation.subject.nameAr },
       level: { number: allocation.lesson.level.number, name: allocation.lesson.level.name },
+      subjectItem: (allocation.lesson as any).subjectItem || null,
     };
   }
 
@@ -981,5 +989,52 @@ export class ParentsService {
     });
     if (student) return { student } as any;
     throw new ForbiddenException('You are not a parent of this student');
+  }
+
+  async reportHomeAssessment(studentId: string, assessmentId: string, score: number, notes: string | undefined, userId: string) {
+    await this.verifyParent(userId, studentId);
+    const assessment = await this.prisma.assessment.findUnique({
+      where: { id: assessmentId },
+      select: { id: true, totalPoints: true, passingScore: true, title: true },
+    });
+    if (!assessment) throw new NotFoundException('Assessment not found');
+
+    const totalPoints = Number(assessment.totalPoints);
+    const maxScore = totalPoints || 100;
+    const clampedScore = Math.max(0, Math.min(score, maxScore));
+    const percentage = maxScore > 0 ? Math.round((clampedScore / maxScore) * 100) : 0;
+    const passed = percentage >= Number(assessment.passingScore);
+
+    const submission = await this.prisma.$transaction(async (tx) => {
+      const sub = await tx.assessmentSubmission.create({
+        data: {
+          assessmentId,
+          studentId,
+          submissionType: 'parent_report',
+          status: 'graded',
+          metadata: { reportedBy: userId, notes, source: 'parent_home_practice' },
+        },
+      });
+      await tx.grade.create({
+        data: {
+          submissionId: sub.id,
+          score: clampedScore,
+          maxScore,
+          feedback: notes || `Reported by parent`,
+          gradedBy: userId,
+        },
+      });
+      return sub;
+    });
+
+    return {
+      id: submission.id,
+      assessmentId,
+      score: clampedScore,
+      maxScore,
+      percentage,
+      passed,
+      title: assessment.title,
+    };
   }
 }
