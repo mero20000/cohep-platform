@@ -19,6 +19,7 @@ import { csToUnicode, isLikelyCsEncoded } from '@/lib/coptic-converter'
 import { DetailDrawer, DetailSection, DetailRow } from '@/components/ui/detail-drawer'
 import { track } from '@/lib/analytics'
 import { assetUrl } from '@/lib/asset-url'
+import { AudioPlayer } from '@/components/audio-player'
 
 interface Subject {
   id: string; name: string; nameAr?: string; description?: string; color?: string; status: string; orderIndex: number
@@ -630,7 +631,7 @@ export function SubjectsTab() {
                       {playingItemId === item.id && (
                         <tr key={`${item.id}-audio`} onClick={e => e.stopPropagation()}>
                           <td colSpan={9} className="px-2 py-2 bg-gray-50">
-                            <audio controls autoPlay src={assetUrl(item.recordingUrl)} className="w-full h-9" />
+                            <AudioPlayer src={assetUrl(item.recordingUrl)} />
                           </td>
                         </tr>
                       )}
@@ -819,7 +820,7 @@ export function SubjectsTab() {
               <label className="block text-sm font-medium text-gray-700">{lang === 'ar' ? 'تسجيل المرجع' : 'Reference recording'}</label>
               {editingItem?.recordingUrl ? (
                 <div className="flex items-center gap-3">
-                  <audio controls src={assetUrl(editingItem.recordingUrl)} className="h-9 flex-1" />
+                  <div className="flex-1"><AudioPlayer src={assetUrl(editingItem.recordingUrl!)} /></div>
                   <button type="button" onClick={() => fileInputRef.current?.click()} className="text-xs text-blue-600">{lang === 'ar' ? 'استبدال' : 'Replace'}</button>
                   <button type="button" onClick={onRemoveRecording} className="text-xs text-red-600">{lang === 'ar' ? 'حذف' : 'Remove'}</button>
                 </div>
@@ -974,7 +975,7 @@ export function SubjectsTab() {
             {drawerItem.recordingUrl && (
               <DetailSection label={lang === 'ar' ? 'تسجيل المرجع' : 'Reference Recording'}>
                 <div className="border border-gray-200 rounded-lg p-3 bg-gray-50">
-                  <audio controls src={assetUrl(drawerItem.recordingUrl)} className="w-full h-9" />
+                  <AudioPlayer src={assetUrl(drawerItem.recordingUrl)} />
                   {drawerItem.recordingMeta?.originalName && (
                     <p className="text-xs text-gray-500 mt-1">{drawerItem.recordingMeta.originalName}</p>
                   )}

@@ -6,6 +6,8 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { http } from '@/lib/http-client'
 import { useLanguage } from '@/lib/use-language'
+import { assetUrl } from '@/lib/asset-url'
+import { AudioPlayer } from '@/components/audio-player'
 import DashboardHero from '../../../dashboard/hero'
 import {
   Calendar, ClipboardCheck, TrendingUp, Loader2, ArrowLeft, User,
@@ -18,7 +20,7 @@ import { TermReportModal } from '@/components/term-report-modal'
 import { FormationArchiveModal } from '@/components/formation-archive-modal'
 import { PhotoLightbox } from '@/components/photo-lightbox'
 
-const API_ORIGIN = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api').replace('/api', '')
+const API_ORIGIN = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api').replace(/\/api\/?$/, '').replace(/\/$/, '') || 'http://localhost:3001'
 
 interface AttendanceRecord {
   id: string; date: string; status: string; homeworkStatus: string; note?: string;
@@ -380,8 +382,6 @@ function PracticePanel({ childId, lang }: { childId: string; lang: string }) {
     setReporting(false)
   }
 
-  const assetUrl = (url: string) => url?.startsWith('http') ? url : `${API_ORIGIN}${url}`
-
   if (loading) return (
     <div className="flex items-center justify-center py-12">
       <Loader2 className="h-6 w-6 animate-spin text-gold-600" />
@@ -416,9 +416,7 @@ function PracticePanel({ childId, lang }: { childId: string; lang: string }) {
               <Play className="h-4 w-4 text-blue-600" />
               {t('Listening Recording', 'تسجيل الاستماع')}
             </div>
-            <audio controls className="w-full h-8" src={assetUrl(item.recordingUrl)}>
-              {t('Your browser does not support audio', 'متصفحك لا يدعم الصوت')}
-            </audio>
+            <AudioPlayer src={assetUrl(item.recordingUrl)} />
           </div>
         )}
         <div className="flex flex-wrap gap-2">
@@ -909,8 +907,7 @@ export default function ChildDetailPage() {
                     <div className="text-xs text-gray-500 mb-1">
                       {a.referenceRecordingName || t('Reference recording', 'تسجيل المرجع')}
                     </div>
-                    <audio controls className="w-full h-8"
-                      src={a.referenceRecordingUrl.startsWith('http') ? a.referenceRecordingUrl : `${API_ORIGIN}${a.referenceRecordingUrl}`} />
+                    <AudioPlayer src={assetUrl(a.referenceRecordingUrl)} />
                   </div>
                 )}
               </div>

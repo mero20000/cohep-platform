@@ -6,6 +6,7 @@ import Image from 'next/image'
 import { http } from '@/lib/http-client'
 import { ensurePortalSession, clearPortalSession, portalGet } from '@/lib/portal-session'
 import { assetUrl } from '@/lib/asset-url'
+import { AudioPlayer } from '@/components/audio-player'
 
 const API_ORIGIN = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api').replace('/api', '')
 import {
@@ -606,7 +607,7 @@ export default function StudentDashboard() {
             {practiceLesson?.referenceRecordingUrl && (
               <div className="mt-3 rounded-lg border border-gray-200 p-3">
                 <div className="text-xs font-medium text-gray-500 mb-1">{lang === 'ar' ? 'تسجيل المرجع' : 'Reference recording'}{practiceLesson.referenceRecordingName ? ` — ${practiceLesson.referenceRecordingName}` : ''}</div>
-                <audio controls src={assetUrl(practiceLesson.referenceRecordingUrl)} className="w-full" />
+                <AudioPlayer src={assetUrl(practiceLesson.referenceRecordingUrl)} />
               </div>
             )}
             <PracticeRecorder

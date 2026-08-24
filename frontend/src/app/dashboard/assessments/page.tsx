@@ -21,6 +21,7 @@ import { Pagination } from '@/components/ui/pagination'
 import { CardSkeleton, TableSkeleton } from '@/components/ui/skeleton'
 import { EmptyState } from '@/components/ui/empty-state'
 import { assetUrl } from '@/lib/asset-url'
+import { AudioPlayer } from '@/components/audio-player'
 import { getSchoolId } from '@/lib/school'
 import { fetchActiveGrades, type GradeItem } from '@/lib/grades'
 import { http } from '@/lib/http-client'
@@ -976,7 +977,7 @@ export default function AssessmentsPage() {
               <option value="">{lang === 'ar' ? 'بدون' : 'None'}</option>
               {recordingOptions.map(o => <option key={o.url} value={o.url}>{o.name}</option>)}
             </select>
-            {form.referenceRecordingUrl && <audio controls src={assetUrl(form.referenceRecordingUrl)} className="h-9 w-full mt-2" />}
+            {form.referenceRecordingUrl && <AudioPlayer src={assetUrl(form.referenceRecordingUrl)} />}
           </div>
 
           <div className="grid grid-cols-3 gap-4">

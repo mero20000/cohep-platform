@@ -17,6 +17,7 @@ import { EmptyState } from '@/components/ui/empty-state'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import DashboardHero from '../hero'
 import { assetUrl } from '@/lib/asset-url'
+import { AudioPlayer } from '@/components/audio-player'
 
 interface ChildStudent {
   id: string
@@ -120,7 +121,7 @@ function ChildAssessments({ studentId, lang }: { studentId: string; lang: string
           {a.referenceRecordingUrl && (
             <div className="mt-2">
               <div className="text-xs text-gray-500">{t('Reference recording', 'تسجيل المرجع')}</div>
-              <audio controls src={assetUrl(a.referenceRecordingUrl)} className="w-full" />
+              <AudioPlayer src={assetUrl(a.referenceRecordingUrl)} />
             </div>
           )}
         </div>

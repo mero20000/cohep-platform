@@ -1,7 +1,7 @@
 'use client'
 
 import { useRef, useState, useEffect, useCallback } from 'react'
-import { Play, Pause, Loader2 } from 'lucide-react'
+import { Play, Pause, Loader2, AlertCircle } from 'lucide-react'
 
 interface Props {
   src: string
@@ -18,34 +18,60 @@ export function AudioPlayer({ src, duration, compact, className = '', autoPlay }
   const [playing, setPlaying] = useState(false)
   const [currentTime, setCurrentTime] = useState(0)
   const [loaded, setLoaded] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const [speed, setSpeed] = useState(1)
+  const [dur, setDur] = useState(duration || 0)
+
+  // Reset state when src changes
+  useEffect(() => {
+    setPlaying(false)
+    setCurrentTime(0)
+    setLoaded(false)
+    setError(null)
+    setDur(duration || 0)
+  }, [src, duration])
 
   useEffect(() => {
     const audio = audioRef.current
     if (!audio) return
     const onTime = () => setCurrentTime(audio.currentTime)
-    const onLoad = () => setLoaded(true)
-    const onEnd  = () => setPlaying(false)
+    const onLoad = () => {
+      setLoaded(true)
+      setError(null)
+      setDur(audio.duration || duration || 0)
+    }
+    const onEnd = () => setPlaying(false)
+    const onError = () => {
+      setError('Failed to load audio')
+      setLoaded(false)
+    }
     audio.addEventListener('timeupdate', onTime)
     audio.addEventListener('loadedmetadata', onLoad)
     audio.addEventListener('ended', onEnd)
+    audio.addEventListener('error', onError)
+    // If metadata already loaded (cached)
+    if (audio.readyState >= 1) {
+      setLoaded(true)
+      setDur(audio.duration || duration || 0)
+    }
     return () => {
       audio.removeEventListener('timeupdate', onTime)
       audio.removeEventListener('loadedmetadata', onLoad)
       audio.removeEventListener('ended', onEnd)
+      audio.removeEventListener('error', onError)
     }
-  }, [])
+  }, [src, duration])
 
   useEffect(() => {
-    if (autoPlay && audioRef.current) audioRef.current.play().catch(() => {})
-  }, [autoPlay])
+    if (autoPlay && audioRef.current && loaded) audioRef.current.play().catch(() => {})
+  }, [autoPlay, loaded])
 
   const toggle = useCallback(() => {
     const audio = audioRef.current
-    if (!audio) return
+    if (!audio || error) return
     if (playing) { audio.pause(); setPlaying(false) }
-    else { audio.play().then(() => setPlaying(true)).catch(() => {}) }
-  }, [playing])
+    else { audio.play().then(() => setPlaying(true)).catch(() => setError('Playback failed')) }
+  }, [playing, error])
 
   const cycleSpeed = useCallback(() => {
     const next = SPEEDS[(SPEEDS.indexOf(speed) + 1) % SPEEDS.length]
@@ -56,23 +82,33 @@ export function AudioPlayer({ src, duration, compact, className = '', autoPlay }
   const seek = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     const audio = audioRef.current
     const bar = e.currentTarget
-    if (!audio || !bar) return
+    if (!audio || !bar || error) return
     const pct = (e.clientX - bar.getBoundingClientRect().left) / bar.offsetWidth
     audio.currentTime = pct * (audio.duration || 0)
-  }, [])
+  }, [error])
 
   function fmt(s: number) {
     const m = Math.floor(s / 60), sec = Math.floor(s % 60)
     return `${m}:${sec.toString().padStart(2, '0')}`
   }
 
-  const dur = duration || (audioRef.current?.duration || 0)
   const pct = dur > 0 ? (currentTime / dur) * 100 : 0
+
+  if (!src) return null
+
+  if (error) {
+    return (
+      <div className={`flex items-center gap-2 text-xs text-red-500 ${className}`}>
+        <AlertCircle className="h-4 w-4 shrink-0" />
+        <span>{error}</span>
+      </div>
+    )
+  }
 
   /* ── Compact mode ── */
   if (compact) return (
     <div className={`flex items-center gap-2 ${className}`}>
-      <audio ref={audioRef} src={src} preload="metadata" />
+      <audio key={src} ref={audioRef} src={src} preload="metadata" crossOrigin="anonymous" />
       <button
         onClick={toggle}
         className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gold-500 text-white hover:bg-gold-600 transition-colors"
@@ -98,7 +134,7 @@ export function AudioPlayer({ src, duration, compact, className = '', autoPlay }
   /* ── Full mode ── */
   return (
     <div className={`flex items-center gap-3 rounded-xl border border-gray-100 bg-gray-50 p-3 ${className}`}>
-      <audio ref={audioRef} src={src} preload="metadata" />
+      <audio key={src} ref={audioRef} src={src} preload="metadata" crossOrigin="anonymous" />
 
       {/* Play/Pause */}
       <button
@@ -115,7 +151,6 @@ export function AudioPlayer({ src, duration, compact, className = '', autoPlay }
 
       {/* Progress bar + time */}
       <div className="flex flex-1 flex-col gap-1.5 min-w-0">
-        {/* Seekable bar */}
         <div
           className="h-2 w-full cursor-pointer rounded-full bg-gray-200 overflow-hidden"
           onClick={seek}
