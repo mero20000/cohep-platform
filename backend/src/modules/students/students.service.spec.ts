@@ -757,6 +757,39 @@ systemConfig: {
     });
   });
 
+  // ===== getStudentSubjectItems (portal) =====
+  describe('getStudentSubjectItems', () => {
+    it('allows portal access without staff roles and returns items with status', async () => {
+      prisma.student.findFirst.mockResolvedValue({ id: 'stu-1', level: { number: 1 } });
+      prisma.subjectItem.findMany.mockResolvedValue([
+        { id: 'item-1', orderIndex: 1, subject: { id: 'sub-1' } },
+      ]);
+      prisma.studentSubjectPass.findMany.mockResolvedValue([
+        {
+          id: 'pass-1',
+          subjectItemId: 'item-1',
+          revokedAt: null,
+          passedAt: mockDate,
+          passedBy: 'user-1',
+          passer: { id: 'user-1', firstName: 'Sam', lastName: 'Servant' },
+        },
+      ]);
+
+      const result = await service.getStudentSubjectItems('stu-1', null, { portal: true });
+
+      expect(result).toHaveLength(1);
+      expect(result[0]).toHaveProperty('status');
+      expect(result[0].status).toBe('passed');
+      expect(result[0].passedByUser).toEqual({ id: 'user-1', firstName: 'Sam', lastName: 'Servant' });
+    });
+
+    it('throws ForbiddenException for non-staff user without portal flag', async () => {
+      await expect(
+        service.getStudentSubjectItems('stu-1', { id: 'u2', roles: ['curriculum_manager'] }),
+      ).rejects.toThrow(ForbiddenException);
+    });
+  });
+
   // ===== toggleSubjectItemPass =====
   describe('toggleSubjectItemPass', () => {
     const servantUser = { id: 'user-1', roles: ['servant'] };

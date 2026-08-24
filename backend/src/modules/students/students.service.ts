@@ -959,11 +959,13 @@ async getPortalData(portalAccessKey: string) {
     return { passed: true, record };
   }
 
-  async getStudentSubjectItems(studentId: string, user: any) {
-    const roleNames = this.getUserRoleNames(user);
-    const allowed = [...StudentsService.PASS_ROLES, 'parent'];
-    if (!roleNames.some((r) => allowed.includes(r))) {
-      throw new ForbiddenException('Not allowed to view subject items');
+  async getStudentSubjectItems(studentId: string, user: any, opts?: { portal?: boolean }) {
+    if (!opts?.portal) {
+      const roleNames = this.getUserRoleNames(user);
+      const allowed = [...StudentsService.PASS_ROLES, 'parent'];
+      if (!roleNames.some((r) => allowed.includes(r))) {
+        throw new ForbiddenException('Not allowed to view subject items');
+      }
     }
 
     const student = await this.prisma.student.findFirst({
@@ -1011,11 +1013,13 @@ async getPortalData(portalAccessKey: string) {
     });
   }
 
-  async getStudentPassHistory(studentId: string, user: any) {
-    const roleNames = this.getUserRoleNames(user);
-    const allowed = [...StudentsService.PASS_ROLES, 'parent'];
-    if (!roleNames.some((r) => allowed.includes(r))) {
-      throw new ForbiddenException('Not allowed to view pass history');
+  async getStudentPassHistory(studentId: string, user: any, opts?: { portal?: boolean }) {
+    if (!opts?.portal) {
+      const roleNames = this.getUserRoleNames(user);
+      const allowed = [...StudentsService.PASS_ROLES, 'parent'];
+      if (!roleNames.some((r) => allowed.includes(r))) {
+        throw new ForbiddenException('Not allowed to view pass history');
+      }
     }
 
     const student = await this.prisma.student.findFirst({

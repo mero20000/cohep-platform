@@ -82,6 +82,13 @@ export class StudentPortalController {
     return student;
   }
 
+  @Get(':code/subject-items')
+  @ApiOperation({ summary: 'Subject items with pass status for the authenticated student' })
+  async getPortalSubjectItems(@Param('code') code: string) {
+    const student = await this.resolveStudent(code);
+    return this.studentsService.getStudentSubjectItems(student.id, student, { portal: true });
+  }
+
   @Get(':code/hymn-map')
   @ApiOperation({ summary: 'Student hymn progress map' })
   async getHymnMap(@Param('code') code: string) {
