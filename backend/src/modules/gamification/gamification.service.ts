@@ -256,6 +256,18 @@ export class GamificationService {
         return this.checkAssessmentPerfect(student);
       case 'xp_total':
         return this.checkXpTotal(student, criteria.xp as number ?? 1000);
+      case 'practice_total':
+        return this.checkPracticeTotal(student, criteria.count as number ?? 5);
+      case 'practice_streak':
+        return this.checkPracticeStreak(student, criteria.weeks as number ?? 3);
+      case 'subject_items_passed':
+        return this.checkSubjectItemsPassed(student, criteria.count as number ?? 5);
+      case 'recordings_submitted':
+        return this.checkRecordingsSubmitted(student, criteria.count as number ?? 5);
+      case 'assessment_streak':
+        return this.checkAssessmentStreak(student, criteria.count as number ?? 3);
+      case 'parent_reports_total':
+        return this.checkParentReportsTotal(student, criteria.count as number ?? 3);
       default:
         return { badgeId: badge.id, earned: false };
     }
@@ -506,6 +518,107 @@ export class GamificationService {
       badgeId: '',
       earned: total >= xp,
       reason: total >= xp ? `Earned ${total} XP total` : undefined,
+    };
+  }
+
+  private async checkPracticeTotal(student: { id: string }, count: number): Promise<BadgeCheckResult> {
+    const total = await this.prisma.familyPractice.count({ where: { studentId: student.id } });
+    return {
+      badgeId: '',
+      earned: total >= count,
+      reason: total >= count ? `Practiced ${total} times` : undefined,
+    };
+  }
+
+  private async checkPracticeStreak(student: { id: string }, weeks: number): Promise<BadgeCheckResult> {
+    const now = new Date();
+    const startOfThisWeek = new Date(now);
+    startOfThisWeek.setDate(now.getDate() - now.getDay());
+    startOfThisWeek.setHours(0, 0, 0, 0);
+
+    let consecutiveWeeks = 0;
+    let checkDate = new Date(startOfThisWeek);
+
+    for (let i = 0; i < weeks + 2; i++) {
+      const weekStart = new Date(checkDate);
+      weekStart.setDate(checkDate.getDate() - (consecutiveWeeks === 0 ? 0 : consecutiveWeeks * 7));
+      const weekEnd = new Date(weekStart);
+      weekEnd.setDate(weekStart.getDate() + 6);
+      weekEnd.setHours(23, 59, 59, 999);
+
+      const count = await this.prisma.familyPractice.count({
+        where: { studentId: student.id, practicedAt: { gte: weekStart, lte: weekEnd } },
+      });
+      if (count > 0) {
+        consecutiveWeeks++;
+      } else if (consecutiveWeeks > 0) {
+        break;
+      }
+      if (consecutiveWeeks >= weeks) break;
+    }
+
+    return {
+      badgeId: '',
+      earned: consecutiveWeeks >= weeks,
+      reason: consecutiveWeeks >= weeks ? `Practiced for ${consecutiveWeeks} consecutive weeks` : undefined,
+    };
+  }
+
+  private async checkSubjectItemsPassed(student: { id: string }, count: number): Promise<BadgeCheckResult> {
+    const total = await this.prisma.studentSubjectPass.count({ where: { studentId: student.id } });
+    return {
+      badgeId: '',
+      earned: total >= count,
+      reason: total >= count ? `Passed ${total} subject items` : undefined,
+    };
+  }
+
+  private async checkRecordingsSubmitted(student: { id: string }, count: number): Promise<BadgeCheckResult> {
+    const total = await this.prisma.hymnPracticeSession.count({
+      where: { studentId: student.id, recordingUrl: { not: null } },
+    });
+    return {
+      badgeId: '',
+      earned: total >= count,
+      reason: total >= count ? `Submitted ${total} recordings` : undefined,
+    };
+  }
+
+  private async checkAssessmentStreak(student: { id: string }, count: number): Promise<BadgeCheckResult> {
+    const submissions = await this.prisma.assessmentSubmission.findMany({
+      where: { studentId: student.id },
+      select: {
+        grades: { select: { score: true, maxScore: true } },
+        assessment: { select: { passingScore: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: count,
+    });
+    if (submissions.length < count) return { badgeId: '', earned: false };
+
+    const allPassed = submissions.every(sub => {
+      if (sub.grades.length === 0) return false;
+      const total = sub.grades.reduce((s, g) => s + Number(g.score), 0);
+      const max = sub.grades.reduce((s, g) => s + Number(g.maxScore), 0);
+      const pct = max > 0 ? (total / max) * 100 : 0;
+      return pct >= Number(sub.assessment.passingScore);
+    });
+
+    return {
+      badgeId: '',
+      earned: allPassed,
+      reason: allPassed ? `Passed ${count} consecutive assessments` : undefined,
+    };
+  }
+
+  private async checkParentReportsTotal(student: { id: string }, count: number): Promise<BadgeCheckResult> {
+    const total = await this.prisma.assessmentSubmission.count({
+      where: { studentId: student.id, metadata: { path: ['source'], equals: 'parent_home_practice' } },
+    });
+    return {
+      badgeId: '',
+      earned: total >= count,
+      reason: total >= count ? `Parent reported ${total} assessments` : undefined,
     };
   }
 
