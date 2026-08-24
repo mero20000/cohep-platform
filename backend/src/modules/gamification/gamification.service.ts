@@ -875,7 +875,19 @@ export class GamificationService {
     if (!group) throw new NotFoundException('Group not found');
 
     const studentIds = group.students.map(s => s.id);
-    if (!studentIds.length) return { group: group.name, milestones: [], students: [] };
+    if (!studentIds.length) return {
+      groupId,
+      groupName: group.name,
+      levelName: undefined,
+      levelNumber: undefined,
+      totalStudents: 0,
+      totalXp: 0,
+      achievedMilestones: 0,
+      totalMilestones: 0,
+      allMilestonesComplete: false,
+      milestones: [],
+      students: [],
+    };
 
     // Milestone 1: All students attended at least once this month
     const startMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);

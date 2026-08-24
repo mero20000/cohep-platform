@@ -1,10 +1,13 @@
 'use client'
 import Image from 'next/image'
 import { useState, useEffect, useRef } from 'react'
-import { X, Loader2, Pencil, Calendar, User, MapPin, Phone, Layers, Users, Church, GraduationCap, Mail, UserCheck, Copy, Check, QrCode, MessageSquare } from 'lucide-react'
+import { X, Loader2, Pencil, Calendar, User, MapPin, Phone, Layers, Users, Church, GraduationCap, Mail, UserCheck, Copy, Check, QrCode, MessageSquare, Award, Plus, Trash2 } from 'lucide-react'
+import { Badge as UIBadge } from '@/components/ui/badge'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { http } from '@/lib/http-client'
+import { useToast } from '@/components/ui/toast'
+import { getSchoolId } from '@/lib/school'
 import { StudentQrCard } from '@/components/qr/qr-code-card'
 import { STATUS_STYLE, photoSrc, calcAge, type Student } from './student-types'
 import { PhoneLink } from './phone-link'
@@ -18,8 +21,15 @@ export function StudentDetailModal({ student:s, onClose, onEdit, onPreviewPhoto,
   const [copied, setCopied] = useState(false)
   const [showQr, setShowQr] = useState(false)
   const [showContactParent, setShowContactParent] = useState(false)
+  const [showAward, setShowAward] = useState(false)
+  const [badges, setBadges] = useState<any[]>([])
+  const [studentBadges, setStudentBadges] = useState<any[]>([])
+  const [badgesLoading, setBadgesLoading] = useState(false)
+  const [selectedBadgeId, setSelectedBadgeId] = useState('')
+  const [awarding, setAwarding] = useState(false)
   const dialogRef = useRef<HTMLDivElement>(null)
   const t = (en: string, ar: string) => lang==='ar'?ar:en
+  const { toast } = useToast()
 
   useEffect(() => {
     dialogRef.current?.focus()
@@ -28,6 +38,15 @@ export function StudentDetailModal({ student:s, onClose, onEdit, onPreviewPhoto,
   useEffect(() => {
     setLogLoading(true)
     http.get(`/students/${s.id}/activity`).then(d=>setLog(d as Activity[])).catch(()=>setLog([])).finally(()=>setLogLoading(false))
+    // Load badges and student badges for award
+    setBadgesLoading(true)
+    Promise.all([
+      http.get<any[]>(`/gamification/badges`, { schoolId: getSchoolId() }).catch(()=>[]),
+      http.get<any[]>(`/gamification/students/${s.id}/badges`).catch(()=>[]),
+    ]).then(([all, mine]) => {
+      setBadges(Array.isArray(all) ? all : [])
+      setStudentBadges(Array.isArray(mine) ? mine : [])
+    }).finally(()=>setBadgesLoading(false))
   }, [s.id])
 
   const details = [
@@ -39,6 +58,21 @@ export function StudentDetailModal({ student:s, onClose, onEdit, onPreviewPhoto,
     {icon:MapPin,label:t('Address','العنوان'),value:s.metadata?.address||'—'},{icon:UserCheck,label:t('Parent Email','بريد ولي الأمر'),value:s.parentEmail||'—'},
   ]
   const statusLabel = s.status==='active'?t('Active','نشط'):s.status==='inactive'?t('Inactive','غير نشط'):s.status==='graduated'?t('Graduated','متخرج'):s.status
+
+  const handleAward = async () => {
+    if (!selectedBadgeId) return
+    setAwarding(true)
+    try {
+      await http.post(`/gamification/students/${s.id}/badges`, { badgeId: selectedBadgeId })
+      toast('success', t('Badge awarded!', 'تم منح الشارة!'))
+      const updated = await http.get<any[]>(`/gamification/students/${s.id}/badges`).catch(()=>[])
+      setStudentBadges(Array.isArray(updated) ? updated : [])
+      setShowAward(false); setSelectedBadgeId('')
+    } catch (e: any) {
+      toast('error', e?.message || t('Failed to award badge', 'فشل منح الشارة'))
+    }
+    setAwarding(false)
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
@@ -70,6 +104,42 @@ export function StudentDetailModal({ student:s, onClose, onEdit, onPreviewPhoto,
             <div className="rounded-lg border border-gray-100 p-3"><div className="text-xs text-gray-500">{t('Enrolled','تاريخ التسجيل')}</div><div className="text-sm font-medium text-gray-900">{new Date(s.enrollmentDate).toLocaleDateString('en-GB',{day:'2-digit',month:'2-digit',year:'numeric'})}</div></div>
           </div>
           {s.metadata?.notes&&<div className="mt-4 rounded-lg border border-gray-100 p-3"><div className="text-xs text-gray-500">{t('Notes','ملاحظات')}</div><div className="text-sm text-gray-900 mt-1 whitespace-pre-wrap">{s.metadata.notes}</div></div>}
+
+          {/* Badges — view & manual award */}
+          <div className="mt-4 rounded-lg border border-amber-100 bg-amber-50/50 p-3">
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-1.5 text-xs font-semibold text-amber-800">
+                <Award className="h-3.5 w-3.5" /> {t('Badges', 'الشارات')} {studentBadges.length > 0 && <span className="text-amber-600 font-normal">({studentBadges.length})</span>}
+              </div>
+              <button onClick={() => setShowAward(true)} className="inline-flex items-center gap-1 rounded-full bg-white border border-amber-200 px-2.5 py-1 text-xs font-medium text-amber-700 hover:bg-amber-100">
+                <Plus className="h-3 w-3" /> {t('Award', 'منح')}
+              </button>
+            </div>
+            {badgesLoading ? <div className="py-2 text-xs text-gray-500">{t('Loading...','جاري التحميل...')}</div>
+            : studentBadges.length === 0 ? <div className="py-2 text-xs text-gray-500">{t('No badges yet','لا توجد شارات بعد')}</div>
+            : <div className="flex flex-wrap gap-1.5">
+                {studentBadges.map((sb: any) => (
+                  <span key={sb.id} className="inline-flex items-center gap-1 rounded-full bg-white border border-amber-200 px-2.5 py-1 text-xs font-medium text-amber-800">
+                    {sb.badge?.name || sb.name || sb.badgeId}
+                  </span>
+                ))}
+              </div>}
+            {showAward && (
+              <div className="mt-3 rounded-xl border border-amber-200 bg-white p-3 space-y-3">
+                <select value={selectedBadgeId} onChange={e=>setSelectedBadgeId(e.target.value)} className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:border-amber-400 focus:outline-none">
+                  <option value="">{t('Select badge...','اختر شارة...')}</option>
+                  {badges.map((b: any) => <option key={b.id} value={b.id}>{b.name} — {b.points ?? b.xpReward ?? 0} pts</option>)}
+                </select>
+                <div className="flex items-center gap-2">
+                  <Button size="sm" onClick={handleAward} disabled={!selectedBadgeId || awarding}>
+                    {awarding && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                    {t('Award Badge','منح الشارة')}
+                  </Button>
+                  <Button variant="ghost" size="sm" onClick={()=>{setShowAward(false); setSelectedBadgeId('')}}>{t('Cancel','إلغاء')}</Button>
+                </div>
+              </div>
+            )}
+          </div>
           
           {/* Contact Parent Button */}
           {s.studentParents && s.studentParents.length > 0 && (
