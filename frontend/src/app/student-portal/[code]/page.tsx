@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useParams } from 'next/navigation'
 import Image from 'next/image'
 import { http } from '@/lib/http-client'
@@ -15,7 +15,7 @@ const API_ORIGIN = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/ap
 import {
   Cross, Loader2, Calendar, CheckCircle2, XCircle, Clock, AlertCircle,
   Award, Star, BookOpen, ArrowLeft, Trophy, Play, Music,
-  ChevronDown, ChevronRight, Search, Filter, ClipboardCheck,
+  ChevronDown, ChevronRight, Search, Filter, ClipboardCheck, MoreVertical, LogOut, Eye, EyeOff,
 } from 'lucide-react'
 import Link from 'next/link'
 import { useStudentHymnMap, useStudentThisSunday, useStudentDueReview, useStudentStats, useStudentPractice } from '@/components/hymn-learning/student-hooks'
@@ -70,6 +70,12 @@ export default function StudentDashboard() {
   const [error, setError] = useState('')
   const [showName, setShowName] = useState(true)
   const [activeTab, setActiveTab] = useState<Tab>('dashboard')
+  const [menuOpen, setMenuOpen] = useState(false)
+  const menuRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const h = (e: MouseEvent) => { if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false) }
+    document.addEventListener('mousedown', h); return () => document.removeEventListener('mousedown', h)
+  }, [])
 
   // Practice state
   const [practiceLesson, setPracticeLesson] = useState<HymnMapItem | null>(null)
@@ -202,14 +208,27 @@ export default function StudentDashboard() {
             <Link
               href="/student-portal/login"
               onClick={() => { try { sessionStorage.removeItem('student_portal_token') } catch {} }}
-              className="inline-flex items-center gap-1.5 rounded-full bg-white/10 border border-white/15 px-3 py-1 text-xs font-medium text-white hover:bg-white/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50"
+              className="inline-flex items-center gap-1.5 text-white/70 hover:text-white text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40 rounded-full px-2 py-1 -ml-2"
             >
               <ArrowLeft className="h-3.5 w-3.5 rtl:rotate-180" />
               {lang === 'ar' ? 'خروج' : 'Sign Out'}
             </Link>
-            <button onClick={() => setShowName(!showName)} aria-label={showName ? (lang==='ar'?'إخفاء الاسم':'Hide name') : (lang==='ar'?'إظهار الاسم':'Show name')} className="rounded-full bg-white/10 border border-white/10 px-3 py-1 text-xs font-medium text-white/70 hover:text-white hover:bg-white/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40">
-              {showName ? (lang === 'ar' ? 'إخفاء الاسم' : 'Hide Name') : (lang === 'ar' ? 'إظهار الاسم' : 'Show Name')}
-            </button>
+            <div ref={menuRef} className="relative">
+              <button onClick={() => setMenuOpen(o => !o)} aria-label="Menu" aria-expanded={menuOpen} className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10 border border-white/15 text-white hover:bg-white/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40">
+                <MoreVertical className="h-4 w-4" />
+              </button>
+              {menuOpen && (
+                <div className="absolute right-0 rtl:left-0 rtl:right-auto top-full mt-2 w-44 rounded-xl bg-white shadow-xl border border-gray-200 overflow-hidden z-50">
+                  <button onClick={() => { setShowName(v => !v); setMenuOpen(false) }} className="flex w-full items-center gap-2 px-3 py-2.5 text-sm text-gray-700 hover:bg-gray-50 text-left">
+                    {showName ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    {showName ? (lang === 'ar' ? 'إخفاء الاسم' : 'Hide Name') : (lang === 'ar' ? 'إظهار الاسم' : 'Show Name')}
+                  </button>
+                  <Link href="/student-portal/login" onClick={() => { try { sessionStorage.removeItem('student_portal_token') } catch {} }} className="flex items-center gap-2 px-3 py-2.5 text-sm text-red-600 hover:bg-red-50">
+                    <LogOut className="h-4 w-4" /> {lang === 'ar' ? 'خروج' : 'Sign Out'}
+                  </Link>
+                </div>
+              )}
+            </div>
           </div>
           <div className="flex items-center gap-4">
             <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-white/10 border border-white/15 backdrop-blur-sm text-2xl font-bold overflow-hidden shadow-lg shadow-black/20 shrink-0">

@@ -694,13 +694,18 @@ export default function ChildDetailPage() {
           }
         >
           {(() => {
-            const lowAttendance = attendance.length >= 3 && (() => { const c = attendance.slice(0, 5).filter(r => r.status === 'absent').length; return c >= 3 })()
-            return lowAttendance ? (
+            const recent = attendance.slice(0, 8)
+            const absentCount = recent.filter(r => r.status === 'absent').length
+            const rate = attendance.length ? (attendance.filter(r => r.status === 'present' || r.status === 'late').length / attendance.length) * 100 : 100
+            const needsAttention = attendance.length >= 3 && (absentCount >= 2 || rate < 70)
+            if (!needsAttention) return null
+            const msg = rate < 70 ? t(`Needs attention — ${Math.round(rate)}% attendance`, `يحتاج متابعة — الحضور ${Math.round(rate)}%`) : t('Needs attention — recent absences', 'يحتاج متابعة — غيابات حديثة')
+            return (
               <div className="mb-3 flex items-center gap-2 rounded-xl bg-amber-500/15 border border-amber-400/25 px-3.5 py-2.5 text-sm text-amber-200">
                 <AlertCircle className="h-4 w-4 text-amber-300 shrink-0" />
-                {t('Needs attention — recent absences', 'يحتاج متابعة — غيابات حديثة')}
+                {msg}
               </div>
-            ) : null
+            )
           })()}
           <div className="flex flex-wrap items-center gap-2">
             <button onClick={() => setShowReportModal(true)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-white/10 border border-white/15 text-white hover:bg-white/15 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50">

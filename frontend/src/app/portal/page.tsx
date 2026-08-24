@@ -138,6 +138,8 @@ export default function PortalPage() {
 
   const hasChildren = children.length > 0
   const nextUpcoming = hasChildren ? Math.max(...children.map(c => c.student.upcomingSessions ?? 0), 0) : 0
+  const nextChild = hasChildren ? children.find(c => (c.student.upcomingSessions ?? 0) === nextUpcoming) ?? children[0] : null
+  const nextChildName = nextChild ? (lang === 'ar' && nextChild.student.firstNameAr ? nextChild.student.firstNameAr : nextChild.student.firstName) : ''
   return (
     <div className="space-y-6">
       <DashboardHero
@@ -185,12 +187,14 @@ export default function PortalPage() {
           </>
         }
       >
-        {hasChildren && nextUpcoming > 0 && (
-          <div className="flex items-center gap-2 rounded-xl bg-white/[0.07] border border-white/10 px-3.5 py-2.5">
-            <Calendar className="h-4 w-4 text-gold-300 shrink-0" />
-            <span className="text-sm font-medium text-white">{t(`${nextUpcoming} upcoming session${nextUpcoming>1?'s':''}`, `${nextUpcoming} جلسة قادمة`)}</span>
-            <span className="text-xs text-white/50 hidden sm:inline">· {t('See each child for details', 'انظر تفاصيل كل طفل')}</span>
-          </div>
+        {hasChildren && nextUpcoming > 0 && nextChild && (
+          <Link href={`/portal/children/${nextChild.student.id}`} className="flex items-center justify-between gap-3 rounded-2xl bg-gradient-to-r from-gold-500/15 to-amber-500/10 border border-gold-400/20 px-4 py-3 hover:from-gold-500/20 hover:to-amber-500/15 transition-colors">
+            <span className="flex items-center gap-2 min-w-0">
+              <span className="flex h-7 w-7 items-center justify-center rounded-full bg-gold-400/20"><Calendar className="h-3.5 w-3.5 text-gold-300" /></span>
+              <span className="text-sm font-semibold text-white truncate">{t(`Next: ${nextChildName} · ${nextUpcoming} upcoming`, `القادم: ${nextChildName} · ${nextUpcoming} قادمة`)}</span>
+            </span>
+            <ChevronRight className="h-4 w-4 text-white/60 shrink-0 rtl:rotate-180" />
+          </Link>
         )}
         {!hasChildren && (
           <a href="#link-child" className="flex items-center justify-between gap-3 rounded-2xl bg-gradient-to-r from-gold-500 to-amber-500 px-4 py-3 shadow-lg shadow-black/15 hover:from-gold-400 hover:to-amber-400 transition-colors">
