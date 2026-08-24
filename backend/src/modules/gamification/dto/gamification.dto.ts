@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsUUID, IsInt, IsObject, Min } from 'class-validator';
+import { IsString, IsOptional, IsUUID, IsInt, IsObject, Min, IsNotEmpty, MinLength } from 'class-validator';
 
 export class UpdateBadgeDto {
   @IsOptional()
@@ -70,7 +70,13 @@ export class AddXpDto {
   @IsString()
   type: string;
 
-  @IsOptional()
+  /**
+   * Manual awards must carry a pastoral reason. It is stored with the
+   * transaction and shown to parents, keeping encouragement transparent and
+   * accountable (Module 1 guardrail).
+   */
   @IsString()
-  description?: string;
+  @IsNotEmpty({ message: 'A reason for the award is required' })
+  @MinLength(3, { message: 'Reason must be at least 3 characters' })
+  description: string;
 }

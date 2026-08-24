@@ -33,6 +33,8 @@ export function PracticeRecorder({ lessonId, lessonTitle, referenceAudioUrl, onS
   const [rating, setRating] = useState(0)
   const [hovered, setHovered] = useState(0)
   const [playingRef, setPlayingRef] = useState(false)
+  const [refRate, setRefRate] = useState(1)
+  const [loopRef, setLoopRef] = useState(false)
   const [playingRec, setPlayingRec] = useState(false)
   const [recordingBlob, setRecordingBlob] = useState<Blob | null>(null)
   const [recordingUrl, setRecordingUrl] = useState('')
@@ -141,12 +143,34 @@ export function PracticeRecorder({ lessonId, lessonTitle, referenceAudioUrl, onS
       {referenceAudioUrl && (
         <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
           <p className="text-xs font-medium text-gray-500 mb-3">{t('1. Listen to the reference', '1. استمع إلى المرجع')}</p>
-          <audio ref={refAudioRef} src={referenceAudioUrl} onEnded={() => setPlayingRef(false)} className="hidden" />
-          <button onClick={() => playPause('ref')}
-            className="flex items-center gap-2 rounded-lg bg-gold-500 px-4 py-2 text-sm font-medium text-white hover:bg-gold-600">
-            {playingRef ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
-            {playingRef ? t('Pause', 'إيقاف') : t('Play reference', 'تشغيل المرجع')}
-          </button>
+          <audio src={referenceAudioUrl} onEnded={() => setPlayingRef(false)} className="hidden"
+            loop={loopRef}
+            ref={(el) => { refAudioRef.current = el; if (el) el.playbackRate = refRate }} />
+          <div className="flex flex-wrap items-center gap-2">
+            <button onClick={() => playPause('ref')}
+              className="flex items-center gap-2 rounded-lg bg-gold-500 px-4 py-2 text-sm font-medium text-white hover:bg-gold-600">
+              {playingRef ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+              {playingRef ? t('Pause', 'إيقاف') : t('Play reference', 'تشغيل المرجع')}
+            </button>
+            {/* Slow-down: melismas are learnable at half speed — rules-based, no analysis */}
+            <div role="group" aria-label={t('Reference speed', 'سرعة المرجع')} className="flex rounded-lg border border-gray-300 overflow-hidden">
+              {[1, 0.75, 0.5].map(rate => (
+                <button key={rate} onClick={() => {
+                  setRefRate(rate)
+                  if (refAudioRef.current) refAudioRef.current.playbackRate = rate
+                }}
+                  aria-pressed={refRate === rate}
+                  className={`px-2.5 py-2 text-xs font-semibold min-w-11 ${refRate === rate ? 'bg-gold-500 text-white' : 'bg-white text-gray-600 hover:bg-gray-100'}`}>
+                  {rate}×
+                </button>
+              ))}
+            </div>
+            <label className="inline-flex items-center gap-1.5 text-xs font-medium text-gray-600 cursor-pointer select-none">
+              <input type="checkbox" checked={loopRef} onChange={e => setLoopRef(e.target.checked)}
+                className="h-4 w-4 rounded border-gray-300 accent-[rgb(var(--gold-500))]" />
+              {t('Loop', 'تكرار')}
+            </label>
+          </div>
         </div>
       )}
 

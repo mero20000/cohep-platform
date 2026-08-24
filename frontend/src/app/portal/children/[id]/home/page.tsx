@@ -95,20 +95,23 @@ function XpBar({ inLevel, toNext, level }: { inLevel: number; toNext: number; le
   )
 }
 
-// ── Streak flame ─────────────────────────────────────────────────────────────
-function StreakBadge({ streak }: { streak: number }) {
+// ── Weekly rhythm badge (grace-mode) ─────────────────────────────────────────
+// Module 1 decision: rhythm invites, never shames. A zero week is a fresh
+// start, not a broken flame.
+function StreakBadge({ streak, lang = 'en' }: { streak: number; lang?: 'en' | 'ar' }) {
+  const t = (en: string, ar: string) => (lang === 'ar' ? ar : en)
   if (streak === 0) return (
-    <div className="flex flex-col items-center gap-1 rounded-2xl bg-white/10 px-5 py-4 text-center">
-      <Flame className="h-8 w-8 text-white/30" />
-      <div className="text-2xl font-black text-white/40">0</div>
-      <div className="text-xs text-white/40 font-medium">day streak</div>
+    <div className="flex flex-col items-center gap-1 rounded-2xl bg-white/10 px-5 py-4 text-center max-w-[9rem]">
+      <Flame className="h-8 w-8 text-gold-300/70" aria-hidden="true" />
+      <div className="text-sm font-semibold text-white/90 leading-snug">{t('A fresh week', 'أسبوع جديد')}</div>
+      <div className="text-[11px] text-white/50 leading-snug">{t('Sing one hymn to begin your rhythm.', 'رنّم ترنيمة واحدة لتبدأ إيقاعك.')}</div>
     </div>
   )
   return (
     <div className="flex flex-col items-center gap-1 rounded-2xl bg-gradient-to-b from-orange-400/30 to-red-500/20 border border-orange-300/20 px-5 py-4 text-center animate-pulse-slow">
-      <Flame className={`h-8 w-8 ${streak >= 7 ? 'text-orange-300' : 'text-orange-400/80'} drop-shadow`} />
+      <Flame className={`h-8 w-8 ${streak >= 7 ? 'text-orange-300' : 'text-orange-400/80'} drop-shadow`} aria-hidden="true" />
       <div className="text-2xl font-black text-white">{streak}</div>
-      <div className="text-xs text-orange-200 font-medium">day streak</div>
+      <div className="text-xs text-orange-200 font-medium">{t('day rhythm', 'يوم إيقاع')}</div>
     </div>
   )
 }
@@ -291,7 +294,7 @@ export default function StudentHomePage() {
             <div className="text-xs text-white/40 font-medium">Total XP</div>
           </div>
           {/* Streak */}
-          <StreakBadge streak={streak} />
+          <StreakBadge streak={streak} lang={lang === 'ar' ? 'ar' : 'en'} />
           {/* Badges */}
           <div className="flex flex-col items-center gap-1 rounded-2xl bg-white/8 border border-white/10 px-3 py-4 text-center">
             <Trophy className="h-6 w-6 text-amber-400" />
