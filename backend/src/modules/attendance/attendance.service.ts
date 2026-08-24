@@ -320,17 +320,26 @@ export class AttendanceService {
     const subjectItem = await this.resolveSessionSubjectItem(session);
     if (!subjectItem) throw new BadRequestException('No subject item is linked to this session');
 
+    if (!passedBy) throw new BadRequestException('passedBy (authenticated user) is required');
     const student = await this.prisma.student.findFirst({
       where: { id: studentId, deletedAt: null },
       select: { id: true, firstName: true, firstNameAr: true, metadata: true },
     });
     if (!student) throw new NotFoundException('Student not found');
 
-    await this.prisma.studentSubjectPass.upsert({
-      where: { studentId_subjectItemId: { studentId, subjectItemId: subjectItem.id } },
-      create: { studentId, subjectItemId: subjectItem.id, sessionId, passedBy },
-      update: { passedAt: new Date(), sessionId, passedBy },
+    const existingPass = await this.prisma.studentSubjectPass.findFirst({
+      where: { studentId, subjectItemId: subjectItem.id, revokedAt: null },
     });
+    if (existingPass) {
+      await this.prisma.studentSubjectPass.update({
+        where: { id: existingPass.id },
+        data: { passedAt: new Date(), status: 'passed', revokedBy: null, passedBy: passedBy! },
+      });
+    } else {
+      await this.prisma.studentSubjectPass.create({
+        data: { studentId, subjectItemId: subjectItem.id, status: 'passed', passedBy: passedBy! },
+      });
+    }
 
     // Parent awareness via WhatsApp (Twilio/Meta when configured; otherwise a
     // wa.me deep link so the servant can send the pre-written message manually)

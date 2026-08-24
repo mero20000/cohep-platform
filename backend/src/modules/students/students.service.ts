@@ -897,4 +897,125 @@ async getPortalData(portalAccessKey: string) {
 
     return code;
   }
+
+  private static readonly PASS_ROLES = ['servant', 'group_leader', 'level_leader', 'admin', 'super_admin'];
+
+  private getUserRoleNames(user: any): string[] {
+    if (!user) return [];
+    if (Array.isArray(user.roles)) return user.roles;
+    if (Array.isArray(user.userRoles)) {
+      return user.userRoles.map((ur: any) => ur?.role?.name ?? ur?.roleName ?? ur).filter(Boolean);
+    }
+    return [];
+  }
+
+  async toggleSubjectItemPass(studentId: string, subjectItemId: string, user: any, dto: { note?: string } = {}) {
+    const roleNames = this.getUserRoleNames(user);
+    if (!roleNames.some((r) => StudentsService.PASS_ROLES.includes(r))) {
+      throw new ForbiddenException('Not allowed to toggle subject item pass');
+    }
+    if (!user?.id) throw new BadRequestException('Authenticated user is required');
+
+    const student = await this.prisma.student.findFirst({
+      where: { id: studentId, deletedAt: null },
+      select: { id: true, schoolId: true, level: { select: { number: true } } },
+    });
+    if (!student) throw new NotFoundException('Student not found');
+
+    const subjectItem = await this.prisma.subjectItem.findFirst({
+      where: { id: subjectItemId, subject: { deletedAt: null } },
+      select: { id: true, subjectId: true, subject: { select: { schoolId: true } }, levels: { select: { levelNumber: true } } },
+    });
+    if (!subjectItem) throw new NotFoundException('Subject item not found');
+    if (subjectItem.subject.schoolId !== student.schoolId) {
+      throw new BadRequestException('Subject item does not belong to the same school as the student');
+    }
+    const allocated = (student.level?.number != null) &&
+      subjectItem.levels.some((l) => l.levelNumber === student.level.number);
+    if (!allocated) throw new BadRequestException('Subject item not allocated to student level');
+
+    const active = await this.prisma.studentSubjectPass.findFirst({
+      where: { studentId, subjectItemId, revokedAt: null },
+      orderBy: { passedAt: 'desc' },
+    });
+
+    if (active) {
+      const record = await this.prisma.studentSubjectPass.update({
+        where: { id: active.id },
+        data: { revokedAt: new Date(), revokedBy: user.id },
+      });
+      return { passed: false, record };
+    }
+
+    const record = await this.prisma.studentSubjectPass.create({
+      data: {
+        studentId,
+        subjectItemId,
+        status: 'passed',
+        passedBy: user.id,
+        note: dto.note ?? null,
+      },
+    });
+    return { passed: true, record };
+  }
+
+  async getStudentSubjectItems(studentId: string, user: any) {
+    const roleNames = this.getUserRoleNames(user);
+    const allowed = [...StudentsService.PASS_ROLES, 'parent'];
+    if (!roleNames.some((r) => allowed.includes(r))) {
+      throw new ForbiddenException('Not allowed to view subject items');
+    }
+
+    const student = await this.prisma.student.findFirst({
+      where: { id: studentId, deletedAt: null },
+      select: { id: true, level: { select: { number: true } } },
+    });
+    if (!student) throw new NotFoundException('Student not found');
+
+    const items = await this.prisma.subjectItem.findMany({
+      where: {
+        active: true,
+        subject: { deletedAt: null },
+        levels: student.level ? { some: { levelNumber: student.level.number } } : undefined,
+      },
+      include: { subject: true },
+      orderBy: { orderIndex: 'asc' },
+    });
+
+    const passes = await this.prisma.studentSubjectPass.findMany({
+      where: { studentId, subjectItemId: { in: items.map((i) => i.id) } },
+      orderBy: { passedAt: 'desc' },
+    });
+
+    return items.map((item) => {
+      const history = passes.filter((p) => p.subjectItemId === item.id);
+      const active = history.find((p) => p.revokedAt === null) ?? null;
+      return {
+        subjectItem: item,
+        status: active ? 'passed' : 'not_started',
+        passedAt: active?.passedAt ?? null,
+        passedBy: active?.passedBy ?? null,
+        history,
+      };
+    });
+  }
+
+  async getStudentPassHistory(studentId: string, user: any) {
+    const roleNames = this.getUserRoleNames(user);
+    const allowed = [...StudentsService.PASS_ROLES, 'parent'];
+    if (!roleNames.some((r) => allowed.includes(r))) {
+      throw new ForbiddenException('Not allowed to view pass history');
+    }
+
+    const student = await this.prisma.student.findFirst({
+      where: { id: studentId, deletedAt: null },
+      select: { id: true },
+    });
+    if (!student) throw new NotFoundException('Student not found');
+
+    return this.prisma.studentSubjectPass.findMany({
+      where: { studentId },
+      orderBy: { passedAt: 'desc' },
+    });
+  }
 }

@@ -18,6 +18,7 @@ import { CreateStudentDto } from './dto/create-student.dto';
 import { UpdateStudentDto } from './dto/update-student.dto';
 import { QueryStudentDto } from './dto/query-student.dto';
 import { BulkImportStudentDto } from './dto/bulk-import-student.dto';
+import { ToggleSubjectItemPassDto } from './dto/subject-item-pass.dto';
 
 @ApiTags('students')
 @Roles(...STAFF_ROLES)
@@ -159,5 +160,40 @@ export class StudentsController {
   @ApiOperation({ summary: 'Get student activity log' })
   async getActivity(@Param('id') id: string, @Query('schoolId') schoolId: string = '') {
     return this.auditService.findByEntity('student', id, 50, schoolId);
+  }
+
+    @Roles('servant', 'group_leader', 'level_leader', 'admin', 'super_admin')
+  @Post(':id/subject-items/:itemId/pass')
+  @ApiOperation({ summary: 'Toggle passed status for a subject item' })
+  async togglePass(
+    @Param('id') id: string,
+    @Param('itemId') itemId: string,
+    @Body() dto: ToggleSubjectItemPassDto,
+    @Req() req: any,
+  ) {
+    const result = await this.studentsService.toggleSubjectItemPass(id, itemId, req.user, dto);
+    await this.auditService.log({
+      action: result.passed ? 'subject_item_passed' : 'subject_item_pass_revoked',
+      entityType: 'student',
+      entityId: id,
+      userId: req.user?.id,
+      metadata: { subjectItemId: itemId },
+      schoolId: req.query?.schoolId || undefined,
+    });
+    return result;
+  }
+
+    @Roles('servant', 'group_leader', 'level_leader', 'admin', 'super_admin', 'parent')
+  @Get(':id/subject-items')
+  @ApiOperation({ summary: 'Get allocated subject items with pass status' })
+  async getSubjectItems(@Param('id') id: string, @Req() req: any) {
+    return this.studentsService.getStudentSubjectItems(id, req.user);
+  }
+
+    @Roles('servant', 'group_leader', 'level_leader', 'admin', 'super_admin', 'parent')
+  @Get(':id/subject-items/history')
+  @ApiOperation({ summary: 'Get subject item pass history' })
+  async getPassHistory(@Param('id') id: string, @Req() req: any) {
+    return this.studentsService.getStudentPassHistory(id, req.user);
   }
 }

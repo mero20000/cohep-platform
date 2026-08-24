@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { NotFoundException, BadRequestException } from '@nestjs/common';
+import { NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { StudentsService } from './students.service';
 import { PrismaService } from '../../database/prisma.service';
 import { AuditService } from '../audit/audit.service';
@@ -91,6 +91,13 @@ systemConfig: {
     attendanceSession: { findMany: jest.fn() },
     assessmentSubmission: { findMany: jest.fn() },
     user: { findUnique: jest.fn() },
+    subjectItem: { findFirst: jest.fn(), findMany: jest.fn() },
+    studentSubjectPass: {
+      findFirst: jest.fn(),
+      findMany: jest.fn(),
+      create: jest.fn(),
+      update: jest.fn(),
+    },
     $transaction: jest.fn(),
     $executeRawUnsafe: jest.fn(),
   };
@@ -747,6 +754,75 @@ systemConfig: {
         churchName: 'St. Mary Cathedral',
         churchNameAr: 'كاتدرائية السيدة مريم',
       });
+    });
+  });
+
+  // ===== toggleSubjectItemPass =====
+  describe('toggleSubjectItemPass', () => {
+    const servantUser = { id: 'user-1', roles: ['servant'] };
+
+    beforeEach(() => {
+      prisma.studentSubjectPass.findFirst.mockReset();
+      prisma.studentSubjectPass.findMany.mockReset();
+      prisma.studentSubjectPass.create.mockReset();
+      prisma.studentSubjectPass.update.mockReset();
+    });
+
+    it('should toggle passed and keep history', async () => {
+      prisma.student.findFirst.mockResolvedValue({ id: 'stu-1', schoolId, level: { number: 1 } });
+      prisma.subjectItem.findFirst.mockResolvedValue({
+        id: 'item-1',
+        subjectId: 'sub-1',
+        subject: { schoolId },
+        levels: [{ levelNumber: 1 }],
+      });
+      prisma.studentSubjectPass.findFirst
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce({ id: 'pass-1' });
+      prisma.studentSubjectPass.create.mockResolvedValue({ id: 'pass-1', revokedAt: null });
+      prisma.studentSubjectPass.update.mockResolvedValue({ id: 'pass-1', revokedAt: new Date() });
+      prisma.studentSubjectPass.findMany.mockResolvedValue([{ id: 'pass-1', revokedAt: new Date() }]);
+
+      const res1 = await service.toggleSubjectItemPass('stu-1', 'item-1', servantUser, {});
+      expect(res1.passed).toBe(true);
+      expect(prisma.studentSubjectPass.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ studentId: 'stu-1', subjectItemId: 'item-1', passedBy: 'user-1' }),
+        }),
+      );
+
+      const res2 = await service.toggleSubjectItemPass('stu-1', 'item-1', servantUser, {});
+      expect(res2.passed).toBe(false);
+      expect(prisma.studentSubjectPass.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 'pass-1' },
+          data: expect.objectContaining({ revokedAt: expect.any(Date), revokedBy: 'user-1' }),
+        }),
+      );
+
+      const history = await service.getStudentPassHistory('stu-1', servantUser);
+      expect(history.length).toBe(1);
+      expect(history[0].revokedAt).not.toBeNull();
+    });
+
+    it('throws when item is not allocated to student level', async () => {
+      prisma.student.findFirst.mockResolvedValue({ id: 'stu-1', schoolId, level: { number: 2 } });
+      prisma.subjectItem.findFirst.mockResolvedValue({
+        id: 'item-1',
+        subjectId: 'sub-1',
+        subject: { schoolId },
+        levels: [{ levelNumber: 1 }],
+      });
+
+      await expect(service.toggleSubjectItemPass('stu-1', 'item-1', servantUser, {})).rejects.toThrow(
+        'Subject item not allocated to student level',
+      );
+    });
+
+    it('throws ForbiddenException for disallowed role', async () => {
+      await expect(
+        service.toggleSubjectItemPass('stu-1', 'item-1', { id: 'u2', roles: ['curriculum_manager'] }, {}),
+      ).rejects.toThrow(ForbiddenException);
     });
   });
 
