@@ -29,6 +29,7 @@ interface AssessmentResult {
   id: string; assessmentId: string; title: string; titleAr?: string;
   subject?: string; subjectAr?: string; status: string;
   score: number; maxScore: number; percentage: number; passed: boolean; gradedAt?: string;
+  referenceRecordingUrl?: string | null; referenceRecordingName?: string | null;
 }
 
 interface ProgressData {
@@ -394,14 +395,55 @@ function PracticePanel({ childId, lang }: { childId: string; lang: string }) {
     </div>
   )
 
-  const si = lesson.subjectItem
-  const hasRecording = !!si?.recordingUrl
-  const hasHazzat = !!si?.hazzat
-  const hasPresentation = !!si?.presentationUrl
+  const isFallback = lesson.source === 'subject_item_level'
+  const subjectItems: any[] = isFallback ? (lesson.subjectItems || []) : (lesson.subjectItem ? [lesson.subjectItem] : [])
+
+  const renderItemCard = (item: any) => {
+    const hasRecording = !!item.recordingUrl
+    const hasHazzat = !!item.hazzat
+    const hasPresentation = !!item.presentationUrl
+    return (
+      <div key={item.id} className="rounded-lg bg-white/70 border border-blue-100 p-4 space-y-2">
+        <div>
+          <h4 className="font-bold text-gray-900">
+            {lang === 'ar' && item.nameAr ? item.nameAr : item.name}
+          </h4>
+          {item.nameCoptic && <p className="text-xs text-gray-400">{item.nameCoptic}</p>}
+        </div>
+        {hasRecording && (
+          <div>
+            <div className="flex items-center gap-2 text-sm text-gray-700 mb-1">
+              <Play className="h-4 w-4 text-blue-600" />
+              {t('Listening Recording', 'تسجيل الاستماع')}
+            </div>
+            <audio controls className="w-full h-8" src={assetUrl(item.recordingUrl)}>
+              {t('Your browser does not support audio', 'متصفحك لا يدعم الصوت')}
+            </audio>
+          </div>
+        )}
+        <div className="flex flex-wrap gap-2">
+          {hasHazzat && (
+            <a href={assetUrl(item.hazzat)} target="_blank" rel="noopener noreferrer"
+              className="flex items-center gap-1.5 rounded-lg bg-blue-50 border border-blue-100 px-3 py-1.5 text-xs font-medium text-blue-700 hover:bg-blue-100 transition-colors">
+              <FileText className="h-3.5 w-3.5" />
+              {t('Hazzat', 'الحزّات')}
+            </a>
+          )}
+          {hasPresentation && (
+            <a href={assetUrl(item.presentationUrl)} target="_blank" rel="noopener noreferrer"
+              className="flex items-center gap-1.5 rounded-lg bg-blue-50 border border-blue-100 px-3 py-1.5 text-xs font-medium text-blue-700 hover:bg-blue-100 transition-colors">
+              <BookOpen className="h-3.5 w-3.5" />
+              {t('Presentation', 'العرض')}
+            </a>
+          )}
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-4">
-      {/* Current lesson card */}
+      {/* Header card */}
       <div className="rounded-xl border border-blue-200 bg-gradient-to-r from-blue-50 to-amber-50 p-5">
         <div className="flex items-center gap-2 mb-3">
           <Headphones className="h-5 w-5 text-blue-600" />
@@ -409,88 +451,85 @@ function PracticePanel({ childId, lang }: { childId: string; lang: string }) {
             {t('Practice Together', 'تمرن مع بعض')}
           </h3>
         </div>
-        <div className="rounded-lg bg-white/70 border border-blue-100 p-4">
-          <p className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-1">
-            {lesson.subject?.nameAr && lang === 'ar' ? lesson.subject.nameAr : lesson.subject?.name}
-            {lesson.level && <span className="ml-2">· {t('Level', 'المستوى')} {lesson.level.number}</span>}
-          </p>
-          <h4 className="font-bold text-gray-900 text-lg">
-            {lang === 'ar' && lesson.lesson.titleAr ? lesson.lesson.titleAr : lesson.lesson.title}
-          </h4>
-          {lesson.lesson.titleCoptic && (
-            <p className="text-sm text-gray-400 mt-0.5">{lesson.lesson.titleCoptic}</p>
-          )}
-          {lesson.lesson.description && (
-            <p className="text-sm text-gray-600 mt-2 line-clamp-2">
-              {lang === 'ar' && lesson.lesson.descriptionAr ? lesson.lesson.descriptionAr : lesson.lesson.description}
-            </p>
-          )}
-        </div>
 
-        {/* Reference materials */}
-        {(hasRecording || hasHazzat || hasPresentation) && (
-          <div className="mt-3 space-y-2">
-            <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">
-              {t('Reference Materials', 'المراجع')}
-            </p>
-            {hasRecording && (
-              <div className="rounded-lg bg-white/70 border border-blue-100 p-3">
-                <div className="flex items-center gap-2 text-sm text-gray-700 mb-2">
-                  <Play className="h-4 w-4 text-blue-600" />
-                  {t('Listening Recording', 'تسجيل الاستماع')}
-                </div>
-                <audio controls className="w-full h-8" src={assetUrl(si.recordingUrl)}>
-                  {t('Your browser does not support audio', 'متصفحك لا يدعم الصوت')}
-                </audio>
+        {isFallback ? (
+          <>
+            <div className="rounded-lg bg-white/70 border border-blue-100 p-4 mb-3">
+              <p className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-1">
+                {t('Subject Items for Your Level', 'عناصر المنهج لمستوى طفلك')}
+                {lesson.level && <span className="ml-2">· {t('Level', 'المستوى')} {lesson.level.number}</span>}
+              </p>
+              <p className="text-sm text-gray-600">
+                {t(
+                  'These are the hymns and liturgical items allocated for your child\'s level. Practice them together at home!',
+                  'هذه التراتيل والعناصر الكنسية المخصصة لمستوى طفلك. تمرنوا معاً في المنزل!'
+                )}
+              </p>
+            </div>
+            <div className="space-y-3">
+              {subjectItems.map(renderItemCard)}
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="rounded-lg bg-white/70 border border-blue-100 p-4">
+              <p className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-1">
+                {lesson.subject?.nameAr && lang === 'ar' ? lesson.subject.nameAr : lesson.subject?.name}
+                {lesson.level && <span className="ml-2">· {t('Level', 'المستوى')} {lesson.level.number}</span>}
+              </p>
+              <h4 className="font-bold text-gray-900 text-lg">
+                {lang === 'ar' && lesson.lesson.titleAr ? lesson.lesson.titleAr : lesson.lesson.title}
+              </h4>
+              {lesson.lesson.titleCoptic && (
+                <p className="text-sm text-gray-400 mt-0.5">{lesson.lesson.titleCoptic}</p>
+              )}
+              {lesson.lesson.description && (
+                <p className="text-sm text-gray-600 mt-2 line-clamp-2">
+                  {lang === 'ar' && lesson.lesson.descriptionAr ? lesson.lesson.descriptionAr : lesson.lesson.description}
+                </p>
+              )}
+            </div>
+            {subjectItems.length > 0 && (
+              <div className="mt-3 space-y-2">
+                <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">
+                  {t('Reference Materials', 'المراجع')}
+                </p>
+                {subjectItems.map(renderItemCard)}
               </div>
             )}
-            {hasHazzat && (
-              <a href={assetUrl(si.hazzat)} target="_blank" rel="noopener noreferrer"
-                className="flex items-center gap-2 rounded-lg bg-white/70 border border-blue-100 p-3 text-sm text-blue-700 hover:bg-blue-50 transition-colors">
-                <FileText className="h-4 w-4" />
-                {t('View Hazzat', 'عرض الحزّات')}
-              </a>
-            )}
-            {hasPresentation && (
-              <a href={assetUrl(si.presentationUrl)} target="_blank" rel="noopener noreferrer"
-                className="flex items-center gap-2 rounded-lg bg-white/70 border border-blue-100 p-3 text-sm text-blue-700 hover:bg-blue-50 transition-colors">
-                <BookOpen className="h-4 w-4" />
-                {t('View Presentation', 'عرض العرض التقديمي')}
-              </a>
-            )}
-          </div>
-        )}
-
-        {/* Sessions content */}
-        {lesson.lesson.sessions?.length > 0 && (
-          <div className="mt-3 space-y-1">
-            <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">
-              {t('Sessions', 'الحصص')}
-            </p>
-            {lesson.lesson.sessions.map((s: any) => (
-              <div key={s.id} className="rounded-lg bg-white/50 border border-blue-50 p-2 text-sm">
-                <span className="font-medium text-gray-700">{lang === 'ar' && s.titleAr ? s.titleAr : s.title}</span>
-                {s.contentCoptic && <span className="ml-2 text-gray-400 text-xs">({s.contentCoptic})</span>}
+            {lesson.lesson.sessions?.length > 0 && (
+              <div className="mt-3 space-y-1">
+                <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">
+                  {t('Sessions', 'الحصص')}
+                </p>
+                {lesson.lesson.sessions.map((s: any) => (
+                  <div key={s.id} className="rounded-lg bg-white/50 border border-blue-50 p-2 text-sm">
+                    <span className="font-medium text-gray-700">{lang === 'ar' && s.titleAr ? s.titleAr : s.title}</span>
+                    {s.contentCoptic && <span className="ml-2 text-gray-400 text-xs">({s.contentCoptic})</span>}
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
+            )}
+          </>
         )}
 
-        {/* Practice button */}
-        <div className="mt-4 flex items-center gap-3">
-          <button onClick={handlePractice} disabled={practicing || !!practiceResult}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-              practiceResult
-                ? 'bg-green-100 text-green-700 border border-green-200'
-                : 'bg-blue-600 text-white hover:bg-blue-700'
-            } disabled:opacity-50`}>
-            {practiceResult ? <CheckCircle className="h-4 w-4" /> : <Play className="h-4 w-4" />}
-            {practiceResult
-              ? t(`Practiced! +${practiceResult.xpAwarded} XP`, `تم التمرين! +${practiceResult.xpAwarded} نقطة`)
-              : practicing ? t('Logging...', 'جاري التسجيل...') : t('Log Practice Session', 'تسجيل جلسة تمرين')
-            }
-          </button>
-        </div>
+        {/* Practice button (only when a lesson exists for logging) */}
+        {lesson.lesson?.id && (
+          <div className="mt-4 flex items-center gap-3">
+            <button onClick={handlePractice} disabled={practicing || !!practiceResult}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                practiceResult
+                  ? 'bg-green-100 text-green-700 border border-green-200'
+                  : 'bg-blue-600 text-white hover:bg-blue-700'
+              } disabled:opacity-50`}>
+              {practiceResult ? <CheckCircle className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+              {practiceResult
+                ? t(`Practiced! +${practiceResult.xpAwarded} XP`, `تم التمرين! +${practiceResult.xpAwarded} نقطة`)
+                : practicing ? t('Logging...', 'جاري التسجيل...') : t('Log Practice Session', 'تسجيل جلسة تمرين')
+              }
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Assessment reporting */}
@@ -865,6 +904,15 @@ export default function ChildDetailPage() {
                     a.percentage >= 50 ? 'bg-amber-500' : 'bg-red-500'
                   }`} style={{ width: `${a.percentage}%` }} />
                 </div>
+                {a.referenceRecordingUrl && (
+                  <div className="mt-3">
+                    <div className="text-xs text-gray-500 mb-1">
+                      {a.referenceRecordingName || t('Reference recording', 'تسجيل المرجع')}
+                    </div>
+                    <audio controls className="w-full h-8"
+                      src={a.referenceRecordingUrl.startsWith('http') ? a.referenceRecordingUrl : `${API_ORIGIN}${a.referenceRecordingUrl}`} />
+                  </div>
+                )}
               </div>
             ))
           )}

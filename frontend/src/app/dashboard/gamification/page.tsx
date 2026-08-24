@@ -372,8 +372,8 @@ function GroupTrophyPanel({ lang, schoolId }: { lang: string; schoolId: string }
   const [loadingGroups, setLoadingGroups] = useState(true)
 
   useEffect(() => {
-    http.get<any>(`/students/groups?schoolId=${schoolId}`)
-      .then(d => { setGroups(Array.isArray(d) ? d : d?.groups || d?.data || []); setLoadingGroups(false) })
+    http.get<any[]>('/students/groups/all', { schoolId })
+      .then(d => { setGroups(Array.isArray(d) ? d : []); setLoadingGroups(false) })
       .catch(() => setLoadingGroups(false))
   }, [schoolId])
 

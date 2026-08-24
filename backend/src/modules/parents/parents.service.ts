@@ -590,7 +590,42 @@ export class ParentsService {
       orderBy: { scheduledDate: 'desc' },
     });
 
-    if (!allocation) return null;
+    if (!allocation) {
+      // Fallback: get subject items directly from SubjectItemLevel for the child's level
+      const level = await this.prisma.level.findUnique({
+        where: { id: student.levelId },
+        select: { number: true, name: true },
+      });
+      if (!level) return null;
+
+      const subjectItemLevels = await this.prisma.subjectItemLevel.findMany({
+        where: { levelNumber: level.number },
+        include: {
+          subjectItem: {
+            select: {
+              id: true, name: true, nameAr: true, nameCoptic: true,
+              recordingUrl: true, hazzat: true, presentationUrl: true,
+              presentationData: true, subjectId: true,
+            },
+          },
+        },
+        take: 10,
+      });
+
+      const items = subjectItemLevels
+        .map(sil => sil.subjectItem)
+        .filter(Boolean);
+
+      if (items.length === 0) return null;
+
+      return {
+        lesson: null,
+        subject: null,
+        level: { number: level.number, name: level.name },
+        subjectItems: items,
+        source: 'subject_item_level',
+      };
+    }
 
     return {
       lesson: {

@@ -35,6 +35,12 @@ describe('ParentsService getCurrentLesson', () => {
     curriculumAllocation: {
       findFirst: jest.fn(),
     },
+    level: {
+      findUnique: jest.fn(),
+    },
+    subjectItemLevel: {
+      findMany: jest.fn(),
+    },
   };
 
   beforeEach(async () => {
@@ -83,6 +89,8 @@ describe('ParentsService getCurrentLesson', () => {
 
   it('returns null when no current allocation exists', async () => {
     prisma.curriculumAllocation.findFirst.mockResolvedValue(null);
+    prisma.level.findUnique.mockResolvedValue({ number: 1, name: 'Level 1' });
+    prisma.subjectItemLevel.findMany.mockResolvedValue([]);
 
     const result = await service.getCurrentLesson(studentId, userId);
 
