@@ -211,7 +211,7 @@ export class ReportsService {
 
   // ── Servant Contribution Report ──────────────────────────────────────────
 
-  async getServantContributions(schoolIdentifier: string) {
+  async getServantContributions(schoolIdentifier: string, includeAll = false) {
     const schoolId = await this.schoolResolver.resolve(schoolIdentifier);
     const MINISTRY_ROLES = ['servant', 'group_leader', 'level_leader', 'assistant_servant', 'curriculum_manager'];
 
@@ -281,11 +281,17 @@ export class ReportsService {
     contributions.sort((a, b) => b.totalSessions - a.totalSessions);
     const mostActiveThisMonth = [...contributions].sort((a, b) => b.sessionsThisMonth - a.sessionsThisMonth)[0] || null;
 
+    // An appreciation report should celebrate actual contribution. Seed/QA
+    // accounts (never recorded a session) are excluded by default; callers can
+    // pass includeInactive=true for a full roster (e.g. admin audits).
+    const active = includeAll ? contributions : contributions.filter(c => c.totalSessions > 0);
+
     return {
-      servants: contributions,
+      servants: active,
+      excludedZeroActivity: contributions.length - active.length,
       summary: {
-        totalServants: contributions.length,
-        totalSessionsAllTime: contributions.reduce((s, c) => s + c.totalSessions, 0),
+        totalServants: active.length,
+        totalSessionsAllTime: active.reduce((s, c) => s + c.totalSessions, 0),
         mostActiveThisMonth: mostActiveThisMonth ? {
           name: mostActiveThisMonth.firstName,
           nameAr: mostActiveThisMonth.firstNameAr,

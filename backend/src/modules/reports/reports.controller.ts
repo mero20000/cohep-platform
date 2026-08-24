@@ -25,9 +25,12 @@ export class ReportsController {
   }
 
   @Get('servant-contributions')
-  @ApiOperation({ summary: 'Servant contribution report — appreciation-framed, not performance-review' })
-  async getServantContributions(@Query('schoolId') schoolId: string = '') {
-    return this.reportsService.getServantContributions(schoolId);
+  @ApiOperation({ summary: 'Servant contribution report — appreciation-framed, not performance-review. Excludes zero-activity (seed/QA) accounts unless includeAll=true.' })
+  async getServantContributions(
+    @Query('schoolId') schoolId: string = '',
+    @Query('includeAll') includeAll?: string,
+  ) {
+    return this.reportsService.getServantContributions(schoolId, includeAll === 'true');
   }
 
   @Get('diocese')
