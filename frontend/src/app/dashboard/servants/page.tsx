@@ -76,6 +76,17 @@ const TEACHING_SUBJECT_NAME: Record<string, string> = {
   coptic_language: 'Coptic Language',
 }
 
+const VALID_TEACHING_SET = new Set(TEACHING_SUBJECTS.map(s => s.value))
+const TEACHING_ALIASES: Record<string, string> = {
+  'Coptic Hymns': 'coptic_hymns',
+  'Coptic Rites': 'coptic_rites',
+  'Coptic Language': 'coptic_language',
+}
+function normalizeTeachingSubject(v: string): string {
+  const t = v.trim()
+  return TEACHING_ALIASES[t] ?? t.toLowerCase().replace(/\s+/g, '_')
+}
+
 // Tint a badge with a hex color at low opacity (matching the existing
 // `bg-*-50 text-*` aesthetic). Falls back to the default blue when no color.
 const tintStyle = (color?: string): React.CSSProperties | undefined => {
@@ -249,7 +260,10 @@ export default function ServantsPage() {
       if (filterLevel && meta.levelId !== filterLevel) return false
       if (filterGroup && meta.groupId !== filterGroup) return false
       if (filterGrade && meta.grade !== filterGrade) return false
-      if (filterSubject && !meta.teachingSubjects?.includes(filterSubject)) return false
+      if (filterSubject) {
+        const have = (meta.teachingSubjects ?? []).map(normalizeTeachingSubject)
+        if (!have.includes(filterSubject)) return false
+      }
       if (filterGender && s.gender !== filterGender) return false
       return true
     })
@@ -535,9 +549,12 @@ export default function ServantsPage() {
         const gender = get('Gender').toLowerCase()
         const levelName = get('Level')
         const groupName = get('Group')
-        const teaching = get('TeachingSubjects').split(';').map((s) => s.trim()).filter(Boolean)
         const roleName = get('Role') || 'servant'
         let _error = ''
+        const rawTeaching = get('TeachingSubjects').split(';').map((s) => s.trim()).filter(Boolean)
+        const teaching = [...new Set(rawTeaching.map(normalizeTeachingSubject).filter(v => VALID_TEACHING_SET.has(v)))]
+        const invalidTeaching = rawTeaching.filter(s => !VALID_TEACHING_SET.has(normalizeTeachingSubject(s)))
+        if (invalidTeaching.length > 0) _error = _error || (lang === 'ar' ? `مواد تدريس غير صالحة: ${invalidTeaching.join(', ')}` : `Invalid TeachingSubjects: ${invalidTeaching.join(', ')}`)
         if (!firstName || !lastName) _error = lang === 'ar' ? 'الاسم مطلوب' : 'Name required'
         else if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) _error = lang === 'ar' ? 'بريد غير صالح' : 'Invalid email'
         else if (gender && !['female', 'male'].includes(gender)) _error = lang === 'ar' ? 'جنس غير صالح' : 'Invalid gender'
