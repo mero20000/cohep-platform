@@ -60,6 +60,13 @@ const HW_COLORS: Record<string, string> = {
   not_submitted: 'text-red-700 bg-red-100',
 }
 
+interface SubjectItemEntry {
+  subjectItem: { id: string; name: string; nameAr?: string; nameCoptic?: string }
+  status: 'passed' | 'not_started'
+  passedAt?: string | null
+  history: unknown[]
+}
+
 type Tab = 'dashboard' | 'practice'
 
 export default function StudentDashboard() {
@@ -72,6 +79,7 @@ export default function StudentDashboard() {
   const [showName, setShowName] = useState(true)
   const [activeTab, setActiveTab] = useState<Tab>('dashboard')
   const [menuOpen, setMenuOpen] = useState(false)
+  const [subjectItems, setSubjectItems] = useState<SubjectItemEntry[]>([])
   const menuRef = useRef<HTMLDivElement>(null)
   useEffect(() => {
     const h = (e: MouseEvent) => { if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false) }
@@ -101,6 +109,15 @@ export default function StudentDashboard() {
       }
     }
     load()
+    return () => { cancelled = true }
+  }, [code])
+
+  useEffect(() => {
+    if (!code) return
+    let cancelled = false
+    portalGet<SubjectItemEntry[]>(code, `/student-portal/${encodeURIComponent(code)}/subject-items`)
+      .then(items => { if (!cancelled) setSubjectItems(Array.isArray(items) ? items : []) })
+      .catch(() => {})
     return () => { cancelled = true }
   }, [code])
 
@@ -430,6 +447,66 @@ export default function StudentDashboard() {
                 </div>
               </section>
             )}
+
+            {/* Passed Hymns (subject items) */}
+            {(() => {
+              const passedItems = subjectItems.filter(i => i.status === 'passed')
+              const revokedItems = subjectItems.filter(i => i.status !== 'passed' && i.history && i.history.length > 0)
+              if (passedItems.length === 0 && revokedItems.length === 0) return null
+              return (
+                <section>
+                  <h2 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                    <Music className="h-4 w-4 text-blue-500" />
+                    {lang === 'ar' ? 'الترانيم المجتازة' : 'Passed Hymns'}
+                  </h2>
+                  <div className="space-y-2">
+                    {passedItems.map(i => {
+                      const name = lang === 'ar' && i.subjectItem.nameAr ? i.subjectItem.nameAr : i.subjectItem.name
+                      return (
+                        <div key={i.subjectItem.id} className="flex items-center gap-3 rounded-xl bg-white border border-gray-200 px-4 py-3">
+                          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-green-50 text-green-600 flex-shrink-0">
+                            <CheckCircle2 className="h-4 w-4" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="text-sm font-medium text-gray-900 truncate">{name}</div>
+                            {i.passedAt && (
+                              <div className="text-xs text-gray-500">
+                                {lang === 'ar' ? 'اجتاز في' : 'Passed'} {new Date(i.passedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                              </div>
+                            )}
+                          </div>
+                          <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2.5 py-1 text-xs font-medium text-green-700 flex-shrink-0">
+                            ✓ {lang === 'ar' ? 'مجتاز' : 'Passed'}
+                          </span>
+                        </div>
+                      )
+                    })}
+                    {revokedItems.map(i => {
+                      const name = lang === 'ar' && i.subjectItem.nameAr ? i.subjectItem.nameAr : i.subjectItem.name
+                      const lastPass = [...i.history].reverse().find(h => (h as any)?.status === 'passed' || true)
+                      return (
+                        <div key={i.subjectItem.id} className="flex items-center gap-3 rounded-xl bg-gray-50 border border-gray-200 px-4 py-3 opacity-70">
+                          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gray-100 text-gray-400 flex-shrink-0">
+                            <Music className="h-4 w-4" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="text-sm font-medium text-gray-500 line-through truncate">{name}</div>
+                            {(lastPass as any)?.date && (
+                              <div className="text-xs text-gray-400">
+                                {lang === 'ar' ? 'اجتاز سابقاً في' : 'Previously passed'} {new Date((lastPass as any).date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                              </div>
+                            )}
+                          </div>
+                          <span className="inline-flex items-center gap-1 rounded-full bg-gray-200 px-2.5 py-1 text-xs font-medium text-gray-600 flex-shrink-0">
+                            {lang === 'ar' ? 'ملغى' : 'Revoked'}
+                          </span>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </section>
+              )
+            })()}
 
             {/* Assigned Assessments */}
             {assessments.length > 0 && (
