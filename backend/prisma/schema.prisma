@@ -176,6 +176,7 @@ model User {
   auditLogs          AuditLog[]
   certificates       Certificate[]
   servantProfile     ServantProfile?
+  passedSubjectPasses StudentSubjectPass[] @relation("PassedBy")
 
   @@unique([schoolId, email])
   @@index([schoolId])
@@ -340,7 +341,7 @@ model Student {
   certificates          Certificate[]
   xpTransactions        XPTransaction[]
   familyPractices       FamilyPractice[]
-  subjectPasses         StudentSubjectPass[]
+  studentSubjectPasses  StudentSubjectPass[]
   familyLiturgies       FamilyLiturgy[]
   hymns                 HymnPracticeSession[]
 
@@ -468,18 +469,27 @@ model Group {
 }
 
 model StudentSubjectPass {
-  id            String   @id @default(uuid())
-  studentId     String   @map("student_id")
-  subjectItemId String   @map("subject_item_id")
-  sessionId     String?  @map("session_id")
-  passedAt      DateTime @default(now()) @map("passed_at")
-  passedBy      String?  @map("passed_by")
+  id            String    @id @default(uuid())
+  studentId     String    @map("student_id")
+  subjectItemId String    @map("subject_item_id")
+  status        String    @default("passed") // passed
+  passedAt      DateTime  @default(now()) @map("passed_at")
+  sessionId     String?   @map("session_id")
+  passedBy      String    @map("passed_by")
+  note          String?
+  revokedAt     DateTime? @map("revoked_at")
+  revokedBy     String?   @map("revoked_by")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
 
-  student     Student     @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  subjectItem SubjectItem @relation(fields: [subjectItemId], references: [id], onDelete: Cascade)
+  student     Student     @relation(fields: [studentId], references: [id])
+  subjectItem SubjectItem @relation(fields: [subjectItemId], references: [id])
+  passer      User        @relation("PassedBy", fields: [passedBy], references: [id])
 
-  @@unique([studentId, subjectItemId])
+  @@unique([studentId, subjectItemId, revokedAt]) // allow history: only one active (revokedAt null) per pair
+  @@index([studentId])
   @@index([subjectItemId])
+  @@index([sessionId])
   @@map("student_subject_passes")
 }
 

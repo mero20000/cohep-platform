@@ -333,11 +333,11 @@ export class AttendanceService {
     if (existingPass) {
       await this.prisma.studentSubjectPass.update({
         where: { id: existingPass.id },
-        data: { passedAt: new Date(), status: 'passed', revokedBy: null, passedBy: passedBy! },
+        data: { passedAt: new Date(), status: 'passed', revokedBy: null, passedBy: passedBy!, sessionId },
       });
     } else {
       await this.prisma.studentSubjectPass.create({
-        data: { studentId, subjectItemId: subjectItem.id, status: 'passed', passedBy: passedBy! },
+        data: { studentId, subjectItemId: subjectItem.id, status: 'passed', passedBy: passedBy!, sessionId },
       });
     }
 

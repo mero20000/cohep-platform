@@ -819,6 +819,21 @@ systemConfig: {
       );
     });
 
+    it('throws when subject item belongs to a different school than the student', async () => {
+      prisma.student.findFirst.mockResolvedValue({ id: 'stu-1', schoolId, level: { number: 1 } });
+      prisma.subjectItem.findFirst.mockResolvedValue({
+        id: 'item-1',
+        subjectId: 'sub-1',
+        subject: { schoolId: 'school-other' },
+        levels: [{ levelNumber: 1 }],
+      });
+
+      await expect(service.toggleSubjectItemPass('stu-1', 'item-1', servantUser, {})).rejects.toThrow(
+        new BadRequestException('Subject item does not belong to the same school as the student'),
+      );
+      expect(prisma.studentSubjectPass.create).not.toHaveBeenCalled();
+    });
+
     it('throws ForbiddenException for disallowed role', async () => {
       await expect(
         service.toggleSubjectItemPass('stu-1', 'item-1', { id: 'u2', roles: ['curriculum_manager'] }, {}),

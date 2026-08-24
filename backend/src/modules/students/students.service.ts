@@ -985,16 +985,27 @@ async getPortalData(portalAccessKey: string) {
     const passes = await this.prisma.studentSubjectPass.findMany({
       where: { studentId, subjectItemId: { in: items.map((i) => i.id) } },
       orderBy: { passedAt: 'desc' },
+      include: {
+        passer: { select: { id: true, firstName: true, lastName: true } },
+      },
     });
 
     return items.map((item) => {
       const history = passes.filter((p) => p.subjectItemId === item.id);
       const active = history.find((p) => p.revokedAt === null) ?? null;
+      const activeWithPasser = active as (typeof active & { passer?: { id: string; firstName: string; lastName: string } | null }) | null;
       return {
         subjectItem: item,
         status: active ? 'passed' : 'not_started',
         passedAt: active?.passedAt ?? null,
         passedBy: active?.passedBy ?? null,
+        passedByUser: activeWithPasser?.passer
+          ? {
+              id: activeWithPasser.passer.id,
+              firstName: activeWithPasser.passer.firstName,
+              lastName: activeWithPasser.passer.lastName,
+            }
+          : null,
         history,
       };
     });
