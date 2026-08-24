@@ -483,7 +483,8 @@ export default function StudentDashboard() {
                     })}
                     {revokedItems.map(i => {
                       const name = lang === 'ar' && i.subjectItem.nameAr ? i.subjectItem.nameAr : i.subjectItem.name
-                      const lastPass = [...i.history].reverse().find(h => (h as any)?.status === 'passed' || true)
+                      const lastPass = i.history && i.history.length > 0 ? i.history[i.history.length - 1] : null
+                      const lastDate = (lastPass as any)?.passedAt ?? (lastPass as any)?.date
                       return (
                         <div key={i.subjectItem.id} className="flex items-center gap-3 rounded-xl bg-gray-50 border border-gray-200 px-4 py-3 opacity-70">
                           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gray-100 text-gray-400 flex-shrink-0">
@@ -491,9 +492,9 @@ export default function StudentDashboard() {
                           </div>
                           <div className="flex-1 min-w-0">
                             <div className="text-sm font-medium text-gray-500 line-through truncate">{name}</div>
-                            {(lastPass as any)?.date && (
+                            {lastDate && (
                               <div className="text-xs text-gray-400">
-                                {lang === 'ar' ? 'اجتاز سابقاً في' : 'Previously passed'} {new Date((lastPass as any).date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                {lang === 'ar' ? 'اجتاز سابقاً في' : 'Previously passed'} {new Date(lastDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
                               </div>
                             )}
                           </div>
