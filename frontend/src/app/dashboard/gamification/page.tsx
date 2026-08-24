@@ -681,6 +681,14 @@ export default function GamificationPage() {
 
   const [growthStudent, setGrowthStudent] = useState<LeaderboardEntry | null>(null)
 
+  // Manual award
+  const [showAwardModal, setShowAwardModal] = useState(false)
+  const [awardStudentId, setAwardStudentId] = useState('')
+  const [awardBadgeId, setAwardBadgeId] = useState('')
+  const [awardSearch, setAwardSearch] = useState('')
+  const [awarding, setAwarding] = useState(false)
+  const [awardError, setAwardError] = useState('')
+
   // Transactions drill-down (kept for detailed view)
   const [drillDownStudent, setDrillDownStudent] = useState<LeaderboardEntry | null>(null)
   const [transactions, setTransactions] = useState<any[]>([])
@@ -795,6 +803,23 @@ export default function GamificationPage() {
       toast('success', t('Leaderboard reset', 'تم إعادة تعيين لوحة المتصدرين'))
     } catch (e: any) { toast('error', friendlyError(e, lang)) }
     setResettingLeaderboard(false)
+  }
+
+  const handleAwardBadge = async () => {
+    setAwardError('')
+    if (!awardStudentId) { setAwardError(t('Select a student', 'اختر طالباً')); return }
+    if (!awardBadgeId) { setAwardError(t('Select a badge', 'اختر شارة')); return }
+    setAwarding(true)
+    try {
+      await http.post(`/gamification/students/${awardStudentId}/badges`, { badgeId: awardBadgeId })
+      toast('success', t('Badge awarded!', 'تم منح الشارة!'))
+      setShowAwardModal(false); setAwardStudentId(''); setAwardBadgeId(''); setAwardSearch(''); fetchLeaderboard(); fetchStats()
+    } catch (e: any) {
+      const msg = e?.message || ''
+      if (msg.includes('already') || msg.includes('exists')) setAwardError(t('Student already has this badge', 'الطالب يملك هذه الشارة بالفعل'))
+      else setAwardError(friendlyError(e, lang))
+    }
+    setAwarding(false)
   }
 
   const filteredLeaderboard = leaderboardSearch.trim()
@@ -943,15 +968,20 @@ export default function GamificationPage() {
       {/* ── Badges Tab ── */}
       {activeTab === 'badges' && (
         <div id="panel-badges" role="tabpanel" aria-labelledby="tab-badges">
-          <div className="flex items-center justify-between mb-4 gap-3">
-            <div className="relative flex-1 max-w-xs">
+          <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
+            <div className="relative flex-1 max-w-xs min-w-[180px]">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500" />
               <input value={badgeSearch} onChange={e => setBadgeSearch(e.target.value)} placeholder={t('Search badges...', 'ابحث عن شارة...')}
                 className="w-full rounded-lg border border-gray-200 bg-white pl-9 pr-3 py-2 text-sm focus:border-gold-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
             </div>
-            <Button onClick={() => { setBadgeForm(emptyBadgeForm); setBadgeFormError(''); setShowBadgeForm(true) }}>
-              <Plus className="h-4 w-4" /> {t('Add Badge', 'إضافة شارة')}
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" onClick={() => { setAwardError(''); setShowAwardModal(true) }}>
+                <Award className="h-4 w-4" /> {t('Award Badge', 'منح شارة')}
+              </Button>
+              <Button onClick={() => { setBadgeForm(emptyBadgeForm); setBadgeFormError(''); setShowBadgeForm(true) }}>
+                <Plus className="h-4 w-4" /> {t('Add Badge', 'إضافة شارة')}
+              </Button>
+            </div>
           </div>
 
           {badgesLoading ? (
@@ -1072,6 +1102,37 @@ export default function GamificationPage() {
       <ConfirmDialog open={showDeleteBadge} onClose={() => setShowDeleteBadge(false)} onConfirm={handleDeleteBadge}
         title={t('Delete Badge', 'حذف الشارة')} message={t(`Delete "${badgeToDelete?.name}"? Cannot be undone.`, `حذف "${badgeToDelete?.name}"؟ لا يمكن التراجع.`)}
         confirmLabel={t('Delete', 'حذف')} loading={deletingBadge} />
+
+      {/* Award badge */}
+      <Modal open={showAwardModal} onClose={() => setShowAwardModal(false)} title={t('Award Badge to Student', 'منح شارة لطالب')}
+        footer={<><Button variant="outline" onClick={() => setShowAwardModal(false)}>{t('Cancel', 'إلغاء')}</Button><Button onClick={handleAwardBadge} disabled={awarding || !awardStudentId || !awardBadgeId}>{awarding && <Loader2 className="h-4 w-4 animate-spin" />}{t('Award', 'منح')}</Button></>}>
+        <div className="space-y-4">
+          {awardError && <div className="rounded-lg bg-red-50 border border-red-200 p-3 text-sm text-red-700">{awardError}</div>}
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-1.5">{t('Student', 'الطالب')} *</label>
+            <div className="relative mb-2">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <input value={awardSearch} onChange={e => setAwardSearch(e.target.value)} placeholder={t('Search student...', 'ابحث عن طالب...')} className="w-full rounded-lg border border-gray-200 bg-white pl-9 pr-3 py-2 text-sm focus:border-gold-500 focus:outline-none" />
+            </div>
+            <div className="max-h-40 overflow-y-auto rounded-lg border border-gray-200 divide-y divide-gray-100 bg-white">
+              {(awardSearch.trim() ? leaderboard.filter(s => `${s.firstName} ${s.lastName}`.toLowerCase().includes(awardSearch.toLowerCase())) : leaderboard).slice(0, 30).map(s => (
+                <button key={s.id} type="button" onClick={() => setAwardStudentId(s.id)} className={`w-full text-left px-3 py-2 text-sm flex items-center justify-between ${awardStudentId === s.id ? 'bg-blue-50 text-blue-700 font-semibold' : 'hover:bg-gray-50 text-gray-700'}`}>
+                  <span>{s.firstName} {s.lastName} <span className="text-xs text-gray-500">· {s.xp} XP</span></span>
+                  {awardStudentId === s.id && <CheckCheck className="h-4 w-4 text-blue-600" />}
+                </button>
+              ))}
+              {leaderboard.length === 0 && <div className="px-3 py-6 text-center text-sm text-gray-500">{t('No students', 'لا يوجد طلاب')}</div>}
+            </div>
+          </div>
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-1.5">{t('Badge', 'الشارة')} *</label>
+            <select value={awardBadgeId} onChange={e => setAwardBadgeId(e.target.value)} className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:border-gold-500 focus:outline-none">
+              <option value="">{t('Select badge...', 'اختر شارة...')}</option>
+              {badges.map(b => <option key={b.id} value={b.id}>{b.name} — {b.points} pts ({categoryLabel(b.category)})</option>)}
+            </select>
+          </div>
+        </div>
+      </Modal>
     </div>
   )
 }
