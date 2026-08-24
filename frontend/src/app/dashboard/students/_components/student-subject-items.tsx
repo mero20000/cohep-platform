@@ -39,7 +39,7 @@ export function StudentSubjectItemsPanel({ studentId, lang }: Props) {
     setLoading(true)
     http.get<StudentSubjectItemRow[]>(`/students/${studentId}/subject-items`)
       .then(d => setItems(Array.isArray(d) ? d : []))
-      .catch(() => setItems([]))
+      .catch(() => { setItems([]); toast('error', t('Failed to load hymns','فشل تحميل الترانيم')) })
       .finally(() => setLoading(false))
   }, [studentId])
 
@@ -69,7 +69,7 @@ export function StudentSubjectItemsPanel({ studentId, lang }: Props) {
             <div key={subjectItem.id} className="flex items-center justify-between gap-2">
               <div className="min-w-0">
                 <div className="text-sm font-medium text-gray-900 truncate">{lang==='ar' && subjectItem.nameAr ? subjectItem.nameAr : subjectItem.name}</div>
-                {status==='passed' && passedAt && <div className="text-xs text-gray-400">{t('by','بواسطة')} {passedByUser?.firstName}{passedAt ? ` · ${new Date(passedAt).toLocaleDateString(lang==='ar'?'ar-EG':'en-GB',{day:'2-digit',month:'short',year:'numeric'})}` : ''}</div>}
+                {status==='passed' && passedAt && <div className="text-xs text-gray-400">{passedByUser ? `${t('by','بواسطة')} ${passedByUser.firstName} ${passedByUser.lastName}`.trim() + (passedAt ? ` · ${new Date(passedAt).toLocaleDateString(lang==='ar'?'ar-EG':'en-GB',{day:'2-digit',month:'short',year:'numeric'})}` : '') : new Date(passedAt).toLocaleDateString(lang==='ar'?'ar-EG':'en-GB',{day:'2-digit',month:'short',year:'numeric'})}</div>}
                 {status!=='passed' && history.length>0 && <div className="text-xs text-gray-400">{t(`previously passed (${history.length})`,`اجتياز سابق (${history.length})`)}</div>}
               </div>
               {canToggle && (
