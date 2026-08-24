@@ -46,6 +46,13 @@ interface HomeData {
     dueReviewCount: number
     bySubject: Array<{ subjectId: string; subjectName: string; total: number; learned: number; inProgress: number; notStarted: number }>
   }
+  /* Listening Loop: recent servant reviews of practice recordings */
+  recentFeedback?: Array<{
+    hymnTitle: string
+    servantRating: number | null
+    servantNote: string | null
+    reviewedAt: string
+  }>
 }
 
 // ── Animated counter ─────────────────────────────────────────────────────────
@@ -88,20 +95,23 @@ function XpBar({ inLevel, toNext, level }: { inLevel: number; toNext: number; le
   )
 }
 
-// ── Streak flame ─────────────────────────────────────────────────────────────
-function StreakBadge({ streak }: { streak: number }) {
+// ── Weekly rhythm badge (grace-mode) ─────────────────────────────────────────
+// Module 1 decision: rhythm invites, never shames. A zero week is a fresh
+// start, not a broken flame.
+function StreakBadge({ streak, lang = 'en' }: { streak: number; lang?: 'en' | 'ar' }) {
+  const t = (en: string, ar: string) => (lang === 'ar' ? ar : en)
   if (streak === 0) return (
-    <div className="flex flex-col items-center gap-1 rounded-2xl bg-white/10 px-5 py-4 text-center">
-      <Flame className="h-8 w-8 text-white/30" />
-      <div className="text-2xl font-black text-white/40">0</div>
-      <div className="text-xs text-white/40 font-medium">day streak</div>
+    <div className="flex flex-col items-center gap-1 rounded-2xl bg-white/10 px-5 py-4 text-center max-w-[9rem]">
+      <Flame className="h-8 w-8 text-gold-300/70" aria-hidden="true" />
+      <div className="text-sm font-semibold text-white/90 leading-snug">{t('A fresh week', 'أسبوع جديد')}</div>
+      <div className="text-[11px] text-white/50 leading-snug">{t('Sing one hymn to begin your rhythm.', 'رنّم ترنيمة واحدة لتبدأ إيقاعك.')}</div>
     </div>
   )
   return (
     <div className="flex flex-col items-center gap-1 rounded-2xl bg-gradient-to-b from-orange-400/30 to-red-500/20 border border-orange-300/20 px-5 py-4 text-center animate-pulse-slow">
-      <Flame className={`h-8 w-8 ${streak >= 7 ? 'text-orange-300' : 'text-orange-400/80'} drop-shadow`} />
+      <Flame className={`h-8 w-8 ${streak >= 7 ? 'text-orange-300' : 'text-orange-400/80'} drop-shadow`} aria-hidden="true" />
       <div className="text-2xl font-black text-white">{streak}</div>
-      <div className="text-xs text-orange-200 font-medium">day streak</div>
+      <div className="text-xs text-orange-200 font-medium">{t('day rhythm', 'يوم إيقاع')}</div>
     </div>
   )
 }
@@ -284,7 +294,7 @@ export default function StudentHomePage() {
             <div className="text-xs text-white/40 font-medium">Total XP</div>
           </div>
           {/* Streak */}
-          <StreakBadge streak={streak} />
+          <StreakBadge streak={streak} lang={lang === 'ar' ? 'ar' : 'en'} />
           {/* Badges */}
           <div className="flex flex-col items-center gap-1 rounded-2xl bg-white/8 border border-white/10 px-3 py-4 text-center">
             <Trophy className="h-6 w-6 text-amber-400" />
@@ -416,9 +426,36 @@ export default function StudentHomePage() {
                       {t(`${data.mastery.dueReviewCount} hymns ready for review today`, `${data.mastery.dueReviewCount} ترنيمة جاهزة للمراجعة اليوم`)}
                     </p>
                   )}
-                </div>
-              ) : null}
-              {journey.length === 0 ? (
+                 </div>
+               ) : null}
+               {/* Listening Loop: servant feedback on practice recordings */}
+               {!!data.recentFeedback?.length && (
+                 <div className="mb-5 rounded-2xl bg-white/5 border border-white/10 p-4">
+                   <h3 className="text-sm font-semibold text-white mb-3">{t('Notes from Your Servant', 'رسائل من خادمك')}</h3>
+                   <ul className="space-y-3">
+                     {data.recentFeedback.map((fb, i) => (
+                       <li key={i} className="rounded-xl bg-white/5 border border-white/10 p-3">
+                         <div className="flex items-center justify-between gap-2 mb-1">
+                           <span className="text-sm font-medium text-white truncate">{fb.hymnTitle}</span>
+                           <span className="inline-flex shrink-0" aria-label={`${fb.servantRating ?? 0} of 5 stars`}>
+                             {Array.from({ length: 5 }).map((_, si) => (
+                               <Star key={si} aria-hidden="true"
+                                 className={`h-3.5 w-3.5 ${si < (fb.servantRating ?? 0) ? 'text-gold-400 fill-gold-400' : 'text-white/20'}`} />
+                             ))}
+                           </span>
+                         </div>
+                         {fb.servantNote && (
+                           <p className="text-sm text-white/80 leading-relaxed">“{fb.servantNote}”</p>
+                         )}
+                         <p className="mt-1 text-[11px] text-white/40">
+                           {new Date(fb.reviewedAt).toLocaleDateString(lang === 'ar' ? 'ar-EG' : 'en-GB', { day: 'numeric', month: 'long' })}
+                         </p>
+                       </li>
+                     ))}
+                   </ul>
+                 </div>
+               )}
+               {journey.length === 0 ? (
                 <div className="rounded-2xl bg-white/5 border border-white/10 p-8 text-center">
                   <Music className="mx-auto h-10 w-10 text-white/20 mb-3" />
                   <p className="text-white/40 text-sm">{t('Your hymn journey will appear here once your teacher sets up the curriculum.', 'رحلة التراتيل ستظهر هنا بمجرد إعداد المنهج.')}</p>

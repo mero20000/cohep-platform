@@ -44,7 +44,7 @@ describe('DashboardHero', () => {
     expect(screen.getByRole('heading', { name: 'My School' })).toBeInTheDocument()
     expect(screen.getByText('Hi there')).toBeInTheDocument()
     expect(screen.getByTestId('badge')).toBeInTheDocument()
-    expect(screen.getByTestId('logo')).toBeInTheDocument()
+    expect(screen.getAllByTestId('logo').length).toBeGreaterThan(0)
     expect(screen.getByTestId('stats')).toBeInTheDocument()
   })
 

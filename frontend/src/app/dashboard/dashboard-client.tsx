@@ -1246,6 +1246,17 @@ export function NextSessionCard({ lang, assigned, groups }: { lang: string; assi
   const tabBar =
     isAdminMode && configuredLevels.length > 0 ? (
       <div className="flex items-center gap-1 overflow-x-auto border-b border-[var(--hymn-border)] bg-white px-3 py-2">
+        {/* All view first — without it there is no way back once a level is selected */}
+        <button
+          type="button"
+          onClick={() => setActiveLevel(null)}
+          aria-pressed={activeLevel == null}
+          className={`whitespace-nowrap rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+            activeLevel == null ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+          }`}
+        >
+          {lang === 'ar' ? 'الكل' : 'All'}
+        </button>
         {configuredLevels.map((l) => (
           <button
             key={l.id}

@@ -33,6 +33,8 @@ export default function DashboardHero({
   const reduce = useReducedMotion()
   const [isMobile, setIsMobile] = useState(false)
   useEffect(() => {
+    // Guard for environments without matchMedia (older jsdom, exotic webviews)
+    if (typeof window.matchMedia !== 'function') return
     const m = window.matchMedia('(max-width: 640px)')
     const h = () => setIsMobile(m.matches)
     h(); m.addEventListener('change', h); return () => m.removeEventListener('change', h)

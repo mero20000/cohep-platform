@@ -514,6 +514,31 @@ export class ParentsService {
       mastery = { stats: null, dueReviewCount: 0, bySubject: [] };
     }
 
+    // Listening Loop: recent servant reviews of the child's practice
+    // recordings, so parents see the same guidance their child received.
+    let recentFeedback: Array<{ hymnTitle: string; servantRating: number | null; servantNote: string | null; reviewedAt: Date }> = [];
+    try {
+      const sessions = await this.prisma.hymnPracticeSession.findMany({
+        where: { studentId, servantReviewedAt: { not: null } } as any,
+        orderBy: { servantReviewedAt: 'desc' } as any,
+        take: 5,
+        select: {
+          servantRating: true,
+          servantNote: true,
+          servantReviewedAt: true,
+          lesson: { select: { title: true, titleAr: true } },
+        },
+      });
+      recentFeedback = sessions.map(s => ({
+        hymnTitle: s.lesson?.title || '',
+        servantRating: s.servantRating ?? null,
+        servantNote: s.servantNote ?? null,
+        reviewedAt: s.servantReviewedAt as unknown as Date,
+      }));
+    } catch {
+      // Feedback is best-effort; never block the home aggregate.
+    }
+
     return {
       student: {
         id: student.id,
@@ -539,6 +564,7 @@ export class ParentsService {
       challenge,
       recentActivity: recentActivity.map(t => ({ amount: t.amount, type: t.type, description: t.description, date: t.createdAt })),
       mastery,
+      recentFeedback,
     };
   }
 
