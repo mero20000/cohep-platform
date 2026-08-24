@@ -59,14 +59,14 @@ beforeEach(() => {
   mockGet.mockReset()
 })
 
-it('shows an All tab plus a tab per configured level in admin mode', () => {
+it('shows a tab per configured level in admin mode (auto-selects first active level, no All tab)', () => {
   render(<NextSessionCard lang="en" />)
-  expect(screen.getByRole('button', { name: 'All' })).toBeTruthy()
+  // The All view was removed — first active level auto-selects instead.
+  expect(screen.queryByRole('button', { name: 'All' })).toBeNull()
   expect(screen.getByRole('button', { name: 'Level 1' })).toBeTruthy()
   expect(screen.getByRole('button', { name: 'Level 2' })).toBeTruthy()
-  // All view lists the digest for the relevant day (upstream card redesign:
-  // one day's items rather than every level's full list).
-  expect(screen.getAllByText(/Item One|Item Two/).length).toBeGreaterThan(0)
+  // First level auto-selected: shows Level 1 items only.
+  expect(screen.getByText('Item One')).toBeTruthy()
 })
 
 it('filters items to the selected level tab', () => {
