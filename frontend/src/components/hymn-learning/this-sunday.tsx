@@ -1,5 +1,5 @@
 'use client'
-import { Play } from 'lucide-react'
+import { Play, Clock } from 'lucide-react'
 import { MASTERY_META, type MasteryStatus, type HymnMapItem, type ThisSundayResponse } from './hooks'
 
 const SEASON_LABEL: Record<string, { en: string; ar: string; color: string }> = {
@@ -35,18 +35,43 @@ export function ThisSundayPanel({ data, isLoading, hymnMap = [], onSelect, lang 
 
   const season = SEASON_LABEL[data.season] ?? SEASON_LABEL.regular
 
+  // Countdown to next Sunday
+  const now = new Date()
+  const sunday = new Date(data.sunday)
+  const diffMs = sunday.getTime() - now.getTime()
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
+  const diffHours = Math.floor((diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60))
+  const countdown = diffMs > 0
+    ? diffDays > 0
+      ? t(`in ${diffDays}d ${diffHours}h`, `بعد ${diffDays}ي ${diffHours}س`)
+      : t(`in ${diffHours}h`, `بعد ${diffHours}س`)
+    : null
+
+  // Georgian date
+  const georgianDate = sunday.toLocaleDateString(lang === 'ar' ? 'ar' : 'en-GB', {
+    weekday: 'short', day: 'numeric', month: 'long', year: 'numeric',
+  })
+
   return (
     <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
-      <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
-        <div>
-          <h3 className="text-sm font-medium text-gray-900">{t('This Sunday', 'الأحد القادم')}</h3>
-          <p className={`text-xs mt-0.5 ${season.color}`}>
-            {lang === 'ar' ? season.ar : season.en} · {data.copticDate.monthName} {data.copticDate.day}
-          </p>
+      <div className="px-5 py-4 border-b border-gray-100">
+        <div className="flex items-center justify-between gap-2">
+          <div className="min-w-0">
+            <h3 className="text-sm font-medium text-gray-900">{t('This Sunday', 'الأحد القادم')}</h3>
+            <p className={`text-xs mt-0.5 ${season.color}`}>
+              {lang === 'ar' ? season.ar : season.en} · {data.copticDate.monthName} {data.copticDate.day}
+            </p>
+          </div>
+          <div className="text-right shrink-0">
+            <div className="text-xs text-gray-500">{georgianDate}</div>
+            {countdown && (
+              <div className="flex items-center gap-1 justify-end mt-0.5 text-xs text-blue-600 font-medium">
+                <Clock className="h-3 w-3" />
+                {countdown}
+              </div>
+            )}
+          </div>
         </div>
-        <span className="text-xs text-gray-400">
-          {new Date(data.sunday).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}
-        </span>
       </div>
 
       {data.hymns.length === 0 ? (

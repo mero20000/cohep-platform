@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
-import { Sun, CalendarDays, BookOpen, AlertTriangle, User, ChevronDown, CheckCircle2, FileText, Presentation } from 'lucide-react'
+import { Sun, CalendarDays, BookOpen, AlertTriangle, User, ChevronDown, CheckCircle2, FileText, Presentation, Clock } from 'lucide-react'
 import { http } from '@/lib/http-client'
 import { useLanguage } from '@/lib/use-language'
 import { assetUrl } from '@/lib/asset-url'
@@ -111,11 +111,43 @@ export default function BriefingPage() {
       : `${data.coptic.coptic.day} ${data.coptic.coptic.monthName} ${data.coptic.coptic.year}`
     : ''
 
+  // Georgian date + countdown
+  const nextSundayDate = data?.nextSession?.scheduledDate
+    ? new Date(data.nextSession.scheduledDate)
+    : null
+  const georgianLabel = nextSundayDate
+    ? nextSundayDate.toLocaleDateString(lang === 'ar' ? 'ar' : 'en-GB', {
+        weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
+      })
+    : ''
+  const countdownLabel = (() => {
+    if (!nextSundayDate) return null
+    const diffMs = nextSundayDate.getTime() - Date.now()
+    if (diffMs <= 0) return null
+    const days = Math.floor(diffMs / (1000 * 60 * 60 * 24))
+    const hours = Math.floor((diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60))
+    if (days > 0) return t(`in ${days}d ${hours}h`, `بعد ${days}ي ${hours}س`)
+    return t(`in ${hours}h`, `بعد ${hours}س`)
+  })()
+
   return (
     <div className="mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:px-8">
-      <div className="flex items-center gap-2">
-        <Sun className="h-6 w-6 text-gold-500" />
-        <h1 className="text-2xl font-bold tracking-tight text-gray-900">{t('This Sunday', 'أحد الأسبوع')}</h1>
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <Sun className="h-6 w-6 text-gold-500" />
+          <h1 className="text-2xl font-bold tracking-tight text-gray-900">{t('This Sunday', 'أحد الأسبوع')}</h1>
+        </div>
+        {georgianLabel && (
+          <div className="text-right">
+            <div className="text-sm text-gray-600 font-medium">{georgianLabel}</div>
+            {countdownLabel && (
+              <div className="flex items-center gap-1 justify-end mt-0.5 text-xs text-blue-600 font-medium">
+                <Clock className="h-3 w-3" />
+                {countdownLabel}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {data?.coptic && (
@@ -144,6 +176,12 @@ export default function BriefingPage() {
                 weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
               })}
             </div>
+            {countdownLabel && (
+              <div className="flex items-center gap-1 mt-1 text-xs text-blue-600 font-medium">
+                <Clock className="h-3 w-3" />
+                {countdownLabel}
+              </div>
+            )}
           </div>
           <Link
             href={`/dashboard/attendance?sessionId=${data.nextSession.id}&prefill=present${data.nextLesson?.subjectItemId ? `&subjectItemId=${data.nextLesson.subjectItemId}` : ''}`}
