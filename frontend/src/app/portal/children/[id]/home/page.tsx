@@ -442,7 +442,7 @@ export default function StudentHomePage() {
                            </span>
                          </div>
                          {fb.servantNote && (
-                           <p className="text-sm text-white/80 leading-relaxed">"{fb.servantNote}"</p>
+                           <p className="text-sm text-white/80 leading-relaxed">“{fb.servantNote}”</p>
                          )}
                          <p className="mt-1 text-[11px] text-white/40">
                            {new Date(fb.reviewedAt).toLocaleDateString(lang === 'ar' ? 'ar-EG' : 'en-GB', { day: 'numeric', month: 'long' })}
