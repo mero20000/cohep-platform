@@ -236,7 +236,7 @@ export class ParentsService {
   async getChildAttendance(studentId: string, userId: string) {
     await this.verifyParent(userId, studentId);
     const records = await this.prisma.attendanceRecord.findMany({
-      where: { studentId },
+      where: { studentId, attendanceSession: { deletedAt: null } },
       include: {
         attendanceSession: {
           include: { level: { select: { number: true, name: true } } },
@@ -292,7 +292,7 @@ export class ParentsService {
   async getChildProgress(studentId: string, userId: string) {
     await this.verifyParent(userId, studentId);
     const sessions = await this.prisma.attendanceSession.findMany({
-      where: { groupId: (await this.prisma.student.findUnique({ where: { id: studentId }, select: { groupId: true } }))?.groupId, status: 'completed' },
+      where: { groupId: (await this.prisma.student.findUnique({ where: { id: studentId }, select: { groupId: true } }))?.groupId, status: 'completed', deletedAt: null },
       select: { id: true, scheduledDate: true, levelId: true },
       orderBy: { scheduledDate: 'desc' },
       take: 20,
@@ -308,7 +308,7 @@ export class ParentsService {
 
   private async getAttendanceCounts(studentId: string) {
     const records = await this.prisma.attendanceRecord.findMany({
-      where: { studentId },
+      where: { studentId, attendanceSession: { deletedAt: null } },
       select: { status: true },
     });
     let present = 0, late = 0, absent = 0, excused = 0;
@@ -367,7 +367,7 @@ export class ParentsService {
 
     // Attendance
     const attRecords = await this.prisma.attendanceRecord.findMany({
-      where: { studentId },
+      where: { studentId, attendanceSession: { deletedAt: null } },
       select: { status: true },
     });
     const present = attRecords.filter(r => r.status === 'present').length;
@@ -389,7 +389,7 @@ export class ParentsService {
 
       // Get lessons the student has attended (proxy for hymns learned)
       const attendedSessions = await this.prisma.attendanceRecord.findMany({
-        where: { studentId, status: { in: ['present', 'late'] } },
+        where: { studentId, status: { in: ['present', 'late'] }, attendanceSession: { deletedAt: null } },
         select: { attendanceSessionId: true },
       });
       const attendedSessionIds = new Set(attendedSessions.map(r => r.attendanceSessionId));
@@ -979,7 +979,7 @@ export class ParentsService {
       this.prisma.attendanceRecord.findMany({
         where: {
           studentId,
-          attendanceSession: { scheduledDate: { gte: termStart, lte: termEnd } },
+          attendanceSession: { scheduledDate: { gte: termStart, lte: termEnd }, deletedAt: null },
         },
         select: { status: true },
       }),
