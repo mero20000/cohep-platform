@@ -46,6 +46,13 @@ interface HomeData {
     dueReviewCount: number
     bySubject: Array<{ subjectId: string; subjectName: string; total: number; learned: number; inProgress: number; notStarted: number }>
   }
+  /* Listening Loop: recent servant reviews of practice recordings */
+  recentFeedback?: Array<{
+    hymnTitle: string
+    servantRating: number | null
+    servantNote: string | null
+    reviewedAt: string
+  }>
 }
 
 // ── Animated counter ─────────────────────────────────────────────────────────
@@ -416,9 +423,36 @@ export default function StudentHomePage() {
                       {t(`${data.mastery.dueReviewCount} hymns ready for review today`, `${data.mastery.dueReviewCount} ترنيمة جاهزة للمراجعة اليوم`)}
                     </p>
                   )}
-                </div>
-              ) : null}
-              {journey.length === 0 ? (
+                 </div>
+               ) : null}
+               {/* Listening Loop: servant feedback on practice recordings */}
+               {!!data.recentFeedback?.length && (
+                 <div className="mb-5 rounded-2xl bg-white/5 border border-white/10 p-4">
+                   <h3 className="text-sm font-semibold text-white mb-3">{t('Notes from Your Servant', 'رسائل من خادمك')}</h3>
+                   <ul className="space-y-3">
+                     {data.recentFeedback.map((fb, i) => (
+                       <li key={i} className="rounded-xl bg-white/5 border border-white/10 p-3">
+                         <div className="flex items-center justify-between gap-2 mb-1">
+                           <span className="text-sm font-medium text-white truncate">{fb.hymnTitle}</span>
+                           <span className="inline-flex shrink-0" aria-label={`${fb.servantRating ?? 0} of 5 stars`}>
+                             {Array.from({ length: 5 }).map((_, si) => (
+                               <Star key={si} aria-hidden="true"
+                                 className={`h-3.5 w-3.5 ${si < (fb.servantRating ?? 0) ? 'text-gold-400 fill-gold-400' : 'text-white/20'}`} />
+                             ))}
+                           </span>
+                         </div>
+                         {fb.servantNote && (
+                           <p className="text-sm text-white/80 leading-relaxed">"{fb.servantNote}"</p>
+                         )}
+                         <p className="mt-1 text-[11px] text-white/40">
+                           {new Date(fb.reviewedAt).toLocaleDateString(lang === 'ar' ? 'ar-EG' : 'en-GB', { day: 'numeric', month: 'long' })}
+                         </p>
+                       </li>
+                     ))}
+                   </ul>
+                 </div>
+               )}
+               {journey.length === 0 ? (
                 <div className="rounded-2xl bg-white/5 border border-white/10 p-8 text-center">
                   <Music className="mx-auto h-10 w-10 text-white/20 mb-3" />
                   <p className="text-white/40 text-sm">{t('Your hymn journey will appear here once your teacher sets up the curriculum.', 'رحلة التراتيل ستظهر هنا بمجرد إعداد المنهج.')}</p>

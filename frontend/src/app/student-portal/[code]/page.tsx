@@ -21,6 +21,7 @@ import Link from 'next/link'
 import { useStudentHymnMap, useStudentThisSunday, useStudentDueReview, useStudentStats, useStudentPractice } from '@/components/hymn-learning/student-hooks'
 import { ThisSundayPanel } from '@/components/hymn-learning/this-sunday'
 import { PracticeRecorder } from '@/components/hymn-learning/practice-recorder'
+import { PracticeHistory } from '@/components/hymn-learning/practice-history'
 import { MASTERY_META, type HymnMapItem } from '@/components/hymn-learning/hooks'
 
 interface PortalData {
@@ -660,6 +661,10 @@ export default function StudentDashboard() {
               lang="en"
               code={code}
             />
+            {/* Listening Loop: past practices + servant feedback for this hymn */}
+            <div className="mt-4">
+              <PracticeHistory code={code} lessonId={practiceLesson.id} />
+            </div>
           </div>
         </div>
       )}
