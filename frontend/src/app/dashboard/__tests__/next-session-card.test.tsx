@@ -59,10 +59,10 @@ beforeEach(() => {
   mockGet.mockReset()
 })
 
-it('shows a tab per configured level in admin mode (auto-selects first active level, no All tab)', () => {
+it('shows an All tab plus a tab per configured level in admin mode', () => {
   render(<NextSessionCard lang="en" />)
-  // The All view was removed — first active level auto-selects instead.
-  expect(screen.queryByRole('button', { name: 'All' })).toBeNull()
+  // All view was restored (feb9c34) — it is the only way back once a level is picked.
+  expect(screen.getByRole('button', { name: 'All' })).toBeTruthy()
   expect(screen.getByRole('button', { name: 'Level 1' })).toBeTruthy()
   expect(screen.getByRole('button', { name: 'Level 2' })).toBeTruthy()
   // First level auto-selected: shows Level 1 items only.
