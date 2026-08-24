@@ -38,14 +38,14 @@ export default function DashboardHero({
   const curveY = useSpring(useTransform(scrollY, [0, 400], [0, reduce ? 0 : -6]), springConfig)
 
   return (
-    <div className="relative overflow-hidden rounded-b-2xl p-6 sm:p-8" style={{ backgroundColor: bg }}>
+    <div className="relative overflow-hidden rounded-b-2xl px-5 pt-6 pb-7 sm:p-8" style={{ backgroundColor: bg }}>
       <motion.div className="absolute -top-6 left-1/2 -translate-x-1/2 w-[120%] h-12 rounded-[50%] bg-blue-500/5" style={{ y: curveY }} />
       <motion.div className="absolute top-0 left-1/4 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl" style={{ y: orb1Y }} />
       <motion.div className={`absolute bottom-0 right-1/4 w-48 h-48 ${orbTint} rounded-full blur-3xl`} style={{ y: orb2Y }} />
       <div className="absolute inset-0 opacity-[0.03] bg-[radial-gradient(circle_at_center,_white_1px,_transparent_1px)] bg-[length:20px_20px]" />
 
-      <div className="relative flex items-start justify-between gap-4">
-        <div className="flex items-start gap-4">
+      <div className="relative flex items-start justify-between gap-3 sm:gap-4">
+        <div className="flex items-start gap-3 sm:gap-4 min-w-0">
           {avatar && (
             <div className="shrink-0 rounded-2xl border-2 border-white/20 overflow-hidden">{avatar}</div>
           )}
@@ -58,15 +58,15 @@ export default function DashboardHero({
                 </>
               )}
             </div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-white">{title}</h1>
+            <h1 className="text-[1.65rem] leading-tight sm:text-3xl font-bold text-white">{title}</h1>
             {badges && <div className="flex items-center gap-2 mt-1.5">{badges}</div>}
             {description && <div className="text-sm mt-3 opacity-80">{description}</div>}
           </div>
         </div>
-        {logos && <div className="flex items-center gap-4 shrink-0">{logos}</div>}
+        {logos && <div className="hidden sm:flex items-center gap-4 shrink-0">{logos}</div>}
       </div>
 
-      {children && <div className="relative mt-6">{children}</div>}
+      {children && <div className="relative mt-5 sm:mt-6">{children}</div>}
     </div>
   )
 }

@@ -311,7 +311,7 @@ function HeroSection({ stats, churchLogo, churchName, loading }: { stats: Dashbo
   )
 
   const statsGrid = (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+    <div className="grid grid-cols-2 gap-2.5 sm:gap-3 sm:grid-cols-5">
       {([
         { label: 'Active Students', labelAr: 'الطلاب النشطون', value: s.activeStudents ?? 0, icon: Users },
         { label: 'Attendance', labelAr: 'الحضور', value: s.attendanceRate ?? 0, suffix: '%', icon: UserCheck },
@@ -319,12 +319,12 @@ function HeroSection({ stats, churchLogo, churchName, loading }: { stats: Dashbo
         { label: 'Assessments', labelAr: 'التقييمات', value: s.publishedAssessments ?? 0, icon: ClipboardCheck },
         { label: 'Pass Rate', labelAr: 'نسبة النجاح', value: s.assessmentStats?.passRate ?? 0, suffix: '%', icon: TrendingUp },
       ] as const).map((item) => (
-        <div key={item.label} className="group rounded-xl bg-white/5 border border-white/10 backdrop-blur-sm px-4 py-3 hover:bg-white/10 hover:border-white/20 transition-all duration-300">
-          <div className="flex items-center gap-2 mb-1">
+        <div key={item.label} className="group rounded-xl bg-white/5 border border-white/10 backdrop-blur-sm px-3 py-2.5 sm:px-4 sm:py-3 hover:bg-white/10 hover:border-white/20 transition-all duration-300">
+          <div className="flex items-center gap-1.5 sm:gap-2 mb-1">
             <item.icon className="h-3.5 w-3.5 text-gold-400 group-hover:scale-110 group-active:scale-110 transition-transform duration-300" />
-            <span className="text-[11px] text-gray-400">{lang === 'ar' ? (item as any).labelAr : item.label}</span>
+            <span className="text-[11px] sm:text-xs text-gray-400">{lang === 'ar' ? (item as any).labelAr : item.label}</span>
           </div>
-          <div className="text-xl font-bold text-white tracking-wider group-hover:text-gold-300 transition-colors">
+          <div className="text-lg sm:text-xl font-bold text-white tracking-wider group-hover:text-gold-300 transition-colors">
             <AnimatedCounter value={item.value} suffix={'suffix' in item ? (item as any).suffix || '' : ''} />
           </div>
         </div>
@@ -1123,10 +1123,17 @@ export function NextSessionCard({ lang, assigned, groups }: { lang: string; assi
   const configuredLevels = useMemo(
     () =>
       (levels.data || [])
-        .filter((l) => typeof l.number === 'number')
+        .filter((l) => typeof l.number === 'number' && l.status !== 'inactive')
         .sort((a, b) => a.number - b.number),
     [levels.data],
   )
+
+  // Auto-select first active level when levels load
+  useEffect(() => {
+    if (activeLevel === null && configuredLevels.length > 0) {
+      setActiveLevel(configuredLevels[0].number)
+    }
+  }, [configuredLevels, activeLevel])
 
   const lessonMap = useMemo(() => {
     const m = new Map<string, any>()
@@ -1196,15 +1203,6 @@ export function NextSessionCard({ lang, assigned, groups }: { lang: string; assi
   const tabBar =
     isAdminMode && configuredLevels.length > 0 ? (
       <div className="flex items-center gap-1 overflow-x-auto border-b border-[var(--hymn-border)] bg-white px-3 py-2">
-        <button
-          type="button"
-          onClick={() => setActiveLevel(null)}
-          className={`whitespace-nowrap rounded-full px-3 py-1 text-xs font-medium transition-colors ${
-            activeLevel == null ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-          }`}
-        >
-          {lang === 'ar' ? 'الكل' : 'All'}
-        </button>
         {configuredLevels.map((l) => (
           <button
             key={l.id}

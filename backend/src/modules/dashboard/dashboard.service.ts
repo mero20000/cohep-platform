@@ -16,7 +16,7 @@ export class DashboardService {
 
     const [
       totalStudents, totalLevels, totalLessons, totalAllocations,
-      totalChurches, totalUsers, totalBadges,
+      totalChurches, totalUsers, totalBadgesEarned,
       completedSessions, totalSessions,
       activeStudents, publishedAssessments, totalAssessments,
     ] = await Promise.all([
@@ -26,7 +26,7 @@ export class DashboardService {
       this.prisma.curriculumAllocation.count({ where: { academicYear: { schoolId: resolvedId } } }),
       this.prisma.church.count({ where: { deletedAt: null } }),
       this.prisma.user.count({ where: { schoolId: resolvedId, ...where } }),
-      this.prisma.badge.count({ where: { schoolId: resolvedId, isActive: true } }),
+      this.prisma.studentBadge.count({ where: { student: { schoolId: resolvedId, deletedAt: null } } }),
       this.prisma.attendanceSession.count({ where: { schoolId: resolvedId, status: 'completed' } }),
       this.prisma.attendanceSession.count({ where: { schoolId: resolvedId, deletedAt: null } }),
       this.prisma.student.count({ where: { schoolId: resolvedId, status: 'active', ...where } }),
@@ -34,8 +34,13 @@ export class DashboardService {
       this.prisma.assessment.count({ where: { schoolId: resolvedId, deletedAt: null } }),
     ]);
 
-    const attendanceRate = totalSessions > 0
-      ? Math.round((completedSessions / totalSessions) * 100)
+    // Student attendance rate (present + late / total records)
+    const attendanceRecords = await this.prisma.attendanceRecord.findMany({
+      where: { attendanceSession: { schoolId: resolvedId, deletedAt: null } },
+      select: { status: true },
+    });
+    const attendanceRate = attendanceRecords.length > 0
+      ? Math.round((attendanceRecords.filter(r => r.status === 'present' || r.status === 'late').length / attendanceRecords.length) * 100)
       : 0;
 
     // Grade distribution — students grouped by gradeId
@@ -204,7 +209,7 @@ export class DashboardService {
       totalAllocations,
       totalChurches,
       totalUsers,
-      totalBadges,
+      totalBadges: totalBadgesEarned,
       activeStudents,
       publishedAssessments,
       totalAssessments,
