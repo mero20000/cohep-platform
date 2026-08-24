@@ -282,11 +282,14 @@ function HeroSection({ stats, churchLogo, churchName, loading }: { stats: Dashbo
   const badges = (
     <>
       {churchName && (
-        <span className="inline-flex items-center gap-1 rounded-lg bg-white/10 px-2 py-0.5 text-xs font-medium text-white/80">
+        <span className="inline-flex items-center gap-1.5 rounded-full bg-gold-500/15 border border-gold-400/25 px-2.5 py-1 text-xs font-semibold text-gold-200">
           {churchName}
         </span>
       )}
-      <p className="text-gray-400 text-sm">{getFullDay(lang)}</p>
+      <span className="inline-flex items-center gap-1.5 text-white/55 text-xs font-medium">
+        <span className="h-1 w-1 rounded-full bg-gold-400/60" />
+        {getFullDay(lang)}
+      </span>
     </>
   )
 
@@ -296,7 +299,7 @@ function HeroSection({ stats, churchLogo, churchName, loading }: { stats: Dashbo
         <div className="relative shrink-0">
           <div className="absolute inset-0 rounded-2xl bg-white/10 blur-xl" />
           <Image src={churchLogo} alt="Church Logo" width={100} height={100}
-            className="relative h-24 w-24 rounded-2xl border-2 border-white/20 bg-white/10 object-cover shadow-xl" />
+            className="relative h-14 w-14 sm:h-24 sm:w-24 rounded-xl sm:rounded-2xl border border-white/15 sm:border-2 bg-white/10 object-cover shadow-xl" />
         </div>
       )}
       {s.school?.logoUrl && (
@@ -304,7 +307,7 @@ function HeroSection({ stats, churchLogo, churchName, loading }: { stats: Dashbo
           <div className="absolute inset-0 rounded-2xl bg-white/10 blur-xl" />
           <Image src={s.school.logoUrl.startsWith('http') ? s.school.logoUrl : (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api').replace('/api', '') + s.school.logoUrl}
             alt="School Logo" width={100} height={100}
-            className="relative h-24 w-24 rounded-2xl border-2 border-white/20 bg-white/10 object-cover shadow-xl" />
+            className="relative h-14 w-14 sm:h-24 sm:w-24 rounded-xl sm:rounded-2xl border border-white/15 sm:border-2 bg-white/10 object-cover shadow-xl" />
         </div>
       )}
     </>
@@ -318,13 +321,16 @@ function HeroSection({ stats, churchLogo, churchName, loading }: { stats: Dashbo
         { label: 'Levels', labelAr: 'المستويات', value: s.totalLevels ?? 0, icon: Layers },
         { label: 'Assessments', labelAr: 'التقييمات', value: s.publishedAssessments ?? 0, icon: ClipboardCheck },
         { label: 'Pass Rate', labelAr: 'نسبة النجاح', value: s.assessmentStats?.passRate ?? 0, suffix: '%', icon: TrendingUp },
-      ] as const).map((item) => (
-        <div key={item.label} className="group rounded-xl bg-white/5 border border-white/10 backdrop-blur-sm px-3 py-2.5 sm:px-4 sm:py-3 hover:bg-white/10 hover:border-white/20 transition-all duration-300">
-          <div className="flex items-center gap-1.5 sm:gap-2 mb-1">
-            <item.icon className="h-3.5 w-3.5 text-gold-400 group-hover:scale-110 group-active:scale-110 transition-transform duration-300" />
-            <span className="text-[11px] sm:text-xs text-gray-400">{lang === 'ar' ? (item as any).labelAr : item.label}</span>
+      ] as const).map((item, idx) => (
+        <div key={item.label} className={`group relative overflow-hidden rounded-2xl bg-white/[0.06] border border-white/10 backdrop-blur-sm px-3.5 py-3 sm:px-4 sm:py-3 hover:bg-white/[0.09] hover:border-white/15 transition-all duration-300 ${idx === 4 ? 'col-span-2 sm:col-span-1' : ''}`}>
+          <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-gold-400/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+          <div className="flex items-center gap-1.5 mb-1.5">
+            <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-white/10 border border-white/10">
+              <item.icon className="h-3.5 w-3.5 text-gold-300" />
+            </span>
+            <span className="text-[11px] sm:text-xs font-medium text-white/60 tracking-wide">{lang === 'ar' ? (item as any).labelAr : item.label}</span>
           </div>
-          <div className="text-lg sm:text-xl font-bold text-white tracking-wider group-hover:text-gold-300 transition-colors">
+          <div className="text-xl sm:text-xl font-bold text-white tracking-tight">
             <AnimatedCounter value={item.value} suffix={'suffix' in item ? (item as any).suffix || '' : ''} />
           </div>
         </div>
