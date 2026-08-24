@@ -244,7 +244,7 @@ function PracticeTogetherCard({ childId, language }: { childId: string; language
   useEffect(() => { fetchData() }, [fetchData])
 
   const handlePractice = async () => {
-    if (!lesson || practicing) return
+    if (!lesson?.lesson || practicing) return
     setPracticing(true)
     try {
       const res = await http.post(`/parents/me/children/${childId}/practice`, { lessonId: lesson.lesson.id }) as any
@@ -261,7 +261,7 @@ function PracticeTogetherCard({ childId, language }: { childId: string; language
   }
 
   if (loading) return null
-  if (!lesson) return null
+  if (!lesson?.lesson) return null
 
   const limitReached = summary && summary.weeklyCount >= summary.weeklyLimit
 
@@ -388,7 +388,7 @@ function PracticePanel({ childId, lang }: { childId: string; lang: string }) {
     </div>
   )
 
-  if (!lesson) return (
+  if (!lesson?.lesson) return (
     <div className="rounded-xl border border-gray-200 bg-white p-12 text-center">
       <BookOpen className="mx-auto h-10 w-10 text-gray-300 mb-3" />
       <p className="text-gray-500 text-sm">{t('No current lesson available', 'لا يوجد درس حالي')}</p>
