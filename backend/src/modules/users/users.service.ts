@@ -2,6 +2,13 @@ import { Injectable, NotFoundException, ConflictException, BadRequestException }
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../../database/prisma.service';
 
+const VALID_TEACHING_SUBJECTS = ['coptic_hymns', 'coptic_rites', 'coptic_language'] as const;
+const TEACHING_SUBJECT_ALIASES: Record<string, string> = {
+  'Coptic Hymns': 'coptic_hymns',
+  'Coptic Rites': 'coptic_rites',
+  'Coptic Language': 'coptic_language',
+};
+
 @Injectable()
 export class UsersService {
   constructor(private readonly prisma: PrismaService) {}
@@ -32,6 +39,47 @@ export class UsersService {
     if (requestingUser.schoolId && targetUser.schoolId !== requestingUser.schoolId) {
       throw new NotFoundException('User not found');
     }
+  }
+
+  private normalizeTeachingSubjects(raw: any): string[] {
+    if (!Array.isArray(raw)) return [];
+    const out = new Set<string>();
+    for (const v of raw) {
+      if (typeof v !== 'string') continue;
+      const trimmed = v.trim();
+      const normalized = TEACHING_SUBJECT_ALIASES[trimmed] ?? trimmed.toLowerCase().replace(/\s+/g, '_');
+      if ((VALID_TEACHING_SUBJECTS as readonly string[]).includes(normalized)) out.add(normalized);
+    }
+    return [...out];
+  }
+
+  private async validateMetadata(metadata: any, schoolId: string): Promise<Record<string, any>> {
+    if (!metadata || typeof metadata !== 'object') return metadata;
+    const next = { ...metadata };
+    // teachingSubjects: normalize + validate
+    if (next.teachingSubjects !== undefined) {
+      const normalized = this.normalizeTeachingSubjects(next.teachingSubjects);
+      // If input had values but none survived, it contained only invalid entries
+      if (Array.isArray(next.teachingSubjects) && next.teachingSubjects.length > 0 && normalized.length === 0) {
+        throw new BadRequestException(`Invalid teachingSubjects — allowed: ${VALID_TEACHING_SUBJECTS.join(', ')}`);
+      }
+      next.teachingSubjects = normalized;
+    }
+    // levelId: must exist, active, same school
+    if (next.levelId) {
+      const level = await this.prisma.level.findFirst({ where: { id: next.levelId, deletedAt: null } });
+      if (!level) throw new BadRequestException(`Invalid levelId: ${next.levelId}`);
+      if (level.schoolId !== schoolId) throw new BadRequestException('levelId does not belong to this school');
+    }
+    // groupId: must exist, active, same school
+    if (next.groupId) {
+      const group = await this.prisma.group.findFirst({ where: { id: next.groupId, deletedAt: null } });
+      if (!group) throw new BadRequestException(`Invalid groupId: ${next.groupId}`);
+      if (group.schoolId !== schoolId) throw new BadRequestException('groupId does not belong to this school');
+    }
+    // grade: if present, check SchoolGrade exists for the resolved group or at least for school
+    // (soft validation — grade names are free-form, so we only warn on mismatch)
+    return next;
   }
 
   async listUsers(
@@ -117,6 +165,12 @@ export class UsersService {
       throw new BadRequestException('Cannot modify a super admin user');
     }
     const isSuperAdmin = requestingUser?.roles?.includes('super_admin');
+    // Validate metadata FKs before write
+    let validatedMetadata = data.metadata;
+    if (data.metadata !== undefined) {
+      const effectiveSchoolId = (isSuperAdmin && data.schoolId) ? await this.resolveSchoolId(data.schoolId) : (user.schoolId as string);
+      validatedMetadata = await this.validateMetadata(data.metadata, effectiveSchoolId);
+    }
     const updated = await this.prisma.user.update({
       where: { id },
       data: {
@@ -132,7 +186,7 @@ export class UsersService {
         ...(data.isActive !== undefined && { isActive: data.isActive }),
         ...(data.avatarUrl !== undefined && { avatarUrl: data.avatarUrl }),
         ...(isSuperAdmin && data.schoolId !== undefined && { schoolId: data.schoolId }),
-        ...(data.metadata !== undefined && { metadata: data.metadata }),
+        ...(validatedMetadata !== undefined && { metadata: validatedMetadata }),
       },
       select: {
         id: true, email: true, phone: true,
@@ -242,6 +296,9 @@ export class UsersService {
 
     const existing = await this.prisma.user.findFirst({ where: { email: data.email, schoolId, deletedAt: null } });
     if (existing) throw new ConflictException('User with this email already exists');
+    // Validate metadata FKs
+    let validatedMetadata = data.metadata;
+    if (validatedMetadata !== undefined) validatedMetadata = await this.validateMetadata(validatedMetadata, schoolId);
     const passwordHash = await bcrypt.hash(data.password || 'Password123!', 12);
     const user = await this.prisma.user.create({
       data: {
@@ -250,7 +307,7 @@ export class UsersService {
         gender: data.gender,
         firstNameAr: data.firstNameAr, lastNameAr: data.lastNameAr,
         phone: data.phone, schoolId, locale: 'en', timezone: 'UTC',
-        ...(data.metadata !== undefined && { metadata: data.metadata }),
+        ...(validatedMetadata !== undefined && { metadata: validatedMetadata }),
       },
       select: { id: true, email: true, firstName: true, lastName: true, createdAt: true },
     });

@@ -117,7 +117,11 @@ export class ServantsService {
       .filter((u: any) => {
         if (query.levelId && (u.metadata?.levelId ?? '') !== query.levelId) return false;
         if (query.groupId && (u.metadata?.groupId ?? '') !== query.groupId) return false;
-        if (query.teachingSubject && !(u.metadata?.teachingSubjects ?? []).includes(query.teachingSubject)) return false;
+        if (query.teachingSubject) {
+          const want = query.teachingSubject.toLowerCase().replace(/\s+/g, '_');
+          const have = ((u.metadata?.teachingSubjects ?? []) as string[]).map((s: string) => s.toLowerCase().replace(/\s+/g, '_'));
+          if (!have.includes(want)) return false;
+        }
         return true;
       });
   }
