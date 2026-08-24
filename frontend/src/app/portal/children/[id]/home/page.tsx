@@ -52,6 +52,7 @@ interface HomeData {
 function AnimatedNumber({ value, duration = 800 }: { value: number; duration?: number }) {
   const [display, setDisplay] = useState(0)
   useEffect(() => {
+    if (typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches) { setDisplay(value); return }
     const start = Date.now()
     const step = () => {
       const elapsed = Date.now() - start
@@ -67,7 +68,7 @@ function AnimatedNumber({ value, duration = 800 }: { value: number; duration?: n
 
 // ── XP Bar ───────────────────────────────────────────────────────────────────
 function XpBar({ inLevel, toNext, level }: { inLevel: number; toNext: number; level: number }) {
-  const pct = Math.round((inLevel / 100) * 100)
+  const pct = Math.min(100, Math.max(0, Math.round((inLevel / Math.max(toNext + inLevel, 100)) * 100)))
   const [width, setWidth] = useState(0)
   useEffect(() => { setTimeout(() => setWidth(pct), 100) }, [pct])
   return (
@@ -229,12 +230,19 @@ export default function StudentHomePage() {
         </div>
 
         <div className="relative max-w-xl mx-auto">
-          {/* Back button */}
-          <Link href={`/portal/children/${id}`}
-            className="inline-flex items-center gap-1.5 text-white/50 hover:text-white/80 text-sm mb-6 transition-colors">
-            <ArrowLeft className="h-4 w-4 rtl:rotate-180" />
-            {t('Back', 'رجوع')}
-          </Link>
+          {/* Back + school micro-pill */}
+          <div className="flex items-center justify-between gap-2 mb-6">
+            <Link href={`/portal/children/${id}`}
+              className="inline-flex items-center gap-1.5 text-white/50 hover:text-white/80 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40 rounded-full px-2 py-1 -ml-2">
+              <ArrowLeft className="h-4 w-4 rtl:rotate-180" />
+              {t('Back', 'رجوع')}
+            </Link>
+            {data?.student?.groupName && (
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-white/10 border border-white/10 px-2.5 py-1 text-xs font-medium text-white/60">
+                {student.groupName ?? ''}
+              </span>
+            )}
+          </div>
 
           {/* Student identity */}
           <div className="flex items-center gap-4 mb-6">
@@ -252,7 +260,7 @@ export default function StudentHomePage() {
             </div>
             <div>
               <h1 className="text-2xl font-black text-white leading-tight">
-                {t(`Hey, ${name}! 👋`, `أهلاً، ${name}! 👋`)}
+                {t(`Hey, ${name}!`, `أهلاً، ${name}!`)} <span aria-hidden="true">👋</span>
               </h1>
               <p className="text-white/50 text-sm mt-0.5">
                 {t(`Level ${student.levelNumber || xp.level} · ${student.groupName || 'Hymn School'}`,
@@ -359,13 +367,13 @@ export default function StudentHomePage() {
             { id: 'badges', label: t('Badges', 'شاراتي'), icon: Trophy },
             { id: 'activity', label: t('Activity', 'النشاط'), icon: Zap },
           ] as const).map(tab => (
-            <button
+              <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-1.5 flex-1 justify-center rounded-xl px-3 py-2.5 text-xs font-semibold transition-all ${
+              className={`flex items-center gap-1.5 flex-1 justify-center rounded-xl px-3 py-2.5 text-xs font-semibold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40 ${
                 activeTab === tab.id
                   ? 'bg-white/15 text-white border border-white/20 shadow-inner'
-                  : 'text-white/40 hover:text-white/60 hover:bg-white/5'
+                  : 'text-white/60 hover:text-white/80 hover:bg-white/5'
               }`}
             >
               <tab.icon className="h-3.5 w-3.5" />

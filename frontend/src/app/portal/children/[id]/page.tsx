@@ -679,23 +679,35 @@ export default function ChildDetailPage() {
             )
           }
           title={
-            <span>
-              {(lang === 'ar' && student.firstNameAr) ? `${student.firstNameAr} ${student.lastNameAr}` : `${student.firstName} ${student.lastName}`}
-              {student.firstNameAr && <span className="opacity-60 text-sm font-normal"> {lang === 'ar' ? `${student.firstName} ${student.lastName}` : `${student.firstNameAr} ${student.lastNameAr}`}</span>}
+            <span className="inline-flex flex-wrap items-baseline gap-x-2 gap-y-1">
+              <span lang={lang === 'ar' ? 'ar' : 'en'} className="line-clamp-1">{(lang === 'ar' && student.firstNameAr) ? `${student.firstNameAr} ${student.lastNameAr}` : `${student.firstName} ${student.lastName}`}</span>
+              {student.firstNameAr && <span lang={lang === 'ar' ? 'en' : 'ar'} className="text-white/60 text-sm font-normal">{lang === 'ar' ? `${student.firstName} ${student.lastName}` : `${student.firstNameAr} ${student.lastNameAr}`}</span>}
             </span>
           }
           badges={
-            <span className="text-white/60 text-sm">
-              {t('Level', 'المستوى')} {student.levelNumber} — {student.groupName} · {t('Code', 'الكود')}: {student.studentCode}
+            <span className="flex flex-wrap items-center gap-2">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-white/10 border border-white/15 px-2.5 py-1 text-xs font-semibold text-white">
+                {t('Level', 'المستوى')} {student.levelNumber} · {student.groupName}
+              </span>
+              <span className="text-white/60 text-xs">{t('Code', 'الكود')}: {student.studentCode}</span>
             </span>
           }
         >
+          {(() => {
+            const lowAttendance = attendance.length >= 3 && (() => { const c = attendance.slice(0, 5).filter(r => r.status === 'absent').length; return c >= 3 })()
+            return lowAttendance ? (
+              <div className="mb-3 flex items-center gap-2 rounded-xl bg-amber-500/15 border border-amber-400/25 px-3.5 py-2.5 text-sm text-amber-200">
+                <AlertCircle className="h-4 w-4 text-amber-300 shrink-0" />
+                {t('Needs attention — recent absences', 'يحتاج متابعة — غيابات حديثة')}
+              </div>
+            ) : null
+          })()}
           <div className="flex flex-wrap items-center gap-2">
-            <button onClick={() => setShowReportModal(true)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-amber-50 text-amber-700 hover:bg-amber-100 transition-colors border border-amber-200">
+            <button onClick={() => setShowReportModal(true)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-white/10 border border-white/15 text-white hover:bg-white/15 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50">
               <FileText className="w-3.5 h-3.5" />
               {t('Term Report', 'تقرير الفصل')}
             </button>
-            <button onClick={() => setShowArchive(true)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors border border-blue-200">
+            <button onClick={() => setShowArchive(true)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-white/10 border border-white/15 text-white hover:bg-white/15 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50">
               <FileText className="w-3.5 h-3.5" />
               {t('Formation Archive', 'أرشيف التكوين')}
             </button>

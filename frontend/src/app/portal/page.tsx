@@ -7,7 +7,7 @@ import { http } from '@/lib/http-client'
 import { useLanguage } from '@/lib/use-language'
 import { useToast } from '@/components/ui/toast'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
-import { Users, Loader2, ChevronRight, Baby, Link2, Search, Crown, Star, Trash2, Award, Sun } from 'lucide-react'
+import { Users, Loader2, ChevronRight, Baby, Link2, Search, Crown, Star, Trash2, Award, Sun, Calendar } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { AudioPlayer } from '@/components/audio-player'
 import DashboardHero from '../dashboard/hero'
@@ -136,6 +136,8 @@ export default function PortalPage() {
     </div>
   )
 
+  const hasChildren = children.length > 0
+  const nextUpcoming = hasChildren ? Math.max(...children.map(c => c.student.upcomingSessions ?? 0), 0) : 0
   return (
     <div className="space-y-6">
       <DashboardHero
@@ -149,12 +151,19 @@ export default function PortalPage() {
         }
         badges={
           <div className="flex flex-wrap items-center gap-2">
+            <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold border ${hasChildren ? 'bg-white/10 border-white/15 text-white' : 'bg-amber-400/15 border-amber-400/25 text-amber-200'}`}>
+              <Baby className="h-3.5 w-3.5" />
+              {hasChildren ? t(`${children.length} ${children.length === 1 ? 'child' : 'children'}`, `${children.length} ${children.length === 1 ? 'طفل' : 'أطفال'}`) : t('No children linked', 'لا أبناء مرتبطون')}
+            </span>
             {schoolIdentity?.churchName && (
-              <span className="inline-flex items-center gap-1.5 rounded-lg bg-white/15 px-2.5 py-1 text-xs font-medium text-white/90">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-gold-500/15 border border-gold-400/25 px-2.5 py-1 text-xs font-semibold text-gold-200">
                 {schoolIdentity.churchName}
               </span>
             )}
-            <p className="text-gray-400 text-sm">{lang === 'ar' ? getDayNameAr() : getDayName()}</p>
+            <span className="inline-flex items-center gap-1.5 text-white/70 text-xs font-medium">
+              <span className="h-1 w-1 rounded-full bg-gold-400/60" />
+              {lang === 'ar' ? getDayNameAr() : getDayName()}
+            </span>
           </div>
         }
         logos={
@@ -163,22 +172,36 @@ export default function PortalPage() {
               <div className="relative shrink-0">
                 <div className="absolute inset-0 rounded-2xl bg-white/10 blur-xl" />
                 <Image src={schoolIdentity.churchLogoUrl} alt="Church Logo" width={100} height={100}
-                  className="relative h-16 w-16 sm:h-24 sm:w-24 rounded-2xl border-2 border-white/20 bg-white/10 object-cover shadow-xl" />
+                  className="relative h-14 w-14 sm:h-24 sm:w-24 rounded-xl sm:rounded-2xl border border-white/15 sm:border-2 bg-white/10 object-cover shadow-xl" />
               </div>
             )}
             {schoolIdentity?.logoUrl && (
               <div className="relative shrink-0">
                 <div className="absolute inset-0 rounded-2xl bg-white/10 blur-xl" />
                 <Image src={schoolIdentity.logoUrl} alt="School Logo" width={100} height={100}
-                  className="relative h-16 w-16 sm:h-24 sm:w-24 rounded-2xl border-2 border-white/20 bg-white/10 object-cover shadow-xl" />
+                  className="relative h-14 w-14 sm:h-24 sm:w-24 rounded-xl sm:rounded-2xl border border-white/15 sm:border-2 bg-white/10 object-cover shadow-xl" />
               </div>
             )}
           </>
         }
-      />
+      >
+        {hasChildren && nextUpcoming > 0 && (
+          <div className="flex items-center gap-2 rounded-xl bg-white/[0.07] border border-white/10 px-3.5 py-2.5">
+            <Calendar className="h-4 w-4 text-gold-300 shrink-0" />
+            <span className="text-sm font-medium text-white">{t(`${nextUpcoming} upcoming session${nextUpcoming>1?'s':''}`, `${nextUpcoming} جلسة قادمة`)}</span>
+            <span className="text-xs text-white/50 hidden sm:inline">· {t('See each child for details', 'انظر تفاصيل كل طفل')}</span>
+          </div>
+        )}
+        {!hasChildren && (
+          <a href="#link-child" className="flex items-center justify-between gap-3 rounded-2xl bg-gradient-to-r from-gold-500 to-amber-500 px-4 py-3 shadow-lg shadow-black/15 hover:from-gold-400 hover:to-amber-400 transition-colors">
+            <span className="flex items-center gap-2 text-sm font-bold text-white"><Link2 className="h-4 w-4" /> {t('Link child with code', 'اربط طفلاً بالكود')}</span>
+            <ChevronRight className="h-4 w-4 text-white rtl:rotate-180" />
+          </a>
+        )}
+      </DashboardHero>
 
       {/* Link form */}
-      <form onSubmit={handleLink} className="rounded-xl border border-blue-200 bg-blue-50 p-5">
+      <form id="link-child" onSubmit={handleLink} className="rounded-xl border border-blue-200 bg-blue-50 p-5">
         <h2 className="text-sm font-semibold text-blue-800 mb-1">{t('Link a child', 'ربط طالب')}</h2>
         <p className="text-xs text-blue-700/80 mb-3">{t("Enter the student code from your child's enrollment card to connect their account.", 'أدخل كود الطالب الموجود ببطاقة التسجيل لربط حسابه.')}</p>
         <div className="flex flex-col gap-3 sm:flex-row">

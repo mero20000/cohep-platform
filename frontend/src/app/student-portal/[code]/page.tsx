@@ -7,6 +7,9 @@ import { http } from '@/lib/http-client'
 import { ensurePortalSession, clearPortalSession, portalGet } from '@/lib/portal-session'
 import { assetUrl } from '@/lib/asset-url'
 import { AudioPlayer } from '@/components/audio-player'
+import DashboardHero from '../../dashboard/hero'
+import { useLanguage } from '@/lib/use-language'
+import { getGreeting, getGreetingAr } from '@/lib/datetime'
 
 const API_ORIGIN = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api').replace('/api', '')
 import {
@@ -61,7 +64,7 @@ type Tab = 'dashboard' | 'practice'
 export default function StudentDashboard() {
   const params = useParams()
   const code = params?.code as string
-  const lang: string = 'en'
+  const lang = useLanguage() as string
   const [data, setData] = useState<PortalData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -184,56 +187,75 @@ export default function StudentDashboard() {
     ? (student.photoUrl.startsWith('http') ? student.photoUrl : `${API_ORIGIN}${student.photoUrl}`)
     : null
 
+  const displayName = showName ? (lang === 'ar' && student.firstNameAr ? `${student.firstNameAr} ${student.lastNameAr || ''}`.trim() : `${student.firstName} ${student.lastName}`) : null
+  const xpPct = totalXp ? Math.min(100, (totalXp % 100)) : 0
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-gradient-to-br from-blue-800 via-indigo-800 to-purple-900 text-white">
-        <div className="max-w-3xl mx-auto px-4 py-6">
+    <div className="min-h-screen bg-gray-50" dir={lang === 'ar' ? 'rtl' : 'ltr'}>
+      {/* Header — hymn-navy, DashboardHero language */}
+      <header className="relative overflow-hidden rounded-b-[28px] sm:rounded-b-2xl px-5 pt-6 pb-7 sm:px-6 sm:py-8" style={{ backgroundColor: 'var(--hymn-navy)' }}>
+        <div className="absolute top-0 left-1/4 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl" aria-hidden="true" />
+        <div className="absolute bottom-0 right-1/4 w-48 h-48 bg-indigo-500/10 rounded-full blur-3xl" aria-hidden="true" />
+        <div className="absolute inset-0 opacity-[0.04] bg-[radial-gradient(circle_at_center,_white_1px,_transparent_1px)] bg-[length:18px_18px]" aria-hidden="true" />
+        <div className="absolute bottom-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-gold-400/40 to-transparent" />
+        <div className="relative max-w-3xl mx-auto">
           <div className="flex items-center justify-between mb-4">
             <Link
               href="/student-portal/login"
               onClick={() => { try { sessionStorage.removeItem('student_portal_token') } catch {} }}
-              className="flex items-center gap-1.5 text-white/70 hover:text-white text-sm"
+              className="inline-flex items-center gap-1.5 rounded-full bg-white/10 border border-white/15 px-3 py-1 text-xs font-medium text-white hover:bg-white/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50"
             >
-              <ArrowLeft className="h-4 w-4" />
-              Sign Out
+              <ArrowLeft className="h-3.5 w-3.5 rtl:rotate-180" />
+              {lang === 'ar' ? 'خروج' : 'Sign Out'}
             </Link>
-            <button onClick={() => setShowName(!showName)} className="text-white/50 hover:text-white/80 text-xs">
-              {showName ? 'Hide Name' : 'Show Name'}
+            <button onClick={() => setShowName(!showName)} aria-label={showName ? (lang==='ar'?'إخفاء الاسم':'Hide name') : (lang==='ar'?'إظهار الاسم':'Show name')} className="rounded-full bg-white/10 border border-white/10 px-3 py-1 text-xs font-medium text-white/70 hover:text-white hover:bg-white/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40">
+              {showName ? (lang === 'ar' ? 'إخفاء الاسم' : 'Hide Name') : (lang === 'ar' ? 'إظهار الاسم' : 'Show Name')}
             </button>
           </div>
           <div className="flex items-center gap-4">
-            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-white/15 backdrop-blur-sm text-2xl font-bold overflow-hidden">
+            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-white/10 border border-white/15 backdrop-blur-sm text-2xl font-bold overflow-hidden shadow-lg shadow-black/20 shrink-0">
               {photoSrc ? (
                 <Image src={photoSrc} alt="" width={64} height={64} className="h-full w-full object-cover" unoptimized />
               ) : (
-                <Cross className="h-7 w-7" />
+                <Cross className="h-7 w-7 text-white/80" />
               )}
             </div>
             <div className="flex-1 min-w-0">
-              {showName && (
-                <h1 className="text-2xl font-bold truncate">
-                  {student.firstName} {student.lastName}
+              {displayName && (
+                <h1 lang={lang} className="text-[1.75rem] leading-tight font-bold text-white truncate">
+                  {displayName}
                 </h1>
               )}
-              <div className="flex flex-wrap items-center gap-2 mt-1">
-                <span className="rounded-full bg-white/15 px-3 py-0.5 text-xs font-medium">
-                  Level {student.level.number} &middot; {student.group.name}
+              <div className="flex flex-wrap items-center gap-2 mt-1.5">
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-white/10 border border-white/15 px-2.5 py-1 text-xs font-semibold text-white">
+                  Level {student.level.number} · {lang === 'ar' && student.group.nameAr ? student.group.nameAr : student.group.name}
                 </span>
-                <span className="text-white/60 text-xs">{student.studentCode}</span>
+                <span className="text-white/60 text-xs font-medium">{student.studentCode}</span>
               </div>
               {school && (
-                <div className="mt-2 flex items-center gap-2 text-white/70 text-xs">
+                <div className="mt-2 flex items-center gap-2 text-white/60 text-xs">
                   {school.logoUrl && (
                     <Image
                       src={school.logoUrl.startsWith('http') ? school.logoUrl : `${API_ORIGIN}${school.logoUrl}`}
                       alt="" width={16} height={16} className="rounded" unoptimized
                     />
                   )}
-                  <span>{school.churchName || school.name}</span>
+                  <span>{lang === 'ar' && school.churchNameAr ? school.churchNameAr : (school.churchName || school.name)}</span>
                 </div>
               )}
             </div>
+          </div>
+          {/* XP mini + CTA inside hero */}
+          <div className="mt-4 flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+            <div className="flex-1">
+              <div className="flex items-center justify-between text-xs mb-1">
+                <span className="font-semibold text-white/90 flex items-center gap-1.5"><Trophy className="h-3.5 w-3.5 text-gold-300" /> {totalXp} XP</span>
+                <span className="text-white/60">{badges.length} {lang === 'ar' ? 'شارات' : 'badges'}</span>
+              </div>
+              <div className="h-2 rounded-full bg-white/15 overflow-hidden"><div className="h-full rounded-full bg-gradient-to-r from-gold-400 to-amber-500 transition-all duration-700" style={{ width: `${xpPct}%` }} /></div>
+            </div>
+            <button onClick={() => setActiveTab('practice')} className="inline-flex items-center justify-center gap-2 rounded-full bg-gold-500 hover:bg-gold-400 text-white px-5 py-2.5 text-sm font-bold shadow-lg shadow-black/15 active:scale-95 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60">
+              <Play className="h-4 w-4 fill-white" /> {lang === 'ar' ? 'تدرّب الآن' : 'Practice Now'}
+            </button>
           </div>
         </div>
       </header>

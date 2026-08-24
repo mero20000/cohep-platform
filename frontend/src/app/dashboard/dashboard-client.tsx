@@ -273,7 +273,7 @@ function ServantSectionFallback() {
 
 function HeroSection({ stats, churchLogo, churchName, loading }: { stats: DashboardData | null; churchLogo: string | null; churchName: string; loading: boolean }) {
   const lang = useLanguage()
-  const { effectiveRole } = useActiveRole()
+  const { effectiveRole, isSuperAdmin } = useActiveRole()
   const isRTL = lang === 'ar'
   if (loading && !stats) return <HeroFallback />
   const s = stats ?? EMPTY_STATS
@@ -285,7 +285,7 @@ function HeroSection({ stats, churchLogo, churchName, loading }: { stats: Dashbo
 
   const badges = (
     <>
-      {isMinistry && <RoleBadge role={effectiveRole} lang={lang} />}
+      <RoleBadge role={effectiveRole} lang={lang} />
       {churchName && (
         <span className="inline-flex items-center gap-1.5 rounded-full bg-gold-500/15 border border-gold-400/25 px-2.5 py-1 text-xs font-semibold text-gold-200">
           {churchName}
@@ -295,6 +295,11 @@ function HeroSection({ stats, churchLogo, churchName, loading }: { stats: Dashbo
         <span className="h-1 w-1 rounded-full bg-gold-400/60" />
         {getFullDay(lang)}
       </span>
+      {roleCategory(effectiveRole) === 'management' && s.school?.name && (
+        <span className="hidden sm:inline-flex items-center gap-1 text-white/40 text-xs">
+          · {s.school.name}
+        </span>
+      )}
     </>
   )
 
@@ -321,15 +326,24 @@ function HeroSection({ stats, churchLogo, churchName, loading }: { stats: Dashbo
   const nextSession = s.upcomingSessions?.[0] || null
   const nextLabel = nextSession ? new Date(nextSession.scheduledDate).toLocaleDateString(isRTL ? 'ar-EG' : 'en-GB', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : ''
 
-  const statsGrid = (
-    <div className="grid grid-cols-2 gap-2.5 sm:gap-3 sm:grid-cols-5" role="list">
-      {([
+  const heroStats = isSuperAdmin
+    ? ([
+        { label: 'Churches', labelAr: 'الكنائس', value: s.totalChurches ?? 0, icon: Church },
+        { label: 'Active Students', labelAr: 'الطلاب النشطون', value: s.activeStudents ?? 0, icon: Users },
+        { label: 'Attendance', labelAr: 'الحضور', value: s.attendanceRate ?? 0, suffix: '%', icon: UserCheck },
+        { label: 'Assessments', labelAr: 'التقييمات', value: s.publishedAssessments ?? 0, icon: ClipboardCheck },
+        { label: 'Pass Rate', labelAr: 'نسبة النجاح', value: s.assessmentStats?.passRate ?? 0, suffix: '%', icon: TrendingUp },
+      ] as const)
+    : ([
         { label: 'Active Students', labelAr: 'الطلاب النشطون', value: s.activeStudents ?? 0, icon: Users },
         { label: 'Attendance', labelAr: 'الحضور', value: s.attendanceRate ?? 0, suffix: '%', icon: UserCheck },
         { label: 'Levels', labelAr: 'المستويات', value: s.totalLevels ?? 0, icon: Layers },
         { label: 'Assessments', labelAr: 'التقييمات', value: s.publishedAssessments ?? 0, icon: ClipboardCheck },
         { label: 'Pass Rate', labelAr: 'نسبة النجاح', value: s.assessmentStats?.passRate ?? 0, suffix: '%', icon: TrendingUp },
-      ] as const).map((item, idx) => (
+      ] as const)
+  const statsGrid = (
+    <div className="grid grid-cols-2 gap-2.5 sm:gap-3 sm:grid-cols-5" role="list">
+      {heroStats.map((item, idx) => (
         <div key={item.label} role="listitem" tabIndex={0} className={`group relative overflow-hidden rounded-2xl bg-white/[0.06] border border-white/10 backdrop-blur-sm px-3.5 py-3 sm:px-4 sm:py-3 hover:bg-white/[0.09] hover:border-white/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-400/40 focus-visible:ring-offset-0 transition-all duration-300 ${idx === 4 ? 'col-span-2 sm:col-span-1' : ''}`}>
           <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-gold-400/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
           <div className="flex items-center gap-1.5 mb-1.5">
@@ -835,6 +849,9 @@ const ROLE_LABELS: Record<string, { en: string; ar: string }> = {
  group_leader: { en: 'Group Leader', ar: 'رئيس مجموعة' },
  level_leader: { en: 'Level Leader', ar: 'رئيس مرحلة' },
  assistant_servant: { en: 'Assistant Servant', ar: 'خادم مساعد' },
+ admin: { en: 'Admin', ar: 'مسؤول' },
+ super_admin: { en: 'Super Admin', ar: 'مسؤول عام' },
+ principal: { en: 'Principal', ar: 'مدير' },
 }
 function RoleBadge({ role, lang }: { role: string; lang: string }) {
  const l = ROLE_LABELS[role] || { en: role, ar: role }
