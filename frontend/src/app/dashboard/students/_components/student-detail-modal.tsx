@@ -11,6 +11,7 @@ import { getSchoolId } from '@/lib/school'
 import { StudentQrCard } from '@/components/qr/qr-code-card'
 import { STATUS_STYLE, photoSrc, calcAge, type Student } from './student-types'
 import { PhoneLink } from './phone-link'
+import { StudentSubjectItemsPanel } from './student-subject-items'
 
 interface Activity { id: string; action: string; createdAt: string; user?: { firstName: string; lastName: string } }
 interface Props { student: Student; onClose: () => void; onEdit: () => void; onPreviewPhoto: (url: string) => void; lang: 'en'|'ar' }
@@ -141,6 +142,9 @@ export function StudentDetailModal({ student:s, onClose, onEdit, onPreviewPhoto,
             )}
           </div>
           
+          {/* Allocated Hymns — subject items with passed toggle */}
+          <StudentSubjectItemsPanel studentId={s.id} lang={lang} />
+
           {/* Contact Parent Button */}
           {s.studentParents && s.studentParents.length > 0 && (
             <div className="mt-4">
