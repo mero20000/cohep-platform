@@ -1,6 +1,6 @@
 'use client'
 
-import { ReactNode } from 'react'
+import { ReactNode, useEffect, useState } from 'react'
 import { motion, useScroll, useTransform, useSpring, useReducedMotion } from 'motion/react'
 import { useLanguage } from '@/lib/use-language'
 import { getGreeting, getGreetingAr } from '@/lib/datetime'
@@ -31,11 +31,18 @@ export default function DashboardHero({
 }: DashboardHeroProps) {
   const lang = useLanguage()
   const reduce = useReducedMotion()
+  const [isMobile, setIsMobile] = useState(false)
+  useEffect(() => {
+    const m = window.matchMedia('(max-width: 640px)')
+    const h = () => setIsMobile(m.matches)
+    h(); m.addEventListener('change', h); return () => m.removeEventListener('change', h)
+  }, [])
+  const disableMotion = reduce || isMobile
   const { scrollY } = useScroll()
   const springConfig = { stiffness: 80, damping: 20, mass: 0.5 }
-  const orb1Y = useSpring(useTransform(scrollY, [0, 400], [0, reduce ? 0 : -15]), springConfig)
-  const orb2Y = useSpring(useTransform(scrollY, [0, 400], [0, reduce ? 0 : 20]), springConfig)
-  const curveY = useSpring(useTransform(scrollY, [0, 400], [0, reduce ? 0 : -6]), springConfig)
+  const orb1Y = useSpring(useTransform(scrollY, [0, 400], [0, disableMotion ? 0 : -15]), springConfig)
+  const orb2Y = useSpring(useTransform(scrollY, [0, 400], [0, disableMotion ? 0 : 20]), springConfig)
+  const curveY = useSpring(useTransform(scrollY, [0, 400], [0, disableMotion ? 0 : -6]), springConfig)
 
   return (
     <div className="relative overflow-hidden rounded-b-[28px] sm:rounded-b-2xl px-5 pt-7 pb-8 sm:p-8" style={{ backgroundColor: bg }}>
@@ -52,7 +59,7 @@ export default function DashboardHero({
             <div className="shrink-0 rounded-2xl border-2 border-white/20 overflow-hidden shadow-lg shadow-black/20">{avatar}</div>
           )}
           <div className="min-w-0 flex-1">
-            <div className="inline-flex items-center gap-1.5 rounded-full bg-white/[0.08] border border-white/10 px-2.5 py-1 text-gold-300 text-xs font-semibold tracking-wide mb-3">
+            <div className="inline-flex items-center gap-1.5 rounded-full bg-white/[0.08] border border-white/10 px-2.5 py-1 text-gold-200 text-xs font-semibold tracking-wide mb-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-400/50">
               {greeting ?? (
                 <>
                   <Sun className="h-3.5 w-3.5" />

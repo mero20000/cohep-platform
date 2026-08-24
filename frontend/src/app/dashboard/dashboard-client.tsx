@@ -273,20 +273,25 @@ function ServantSectionFallback() {
 
 function HeroSection({ stats, churchLogo, churchName, loading }: { stats: DashboardData | null; churchLogo: string | null; churchName: string; loading: boolean }) {
   const lang = useLanguage()
+  const { effectiveRole } = useActiveRole()
+  const isRTL = lang === 'ar'
   if (loading && !stats) return <HeroFallback />
   const s = stats ?? EMPTY_STATS
   const greetingText = lang === 'ar' ? getGreetingAr() : getGreeting()
-  const title =
-    s.school?.name || (lang === 'ar' ? 'منصة تعليم التراتيل الكنسية' : 'Coptic Orthodox Hymn Education Platform')
+  const isMinistry = roleCategory(effectiveRole) === 'ministry'
+  const rawTitle = s.school?.name || (lang === 'ar' ? 'منصة تعليم التراتيل الكنسية' : 'Coptic Orthodox Hymn Education Platform')
+  const isFallbackTitle = !s.school?.name
+  const title = isFallbackTitle ? <span className="line-clamp-2">{rawTitle}</span> : rawTitle
 
   const badges = (
     <>
+      {isMinistry && <RoleBadge role={effectiveRole} lang={lang} />}
       {churchName && (
         <span className="inline-flex items-center gap-1.5 rounded-full bg-gold-500/15 border border-gold-400/25 px-2.5 py-1 text-xs font-semibold text-gold-200">
           {churchName}
         </span>
       )}
-      <span className="inline-flex items-center gap-1.5 text-white/55 text-xs font-medium">
+      <span className="inline-flex items-center gap-1.5 text-white/70 text-xs font-medium">
         <span className="h-1 w-1 rounded-full bg-gold-400/60" />
         {getFullDay(lang)}
       </span>
@@ -313,8 +318,11 @@ function HeroSection({ stats, churchLogo, churchName, loading }: { stats: Dashbo
     </>
   )
 
+  const nextSession = s.upcomingSessions?.[0] || null
+  const nextLabel = nextSession ? new Date(nextSession.scheduledDate).toLocaleDateString(isRTL ? 'ar-EG' : 'en-GB', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : ''
+
   const statsGrid = (
-    <div className="grid grid-cols-2 gap-2.5 sm:gap-3 sm:grid-cols-5">
+    <div className="grid grid-cols-2 gap-2.5 sm:gap-3 sm:grid-cols-5" role="list">
       {([
         { label: 'Active Students', labelAr: 'الطلاب النشطون', value: s.activeStudents ?? 0, icon: Users },
         { label: 'Attendance', labelAr: 'الحضور', value: s.attendanceRate ?? 0, suffix: '%', icon: UserCheck },
@@ -322,13 +330,13 @@ function HeroSection({ stats, churchLogo, churchName, loading }: { stats: Dashbo
         { label: 'Assessments', labelAr: 'التقييمات', value: s.publishedAssessments ?? 0, icon: ClipboardCheck },
         { label: 'Pass Rate', labelAr: 'نسبة النجاح', value: s.assessmentStats?.passRate ?? 0, suffix: '%', icon: TrendingUp },
       ] as const).map((item, idx) => (
-        <div key={item.label} className={`group relative overflow-hidden rounded-2xl bg-white/[0.06] border border-white/10 backdrop-blur-sm px-3.5 py-3 sm:px-4 sm:py-3 hover:bg-white/[0.09] hover:border-white/15 transition-all duration-300 ${idx === 4 ? 'col-span-2 sm:col-span-1' : ''}`}>
+        <div key={item.label} role="listitem" tabIndex={0} className={`group relative overflow-hidden rounded-2xl bg-white/[0.06] border border-white/10 backdrop-blur-sm px-3.5 py-3 sm:px-4 sm:py-3 hover:bg-white/[0.09] hover:border-white/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-400/40 focus-visible:ring-offset-0 transition-all duration-300 ${idx === 4 ? 'col-span-2 sm:col-span-1' : ''}`}>
           <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-gold-400/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
           <div className="flex items-center gap-1.5 mb-1.5">
             <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-white/10 border border-white/10">
-              <item.icon className="h-3.5 w-3.5 text-gold-300" />
+              <item.icon className="h-3.5 w-3.5 text-gold-200" />
             </span>
-            <span className="text-[11px] sm:text-xs font-medium text-white/60 tracking-wide">{lang === 'ar' ? (item as any).labelAr : item.label}</span>
+            <span className="text-[11px] sm:text-xs font-medium text-white/75 tracking-wide">{lang === 'ar' ? (item as any).labelAr : item.label}</span>
           </div>
           <div className="text-xl sm:text-xl font-bold text-white tracking-tight">
             <AnimatedCounter value={item.value} suffix={'suffix' in item ? (item as any).suffix || '' : ''} />
@@ -351,6 +359,18 @@ function HeroSection({ stats, churchLogo, churchName, loading }: { stats: Dashbo
       badges={badges}
       logos={logos}
     >
+      {nextSession && (
+        <Link href={`/dashboard/attendance?sessionId=${nextSession.id}`} className={`flex items-center justify-between gap-3 rounded-2xl bg-gradient-to-r from-gold-500 to-amber-500 px-4 py-3 mb-3 shadow-lg shadow-black/15 hover:from-gold-400 hover:to-amber-400 active:scale-[0.99] transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60 ${isRTL ? 'flex-row-reverse' : ''}`}>
+          <span className={`flex items-center gap-2.5 min-w-0 ${isRTL ? 'flex-row-reverse' : ''}`}>
+            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white/20 backdrop-blur"><Calendar className="h-4 w-4 text-white" /></span>
+            <span className="text-left">
+              <span className="block text-xs font-semibold text-white/80 tracking-wide uppercase">{isRTL ? 'الجلسة القادمة' : 'Next session'}</span>
+              <span className="block text-sm font-bold text-white truncate">{nextSession.level?.name || nextSession.level?.number ? `Level ${nextSession.level.number}` : ''}{nextSession.level?.name ? ` · ${nextLabel}` : nextLabel}</span>
+            </span>
+          </span>
+          <span className={`flex items-center gap-1 text-sm font-bold text-white shrink-0 ${isRTL ? 'flex-row-reverse' : ''}`}>{isRTL ? 'ابدأ' : 'Start'} <ChevronRight className={`h-4 w-4 ${isRTL ? 'rotate-180' : ''}`} /></span>
+        </Link>
+      )}
       {statsGrid}
     </DashboardHero>
   )
