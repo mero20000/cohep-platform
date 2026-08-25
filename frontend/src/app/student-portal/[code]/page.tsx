@@ -273,7 +273,7 @@ export default function StudentDashboard() {
                   <div className="relative flex h-14 w-14 items-center justify-center rounded-xl overflow-hidden bg-white/10 border border-gold-300/40">
                     {school.churchLogoUrl ? (
                       <Image src={school.churchLogoUrl.startsWith('http') ? school.churchLogoUrl : `${API_ORIGIN}${school.churchLogoUrl}`}
-                        alt={lang === 'ar' ? 'شعار الكنيسة' : 'Church logo'} width={56} height={56} className="h-full w-full object-contain" unoptimized />
+                        alt={lang === 'ar' ? 'شعار الكنيسة' : 'Church logo'} width={56} height={56} className="h-full w-full object-contain" />
                     ) : (
                       <Cross className="h-6 w-6 text-gold-300" aria-hidden="true" />
                     )}
@@ -297,7 +297,7 @@ export default function StudentDashboard() {
                   <div className="relative flex h-14 w-14 items-center justify-center rounded-xl overflow-hidden bg-white/10 border border-white/20">
                     {school.logoUrl ? (
                       <Image src={school.logoUrl.startsWith('http') ? school.logoUrl : `${API_ORIGIN}${school.logoUrl}`}
-                        alt={lang === 'ar' ? 'شعار المدرسة' : 'School logo'} width={56} height={56} className="h-full w-full object-contain" unoptimized />
+                        alt={lang === 'ar' ? 'شعار المدرسة' : 'School logo'} width={56} height={56} className="h-full w-full object-contain" />
                     ) : (
                       <Music className="h-6 w-6 text-white/50" aria-hidden="true" />
                     )}
@@ -309,7 +309,7 @@ export default function StudentDashboard() {
           <div className="flex items-center gap-4">
             <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-white/10 border border-white/15 backdrop-blur-sm text-2xl font-bold overflow-hidden shadow-lg shadow-black/20 shrink-0">
               {photoSrc ? (
-                <Image src={photoSrc} alt="" width={64} height={64} className="h-full w-full object-cover" unoptimized />
+                <Image src={photoSrc} alt="" width={64} height={64} className="h-full w-full object-cover" />
               ) : (
                 <Cross className="h-7 w-7 text-white/80" />
               )}
@@ -564,7 +564,7 @@ export default function StudentDashboard() {
                             className="snap-start shrink-0 w-44 rounded-xl border border-blue-100 bg-blue-50/60 p-3">
                             <div className="flex items-center gap-2 mb-1.5">
                               {b.iconUrl ? (
-                                <Image src={b.iconUrl.startsWith('http') ? b.iconUrl : `${API_ORIGIN}${b.iconUrl}`} alt="" width={32} height={32} className="h-8 w-8 rounded-lg object-cover" unoptimized />
+                                <Image src={b.iconUrl.startsWith('http') ? b.iconUrl : `${API_ORIGIN}${b.iconUrl}`} alt="" width={32} height={32} className="h-8 w-8 rounded-lg object-cover" />
                               ) : (
                                 <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-white border border-blue-100"><Award className="h-4 w-4 text-blue-500" /></span>
                               )}
@@ -611,7 +611,7 @@ export default function StudentDashboard() {
                         <div className="flex items-center gap-3 rounded-xl border border-blue-100 bg-blue-50/60 p-3">
                           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white border border-blue-100">
                             {badges[0].iconUrl
-                              ? <Image src={badges[0].iconUrl.startsWith('http') ? badges[0].iconUrl : `${API_ORIGIN}${badges[0].iconUrl}`} alt="" width={32} height={32} className="h-8 w-8 rounded-full object-cover" unoptimized />
+                              ? <Image src={badges[0].iconUrl.startsWith('http') ? badges[0].iconUrl : `${API_ORIGIN}${badges[0].iconUrl}`} alt="" width={32} height={32} className="h-8 w-8 rounded-full object-cover" />
                               : <Award className="h-5 w-5 text-blue-500" />}
                           </span>
                           <div className="min-w-0">
@@ -1276,7 +1276,7 @@ export default function StudentDashboard() {
                     {badges.map(b => (
                       <li key={b.id} className="rounded-xl border border-gray-100 p-3 text-center">
                         {b.iconUrl
-                          ? <Image src={b.iconUrl.startsWith('http') ? b.iconUrl : `${API_ORIGIN}${b.iconUrl}`} alt="" width={40} height={40} className="mx-auto h-10 w-10 rounded-full object-cover mb-1.5" unoptimized />
+                          ? <Image src={b.iconUrl.startsWith('http') ? b.iconUrl : `${API_ORIGIN}${b.iconUrl}`} alt="" width={40} height={40} className="mx-auto h-10 w-10 rounded-full object-cover mb-1.5" />
                           : <Award className="mx-auto h-8 w-8 text-blue-400 mb-1.5" />}
                         <p className="text-sm font-medium text-gray-900 truncate">{lang === 'ar' && b.nameAr ? b.nameAr : b.name}</p>
                         {b.awardedBy && <p className="text-[11px] text-gray-400">{lang === 'ar' ? 'من' : 'from'} {b.awardedBy}</p>}
