@@ -421,18 +421,30 @@ export class UsersService {
     });
   }
 
-  async getSchool(id: string) {
+  // Tenancy guard for school-scoped operations: non-super-admin callers may
+  // only operate on their own school.
+  private requireOwnSchool(requestingUser: any, school: { id: string }): void {
+    if (!requestingUser) return;
+    if (requestingUser.roles?.includes('super_admin')) return;
+    if (requestingUser.schoolId && school.id !== requestingUser.schoolId) {
+      throw new NotFoundException('School not found');
+    }
+  }
+
+  async getSchool(id: string, requestingUser?: any) {
     const school = await this.prisma.school.findUnique({
       where: { id },
       include: { church: { select: { id: true, name: true, nameAr: true, logoUrl: true, schoolNameEn: true, schoolNameAr: true } } },
     });
     if (!school) throw new NotFoundException('School not found');
+    this.requireOwnSchool(requestingUser, school);
     return school;
   }
 
-  async updateSchool(id: string, data: any) {
+  async updateSchool(id: string, data: any, requestingUser?: any) {
     const school = await this.prisma.school.findUnique({ where: { id } });
     if (!school) throw new NotFoundException('School not found');
+    this.requireOwnSchool(requestingUser, school);
     return this.prisma.school.update({
       where: { id },
       data: {
@@ -450,9 +462,10 @@ export class UsersService {
     });
   }
 
-  async deleteSchool(id: string) {
+  async deleteSchool(id: string, requestingUser?: any) {
     const school = await this.prisma.school.findUnique({ where: { id } });
     if (!school) throw new NotFoundException('School not found');
+    this.requireOwnSchool(requestingUser, school);
     await this.prisma.school.update({ where: { id }, data: { deletedAt: new Date() } });
     return { success: true };
   }

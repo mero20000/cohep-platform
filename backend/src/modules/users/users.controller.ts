@@ -68,22 +68,22 @@ export class UsersController {
   @Roles('super_admin', 'admin', 'principal')
   @Get('schools/:id')
   @ApiOperation({ summary: 'Get a school by ID' })
-  getSchool(@Param('id') id: string) {
-    return this.usersService.getSchool(id);
+  getSchool(@Param('id') id: string, @CurrentUser() user: any) {
+    return this.usersService.getSchool(id, user);
   }
 
   @Roles('super_admin', 'admin')
   @Patch('schools/:id')
   @ApiOperation({ summary: 'Update a school' })
-  updateSchool(@Param('id') id: string, @Body() dto: UpdateSchoolDto) {
-    return this.usersService.updateSchool(id, dto);
+  updateSchool(@Param('id') id: string, @Body() dto: UpdateSchoolDto, @CurrentUser() user: any) {
+    return this.usersService.updateSchool(id, dto, user);
   }
 
   @Roles('super_admin', 'admin')
   @Delete('schools/:id')
   @ApiOperation({ summary: 'Delete a school (soft delete)' })
-  deleteSchool(@Param('id') id: string) {
-    return this.usersService.deleteSchool(id);
+  deleteSchool(@Param('id') id: string, @CurrentUser() user: any) {
+    return this.usersService.deleteSchool(id, user);
   }
 
   @Roles('super_admin', 'admin', 'principal')

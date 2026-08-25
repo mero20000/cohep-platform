@@ -174,4 +174,47 @@ describe('UsersService roles', () => {
       expect(res).toEqual({ deleted: 1 });
     });
   });
+
+  describe('school CRUD tenancy', () => {
+    const schoolB = { id: 'school-2' };
+
+    it('blocks admin of school A from getting school B', async () => {
+      prisma.school = { findUnique: jest.fn().mockResolvedValue(schoolB) };
+      await expect(
+        service.getSchool('school-2', { id: 'u1', schoolId: 'school-1', roles: ['admin'] }),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('allows admin to get their own school', async () => {
+      prisma.school = { findUnique: jest.fn().mockResolvedValue({ id: 'school-1' }) };
+      const res = await service.getSchool('school-1', { id: 'u1', schoolId: 'school-1', roles: ['admin'] });
+      expect(res.id).toBe('school-1');
+    });
+
+    it('blocks cross-school update', async () => {
+      prisma.school = { findUnique: jest.fn().mockResolvedValue(schoolB), update: jest.fn() };
+      await expect(
+        service.updateSchool('school-2', { name: 'X' }, { id: 'u1', schoolId: 'school-1', roles: ['admin'] }),
+      ).rejects.toThrow(NotFoundException);
+      expect(prisma.school.update).not.toHaveBeenCalled();
+    });
+
+    it('blocks cross-school delete', async () => {
+      prisma.school = { findUnique: jest.fn().mockResolvedValue(schoolB), update: jest.fn() };
+      await expect(
+        service.deleteSchool('school-2', { id: 'u1', schoolId: 'school-1', roles: ['admin'] }),
+      ).rejects.toThrow(NotFoundException);
+      expect(prisma.school.update).not.toHaveBeenCalled();
+    });
+
+    it('allows super_admin to access any school', async () => {
+      prisma.school = {
+        findUnique: jest.fn().mockResolvedValue(schoolB),
+        update: jest.fn().mockResolvedValue({ ...schoolB, deletedAt: new Date() }),
+      };
+      await expect(
+        service.deleteSchool('school-2', { id: 'u1', roles: ['super_admin'] }),
+      ).resolves.toEqual({ success: true });
+    });
+  });
 });
