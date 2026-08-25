@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../database/prisma.service';
 import { CreateAllocationDto, UpdateAllocationDto, ReorderAllocationDto } from './dto/curriculum.dto';
@@ -376,9 +376,18 @@ export class CurriculumService {
     return this.prisma.curriculumAllocation.deleteMany({ where });
   }
 
-  async deleteLevel(id: string) {
+  private assertSameSchool(recordSchoolId: string | null | undefined, user?: { schoolId?: string | null; roles?: string[] } | null) {
+    if (!user) return;
+    if (user.roles?.includes('super_admin')) return;
+    if (user.schoolId && recordSchoolId && recordSchoolId !== user.schoolId) {
+      throw new NotFoundException('Record not found');
+    }
+  }
+
+  async deleteLevel(id: string, requestingUser?: { schoolId?: string | null; roles?: string[] } | null) {
     const level = await this.prisma.level.findUnique({ where: { id }, select: { schoolId: true, name: true, number: true } });
     if (!level) throw new NotFoundException('Level not found');
+    this.assertSameSchool(level.schoolId, requestingUser);
     await this.prisma.level.update({
       where: { id },
       data: { deletedAt: new Date() },
@@ -387,7 +396,20 @@ export class CurriculumService {
     return { success: true };
   }
 
-  async reorderAllocations(allocations: ReorderAllocationDto[]) {
+  async reorderAllocations(allocations: ReorderAllocationDto[], requestingUser?: { schoolId?: string | null; roles?: string[] } | null) {
+    const ids = allocations.map(a => a.allocationId);
+    const records = await this.prisma.curriculumAllocation.findMany({
+      where: { id: { in: ids } },
+      select: { id: true, academicYear: { select: { schoolId: true } } },
+    });
+    const byId = new Map(records.map(r => [r.id, r]));
+    for (const a of allocations) {
+      const rec = byId.get(a.allocationId) as any;
+      const recSchoolId = rec?.academicYear?.schoolId;
+      if (!rec || (requestingUser && !requestingUser.roles?.includes('super_admin') && requestingUser.schoolId && recSchoolId !== requestingUser.schoolId)) {
+        throw new NotFoundException('Allocation not found');
+      }
+    }
     const operations = allocations.map(a =>
       this.prisma.curriculumAllocation.update({
         where: { id: a.allocationId },
@@ -400,7 +422,7 @@ export class CurriculumService {
   async getAcademicYears(schoolIdentifier: string) {
     const schoolId = await this.schoolResolver.resolve(schoolIdentifier);
     return this.prisma.academicYear.findMany({
-      where: { schoolId },
+      where: { schoolId, deletedAt: null },
       orderBy: { startDate: 'desc' },
     });
   }
@@ -449,10 +471,14 @@ export class CurriculumService {
     return updated;
   }
 
-  async deleteAcademicYear(id: string) {
-    const year = await this.prisma.academicYear.findUnique({ where: { id }, select: { schoolId: true, name: true } });
-    if (!year) throw new NotFoundException('Academic year not found');
-    await this.prisma.academicYear.delete({ where: { id } });
+  async deleteAcademicYear(id: string, requestingUser?: { schoolId?: string | null; roles?: string[] } | null) {
+    const year = await this.prisma.academicYear.findUnique({ where: { id }, select: { schoolId: true, name: true, deletedAt: true } });
+    if (!year || year.deletedAt) throw new NotFoundException('Academic year not found');
+    this.assertSameSchool(year.schoolId, requestingUser);
+    await this.prisma.academicYear.update({
+      where: { id },
+      data: { deletedAt: new Date() },
+    });
     await this.audit.log({ schoolId: year.schoolId, action: 'DELETE', entityType: 'academic_year', entityId: id, oldValues: { name: year.name } });
     return { success: true };
   }
@@ -587,11 +613,18 @@ export class CurriculumService {
     return updated;
   }
 
-  async deleteLesson(id: string) {
-    const lesson = await this.prisma.lesson.findUnique({ where: { id }, select: { schoolId: true, title: true } });
-    if (!lesson) throw new NotFoundException('Lesson not found');
-    await this.prisma.session.deleteMany({ where: { lessonId: id } });
-    await this.prisma.lesson.delete({ where: { id } });
+  async deleteLesson(id: string, requestingUser?: { schoolId?: string | null; roles?: string[] } | null) {
+    const lesson = await this.prisma.lesson.findUnique({ where: { id }, select: { schoolId: true, title: true, deletedAt: true } });
+    if (!lesson || lesson.deletedAt) throw new NotFoundException('Lesson not found');
+    this.assertSameSchool(lesson.schoolId, requestingUser);
+    const allocationCount = await this.prisma.curriculumAllocation.count({ where: { lessonId: id } });
+    if (allocationCount > 0) {
+      throw new BadRequestException('Unlink allocations first');
+    }
+    await this.prisma.lesson.update({
+      where: { id },
+      data: { deletedAt: new Date() },
+    });
     await this.audit.log({ schoolId: lesson.schoolId, action: 'DELETE', entityType: 'lesson', entityId: id, oldValues: { title: lesson.title } });
     return { success: true };
   }

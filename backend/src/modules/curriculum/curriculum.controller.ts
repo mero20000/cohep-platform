@@ -37,8 +37,8 @@ export class CurriculumController {
 
     @Delete('levels/:id')
   @ApiOperation({ summary: 'Delete a level (soft delete)' })
-  deleteLevel(@Param('id') id: string) {
-    return this.curriculumService.deleteLevel(id);
+  deleteLevel(@Param('id') id: string, @CurrentUser() user: any) {
+    return this.curriculumService.deleteLevel(id, user);
   }
 
     @Get('subjects')
@@ -166,9 +166,10 @@ export class CurriculumController {
   }
 
     @Delete('academic-years/:id')
+  @Roles('curriculum_manager', 'principal', 'admin', 'super_admin')
   @ApiOperation({ summary: 'Delete an academic year' })
-  deleteAcademicYear(@Param('id') id: string) {
-    return this.curriculumService.deleteAcademicYear(id);
+  deleteAcademicYear(@Param('id') id: string, @CurrentUser() user: any) {
+    return this.curriculumService.deleteAcademicYear(id, user);
   }
 
     @Post('allocations')
@@ -197,8 +198,8 @@ export class CurriculumController {
 
     @Post('allocations/reorder')
   @ApiOperation({ summary: 'Reorder curriculum allocations' })
-  reorderAllocations(@Body() dto: { allocations: ReorderAllocationDto[] }) {
-    return this.curriculumService.reorderAllocations(dto.allocations);
+  reorderAllocations(@Body() dto: { allocations: ReorderAllocationDto[] }, @CurrentUser() user: any) {
+    return this.curriculumService.reorderAllocations(dto.allocations, user);
   }
 
     @Post('lessons')
@@ -268,9 +269,10 @@ export class CurriculumController {
     }
 
     @Delete('lessons/:id')
+  @Roles('curriculum_manager', 'principal', 'admin', 'super_admin')
   @ApiOperation({ summary: 'Delete a lesson' })
-  deleteLesson(@Param('id') id: string) {
-    return this.curriculumService.deleteLesson(id);
+  deleteLesson(@Param('id') id: string, @CurrentUser() user: any) {
+    return this.curriculumService.deleteLesson(id, user);
   }
 
     @Post('lessons/bulk')
