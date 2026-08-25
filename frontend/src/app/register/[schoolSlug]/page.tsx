@@ -29,7 +29,7 @@ export default function RegisterPage() {
   // Form state — mirrors Student creation fields to minimize admin work
   const [photoFile, setPhotoFile] = useState<File | null>(null)
   const [photoPreview, setPhotoPreview] = useState('')
-  const [hymnChoice, setHymnChoice] = useState<'amen_be_mawteka'|'be_shafaat'|''>('')
+  const [hymnChoice, setHymnChoice] = useState<'amen_be_mawteka'|'be_shafaat'|'both'|''>('')
   const [voiceBlob, setVoiceBlob] = useState<Blob | null>(null)
   const [form, setForm] = useState({
     name: '', firstNameAr: '', lastNameAr: '', dateOfBirth: '', gender: 'male',
@@ -39,7 +39,14 @@ export default function RegisterPage() {
   })
 
   useEffect(() => {
-    fetch(`${API}/registrations/${schoolSlug}/meta`).then(r=>r.json()).then(d=>{setMeta(d); setMetaLoading(false)}).catch(()=>setMetaLoading(false))
+    fetch(`${API}/registrations/${schoolSlug}/meta`).then(r=>r.json()).then(d=>{
+      setMeta(d);
+      // Default church as per school link (per-school registration)
+      if (d?.school?.name) {
+        setForm(prev => prev.churchName ? prev : ({ ...prev, churchName: d.school.name }))
+      }
+      setMetaLoading(false)
+    }).catch(()=>setMetaLoading(false))
   }, [schoolSlug])
 
   const update = (k: string, v: string) => setForm(prev => ({ ...prev, [k]: v }))
@@ -128,18 +135,19 @@ export default function RegisterPage() {
 
   return (
     <div className="min-h-screen bg-gray-50" dir={isAr?'rtl':'ltr'}>
-      {/* Hero */}
+      {/* Hero — reflects school + church identity, hook from main portal */}
       <div className="relative overflow-hidden bg-gradient-to-br from-[#0f1f3d] via-[#1A2744] to-[#1e3a5f] px-4 pt-8 pb-10 sm:px-6">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,_rgba(200,155,60,0.15),_transparent_50%)]" />
         <div className="relative mx-auto max-w-3xl text-center">
-          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-white/10 border border-white/15 backdrop-blur">
-            <Music className="h-7 w-7 text-gold-400" />
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-white/10 border border-white/15 backdrop-blur overflow-hidden">
+            {meta?.school?.logoUrl ? <Image src={meta.school.logoUrl.startsWith('http') ? meta.school.logoUrl : `${API.replace('/api','')}${meta.school.logoUrl}`} alt={meta.school.name} width={56} height={56} className="h-full w-full object-cover" unoptimized /> : <Music className="h-7 w-7 text-gold-400" />}
           </div>
           <h1 className="mt-4 text-3xl sm:text-4xl font-bold tracking-tight text-white">{t('Join the Hymn School', 'انضم لمدرسة الألحان')}</h1>
-          <p className="mx-auto mt-3 max-w-xl text-sm leading-relaxed text-white/70">{t('Give your child the voice of the church. Register in 2 minutes — no account needed.', 'امنح طفلك صوت الكنيسة. سجل في دقيقتين — لا حاجة لحساب.')}</p>
-          <div className="mt-4 inline-flex items-center gap-2 rounded-full bg-white/10 border border-white/15 px-3 py-1.5 text-xs text-white/80">
+          <p className="mx-auto mt-2 text-sm font-medium text-gold-300">{meta?.school?.name ? `${meta.school.name}${meta?.school?.nameAr ? ` · ${meta.school.nameAr}` : ''}` : schoolSlug}</p>
+          <p className="mx-auto mt-3 max-w-xl text-sm leading-relaxed text-white/70">{t('Teach hymns, preserve heritage, and help children belong to the Church. Your child\'s voice matters — begin their spiritual journey today.', 'علموا التراتيل، احفظوا التراث، وساعدوا الأطفال على الانتماء للكنيسة. صوت طفلك مهم — ابدأ رحلته الروحية اليوم.')}</p>
+          <div className="mt-4 inline-flex flex-wrap items-center justify-center gap-2 rounded-full bg-white/10 border border-white/15 px-3 py-1.5 text-xs text-white/80">
             <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
-            {meta?.school?.name || schoolSlug} · {t('2025-2026 Intake', 'التسجيل 2025-2026')} · {t('Secure', 'آمن')}
+            {meta?.school?.name || schoolSlug} {meta?.school?.nameAr ? `· ${meta.school.nameAr}` : ''} · {t('2025-2026 Intake', 'التسجيل 2025-2026')} · {t('Secure', 'آمن')}
           </div>
         </div>
       </div>
@@ -198,7 +206,7 @@ export default function RegisterPage() {
                 <div className="grid grid-cols-2 gap-3">
                   <div className="col-span-2"><label className="block text-sm font-medium text-gray-700">{t('Parent / Guardian full name *','اسم ولي الأمر *')}</label><input value={form.parentName} onChange={e=>update('parentName',e.target.value)} className="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2.5 text-sm focus:border-gold-400 focus:ring-2 focus:ring-gold-100 outline-none" /></div>
                   <div><label className="block text-sm font-medium text-gray-700">{t('Relationship *','صلة القرابة *')}</label><select value={form.relationship} onChange={e=>update('relationship',e.target.value)} className="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2.5 text-sm bg-white"><option value="father">{t('Father','أب')}</option><option value="mother">{t('Mother','أم')}</option><option value="guardian">{t('Guardian','ولي أمر')}</option></select></div>
-                  <div><label className="block text-sm font-medium text-gray-700">{t('Phone *','الهاتف *')}</label><input value={form.phone} onChange={e=>update('phone',e.target.value)} placeholder="+20 1..." className="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2.5 text-sm" /></div>
+                  <div><label className="block text-sm font-medium text-gray-700">{t('Phone *','الهاتف *')}</label><input value={form.phone} onChange={e=>update('phone',e.target.value)} placeholder="+971 5••••••••" className="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2.5 text-sm" /></div>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div><label className="block text-sm font-medium text-gray-700">{t('Email (for confirmation) *','البريد الإلكتروني *')}</label><input type="email" value={form.parentEmail} onChange={e=>update('parentEmail',e.target.value)} placeholder="parent@email.com" className="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2.5 text-sm" /></div>
@@ -210,8 +218,19 @@ export default function RegisterPage() {
                   <p className="text-xs font-semibold text-amber-800">{t('Emergency contact','جهة اتصال للطوارئ')}</p>
                   <div className="grid grid-cols-3 gap-2 mt-2">
                     <input value={form.emergencyContactName} onChange={e=>update('emergencyContactName',e.target.value)} placeholder={t('Name','الاسم')} className="rounded-lg border border-amber-200 px-2 py-2 text-sm" />
-                    <input value={form.emergencyContactPhone} onChange={e=>update('emergencyContactPhone',e.target.value)} placeholder={t('Phone','الهاتف')} className="rounded-lg border border-amber-200 px-2 py-2 text-sm" />
-                    <input value={form.emergencyContactRelation} onChange={e=>update('emergencyContactRelation',e.target.value)} placeholder={t('Relation','الصلة')} className="rounded-lg border border-amber-200 px-2 py-2 text-sm" />
+                    <input value={form.emergencyContactPhone} onChange={e=>update('emergencyContactPhone',e.target.value)} placeholder="+971 5••••••••" className="rounded-lg border border-amber-200 px-2 py-2 text-sm" />
+                    <select value={form.emergencyContactRelation} onChange={e=>update('emergencyContactRelation',e.target.value)} className="rounded-lg border border-amber-200 px-2 py-2 text-sm bg-white">
+                      <option value="">{t('Relation','الصلة')}</option>
+                      <option value="father">{t('Father','أب')}</option>
+                      <option value="mother">{t('Mother','أم')}</option>
+                      <option value="guardian">{t('Guardian','ولي أمر')}</option>
+                      <option value="grandfather">{t('Grandfather','جد')}</option>
+                      <option value="grandmother">{t('Grandmother','جدة')}</option>
+                      <option value="uncle">{t('Uncle','عم/خال')}</option>
+                      <option value="aunt">{t('Aunt','عمة/خالة')}</option>
+                      <option value="sibling">{t('Sibling','أخ/أخت')}</option>
+                      <option value="other">{t('Other','أخرى')}</option>
+                    </select>
                   </div>
                 </div>
               </div>
@@ -219,7 +238,7 @@ export default function RegisterPage() {
 
             {step===3 && (
               <div className="space-y-4">
-                <p className="text-sm text-gray-600">{t('Choose one hymn and record your child singing it. No perfection needed — we just want to hear their voice.', 'اختر لحناً واحداً وسجل طفلك وهو يرتل. لا نطلب الكمال — نريد سماع صوته فقط.')}</p>
+                <p className="text-sm text-gray-600">{t('Choose a hymn and record your child singing it. No perfection needed — we just want to hear their voice.', 'اختر لحناً واحداً وسجل طفلك وهو يرتل. لا نطلب الكمال — نريد سماع صوته فقط.')}</p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {[
                     {id:'amen_be_mawteka', en:'Amen Amen Amen be mawteka', ar:'امين امين بموتك يارب'},
@@ -234,6 +253,16 @@ export default function RegisterPage() {
                     </button>
                   ))}
                 </div>
+                <button type="button" onClick={()=>setHymnChoice('both')} className={`w-full rounded-2xl border-2 p-4 text-left transition-all ${hymnChoice==='both' ? 'border-gold-500 bg-gold-50 shadow' : 'border-dashed border-amber-300 hover:border-gold-400 bg-amber-50/50'}`}>
+                  <div className="flex items-center gap-2">
+                    <div className={`h-10 w-10 rounded-xl flex items-center justify-center ${hymnChoice==='both' ? 'bg-gold-500 text-white' : 'bg-amber-100 text-amber-600'}`}><Music className="h-5 w-5" /></div>
+                    <div>
+                      <div className="text-sm font-bold text-gray-900">{t('Both hymns — Advanced', 'كلا اللحنين — متقدم')}</div>
+                      <div className="text-xs text-gray-500">{t('Record both hymns together for advanced placement', 'سجل اللحنين معاً للمتقدمين')}</div>
+                    </div>
+                    {hymnChoice==='both' && <CheckCircle2 className="ms-auto h-5 w-5 text-gold-600" />}
+                  </div>
+                </button>
                 {hymnChoice && <VoiceRecorder onRecordingComplete={setVoiceBlob} lang={lang} />}
                 {!hymnChoice && <p className="text-xs text-amber-600 flex items-center gap-1"><AlertCircle className="h-3.5 w-3.5" />{t('Please choose a hymn first', 'يرجى اختيار اللحن أولاً')}</p>}
               </div>
@@ -250,7 +279,7 @@ export default function RegisterPage() {
                     <span className="text-gray-500">{t('Parent:','ولي الأمر:')} <span className="font-medium text-gray-900">{form.parentName} ({form.relationship})</span></span>
                     <span className="text-gray-500">{t('Email:','البريد:')} <span className="font-medium text-gray-900">{form.parentEmail}</span></span>
                     <span className="text-gray-500">{t('Phone:','الهاتف:')} <span className="font-medium text-gray-900">{form.phone}</span></span>
-                    <span className="text-gray-500">{t('Hymn:','اللحن:')} <span className="font-medium text-gray-900">{hymnChoice==='amen_be_mawteka'?'Amen be mawteka':'Be shafaat'}</span></span>
+                    <span className="text-gray-500">{t('Hymn:','اللحن:')} <span className="font-medium text-gray-900">{hymnChoice==='amen_be_mawteka'?'Amen be mawteka':hymnChoice==='both'?'Both hymns': 'Be shafaat'}</span></span>
                   </div>
                 </div>
                 {process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY && (

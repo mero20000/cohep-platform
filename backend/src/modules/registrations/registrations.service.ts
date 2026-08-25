@@ -66,7 +66,7 @@ export class RegistrationsService {
     if (!studentData.name || !studentData.dateOfBirth || !studentData.parentEmail) {
       throw new BadRequestException('Missing required fields: name, dateOfBirth, parentEmail');
     }
-    if (!dto.hymnChoice || !['amen_be_mawteka', 'be_shafaat'].includes(dto.hymnChoice)) {
+    if (!dto.hymnChoice || !['amen_be_mawteka', 'be_shafaat', 'both'].includes(dto.hymnChoice)) {
       throw new BadRequestException('Invalid hymn choice');
     }
 

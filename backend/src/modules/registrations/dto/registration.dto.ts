@@ -2,8 +2,8 @@ import { IsIn, IsObject, IsOptional, IsString } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateRegistrationDto {
-  @ApiProperty({ example: 'amen_be_mawteka', enum: ['amen_be_mawteka', 'be_shafaat'] })
-  @IsIn(['amen_be_mawteka', 'be_shafaat'])
+  @ApiProperty({ example: 'amen_be_mawteka', enum: ['amen_be_mawteka', 'be_shafaat', 'both'] })
+  @IsIn(['amen_be_mawteka', 'be_shafaat', 'both'])
   hymnChoice: string;
 
   @ApiProperty({ description: 'Student data JSON' })
@@ -17,9 +17,9 @@ export class CreateRegistrationDto {
 }
 
 export class UpdateRegistrationDto {
-  @ApiPropertyOptional({ enum: ['amen_be_mawteka', 'be_shafaat'] })
+  @ApiPropertyOptional({ enum: ['amen_be_mawteka', 'be_shafaat', 'both'] })
   @IsOptional()
-  @IsIn(['amen_be_mawteka', 'be_shafaat'])
+  @IsIn(['amen_be_mawteka', 'be_shafaat', 'both'])
   hymnChoice?: string;
 
   @ApiPropertyOptional({ description: 'Student data JSON' })

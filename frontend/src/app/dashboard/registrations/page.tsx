@@ -113,8 +113,8 @@ export default function RegistrationsPage() {
                     <div className="font-bold text-gray-900 truncate">{sd.name || sd.firstName}</div>
                     <div className="text-xs text-gray-500">{sd.dateOfBirth} · {sd.gender} · {sd.churchName || ''}</div>
                     <div className="mt-1 flex items-center gap-1.5">
-                      <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${app.hymnChoice==='amen_be_mawteka' ? 'bg-blue-50 text-blue-700' : 'bg-purple-50 text-purple-700'}`}>
-                        <Music className="h-3 w-3" />{app.hymnChoice==='amen_be_mawteka' ? 'Amen be mawteka' : 'Be shafaat'}
+                      <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${app.hymnChoice==='amen_be_mawteka' ? 'bg-blue-50 text-blue-700' : app.hymnChoice==='both' ? 'bg-amber-50 text-amber-700 border border-amber-200' : 'bg-purple-50 text-purple-700'}`}>
+                        <Music className="h-3 w-3" />{app.hymnChoice==='amen_be_mawteka' ? 'Amen be mawteka' : app.hymnChoice==='both' ? 'Both hymns' : 'Be shafaat'}
                       </span>
                       <span className="text-xs text-gray-400 flex items-center gap-1"><Clock className="h-3 w-3" />{new Date(app.createdAt).toLocaleDateString()}</span>
                     </div>
