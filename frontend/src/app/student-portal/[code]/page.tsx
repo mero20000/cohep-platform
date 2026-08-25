@@ -976,7 +976,7 @@ export default function StudentDashboard() {
                                         {meta.label}
                                       </span>
                                       <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-700 group-hover:text-emerald-600">
-                                        <Play className="h-3 w-3 fill-emerald-600" />{lang === 'ar' ? 'تدرّب' : 'Sing'}
+                                        <Play className="h-3 w-3 fill-emerald-600" />{lang === 'ar' ? 'صلِّ' : 'Pray Hymn'}
                                       </span>
                                     </div>
                                   </div>
