@@ -1,9 +1,12 @@
-const CACHE = 'cohep-v1'
+const CACHE = 'cohep-v2'
 const STATIC = [
   '/',
   '/manifest.json',
-  '/icons/icon.svg',
-  '/icons/icon-192x192.svg',
+  '/icons/icon-192x192.png',
+  '/icons/icon-512x512.png',
+  '/icons/icon-maskable-512.png',
+  '/icons/apple-touch-icon.png',
+  '/cohep-logo.png',
 ]
 
 self.addEventListener('install', (event) => {
@@ -65,8 +68,8 @@ self.addEventListener('push', (event) => {
   event.waitUntil(
     self.registration.showNotification(data.title, {
       body: data.body,
-      icon: '/icons/icon-192x192.svg',
-      badge: '/icons/icon-192x192.svg',
+      icon: '/icons/icon-192x192.png',
+      badge: '/icons/icon-192x192.png',
       vibrate: [200, 100, 200],
       data: data.url ? { url: data.url } : {},
     })

@@ -3,6 +3,7 @@ import { headers } from 'next/headers'
 import { Inter } from 'next/font/google'
 import { Providers } from '@/components/providers'
 import { LangSync } from '@/components/lang-sync'
+import InstallPromptProvider from '@/components/pwa/install-prompt-provider'
 import './globals.css'
 
 const inter = Inter({ subsets: ['latin'] })
@@ -67,12 +68,13 @@ export default async function RootLayout({
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Coptic:wght@400;600;700&family=Noto+Naskh+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet" />
         <link rel="manifest" href="/manifest.json" />
-        <meta name="theme-color" content="#1A2744" />
+        <meta name="theme-color" content="#C89B3C" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <meta name="apple-mobile-web-app-title" content="COHEP" />
         <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-        <link rel="apple-touch-icon" href="/cohep-logo.png" />
+        <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+        <link rel="apple-touch-startup-image" href="/icons/apple-touch-icon.png" />
         <script nonce={nonce} dangerouslySetInnerHTML={{
           __html: `document.documentElement.classList.add('js')`
         }} />
@@ -81,7 +83,7 @@ export default async function RootLayout({
         }} />
         <script type="application/ld+json" nonce={nonce} dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
       </head>
-      <body className={inter.className}><Providers><LangSync />{children}</Providers></body>
+      <body className={inter.className}><Providers><LangSync /><InstallPromptProvider />{children}</Providers></body>
     </html>
   )
 }

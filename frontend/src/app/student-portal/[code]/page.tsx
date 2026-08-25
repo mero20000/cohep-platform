@@ -10,6 +10,7 @@ import { AudioPlayer } from '@/components/audio-player'
 import DashboardHero from '../../dashboard/hero'
 import { useLanguage } from '@/lib/use-language'
 import { getGreeting, getGreetingAr } from '@/lib/datetime'
+import { markLessonCompleted } from '@/lib/use-install-prompt'
 
 const API_ORIGIN = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api').replace('/api', '')
 import {
@@ -158,6 +159,7 @@ export default function StudentDashboard() {
       setCelebration({ title: practiceLesson.title, titleCoptic: practiceLesson.titleCoptic })
       setTimeout(() => setCelebration(null), 3000)
     }
+    markLessonCompleted()
     setPracticeLesson(null)
   }
 
