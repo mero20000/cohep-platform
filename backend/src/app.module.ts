@@ -26,6 +26,7 @@ import { ReportsModule } from './modules/reports/reports.module';
 import { AnnouncementsModule } from './modules/announcements/announcements.module';
 import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { HealthModule } from './modules/health/health.module';
+import { RegistrationsModule } from './modules/registrations/registrations.module';
 import { JwtAuthGuard } from './modules/auth/guards/jwt-auth.guard';
 import { RolesGuard } from './modules/auth/guards/roles.guard';
 import { TenantScopeGuard } from './common/guards/tenant-scope.guard';
@@ -72,6 +73,7 @@ import { TenantScopeGuard } from './common/guards/tenant-scope.guard';
     AnnouncementsModule,
     AnalyticsModule,
     HealthModule,
+    RegistrationsModule,
   ],
   providers: [
     {
