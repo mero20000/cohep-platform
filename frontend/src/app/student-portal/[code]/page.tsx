@@ -33,7 +33,7 @@ interface PortalData {
   }
   school: {
     name: string; nameAr?: string; logoUrl?: string;
-    churchName?: string; churchNameAr?: string;
+    churchName?: string; churchNameAr?: string; churchLogoUrl?: string | null;
   } | null
   attendance: { present: number; late: number; absent: number; excused: number; total: number }
   recentAttendance: Array<{ date: string; time?: string; status: string; homeworkStatus?: string }>
@@ -263,6 +263,49 @@ export default function StudentDashboard() {
               )}
             </div>
           </div>
+          {/* Church & School identity — the anchor of belonging */}
+          {school && (
+            <div className="mb-5 rounded-2xl bg-white/[0.06] border border-white/10 backdrop-blur-sm px-4 py-3.5">
+              <div className="flex items-center gap-3">
+                {/* Church logo */}
+                <div className="relative shrink-0">
+                  <div className="absolute -inset-0.5 rounded-xl bg-gold-400/30 blur-sm" aria-hidden="true" />
+                  <div className="relative flex h-14 w-14 items-center justify-center rounded-xl overflow-hidden bg-white/10 border border-gold-300/40">
+                    {school.churchLogoUrl ? (
+                      <Image src={school.churchLogoUrl.startsWith('http') ? school.churchLogoUrl : `${API_ORIGIN}${school.churchLogoUrl}`}
+                        alt={lang === 'ar' ? 'شعار الكنيسة' : 'Church logo'} width={56} height={56} className="h-full w-full object-contain" unoptimized />
+                    ) : (
+                      <Cross className="h-6 w-6 text-gold-300" aria-hidden="true" />
+                    )}
+                  </div>
+                </div>
+                {/* Names */}
+                <div className="min-w-0 flex-1 text-center">
+                  <p className="text-[15px] font-bold text-white leading-tight truncate">
+                    {lang === 'ar' && school.churchNameAr ? school.churchNameAr : (school.churchName || school.name)}
+                  </p>
+                  {(school.name || school.nameAr) && (
+                    <p className="text-xs text-gold-200/90 mt-0.5 truncate">
+                      {lang === 'ar' && school.nameAr ? school.nameAr : school.name}
+                    </p>
+                  )}
+                  <span className="inline-block mt-1 h-px w-16 bg-gradient-to-r from-transparent via-gold-400/60 to-transparent" aria-hidden="true" />
+                </div>
+                {/* School logo (falls back to church mark if none) */}
+                <div className="relative shrink-0">
+                  <div className="absolute -inset-0.5 rounded-xl bg-gold-400/30 blur-sm" aria-hidden="true" />
+                  <div className="relative flex h-14 w-14 items-center justify-center rounded-xl overflow-hidden bg-white/10 border border-white/20">
+                    {school.logoUrl ? (
+                      <Image src={school.logoUrl.startsWith('http') ? school.logoUrl : `${API_ORIGIN}${school.logoUrl}`}
+                        alt={lang === 'ar' ? 'شعار المدرسة' : 'School logo'} width={56} height={56} className="h-full w-full object-contain" unoptimized />
+                    ) : (
+                      <Music className="h-6 w-6 text-white/50" aria-hidden="true" />
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
           <div className="flex items-center gap-4">
             <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-white/10 border border-white/15 backdrop-blur-sm text-2xl font-bold overflow-hidden shadow-lg shadow-black/20 shrink-0">
               {photoSrc ? (
@@ -283,17 +326,7 @@ export default function StudentDashboard() {
                 </span>
                 <span className="text-white/60 text-xs font-medium">{student.studentCode}</span>
               </div>
-              {school && (
-                <div className="mt-2 flex items-center gap-2 text-white/60 text-xs">
-                  {school.logoUrl && (
-                    <Image
-                      src={school.logoUrl.startsWith('http') ? school.logoUrl : `${API_ORIGIN}${school.logoUrl}`}
-                      alt="" width={16} height={16} className="rounded" unoptimized
-                    />
-                  )}
-                  <span>{lang === 'ar' && school.churchNameAr ? school.churchNameAr : (school.churchName || school.name)}</span>
-                </div>
-              )}
+
             </div>
           </div>
           {/* XP mini + CTA inside hero */}

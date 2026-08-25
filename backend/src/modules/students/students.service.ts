@@ -666,7 +666,7 @@ async getPortalData(portalAccessKey: string) {
         level: { select: { id: true, name: true, number: true, nameAr: true } },
         group: { select: { id: true, name: true, nameAr: true } },
         school: {
-          select: { id: true, name: true, nameAr: true, logoUrl: true, church: { select: { name: true, nameAr: true } } },
+          select: { id: true, name: true, nameAr: true, logoUrl: true, church: { select: { name: true, nameAr: true, logoUrl: true } } },
         },
       },
     });
@@ -770,6 +770,7 @@ async getPortalData(portalAccessKey: string) {
             logoUrl: student.school.logoUrl,
             churchName: student.school.church?.name,
             churchNameAr: student.school.church?.nameAr,
+            churchLogoUrl: student.school.church?.logoUrl ?? null,
           }
         : null,
       attendance: attendanceSummary,
