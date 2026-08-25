@@ -215,7 +215,9 @@ export default function StudentDashboard() {
     </div>
   )
 
-  const { student, school, attendance, recentAttendance, badges, liturgy, totalXp, upcomingSessions, recentHomework, assessments } = data
+  const { student, school, attendance, recentAttendance, badges, totalXp, upcomingSessions, recentHomework, assessments } = data
+  // Tolerate older backend payloads without the liturgy block
+  const liturgy = data.liturgy ?? { verifiedCount: 0, pendingCount: 0, recent: [] }
   const attendanceRate = attendance.total > 0 ? Math.round((attendance.present / attendance.total) * 100) : 0
 
   const photoSrc = student.photoUrl
