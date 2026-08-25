@@ -1,7 +1,8 @@
-import { Controller, Get, Query, Res } from '@nestjs/common';
+import { Controller, Get, Query, Req, Res } from '@nestjs/common';
 import { createReadStream } from 'fs';
 import { Readable } from 'stream';
 import { extname, resolve, normalize } from 'path';
+import { JwtService } from '@nestjs/jwt';
 import { Public } from '../../common/decorators/public.decorator';
 
 /**
@@ -13,19 +14,38 @@ import { Public } from '../../common/decorators/public.decorator';
  * Public + no class-level @Roles so students/parents (who are not staff) can
  * play reference recordings in the student portal. SSRF-guarded: only local
  * /uploads/audio files or objects on the configured R2 host are fetchable.
+ *
+ * Security: fail-closed when CLOUDFLARE_R2_PUBLIC_URL is unset (503 for all
+ * requests). Absolute-URL src values additionally require a valid JWT Bearer
+ * token (staff/parent or student-portal); bare R2 keys remain public since
+ * portal students need them and the target host is derived from config only.
  */
 @Controller('curriculum')
 export class RecordingStreamController {
+  constructor(private readonly jwt: JwtService) {}
+
   @Public()
   @Get('recordings/stream')
-  async stream(@Query('src') src: string, @Res() res: any) {
+  async stream(@Query('src') src: string, @Req() req: any, @Res() res: any) {
     if (!src) {
       res.status(400).json({ message: 'Missing src' });
       return;
     }
 
     const r2Public = process.env.CLOUDFLARE_R2_PUBLIC_URL || '';
+    if (!r2Public) {
+      res.status(503).json({ message: 'Storage not configured' });
+      return;
+    }
     const allowHost = r2Public.replace(/^https?:\/\//i, '').replace(/\/.*$/, '').toLowerCase();
+
+    if (/^https?:\/\//i.test(src)) {
+      const ok = await this.verifyBearer(req);
+      if (!ok) {
+        res.status(401).json({ message: 'Unauthorized' });
+        return;
+      }
+    }
 
     let nodeStream: NodeJS.ReadableStream;
     let contentType = 'audio/mpeg';
@@ -58,10 +78,6 @@ export class RecordingStreamController {
           }
           url = src;
         } else {
-          if (!r2Public) {
-            res.status(400).json({ message: 'Storage not configured' });
-            return;
-          }
           url = `${r2Public.replace(/\/$/, '')}/${src.replace(/^\/+/, '')}`;
         }
         const upstream = await fetch(url);
@@ -81,6 +97,21 @@ export class RecordingStreamController {
       });
     } catch {
       if (!res.headersSent) res.status(404).json({ message: 'Recording not found' });
+    }
+  }
+
+  private async verifyBearer(req: any): Promise<boolean> {
+    const header: string | undefined = req.headers?.['authorization'];
+    if (!header?.startsWith('Bearer ')) return false;
+    try {
+      const payload = await this.jwt.verifyAsync(header.slice(7), {
+        secret: process.env.JWT_SECRET,
+      });
+      // Staff/parent tokens carry a user id in sub; portal tokens carry the
+      // portal code. Anything else is rejected.
+      return Boolean(payload?.sub || payload?.code);
+    } catch {
+      return false;
     }
   }
 }
