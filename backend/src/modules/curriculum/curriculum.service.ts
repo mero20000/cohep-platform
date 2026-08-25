@@ -224,7 +224,7 @@ export class CurriculumService {
 
   async getLessons(schoolIdentifier: string, levelId?: string, subjectId?: string, skip = 0, take = 200) {
     const schoolId = await this.schoolResolver.resolve(schoolIdentifier);
-    const where: any = { schoolId };
+    const where: any = { schoolId, deletedAt: null };
     if (levelId) where.levelId = levelId;
     if (subjectId) where.subjectId = subjectId;
 
@@ -385,13 +385,13 @@ export class CurriculumService {
   }
 
   async deleteLevel(id: string, requestingUser?: { schoolId?: string | null; roles?: string[] } | null) {
-    const level = await this.prisma.level.findUnique({ where: { id }, select: { schoolId: true, name: true, number: true } });
-    if (!level) throw new NotFoundException('Level not found');
+    const level = await this.prisma.level.findUnique({ where: { id }, select: { schoolId: true, name: true, number: true, deletedAt: true } });
+    if (!level || level.deletedAt) throw new NotFoundException('Level not found');
     this.assertSameSchool(level.schoolId, requestingUser);
-    await this.prisma.level.update({
-      where: { id },
-      data: { deletedAt: new Date() },
-    });
+    await this.prisma.$transaction([
+      this.prisma.level.update({ where: { id }, data: { deletedAt: new Date() } }),
+      this.prisma.lesson.updateMany({ where: { levelId: id, deletedAt: null }, data: { deletedAt: new Date() } }),
+    ]);
     await this.audit.log({ schoolId: level.schoolId, action: 'DELETE', entityType: 'level', entityId: id, oldValues: { name: level.name, number: level.number } });
     return { success: true };
   }
