@@ -60,7 +60,7 @@ const HW_COLORS: Record<string, string> = {
   not_submitted: 'text-red-700 bg-red-100',
 }
 
-type Tab = 'dashboard' | 'practice'
+type Tab = 'dashboard' | 'practice' | 'assessments'
 
 export default function StudentDashboard() {
   const params = useParams()
@@ -133,8 +133,10 @@ export default function StudentDashboard() {
     setPracticeLesson(null)
   }
 
-  // Filter and group hymns
+  // Filter and group hymns — curriculum-scoped: own level and below only
+  const myLevelNumber = data?.student?.level?.number ?? null
   const filteredHymns = (hymnMap || []).filter(h => {
+    if (myLevelNumber != null && h.level.number > myLevelNumber) return false
     if (searchQuery) {
       const q = searchQuery.toLowerCase()
       const match = h.title.toLowerCase().includes(q) ||
@@ -284,19 +286,26 @@ export default function StudentDashboard() {
       <div className="bg-white border-b border-gray-200 sticky top-0 z-30">
         <div className="max-w-3xl mx-auto px-4">
           <div className="flex gap-0">
-            {(['dashboard', 'practice'] as Tab[]).map(tab => (
-              <button
-                key={tab}
-                onClick={() => setActiveTab(tab)}
-                className={`flex-1 py-3 text-sm font-medium border-b-2 transition-colors ${
-                  activeTab === tab
-                    ? 'border-blue-600 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700'
-                }`}
-              >
-                {tab === 'dashboard' ? '📊 Dashboard' : '🎵 Practice'}
-              </button>
-            ))}
+            {(['dashboard', 'assessments', 'practice'] as Tab[]).map(tab => {
+              const pendingCount = assessments.filter(a => a.submissionStatus !== 'completed').length
+              const badge = tab === 'assessments' && pendingCount > 0
+                ? <span className="ml-1 inline-flex items-center justify-center h-5 min-w-5 rounded-full bg-red-500 px-1 text-[10px] font-bold text-white align-middle">{pendingCount}</span>
+                : null
+              return (
+                <button
+                  key={tab}
+                  onClick={() => setActiveTab(tab)}
+                  aria-current={activeTab === tab ? 'page' : undefined}
+                  className={`flex-1 py-3 text-sm font-medium border-b-2 transition-colors ${
+                    activeTab === tab
+                      ? 'border-blue-600 text-blue-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  {tab === 'dashboard' ? '📊 Dashboard' : tab === 'assessments' ? <>📋 Assessments{badge}</> : '🎵 Practice'}
+                </button>
+              )
+            })}
           </div>
         </div>
       </div>
@@ -431,66 +440,101 @@ export default function StudentDashboard() {
               </section>
             )}
 
-            {/* Assigned Assessments */}
-            {assessments.length > 0 && (
-              <section>
-                <h2 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
-                  <ClipboardCheck className="h-4 w-4 text-indigo-500" />
-                  Assigned Assessments ({assessments.length})
-                </h2>
-                <div className="space-y-2">
-                  {assessments.map(a => {
-                    const isCompleted = a.submissionStatus === 'completed'
-                    const isOverdue = a.dueDate && new Date(a.dueDate) < new Date() && !isCompleted
-                    const cardClasses = `rounded-xl border px-4 py-3 ${
-                      isCompleted ? 'bg-green-50 border-green-200' : isOverdue ? 'bg-red-50 border-red-200' : 'bg-white border-gray-200'
-                    }`
-                    const cardInner = (
-                      <div className="flex items-start justify-between gap-3">
-                          <div className="min-w-0 flex-1">
-                            <div className="text-sm font-medium text-gray-900 truncate">
-                              {a.titleAr || a.title}
-                            </div>
-                            <div className="flex flex-wrap items-center gap-2 mt-1">
-                              <span className="text-xs px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 font-medium">
-                                {a.type}
-                              </span>
-                              <span className="text-xs text-gray-500">{a.subject.nameAr || a.subject.name}</span>
-                              <span className="text-xs text-gray-400">&middot;</span>
-                              <span className="text-xs text-gray-500">{a.totalPoints} pts</span>
-                            </div>
-                            {a.dueDate && (
-                              <div className={`text-xs mt-1 ${isOverdue ? 'text-red-600 font-medium' : 'text-gray-500'}`}>
-                                Due: {new Date(a.dueDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
-                              </div>
-                            )}
-                          </div>
-                          <div className="flex-shrink-0">
-                            {isCompleted ? (
-                              <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2.5 py-1 text-xs font-medium text-green-700">
-                                <CheckCircle2 className="h-3.5 w-3.5" /> Done
-                              </span>
-                            ) : isOverdue ? (
-                              <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2.5 py-1 text-xs font-medium text-red-700">
-                                <AlertCircle className="h-3.5 w-3.5" /> Overdue
-                              </span>
-                            ) : (
-                              <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2.5 py-1 text-xs font-medium text-blue-700">
-                                <Clock className="h-3.5 w-3.5" /> Pending
-                              </span>
-                            )}
-                          </div>
+          </>
+        )}
+
+        {/* ─── ASSESSMENTS TAB ───────────────────────────────────────── */}
+        {activeTab === 'assessments' && (
+          <>
+            {(() => {
+              const pending = assessments.filter(a => a.submissionStatus !== 'completed' && !(a.dueDate && new Date(a.dueDate) < new Date()))
+              const overdue = assessments.filter(a => a.submissionStatus !== 'completed' && a.dueDate && new Date(a.dueDate) < new Date())
+              const done = assessments.filter(a => a.submissionStatus === 'completed')
+              const tiles = [
+                { label: lang === 'ar' ? 'قيد الانتظار' : 'Pending', count: pending.length, cls: 'bg-blue-50 text-blue-700 border-blue-200' },
+                { label: lang === 'ar' ? 'متأخرة' : 'Overdue', count: overdue.length, cls: 'bg-red-50 text-red-700 border-red-200' },
+                { label: lang === 'ar' ? 'مكتملة' : 'Done', count: done.length, cls: 'bg-green-50 text-green-700 border-green-200' },
+              ]
+              return (
+                <>
+                  {/* Status summary — aria-live so completion updates are announced */}
+                  <div className="grid grid-cols-3 gap-2" aria-live="polite">
+                    {tiles.map(tile => (
+                      <div key={tile.label} className={`rounded-xl border p-3 text-center ${tile.cls}`}>
+                        <div className="text-xl font-bold tabular-nums">{tile.count}</div>
+                        <div className="text-[11px] font-medium">{tile.label}</div>
                       </div>
-                    )
-                    return isCompleted ? (
-                      <div key={a.id} className={cardClasses}>{cardInner}</div>
-                    ) : (
-                      <Link key={a.id} href={`/student-portal/${code}/assessment/${a.id}/take`} className={`block ${cardClasses}`}>{cardInner}</Link>
-                    )
-                  })}
-                </div>
-              </section>
-            )}
+                    ))}
+                  </div>
+                  {assessments.length === 0 ? (
+                    <div className="rounded-xl border border-gray-200 bg-white p-8 text-center mt-4">
+                      <ClipboardCheck className="h-8 w-8 mx-auto text-gray-300 mb-2" />
+                      <p className="text-sm text-gray-500">
+                        {lang === 'ar' ? 'لا توجد تقييمات مكلفة حالياً. ستظهر هنا عند تكليفها.' : 'No assigned assessments right now. They appear here when your servant assigns one.'}
+                      </p>
+                    </div>
+                  ) : (
+                    <section className="mt-4">
+                      <h2 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                        <ClipboardCheck className="h-4 w-4 text-indigo-500" />
+                        {lang === 'ar' ? `التقييمات المكلفة (${assessments.length})` : `Assigned Assessments (${assessments.length})`}
+                      </h2>
+                      <div className="space-y-2">
+                        {[...overdue, ...pending, ...done].map(a => {
+                          const isCompleted = a.submissionStatus === 'completed'
+                          const isOverdue = overdue.includes(a)
+                          const cardClasses = `rounded-xl border px-4 py-3 ${
+                            isCompleted ? 'bg-green-50 border-green-200' : isOverdue ? 'bg-red-50 border-red-200' : 'bg-white border-gray-200'
+                          }`
+                          const cardInner = (
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="min-w-0 flex-1">
+                                <div className="text-sm font-medium text-gray-900 truncate">
+                                  {a.titleAr || a.title}
+                                </div>
+                                <div className="flex flex-wrap items-center gap-2 mt-1">
+                                  <span className="text-xs px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 font-medium">
+                                    {a.type}
+                                  </span>
+                                  <span className="text-xs text-gray-500">{a.subject.nameAr || a.subject.name}</span>
+                                  <span className="text-xs text-gray-400">&middot;</span>
+                                  <span className="text-xs text-gray-500">{a.totalPoints} pts</span>
+                                </div>
+                                {a.dueDate && (
+                                  <div className={`text-xs mt-1 ${isOverdue ? 'text-red-600 font-medium' : 'text-gray-500'}`}>
+                                    Due: {new Date(a.dueDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                  </div>
+                                )}
+                              </div>
+                              <div className="flex-shrink-0">
+                                {isCompleted ? (
+                                  <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2.5 py-1 text-xs font-medium text-green-700">
+                                    <CheckCircle2 className="h-3.5 w-3.5" /> Done
+                                  </span>
+                                ) : isOverdue ? (
+                                  <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2.5 py-1 text-xs font-medium text-red-700">
+                                    <AlertCircle className="h-3.5 w-3.5" /> Overdue
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2.5 py-1 text-xs font-medium text-blue-700">
+                                    <Clock className="h-3.5 w-3.5" /> Pending
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          )
+                          return isCompleted ? (
+                            <div key={a.id} className={cardClasses}>{cardInner}</div>
+                          ) : (
+                            <Link key={a.id} href={`/student-portal/${code}/assessment/${a.id}/take`} className={`block ${cardClasses}`}>{cardInner}</Link>
+                          )
+                        })}
+                      </div>
+                    </section>
+                  )}
+                </>
+              )
+            })()}
           </>
         )}
 

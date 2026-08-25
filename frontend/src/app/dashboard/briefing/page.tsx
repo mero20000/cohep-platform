@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
-import { Sun, CalendarDays, BookOpen, AlertTriangle, User, ChevronDown, CheckCircle2, FileText, Presentation, Clock } from 'lucide-react'
+import { Sun, BookOpen, AlertTriangle, User, ChevronDown, CheckCircle2, FileText, Presentation, Clock } from 'lucide-react'
 import { http } from '@/lib/http-client'
 import { useLanguage } from '@/lib/use-language'
 import { assetUrl } from '@/lib/asset-url'
@@ -111,13 +111,21 @@ export default function BriefingPage() {
       : `${data.coptic.coptic.day} ${data.coptic.coptic.monthName} ${data.coptic.coptic.year}`
     : ''
 
-  // Georgian date + countdown
+  // Georgian date + countdown. Anchor to the scheduled session when present,
+  // otherwise fall back to the next calendar Sunday so the header always shows
+  // the same "season · coptic date / date / countdown" pattern as students see.
   const nextSundayDate = data?.nextSession?.scheduledDate
     ? new Date(data.nextSession.scheduledDate)
-    : null
+    : (() => {
+        const d = new Date()
+        const untilSunday = (7 - d.getDay()) % 7
+        d.setDate(d.getDate() + untilSunday)
+        d.setHours(9, 0, 0, 0)
+        return d
+      })()
   const georgianLabel = nextSundayDate
     ? nextSundayDate.toLocaleDateString(lang === 'ar' ? 'ar' : 'en-GB', {
-        weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
+        weekday: 'short', day: 'numeric', month: 'long', year: 'numeric',
       })
     : ''
   const countdownLabel = (() => {
@@ -132,14 +140,22 @@ export default function BriefingPage() {
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:px-8">
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <Sun className="h-6 w-6 text-gold-500" />
-          <h1 className="text-2xl font-bold tracking-tight text-gray-900">{t('This Sunday', 'أحد الأسبوع')}</h1>
-        </div>
-        {georgianLabel && (
-          <div className="text-right">
-            <div className="text-sm text-gray-600 font-medium">{georgianLabel}</div>
+      {/* Student-style header: season · coptic date (left), georgian + countdown (right) */}
+      <div className="rounded-xl border border-gray-200 bg-white px-5 py-4">
+        <div className="flex items-center justify-between gap-2">
+          <div className="min-w-0 flex items-center gap-2">
+            <Sun className="h-5 w-5 text-gold-500 shrink-0" />
+            <div className="min-w-0">
+              <h1 className="text-base font-bold tracking-tight text-gray-900">{t('This Sunday', 'أحد الأسبوع')}</h1>
+              <p className="text-xs text-gold-700 mt-0.5 truncate">
+                {data?.coptic
+                  ? `${lang === 'ar' ? data.coptic.seasonLabel.ar : data.coptic.seasonLabel.en} · ${lang === 'ar' ? `${copticLabel}` : `${copticLabel}`}`
+                  : t('Regular Season', 'الزمن العادي')}
+              </p>
+            </div>
+          </div>
+          <div className="text-right shrink-0">
+            <div className="text-xs text-gray-500">{georgianLabel}</div>
             {countdownLabel && (
               <div className="flex items-center gap-1 justify-end mt-0.5 text-xs text-blue-600 font-medium">
                 <Clock className="h-3 w-3" />
@@ -147,24 +163,13 @@ export default function BriefingPage() {
               </div>
             )}
           </div>
+        </div>
+        {data?.coptic?.feastFast && (
+          <span className="mt-2 inline-block rounded-full bg-gold-600 px-3 py-1 text-xs font-semibold text-gray-950">
+            {lang === 'ar' ? data.coptic.feastFast.ar : data.coptic.feastFast.en}
+          </span>
         )}
       </div>
-
-      {data?.coptic && (
-        <div className="mt-6 rounded-xl border border-gold-200 bg-gold-50 p-5">
-          <div className="flex flex-wrap items-center gap-2 text-sm text-gray-700">
-            <CalendarDays className="h-4 w-4 text-gold-600" />
-            <span className="font-semibold">{copticLabel}</span>
-            <span>·</span>
-            <span>{lang === 'ar' ? data.coptic.seasonLabel.ar : data.coptic.seasonLabel.en}</span>
-          </div>
-          {data.coptic.feastFast && (
-            <span className="mt-2 inline-block rounded-full bg-gold-600 px-3 py-1 text-xs font-semibold text-gray-950">
-              {lang === 'ar' ? data.coptic.feastFast.ar : data.coptic.feastFast.en}
-            </span>
-          )}
-        </div>
-      )}
 
       {data?.nextSession && (
         <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-gray-200 bg-white p-5">

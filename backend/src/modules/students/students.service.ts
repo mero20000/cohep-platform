@@ -674,7 +674,9 @@ async getPortalData(portalAccessKey: string) {
 
     const [attRecords, badges, xpResult, upcoming, assignedAssessments] = await Promise.all([
       this.prisma.attendanceRecord.findMany({
-        where: { studentId: student.id },
+        // Integrate with the attendance module's semantics: exclude records
+        // belonging to soft-deleted sessions and scope to the student's school.
+        where: { studentId: student.id, attendanceSession: { schoolId: student.schoolId, deletedAt: null } },
         include: { attendanceSession: { select: { scheduledDate: true, scheduledTime: true } } },
         orderBy: { attendanceSession: { scheduledDate: 'desc' } },
         take: 10,
