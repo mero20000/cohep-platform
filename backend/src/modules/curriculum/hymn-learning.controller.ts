@@ -21,7 +21,7 @@ export class HymnLearningController {
   }) {
     const studentId = body.studentId ?? req.user.id
     const schoolId = req.user.schoolId ?? req.user.currentSchoolId
-    return this.svc.logPracticeSession({ ...body, studentId, schoolId })
+    return this.svc.logPracticeSession({ ...body, studentId, schoolId }, req.user)
   }
 
   @Get('map')
@@ -73,6 +73,6 @@ export class HymnLearningController {
   @ApiOperation({ summary: 'Servant: submit review for a practice session' })
   async reviewSession(@Req() req: any, @Param('id') id: string,
     @Body() body: { servantRating: number; servantNote?: string }) {
-    return this.svc.reviewSession(id, req.user.id, body)
+    return this.svc.reviewSession(id, req.user.id, body, req.user)
   }
 }

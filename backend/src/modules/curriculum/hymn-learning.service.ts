@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common'
+import { Injectable, ForbiddenException } from '@nestjs/common'
 import { PrismaService } from '../../database/prisma.service'
 import {
   COPTIC_MONTHS, gregorianToJD, jdToCoptic,
@@ -44,6 +44,44 @@ function masteryFromRepetitions(rep: number, selfRating: number): string {
 export class HymnLearningService {
   constructor(private readonly prisma: PrismaService) {}
 
+  private static readonly SERVANT_ROLES = ['servant', 'group_leader', 'level_leader', 'assistant_servant']
+  private static readonly BYPASS_ROLES = ['super_admin', 'admin', 'principal']
+
+  // ─── Ownership check for student-scoped writes (P-C1) ───────────────────
+  async assertCanWriteStudent(caller: any, studentId: string) {
+    if (!caller) throw new ForbiddenException('Missing caller context')
+    const roles: string[] = caller.roles ?? []
+    if (roles.some(r => HymnLearningService.BYPASS_ROLES.includes(r))) return
+    if (caller.id === studentId) return
+
+    const student = await this.prisma.student.findUnique({
+      where: { id: studentId },
+      select: { id: true, groupId: true, parentEmail: true, deletedAt: true },
+    })
+    if (!student || student.deletedAt) throw new ForbiddenException('Student not found')
+
+    if (roles.includes('parent')) {
+      const link = await this.prisma.studentParent.findUnique({
+        where: { studentId_parentId: { studentId, parentId: caller.id } },
+      })
+      if (link) return
+      const parent = await this.prisma.user.findUnique({
+        where: { id: caller.id },
+        select: { email: true },
+      })
+      if (parent?.email && student.parentEmail === parent.email) return
+      throw new ForbiddenException('You are not a parent of this student')
+    }
+
+    if (roles.some(r => HymnLearningService.SERVANT_ROLES.includes(r))) {
+      const metadata = (caller.metadata ?? {}) as Record<string, any>
+      if (metadata.groupId && metadata.groupId === student.groupId) return
+      throw new ForbiddenException('Student is not in your group')
+    }
+
+    throw new ForbiddenException('Not allowed to write for this student')
+  }
+
   // ─── Log a practice session + run SM-2 ──────────────────────────────────
   async logPracticeSession(dto: {
     studentId: string
@@ -52,7 +90,8 @@ export class HymnLearningService {
     selfRating: number
     recordingUrl?: string
     durationSec?: number
-  }) {
+  }, caller?: any) {
+    await this.assertCanWriteStudent(caller, dto.studentId)
     const quality = Math.max(1, Math.min(5, dto.selfRating))
 
     // Upsert LessonProgress
@@ -287,7 +326,13 @@ export class HymnLearningService {
   }
 
   // ─── Servant submits review ──────────────────────────────────────────────
-  async reviewSession(sessionId: string, reviewerId: string, dto: { servantRating: number; servantNote?: string }) {
+  async reviewSession(sessionId: string, reviewerId: string, dto: { servantRating: number; servantNote?: string }, caller?: any) {
+    const session = await this.prisma.hymnPracticeSession.findUnique({
+      where: { id: sessionId },
+      select: { id: true, studentId: true },
+    })
+    if (!session) throw new ForbiddenException('Session not found')
+    await this.assertCanWriteStudent(caller, session.studentId)
     return this.prisma.hymnPracticeSession.update({
       where: { id: sessionId },
       data: {
