@@ -15,28 +15,28 @@ datasource db {
 // ============================================
 
 model Church {
-  id               String    @id @default(uuid())
-  name             String
-  nameAr           String?   @map("name_ar")
-  slug             String    @unique
-  logoUrl          String?   @map("logo_url")
-  schoolLogoUrl    String?   @map("school_logo_url")
-  schoolNameEn     String?   @map("school_name_en")
-  schoolNameAr     String?   @map("school_name_ar")
-  schoolNameCoptic String?   @map("school_name_coptic")
-  country          String?
-  city             String?
-  address          String?
-  responsiblePriest String?  @map("responsible_priest")
-  priestPhone      String?   @map("priest_phone")
-  timezone         String    @default("UTC")
-  locale           String    @default("en")
-  isActive         Boolean   @default(true) @map("is_active")
+  id                String    @id @default(uuid())
+  name              String
+  nameAr            String?   @map("name_ar")
+  slug              String    @unique
+  logoUrl           String?   @map("logo_url")
+  schoolLogoUrl     String?   @map("school_logo_url")
+  schoolNameEn      String?   @map("school_name_en")
+  schoolNameAr      String?   @map("school_name_ar")
+  schoolNameCoptic  String?   @map("school_name_coptic")
+  country           String?
+  city              String?
+  address           String?
+  responsiblePriest String?   @map("responsible_priest")
+  priestPhone       String?   @map("priest_phone")
+  timezone          String    @default("UTC")
+  locale            String    @default("en")
+  isActive          Boolean   @default(true) @map("is_active")
   metadata          Json?
-  status            String   @default("pending") @map("status")
-  createdAt         DateTime @default(now()) @map("created_at")
-  updatedAt        DateTime  @updatedAt @map("updated_at")
-  deletedAt        DateTime? @map("deleted_at")
+  status            String    @default("pending") @map("status")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+  deletedAt         DateTime? @map("deleted_at")
 
   schools School[]
 
@@ -44,66 +44,88 @@ model Church {
 }
 
 model School {
-  id               String    @id @default(uuid())
-  churchId         String    @map("church_id")
-  name             String
-  nameAr           String?   @map("name_ar")
-  slug             String    @unique
-  logoUrl          String?   @map("logo_url")
-  address          String?
-  phone            String?
-  email            String?
-  timezone         String    @default("UTC")
-  locale           String    @default("en")
-  subscriptionPlan  String   @default("free") @map("subscription_plan")
-  country           String?
-  city              String?
-  educationLanguage String?  @map("education_language")
-  registrationStatus String  @default("approved") @map("registration_status")
-  isActive          Boolean  @default(true) @map("is_active")
-  metadata          Json?
-  createdAt         DateTime @default(now()) @map("created_at")
-  updatedAt        DateTime  @updatedAt @map("updated_at")
-  deletedAt        DateTime? @map("deleted_at")
+  id                 String    @id @default(uuid())
+  churchId           String    @map("church_id")
+  name               String
+  nameAr             String?   @map("name_ar")
+  slug               String    @unique
+  logoUrl            String?   @map("logo_url")
+  address            String?
+  phone              String?
+  email              String?
+  timezone           String    @default("UTC")
+  locale             String    @default("en")
+  subscriptionPlan   String    @default("free") @map("subscription_plan")
+  country            String?
+  city               String?
+  educationLanguage  String?   @map("education_language")
+  registrationStatus String    @default("approved") @map("registration_status")
+  isActive           Boolean   @default(true) @map("is_active")
+  metadata           Json?
+  createdAt          DateTime  @default(now()) @map("created_at")
+  updatedAt          DateTime  @updatedAt @map("updated_at")
+  deletedAt          DateTime? @map("deleted_at")
 
-  church             Church              @relation(fields: [churchId], references: [id])
-  academicYears      AcademicYear[]
-  users              User[]
-  students           Student[]
-  levels             Level[]
-  groups             Group[]
-  schoolGrades       SchoolGrade[]
-  subjects           Subject[]
-  lessons            Lesson[]
-  resources          Resource[]
-  assessments        Assessment[]
-  announcements      Announcement[]
-  messages           Message[]
-  notifications      Notification[]
-  events             Event[]
-  auditLogs          AuditLog[]
-  fileUploads        FileUpload[]
-  attendanceSessions AttendanceSession[]
-  hymnSessions       HymnPracticeSession[]
-  servantProfiles    ServantProfile[]
+  church                   Church                    @relation(fields: [churchId], references: [id])
+  academicYears            AcademicYear[]
+  users                    User[]
+  students                 Student[]
+  levels                   Level[]
+  groups                   Group[]
+  schoolGrades             SchoolGrade[]
+  subjects                 Subject[]
+  lessons                  Lesson[]
+  resources                Resource[]
+  assessments              Assessment[]
+  announcements            Announcement[]
+  messages                 Message[]
+  notifications            Notification[]
+  events                   Event[]
+  auditLogs                AuditLog[]
+  fileUploads              FileUpload[]
+  attendanceSessions       AttendanceSession[]
+  hymnSessions             HymnPracticeSession[]
+  servantProfiles          ServantProfile[]
+  registrationApplications RegistrationApplication[]
 
   @@index([churchId])
   @@map("schools")
 }
 
+model RegistrationApplication {
+  id                 String   @id @default(uuid())
+  schoolId           String   @map("school_id")
+  hymnChoice         String   @map("hymn_choice")
+  voiceRecordingUrl  String?  @map("voice_recording_url")
+  voiceRecordingMeta Json?    @map("voice_recording_meta")
+  studentData        Json     @map("student_data")
+  submittedByEmail   String   @map("submitted_by_email")
+  status             String   @default("pending") // pending | approved | rejected
+  reviewedBy         String?  @map("reviewed_by")
+  reviewNote         String?  @map("review_note")
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  school   School @relation(fields: [schoolId], references: [id])
+  reviewer User?  @relation(fields: [reviewedBy], references: [id])
+
+  @@index([schoolId, status])
+  @@map("registration_applications")
+}
+
 model AcademicYear {
-  id        String    @id @default(uuid())
-  schoolId  String    @map("school_id")
-  name      String
-  startDate DateTime  @map("start_date")
-  endDate   DateTime  @map("end_date")
-  isCurrent   Boolean   @default(false) @map("is_current")
-  activeDays  Json?     @map("active_days")
-  metadata          Json?
-  status            String   @default("pending") @map("status")
-  createdAt         DateTime @default(now()) @map("created_at")
-  updatedAt DateTime  @updatedAt @map("updated_at")
-  deletedAt DateTime? @map("deleted_at")
+  id         String    @id @default(uuid())
+  schoolId   String    @map("school_id")
+  name       String
+  startDate  DateTime  @map("start_date")
+  endDate    DateTime  @map("end_date")
+  isCurrent  Boolean   @default(false) @map("is_current")
+  activeDays Json?     @map("active_days")
+  metadata   Json?
+  status     String    @default("pending") @map("status")
+  createdAt  DateTime  @default(now()) @map("created_at")
+  updatedAt  DateTime  @updatedAt @map("updated_at")
+  deletedAt  DateTime? @map("deleted_at")
 
   school                School                 @relation(fields: [schoolId], references: [id])
   students              Student[]
@@ -119,12 +141,12 @@ model AcademicYear {
 }
 
 model RefreshToken {
-  id        String   @id @default(uuid())
-  userId    String   @map("user_id")
-  tokenHash String   @map("token_hash")
-  expiresAt DateTime @map("expires_at")
+  id        String    @id @default(uuid())
+  userId    String    @map("user_id")
+  tokenHash String    @map("token_hash")
+  expiresAt DateTime  @map("expires_at")
   revokedAt DateTime? @map("revoked_at")
-  createdAt DateTime @default(now()) @map("created_at")
+  createdAt DateTime  @default(now()) @map("created_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -138,45 +160,46 @@ model RefreshToken {
 // ============================================
 
 model User {
-  id              String    @id @default(uuid())
-  schoolId        String    @map("school_id")
-  email           String
-  phone           String?
-  passwordHash    String    @map("password_hash")
-  firstName       String    @map("first_name")
-  lastName        String    @map("last_name")
-  firstNameAr     String?   @map("first_name_ar")
-  lastNameAr      String?   @map("last_name_ar")
-  gender          String    @default("male") @map("gender")
-  avatarUrl       String?   @map("avatar_url")
-  locale          String    @default("en")
-  timezone        String    @default("UTC")
-  isActive        Boolean   @default(true) @map("is_active")
-  emailVerifiedAt DateTime? @map("email_verified_at")
-  phoneVerifiedAt DateTime? @map("phone_verified_at")
-  lastLoginAt     DateTime? @map("last_login_at")
+  id                String    @id @default(uuid())
+  schoolId          String    @map("school_id")
+  email             String
+  phone             String?
+  passwordHash      String    @map("password_hash")
+  firstName         String    @map("first_name")
+  lastName          String    @map("last_name")
+  firstNameAr       String?   @map("first_name_ar")
+  lastNameAr        String?   @map("last_name_ar")
+  gender            String    @default("male") @map("gender")
+  avatarUrl         String?   @map("avatar_url")
+  locale            String    @default("en")
+  timezone          String    @default("UTC")
+  isActive          Boolean   @default(true) @map("is_active")
+  emailVerifiedAt   DateTime? @map("email_verified_at")
+  phoneVerifiedAt   DateTime? @map("phone_verified_at")
+  lastLoginAt       DateTime? @map("last_login_at")
   passwordChangedAt DateTime? @map("password_changed_at")
-  metadata        Json?
-  createdAt       DateTime  @default(now()) @map("created_at")
-  updatedAt       DateTime  @updatedAt @map("updated_at")
-  deletedAt       DateTime? @map("deleted_at")
+  metadata          Json?
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+  deletedAt         DateTime? @map("deleted_at")
 
-  school             School              @relation(fields: [schoolId], references: [id])
-  userRoles          UserRole[]
-  refreshTokens      RefreshToken[]
-  studentParents     StudentParent[]
-  attendanceSessions AttendanceSession[]
-  attendanceRecords  AttendanceRecord[]
-  assessments        Assessment[]
-  grades             Grade[]
-  messages           Message[]           @relation("MessageSender")
-  receivedMessages   Message[]           @relation("MessageRecipient")
-  announcements      Announcement[]
-  xpTransactions     XPTransaction[]
-  auditLogs          AuditLog[]
-  certificates       Certificate[]
-  servantProfile     ServantProfile?
-  passedSubjectPasses StudentSubjectPass[] @relation("PassedBy")
+  school                School                    @relation(fields: [schoolId], references: [id])
+  userRoles             UserRole[]
+  refreshTokens         RefreshToken[]
+  studentParents        StudentParent[]
+  attendanceSessions    AttendanceSession[]
+  attendanceRecords     AttendanceRecord[]
+  assessments           Assessment[]
+  grades                Grade[]
+  messages              Message[]                 @relation("MessageSender")
+  receivedMessages      Message[]                 @relation("MessageRecipient")
+  announcements         Announcement[]
+  xpTransactions        XPTransaction[]
+  auditLogs             AuditLog[]
+  certificates          Certificate[]
+  servantProfile        ServantProfile?
+  passedSubjectPasses   StudentSubjectPass[]      @relation("PassedBy")
+  reviewedRegistrations RegistrationApplication[]
 
   @@unique([schoolId, email])
   @@index([schoolId])
@@ -185,27 +208,27 @@ model User {
 }
 
 model ServantProfile {
-  id              String   @id @default(uuid())
-  userId          String   @unique @map("user_id")
-  schoolId        String   @map("school_id")
+  id       String @id @default(uuid())
+  userId   String @unique @map("user_id")
+  schoolId String @map("school_id")
 
-  yearsOfService  Int      @default(0) @map("years_of_service")
-  totalStudents   Int      @default(0) @map("total_students")
-  totalSessions   Int      @default(0) @map("total_sessions")
-  totalHymns      Int      @default(0) @map("total_hymns")
-  totalReviews    Int      @default(0) @map("total_reviews")
+  yearsOfService Int @default(0) @map("years_of_service")
+  totalStudents  Int @default(0) @map("total_students")
+  totalSessions  Int @default(0) @map("total_sessions")
+  totalHymns     Int @default(0) @map("total_hymns")
+  totalReviews   Int @default(0) @map("total_reviews")
 
   currentLevelName String? @map("current_level_name")
   currentGroupName String? @map("current_group_name")
 
-  previousRoles   String[] @default([]) @map("previous_roles")
+  previousRoles String[] @default([]) @map("previous_roles")
 
   lastCalculatedAt DateTime @map("last_calculated_at")
   createdAt        DateTime @default(now()) @map("created_at")
   updatedAt        DateTime @updatedAt @map("updated_at")
 
-  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  school   School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  user       User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  school     School             @relation(fields: [schoolId], references: [id], onDelete: Cascade)
   milestones ServantMilestone[]
 
   @@index([schoolId])
@@ -213,18 +236,18 @@ model ServantProfile {
 }
 
 model ServantMilestone {
-  id              String   @id @default(uuid())
-  userId          String   @map("user_id")
-  profileId       String   @map("profile_id")
+  id        String @id @default(uuid())
+  userId    String @map("user_id")
+  profileId String @map("profile_id")
 
-  type            String
-  threshold       Int
-  reachedAt       DateTime @default(now()) @map("reached_at")
+  type      String
+  threshold Int
+  reachedAt DateTime @default(now()) @map("reached_at")
 
-  label           String
-  description     String?
+  label       String
+  description String?
 
-  createdAt       DateTime @default(now()) @map("created_at")
+  createdAt DateTime @default(now()) @map("created_at")
 
   profile ServantProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
 
@@ -298,30 +321,30 @@ model RolePermission {
 // ============================================
 
 model Student {
-  id             String    @id @default(uuid())
-  schoolId       String    @map("school_id")
-  academicYearId String    @map("academic_year_id")
-  studentCode    String    @map("student_code")
-  portalAccessKey String   @unique @default(uuid()) @map("portal_access_key")
-  firstName      String    @map("first_name")
-  lastName       String    @map("last_name")
-  firstNameAr    String?   @map("first_name_ar")
-  lastNameAr     String?   @map("last_name_ar")
-  dateOfBirth    DateTime  @map("date_of_birth")
-  gender         String
-  photoUrl       String?   @map("photo_url")
-  churchName     String?   @map("church_name")
-  parentEmail    String?   @map("parent_email")
-  levelId        String    @map("level_id")
-  groupId        String    @map("group_id")
-  gradeId        String?   @map("grade_id")
-  status         String    @default("active")
-  enrollmentDate DateTime  @default(now()) @map("enrollment_date")
-  graduationDate DateTime? @map("graduation_date")
-  metadata       Json?
-  createdAt      DateTime  @default(now()) @map("created_at")
-  updatedAt      DateTime  @updatedAt @map("updated_at")
-  deletedAt      DateTime? @map("deleted_at")
+  id              String    @id @default(uuid())
+  schoolId        String    @map("school_id")
+  academicYearId  String    @map("academic_year_id")
+  studentCode     String    @map("student_code")
+  portalAccessKey String    @unique @default(uuid()) @map("portal_access_key")
+  firstName       String    @map("first_name")
+  lastName        String    @map("last_name")
+  firstNameAr     String?   @map("first_name_ar")
+  lastNameAr      String?   @map("last_name_ar")
+  dateOfBirth     DateTime  @map("date_of_birth")
+  gender          String
+  photoUrl        String?   @map("photo_url")
+  churchName      String?   @map("church_name")
+  parentEmail     String?   @map("parent_email")
+  levelId         String    @map("level_id")
+  groupId         String    @map("group_id")
+  gradeId         String?   @map("grade_id")
+  status          String    @default("active")
+  enrollmentDate  DateTime  @default(now()) @map("enrollment_date")
+  graduationDate  DateTime? @map("graduation_date")
+  metadata        Json?
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+  deletedAt       DateTime? @map("deleted_at")
 
   school                School                 @relation(fields: [schoolId], references: [id])
   academicYear          AcademicYear           @relation(fields: [academicYearId], references: [id])
@@ -458,9 +481,9 @@ model Group {
   updatedAt   DateTime  @updatedAt @map("updated_at")
   deletedAt   DateTime? @map("deleted_at")
 
-  school       School       @relation(fields: [schoolId], references: [id])
-  schoolGrades SchoolGrade[]
-  students     Student[]
+  school             School              @relation(fields: [schoolId], references: [id])
+  schoolGrades       SchoolGrade[]
+  students           Student[]
   attendanceSessions AttendanceSession[]
   assessments        Assessment[]
 
@@ -506,8 +529,8 @@ model SchoolGrade {
   updatedAt  DateTime  @updatedAt @map("updated_at")
   deletedAt  DateTime? @map("deleted_at")
 
-  school   School   @relation(fields: [schoolId], references: [id])
-  group    Group    @relation(fields: [groupId], references: [id])
+  school   School    @relation(fields: [schoolId], references: [id])
+  group    Group     @relation(fields: [groupId], references: [id])
   students Student[]
 
   @@unique([schoolId, name])
@@ -544,34 +567,34 @@ model Subject {
 }
 
 model SubjectItem {
-  id                String   @id @default(uuid())
-  subjectId         String   @map("subject_id")
-  whenLabel         String?  @map("when_label")
-  name              String
-  nameAr            String?  @map("name_ar")
-  nameCoptic        String?  @map("name_coptic")
-  descriptionAr     String?  @map("description_ar")
-  sessionsGroup1    Int      @default(0) @map("sessions_group1")
-  sessionsGroup2    Int      @default(0) @map("sessions_group2")
-  sessionsGroup3    Int      @default(0) @map("sessions_group3")
-  sessionsGroup4    Int      @default(0) @map("sessions_group4")
-  optional          Boolean  @default(false)
-  orderIndex        Int      @default(0) @map("order_index")
-  presentationUrl   String?  @map("presentation_url")
-  presentationData  Json?    @map("presentation_data")
-  hazzat            String?  @map("hazzat")
-  educationLanguages Json?   @map("education_languages")
-  metadata          Json?
-  recordingUrl      String?  @map("recording_url")
-  recordingMeta     Json?    @map("recording_meta")
-  active            Boolean  @default(true) @map("is_active")
-  status            String   @default("pending") @map("status")
-  createdAt         DateTime @default(now()) @map("created_at")
-  updatedAt         DateTime @updatedAt @map("updated_at")
+  id                 String   @id @default(uuid())
+  subjectId          String   @map("subject_id")
+  whenLabel          String?  @map("when_label")
+  name               String
+  nameAr             String?  @map("name_ar")
+  nameCoptic         String?  @map("name_coptic")
+  descriptionAr      String?  @map("description_ar")
+  sessionsGroup1     Int      @default(0) @map("sessions_group1")
+  sessionsGroup2     Int      @default(0) @map("sessions_group2")
+  sessionsGroup3     Int      @default(0) @map("sessions_group3")
+  sessionsGroup4     Int      @default(0) @map("sessions_group4")
+  optional           Boolean  @default(false)
+  orderIndex         Int      @default(0) @map("order_index")
+  presentationUrl    String?  @map("presentation_url")
+  presentationData   Json?    @map("presentation_data")
+  hazzat             String?  @map("hazzat")
+  educationLanguages Json?    @map("education_languages")
+  metadata           Json?
+  recordingUrl       String?  @map("recording_url")
+  recordingMeta      Json?    @map("recording_meta")
+  active             Boolean  @default(true) @map("is_active")
+  status             String   @default("pending") @map("status")
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
 
-  subject Subject           @relation(fields: [subjectId], references: [id])
-  lessons Lesson[]
-  levels  SubjectItemLevel[]
+  subject       Subject              @relation(fields: [subjectId], references: [id])
+  lessons       Lesson[]
+  levels        SubjectItemLevel[]
   studentPasses StudentSubjectPass[]
 
   @@index([subjectId])
@@ -579,11 +602,11 @@ model SubjectItem {
 }
 
 model SubjectItemLevel {
-  id             String       @id @default(uuid())
-  subjectItemId  String       @map("subject_item_id")
-  levelNumber    Int          @map("level_number")
+  id            String @id @default(uuid())
+  subjectItemId String @map("subject_item_id")
+  levelNumber   Int    @map("level_number")
 
-  subjectItem    SubjectItem  @relation(fields: [subjectItemId], references: [id], onDelete: Cascade)
+  subjectItem SubjectItem @relation(fields: [subjectItemId], references: [id], onDelete: Cascade)
 
   @@unique([subjectItemId, levelNumber])
   @@map("subject_item_levels")
@@ -620,9 +643,9 @@ model Lesson {
   requiredMemorization     String?   @map("required_memorization")
   requiredMemorizationAr   String?   @map("required_memorization_ar")
   prerequisites            Json?
-   presentationUrl          String?   @map("presentation_url")
-   presentationData         Json?     @map("presentation_data")
-   sessionsCount            Int       @default(1) @map("sessions_count")
+  presentationUrl          String?   @map("presentation_url")
+  presentationData         Json?     @map("presentation_data")
+  sessionsCount            Int       @default(1) @map("sessions_count")
   orderIndex               Int       @default(0) @map("order_index")
   status                   String    @default("draft")
   publishedAt              DateTime? @map("published_at")
@@ -640,7 +663,7 @@ model Lesson {
   school                School                 @relation(fields: [schoolId], references: [id])
   level                 Level                  @relation(fields: [levelId], references: [id])
   subject               Subject                @relation(fields: [subjectId], references: [id])
-  subjectItem             SubjectItem?           @relation(fields: [subjectItemId], references: [id], onDelete: SetNull)
+  subjectItem           SubjectItem?           @relation(fields: [subjectItemId], references: [id], onDelete: SetNull)
   subjectItemId         String?                @map("subject_item_id")
   sessions              Session[]
   resources             Resource[]
@@ -773,34 +796,34 @@ model AttendanceRecord {
 // ============================================
 
 model Assessment {
-  id                  String    @id @default(uuid())
-  schoolId            String    @map("school_id")
-  lessonId            String?   @map("lesson_id")
-  levelId             String    @map("level_id")
-  groupId             String?   @map("group_id")
-  subjectId           String    @map("subject_id")
-  title               String
-  titleAr             String?   @map("title_ar")
-  description         String?
-  descriptionAr       String?   @map("description_ar")
-  type                String
-  gradingType         String    @default("manual") @map("grading_type")
-  totalPoints         Decimal   @map("total_points")
-  passingScore        Decimal   @map("passing_score")
-  timeLimitMinutes    Int?      @map("time_limit_minutes")
-  dueDate             DateTime? @map("due_date")
-  allowLateSubmission Boolean   @default(false) @map("allow_late_submission")
-  instructions        String?
-  instructionsAr      String?   @map("instructions_ar")
-  status              String    @default("draft")
-  publishedAt         DateTime? @map("published_at")
-  metadata            Json?
-  referenceRecordingUrl  String?  @map("reference_recording_url")
-  referenceRecordingName String?  @map("reference_recording_name")
-  createdBy           String    @map("created_by")
-  createdAt           DateTime  @default(now()) @map("created_at")
-  updatedAt           DateTime  @updatedAt @map("updated_at")
-  deletedAt           DateTime? @map("deleted_at")
+  id                     String    @id @default(uuid())
+  schoolId               String    @map("school_id")
+  lessonId               String?   @map("lesson_id")
+  levelId                String    @map("level_id")
+  groupId                String?   @map("group_id")
+  subjectId              String    @map("subject_id")
+  title                  String
+  titleAr                String?   @map("title_ar")
+  description            String?
+  descriptionAr          String?   @map("description_ar")
+  type                   String
+  gradingType            String    @default("manual") @map("grading_type")
+  totalPoints            Decimal   @map("total_points")
+  passingScore           Decimal   @map("passing_score")
+  timeLimitMinutes       Int?      @map("time_limit_minutes")
+  dueDate                DateTime? @map("due_date")
+  allowLateSubmission    Boolean   @default(false) @map("allow_late_submission")
+  instructions           String?
+  instructionsAr         String?   @map("instructions_ar")
+  status                 String    @default("draft")
+  publishedAt            DateTime? @map("published_at")
+  metadata               Json?
+  referenceRecordingUrl  String?   @map("reference_recording_url")
+  referenceRecordingName String?   @map("reference_recording_name")
+  createdBy              String    @map("created_by")
+  createdAt              DateTime  @default(now()) @map("created_at")
+  updatedAt              DateTime  @updatedAt @map("updated_at")
+  deletedAt              DateTime? @map("deleted_at")
 
   school      School                 @relation(fields: [schoolId], references: [id])
   lesson      Lesson?                @relation(fields: [lessonId], references: [id])
@@ -907,11 +930,11 @@ model LessonProgress {
   srInterval        Int       @default(1) @map("sr_interval")
   srRepetitions     Int       @default(0) @map("sr_repetitions")
   nextReviewAt      DateTime? @map("next_review_at")
-  metadata            Json?
-  milestonePhotoUrl   String?  @map("milestone_photo_url")
-  milestoneCaption    String?  @map("milestone_caption")
-  createdAt           DateTime @default(now()) @map("created_at")
-  updatedAt           DateTime @updatedAt @map("updated_at")
+  metadata          Json?
+  milestonePhotoUrl String?   @map("milestone_photo_url")
+  milestoneCaption  String?   @map("milestone_caption")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
 
   student          Student               @relation(fields: [studentId], references: [id])
   lesson           Lesson                @relation(fields: [lessonId], references: [id])
@@ -1057,10 +1080,10 @@ model Certificate {
   createdAt         DateTime  @default(now()) @map("created_at")
   updatedAt         DateTime  @updatedAt @map("updated_at")
 
-  student Student @relation(fields: [studentId], references: [id])
-  level   Level   @relation(fields: [levelId], references: [id])
+  student      Student      @relation(fields: [studentId], references: [id])
+  level        Level        @relation(fields: [levelId], references: [id])
   academicYear AcademicYear @relation(fields: [academicYearId], references: [id])
-  issuer  User    @relation(fields: [issuedBy], references: [id])
+  issuer       User         @relation(fields: [issuedBy], references: [id])
 
   @@unique([certificateNumber])
   @@map("certificates")
@@ -1217,32 +1240,31 @@ model Event {
 // FAMILY FEATURES (WOW)
 // ============================================
 
-
 // ============================================
 // HYMN LEARNING ENGINE
 // ============================================
 
 model HymnPracticeSession {
-  id               String    @id @default(uuid())
-  studentId        String    @map("student_id")
-  lessonId         String    @map("lesson_id")
-  progressId       String?   @map("progress_id")
-  schoolId         String    @map("school_id")
-  recordingUrl     String?   @map("recording_url")
-  durationSec      Int?      @map("duration_sec")
-  selfRating       Int?      @map("self_rating")
-  servantNote      String?   @map("servant_note")
+  id                String    @id @default(uuid())
+  studentId         String    @map("student_id")
+  lessonId          String    @map("lesson_id")
+  progressId        String?   @map("progress_id")
+  schoolId          String    @map("school_id")
+  recordingUrl      String?   @map("recording_url")
+  durationSec       Int?      @map("duration_sec")
+  selfRating        Int?      @map("self_rating")
+  servantNote       String?   @map("servant_note")
   servantReviewedAt DateTime? @map("servant_reviewed_at")
-  reviewedBy       String?   @map("reviewed_by")
-  servantRating    Int?      @map("servant_rating")
-  srQuality        Int?      @map("sr_quality")
-  metadata         Json?
-  createdAt        DateTime  @default(now()) @map("created_at")
+  reviewedBy        String?   @map("reviewed_by")
+  servantRating     Int?      @map("servant_rating")
+  srQuality         Int?      @map("sr_quality")
+  metadata          Json?
+  createdAt         DateTime  @default(now()) @map("created_at")
 
-  student   Student          @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  lesson    Lesson           @relation(fields: [lessonId], references: [id], onDelete: Cascade)
-  progress  LessonProgress?  @relation(fields: [progressId], references: [id], onDelete: SetNull)
-  school    School           @relation(fields: [schoolId], references: [id])
+  student  Student         @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  lesson   Lesson          @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  progress LessonProgress? @relation(fields: [progressId], references: [id], onDelete: SetNull)
+  school   School          @relation(fields: [schoolId], references: [id])
 
   @@index([studentId, lessonId])
   @@index([studentId, createdAt])
@@ -1266,17 +1288,17 @@ model FamilyPractice {
 }
 
 model FamilyLiturgy {
-  id         String    @id @default(uuid())
-  studentId  String    @map("student_id")
-  date       DateTime  @map("date")
-  notedBy    String    @map("noted_by")
-  verifiedBy String?   @map("verified_by")
-  verifiedAt DateTime? @map("verified_at")
-  status     String    @default("pending")
-  notes      String?
-  photoUrl   String?   @map("photo_url")
-  servantNote String?  @map("servant_note")
-  createdAt  DateTime  @default(now()) @map("created_at")
+  id          String    @id @default(uuid())
+  studentId   String    @map("student_id")
+  date        DateTime  @map("date")
+  notedBy     String    @map("noted_by")
+  verifiedBy  String?   @map("verified_by")
+  verifiedAt  DateTime? @map("verified_at")
+  status      String    @default("pending")
+  notes       String?
+  photoUrl    String?   @map("photo_url")
+  servantNote String?   @map("servant_note")
+  createdAt   DateTime  @default(now()) @map("created_at")
 
   student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
 
