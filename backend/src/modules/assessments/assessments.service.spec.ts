@@ -3,6 +3,10 @@ import { NotFoundException } from '@nestjs/common';
 import { AssessmentsService } from './assessments.service';
 import { PrismaService } from '../../database/prisma.service';
 import { SchoolResolver } from '../../common/utils/school-resolver';
+import { AuditService } from '../audit/audit.service';
+import { RolesGuard } from '../../modules/auth/guards/roles.guard';
+import { Reflector } from '@nestjs/core';
+import { STAFF_ROLES } from '../../common/decorators/roles.decorator';
 import { CreateAssessmentDto, CreateQuestionDto } from './dto/assessment.dto';
 import { validate } from 'class-validator';
 
@@ -10,6 +14,7 @@ describe('AssessmentsService', () => {
   let service: AssessmentsService;
   let prisma: any;
   let resolver: any;
+  let audit: any;
 
   const schoolId = 'school-1';
 
@@ -60,12 +65,14 @@ describe('AssessmentsService', () => {
         AssessmentsService,
         { provide: PrismaService, useValue: prismaMock },
         { provide: SchoolResolver, useValue: { resolve: jest.fn().mockResolvedValue(schoolId) } },
+        { provide: AuditService, useValue: { log: jest.fn().mockResolvedValue(undefined) } },
       ],
     }).compile();
 
     service = module.get(AssessmentsService);
     prisma = prismaMock;
     resolver = module.get(SchoolResolver);
+    audit = module.get(AuditService);
   });
 
   describe('create', () => {
@@ -365,6 +372,53 @@ describe('AssessmentsService', () => {
       prisma.assessment.findUnique.mockResolvedValue(pubAssess());
       prisma.assessmentSubmission.findFirst.mockResolvedValue({ id: 's1', status: 'completed' });
       await expect(service.getTakeQuestions('a1', 'stu-1')).rejects.toThrow('already submitted');
+    });
+  });
+  describe('proxy submit audit + RBAC', () => {
+    const staffAssess = () => ({
+      id: 'a1', schoolId: 'school-1', status: 'published', deletedAt: null, questions: [],
+    });
+
+    it('writes a PROXY_SUBMIT audit row on proxied submit', async () => {
+      prisma.assessment.findUnique.mockResolvedValue(staffAssess());
+      prisma.assessmentSubmission.findFirst.mockResolvedValue({ id: 's1', status: 'assigned' });
+      prisma.assessmentSubmission.create.mockResolvedValue({ id: 'sub9' });
+      prisma.assessmentSubmission.findUnique.mockResolvedValue({ id: 'sub9', grades: [], student: null });
+
+      await service.submit('a1', 'stu-1', { answers: [] }, { id: 'staff-1', schoolId: 'school-1' });
+
+      expect(audit.log).toHaveBeenCalledWith(expect.objectContaining({
+        schoolId: 'school-1',
+        userId: 'staff-1',
+        action: 'PROXY_SUBMIT',
+        entityType: 'assessment_submission',
+        entityId: 'sub9',
+        newValues: { studentId: 'stu-1', assessmentId: 'a1' },
+      }));
+    });
+
+    it('rejects a non-staff role for the staff-only submit route (RolesGuard)', () => {
+      const reflector = { getAllAndOverride: jest.fn().mockReturnValue([...STAFF_ROLES]) } as any;
+      const guard = new RolesGuard(reflector);
+      expect(
+        guard.canActivate({
+          switchToHttp: () => ({ getRequest: () => ({ user: { roles: ['parent'] } }) }),
+          getHandler: () => undefined,
+          getClass: () => undefined,
+        } as any),
+      ).toBe(false);
+    });
+
+    it('allows a staff role for the submit route (RolesGuard)', () => {
+      const reflector = { getAllAndOverride: jest.fn().mockReturnValue([...STAFF_ROLES]) } as any;
+      const guard = new RolesGuard(reflector);
+      expect(
+        guard.canActivate({
+          switchToHttp: () => ({ getRequest: () => ({ user: { roles: ['servant'] } }) }),
+          getHandler: () => undefined,
+          getClass: () => undefined,
+        } as any),
+      ).toBe(true);
     });
   });
 });

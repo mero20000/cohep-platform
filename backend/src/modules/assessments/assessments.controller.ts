@@ -98,12 +98,14 @@ export class AssessmentsController {
   @ApiResponse({ status: 201, description: 'Submission created successfully' })
   @ApiResponse({ status: 400, description: 'Assessment not open for submission' })
   @ApiResponse({ status: 404, description: 'Assessment not found' })
+  @Roles(...STAFF_ROLES)
   async submit(
     @Param('id', ParseUUIDPipe) id: string,
     @Query('studentId', ParseUUIDPipe) studentId: string,
     @Body(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true })) dto: SubmitAssessmentDto,
+    @Req() req: any,
   ) {
-    return this.assessmentsService.submit(id, studentId, dto);
+    return this.assessmentsService.submit(id, studentId, dto, { id: req.user?.id, schoolId: req.user?.schoolId });
   }
 
   @Get(':id/submissions')
@@ -163,6 +165,7 @@ export class AssessmentsController {
 
   @Get(':id/questions')
   @ApiOperation({ summary: 'Get assessment questions for a student to take (answers not exposed)' })
+  @Roles(...STAFF_ROLES)
   async getTakeQuestions(
     @Param('id', ParseUUIDPipe) id: string,
     @Query('studentId', ParseUUIDPipe) studentId: string,

@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 import { SchoolResolver } from '../../common/utils/school-resolver';
+import { AuditService } from '../audit/audit.service';
 import { CreateAssessmentDto, UpdateAssessmentDto, SubmitAssessmentDto, CreateQuestionDto } from './dto/assessment.dto';
 
 @Injectable()
@@ -8,6 +9,7 @@ export class AssessmentsService {
   constructor(
     private readonly prisma: PrismaService,
     private schoolResolver: SchoolResolver,
+    private readonly audit: AuditService,
   ) {}
 
   async findAll(schoolIdentifier: string, filters: {
@@ -218,7 +220,7 @@ export class AssessmentsService {
     return { message: 'Assessment deleted successfully' };
   }
 
-  async submit(assessmentId: string, studentId: string, dto: SubmitAssessmentDto) {
+  async submit(assessmentId: string, studentId: string, dto: SubmitAssessmentDto, actor?: { id?: string; schoolId?: string }) {
     const assessment = await this.prisma.assessment.findUnique({
       where: { id: assessmentId },
       include: { questions: true },
@@ -279,6 +281,15 @@ export class AssessmentsService {
       }
 
       return sub;
+    });
+
+    await this.audit.log({
+      schoolId: actor?.schoolId || assessment.schoolId,
+      userId: actor?.id,
+      action: 'PROXY_SUBMIT',
+      entityType: 'assessment_submission',
+      entityId: submission.id,
+      newValues: { studentId, assessmentId },
     });
 
     return this.prisma.assessmentSubmission.findUnique({
