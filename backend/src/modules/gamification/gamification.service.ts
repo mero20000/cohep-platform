@@ -16,7 +16,7 @@ export class GamificationService {
     private schoolResolver: SchoolResolver,
   ) {}
 
-  async getLeaderboard(schoolIdentifier: string, limit = 20) {
+  async getLeaderboard(schoolIdentifier: string, limit = 20, requestingUser?: any) {
     const schoolId = await this.schoolResolver.resolve(schoolIdentifier);
 
     const xpAggregates = await this.prisma.xPTransaction.groupBy({
@@ -55,7 +55,39 @@ export class GamificationService {
       }),
     );
 
-    return leaderboard;
+    const roles: string[] = requestingUser?.roles ?? [];
+    const isStaff = ['super_admin', 'admin', 'principal', 'curriculum_manager', 'servant', 'group_leader', 'level_leader', 'assistant_servant']
+      .some(r => roles.includes(r));
+    if (!requestingUser || isStaff || !roles.includes('parent')) {
+      return leaderboard;
+    }
+
+    // Parent-only caller (decision 4): top3 with minimal fields + own children full rows
+    const parent = await this.prisma.user.findUnique({
+      where: { id: requestingUser.id },
+      select: { email: true },
+    });
+    const [links, emailStudents] = await Promise.all([
+      this.prisma.studentParent.findMany({
+        where: { parentId: requestingUser.id },
+        select: { studentId: true },
+      }),
+      this.prisma.student.findMany({
+        where: { parentEmail: parent?.email ?? '', schoolId, deletedAt: null },
+        select: { id: true },
+      }),
+    ]);
+    const childIds = new Set([...links.map(l => l.studentId), ...emailStudents.map(s => s.id)]);
+
+    return {
+      top3: leaderboard.slice(0, 3).map(row => ({
+        rank: row.rank,
+        firstName: row.firstName,
+        lastInitial: (row.lastName || '').charAt(0),
+        xp: row.xp,
+      })),
+      children: leaderboard.filter(row => childIds.has(row.id)),
+    };
   }
 
   async getStudentStats(studentId: string) {

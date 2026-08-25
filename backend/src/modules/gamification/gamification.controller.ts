@@ -18,12 +18,14 @@ export class GamificationController {
 
   // ── Leaderboard ─────────────────────────────────────────────────────────
   @Get('leaderboard')
-  @ApiOperation({ summary: 'Get leaderboard' })
+  @Roles(...STAFF_ROLES, 'parent')
+  @ApiOperation({ summary: 'Get leaderboard (parents get top3 + own children only)' })
   async getLeaderboard(
+    @Req() req: any,
     @Query('schoolId') schoolId: string = '',
     @Query('limit') limit?: string,
   ) {
-    return this.gamificationService.getLeaderboard(schoolId, limit ? parseInt(limit, 10) : 20);
+    return this.gamificationService.getLeaderboard(schoolId, limit ? parseInt(limit, 10) : 20, req.user);
   }
 
   @Delete('leaderboard')
