@@ -90,10 +90,20 @@ export class StudentPortalController {
   }
 
   @Get(':code/hymn-map')
-  @ApiOperation({ summary: 'Student hymn progress map — own level plus lower levels only' })
+  @ApiOperation({ summary: 'Student hymn progress map — allocated curriculum items (deduped), fallback to own level and below' })
   async getHymnMap(@Param('code') code: string) {
     const student = await this.resolveStudent(code);
-    return this.hymnLearning.getStudentHymnMap(student.id, student.schoolId, student.level?.number ?? undefined);
+    const full = await (this.studentsService as any).prisma?.student?.findFirst({
+      where: { portalAccessKey: code, deletedAt: null },
+      select: { levelId: true, group: { select: { name: true } } },
+    });
+    return this.hymnLearning.getStudentHymnMap(
+      student.id,
+      student.schoolId,
+      student.level?.number ?? undefined,
+      full?.levelId ?? null,
+      full?.group?.name ?? null,
+    );
   }
 
   @Get(':code/this-sunday')

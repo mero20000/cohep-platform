@@ -154,15 +154,53 @@ export class HymnLearningService {
   }
 
   // ─── Student hymn map: all lessons with their progress ──────────────────
-  async getStudentHymnMap(studentId: string, schoolId: string, maxLevelNumber?: number) {
+  async getStudentHymnMap(studentId: string, schoolId: string, maxLevelNumber?: number, groupId?: string | null, groupName?: string | null) {
+    // Curriculum-integrated scoping: prefer the lessons actually ALLOCATED to
+    // the student's level/group for the current academic year (deduplicated —
+    // an item allocated to several weeks appears once). Fall back to published
+    // lessons at or below the student's level only when nothing is allocated.
+    let allocatedLessonIds: string[] | null = null
+    try {
+      const student = await this.prisma.student.findUnique({
+        where: { id: studentId },
+        select: { levelId: true, group: { select: { name: true } } },
+      });
+      const levelId = student?.levelId ?? null;
+      if (levelId) {
+        const currentYear = await this.prisma.academicYear.findFirst({
+          where: { schoolId, isCurrent: true },
+          select: { id: true },
+        });
+        const gName = groupName ?? student?.group?.name ?? '';
+        const gm = /^Group\s*(\d+)/i.exec(gName || '') || /^(\d+)/.exec(gName || '');
+        const allocations = await this.prisma.curriculumAllocation.findMany({
+          where: {
+            status: { not: 'draft' },
+            levelId,
+            ...(currentYear ? { academicYearId: currentYear.id } : {}),
+            ...(gm ? { groupNumber: parseInt(gm[1], 10) } : {}),
+          },
+          select: { lessonId: true, orderIndex: true },
+          orderBy: { orderIndex: 'asc' },
+        });
+        // Dedupe: one entry per lesson regardless of how many weeks/sessions.
+        const seen = new Set<string>();
+        allocatedLessonIds = allocations.map(a => a.lessonId).filter(id => !seen.has(id) && seen.add(id));
+      }
+    } catch {
+      allocatedLessonIds = null; // graceful fallback below
+    }
+
     const lessons = await this.prisma.lesson.findMany({
-      // Curriculum-integrated scoping: a student sees their own level's items
-      // plus completed lower levels' progress — never higher levels.
       where: {
         schoolId,
         deletedAt: null,
         status: 'published',
-        ...(maxLevelNumber ? { level: { number: { lte: maxLevelNumber } } } : {}),
+        ...(allocatedLessonIds && allocatedLessonIds.length > 0
+          ? { id: { in: allocatedLessonIds } }
+          : maxLevelNumber
+            ? { level: { number: { lte: maxLevelNumber } } }
+            : {}),
       },
       include: {
         level: { select: { id: true, number: true, name: true } },

@@ -21,7 +21,7 @@ export interface HymnMapItem {
   titleAr?: string
   titleCoptic?: string
   level: { number: number; name: string }
-  subject: { name: string; color?: string }
+  subject: { id?: string; name: string; color?: string }
   estimatedDurationMinutes?: number
   liturgicalTags?: { seasons?: string[]; weekdayTypes?: string[]; feasts?: string[] }
   resources: { id: string; type: string; fileUrl: string; language: string; durationSeconds?: number }[]
@@ -32,7 +32,7 @@ export interface HymnMapItem {
 
 export interface DueReviewItem {
   progressId: string
-  lesson: { id: string; title: string; titleAr?: string; titleCoptic?: string; level: { number: number; name: string }; subject: { name: string; color?: string }; audioUrl: string | null }
+  lesson: { id: string; title: string; titleAr?: string; titleCoptic?: string; level: { number: number; name: string }; subject: { id?: string; name: string; color?: string }; audioUrl: string | null }
   mastery: MasteryStatus
   srRepetitions: number
   overdueDays: number
@@ -42,7 +42,7 @@ export interface ThisSundayResponse {
   sunday: string
   copticDate: { year: number; month: number; day: number; monthName: string }
   season: string
-  hymns: { id: string; title: string; titleAr?: string; titleCoptic?: string; level: { number: number; name: string }; subject: { name: string; color?: string }; audioUrl: string | null; liturgicalTags?: any }[]
+  hymns: { id: string; title: string; titleAr?: string; titleCoptic?: string; level: { number: number; name: string }; subject: { id?: string; name: string; color?: string }; audioUrl: string | null; liturgicalTags?: any }[]
 }
 
 export interface ReviewQueueItem {

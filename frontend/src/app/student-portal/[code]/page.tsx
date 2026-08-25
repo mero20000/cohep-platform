@@ -15,7 +15,7 @@ const API_ORIGIN = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/ap
 import {
   Cross, Loader2, Calendar, CheckCircle2, XCircle, Clock, AlertCircle,
   Award, Star, BookOpen, ArrowLeft, Trophy, Play, Music,
-  ChevronDown, ChevronRight, Search, Filter, ClipboardCheck, MoreVertical, LogOut, Eye, EyeOff,
+  ChevronDown, ChevronRight, Search, Filter, ClipboardCheck, MoreVertical, LogOut, Eye, EyeOff, TrendingUp,
 } from 'lucide-react'
 import Link from 'next/link'
 import { useStudentHymnMap, useStudentThisSunday, useStudentDueReview, useStudentStats, useStudentPractice } from '@/components/hymn-learning/student-hooks'
@@ -39,7 +39,7 @@ interface PortalData {
   recentAttendance: Array<{ date: string; time?: string; status: string; homeworkStatus?: string }>
   badges: Array<{ id: string; name?: string; nameAr?: string; description?: string; iconUrl?: string; earnedAt: string }>
   totalXp: number
-  upcomingSessions: Array<{ id: string; date: string; time?: string }>
+  upcomingSessions: Array<{ id: string; date: string; time?: string; title?: string }>
   recentHomework: Array<{ date: string; status: string }>
   assessments: Array<{
     id: string; title: string; titleAr?: string; type: string;
@@ -331,29 +331,135 @@ export default function StudentDashboard() {
         {/* ─── DASHBOARD TAB ─────────────────────────────────────────── */}
         {activeTab === 'dashboard' && (
           <>
-            {/* Stats Grid */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              <div className="rounded-xl bg-white border border-gray-200 p-4 text-center">
-                <Trophy className="h-5 w-5 text-gold-700 mx-auto mb-1" />
-                <div className="text-xl font-bold text-gray-900">{totalXp}</div>
-                <div className="text-xs text-gray-500">Total XP</div>
-              </div>
-              <div className="rounded-xl bg-white border border-gray-200 p-4 text-center">
-                <Award className="h-5 w-5 text-blue-500 mx-auto mb-1" />
-                <div className="text-xl font-bold text-gray-900">{badges.length}</div>
-                <div className="text-xs text-gray-500">Badges</div>
-              </div>
-              <div className="rounded-xl bg-white border border-gray-200 p-4 text-center">
-                <CheckCircle2 className="h-5 w-5 text-green-500 mx-auto mb-1" />
-                <div className="text-xl font-bold text-gray-900">{attendanceRate}%</div>
-                <div className="text-xs text-gray-500">Attendance</div>
-              </div>
-              <div className="rounded-xl bg-white border border-gray-200 p-4 text-center">
-                <BookOpen className="h-5 w-5 text-purple-500 mx-auto mb-1" />
-                <div className="text-xl font-bold text-gray-900">{recentHomework.filter(h => h.status === 'completed').length}/{recentHomework.length}</div>
-                <div className="text-xs text-gray-500">Homework</div>
-              </div>
-            </div>
+            {(() => {
+              // Engagement data: mastery readiness across the student's own
+              // allocated hymns + next session encouragement.
+              const myHymns = filteredHymns
+              const known = myHymns.filter(h => ['known', 'mastered'].includes(h.progress?.masteryStatus ?? 'not_started')).length
+              const learning = myHymns.filter(h => ['introduced', 'practicing'].includes(h.progress?.masteryStatus ?? '')).length
+              const total = myHymns.length
+              const masteryPct = total ? Math.round(((known + learning * 0.5) / total) * 100) : 0
+              const nextSession = upcomingSessions[0]
+              const subjects: Array<{ name: string; color: string; known: number; total: number }> = []
+              {
+                const bySubject = new Map<string, { name: string; color: string; known: number; total: number }>()
+                for (const h of myHymns) {
+                  const key = h.subject?.id || 'unknown'
+                  if (!bySubject.has(key)) bySubject.set(key, { name: h.subject?.name || 'Hymns', color: h.subject?.color || '#3b82f6', known: 0, total: 0 })
+                  const bucket = bySubject.get(key)!
+                  bucket.total += 1
+                  if (['known', 'mastered'].includes(h.progress?.masteryStatus ?? 'not_started')) bucket.known += 1
+                }
+                subjects.push(...bySubject.values())
+              }
+              return (
+                <>
+                  {/* Next class encouragement — because the subject items are included */}
+                  {nextSession && (
+                    <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-emerald-600 to-teal-700 p-4 text-white shadow-lg shadow-emerald-900/10">
+                      <div className="absolute inset-0 opacity-10 bg-[radial-gradient(circle_at_top_right,_white_1px,_transparent_1px)] bg-[length:16px_16px]" aria-hidden="true" />
+                      <div className="relative">
+                        <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-emerald-100">
+                          <Calendar className="h-3.5 w-3.5" />
+                          {lang === 'ar' ? 'الجلسة القادمة' : 'Next Class'}
+                        </div>
+                        <p className="mt-1 text-base font-bold">
+                          {new Date(nextSession.date).toLocaleDateString(lang === 'ar' ? 'ar-EG' : 'en-GB', { weekday: 'long', day: 'numeric', month: 'long' })}
+                          {nextSession.time ? <span className="font-medium text-emerald-100"> · {nextSession.time}</span> : null}
+                        </p>
+                        <p className="mt-1 text-sm text-emerald-50/90 leading-snug">
+                          {total > 0
+                            ? (lang === 'ar'
+                                ? `ستغطي جلسنتك ترانيمك المخصصة — ${known} من ${total} جاهزة تمامًا. استمر في التدريب!`
+                                : `Your class covers your assigned hymns — ${known} of ${total} fully ready${learning ? `, ${learning} almost there` : ''}. Keep practicing!`)
+                            : (lang === 'ar' ? 'حضّر نفسك للجلسة القادمة!' : 'Get ready for your next class!')}
+                        </p>
+                        <button onClick={() => setActiveTab('practice')}
+                          className="mt-3 inline-flex items-center gap-2 rounded-full bg-white text-emerald-800 px-4 py-2 text-sm font-bold hover:bg-emerald-50 active:scale-95 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white">
+                          <Play className="h-4 w-4 fill-emerald-700" />{lang === 'ar' ? 'تدرّب الآن' : 'Practice now'}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Progress — visual, not just numbers */}
+                  <section>
+                    <h2 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                      <TrendingUp className="h-4 w-4 text-gold-600" />
+                      {lang === 'ar' ? 'تقدمك' : 'Your Progress'}
+                    </h2>
+                    <div className="rounded-2xl bg-white border border-gray-200 p-4">
+                      <div className="flex items-center gap-4">
+                        {/* Mastery ring */}
+                        <div className="relative shrink-0" role="img" aria-label={`${lang === 'ar' ? 'إتقان' : 'Mastery'}: ${masteryPct}%`}>
+                          <svg width="84" height="84" viewBox="0 0 84 84" className="-rotate-90" aria-hidden="true">
+                            <circle cx="42" cy="42" r="36" fill="none" strokeWidth="9" className="stroke-gray-100" />
+                            <circle cx="42" cy="42" r="36" fill="none" strokeWidth="9" strokeLinecap="round"
+                              strokeDasharray={2 * Math.PI * 36}
+                              strokeDashoffset={2 * Math.PI * 36 * (1 - masteryPct / 100)}
+                              className="stroke-[rgb(var(--gold-500))] motion-safe:transition-all motion-safe:duration-700" />
+                          </svg>
+                          <div className="absolute inset-0 flex flex-col items-center justify-center">
+                            <span className="text-lg font-black text-gray-900 tabular-nums">{masteryPct}%</span>
+                            <span className="text-[10px] font-medium text-gray-400">{lang === 'ar' ? 'إتقان' : 'mastery'}</span>
+                          </div>
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-semibold text-gray-900">
+                            {lang === 'ar' ? `${known} من ${total} ترنيمة متقنة` : `${known} of ${total} hymns mastered`}
+                          </p>
+                          <p className="text-xs text-gray-500 mb-2">
+                            {learning > 0
+                              ? (lang === 'ar' ? `${learning} قيد التعلم — استمر!` : `${learning} in progress — keep going!`)
+                              : (lang === 'ar' ? 'ابدأ أول ترنومة اليوم' : 'Start your first hymn today')}
+                          </p>
+                          {/* Per-subject bars */}
+                          <div className="space-y-1.5">
+                            {subjects.slice(0, 3).map(s => (
+                              <div key={s.name}>
+                                <div className="flex justify-between text-[11px] text-gray-500 mb-0.5">
+                                  <span className="truncate max-w-[70%]">{s.name}</span>
+                                  <span className="tabular-nums">{s.known}/{s.total}</span>
+                                </div>
+                                <div className="h-1.5 rounded-full bg-gray-100 overflow-hidden">
+                                  <div className="h-full rounded-full transition-all duration-700"
+                                    style={{ width: `${s.total ? Math.round((s.known / s.total) * 100) : 0}%`, backgroundColor: s.color }} />
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </section>
+
+                  {/* Stat tiles */}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <div className="rounded-xl bg-white border border-gray-200 p-4 text-center hover:border-gold-300 hover:shadow-sm transition-all">
+                      <Trophy className="h-5 w-5 text-gold-700 mx-auto mb-1" />
+                      <div className="text-xl font-bold text-gray-900 tabular-nums">{totalXp}</div>
+                      <div className="text-xs text-gray-500">Total XP</div>
+                      <div className="mt-1.5 h-1 rounded-full bg-gray-100 overflow-hidden"><div className="h-full rounded-full bg-gradient-to-r from-gold-400 to-amber-500" style={{ width: `${xpPct}%` }} /></div>
+                    </div>
+                    <div className="rounded-xl bg-white border border-gray-200 p-4 text-center hover:border-blue-300 hover:shadow-sm transition-all">
+                      <Award className="h-5 w-5 text-blue-500 mx-auto mb-1" />
+                      <div className="text-xl font-bold text-gray-900 tabular-nums">{badges.length}</div>
+                      <div className="text-xs text-gray-500">Badges</div>
+                    </div>
+                    <div className="rounded-xl bg-white border border-gray-200 p-4 text-center hover:border-green-300 hover:shadow-sm transition-all">
+                      <CheckCircle2 className="h-5 w-5 text-green-500 mx-auto mb-1" />
+                      <div className="text-xl font-bold text-gray-900 tabular-nums">{attendanceRate}%</div>
+                      <div className="text-xs text-gray-500">Attendance</div>
+                    </div>
+                    <div className="rounded-xl bg-white border border-gray-200 p-4 text-center hover:border-purple-300 hover:shadow-sm transition-all">
+                      <BookOpen className="h-5 w-5 text-purple-500 mx-auto mb-1" />
+                      <div className="text-xl font-bold text-gray-900 tabular-nums">{recentHomework.filter(h => h.status === 'completed').length}/{recentHomework.length}</div>
+                      <div className="text-xs text-gray-500">Homework</div>
+                    </div>
+                  </div>
+                </>
+              )
+            })()}
 
             {/* Upcoming Sessions */}
             {upcomingSessions.length > 0 && (
