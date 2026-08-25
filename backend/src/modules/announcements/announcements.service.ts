@@ -6,6 +6,7 @@ import { MailService } from '../mail/mail.service';
 import { NewsletterService } from '../newsletter/newsletter.service';
 import { emailTemplate, emailParagraph } from '../mail/email-template';
 import { CreateAnnouncementDto, UpdateAnnouncementDto } from './dto/announcement.dto';
+import { STAFF_ROLES } from '../../common/decorators/roles.decorator';
 
 @Injectable()
 export class AnnouncementsService {
@@ -154,12 +155,19 @@ export class AnnouncementsService {
 
   async findAll(schoolId: string, filters: {
     page?: number; limit?: number; status?: string; priority?: string; banner?: boolean;
-  }) {
+  }, user?: any) {
     const { page = 1, limit: rawLimit = 20, status, priority, banner } = filters;
     const limit = Math.min(rawLimit, 100);
 
+    const roles: string[] = Array.isArray(user?.roles) ? user.roles : [];
+    const isStaff = roles.some(r => (STAFF_ROLES as readonly string[]).includes(r));
+
     const where: any = { schoolId, deletedAt: null };
-    if (status) where.status = status;
+    if (!isStaff) {
+      where.status = 'published';
+    } else if (status) {
+      where.status = status;
+    }
     if (priority) where.priority = priority;
 
     const [rows, total] = await Promise.all([
@@ -173,24 +181,48 @@ export class AnnouncementsService {
       this.prisma.announcement.count({ where }),
     ]);
 
-    const data = rows.map(r => this.mapRow(r));
+    const visibleRows = isStaff
+      ? rows
+      : rows.filter(r => {
+          if (r.targetAudience === 'all') return true;
+          const targetRoles: string[] = Array.isArray((r.attachments as any)?.targetRoles)
+            ? (r.attachments as any).targetRoles
+            : [];
+          return targetRoles.some(tr => roles.includes(tr));
+        });
+
+    const data = visibleRows.map(r => this.mapRow(r));
 
     // Banner consumer expects a plain array of published, non-expired announcements.
     if (banner) {
       const now = new Date();
-      const published = rows.filter(r => r.status === 'published' && (!r.expiresAt || new Date(r.expiresAt) > now));
+      const published = visibleRows.filter(r => r.status === 'published' && (!r.expiresAt || new Date(r.expiresAt) > now));
       return published.map(r => this.mapRow(r)) as any;
     }
 
-    return { data, pagination: { page, limit, total, totalPages: Math.ceil(total / limit) } };
+    return { data, pagination: { page, limit, total: visibleRows.length, totalPages: Math.ceil(visibleRows.length / limit) } };
   }
 
-  async findOne(id: string) {
+  async findOne(id: string, user?: any) {
     const ann = await this.prisma.announcement.findUnique({
       where: { id },
       include: this.listInclude,
     });
     if (!ann || ann.deletedAt) throw new NotFoundException('Announcement not found');
+
+    const roles: string[] = Array.isArray(user?.roles) ? user.roles : [];
+    const isStaff = roles.some(r => (STAFF_ROLES as readonly string[]).includes(r));
+
+    if (!isStaff) {
+      if (ann.status !== 'published') throw new NotFoundException('Announcement not found');
+      if (ann.targetAudience !== 'all') {
+        const targetRoles: string[] = Array.isArray((ann.attachments as any)?.targetRoles)
+          ? (ann.attachments as any).targetRoles
+          : [];
+        if (!targetRoles.some(tr => roles.includes(tr))) throw new NotFoundException('Announcement not found');
+      }
+    }
+
     return this.mapRow(ann);
   }
 

@@ -19,6 +19,7 @@ export class AnnouncementsController {
   @Roles(...STAFF_ROLES, 'parent')
   @ApiOperation({ summary: 'List announcements' })
   async findAll(
+    @CurrentUser() user: any,
     @Query('schoolId') schoolId: string = '',
     @Query('page') page?: number,
     @Query('limit') limit?: number,
@@ -32,14 +33,14 @@ export class AnnouncementsController {
       status,
       priority,
       banner: banner === 'true',
-    });
+    }, user);
   }
 
   @Get(':id')
   @Roles(...STAFF_ROLES, 'parent')
   @ApiOperation({ summary: 'Get a single announcement' })
-  async findOne(@Param('id') id: string) {
-    return this.announcementsService.findOne(id);
+  async findOne(@Param('id') id: string, @CurrentUser() user: any) {
+    return this.announcementsService.findOne(id, user);
   }
 
   @Post('draft')

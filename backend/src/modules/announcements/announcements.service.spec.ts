@@ -138,6 +138,57 @@ describe('AnnouncementsService', () => {
     });
   });
 
+  describe('findAll — parent scoping', () => {
+    it('forces published status and excludes drafts for non-staff callers', async () => {
+      prisma.announcement.findMany.mockResolvedValue([row]);
+      prisma.announcement.count.mockResolvedValue(1);
+
+      await service.findAll(schoolId, { page: 1, limit: 20 }, { id: 'p1', roles: ['parent'] });
+
+      const call = prisma.announcement.findMany.mock.calls[0][0];
+      expect(call.where.status).toBe('published');
+    });
+
+    it('excludes announcements targeting other roles', async () => {
+      const targeted = { ...row, targetAudience: 'roles', attachments: { targetRoles: ['servant'] } };
+      prisma.announcement.findMany.mockResolvedValue([row, targeted]);
+      prisma.announcement.count.mockResolvedValue(2);
+
+      const result = await service.findAll(schoolId, { page: 1, limit: 20 }, { id: 'p1', roles: ['parent'] });
+
+      expect(result.data).toHaveLength(1);
+      expect(result.data[0].id).toBe('ann-1');
+    });
+
+    it('staff see drafts and all audiences', async () => {
+      const draft = { ...row, id: 'ann-2', status: 'draft' };
+      prisma.announcement.findMany.mockResolvedValue([draft]);
+      prisma.announcement.count.mockResolvedValue(1);
+
+      const result = await service.findAll(schoolId, { page: 1, limit: 20 }, { id: 's1', roles: ['servant'] });
+
+      const call = prisma.announcement.findMany.mock.calls[0][0];
+      expect(call.where.status).toBeUndefined();
+      expect(result.data[0].id).toBe('ann-2');
+    });
+  });
+
+  describe('findOne — parent scoping', () => {
+    it('throws NotFoundException for a draft announcement requested by a parent', async () => {
+      prisma.announcement.findUnique.mockResolvedValue({ ...row, status: 'draft' });
+
+      await expect(service.findOne('ann-1', { id: 'p1', roles: ['parent'] })).rejects.toThrow(NotFoundException);
+    });
+
+    it('allows staff to view drafts', async () => {
+      prisma.announcement.findUnique.mockResolvedValue({ ...row, status: 'draft' });
+
+      const result = await service.findOne('ann-1', { id: 's1', roles: ['servant'] });
+
+      expect(result.id).toBe('ann-1');
+    });
+  });
+
   describe('create', () => {
     it('persists a draft announcement by default', async () => {
       prisma.announcement.create.mockResolvedValue({ ...row, status: 'draft' });
