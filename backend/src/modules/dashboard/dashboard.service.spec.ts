@@ -1,4 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { ForbiddenException } from '@nestjs/common';
 import { DashboardService } from './dashboard.service';
 import { PrismaService } from '../../database/prisma.service';
 import { SchoolResolver } from '../../common/utils/school-resolver';
@@ -99,6 +100,13 @@ describe('DashboardService', () => {
 
       expect(result.thisWeek.attendanceRate).toBe(0);
       expect(result.thisWeek.total).toBe(0);
+    });
+  });
+
+  describe('getMine viewRole guard', () => {
+    it('throws ForbiddenException when parent requests viewRole=admin', async () => {
+      const parentUser = { id: 'user-2', roles: ['parent'] };
+      await expect(service.getMine(parentUser, schoolId, 'admin')).rejects.toThrow(ForbiddenException);
     });
   });
 

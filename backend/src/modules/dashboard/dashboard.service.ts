@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 import { SchoolResolver } from '../../common/utils/school-resolver';
 import { getCopticContext } from '../../common/utils/coptic-calendar';
@@ -250,6 +250,7 @@ export class DashboardService {
   async getMine(user: any, schoolId: string, viewRole?: string) {
     const resolvedId = await this.schoolResolver.resolve(schoolId);
     const roles: string[] = Array.isArray(user?.roles) ? user.roles : [];
+    if (viewRole && !roles.includes(viewRole)) throw new ForbiddenException('Invalid viewRole');
     const roleToUse = viewRole || roles[0] || 'guest';
     const MINISTRY = ['servant', 'group_leader', 'level_leader', 'assistant_servant'];
     const category = MINISTRY.includes(roleToUse)
