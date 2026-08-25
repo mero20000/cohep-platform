@@ -755,6 +755,7 @@ systemConfig: {
         logoUrl: null,
         churchName: 'St. Mary Cathedral',
         churchNameAr: 'كاتدرائية السيدة مريم',
+        churchLogoUrl: null,
       });
     });
   });

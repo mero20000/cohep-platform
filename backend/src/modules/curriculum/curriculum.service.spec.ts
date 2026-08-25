@@ -19,7 +19,7 @@ describe('CurriculumService - destructive routes (security)', () => {
   const prismaMock = {
     level: { findUnique: jest.fn(), update: jest.fn() },
     academicYear: { findUnique: jest.fn(), findMany: jest.fn(), updateMany: jest.fn(), update: jest.fn() },
-    lesson: { findUnique: jest.fn(), update: jest.fn() },
+    lesson: { findUnique: jest.fn(), update: jest.fn(), updateMany: jest.fn().mockResolvedValue({ count: 0 }) },
     curriculumAllocation: { count: jest.fn(), findMany: jest.fn(), update: jest.fn() },
     $transaction: jest.fn(async (ops: any) => Promise.all(ops)),
   };
