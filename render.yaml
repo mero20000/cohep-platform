@@ -50,7 +50,7 @@ services:
     plan: free
     region: oregon
     buildCommand: npm install && npm run build
-    startCommand: npm run start
+    startCommand: npx next start -p $PORT -H 0.0.0.0
     envVars:
       - key: NODE_ENV
         value: production
@@ -58,5 +58,3 @@ services:
         value: https://niangelos-backend.onrender.com/api
       - key: NEXT_PUBLIC_UPLOADS_URL
         value: https://niangelos-backend.onrender.com
-      - key: PORT
-        value: 3000
