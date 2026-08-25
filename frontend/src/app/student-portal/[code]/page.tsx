@@ -89,6 +89,7 @@ export default function StudentDashboard() {
 
   // Practice state
   const [practiceLesson, setPracticeLesson] = useState<HymnMapItem | null>(null)
+  const [celebration, setCelebration] = useState<{ title: string; titleCoptic?: string } | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [filterMastery, setFilterMastery] = useState('')
   const [expandedLevels, setExpandedLevels] = useState<Set<string>>(new Set())
@@ -142,12 +143,19 @@ export default function StudentDashboard() {
 
   const handleSubmitPractice = async (selfRating: number, recordingUrl?: string, durationSec?: number) => {
     if (!practiceLesson) return
-    await practiceMutation.mutateAsync({
+    const before = practiceLesson.progress?.masteryStatus ?? 'not_started'
+    const res: any = await practiceMutation.mutateAsync({
       lessonId: practiceLesson.id,
       selfRating,
       recordingUrl,
       durationSec,
     })
+    // Celebration moment: first time a hymn becomes known/mastered
+    const after = (res?.mastery ?? res?.progress?.masteryStatus) as string | undefined
+    if ((after === 'known' || after === 'mastered') && !['known', 'mastered'].includes(before)) {
+      setCelebration({ title: practiceLesson.title, titleCoptic: practiceLesson.titleCoptic })
+      setTimeout(() => setCelebration(null), 3000)
+    }
     setPracticeLesson(null)
   }
 
@@ -293,7 +301,7 @@ export default function StudentDashboard() {
               </div>
               <div className="h-2 rounded-full bg-white/15 overflow-hidden"><div className="h-full rounded-full bg-gradient-to-r from-gold-400 to-amber-500 transition-all duration-700" style={{ width: `${xpPct}%` }} /></div>
             </div>
-            <button onClick={() => setActiveTab('practice')} className="inline-flex items-center justify-center gap-2 rounded-full bg-gold-500 hover:bg-gold-400 text-white px-5 py-2.5 text-sm font-bold shadow-lg shadow-black/15 active:scale-95 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60">
+            <button onClick={() => setActiveTab('practice')} className="inline-flex items-center justify-center gap-2 rounded-full bg-gold-500 hover:bg-gold-400 text-white px-6 py-3 text-base font-bold shadow-lg shadow-black/15 active:motion-safe:scale-[0.95] motion-safe:transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60">
               <Play className="h-4 w-4 fill-white" /> {lang === 'ar' ? 'تدرّب الآن' : 'Practice Now'}
             </button>
           </div>
@@ -355,6 +363,32 @@ export default function StudentDashboard() {
               }
               return (
                 <>
+                  {/* Continue where you left off — the biggest engagement lever */}
+                  {(() => {
+                    const last = myHymns
+                      .filter(h => h.progress?.lastAccessedAt && !['known', 'mastered'].includes(h.progress?.masteryStatus ?? 'not_started'))
+                      .sort((a, b) => new Date(b.progress!.lastAccessedAt!).getTime() - new Date(a.progress!.lastAccessedAt!).getTime())[0]
+                    if (!last) return null
+                    return (
+                      <button onClick={() => setPracticeLesson(last)}
+                        className={`w-full text-left rounded-2xl border border-gold-300 bg-gradient-to-r from-gold-neutral-50 to-white p-4 hover:shadow-md active:motion-safe:scale-[0.98] motion-safe:transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--gold-500))]`}>
+                        <div className="flex items-center gap-3">
+                          <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[rgb(var(--gold-500))] text-white shadow-sm">
+                            <Play className="h-5 w-5 fill-white" />
+                          </span>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-[11px] font-semibold uppercase tracking-wide text-gold-700">
+                              {lang === 'ar' ? 'أكمل من حيث توقفت' : 'Continue practicing'}
+                            </p>
+                            {last.titleCoptic && <p className="font-coptic text-sm text-gray-600 truncate">{last.titleCoptic}</p>}
+                            <p className="text-base font-bold text-gray-900 truncate">{lang === 'ar' && last.titleAr ? last.titleAr : last.title}</p>
+                          </div>
+                          <ChevronRight className="h-5 w-5 text-gray-300 rtl:rotate-180 shrink-0" aria-hidden="true" />
+                        </div>
+                      </button>
+                    )
+                  })()}
+
                   {/* Next class encouragement — because the subject items are included */}
                   {nextSession && (
                     <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-emerald-600 to-teal-700 p-4 text-white shadow-lg shadow-emerald-900/10">
@@ -376,7 +410,7 @@ export default function StudentDashboard() {
                             : (lang === 'ar' ? 'حضّر نفسك للجلسة القادمة!' : 'Get ready for your next class!')}
                         </p>
                         <button onClick={() => setActiveTab('practice')}
-                          className="mt-3 inline-flex items-center gap-2 rounded-full bg-white text-emerald-800 px-4 py-2 text-sm font-bold hover:bg-emerald-50 active:scale-95 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white">
+                          className="mt-3 inline-flex items-center gap-2 rounded-full bg-white text-emerald-800 px-5 py-2.5 min-h-12 text-sm font-bold hover:bg-emerald-50 active:motion-safe:scale-[0.96] motion-safe:transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white">
                           <Play className="h-4 w-4 fill-emerald-700" />{lang === 'ar' ? 'تدرّب الآن' : 'Practice now'}
                         </button>
                       </div>
@@ -875,7 +909,7 @@ export default function StudentDashboard() {
                   <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
                   <input type="text" value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
                     placeholder="Search hymns..."
-                    className="w-full rounded-lg border border-gray-200 bg-white pl-8 pr-3 py-1.5 text-xs focus:border-blue-500 focus:outline-none" />
+                    className="w-full rounded-xl border border-gray-200 bg-white pl-9 pr-3 py-2.5 text-base focus:border-gold-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--gold-500))]" />
                 </div>
                 <select value={filterMastery} onChange={e => setFilterMastery(e.target.value)}
                   className="rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-xs focus:border-blue-500 focus:outline-none">
@@ -911,25 +945,42 @@ export default function StudentDashboard() {
                           </div>
                         </button>
                         {isExpanded && (
-                          <div className="divide-y divide-gray-100">
+                          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 p-3">
                             {hymns.map(hymn => {
                               const mastery = hymn.progress?.masteryStatus ?? 'not_started'
                               const meta = MASTERY_META[mastery]
+                              const isKnown = mastery === 'known' || mastery === 'mastered'
                               return (
-                                <div key={hymn.id} className="flex items-center gap-3 px-4 py-2.5">
-                                  <div className="h-2 w-2 rounded-full flex-shrink-0" style={{ background: meta.dot }} />
-                                  <div className="flex-1 min-w-0">
-                                    <div className="text-sm text-gray-900 truncate">{hymn.title}</div>
-                                    {hymn.titleCoptic && <div className="text-xs text-gray-400 truncate">{hymn.titleCoptic}</div>}
+                                <button key={hymn.id} onClick={() => setPracticeLesson(hymn)}
+                                  className={`group text-left rounded-2xl border overflow-hidden bg-white hover:shadow-md active:motion-safe:scale-[0.97] motion-safe:transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--gold-500))] ${isKnown ? 'border-gold-300' : 'border-gray-200'}`}>
+                                  {/* Color-art header — pickable by color before reading */}
+                                  <div className="relative h-16 flex items-end p-2"
+                                    style={{ background: `linear-gradient(135deg, ${hymn.subject?.color || '#3b82f6'}22, ${hymn.subject?.color || '#3b82f6'}55)` }}>
+                                    <Music className="absolute top-2 right-2 h-4 w-4 opacity-40" style={{ color: hymn.subject?.color || '#3b82f6' }} aria-hidden="true" />
+                                    {isKnown && (
+                                      <span className="inline-flex items-center gap-0.5 rounded-full bg-white/90 px-1.5 py-0.5 text-[10px] font-bold text-gold-700">
+                                        <Star className="h-3 w-3 fill-gold-500 text-gold-500" /> {lang === 'ar' ? 'متقن' : 'Mastered'}
+                                      </span>
+                                    )}
                                   </div>
-                                  <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${meta.bg} ${meta.color} flex-shrink-0`}>
-                                    {meta.label}
-                                  </span>
-                                  <button onClick={() => setPracticeLesson(hymn)}
-                                    className="flex-shrink-0 rounded-lg bg-blue-50 px-3 py-1.5 text-xs font-medium text-blue-700 hover:bg-blue-100">
-                                    <Play className="h-3 w-3 inline mr-1" /> Practice
-                                  </button>
-                                </div>
+                                  <div className="p-2.5">
+                                    {hymn.titleCoptic && (
+                                      <p className="font-coptic text-[13px] text-gray-700 truncate leading-snug" lang="cop">{hymn.titleCoptic}</p>
+                                    )}
+                                    <p className="text-sm font-semibold text-gray-900 truncate leading-tight mt-0.5">
+                                      {lang === 'ar' && hymn.titleAr ? hymn.titleAr : hymn.title}
+                                    </p>
+                                    <div className="flex items-center justify-between mt-2">
+                                      <span className={`inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-medium ${meta.bg} ${meta.color}`}>
+                                        <span className="h-1.5 w-1.5 rounded-full" style={{ background: meta.dot }} aria-hidden="true" />
+                                        {meta.label}
+                                      </span>
+                                      <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-700 group-hover:text-emerald-600">
+                                        <Play className="h-3 w-3 fill-emerald-600" />{lang === 'ar' ? 'تدرّب' : 'Sing'}
+                                      </span>
+                                    </div>
+                                  </div>
+                                </button>
                               )
                             })}
                           </div>
@@ -943,6 +994,38 @@ export default function StudentDashboard() {
           </>
         )}
       </main>
+
+      {/* ─── MASTERY CELEBRATION ─────────────────────────────────────── */}
+      {celebration && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-[rgb(var(--hymn-navy))]/95 p-6" role="status">
+          {/* gentle gold confetti dots */}
+          <div className="absolute inset-0 overflow-hidden" aria-hidden="true">
+            {[...Array(14)].map((_, i) => (
+              <span key={i}
+                className="absolute rounded-full motion-safe:animate-pulse"
+                style={{
+                  width: 6 + (i % 4) * 4, height: 6 + (i % 4) * 4,
+                  left: `${(i * 37) % 100}%`, top: `${(i * 53) % 100}%`,
+                  background: i % 3 === 0 ? 'rgb(var(--gold-400))' : 'rgba(255,255,255,0.25)',
+                  opacity: 0.5,
+                }} />
+            ))}
+          </div>
+          <div className="relative text-center max-w-sm">
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gold-300 mb-3">
+              {lang === 'ar' ? 'هذه الترنيمة أصبحت معك' : 'This hymn now lives in you'}
+            </p>
+            {celebration.titleCoptic && (
+              <p className="font-coptic text-2xl text-gold-200 mb-2 leading-relaxed">{celebration.titleCoptic}</p>
+            )}
+            <p className="text-xl font-bold text-white">{celebration.title}</p>
+            <div className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-gold-500/20 border border-gold-400/40 px-4 py-1.5 text-sm font-semibold text-gold-200">
+              <Star className="h-4 w-4 fill-gold-300 text-gold-300" />
+              {lang === 'ar' ? 'أُتقنتها' : 'Mastered'}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ─── PRACTICE MODAL ─────────────────────────────────────────── */}
       {practiceLesson && (
