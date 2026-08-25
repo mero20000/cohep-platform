@@ -154,9 +154,16 @@ export class HymnLearningService {
   }
 
   // ─── Student hymn map: all lessons with their progress ──────────────────
-  async getStudentHymnMap(studentId: string, schoolId: string) {
+  async getStudentHymnMap(studentId: string, schoolId: string, maxLevelNumber?: number) {
     const lessons = await this.prisma.lesson.findMany({
-      where: { schoolId, deletedAt: null, status: 'published' },
+      // Curriculum-integrated scoping: a student sees their own level's items
+      // plus completed lower levels' progress — never higher levels.
+      where: {
+        schoolId,
+        deletedAt: null,
+        status: 'published',
+        ...(maxLevelNumber ? { level: { number: { lte: maxLevelNumber } } } : {}),
+      },
       include: {
         level: { select: { id: true, number: true, name: true } },
         subject: { select: { id: true, name: true, nameAr: true, color: true, icon: true } },

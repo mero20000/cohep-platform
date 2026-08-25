@@ -39,7 +39,7 @@ export function PracticeHistory({ code, lessonId, lang = 'en' }: { code: string;
         {t('Your practice story', 'قصة تدريبك')}
       </h3>
       <p className="text-xs text-gray-500 mb-3">
-        {t('Every time you sang this hymn — and what your servant heard.', 'كل مرة غنيت فيها هذا الترنيمة وما سمعه خادمك.')}
+        {t('Every time you pray this hymn — and what your servant heard.', 'كل مرة صليت فيها هذه الترنيمة وما سمعه خادمك.')}
       </p>
       <ol className="space-y-3">
         {sessions.map((s) => (

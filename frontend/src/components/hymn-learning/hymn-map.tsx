@@ -7,6 +7,8 @@ interface Props {
   hymns: HymnMapItem[]
   onSelect: (hymn: HymnMapItem) => void
   lang: 'en' | 'ar'
+  /** Student's current level — hides higher levels entirely. */
+  maxLevel?: number | null
 }
 
 const FILTERS: { value: MasteryStatus | 'all'; label: string; labelAr: string }[] = [
@@ -18,7 +20,7 @@ const FILTERS: { value: MasteryStatus | 'all'; label: string; labelAr: string }[
   { value: 'mastered',    label: 'Mastered',     labelAr: 'أتقنه' },
 ]
 
-export function HymnMap({ hymns, onSelect, lang }: Props) {
+export function HymnMap({ hymns, onSelect, lang, maxLevel = null }: Props) {
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState<MasteryStatus | 'all'>('all')
   const [expandedLevel, setExpandedLevel] = useState<number | null>(null)
@@ -26,13 +28,15 @@ export function HymnMap({ hymns, onSelect, lang }: Props) {
 
   const filtered = useMemo(() => {
     return hymns.filter(h => {
+      // Curriculum scoping: own level and below only (backend also enforces).
+      if (maxLevel != null && h.level.number > maxLevel) return false
       const mastery: MasteryStatus = h.progress?.masteryStatus ?? 'not_started'
       const matchesFilter = filter === 'all' || mastery === filter
       const q = search.toLowerCase()
       const matchesSearch = !q || h.title.toLowerCase().includes(q) || (h.titleAr ?? '').includes(q) || (h.titleCoptic ?? '').toLowerCase().includes(q)
       return matchesFilter && matchesSearch
     })
-  }, [hymns, filter, search])
+  }, [hymns, filter, search, maxLevel])
 
   // Group by level
   const byLevel = useMemo(() => {

@@ -76,7 +76,7 @@ export class StudentPortalController {
   private async resolveStudent(code: string) {
     const student = await (this.studentsService as any).prisma?.student?.findFirst({
       where: { portalAccessKey: code, deletedAt: null },
-      select: { id: true, schoolId: true, firstName: true, lastName: true },
+      select: { id: true, schoolId: true, firstName: true, lastName: true, level: { select: { number: true } } },
     });
     if (!student) throw new Error('Student not found');
     return student;
@@ -90,10 +90,10 @@ export class StudentPortalController {
   }
 
   @Get(':code/hymn-map')
-  @ApiOperation({ summary: 'Student hymn progress map' })
+  @ApiOperation({ summary: 'Student hymn progress map — own level plus lower levels only' })
   async getHymnMap(@Param('code') code: string) {
     const student = await this.resolveStudent(code);
-    return this.hymnLearning.getStudentHymnMap(student.id, student.schoolId);
+    return this.hymnLearning.getStudentHymnMap(student.id, student.schoolId, student.level?.number ?? undefined);
   }
 
   @Get(':code/this-sunday')

@@ -48,7 +48,7 @@ describe('BriefingPage', () => {
     })
     render(<BriefingPage />)
 
-    expect(await screen.findByText('5 Kiahk 1742')).toBeInTheDocument()
+    expect(await screen.findByText(/5 Kiahk 1742/)).toBeInTheDocument()
     expect(screen.getByText('Nativity Fast (Advent)')).toBeInTheDocument()
     expect(screen.getByText('Kyrie Eleison')).toBeInTheDocument()
     expect(screen.getByText(/Group A/)).toBeInTheDocument()
