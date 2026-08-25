@@ -4,7 +4,7 @@ import { LevelsTab } from './levels-tab'
 import type { Level, Subject, Lesson } from './types'
 
 vi.mock('lucide-react', () => {
-  const names = ['Music2', 'Cross', 'Church', 'BookOpen', 'Star', 'Clock', 'Search', 'Music', 'Plus', 'Upload', 'FileText', 'FileSpreadsheet', 'Pencil', 'Trash2', 'Loader2', 'Presentation', 'GraduationCap', 'Calendar', 'X']
+  const names = ['Music2', 'Cross', 'Church', 'BookOpen', 'Star', 'Clock', 'Search', 'Music', 'Plus', 'Upload', 'FileText', 'FileSpreadsheet', 'Pencil', 'Trash2', 'Loader2', 'Presentation', 'GraduationCap', 'Calendar', 'X', 'ChevronDown', 'ChevronRight']
   const icons: Record<string, any> = {}
   for (const n of names) icons[n] = (props: any) => <span data-testid={`icon-${n}`} {...props} />
   return icons

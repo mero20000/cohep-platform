@@ -1,12 +1,12 @@
 'use client'
 
 import { useState, useMemo, useEffect } from 'react'
-import { Play, BookOpen, Languages, CheckCircle2, Circle, Clock, CalendarCheck, BarChart3, Filter, Eye, EyeOff } from 'lucide-react'
+import { Play, BookOpen, Languages, CheckCircle2, Circle, Clock, CalendarCheck, BarChart3, Filter, Eye, EyeOff, ChevronDown, ChevronRight } from 'lucide-react'
 import { useLanguage } from '@/lib/use-language'
 import { useToast } from '@/components/ui/toast'
 import { EmptyState } from '@/components/ui/empty-state'
 import { PresentationViewer } from './presentation-viewer'
-import { API, normalizeItemStatus } from './constants'
+import { API, normalizeItemStatus, getSubjectStyle } from './constants'
 import { useUpdateItemStatusMutation } from './hooks'
 import type { SubjectItem, ItemStatus, Allocation, Lesson } from './types'
 
@@ -86,6 +86,7 @@ export function TeachingView({ items, subjects, levels, lessons = [], allocation
   const [presentItem, setPresentItem] = useState<SubjectItem | null>(null)
   const [hideCompleted, setHideCompleted] = useState(false)
   const [statusFilter, setStatusFilter] = useState<'all' | ItemStatus>('all')
+  const [expandedSubjects, setExpandedSubjects] = useState<Set<string>>(new Set())
   const myLevel = useMyLevel(levels)
   const { toast } = useToast()
   const updateStatus = useUpdateItemStatusMutation()
@@ -112,12 +113,14 @@ export function TeachingView({ items, subjects, levels, lessons = [], allocation
 
   const visibleItems = useMemo(() => {
     let filtered = items.filter(i => i.active !== false)
+    // Only show items that have an allocation for the selected group
+    filtered = filtered.filter(i => allocatedItemIds.has(i.id))
     if (hideCompleted) filtered = filtered.filter(i => i.status !== 'completed')
     if (statusFilter !== 'all') {
       if (statusFilter === 'allocated') {
-        filtered = filtered.filter(i => allocatedItemIds.has(i.id))
+        // Already filtered to allocated above
       } else if (statusFilter === 'pending') {
-        filtered = filtered.filter(i => !allocatedItemIds.has(i.id) && i.status !== 'in_progress' && i.status !== 'completed')
+        filtered = filtered.filter(i => i.status !== 'in_progress' && i.status !== 'completed')
       } else {
         filtered = filtered.filter(i => i.status === statusFilter)
       }
@@ -166,6 +169,15 @@ export function TeachingView({ items, subjects, levels, lessons = [], allocation
   const handleToggleStatus = (item: SubjectItem) => {
     const next = nextStatus(item.status)
     updateStatus.mutate({ id: item.id, status: next })
+  }
+
+  const toggleSubjectCollapse = (subjectId: string) => {
+    setExpandedSubjects(prev => {
+      const next = new Set(prev)
+      if (next.has(subjectId)) next.delete(subjectId)
+      else next.add(subjectId)
+      return next
+    })
   }
 
   if (presentItem) {
@@ -247,85 +259,100 @@ export function TeachingView({ items, subjects, levels, lessons = [], allocation
         </button>
       </div>
 
-      {/* ─── Items Grid ─── */}
+      {/* ─── Items Grid — collapsible by subject ─── */}
       {Object.entries(filteredSubjects).map(([subjectId, subjectItems]) => {
         const meta = subjectMeta.get(subjectId)
+        const isCollapsed = !expandedSubjects.has(subjectId)
+        const completedCount = subjectItems.filter(i => i.status === 'completed').length
+        const progressPct = subjectItems.length > 0 ? Math.round((completedCount / subjectItems.length) * 100) : 0
         return (
-          <div key={subjectId}>
-            <div className="flex items-center gap-2 mb-3">
-              <div className="w-1 h-6 rounded-full" style={{ background: meta?.color || '#D4AF37' }} />
-              <h2 className="text-lg font-semibold text-gray-800">{lang === 'ar' ? (meta?.nameAr || meta?.name || 'Subject') : (meta?.name || 'Subject')}</h2>
-              <span className="text-xs text-gray-500 ms-auto">{subjectItems.length} {lang === 'ar' ? 'عناصر' : 'items'}</span>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-              {subjectItems.map(item => {
-                const sm = STATUS_META[normalizeItemStatus(item.status)]
-                const StatIcon = sm.icon
-                const sessions = selectedGroup === 1 ? item.sessionsGroup1 : selectedGroup === 2 ? item.sessionsGroup2 : selectedGroup === 3 ? item.sessionsGroup3 : item.sessionsGroup4
-                const isCompleted = item.status === 'completed'
-                return (
-                  <div key={item.id}
-                    className={`rounded-xl border p-4 transition-all hover:shadow-md ${sm.bg} ${sm.border} ${isCompleted ? 'opacity-75' : ''}`}>
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2">
-                          <select value={normalizeItemStatus(item.status)} onChange={e => {
-                            const newStatus = e.target.value
-                            updateStatus.mutate({ id: item.id, status: newStatus }, {
-                              onError: () => toast('error', lang === 'ar' ? 'فشل تحديث الحالة' : 'Failed to update status'),
-                              onSuccess: () => toast('success', lang === 'ar' ? 'تم تحديث الحالة' : 'Status updated'),
-                            })
-                          }}
-                            onClick={e => e.stopPropagation()}
-                            aria-label={lang === 'ar' ? 'حالة العنصر' : 'Item status'}
-                            className={`text-[11px] font-medium rounded-md border px-1.5 py-0.5 ${sm.bg} ${sm.color} ${sm.border} focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer`}>
-                            {STATUS_ORDER.map(s => {
-                              const m = STATUS_META[s]
-                              return <option key={s} value={s}>{lang === 'ar' ? m.labelAr : m.label}</option>
-                            })}
-                          </select>
-                          {allocatedItemIds.has(item.id) ? (
-                            <span className="inline-flex items-center gap-0.5 text-[11px] font-medium text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded-md border border-blue-200">{lang === 'ar' ? 'مخصص' : 'Alloc'} G{selectedGroup} ✓</span>
-                          ) : (
-                            <span className="inline-flex items-center gap-0.5 text-[11px] font-medium text-gray-500 bg-gray-50 px-1.5 py-0.5 rounded-md border border-gray-200">{lang === 'ar' ? 'غير مخصص' : 'No alloc'} G{selectedGroup}</span>
-                          )}
-                          <p className={`font-medium truncate coptic-text ${isCompleted ? 'line-through text-gray-400' : 'text-gray-900'}`}>{item.name}</p>
-                        </div>
-                        {item.whenLabel && (
-                          <span className={`inline-block mt-1.5 px-2 py-0.5 rounded text-[11px] font-medium ${(WHEN_COLORS[item.whenLabel] || { bg: 'bg-amber-50', text: 'text-amber-700' }).bg} ${(WHEN_COLORS[item.whenLabel] || { bg: 'bg-amber-50', text: 'text-amber-700' }).text}`}>{item.whenLabel}</span>
-                        )}
-                      </div>
-                      {(item.presentationData || item.presentationUrl || item.hazzat) && (
-                        <button onClick={() => setPresentItem(item)}
-                          className="flex-shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium text-gray-950 transition-colors bg-gradient-to-r from-gold-500 to-gold-600 hover:from-gold-400 hover:to-gold-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-600 focus-visible:ring-offset-2">
-                          <Play className="h-3 w-3" />
-                          {lang === 'ar' ? 'عرض' : 'Present'}
-                        </button>
-                      )}
-                    </div>
-                    {item.descriptionAr && (
-                      <p className={`mt-2 text-xs line-clamp-2 rtl ${isCompleted ? 'text-gray-400' : 'text-gray-500'}`}>{item.descriptionAr}</p>
-                    )}
-                      <div className="flex items-center gap-2 mt-2 text-[11px] text-gray-500">
-                        {sessions ? <span className="bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded">{sessions} {lang === 'ar' ? 'جلسات' : 'sessions'}</span> : null}
-                        {item.levels?.map(l => (
-                          <span key={l.levelNumber} className="bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded">L{l.levelNumber}</span>
-                        ))}
-                        {item._count?.lessons ? <span>{item._count.lessons} {lang === 'ar' ? 'درس' : 'lessons'}</span> : null}
-                        {item.educationLanguages?.length ? (
-                          <span className="flex items-center gap-1"><Languages className="h-2.5 w-2.5" />{item.educationLanguages.join(', ')}</span>
-                        ) : null}
-                      </div>
+          <div key={subjectId} className={`rounded-2xl border overflow-hidden transition-all ${isCollapsed ? 'border-gray-200 bg-white' : 'border-gray-200 bg-white shadow-sm'}`}>
+            {/* Subject header — clickable to collapse */}
+            <button onClick={() => toggleSubjectCollapse(subjectId)}
+              className="w-full flex items-center gap-3 px-5 py-4 text-left hover:bg-gray-50/50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl" style={{ background: meta?.color ? `${meta.color}15` : '#f3f4f6' }}>
+                {(() => { const ss = getSubjectStyle(meta?.name || ''); return <ss.icon className="h-5 w-5" style={{ color: meta?.color || '#6b7280' }} />; })()}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <h3 className="text-sm font-bold text-gray-900">{lang === 'ar' ? (meta?.nameAr || meta?.name || 'Subject') : (meta?.name || 'Subject')}</h3>
+                  <span className="text-[11px] text-gray-400">{subjectItems.length} {lang === 'ar' ? 'عناصر' : 'items'}</span>
+                </div>
+                {/* Mini progress bar */}
+                <div className="flex items-center gap-2 mt-1.5">
+                  <div className="flex-1 h-1.5 rounded-full bg-gray-100 overflow-hidden">
+                    <div className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-emerald-500 transition-all" style={{ width: `${progressPct}%` }} />
                   </div>
-                )
-              })}
-            </div>
+                  <span className="text-[10px] font-medium text-gray-500 tabular-nums">{completedCount}/{subjectItems.length}</span>
+                </div>
+              </div>
+              <div className="shrink-0 text-gray-400">
+                {isCollapsed ? <ChevronRight className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
+              </div>
+            </button>
+            {/* Collapsible body */}
+            {!isCollapsed && (
+              <div className="border-t border-gray-100 px-5 py-3 space-y-2">
+                {subjectItems.map(item => {
+                  const sm = STATUS_META[normalizeItemStatus(item.status)]
+                  const sessions = selectedGroup === 1 ? item.sessionsGroup1 : selectedGroup === 2 ? item.sessionsGroup2 : selectedGroup === 3 ? item.sessionsGroup3 : item.sessionsGroup4
+                  const isCompleted = item.status === 'completed'
+                  return (
+                    <div key={item.id}
+                      className={`rounded-xl border p-3.5 transition-all hover:shadow-sm ${sm.bg} ${sm.border} ${isCompleted ? 'opacity-75' : ''}`}>
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2">
+                            <select value={normalizeItemStatus(item.status)} onChange={e => {
+                              updateStatus.mutate({ id: item.id, status: e.target.value }, {
+                                onError: () => toast('error', lang === 'ar' ? 'فشل تحديث الحالة' : 'Failed to update status'),
+                                onSuccess: () => toast('success', lang === 'ar' ? 'تم تحديث الحالة' : 'Status updated'),
+                              })
+                            }}
+                              onClick={e => e.stopPropagation()}
+                              aria-label={lang === 'ar' ? 'حالة العنصر' : 'Item status'}
+                              className={`text-[11px] font-medium rounded-md border px-1.5 py-0.5 ${sm.bg} ${sm.color} ${sm.border} focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer`}>
+                              {STATUS_ORDER.map(st => {
+                                const m = STATUS_META[st]
+                                return <option key={st} value={st}>{lang === 'ar' ? m.labelAr : m.label}</option>
+                              })}
+                            </select>
+                            <p className={`font-medium truncate coptic-text ${isCompleted ? 'line-through text-gray-400' : 'text-gray-900'}`}>{item.name}</p>
+                            <span className="inline-flex items-center gap-0.5 text-[11px] font-medium text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded-md border border-blue-200">{lang === 'ar' ? 'مخصص' : 'Alloc'} G{selectedGroup} ✓</span>
+                          </div>
+                          {item.whenLabel && (
+                            <span className={`inline-block mt-1.5 px-2 py-0.5 rounded text-[11px] font-medium ${(WHEN_COLORS[item.whenLabel] || { bg: 'bg-amber-50', text: 'text-amber-700' }).bg} ${(WHEN_COLORS[item.whenLabel] || { bg: 'bg-amber-50', text: 'text-amber-700' }).text}`}>{item.whenLabel}</span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          {sessions ? <span className="text-[11px] text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded">{sessions} {lang === 'ar' ? 'جلسات' : 's'}</span> : null}
+                          {(item.presentationData || item.presentationUrl || item.hazzat) && (
+                            <button onClick={() => setPresentItem(item)}
+                              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium text-gray-950 transition-colors bg-gradient-to-r from-gold-500 to-gold-600 hover:from-gold-400 hover:to-gold-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-600 focus-visible:ring-offset-2">
+                              <Play className="h-3 w-3" />{lang === 'ar' ? 'عرض' : 'Present'}
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
           </div>
         )
       })}
 
       {Object.keys(filteredSubjects).length === 0 && (
-        <EmptyState title={lang === 'ar' ? 'لا توجد عناصر لهذا المستوى' : 'No items found for this level'} />
+        <div className="rounded-2xl border-2 border-dashed border-gray-200 bg-gray-50/50 p-10 text-center">
+          <BookOpen className="h-10 w-10 mx-auto text-gray-300 mb-3" />
+          <p className="text-sm font-medium text-gray-700">
+            {lang === 'ar' ? 'لا توجد عناصر مخصصة لهذه المجموعة' : 'No allocated items for this group'}
+          </p>
+          <p className="text-xs text-gray-400 mt-1">
+            {lang === 'ar' ? 'قم بتخصيص دروس في تبويب "توزيع السنة والفصل" أولاً' : 'Allocate lessons in the "Year & Term Allocation" tab first'}
+          </p>
+        </div>
       )}
     </div>
   )

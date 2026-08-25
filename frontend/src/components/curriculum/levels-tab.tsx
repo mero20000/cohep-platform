@@ -4,7 +4,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import {
   BookOpen, Clock, Search, Music, Plus, Upload, FileText, FileSpreadsheet,
-  Pencil, Trash2, Loader2, Presentation,
+  Pencil, Trash2, Loader2, Presentation, ChevronDown, ChevronRight,
 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Modal } from '@/components/ui/modal'
@@ -52,6 +52,7 @@ export function LevelsTab({
   const [deleteSubjectTarget, setDeleteSubjectTarget] = useState<Subject | null>(null)
   const [deleteLessonTarget, setDeleteLessonTarget] = useState<Lesson | null>(null)
   const [presentingLesson, setPresentingLesson] = useState<Lesson | null>(null)
+  const [collapsedSubjects, setCollapsedSubjects] = useState<Set<string>>(new Set())
 
 
   const sortedLevels = [...levels].sort((a, b) => a.number - b.number)
@@ -138,23 +139,46 @@ export function LevelsTab({
       </div>
 
       {selectedLevelId ? (
-        <div className="grid gap-4 md:grid-cols-3">
-          {subjects.map((subject, si) => {
+        <div className="space-y-3">
+          {subjects.map((subject) => {
             const style = getSubjectStyle(subject.name)
             const Icon = style.icon
             const subjectLessons = lessonsBySubject[subject.name]
             if (!subjectLessons?.length) return null
+            const isCollapsed = collapsedSubjects.has(subject.name)
+            const completedCount = subjectLessons.filter(l => l.status === 'published').length
             return (
-              <div key={subject.id} className={`rounded-xl border ${style.border} overflow-hidden animate-fade-in-up`}>
-                <div className={`flex items-center gap-2 px-4 py-3 ${style.bg} border-b ${style.border}`}>
-                  <Icon className={`h-4 w-4 ${style.text}`} />
-                  <span className={`text-sm font-semibold ${style.text}`}>{subject.name}</span>
-                  <span className={`text-xs ms-auto ${style.text} opacity-60`}>{subjectLessons.length}</span>
-                </div>
-                <div className="divide-y divide-gray-100">
-                  {subjectLessons.sort((a, b) => a.orderIndex - b.orderIndex).map((lesson, idx) => (
-                    <div key={lesson.id} className={`px-4 py-2.5 flex items-center gap-3 ${style.hover} group`}>
-                      <span className="text-xs text-gray-400 font-mono w-5">{idx + 1}</span>
+              <div key={subject.id} className={`rounded-2xl border overflow-hidden transition-all ${isCollapsed ? 'border-gray-200 bg-white' : 'border-gray-200 bg-white shadow-sm'}`}>
+                {/* Subject header — clickable to collapse */}
+                <button onClick={() => {
+                  setCollapsedSubjects(prev => {
+                    const next = new Set(prev)
+                    if (next.has(subject.name)) next.delete(subject.name)
+                    else next.add(subject.name)
+                    return next
+                  })
+                }}
+                  className={`w-full flex items-center gap-3 px-5 py-4 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500 ${isCollapsed ? 'hover:bg-gray-50/50' : style.hover}`}>
+                  <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${style.bg}`}>
+                    <Icon className={`h-5 w-5 ${style.text}`} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <h3 className={`text-sm font-bold ${style.text}`}>{subject.name}</h3>
+                      {subject.nameAr && <span className="text-xs text-gray-400" dir="rtl">{subject.nameAr}</span>}
+                      <span className="text-[11px] text-gray-400 ms-auto">{subjectLessons.length} {lang === 'ar' ? 'تسبيحة' : 'hymns'}</span>
+                    </div>
+                  </div>
+                  <div className="shrink-0 text-gray-400">
+                    {isCollapsed ? <ChevronRight className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
+                  </div>
+                </button>
+                {/* Collapsible body */}
+                {!isCollapsed && (
+                  <div className="border-t border-gray-100 divide-y divide-gray-50">
+                    {subjectLessons.sort((a, b) => a.orderIndex - b.orderIndex).map((lesson, idx) => (
+                      <div key={lesson.id} className={`px-5 py-3 flex items-center gap-3 ${style.hover} group`}>
+                        <span className="text-xs text-gray-400 font-mono w-5">{idx + 1}</span>
                         <div className="flex-1 min-w-0">
                           <Link href={`/dashboard/curriculum/lesson/${lesson.id}`}
                             className="flex items-center gap-2 flex-wrap hover:opacity-80 transition-opacity">
@@ -162,45 +186,50 @@ export function LevelsTab({
                             {lesson.titleAr && <span className="text-gray-600 text-sm arabic-text" dir="rtl">{lesson.titleAr}</span>}
                             <span className="text-gray-500 text-xs">{lesson.title}</span>
                           </Link>
-                        <div className="flex items-center gap-2 mt-0.5">
-                          <span className="flex items-center gap-0.5 text-[11px] text-gray-500"><Clock className="h-2.5 w-2.5" />{lesson.estimatedDurationMinutes || '-'}m</span>
-                          <span className="text-[11px] text-gray-500">{lesson.sessionsCount} {lang === 'ar' ? (lesson.sessionsCount === 1 ? 'جلسة' : 'جلسات') : lesson.sessionsCount > 1 ? 'sessions' : 'session'}</span>
-                          <Badge variant={STATUS_BADGE[lesson.status] || 'default'} size="sm">{lesson.status}</Badge>
+                          <div className="flex items-center gap-2 mt-0.5">
+                            <span className="flex items-center gap-0.5 text-[11px] text-gray-500"><Clock className="h-2.5 w-2.5" />{lesson.estimatedDurationMinutes || '-'}m</span>
+                            <span className="text-[11px] text-gray-500">{lesson.sessionsCount} {lang === 'ar' ? (lesson.sessionsCount === 1 ? 'جلسة' : 'جلسات') : lesson.sessionsCount > 1 ? 'sessions' : 'session'}</span>
+                            <Badge variant={STATUS_BADGE[lesson.status] || 'default'} size="sm">{lesson.status}</Badge>
+                            {lesson.presentationData && (
+                              <span className="flex items-center gap-0.5 text-[10px] text-purple-500" title={lang === 'ar' ? 'يوجد عرض' : 'Has presentation'}>
+                                <Presentation className="h-2.5 w-2.5" />
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
                           {lesson.presentationData && (
-                            <span className="flex items-center gap-0.5 text-[10px] text-purple-500" title={lang === 'ar' ? 'يوجد عرض' : 'Has presentation'}>
-                              <Presentation className="h-2.5 w-2.5" />
-                            </span>
+                            <button onClick={() => setPresentingLesson(lesson)}
+                              aria-label={lang === 'ar' ? `عرض ${lesson.titleCoptic || lesson.title}` : `Present ${lesson.titleCoptic || lesson.title}`}
+                              className="p-2 rounded hover:bg-gray-200 text-gray-400 hover:text-purple-600 min-h-[44px] min-w-[44px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500" title={lang === 'ar' ? 'عرض التسبيحة' : 'Present Hymn'}>
+                              <Presentation className="h-3.5 w-3.5" />
+                            </button>
                           )}
+                          <button onClick={() => setEditLesson(lesson)} aria-label={lang === 'ar' ? 'تعديل' : 'Edit'}
+                            className="p-2 rounded hover:bg-gray-200 text-gray-400 hover:text-blue-700 min-h-[44px] min-w-[44px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500" title={lang === 'ar' ? 'تعديل' : 'Edit'}><Pencil className="h-3.5 w-3.5" /></button>
+                          <button onClick={() => setDeleteLessonTarget(lesson)} aria-label={lang === 'ar' ? 'حذف' : 'Delete'}
+                            className="p-2 rounded hover:bg-red-100 text-gray-400 hover:text-red-500 min-h-[44px] min-w-[44px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400" title={lang === 'ar' ? 'حذف' : 'Delete'}><Trash2 className="h-3.5 w-3.5" /></button>
                         </div>
                       </div>
-                      <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                        {lesson.presentationData && (
-                          <button onClick={() => setPresentingLesson(lesson)}
-                            aria-label={lang === 'ar' ? `عرض ${lesson.titleCoptic || lesson.title}` : `Present ${lesson.titleCoptic || lesson.title}`}
-                            className="p-2 rounded hover:bg-gray-200 text-gray-400 hover:text-purple-600 min-h-[44px] min-w-[44px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500" title={lang === 'ar' ? 'عرض التسبيحة' : 'Present Hymn'}>
-                            <Presentation className="h-3.5 w-3.5" />
-                          </button>
-                        )}
-                        <button onClick={() => setEditLesson(lesson)} aria-label={lang === 'ar' ? 'تعديل' : 'Edit'}
-                          className="p-2 rounded hover:bg-gray-200 text-gray-400 hover:text-blue-700 min-h-[44px] min-w-[44px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500" title={lang === 'ar' ? 'تعديل' : 'Edit'}><Pencil className="h-3.5 w-3.5" /></button>
-                        <button onClick={() => setDeleteLessonTarget(lesson)} aria-label={lang === 'ar' ? 'حذف' : 'Delete'}
-                          className="p-2 rounded hover:bg-red-100 text-gray-400 hover:text-red-500 min-h-[44px] min-w-[44px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400" title={lang === 'ar' ? 'حذف' : 'Delete'}><Trash2 className="h-3.5 w-3.5" /></button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                )}
               </div>
             )
           })}
           {Object.keys(lessonsBySubject).length === 0 && (
-            <div className="col-span-3 text-center py-12 text-gray-500"><Music className="h-10 w-10 mx-auto mb-2 opacity-50" /><p className="text-sm">{lang === 'ar' ? 'لا توجد تسبائح لهذا المستوى' : 'No hymns found for this level'}</p></div>
+            <div className="rounded-2xl border-2 border-dashed border-gray-200 bg-gray-50/50 p-10 text-center">
+              <Music className="h-10 w-10 mx-auto text-gray-300 mb-3" />
+              <p className="text-sm font-medium text-gray-700">{lang === 'ar' ? 'لا توجد تسبائح لهذا المستوى' : 'No hymns found for this level'}</p>
+              <p className="text-xs text-gray-400 mt-1">{lang === 'ar' ? 'أضف تسبائح باستخدام زر "إضافة تسبيحة"' : 'Add hymns using the "Add Hymn" button above'}</p>
+            </div>
           )}
         </div>
       ) : (
-        <div className="text-center py-16 text-gray-500">
-          <BookOpen className="h-12 w-12 mx-auto mb-3 opacity-40" />
-          <p className="text-lg font-medium text-gray-500">{lang === 'ar' ? 'اختر مستوى لعرض المنهج' : 'Select a level to view curriculum'}</p>
-          <p className="text-sm mt-1">{lang === 'ar' ? 'اختر علامة تبويب مستوى أعلاه لرؤية التسبائح المصنفة حسب الموضوع' : 'Choose a level tab above to see subject-grouped hymns'}</p>
+        <div className="rounded-2xl border-2 border-dashed border-gray-200 bg-gray-50/50 p-16 text-center">
+          <BookOpen className="h-12 w-12 mx-auto text-gray-300 mb-3" />
+          <p className="text-lg font-medium text-gray-700">{lang === 'ar' ? 'اختر مستوى لعرض المنهج' : 'Select a level to view curriculum'}</p>
+          <p className="text-sm text-gray-400 mt-1">{lang === 'ar' ? 'اختر علامة تبويب مستوى أعلاه لرؤية التسبائح المصنفة حسب الموضوع' : 'Choose a level tab above to see subject-grouped hymns'}</p>
         </div>
       )}
 

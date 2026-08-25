@@ -837,86 +837,230 @@ export default function StudentDashboard() {
               const pending = assessments.filter(a => a.submissionStatus !== 'completed' && !(a.dueDate && new Date(a.dueDate) < new Date()))
               const overdue = assessments.filter(a => a.submissionStatus !== 'completed' && a.dueDate && new Date(a.dueDate) < new Date())
               const done = assessments.filter(a => a.submissionStatus === 'completed')
-              const tiles = [
-                { label: lang === 'ar' ? 'قيد الانتظار' : 'Pending', count: pending.length, cls: 'bg-blue-50 text-blue-700 border-blue-200' },
-                { label: lang === 'ar' ? 'متأخرة' : 'Overdue', count: overdue.length, cls: 'bg-red-50 text-red-700 border-red-200' },
-                { label: lang === 'ar' ? 'مكتملة' : 'Done', count: done.length, cls: 'bg-green-50 text-green-700 border-green-200' },
-              ]
+              const total = assessments.length
+              const pct = total > 0 ? Math.round((done.length / total) * 100) : 0
+              const subjectStyle = (name: string) => {
+                const n = (name || '').toLowerCase()
+                if (n.includes('hymn')) return { accent: 'border-l-amber-400', bg: 'bg-amber-50', chip: 'bg-amber-100 text-amber-700' }
+                if (n.includes('rite')) return { accent: 'border-l-purple-400', bg: 'bg-purple-50', chip: 'bg-purple-100 text-purple-700' }
+                if (n.includes('language') || n.includes('coptic')) return { accent: 'border-l-sky-400', bg: 'bg-sky-50', chip: 'bg-sky-100 text-sky-700' }
+                if (n.includes('bible') || n.includes('study')) return { accent: 'border-l-emerald-400', bg: 'bg-emerald-50', chip: 'bg-emerald-100 text-emerald-700' }
+                return { accent: 'border-l-indigo-400', bg: 'bg-indigo-50', chip: 'bg-indigo-100 text-indigo-700' }
+              }
+              const daysLeft = (d: string) => {
+                const diff = Math.ceil((new Date(d).getTime() - Date.now()) / 86400000)
+                return diff
+              }
+
               return (
                 <>
-                  {/* Status summary — aria-live so completion updates are announced */}
-                  <div className="grid grid-cols-3 gap-2" aria-live="polite">
-                    {tiles.map(tile => (
-                      <div key={tile.label} className={`rounded-xl border p-3 text-center ${tile.cls}`}>
-                        <div className="text-xl font-bold tabular-nums">{tile.count}</div>
-                        <div className="text-[11px] font-medium">{tile.label}</div>
+                  {/* ── Hero progress ── */}
+                  {total > 0 && (
+                    <div className="rounded-2xl border border-gray-200 bg-white p-5 mb-4">
+                      <div className="flex items-center gap-5">
+                        {/* Ring */}
+                        <div className="relative shrink-0">
+                          <svg className="h-20 w-20 -rotate-90" viewBox="0 0 80 80">
+                            <circle cx="40" cy="40" r="34" fill="none" stroke="#f3f4f6" strokeWidth="7" />
+                            <circle cx="40" cy="40" r="34" fill="none" stroke={pct === 100 ? '#22c55e' : '#6366f1'} strokeWidth="7"
+                              strokeLinecap="round" strokeDasharray={`${2 * Math.PI * 34}`}
+                              strokeDashoffset={`${2 * Math.PI * 34 * (1 - pct / 100)}`}
+                              className="transition-all duration-700" />
+                          </svg>
+                          <span className="absolute inset-0 flex items-center justify-center text-lg font-bold text-gray-900 tabular-nums">{pct}%</span>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h2 className="text-base font-bold text-gray-900">
+                            {pct === 100
+                              ? (lang === 'ar' ? '🌟 أحسنت! أكملت كل التقييمات' : '🌟 Amazing! All assessments completed')
+                              : pct >= 50
+                                ? (lang === 'ar' ? '💪 نصف الطريق! واصل التقدم' : '💪 Halfway there! Keep going')
+                                : (lang === 'ar' ? '📋 تقييماتك المكلفة' : '📋 Your assigned assessments')}
+                          </h2>
+                          <p className="text-xs text-gray-500 mt-1">
+                            {done.length}/{total} {lang === 'ar' ? 'مكتملة' : 'completed'}
+                            {overdue.length > 0 && <span className="text-red-600 font-medium"> · {overdue.length} {lang === 'ar' ? 'متأخرة' : 'overdue'}</span>}
+                          </p>
+                          {/* Progress bar */}
+                          <div className="mt-2.5 h-2 rounded-full bg-gray-100 overflow-hidden">
+                            <div className="h-full rounded-full transition-all duration-700"
+                              style={{ width: `${pct}%`, background: pct === 100 ? '#22c55e' : 'linear-gradient(90deg, #6366f1, #a78bfa)' }} />
+                          </div>
+                        </div>
                       </div>
-                    ))}
-                  </div>
+                    </div>
+                  )}
+
+                  {/* ── Status tiles ── */}
+                  {total > 0 && (
+                    <div className="grid grid-cols-3 gap-2 mb-4" aria-live="polite">
+                      {[
+                        { label: lang === 'ar' ? '⏳ قيد الانتظار' : '⏳ Pending', count: pending.length, cls: 'bg-blue-50 text-blue-700 border-blue-200' },
+                        { label: lang === 'ar' ? '🚨 متأخرة' : '🚨 Overdue', count: overdue.length, cls: 'bg-red-50 text-red-700 border-red-200' },
+                        { label: lang === 'ar' ? '✅ مكتملة' : '✅ Done', count: done.length, cls: 'bg-green-50 text-green-700 border-green-200' },
+                      ].map(tile => (
+                        <div key={tile.label} className={`rounded-xl border p-3 text-center ${tile.cls}`}>
+                          <div className="text-xl font-bold tabular-nums">{tile.count}</div>
+                          <div className="text-[11px] font-medium">{tile.label}</div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
                   {assessments.length === 0 ? (
-                    <div className="rounded-xl border border-gray-200 bg-white p-8 text-center mt-4">
-                      <ClipboardCheck className="h-8 w-8 mx-auto text-gray-300 mb-2" />
-                      <p className="text-sm text-gray-500">
-                        {lang === 'ar' ? 'لا توجد تقييمات مكلفة حالياً. ستظهر هنا عند تكليفها.' : 'No assigned assessments right now. They appear here when your servant assigns one.'}
+                    /* ── Empty state — encouraging ── */
+                    <div className="rounded-2xl border-2 border-dashed border-indigo-200 bg-indigo-50/50 p-10 text-center mt-4">
+                      <div className="flex justify-center mb-3">
+                        <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-white border border-indigo-100 shadow-sm">
+                          <ClipboardCheck className="h-8 w-8 text-indigo-400" />
+                        </div>
+                      </div>
+                      <p className="text-base font-semibold text-gray-900">
+                        {lang === 'ar' ? 'لا توجد تقييمات بعد' : 'No assessments yet'}
+                      </p>
+                      <p className="text-sm text-gray-500 mt-1.5 max-w-xs mx-auto leading-relaxed">
+                        {lang === 'ar'
+                          ? 'خادمك سيكلّفك بتقييمات لقياس تقدّمك في التسبائح. استمر في التدريب!'
+                          : "Your servant will assign assessments to track your hymn progress. Keep practicing — you're doing great!"}
                       </p>
                     </div>
                   ) : (
-                    <section className="mt-4">
-                      <h2 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
-                        <ClipboardCheck className="h-4 w-4 text-indigo-500" />
-                        {lang === 'ar' ? `التقييمات المكلفة (${assessments.length})` : `Assigned Assessments (${assessments.length})`}
-                      </h2>
-                      <div className="space-y-2">
-                        {[...overdue, ...pending, ...done].map(a => {
-                          const isCompleted = a.submissionStatus === 'completed'
-                          const isOverdue = overdue.includes(a)
-                          const cardClasses = `rounded-xl border px-4 py-3 ${
-                            isCompleted ? 'bg-green-50 border-green-200' : isOverdue ? 'bg-red-50 border-red-200' : 'bg-white border-gray-200'
-                          }`
-                          const cardInner = (
-                            <div className="flex items-start justify-between gap-3">
-                              <div className="min-w-0 flex-1">
-                                <div className="text-sm font-medium text-gray-900 truncate">
-                                  {a.titleAr || a.title}
-                                </div>
-                                <div className="flex flex-wrap items-center gap-2 mt-1">
-                                  <span className="text-xs px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 font-medium">
-                                    {a.type}
-                                  </span>
-                                  <span className="text-xs text-gray-500">{a.subject.nameAr || a.subject.name}</span>
-                                  <span className="text-xs text-gray-400">&middot;</span>
-                                  <span className="text-xs text-gray-500">{a.totalPoints} pts</span>
-                                </div>
-                                {a.dueDate && (
-                                  <div className={`text-xs mt-1 ${isOverdue ? 'text-red-600 font-medium' : 'text-gray-500'}`}>
-                                    Due: {new Date(a.dueDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                    /* ── Assessment cards ── */
+                    <section>
+                      {/* Overdue — urgent section */}
+                      {overdue.length > 0 && (
+                        <div className="mb-5">
+                          <h3 className="text-xs font-bold uppercase tracking-wide text-red-500 mb-2 flex items-center gap-1.5">
+                            <AlertCircle className="h-3.5 w-3.5" />
+                            {lang === 'ar' ? 'متأخرة — ت需要 اهتمام فوري' : 'Overdue — needs your attention'}
+                          </h3>
+                          <div className="space-y-2.5">
+                            {overdue.map(a => {
+                              const ss = subjectStyle(a.subject.name)
+                              const days = a.dueDate ? Math.abs(daysLeft(a.dueDate)) : 0
+                              return (
+                                <Link key={a.id} href={`/student-portal/${code}/assessment/${a.id}/take`}
+                                  className={`block rounded-2xl border border-red-200 bg-white border-l-4 border-l-red-400 p-4 transition-all hover:shadow-md active:motion-safe:scale-[0.98]`}>
+                                  <div className="flex items-start gap-3">
+                                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-red-100">
+                                      <AlertCircle className="h-5 w-5 text-red-500" />
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                      <p className="text-sm font-bold text-gray-900 truncate">{a.titleAr || a.title}</p>
+                                      <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
+                                        <span className={`text-[11px] px-2 py-0.5 rounded-full font-medium ${ss.chip}`}>{a.subject.nameAr || a.subject.name}</span>
+                                        <span className="text-[11px] text-gray-400">·</span>
+                                        <span className="text-[11px] text-gray-500">{a.totalPoints} pts</span>
+                                        <span className="text-[11px] text-gray-400">·</span>
+                                        <span className="text-[11px] font-medium text-red-600">{days} {lang === 'ar' ? 'أيام متأخرة' : 'days overdue'}</span>
+                                      </div>
+                                    </div>
+                                    <span className="shrink-0 inline-flex items-center gap-1 rounded-full bg-red-100 px-2.5 py-1 text-xs font-bold text-red-700">
+                                      {lang === 'ar' ? 'إكمال' : 'Complete →'}
+                                    </span>
                                   </div>
-                                )}
-                              </div>
-                              <div className="flex-shrink-0">
-                                {isCompleted ? (
-                                  <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2.5 py-1 text-xs font-medium text-green-700">
-                                    <CheckCircle2 className="h-3.5 w-3.5" /> Done
-                                  </span>
-                                ) : isOverdue ? (
-                                  <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2.5 py-1 text-xs font-medium text-red-700">
-                                    <AlertCircle className="h-3.5 w-3.5" /> Overdue
-                                  </span>
-                                ) : (
-                                  <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2.5 py-1 text-xs font-medium text-blue-700">
-                                    <Clock className="h-3.5 w-3.5" /> Pending
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                          )
-                          return isCompleted ? (
-                            <div key={a.id} className={cardClasses}>{cardInner}</div>
-                          ) : (
-                            <Link key={a.id} href={`/student-portal/${code}/assessment/${a.id}/take`} className={`block ${cardClasses}`}>{cardInner}</Link>
-                          )
-                        })}
-                      </div>
+                                </Link>
+                              )
+                            })}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Pending — sorted by urgency */}
+                      {pending.length > 0 && (
+                        <div className="mb-5">
+                          <h3 className="text-xs font-bold uppercase tracking-wide text-blue-500 mb-2 flex items-center gap-1.5">
+                            <Clock className="h-3.5 w-3.5" />
+                            {lang === 'ar' ? 'قيد الانتظار' : 'Upcoming'}
+                          </h3>
+                          <div className="space-y-2.5">
+                            {[...pending].sort((a, b) => {
+                              if (!a.dueDate) return 1
+                              if (!b.dueDate) return -1
+                              return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime()
+                            }).map(a => {
+                              const ss = subjectStyle(a.subject.name)
+                              const days = a.dueDate ? daysLeft(a.dueDate) : null
+                              const urgent = days !== null && days <= 3
+                              return (
+                                <Link key={a.id} href={`/student-portal/${code}/assessment/${a.id}/take`}
+                                  className={`block rounded-2xl border bg-white border-l-4 ${ss.accent} p-4 transition-all hover:shadow-md active:motion-safe:scale-[0.98]`}>
+                                  <div className="flex items-start gap-3">
+                                    <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${ss.bg}`}>
+                                      <BookOpen className={`h-5 w-5 ${ss.chip.split(' ')[1]}`} />
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                      <p className="text-sm font-bold text-gray-900 truncate">{a.titleAr || a.title}</p>
+                                      <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
+                                        <span className={`text-[11px] px-2 py-0.5 rounded-full font-medium ${ss.chip}`}>{a.subject.nameAr || a.subject.name}</span>
+                                        <span className="text-[11px] text-gray-400">·</span>
+                                        <span className="text-[11px] text-gray-500">{a.totalPoints} pts</span>
+                                        {a.dueDate && (
+                                          <>
+                                            <span className="text-[11px] text-gray-400">·</span>
+                                            <span className={`text-[11px] font-medium ${urgent ? 'text-amber-600' : 'text-gray-500'}`}>
+                                              {days !== null && days <= 0
+                                                ? (lang === 'ar' ? 'اليوم!' : 'Due today!')
+                                                : days !== null
+                                                  ? (lang === 'ar' ? `بعد ${days} يوم` : `in ${days} day${days === 1 ? '' : 's'}`)
+                                                  : null}
+                                            </span>
+                                          </>
+                                        )}
+                                      </div>
+                                      {a.dueDate && (
+                                        <div className="mt-2 h-1 rounded-full bg-gray-100 overflow-hidden">
+                                          <div className="h-full rounded-full bg-gradient-to-r from-blue-400 to-indigo-500 transition-all"
+                                            style={{ width: `${Math.max(5, 100 - (days !== null ? days * 10 : 50))}%` }} />
+                                        </div>
+                                      )}
+                                    </div>
+                                    <span className="shrink-0 inline-flex items-center gap-1 rounded-full bg-indigo-100 px-2.5 py-1 text-xs font-bold text-indigo-700">
+                                      {lang === 'ar' ? 'ابدأ' : 'Start →'}
+                                    </span>
+                                  </div>
+                                </Link>
+                              )
+                            })}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Completed — celebrated */}
+                      {done.length > 0 && (
+                        <div>
+                          <h3 className="text-xs font-bold uppercase tracking-wide text-green-500 mb-2 flex items-center gap-1.5">
+                            <CheckCircle2 className="h-3.5 w-3.5" />
+                            {lang === 'ar' ? 'مكتملة 🎉' : 'Completed 🎉'}
+                          </h3>
+                          <div className="space-y-2">
+                            {done.map(a => {
+                              const ss = subjectStyle(a.subject.name)
+                              return (
+                                <div key={a.id}
+                                  className="rounded-2xl border border-green-200 bg-green-50/50 border-l-4 border-l-green-400 p-4 opacity-80">
+                                  <div className="flex items-start gap-3">
+                                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-green-100">
+                                      <CheckCircle2 className="h-5 w-5 text-green-500" />
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                      <p className="text-sm font-medium text-gray-700 truncate line-through decoration-green-400">{a.titleAr || a.title}</p>
+                                      <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                                        <span className={`text-[11px] px-2 py-0.5 rounded-full font-medium ${ss.chip}`}>{a.subject.nameAr || a.subject.name}</span>
+                                        <span className="text-[11px] text-gray-400">·</span>
+                                        <span className="text-[11px] text-gray-500">{a.totalPoints} pts</span>
+                                      </div>
+                                    </div>
+                                    <span className="shrink-0 inline-flex items-center gap-1 rounded-full bg-green-100 px-2.5 py-1 text-xs font-bold text-green-700">
+                                      <CheckCircle2 className="h-3 w-3" /> {lang === 'ar' ? 'تم' : 'Done'}
+                                    </span>
+                                  </div>
+                                </div>
+                              )
+                            })}
+                          </div>
+                        </div>
+                      )}
                     </section>
                   )}
                 </>
@@ -925,6 +1069,7 @@ export default function StudentDashboard() {
           </>
         )}
 
+        {/* ─── PRACTICE TAB ──────────────────────────────────────────── */}
         {/* ─── PRACTICE TAB ──────────────────────────────────────────── */}
         {activeTab === 'practice' && (
           <>
