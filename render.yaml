@@ -42,19 +42,7 @@ services:
       - key: GEMINI_MODEL
         value: gemini-1.5-flash
 
-  # ── Frontend (Next.js SSR) ───────────────────────────────────────────────
-  - type: web
-    name: niangelos-frontend
-    runtime: node
-    rootDir: frontend
-    plan: free
-    region: oregon
-    buildCommand: npm install && npm run build
-    startCommand: npx next start -p $PORT -H 0.0.0.0
-    envVars:
-      - key: NODE_ENV
-        value: production
-      - key: NEXT_PUBLIC_API_URL
-        value: https://niangelos-backend.onrender.com/api
-      - key: NEXT_PUBLIC_UPLOADS_URL
-        value: https://niangelos-backend.onrender.com
+# Frontend is hosted on Vercel (cohep-platform.vercel.app) — intentionally not
+# deployed here. A duplicate Render copy caused CORS-blocked API calls (only
+# the Vercel origin is allowlisted in the backend) and wasted free-tier build
+# hours on a service nobody used.
