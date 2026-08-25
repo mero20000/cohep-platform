@@ -13,7 +13,7 @@ import { getGreeting, getGreetingAr } from '@/lib/datetime'
 
 const API_ORIGIN = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api').replace('/api', '')
 import {
-  Cross, Loader2, Calendar, CheckCircle2, XCircle, Clock, AlertCircle,
+  Cross, Loader2, Calendar, Church, CheckCircle2, XCircle, Clock, AlertCircle,
   Award, Star, BookOpen, ArrowLeft, Trophy, Play, Music,
   ChevronDown, ChevronRight, Search, Filter, ClipboardCheck, MoreVertical, LogOut, Eye, EyeOff, TrendingUp,
 } from 'lucide-react'
@@ -37,7 +37,8 @@ interface PortalData {
   } | null
   attendance: { present: number; late: number; absent: number; excused: number; total: number }
   recentAttendance: Array<{ date: string; time?: string; status: string; homeworkStatus?: string }>
-  badges: Array<{ id: string; name?: string; nameAr?: string; description?: string; iconUrl?: string; earnedAt: string }>
+  badges: Array<{ id: string; name?: string; nameAr?: string; description?: string; iconUrl?: string; earnedAt: string; awardedBy?: string | null; reason?: string | null }>
+  liturgy: { verifiedCount: number; pendingCount: number; recent: Array<{ date: string; status: string; servantNote?: string | null }> }
   totalXp: number
   upcomingSessions: Array<{ id: string; date: string; time?: string; title?: string }>
   recentHomework: Array<{ date: string; status: string }>
@@ -206,7 +207,7 @@ export default function StudentDashboard() {
     </div>
   )
 
-  const { student, school, attendance, recentAttendance, badges, totalXp, upcomingSessions, recentHomework, assessments } = data
+  const { student, school, attendance, recentAttendance, badges, liturgy, totalXp, upcomingSessions, recentHomework, assessments } = data
   const attendanceRate = attendance.total > 0 ? Math.round((attendance.present / attendance.total) * 100) : 0
 
   const photoSrc = student.photoUrl
@@ -432,6 +433,79 @@ export default function StudentDashboard() {
                       </div>
                     </div>
                   </section>
+
+                  {/* Liturgy attendance — participation in the sacramental life */}
+                  <section>
+                    <h2 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                      <Church className="h-4 w-4 text-amber-600" />
+                      {lang === 'ar' ? 'حضور القداس' : 'Liturgy Attendance'}
+                    </h2>
+                    <div className="rounded-2xl bg-gradient-to-br from-amber-50 to-gold-neutral-50 border border-[var(--hymn-border)] p-4">
+                      <div className="flex items-center gap-4">
+                        <div className="text-center shrink-0">
+                          <div className="text-3xl font-black text-amber-700 tabular-nums">{liturgy.verifiedCount}</div>
+                          <div className="text-[10px] font-medium text-gray-500 uppercase tracking-wide">{lang === 'ar' ? 'قداسات مؤكدة' : 'verified'}</div>
+                        </div>
+                        <div className="min-w-0 flex-1 text-sm text-gray-700 leading-snug">
+                          {liturgy.pendingCount > 0
+                            ? (lang === 'ar'
+                                ? `${liturgy.pendingCount} قداسات بانتظار التأكيد من خادمك.`
+                                : `${liturgy.pendingCount} liturg${liturgy.pendingCount === 1 ? 'y' : 'ies'} awaiting your servant's confirmation.`)
+                            : (lang === 'ar'
+                                ? 'واصل حضور القداس — كل قداس يقربك أكثر.'
+                                : 'Keep attending — every Liturgy counts toward your Faithful Worshipper recognition.')}
+                        </div>
+                      </div>
+                      {liturgy.recent.length > 0 && (
+                        <ul className="mt-3 space-y-1.5 border-t border-[var(--hymn-border)] pt-3">
+                          {liturgy.recent.slice(0, 3).map((l, i) => (
+                            <li key={i} className="flex items-center justify-between gap-2 text-xs">
+                              <span className="text-gray-600">
+                                {new Date(l.date).toLocaleDateString(lang === 'ar' ? 'ar-EG' : 'en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                              </span>
+                              {l.servantNote && <span className="truncate text-gray-500 italic flex-1 text-end">"{l.servantNote}"</span>}
+                              <span className={`shrink-0 rounded-full px-2 py-0.5 font-medium ${
+                                l.status === 'verified' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'
+                              }`}>
+                                {l.status === 'verified' ? (lang === 'ar' ? 'مؤكد ✓' : 'Verified ✓') : (lang === 'ar' ? 'قيد المراجعة' : 'In review')}
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                  </section>
+
+                  {/* Badges offered by servants — attribution matters */}
+                  {badges.some(b => b.awardedBy) && (
+                    <section>
+                      <h2 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                        <Award className="h-4 w-4 text-blue-500" />
+                        {lang === 'ar' ? 'شارات من خدامك' : 'Badges from Your Servants'}
+                      </h2>
+                      <ul className="flex gap-3 overflow-x-auto pb-2 -mx-1 px-1 snap-x">
+                        {badges.filter(b => b.awardedBy).map(b => (
+                          <li key={b.id}
+                            className="snap-start shrink-0 w-44 rounded-xl border border-blue-100 bg-blue-50/60 p-3">
+                            <div className="flex items-center gap-2 mb-1.5">
+                              {b.iconUrl ? (
+                                <Image src={b.iconUrl.startsWith('http') ? b.iconUrl : `${API_ORIGIN}${b.iconUrl}`} alt="" width={32} height={32} className="h-8 w-8 rounded-lg object-cover" unoptimized />
+                              ) : (
+                                <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-white border border-blue-100"><Award className="h-4 w-4 text-blue-500" /></span>
+                              )}
+                              <p className="text-sm font-semibold text-gray-900 truncate">{lang === 'ar' && b.nameAr ? b.nameAr : b.name}</p>
+                            </div>
+                            {b.reason && <p className="text-xs text-gray-600 line-clamp-2 mb-1">{b.reason}</p>}
+                            <p className="text-[11px] text-gray-400">
+                              {lang === 'ar' ? 'من' : 'from'} {b.awardedBy}
+                              {' · '}
+                              {new Date(b.earnedAt).toLocaleDateString(lang === 'ar' ? 'ar-EG' : 'en-GB', { day: 'numeric', month: 'short' })}
+                            </p>
+                          </li>
+                        ))}
+                      </ul>
+                    </section>
+                  )}
 
                   {/* Stat tiles */}
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">

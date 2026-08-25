@@ -672,7 +672,7 @@ async getPortalData(portalAccessKey: string) {
     });
     if (!student) throw new NotFoundException('Student not found');
 
-    const [attRecords, badges, xpResult, upcoming, assignedAssessments] = await Promise.all([
+    const [attRecords, badges, xpResult, upcoming, assignedAssessments, liturgies] = await Promise.all([
       this.prisma.attendanceRecord.findMany({
         // Integrate with the attendance module's semantics: exclude records
         // belonging to soft-deleted sessions and scope to the student's school.
@@ -714,7 +714,24 @@ async getPortalData(portalAccessKey: string) {
         orderBy: { createdAt: 'desc' },
         take: 20,
       }),
+      // Liturgy attendance (FamilyLiturgy) — verified + pending entries
+      this.prisma.familyLiturgy.findMany({
+        where: { studentId: student.id },
+        orderBy: { date: 'desc' },
+        take: 10,
+        select: { date: true, status: true, notes: true, servantNote: true },
+      }),
     ]);
+
+    // Servant attribution for manually awarded badges
+    const awardedByIds = [...new Set(badges.map((b: any) => b.awardedBy).filter(Boolean))] as string[];
+    const awarders = awardedByIds.length
+      ? await this.prisma.user.findMany({
+          where: { id: { in: awardedByIds } },
+          select: { id: true, firstName: true, lastName: true },
+        })
+      : [];
+    const awarderNames = new Map(awarders.map(u => [u.id, `${u.firstName} ${u.lastName}`]));
 
     const attendanceSummary = {
       present: attRecords.filter(r => r.status === 'present').length,
@@ -769,7 +786,19 @@ async getPortalData(portalAccessKey: string) {
         description: b.badge?.description,
         iconUrl: b.badge?.iconUrl,
         earnedAt: b.awardedAt,
+        // Servant attribution — who offered this badge and why
+        awardedBy: b.awardedBy ? awarderNames.get(b.awardedBy) || null : null,
+        reason: b.reason || null,
       })),
+      liturgy: {
+        verifiedCount: liturgies.filter((l: any) => l.status === 'verified').length,
+        pendingCount: liturgies.filter((l: any) => l.status !== 'verified').length,
+        recent: liturgies.slice(0, 5).map((l: any) => ({
+          date: l.date,
+          status: l.status,
+          servantNote: l.servantNote,
+        })),
+      },
       totalXp,
       upcomingSessions: upcoming.map(s => ({
         id: s.id,
