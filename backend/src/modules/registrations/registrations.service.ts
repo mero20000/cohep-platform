@@ -118,7 +118,7 @@ export class RegistrationsService {
         await this.mailService.sendMail(
           school.email,
           `New registration: ${name} — ${school.name}`,
-          `<p>New registration for <strong>${name}</strong> (${app.hymnChoice})</p><p>Review in <a href="${process.env.FRONTEND_URL || 'https://cohep-platform.vercel.app'}/dashboard/registrations">Dashboard → Registrations</a></p>`,
+          `<p>New registration for <strong>${name}</strong> (${app.hymnChoice})</p><p>Review in <a href="${process.env.FRONTEND_URL || 'https://cohep-platform.vercel.app'}/dashboard/pending-registrations">Dashboard → Registrations</a></p>`,
         );
       } catch {}
     }

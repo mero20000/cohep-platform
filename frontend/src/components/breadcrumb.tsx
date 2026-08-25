@@ -15,7 +15,7 @@ const LABEL_MAP: Record<string, [string, string]> = {
   gamification: ['Gamification', 'الألعاب التحفيزية'],
   settings: ['Settings', 'الإعدادات'],
   parents: ['My Children', 'أولادي'],
-  'pending-registrations': ['Pending Reg.', 'تسجيلات معلقة'],
+  'pending-registrations': ['Registrations', 'التسجيلات'],
 }
 
 export function Breadcrumbs() {

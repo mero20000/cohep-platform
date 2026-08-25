@@ -1,18 +1,264 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import Image from 'next/image'
 import { useLanguage } from '@/lib/use-language'
 import { useToast } from '@/components/ui/toast'
 import { http } from '@/lib/http-client'
-import { Loader2, Mail, Building2, MapPin, Phone, User, ArrowLeft, Pencil, XCircle, CheckCircle2, Trash2 } from 'lucide-react'
+import { getSchoolId } from '@/lib/school'
+import {
+  Loader2, Mail, Building2, MapPin, Phone, User, ArrowLeft, Pencil, XCircle,
+  CheckCircle2, Trash2, Music, Clock, Eye, Baby,
+} from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { TableSkeleton } from '@/components/ui/skeleton'
 import Link from 'next/link'
-import { Tabs } from '@/components/ui/tabs'
 import { Modal } from '@/components/ui/modal'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { FormField } from '@/components/ui/form-field'
+import { AudioPlayer } from '@/components/audio-player'
+import { assetUrl } from '@/lib/asset-url'
 import { languages as allLanguages } from '@/data/languages'
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Unified Registrations module — two entity tabs:
+//   • Students  — new-joiner applications from /register/[schoolSlug]
+//   • Churches  — new church sign-ups for the platform
+// ─────────────────────────────────────────────────────────────────────────────
+
+type Entity = 'students' | 'churches'
+
+export default function PendingRegistrationsPage() {
+  const lang = useLanguage()
+  const t = (en: string, ar: string) => lang === 'ar' ? ar : en
+  const [entity, setEntity] = useState<Entity>('students')
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center gap-4">
+        <Link href="/dashboard" className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-700 transition-colors">
+          <ArrowLeft className="h-4 w-4" />
+          {t('Back', 'العودة')}
+        </Link>
+      </div>
+
+      <div>
+        <h1 className="text-2xl font-bold text-gray-900">{t('Registrations', 'التسجيلات')}</h1>
+        <p className="mt-1 text-sm text-gray-500">
+          {t('Review student joiners and church sign-ups — edit before approving', 'مراجعة انضمام الطلاب وطلبات الكنائس — يمكن التعديل قبل الموافقة')}
+        </p>
+      </div>
+
+      {/* Entity switch */}
+      <div className="inline-flex rounded-xl border border-gray-200 bg-gray-50 p-1" role="tablist" aria-label={t('Registration type', 'نوع التسجيل')}>
+        {([
+          { id: 'students' as Entity, label: t('Student Applications', 'طلبات الطلاب'), icon: Baby, count: null },
+          { id: 'churches' as Entity, label: t('Church Registrations', 'تسجيلات الكنائس'), icon: Building2, count: null },
+        ]).map(tb => (
+          <button key={tb.id} role="tab" aria-selected={entity === tb.id}
+            onClick={() => setEntity(tb.id)}
+            className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-all ${
+              entity === tb.id ? 'bg-white text-gray-900 shadow-sm border border-gray-200' : 'text-gray-500 hover:text-gray-700'
+            }`}>
+            <tb.icon className="h-4 w-4" />
+            {tb.label}
+          </button>
+        ))}
+      </div>
+
+      {entity === 'students' ? <StudentsPanel /> : <ChurchesPanel />}
+    </div>
+  )
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// STUDENTS PANEL — /register/[schoolSlug] applications
+// ═════════════════════════════════════════════════════════════════════════════
+
+function StudentsPanel() {
+  const lang = useLanguage()
+  const { toast } = useToast()
+  const t = (en: string, ar: string) => lang === 'ar' ? ar : en
+  const [status, setStatus] = useState('pending')
+  const [items, setItems] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [selected, setSelected] = useState<any | null>(null)
+  const [editData, setEditData] = useState<any>(null)
+  const [approving, setApproving] = useState(false)
+  const [rejecting, setRejecting] = useState(false)
+  const [levelId, setLevelId] = useState('')
+  const [groupId, setGroupId] = useState('')
+  const [gradeId, setGradeId] = useState('')
+  const [levels, setLevels] = useState<any[]>([])
+  const [grades, setGrades] = useState<any[]>([])
+
+  const fetchAll = useCallback(async () => {
+    setLoading(true)
+    try {
+      const data = await http.get<any[]>(`/registrations`, { schoolId: getSchoolId(), status })
+      setItems(data || [])
+    } catch { setItems([]) }
+    setLoading(false)
+  }, [status])
+
+  useEffect(() => { fetchAll() }, [fetchAll])
+  useEffect(() => {
+    http.get<any[]>('/curriculum/levels', { schoolId: getSchoolId() }).then(setLevels).catch(() => {})
+    import('@/lib/grades').then(m => m.fetchActiveGrades().then(setGrades).catch(() => {}))
+  }, [])
+
+  const HYMN_LABEL: Record<string, string> = {
+    amen_be_mawteka: 'Amen be mawteka',
+    be_shafaat: 'Be shafaat',
+    both: 'Both hymns',
+  }
+
+  const handleApprove = async () => {
+    if (!selected) return
+    setApproving(true)
+    try {
+      await http.post(`/registrations/${selected.id}/approve`, { levelId: levelId || undefined, groupId: groupId || undefined, gradeId: gradeId || undefined })
+      toast('success', t('Approved — student created', 'تمت الموافقة — تم إنشاء الطالب'))
+      setSelected(null); fetchAll()
+    } catch (e: any) { toast('error', e?.message || t('Failed to approve', 'فشلت الموافقة')) }
+    setApproving(false)
+  }
+
+  const handleReject = async () => {
+    if (!selected) return
+    const reason = window.prompt(t('Reason for rejection (included in the email):', 'سبب الرفض (يُضمَّن في البريد):')) || ''
+    setRejecting(true)
+    try {
+      await http.post(`/registrations/${selected.id}/reject`, { reason })
+      toast('success', t('Rejected', 'تم الرفض'))
+      setSelected(null); fetchAll()
+    } catch (e: any) { toast('error', e?.message || t('Failed to reject', 'فشل الرفض')) }
+    setRejecting(false)
+  }
+
+  const handleUpdate = async () => {
+    if (!selected || !editData) return
+    try {
+      await http.patch(`/registrations/${selected.id}`, { studentData: editData })
+      toast('success', t('Updated', 'تم التحديث'))
+      setSelected({ ...selected, studentData: editData })
+      fetchAll()
+    } catch (e: any) { toast('error', e?.message || t('Failed to update', 'فشل التحديث')) }
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex gap-2">
+        {(['pending', 'approved', 'rejected'] as const).map(s => (
+          <button key={s} onClick={() => setStatus(s)}
+            className={`px-4 py-2 rounded-full text-sm font-medium border transition-colors ${status === s ? 'bg-gold-500 border-gold-500 text-white' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'}`}>
+            {t(s.charAt(0).toUpperCase() + s.slice(1), s === 'pending' ? 'قيد المراجعة' : s === 'approved' ? 'معتمد' : 'مرفوض')}
+            {status === s && ` (${items.length})`}
+          </button>
+        ))}
+      </div>
+
+      {loading ? <div className="flex justify-center py-12"><Loader2 className="h-8 w-8 animate-spin text-gold-600" /></div>
+        : items.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-gray-200 bg-white p-12 text-center">
+            <Baby className="mx-auto h-10 w-10 text-gray-300 mb-3" />
+            <p className="text-sm text-gray-500">{t('No student applications', 'لا توجد طلبات طلاب')}</p>
+            <p className="text-xs text-gray-400 mt-1">{t('Share the registration link with parents — applications land here', 'شارك رابط التسجيل مع أولياء الأمور — ستظهر الطلبات هنا')}</p>
+          </div>
+        ) : (
+          <div className="grid gap-4 md:grid-cols-2">
+            {items.map(app => {
+              const sd: any = app.studentData || {}
+              return (
+                <div key={app.id} className={`rounded-2xl border bg-white p-5 hover:shadow-md transition-shadow ${app.status === 'approved' ? 'border-green-200' : app.status === 'rejected' ? 'border-red-200' : 'border-gray-200'}`}>
+                  <div className="flex items-start gap-4">
+                    <div className="h-14 w-14 rounded-full bg-gray-100 overflow-hidden flex-shrink-0">
+                      {sd.photoUrl ? <Image src={assetUrl(sd.photoUrl)} alt="" width={56} height={56} className="h-full w-full object-cover" unoptimized /> : <div className="h-full w-full flex items-center justify-center text-gray-400 font-bold">{(sd.name || '?')[0]}</div>}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="font-bold text-gray-900 truncate">{sd.name || sd.firstName}</div>
+                      <div className="text-xs text-gray-500">{sd.dateOfBirth} · {sd.gender} · {sd.churchName || ''}</div>
+                      <div className="mt-1 flex items-center gap-1.5 flex-wrap">
+                        <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${app.hymnChoice === 'amen_be_mawteka' ? 'bg-blue-50 text-blue-700' : app.hymnChoice === 'both' ? 'bg-amber-50 text-amber-700 border border-amber-200' : 'bg-purple-50 text-purple-700'}`}>
+                          <Music className="h-3 w-3" />{HYMN_LABEL[app.hymnChoice] || app.hymnChoice}
+                        </span>
+                        <span className="text-xs text-gray-400 flex items-center gap-1"><Clock className="h-3 w-3" />{new Date(app.createdAt).toLocaleDateString(lang === 'ar' ? 'ar-EG' : 'en-GB')}</span>
+                      </div>
+                    </div>
+                  </div>
+                  {app.voiceRecordingUrl && <div className="mt-3"><AudioPlayer src={assetUrl(app.voiceRecordingUrl)} /></div>}
+                  <div className="mt-3 text-xs text-gray-600 line-clamp-2">{sd.notes || sd.address || ''} · {sd.parentEmail}</div>
+                  <div className="mt-3 flex items-center gap-2 flex-wrap">
+                    <Button size="sm" variant="outline" onClick={() => { setSelected(app); setEditData(app.studentData) }}>
+                      <Eye className="h-3.5 w-3.5" />{t('View/Edit', 'عرض/تعديل')}
+                    </Button>
+                    {app.status === 'pending' && (
+                      <>
+                        <Button size="sm" onClick={() => { setSelected(app); setLevelId(''); setGroupId(''); setGradeId(sd.gradeId || '') }} className="bg-gold-500 hover:bg-gold-600 text-white">
+                          <CheckCircle2 className="h-3.5 w-3.5" />{t('Approve', 'موافقة')}
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={() => { setSelected(app); handleReject() }} className="text-red-600 border-red-200 hover:bg-red-50">
+                          <XCircle className="h-3.5 w-3.5" />{t('Reject', 'رفض')}
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
+
+      {/* Student detail / edit modal */}
+      <Modal open={!!selected} onClose={() => setSelected(null)} title={selected ? ((selected.studentData || {}).name || t('Application', 'طلب')) : ''} size="lg"
+        footer={selected?.status === 'pending' ? (
+          <>
+            <Button variant="outline" onClick={() => setSelected(null)}>{t('Close', 'إغلاق')}</Button>
+            <Button variant="outline" onClick={handleUpdate}><Pencil className="h-4 w-4" />{t('Save Edits', 'حفظ التعديلات')}</Button>
+            <Button onClick={handleApprove} disabled={approving} className="bg-emerald-600 hover:bg-emerald-700 text-white">
+              {approving && <Loader2 className="h-4 w-4 animate-spin" />}{t('Approve & Create Student', 'موافقة وإنشاء طالب')}
+            </Button>
+            <Button variant="outline" onClick={handleReject} disabled={rejecting} className="text-red-600 border-red-200 hover:bg-red-50">{t('Reject', 'رفض')}</Button>
+          </>
+        ) : <Button variant="outline" onClick={() => setSelected(null)}>{t('Close', 'إغلاق')}</Button>
+        }>
+        {selected && (
+          <div className="space-y-4 max-h-[60vh] overflow-y-auto">
+            <div className="rounded-xl bg-gray-50 p-4 space-y-2 text-sm">
+              {Object.entries(selected.studentData || {}).map(([k, v]) => (
+                <div key={k} className="flex gap-2"><span className="text-gray-500 w-40 shrink-0">{k}:</span><span className="font-medium text-gray-900 break-all">{String(v || '—')}</span></div>
+              ))}
+            </div>
+            {selected.voiceRecordingUrl && <AudioPlayer src={assetUrl(selected.voiceRecordingUrl)} />}
+            {selected.status === 'pending' && (
+              <div className="space-y-2">
+                <p className="text-xs font-semibold text-gray-700">{t('Edit before approve — fields flow straight into the Student record', 'عدّل قبل الموافقة — الحقول تُنقل مباشرة لملف الطالب')}</p>
+                <FormField label={t('Student Name', 'اسم الطالب')} value={editData?.name || ''} onChange={e => setEditData({ ...editData, name: e.target.value })} />
+                <FormField label={t('Parent Email', 'بريد ولي الأمر')} value={editData?.parentEmail || ''} onChange={e => setEditData({ ...editData, parentEmail: e.target.value })} />
+                <FormField label={t('Phone', 'الهاتف')} value={editData?.phone || ''} onChange={e => setEditData({ ...editData, phone: e.target.value })} />
+                <FormField label={t('Address', 'العنوان')} value={editData?.address || ''} onChange={e => setEditData({ ...editData, address: e.target.value })} />
+                <div className="grid grid-cols-2 gap-2">
+                  <select value={gradeId} onChange={e => setGradeId(e.target.value)} className="rounded-lg border border-gray-300 px-3 py-2 text-sm bg-white">
+                    <option value="">{t('Select grade (for group)', 'اختر المرحلة')}</option>
+                    {grades.map((g: any) => <option key={g.id} value={g.id}>{g.name}</option>)}
+                  </select>
+                  <select value={levelId} onChange={e => setLevelId(e.target.value)} className="rounded-lg border border-gray-300 px-3 py-2 text-sm bg-white">
+                    <option value="">{t('Select level', 'اختر المستوى')}</option>
+                    {levels.map((l: any) => <option key={l.id} value={l.id}>{l.name}</option>)}
+                  </select>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </Modal>
+    </div>
+  )
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// CHURCHES PANEL — platform sign-ups (admin module)
+// ═════════════════════════════════════════════════════════════════════════════
 
 interface AdminUser {
   id: string; firstName: string; lastName: string; email: string; phone?: string; isActive: boolean
@@ -25,9 +271,9 @@ interface Reg {
   users: AdminUser[];
 }
 
-type Tab = 'pending' | 'approved' | 'rejected' | 'all'
+type ChurchTab = 'pending' | 'approved' | 'rejected' | 'all'
 
-const TABS: { key: Tab; label: string; labelAr: string; icon?: any }[] = [
+const CHURCH_TABS: { key: ChurchTab; label: string; labelAr: string }[] = [
   { key: 'pending', label: 'Pending Review', labelAr: 'قيد المراجعة' },
   { key: 'approved', label: 'Approved', labelAr: 'معتمد' },
   { key: 'rejected', label: 'Rejected', labelAr: 'مرفوض' },
@@ -46,10 +292,10 @@ const EDUC_LANGS = [
   ...allLanguages.filter(l => RELEVANT_LANG_CODES.includes(l.code) && l.code !== 'cop'),
 ]
 
-export default function PendingRegistrationsPage() {
+function ChurchesPanel() {
   const lang = useLanguage()
   const { toast } = useToast()
-  const [tab, setTab] = useState<Tab>('pending')
+  const [tab, setTab] = useState<ChurchTab>('pending')
   const [registrations, setRegistrations] = useState<Reg[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -70,11 +316,9 @@ export default function PendingRegistrationsPage() {
     setLoading(false)
   }, [tab])
 
-  useEffect(() => { fetchRegistrations() }, [fetchRegistrations, tab])
+  useEffect(() => { fetchRegistrations() }, [fetchRegistrations])
 
-  const refresh = useCallback(() => {
-    fetchRegistrations()
-  }, [fetchRegistrations])
+  const refresh = useCallback(() => { fetchRegistrations() }, [fetchRegistrations])
 
   const handleApprove = async (reg: Reg) => {
     setProcessing(reg.id)
@@ -117,43 +361,24 @@ export default function PendingRegistrationsPage() {
   const showReject = (s: Reg['registrationStatus']) => s === 'pending' || s === 'approved'
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center gap-4">
-        <Link href="/dashboard" className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-700 transition-colors">
-          <ArrowLeft className="h-4 w-4" />
-          {t('Back', 'العودة')}
-        </Link>
+    <div className="space-y-4">
+      <div className="flex gap-2 flex-wrap">
+        {CHURCH_TABS.map(tb => (
+          <button key={tb.key} onClick={() => setTab(tb.key)}
+            className={`px-4 py-2 rounded-full text-sm font-medium border transition-colors ${tab === tb.key ? 'bg-gold-500 border-gold-500 text-white' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'}`}>
+            {t(tb.label, tb.labelAr)}
+          </button>
+        ))}
       </div>
 
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">
-          {t('Church Registrations', 'تسجيلات الكنائس')}
-        </h1>
-        <p className="mt-1 text-sm text-gray-500">
-          {t('Review, edit, and manage church registration requests', 'مراجعة وتعديل وإدارة طلبات تسجيل الكنائس')}
-        </p>
-      </div>
-
-      <Tabs
-        tabs={TABS.map((tb) => ({ id: tb.key, label: t(tb.label, tb.labelAr) }))}
-        activeTab={tab}
-        onChange={(id) => setTab(id as Tab)}
-      />
-
-      <div id={`panel-${tab}`} role="tabpanel" aria-labelledby={`tab-${tab}`}>
-
-      {loading && (
-        <div className="px-4 py-20"><TableSkeleton rows={5} cols={3} /></div>
-      )}
+      {loading && <div className="px-4 py-12"><TableSkeleton rows={5} cols={3} /></div>}
 
       {error && (
-        <div role="alert" className="rounded-xl bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
-          {error}
-        </div>
+        <div role="alert" className="rounded-xl bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">{error}</div>
       )}
 
       {!loading && !error && registrations.length === 0 && (
-        <div className="text-center py-20">
+        <div className="text-center py-16 rounded-2xl border border-dashed border-gray-200 bg-white">
           <div className="inline-flex h-14 w-14 items-center justify-center rounded-full bg-green-50 mb-4">
             <CheckCircle2 className="h-7 w-7 text-green-500" />
           </div>
@@ -163,9 +388,7 @@ export default function PendingRegistrationsPage() {
             {tab === 'rejected' && t('No Rejected Registrations', 'لا توجد تسجيلات مرفوضة')}
             {tab === 'all' && t('No Registrations', 'لا توجد تسجيلات')}
           </h3>
-          <p className="text-sm text-gray-500 mt-1">
-            {t('Registrations you process will appear here by status', 'ستظهر التسجيلات التي تعالجها هنا حسب حالتها')}
-          </p>
+          <p className="text-sm text-gray-500 mt-1">{t('Church sign-ups from the platform registration form appear here', 'تسجيلات الكنائس من نموذج المنصة تظهر هنا')}</p>
         </div>
       )}
 
@@ -223,9 +446,7 @@ export default function PendingRegistrationsPage() {
                   <div className="mt-4 flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-gray-100">
                     <p className="text-xs text-gray-400">
                       {t('Submitted: ', 'تم التقديم: ')}
-                      {new Date(reg.createdAt).toLocaleDateString(lang === 'ar' ? 'ar-EG' : 'en-US', {
-                        year: 'numeric', month: 'long', day: 'numeric',
-                      })}
+                      {new Date(reg.createdAt).toLocaleDateString(lang === 'ar' ? 'ar-EG' : 'en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
                     </p>
                     <div className="flex items-center gap-2 flex-wrap">
                       {showReject(reg.registrationStatus) && (
@@ -237,23 +458,18 @@ export default function PendingRegistrationsPage() {
                         </Button>
                       )}
                       {showApprove(reg.registrationStatus) && (
-                        <Button size="sm" disabled={busy}
-                          onClick={() => handleApprove(reg)}
-                          className="bg-green-600 hover:bg-green-700">
+                        <Button size="sm" disabled={busy} onClick={() => handleApprove(reg)} className="bg-green-600 hover:bg-green-700">
                           {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
                           {t('Approve', 'اعتماد')}
                         </Button>
                       )}
-                      <Button variant="outline" size="sm" disabled={busy}
-                        onClick={() => setEditingReg(reg)}>
-                        <Pencil className="h-4 w-4" />
-                        {t('Edit', 'تعديل')}
+                      <Button variant="outline" size="sm" disabled={busy} onClick={() => setEditingReg(reg)}>
+                        <Pencil className="h-4 w-4" />{t('Edit', 'تعديل')}
                       </Button>
                       <Button variant="outline" size="sm" disabled={busy}
                         onClick={() => setConfirmAction({ kind: 'delete', reg })}
                         className="text-red-600 border-red-200 hover:bg-red-50">
-                        <Trash2 className="h-4 w-4" />
-                        {t('Delete', 'حذف')}
+                        <Trash2 className="h-4 w-4" />{t('Delete', 'حذف')}
                       </Button>
                     </div>
                   </div>
@@ -264,9 +480,7 @@ export default function PendingRegistrationsPage() {
         </div>
       )}
 
-      </div>
-
-      <EditModal reg={editingReg} lang={lang === 'ar' ? 'ar' : 'en'} onClose={() => setEditingReg(null)}
+      <ChurchEditModal reg={editingReg} lang={lang === 'ar' ? 'ar' : 'en'} onClose={() => setEditingReg(null)}
         onSaved={() => { setEditingReg(null); refresh() }} />
 
       <ConfirmDialog
@@ -301,7 +515,7 @@ interface EditRegForm {
   firstName: string; lastName: string; email: string; phone: string
 }
 
-function EditModal({ reg, lang, onClose, onSaved }: {
+function ChurchEditModal({ reg, lang, onClose, onSaved }: {
   reg: Reg | null; lang: 'en' | 'ar'; onClose: () => void; onSaved: () => void
 }) {
   const { toast } = useToast()
