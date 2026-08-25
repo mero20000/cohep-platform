@@ -18,7 +18,7 @@ import {
   ChevronDown, ChevronRight, Search, Filter, ClipboardCheck, MoreVertical, LogOut, Eye, EyeOff, TrendingUp,
 } from 'lucide-react'
 import Link from 'next/link'
-import { useStudentHymnMap, useStudentThisSunday, useStudentDueReview, useStudentStats, useStudentPractice } from '@/components/hymn-learning/student-hooks'
+import { useStudentHymnMap, useStudentThisSunday, useStudentDueReview, useStudentStats, useStudentPractice, useStudentAchievements } from '@/components/hymn-learning/student-hooks'
 import { ThisSundayPanel } from '@/components/hymn-learning/this-sunday'
 import { PracticeRecorder } from '@/components/hymn-learning/practice-recorder'
 import { PracticeHistory } from '@/components/hymn-learning/practice-history'
@@ -90,6 +90,8 @@ export default function StudentDashboard() {
   // Practice state
   const [practiceLesson, setPracticeLesson] = useState<HymnMapItem | null>(null)
   const [celebration, setCelebration] = useState<{ title: string; titleCoptic?: string } | null>(null)
+  const [drill, setDrill] = useState<null | 'xp' | 'badges' | 'attendance' | 'homework'>(null)
+  const { data: achievements } = useStudentAchievements(code, drill === 'xp')
   const [searchQuery, setSearchQuery] = useState('')
   const [filterMastery, setFilterMastery] = useState('')
   const [expandedLevels, setExpandedLevels] = useState<Set<string>>(new Set())
@@ -487,9 +489,13 @@ export default function StudentDashboard() {
                             ? (lang === 'ar'
                                 ? `${liturgy.pendingCount} قداسات بانتظار التأكيد من خادمك.`
                                 : `${liturgy.pendingCount} liturg${liturgy.pendingCount === 1 ? 'y' : 'ies'} awaiting your servant's confirmation.`)
-                            : (lang === 'ar'
-                                ? 'واصل حضور القداس — كل قداس يقربك أكثر.'
-                                : 'Keep attending — every Liturgy counts toward your Faithful Worshipper recognition.')}
+                            : liturgy.verifiedCount === 0
+                              ? (lang === 'ar'
+                                  ? 'يسوع مشتاق إليك ويريد أن يلقاك في كنيسته. 💛'
+                                  : 'Jesus is missing you and would like to meet with you at His Church. 💛')
+                              : (lang === 'ar'
+                                  ? 'واصل حضور القداس — كل قداس يقربك أكثر.'
+                                  : 'Keep attending — every Liturgy counts toward your Faithful Worshipper recognition.')}
                         </div>
                       </div>
                       {liturgy.recent.length > 0 && (
@@ -543,30 +549,84 @@ export default function StudentDashboard() {
                     </section>
                   )}
 
-                  {/* Stat tiles */}
+                  {/* Stat tiles — each drills into its details */}
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                    <div className="rounded-xl bg-white border border-gray-200 p-4 text-center hover:border-gold-300 hover:shadow-sm transition-all">
-                      <Trophy className="h-5 w-5 text-gold-700 mx-auto mb-1" />
-                      <div className="text-xl font-bold text-gray-900 tabular-nums">{totalXp}</div>
-                      <div className="text-xs text-gray-500">Total XP</div>
-                      <div className="mt-1.5 h-1 rounded-full bg-gray-100 overflow-hidden"><div className="h-full rounded-full bg-gradient-to-r from-gold-400 to-amber-500" style={{ width: `${xpPct}%` }} /></div>
-                    </div>
-                    <div className="rounded-xl bg-white border border-gray-200 p-4 text-center hover:border-blue-300 hover:shadow-sm transition-all">
-                      <Award className="h-5 w-5 text-blue-500 mx-auto mb-1" />
-                      <div className="text-xl font-bold text-gray-900 tabular-nums">{badges.length}</div>
-                      <div className="text-xs text-gray-500">Badges</div>
-                    </div>
-                    <div className="rounded-xl bg-white border border-gray-200 p-4 text-center hover:border-green-300 hover:shadow-sm transition-all">
-                      <CheckCircle2 className="h-5 w-5 text-green-500 mx-auto mb-1" />
-                      <div className="text-xl font-bold text-gray-900 tabular-nums">{attendanceRate}%</div>
-                      <div className="text-xs text-gray-500">Attendance</div>
-                    </div>
-                    <div className="rounded-xl bg-white border border-gray-200 p-4 text-center hover:border-purple-300 hover:shadow-sm transition-all">
-                      <BookOpen className="h-5 w-5 text-purple-500 mx-auto mb-1" />
-                      <div className="text-xl font-bold text-gray-900 tabular-nums">{recentHomework.filter(h => h.status === 'completed').length}/{recentHomework.length}</div>
-                      <div className="text-xs text-gray-500">Homework</div>
-                    </div>
+                    {([
+                      { key: 'xp', icon: Trophy, tint: 'text-gold-700', value: String(totalXp), label: lang === 'ar' ? 'مجموع النقاط' : 'Total XP', ring: xpPct, ringCls: 'from-gold-400 to-amber-500', hover: 'hover:border-gold-300' },
+                      { key: 'badges', icon: Award, tint: 'text-blue-500', value: String(badges.length), label: lang === 'ar' ? 'شارات' : 'Badges', hover: 'hover:border-blue-300' },
+                      { key: 'attendance', icon: CheckCircle2, tint: 'text-green-500', value: `${attendanceRate}%`, label: lang === 'ar' ? 'الحضور' : 'Attendance', hover: 'hover:border-green-300' },
+                      { key: 'homework', icon: BookOpen, tint: 'text-purple-500', value: `${recentHomework.filter(h => h.status === 'completed').length}/${recentHomework.length}`, label: lang === 'ar' ? 'الواجبات' : 'Homework', hover: 'hover:border-purple-300' },
+                    ] as const).map(tile => (
+                      <button key={tile.key} onClick={() => setDrill(tile.key as any)}
+                        aria-label={`${tile.label}`}
+                        className={`rounded-xl bg-white border border-gray-200 p-4 text-center min-h-20 active:motion-safe:scale-[0.97] motion-safe:transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--gold-500))] ${tile.hover}`}>
+                        <tile.icon className={`h-5 w-5 mx-auto mb-1 ${tile.tint}`} />
+                        <div className="text-xl font-bold text-gray-900 tabular-nums">{tile.value}</div>
+                        <div className="text-xs text-gray-500">{tile.label}</div>
+                        {'ring' in tile && (
+                          <div className="mt-1.5 h-1 rounded-full bg-gray-100 overflow-hidden"><div className={`h-full rounded-full bg-gradient-to-r ${tile.ringCls}`} style={{ width: `${tile.ring}%` }} /></div>
+                        )}
+                        <div className="mt-1 text-[10px] font-medium text-blue-600">{lang === 'ar' ? 'التفاصيل ←' : 'See all →'}</div>
+                      </button>
+                    ))}
                   </div>
+
+                  {/* Recent badge / latest achievement */}
+                  {(badges[0] || achievements?.transactions?.[0]) && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {badges[0] && (
+                        <div className="flex items-center gap-3 rounded-xl border border-blue-100 bg-blue-50/60 p-3">
+                          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white border border-blue-100">
+                            {badges[0].iconUrl
+                              ? <Image src={badges[0].iconUrl.startsWith('http') ? badges[0].iconUrl : `${API_ORIGIN}${badges[0].iconUrl}`} alt="" width={32} height={32} className="h-8 w-8 rounded-full object-cover" unoptimized />
+                              : <Award className="h-5 w-5 text-blue-500" />}
+                          </span>
+                          <div className="min-w-0">
+                            <p className="text-[11px] font-semibold uppercase tracking-wide text-blue-700">{lang === 'ar' ? 'أحدث شارة' : 'Latest badge'}</p>
+                            <p className="text-sm font-semibold text-gray-900 truncate">{lang === 'ar' && badges[0].nameAr ? badges[0].nameAr : badges[0].name}</p>
+                            {badges[0].awardedBy && <p className="text-[11px] text-gray-400">{lang === 'ar' ? 'من' : 'from'} {badges[0].awardedBy}</p>}
+                          </div>
+                        </div>
+                      )}
+                      {achievements?.transactions?.[0] && (
+                        <div className="flex items-center gap-3 rounded-xl border border-gold-200 bg-gold-neutral-50 p-3">
+                          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white border border-gold-200">
+                            <TrendingUp className="h-5 w-5 text-gold-600" />
+                          </span>
+                          <div className="min-w-0">
+                            <p className="text-[11px] font-semibold uppercase tracking-wide text-gold-700">{lang === 'ar' ? 'أحدث إنجاز' : 'Latest achievement'}</p>
+                            <p className="text-sm font-semibold text-gray-900 truncate">
+                              +{achievements.transactions[0].amount} XP{achievements.transactions[0].description ? ` — ${achievements.transactions[0].description}` : ''}
+                            </p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Absence encouragement — if absent in the last week */}
+                  {(() => {
+                    const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000
+                    const absentLastWeek = recentAttendance.some(r => r.status === 'absent' && new Date(r.date).getTime() >= weekAgo)
+                    if (!absentLastWeek) return null
+                    return (
+                      <div className="rounded-2xl border border-sky-200 bg-sky-50 p-4 flex items-start gap-3">
+                        <Calendar className="h-5 w-5 text-sky-600 shrink-0 mt-0.5" aria-hidden="true" />
+                        <div>
+                          <p className="text-sm font-semibold text-sky-900">{lang === 'ar' ? 'افتقدناك الأحد الماضي!' : 'We missed you last Sunday!'}</p>
+                          <p className="text-xs text-sky-800 mt-0.5 leading-snug">
+                            {lang === 'ar'
+                              ? 'صفك تعلّم شيئًا جديدًا — تدرّب على ترانيمك الآن لتكون جاهزًا الأسبوع القادم.'
+                              : "Your class learned something new — practice your hymns now so you're ready for next week."}
+                          </p>
+                          <button onClick={() => setActiveTab('practice')}
+                            className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-sky-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-sky-700 active:motion-safe:scale-[0.97] motion-safe:transition-all">
+                            <Play className="h-3 w-3 fill-white" />{lang === 'ar' ? 'تدرّب الآن' : 'Practice now'}
+                          </button>
+                        </div>
+                      </div>
+                    )
+                  })()}
                 </>
               )
             })()}
@@ -996,6 +1056,96 @@ export default function StudentDashboard() {
           </>
         )}
       </main>
+
+      {/* ─── STAT DRILL-DOWN ────────────────────────────────────────── */}
+      {drill && (
+        <div className="fixed inset-0 z-[55] flex items-end sm:items-center justify-center bg-black/50 p-0 sm:p-4" onClick={() => setDrill(null)}>
+          <div className="bg-white rounded-t-3xl sm:rounded-2xl w-full max-w-lg max-h-[80vh] overflow-y-auto p-5" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-base font-bold text-gray-900">
+                {drill === 'xp' ? (lang === 'ar' ? 'سجل النقاط' : 'XP History')
+                  : drill === 'badges' ? (lang === 'ar' ? 'كل الشارات' : 'All Badges')
+                  : drill === 'attendance' ? (lang === 'ar' ? 'سجل الحضور' : 'Attendance Records')
+                  : (lang === 'ar' ? 'الواجبات' : 'Homework')}
+              </h2>
+              <button onClick={() => setDrill(null)} aria-label={lang === 'ar' ? 'إغلاق' : 'Close'}
+                className="flex h-10 w-10 items-center justify-center rounded-full text-gray-500 hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--gold-500))]">
+                ✕
+              </button>
+            </div>
+
+            {drill === 'xp' && (
+              achievements?.transactions?.length
+                ? <ul className="space-y-2">
+                    {achievements.transactions.map((t: any, i: number) => (
+                      <li key={i} className="flex items-center justify-between gap-3 rounded-xl border border-gray-100 px-3 py-2.5">
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium text-gray-900 truncate">{t.description || t.type}</p>
+                          <p className="text-xs text-gray-400">{new Date(t.date).toLocaleDateString(lang === 'ar' ? 'ar-EG' : 'en-GB', { day: 'numeric', month: 'short' })}</p>
+                        </div>
+                        <span className={`text-sm font-bold tabular-nums ${t.amount >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                          {t.amount >= 0 ? '+' : ''}{t.amount} XP
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                : <p className="py-8 text-center text-sm text-gray-400">{lang === 'ar' ? 'لا توجد نقاط بعد — تدرّب لتبدأ!' : 'No XP yet — practice to start earning!'}</p>
+            )}
+
+            {drill === 'badges' && (
+              badges.length
+                ? <ul className="grid grid-cols-2 gap-2">
+                    {badges.map(b => (
+                      <li key={b.id} className="rounded-xl border border-gray-100 p-3 text-center">
+                        {b.iconUrl
+                          ? <Image src={b.iconUrl.startsWith('http') ? b.iconUrl : `${API_ORIGIN}${b.iconUrl}`} alt="" width={40} height={40} className="mx-auto h-10 w-10 rounded-full object-cover mb-1.5" unoptimized />
+                          : <Award className="mx-auto h-8 w-8 text-blue-400 mb-1.5" />}
+                        <p className="text-sm font-medium text-gray-900 truncate">{lang === 'ar' && b.nameAr ? b.nameAr : b.name}</p>
+                        {b.awardedBy && <p className="text-[11px] text-gray-400">{lang === 'ar' ? 'من' : 'from'} {b.awardedBy}</p>}
+                      </li>
+                    ))}
+                  </ul>
+                : <p className="py-8 text-center text-sm text-gray-400">{lang === 'ar' ? 'لم تُمنح شارات بعد.' : 'No badges yet.'}</p>
+            )}
+
+            {drill === 'attendance' && (
+              recentAttendance.length
+                ? <ul className="divide-y divide-gray-100">
+                    {recentAttendance.map((r, i) => {
+                      const Icon = STATUS_ICONS[r.status] || AlertCircle
+                      const color = STATUS_COLORS[r.status] || 'text-gray-500 bg-gray-50'
+                      return (
+                        <li key={i} className="flex items-center gap-3 py-2.5">
+                          <div className={`flex h-9 w-9 items-center justify-center rounded-lg ${color}`}><Icon className="h-4 w-4" /></div>
+                          <div className="flex-1">
+                            <p className="text-sm capitalize text-gray-900">{r.status}</p>
+                            <p className="text-xs text-gray-400">{new Date(r.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
+                          </div>
+                          {r.homeworkStatus && r.homeworkStatus !== 'not_assigned' && (
+                            <span className={`text-xs px-2 py-0.5 rounded-full ${HW_COLORS[r.homeworkStatus] || 'bg-gray-100 text-gray-600'}`}>{r.homeworkStatus.replace('_', ' ')}</span>
+                          )}
+                        </li>
+                      )
+                    })}
+                  </ul>
+                : <p className="py-8 text-center text-sm text-gray-400">{lang === 'ar' ? 'لا توجد سجلات حضور بعد.' : 'No attendance records yet.'}</p>
+            )}
+
+            {drill === 'homework' && (
+              recentHomework.length
+                ? <ul className="divide-y divide-gray-100">
+                    {recentHomework.map((h, i) => (
+                      <li key={i} className="flex items-center justify-between py-2.5">
+                        <p className="text-sm text-gray-700">{new Date(h.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
+                        <span className={`text-xs px-2 py-0.5 rounded-full capitalize ${HW_COLORS[h.status] || 'bg-gray-100 text-gray-600'}`}>{h.status.replace('_', ' ')}</span>
+                      </li>
+                    ))}
+                  </ul>
+                : <p className="py-8 text-center text-sm text-gray-400">{lang === 'ar' ? 'لا توجد واجبات بعد.' : 'No homework yet.'}</p>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* ─── MASTERY CELEBRATION ─────────────────────────────────────── */}
       {celebration && (

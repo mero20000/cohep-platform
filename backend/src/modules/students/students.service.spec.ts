@@ -90,6 +90,7 @@ systemConfig: {
     xPTransaction: { aggregate: jest.fn() },
     attendanceSession: { findMany: jest.fn() },
     assessmentSubmission: { findMany: jest.fn() },
+    familyLiturgy: { findMany: jest.fn() },
     user: { findUnique: jest.fn() },
     subjectItem: { findFirst: jest.fn(), findMany: jest.fn() },
     studentSubjectPass: {
@@ -723,6 +724,7 @@ systemConfig: {
       prisma.xPTransaction.aggregate.mockResolvedValue({ _sum: { amount: 120 } });
       prisma.attendanceSession.findMany.mockResolvedValue([]);
       prisma.assessmentSubmission.findMany.mockResolvedValue([]);
+      prisma.familyLiturgy.findMany.mockResolvedValue([]);
     });
 
     it('looks up student by portalAccessKey, not studentCode', async () => {

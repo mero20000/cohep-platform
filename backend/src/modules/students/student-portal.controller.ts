@@ -127,6 +127,27 @@ export class StudentPortalController {
     return this.hymnLearning.getStudentStats(student.id, student.schoolId);
   }
 
+  @Get(':code/achievements')
+  @ApiOperation({ summary: 'Recent XP achievements (dashboard drill-down)' })
+  async getAchievements(@Param('code') code: string) {
+    const student = await this.resolveStudent(code);
+    const tx = await (this.studentsService as any).prisma.xPTransaction.findMany({
+      where: { studentId: student.id },
+      orderBy: { createdAt: 'desc' },
+      take: 15,
+      select: { amount: true, type: true, description: true, createdAt: true, balanceAfter: true },
+    });
+    return {
+      totalXp: tx.length ? (tx[0].balanceAfter ?? 0) : 0,
+      transactions: tx.map(t => ({
+        amount: t.amount,
+        type: t.type,
+        description: t.description,
+        date: t.createdAt,
+      })),
+    };
+  }
+
   @Get(':code/history/:lessonId')
   @ApiOperation({ summary: 'Practice history for a specific hymn' })
   async getHistory(@Param('code') code: string, @Param('lessonId') lessonId: string) {

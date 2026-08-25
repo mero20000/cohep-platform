@@ -62,6 +62,15 @@ export function useStudentHymnHistory(code: string, lessonId: string) {
   })
 }
 
+export function useStudentAchievements(code: string, enabled = false) {
+  return useQuery({
+    queryKey: [...studentHymnKeys.all(code), 'achievements'],
+    queryFn: () => portalGet<any>(code, `/student-portal/${code}/achievements`),
+    enabled,
+    staleTime: 30_000,
+  })
+}
+
 export function useStudentPractice(code: string) {
   const qc = useQueryClient()
   return useMutation({

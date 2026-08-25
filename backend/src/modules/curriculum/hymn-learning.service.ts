@@ -167,25 +167,37 @@ export class HymnLearningService {
       });
       const levelId = student?.levelId ?? null;
       if (levelId) {
-        const currentYear = await this.prisma.academicYear.findFirst({
-          where: { schoolId, isCurrent: true },
-          select: { id: true },
-        });
+        // Prefer the current academic year; if that year has no allocations
+        // for this level, use the most recent year that does.
         const gName = groupName ?? student?.group?.name ?? '';
         const gm = /^Group\s*(\d+)/i.exec(gName || '') || /^(\d+)/.exec(gName || '');
-        const allocations = await this.prisma.curriculumAllocation.findMany({
-          where: {
-            status: { not: 'draft' },
-            levelId,
-            ...(currentYear ? { academicYearId: currentYear.id } : {}),
-            ...(gm ? { groupNumber: parseInt(gm[1], 10) } : {}),
-          },
-          select: { lessonId: true, orderIndex: true },
-          orderBy: { orderIndex: 'asc' },
+        const years = await this.prisma.academicYear.findMany({
+          where: { schoolId },
+          orderBy: { startDate: 'desc' },
+          select: { id: true, isCurrent: true },
         });
-        // Dedupe: one entry per lesson regardless of how many weeks/sessions.
-        const seen = new Set<string>();
-        allocatedLessonIds = allocations.map(a => a.lessonId).filter(id => !seen.has(id) && seen.add(id));
+        const ordered = [
+          ...years.filter(y => y.isCurrent),
+          ...years.filter(y => !y.isCurrent && !years.find(x => x.isCurrent)),
+        ];
+        for (const year of ordered.length ? ordered : [undefined as any]) {
+          if (!year) break;
+          const allocations = await this.prisma.curriculumAllocation.findMany({
+            where: {
+              status: { not: 'draft' },
+              levelId,
+              academicYearId: year.id,
+              ...(gm ? { groupNumber: parseInt(gm[1], 10) } : {}),
+            },
+            select: { lessonId: true, orderIndex: true },
+            orderBy: { orderIndex: 'asc' },
+          });
+          if (allocations.length > 0) {
+            const seen = new Set<string>();
+            allocatedLessonIds = allocations.map(a => a.lessonId).filter(id => !seen.has(id) && seen.add(id));
+            break;
+          }
+        }
       }
     } catch {
       allocatedLessonIds = null; // graceful fallback below
@@ -224,7 +236,16 @@ export class HymnLearningService {
       orderBy: [{ level: { number: 'asc' } }, { orderIndex: 'asc' }],
     })
 
-    return lessons.map(l => ({
+    // Hide data-entry duplicates: same normalized title within the same level
+    // shows once (the student's practice progress still tracks each lesson id).
+    const seenTitles = new Set<string>();
+    const deduped = lessons.filter(l => {
+      const key = `${l.level?.number}|${(l.title || '').trim().toLowerCase()}`
+      if (seenTitles.has(key)) return false
+      seenTitles.add(key)
+      return true
+    })
+    return deduped.map(l => ({
       id: l.id,
       title: l.title,
       titleAr: l.titleAr,
