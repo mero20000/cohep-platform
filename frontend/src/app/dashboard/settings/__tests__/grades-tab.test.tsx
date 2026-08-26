@@ -11,7 +11,7 @@ vi.mock('@/components/ui/modal', () => ({
 
 vi.mock('lucide-react', () => {
   const icons: Record<string, any> = {}
-  for (const name of ['Plus', 'Pencil', 'Trash2', 'Loader2', 'GraduationCap', 'Search', 'X']) {
+  for (const name of ['Plus', 'Pencil', 'Trash2', 'Loader2', 'GraduationCap', 'Search', 'X', 'CalendarDays']) {
     icons[name] = (props: any) => <span data-testid={`icon-${name}`} {...props} />
   }
   return icons

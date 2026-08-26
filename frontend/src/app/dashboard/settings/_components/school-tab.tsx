@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import Image from 'next/image'
 import { Button } from '@/components/ui/button'
 import { Plus, Pencil, Building2, Loader2, ImagePlus, Upload, Trash2, CheckCircle2, Ban } from 'lucide-react'
@@ -118,6 +118,7 @@ export function SchoolTab() {
 
   return (
     <>
+      <RegistrationLinkCard schools={schools} loading={loading} />
       <div className="rounded-xl border border-gray-200 bg-white">
         <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4">
           <div>
@@ -273,5 +274,74 @@ export function SchoolTab() {
         message={deleting ? (lang === 'ar' ? `هل أنت متأكد أنك تريد حذف ${deleting.name}؟ لا يمكن التراجع عن هذا الإجراء.` : `Are you sure you want to delete ${deleting.name}? This action cannot be undone.`) : ''}
       />
     </>
+  )
+}
+
+// ── Registration link + QR ───────────────────────────────────────────────────
+import { QRCodeSVG } from 'qrcode.react'
+import { Link2, Copy, Check, Download, ExternalLink } from 'lucide-react'
+
+const REG_BASE = typeof window !== 'undefined' ? window.location.origin : 'https://cohep-platform.vercel.app'
+
+function RegistrationLinkCard({ schools, loading }: { schools: SchoolItem[]; loading: boolean }) {
+  const lang = useLanguage()
+  const t = (en: string, ar: string) => lang === 'ar' ? ar : en
+  const [copied, setCopied] = useState(false)
+  const qrRef = useRef<HTMLDivElement>(null)
+  const active = schools.find(s => s.slug) || schools[0]
+
+  if (loading) return null
+  if (!active?.slug) return null
+
+  const link = `${REG_BASE}/register/${active.slug}`
+  const copy = async () => {
+    try { await navigator.clipboard.writeText(link) } catch {}
+    setCopied(true); setTimeout(() => setCopied(false), 2000)
+  }
+  const downloadSvg = () => {
+    const svg = qrRef.current?.querySelector('svg')
+    if (!svg) return
+    const xml = new XMLSerializer().serializeToString(svg)
+    const url = URL.createObjectURL(new Blob([xml], { type: 'image/svg+xml' }))
+    const a = document.createElement('a')
+    a.href = url; a.download = `registration-qr-${active.slug}.svg`; a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  return (
+    <div className="rounded-xl border border-gold-200 bg-gradient-to-br from-gold-50 to-white p-6 mb-6">
+      <div className="flex items-center gap-2 mb-1">
+        <Link2 className="h-5 w-5 text-gold-700" />
+        <h2 className="text-lg font-semibold text-gray-900">{t('Registration Link', 'رابط التسجيل')}</h2>
+      </div>
+      <p className="text-sm text-gray-500 mb-4">{t('Share this link or QR code with parents — new joiners register directly, no account needed.', 'شارك هذا الرابط أو رمز QR مع أولياء الأمور — يسجل الأطفال الجدد مباشرة دون حساب.')}</p>
+      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-5">
+        <div ref={qrRef} className="rounded-2xl border-4 border-white shadow-lg bg-white p-2 shrink-0">
+          <QRCodeSVG value={link} size={120} fgColor="#1A2744" bgColor="#FFFFFF" />
+        </div>
+        <div className="flex-1 min-w-0 space-y-3 w-full">
+          <div className="flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2.5">
+            <code className="flex-1 text-xs sm:text-sm text-gray-700 truncate" dir="ltr">{link}</code>
+            <button onClick={copy} aria-label={t('Copy link', 'نسخ الرابط')}
+              className="shrink-0 rounded-lg p-1.5 text-gray-400 hover:text-gold-700 hover:bg-gold-50 transition-colors">
+              {copied ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
+            </button>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button size="sm" onClick={copy} className="bg-gold-600 hover:bg-gold-700">
+              {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+              {copied ? t('Copied!', 'تم النسخ!') : t('Copy Link', 'نسخ الرابط')}
+            </Button>
+            <Button size="sm" variant="outline" onClick={downloadSvg}>
+              <Download className="h-4 w-4" />{t('Download QR', 'تحميل رمز QR')}
+            </Button>
+            <a href={link} target="_blank" rel="noopener noreferrer">
+              <Button size="sm" variant="outline"><ExternalLink className="h-4 w-4" />{t('Open', 'فتح')}</Button>
+            </a>
+          </div>
+          <p className="text-xs text-gray-400">{t('Parents fill the form, record a hymn, and you review it under Dashboard → Registrations.', 'يملأ أولياء الأمور النموذج ويسجلون اللحن، ثم تراجعونه من لوحة التحكم → التسجيلات.')}</p>
+        </div>
+      </div>
+    </div>
   )
 }

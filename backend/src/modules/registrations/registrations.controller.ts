@@ -24,12 +24,17 @@ export class RegistrationsController {
   @Public()
   @Post(':schoolSlug')
   @Throttle({ default: { limit: 10, ttl: 60_000 } })
-  @UseInterceptors(FileFieldsInterceptor([{ name: 'voiceFile', maxCount: 1 }, { name: 'photoFile', maxCount: 1 }]))
+  @UseInterceptors(FileFieldsInterceptor([
+    { name: 'voice_amen', maxCount: 1 },
+    { name: 'voice_shafaat', maxCount: 1 },
+    { name: 'voiceFile', maxCount: 1 },
+    { name: 'photoFile', maxCount: 1 },
+  ]))
   @ApiOperation({ summary: 'Public: submit registration (per school)' })
   async create(
     @Param('schoolSlug') schoolSlug: string,
     @Body() body: any,
-    @UploadedFiles() files?: { voiceFile?: Express.Multer.File[]; photoFile?: Express.Multer.File[] },
+    @UploadedFiles() files?: { voiceFile?: Express.Multer.File[]; voice_amen?: Express.Multer.File[]; voice_shafaat?: Express.Multer.File[]; photoFile?: Express.Multer.File[] },
   ) {
     // body may be JSON stringified studentData when multipart
     let dto: any = body;

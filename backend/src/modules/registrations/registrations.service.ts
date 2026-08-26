@@ -65,7 +65,7 @@ export class RegistrationsService {
     };
   }
 
-  async create(schoolSlug: string, dto: any, files?: { voiceFile?: Express.Multer.File[]; photoFile?: Express.Multer.File[] }) {
+  async create(schoolSlug: string, dto: any, files?: { voiceFile?: Express.Multer.File[]; voice_amen?: Express.Multer.File[]; voice_shafaat?: Express.Multer.File[]; photoFile?: Express.Multer.File[] }) {
     const school = await this.resolveSchool(schoolSlug);
     const ok = await this.verifyTurnstile(dto.turnstileToken);
     if (!ok) throw new BadRequestException('Captcha verification failed');
@@ -75,13 +75,27 @@ export class RegistrationsService {
     if (!studentData.name || !studentData.dateOfBirth || !studentData.parentEmail) {
       throw new BadRequestException('Missing required fields: name, dateOfBirth, parentEmail');
     }
-    if (!dto.hymnChoice || !['amen_be_mawteka', 'be_shafaat', 'both'].includes(dto.hymnChoice)) {
-      throw new BadRequestException('Invalid hymn choice');
-    }
 
     const voiceFile = files?.voiceFile?.[0];
+    const voiceAmen = files?.voice_amen?.[0];
+    const voiceShafaat = files?.voice_shafaat?.[0];
     const photoFile = files?.photoFile?.[0];
     let voiceUrl: string | undefined;
+    const recordings: Record<string, string> = {};
+    const uploadVoice = async (f: Express.Multer.File, hymnId: string) => {
+      const mime = f.mimetype;
+      const ext = mime.includes('mp4') ? 'mp4' : (mime.includes('mpeg') || mime.includes('mp3')) ? 'mp3' : 'webm';
+      const key = `recordings/registrations/${schoolSlug}/${hymnId}-${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+      return uploadRecording(f.buffer, key, mime);
+    };
+    if (voiceAmen) {
+      recordings['amen_be_mawteka'] = await uploadVoice(voiceAmen, 'amen_be_mawteka');
+      voiceUrl = recordings['amen_be_mawteka'];
+    }
+    if (voiceShafaat) {
+      recordings['be_shafaat'] = await uploadVoice(voiceShafaat, 'be_shafaat');
+      voiceUrl = voiceUrl || recordings['be_shafaat'];
+    }
     if (voiceFile) {
       const mime = voiceFile.mimetype;
       const ext = mime.includes('mp4') ? 'mp4' : (mime.includes('mpeg') || mime.includes('mp3')) ? 'mp3' : 'webm';
@@ -90,6 +104,7 @@ export class RegistrationsService {
     } else if (dto.voiceRecordingUrl) {
       voiceUrl = dto.voiceRecordingUrl;
     }
+    if (Object.keys(recordings).length) studentData.recordings = recordings;
     let photoUrl: string | undefined = studentData.photoUrl;
     if (photoFile) {
       const ext = photoFile.mimetype.split('/')[1] || 'jpg';
@@ -98,11 +113,18 @@ export class RegistrationsService {
       studentData.photoUrl = photoUrl;
     }
 
-    const voiceMeta = voiceFile ? { originalName: voiceFile.originalname, mimeType: voiceFile.mimetype, size: voiceFile.size } : undefined
+    const voiceMeta = (voiceAmen || voiceShafaat)
+      ? { perItem: recordings, mimeType: (voiceAmen || voiceShafaat)!.mimetype }
+      : voiceFile ? { originalName: voiceFile.originalname, mimeType: voiceFile.mimetype, size: voiceFile.size } : undefined
+    // Derive hymnChoice from recordings when not provided
+    const hymnChoice = dto.hymnChoice
+      || (recordings['amen_be_mawteka'] && recordings['be_shafaat'] ? 'both'
+        : recordings['amen_be_mawteka'] ? 'amen_be_mawteka'
+        : recordings['be_shafaat'] ? 'be_shafaat' : '')
     const app = await this.prisma.registrationApplication.create({
       data: {
         schoolId: school.id,
-        hymnChoice: dto.hymnChoice,
+        hymnChoice,
         voiceRecordingUrl: voiceUrl,
         voiceRecordingMeta: voiceMeta,
         studentData,

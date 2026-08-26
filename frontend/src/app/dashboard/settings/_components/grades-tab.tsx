@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react'
 import { Button } from '@/components/ui/button'
-import { Plus, Pencil, Trash2, Loader2, GraduationCap, Search, X } from 'lucide-react'
+import { Plus, Pencil, Trash2, Loader2, GraduationCap, Search, X, CalendarDays } from 'lucide-react'
 import { TableSkeleton } from '@/components/ui/skeleton'
 import { Modal } from '@/components/ui/modal'
 import { FormField } from '@/components/ui/form-field'
@@ -267,6 +267,7 @@ export function GradesTab() {
                 <thead>
                   <tr className="border-b border-gray-100 bg-gray-50/50">
                     <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">{t('Grade', 'الصف')}</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">{t('Weekday', 'اليوم')}</th>
                     <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">{t('Group', 'المجموعة')}</th>
                     <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">{t('Students', 'الطلاب')}</th>
                     <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">{t('Status', 'الحالة')}</th>
@@ -278,7 +279,14 @@ export function GradesTab() {
                     <tr key={grade.id} className="hover:bg-gray-50/50 active:bg-gray-100/50 transition-colors">
                       <td className="px-6 py-3.5" data-label={t('Grade', 'الصف')}>
                         <p className="text-sm font-medium text-gray-900">{grade.name}</p>
-                        {grade.nameAr && <p className="text-xs text-gray-500">{grade.nameAr}</p>}
+                        {grade.nameAr && (
+                          <p className="text-xs text-gray-500 inline-flex items-center gap-1">
+                            <CalendarDays className="h-3 w-3 text-gold-600" />{grade.nameAr}
+                          </p>
+                        )}
+                      </td>
+                      <td className="px-6 py-3.5 text-sm text-gray-600" data-label={t('Weekday', 'اليوم')}>
+                        {grade.nameAr || '—'}
                       </td>
                       <td className="px-6 py-3.5 text-sm text-gray-600" data-label={t('Group', 'المجموعة')}>
                         {grade.groupName || '—'}
@@ -318,7 +326,7 @@ export function GradesTab() {
         <div className="space-y-4">
           {error && <div className="rounded-lg bg-red-50 border border-red-200 p-3 text-sm text-red-700" role="alert">{error}</div>}
           <FormField label={t('Grade Name', 'اسم الصف')} required value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder={t('e.g. Grade 4', 'مثال: الصف الرابع')} />
-          <FormField label={t('Arabic Name', 'الاسم بالعربية')} value={form.nameAr} onChange={e => setForm({ ...form, nameAr: e.target.value })} placeholder={t('e.g. الصف الرابع', 'مثال: الصف الرابع')} />
+          <FormField label={t('Weekday', 'اليوم')} value={form.nameAr} onChange={e => setForm({ ...form, nameAr: e.target.value })} placeholder={t('e.g. Sunday', 'مثال: الأحد')} />
           <FormField label={t('Group', 'المجموعة')} required as="select" value={form.groupId} onChange={e => setForm({ ...form, groupId: e.target.value })}>
             <option value="">{t('Select a group', 'اختر مجموعة')}</option>
             {activeGroups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
