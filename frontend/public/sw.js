@@ -1,4 +1,4 @@
-const CACHE = 'cohep-v2'
+const CACHE = 'cohep-v3'
 const STATIC = [
   '/',
   '/manifest.json',
@@ -43,6 +43,23 @@ self.addEventListener('fetch', (event) => {
           return response
         })
         .catch(() => caches.match(event.request))
+    )
+    return
+  }
+
+  // Images are network-first with cache fallback — a cached image must never
+  // shadow a fresh copy after deploys (fixes "broken until hard refresh").
+  if (event.request.destination === 'image') {
+    event.respondWith(
+      fetch(event.request)
+        .then((response) => {
+          if (response.ok && (response.type === 'basic' || response.type === 'cors')) {
+            const copy = response.clone()
+            caches.open(CACHE).then((cache) => cache.put(event.request, copy))
+          }
+          return response
+        })
+        .catch(() => caches.match(event.request).then((c) => c || Response.error()))
     )
     return
   }

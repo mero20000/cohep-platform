@@ -76,7 +76,7 @@ export default async function RootLayout({
         <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
         <link rel="apple-touch-startup-image" href="/icons/apple-touch-icon.png" />
         <script nonce={nonce} dangerouslySetInnerHTML={{
-          __html: `document.documentElement.classList.add('js')`
+          __html: `document.documentElement.classList.add('js');document.addEventListener('error',function(e){var t=e.target;if(t&&t.tagName==='IMG'&&!t.dataset.retried){t.dataset.retried='1';var s=t.getAttribute('src');if(s){t.src=s+(s.indexOf('?')>-1?'&':'?')+'r='+Date.now()}}},true)`
         }} />
         <script nonce={nonce} dangerouslySetInnerHTML={{
           __html: `if('serviceWorker' in navigator){window.addEventListener('load',()=>{navigator.serviceWorker.register('/sw.js').catch(()=>{})})}`
