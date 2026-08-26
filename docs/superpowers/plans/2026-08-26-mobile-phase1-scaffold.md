@@ -1294,17 +1294,20 @@ function dueLabel(dueDate?: string): string | null {
   return `in ${days} day${days === 1 ? '' : 's'}`
 }
 
+// NOTE: every className below must be a complete literal string —
+// NativeWind compiles Tailwind classes statically and cannot see
+// dynamically constructed names.
 const SECTION_STYLES = {
-  overdue: { title: 'Overdue — needs attention', tint: 'text-red-400', bar: 'bg-red-400', chip: 'bg-red-400/20' },
-  pending: { title: 'Upcoming', tint: 'text-sky-400', bar: 'bg-sky-400', chip: 'bg-sky-400/20' },
-  done: { title: 'Completed 🎉', tint: 'text-green-400', bar: 'bg-green-400', chip: 'bg-green-400/20' },
+  overdue: { title: 'Overdue — needs attention', tint: 'text-red-400', barLeft: 'border-l-red-400', chip: 'bg-red-400/20' },
+  pending: { title: 'Upcoming', tint: 'text-sky-400', barLeft: 'border-l-sky-400', chip: 'bg-sky-400/20' },
+  done: { title: 'Completed 🎉', tint: 'text-green-400', barLeft: 'border-l-green-400', chip: 'bg-green-400/20' },
 } as const
 
 function Card({ item, kind }: { item: A; kind: keyof typeof SECTION_STYLES }) {
   const s = SECTION_STYLES[kind]
   const label = dueLabel(item.dueDate)
   return (
-    <View className={`mb-2 rounded-2xl border border-white/10 bg-white/5 border-l-4 ${s.bar.replace('bg-', 'border-l-')} px-4 py-3.5`}>
+    <View className={`mb-2 rounded-2xl border border-white/10 bg-white/5 border-l-4 ${s.barLeft} px-4 py-3.5`}>
       <View className="flex-row items-start justify-between gap-3">
         <View className="flex-1">
           <Text numberOfLines={1} className={`font-semibold text-white ${kind === 'done' ? 'line-through opacity-60' : ''}`}>
