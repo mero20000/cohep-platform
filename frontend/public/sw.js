@@ -1,4 +1,4 @@
-const CACHE = 'cohep-v3'
+const CACHE = 'cohep-v4'
 const STATIC = [
   '/',
   '/manifest.json',
@@ -47,9 +47,10 @@ self.addEventListener('fetch', (event) => {
     return
   }
 
-  // Images are network-first with cache fallback — a cached image must never
-  // shadow a fresh copy after deploys (fixes "broken until hard refresh").
-  if (event.request.destination === 'image') {
+  // Media (images/audio/video) is network-first with cache fallback — a cached
+  // response must never shadow a fresh copy after deploys (fixes "Failed to
+  // load audio" / broken images until hard refresh).
+  if (['image', 'audio', 'video'].includes(event.request.destination)) {
     event.respondWith(
       fetch(event.request)
         .then((response) => {

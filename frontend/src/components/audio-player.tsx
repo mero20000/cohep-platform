@@ -108,7 +108,7 @@ export function AudioPlayer({ src, duration, compact, className = '', autoPlay }
   /* ── Compact mode ── */
   if (compact) return (
     <div className={`flex items-center gap-2 ${className}`}>
-      <audio key={src} ref={audioRef} src={src} preload="metadata" crossOrigin="anonymous" />
+      <audio key={src} ref={audioRef} src={src} preload="metadata" />
       <button
         onClick={toggle}
         className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gold-500 text-white hover:bg-gold-600 transition-colors"
@@ -134,7 +134,7 @@ export function AudioPlayer({ src, duration, compact, className = '', autoPlay }
   /* ── Full mode ── */
   return (
     <div className={`flex items-center gap-3 rounded-xl border border-gray-100 bg-gray-50 p-3 ${className}`}>
-      <audio key={src} ref={audioRef} src={src} preload="metadata" crossOrigin="anonymous" />
+      <audio key={src} ref={audioRef} src={src} preload="metadata" />
 
       {/* Play/Pause */}
       <button
