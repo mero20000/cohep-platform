@@ -1,17 +1,9 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { Redirect } from 'expo-router'
+import { View } from 'react-native'
+import { useAuth } from '@/lib/auth'
 
-export default function HomeScreen() {
-  return (
-    <View style={styles.container}>
-      <Text>COHEP</Text>
-    </View>
-  );
+export default function Index() {
+  const { session, ready } = useAuth()
+  if (!ready) return <View className="flex-1 bg-[#0f172a]" />
+  return <Redirect href={session ? '/(tabs)' : '/login'} />
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-});
