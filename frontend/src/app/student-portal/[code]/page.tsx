@@ -17,6 +17,7 @@ import {
   Cross, Loader2, Calendar, Church, CheckCircle2, XCircle, Clock, AlertCircle,
   Award, Star, BookOpen, ArrowLeft, Trophy, Play, Music,
   ChevronDown, ChevronRight, Search, Filter, ClipboardCheck, MoreVertical, LogOut, Eye, EyeOff, TrendingUp,
+  Sparkles,
 } from 'lucide-react'
 import Link from 'next/link'
 import { useStudentHymnMap, useStudentThisSunday, useStudentDueReview, useStudentStats, useStudentPractice, useStudentAchievements } from '@/components/hymn-learning/student-hooks'
@@ -767,6 +768,87 @@ export default function StudentDashboard() {
                 </div>
               </section>
             )}
+
+            {/* ── My Hymn Journey — progress summary card ── */}
+            {(() => {
+              const t = (en: string, ar: string) => (lang === 'ar' ? ar : en)
+              const passed = subjectItems.filter(i => i.status === 'passed')
+              const total = subjectItems.length
+              const pct = total > 0 ? Math.round((passed.length / total) * 100) : 0
+              const recentPass = passed.some(p => p.passedAt && (Date.now() - new Date(p.passedAt).getTime()) < 3 * 86400000)
+              const nextUp = subjectItems.find(i => i.status !== 'passed')
+              const nextName = nextUp ? (lang === 'ar' && nextUp.subjectItem.nameAr ? nextUp.subjectItem.nameAr : nextUp.subjectItem.name) : ''
+              const firstName = lang === 'ar' && student.firstNameAr ? student.firstNameAr : student.firstName
+              let msg: string
+              if (passed.length === 0) {
+                msg = t('Every great cantor started with one hymn — yours is waiting.', 'كل كانون عظيم بدأ بلحن واحد — لحنك في الانتظار.')
+              } else if (recentPass) {
+                msg = t('A new hymn passed this week — beautiful work!', 'لحن جديد اجتزته هذا الأسبوع — عمل رائع!')
+              } else if (passed.length <= 3) {
+                msg = t(`Well done, ${firstName}! Keep the flame going.`, `أحسنت ${firstName}! واصل التألق.`)
+              } else if (passed.length <= 7) {
+                msg = nextName ? t(`Well done! You're on a roll — "${nextName}" is within reach.`, `أحسنت! أنت في أفضل حال — "${nextName}" في متناول يدك.`) : t('Well done! Keep shining.', 'أحسنت! استمر في التألق.')
+              } else {
+                msg = t('Well done! You are becoming a true cantor of the Church.', 'أحسنت! أصبحت كانونًا حقيقيًا للكنيسة.')
+              }
+              const mastery = stats ? (['known', 'mastered'] as const).map(k => stats[k] || 0) : null
+              return (
+                <section aria-label={t('My Hymn Journey', 'رحلتي في الترانيم')} className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-indigo-950 via-purple-950 to-indigo-950 p-5 text-white">
+                  <div className="absolute inset-0 pointer-events-none" aria-hidden="true">
+                    <div className="absolute -top-10 -right-10 w-40 h-40 bg-purple-500/20 rounded-full blur-3xl" />
+                    <div className="absolute -bottom-10 -left-10 w-32 h-32 bg-indigo-400/10 rounded-full blur-3xl" />
+                  </div>
+                  <div className="relative">
+                    <div className="flex items-center justify-between gap-3 mb-2">
+                      <h2 className="text-sm font-bold flex items-center gap-1.5">
+                        <Sparkles className="h-4 w-4 text-amber-300" aria-hidden="true" />
+                        {t('My Hymn Journey', 'رحلتي في الترانيم')}
+                      </h2>
+                      <p className="text-sm font-black tabular-nums" aria-label={t(`${passed.length} of ${total} hymns passed`, `${passed.length} من ${total} ترنيمة مجتازة`)}>
+                        <span className="text-amber-300">{passed.length}</span>
+                        <span className="text-white/50"> / {total} </span>
+                        <span className="text-xs font-medium text-white/60">{t('passed', 'مجتازة')}</span>
+                      </p>
+                    </div>
+                    <div className="h-2.5 rounded-full bg-white/15 overflow-hidden" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100}>
+                      <div className="h-full rounded-full bg-gradient-to-r from-amber-300 to-gold-500 transition-all duration-700" style={{ width: `${pct}%` }} />
+                    </div>
+                    <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs">
+                      <span className="flex items-center gap-1 font-semibold text-emerald-300">
+                        <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />{passed.length} {t('passed', 'مجتازة')}
+                      </span>
+                      <span className="flex items-center gap-1 font-semibold text-gold-300">
+                        <Trophy className="h-3.5 w-3.5" aria-hidden="true" />{totalXp} XP
+                      </span>
+                      <span className="flex items-center gap-1 font-semibold text-blue-300">
+                        <Award className="h-3.5 w-3.5" aria-hidden="true" />{badges.length} {t('badges', 'شارات')}
+                      </span>
+                      {mastery && (
+                        <span className="flex items-center gap-2 text-white/70" title={t('Known + mastered hymns', 'ترانيم يعرفها وأتقنها')}>
+                          {MASTERY_META.known.dot && <span className="h-2 w-2 rounded-full" style={{ background: MASTERY_META.known.dot }} aria-hidden="true" />}
+                          {mastery[0] + mastery[1]} {t('known', 'يعرفها')}
+                          <span className="h-2 w-2 rounded-full" style={{ background: MASTERY_META.mastered.dot }} aria-hidden="true" />
+                          {mastery[1]} {t('mastered', 'أتقنها')}
+                        </span>
+                      )}
+                    </div>
+                    <p className="mt-3 text-sm leading-relaxed text-amber-200/90" role="status">
+                      {msg}
+                    </p>
+                    {nextUp && passed.length > 0 && (
+                      <button
+                        onClick={() => setActiveTab('practice')}
+                        className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-white/10 border border-white/20 px-3 py-1.5 text-xs font-semibold text-white hover:bg-white/20 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300"
+                      >
+                        <Music className="h-3.5 w-3.5" aria-hidden="true" />
+                        {t(`Next up: ${nextName}`, `التالي: ${nextName}`)}
+                        <ChevronRight className="h-3.5 w-3.5 rtl:rotate-180" aria-hidden="true" />
+                      </button>
+                    )}
+                  </div>
+                </section>
+              )
+            })()}
 
             {/* Passed Hymns (subject items) */}
             {(() => {
