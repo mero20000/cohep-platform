@@ -2,6 +2,7 @@
 
 import { useState, useRef, useCallback, useEffect } from 'react'
 import { Mic, Square, Play, RotateCcw, Loader2 } from 'lucide-react'
+import { Mp3Encoder } from '@breezystack/lamejs'
 
 interface Props {
   onRecordingComplete: (blob: Blob | null) => void
@@ -17,9 +18,42 @@ function pickMime(): string {
   return 'audio/webm'
 }
 
+/** Re-encode any recorded blob to MP3 — plays on every browser/device (WebM fails on Safari/iOS). */
+async function transcodeToMp3(blob: Blob): Promise<Blob | null> {
+  try {
+    const AC: typeof AudioContext = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext
+    const ctx = new AC()
+    const buf = await ctx.decodeAudioData(await blob.arrayBuffer())
+    await ctx.close()
+    const channels = Math.min(buf.numberOfChannels, 2)
+    const enc = new Mp3Encoder(channels, buf.sampleRate, 96)
+    const left = buf.getChannelData(0)
+    const right = channels > 1 ? buf.getChannelData(1) : null
+    const to16 = (s: number) => (s < 0 ? s * 0x8000 : s * 0x7fff)
+    const blockSize = 1152
+    const parts: BlobPart[] = []
+    for (let i = 0; i < left.length; i += blockSize) {
+      const l = new Int16Array(blockSize)
+      const r = right ? new Int16Array(blockSize) : undefined
+      for (let j = 0; j < blockSize; j++) {
+        l[j] = to16(left[i + j] || 0)
+        if (r && right) r[j] = to16(right[i + j] || 0)
+      }
+      const chunk = r ? enc.encodeBuffer(l, r) : enc.encodeBuffer(l)
+      if (chunk.length) parts.push(new Int8Array(chunk))
+    }
+    const end = enc.flush()
+    if (end.length) parts.push(new Int8Array(end))
+    if (!parts.length) return null
+    return new Blob(parts, { type: 'audio/mpeg' })
+  } catch {
+    return null
+  }
+}
+
 export function VoiceRecorder({ onRecordingComplete, lang, existingUrl }: Props) {
   const t = (en: string, ar: string) => lang === 'ar' ? ar : en
-  const [recState, setRecState] = useState<'idle' | 'recording' | 'recorded'>('idle')
+  const [recState, setRecState] = useState<'idle' | 'recording' | 'processing' | 'recorded'>('idle')
   const [duration, setDuration] = useState(0)
   const [playing, setPlaying] = useState(false)
   const [blobUrl, setBlobUrl] = useState<string | null>(null)
@@ -42,13 +76,17 @@ export function VoiceRecorder({ onRecordingComplete, lang, existingUrl }: Props)
       const rec = new MediaRecorder(stream, { mimeType: mime })
       chunksRef.current = []
       rec.ondataavailable = e => { if (e.data.size > 0) chunksRef.current.push(e.data) }
-      rec.onstop = () => {
-        const blob = new Blob(chunksRef.current, { type: mime })
-        const url = URL.createObjectURL(blob)
+      rec.onstop = async () => {
+        const raw = new Blob(chunksRef.current, { type: mime })
+        stream.getTracks().forEach(tr => tr.stop())
+        // Transcode to MP3 so the recording plays on every device (WebM fails on Safari/iOS)
+        setRecState('processing')
+        const mp3 = await transcodeToMp3(raw)
+        const final = mp3 || raw
+        const url = URL.createObjectURL(final)
         setBlobUrl(url)
         setRecState('recorded')
-        onRecordingComplete(blob)
-        stream.getTracks().forEach(tr => tr.stop())
+        onRecordingComplete(final)
       }
       rec.start()
       mediaRef.current = rec
@@ -122,6 +160,14 @@ export function VoiceRecorder({ onRecordingComplete, lang, existingUrl }: Props)
           <button onClick={stop} className="mt-4 inline-flex items-center gap-2 rounded-full bg-gray-900 px-6 py-2.5 text-sm font-semibold text-white hover:bg-black">
             <Square className="h-4 w-4 fill-white" /> {t('Stop', 'إيقاف')}
           </button>
+        </>
+      )}
+      {recState === 'processing' && (
+        <>
+          <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-gold-100 text-gold-700">
+            <Loader2 className="h-8 w-8 animate-spin" />
+          </div>
+          <p className="mt-3 text-sm font-medium text-gray-700">{t('Preparing your recording…', 'جاري تجهيز التسجيل…')}</p>
         </>
       )}
       {recState === 'recorded' && blobUrl && (

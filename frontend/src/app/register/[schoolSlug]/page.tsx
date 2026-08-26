@@ -41,9 +41,10 @@ export default function RegisterPage() {
   useEffect(() => {
     fetch(`${API}/registrations/${schoolSlug}/meta`).then(r=>r.json()).then(d=>{
       setMeta(d);
-      // Default church as per school link (per-school registration)
-      if (d?.school?.name) {
-        setForm(prev => prev.churchName ? prev : ({ ...prev, churchName: d.school.name }))
+      // Default church as per school link (Church identity from School.church)
+      const churchName = d?.church?.name || d?.school?.name
+      if (churchName) {
+        setForm(prev => prev.churchName ? prev : ({ ...prev, churchName }))
       }
       setMetaLoading(false)
     }).catch(()=>setMetaLoading(false))
@@ -51,7 +52,7 @@ export default function RegisterPage() {
 
   const update = (k: string, v: string) => setForm(prev => ({ ...prev, [k]: v }))
 
-  const canNext1 = form.name.trim() && form.dateOfBirth && form.gender
+  const canNext1 = form.name.trim() && form.dateOfBirth && form.gender && !!photoPreview
   const canNext2 = form.parentEmail.trim() && form.parentName.trim() && form.phone.trim()
   const canNext3 = hymnChoice && voiceBlob
   const canSubmit = canNext1 && canNext2 && canNext3 && form.parentEmail.includes('@')
@@ -135,19 +136,20 @@ export default function RegisterPage() {
 
   return (
     <div className="min-h-screen bg-gray-50" dir={isAr?'rtl':'ltr'}>
-      {/* Hero — reflects school + church identity, hook from main portal */}
+      {/* Hero — church + school identity, hook from main portal */}
       <div className="relative overflow-hidden bg-gradient-to-br from-[#0f1f3d] via-[#1A2744] to-[#1e3a5f] px-4 pt-8 pb-10 sm:px-6">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,_rgba(200,155,60,0.15),_transparent_50%)]" />
         <div className="relative mx-auto max-w-3xl text-center">
           <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-white/10 border border-white/15 backdrop-blur overflow-hidden">
-            {meta?.school?.logoUrl ? <Image src={meta.school.logoUrl.startsWith('http') ? meta.school.logoUrl : `${API.replace('/api','')}${meta.school.logoUrl}`} alt={meta.school.name} width={56} height={56} className="h-full w-full object-cover" unoptimized /> : <Music className="h-7 w-7 text-gold-400" />}
+            {(meta?.church?.logoUrl || meta?.school?.logoUrl) ? <Image src={(meta.church?.logoUrl || meta.school.logoUrl)!.startsWith('http') ? (meta.church?.logoUrl || meta.school.logoUrl)! : `${API.replace('/api','')}${meta.church?.logoUrl || meta.school.logoUrl}`} alt={meta.church?.name || meta.school.name} width={56} height={56} className="h-full w-full object-cover" unoptimized /> : <Music className="h-7 w-7 text-gold-400" />}
           </div>
           <h1 className="mt-4 text-3xl sm:text-4xl font-bold tracking-tight text-white">{t('Join the Hymn School', 'انضم لمدرسة الألحان')}</h1>
-          <p className="mx-auto mt-2 text-sm font-medium text-gold-300">{meta?.school?.name ? `${meta.school.name}${meta?.school?.nameAr ? ` · ${meta.school.nameAr}` : ''}` : schoolSlug}</p>
+          <p className="mx-auto mt-2 text-sm font-medium text-gold-300">{meta?.church?.name || meta?.school?.name || schoolSlug}{meta?.church?.nameAr || meta?.school?.nameAr ? ` · ${meta.church?.nameAr || meta.school.nameAr}` : ''}</p>
+          {meta?.school?.name && meta?.church?.name && meta.church.name !== meta.school.name && <p className="text-xs text-white/50">{meta.school.name}</p>}
           <p className="mx-auto mt-3 max-w-xl text-sm leading-relaxed text-white/70">{t('Teach hymns, preserve heritage, and help children belong to the Church. Your child\'s voice matters — begin their spiritual journey today.', 'علموا التراتيل، احفظوا التراث، وساعدوا الأطفال على الانتماء للكنيسة. صوت طفلك مهم — ابدأ رحلته الروحية اليوم.')}</p>
           <div className="mt-4 inline-flex flex-wrap items-center justify-center gap-2 rounded-full bg-white/10 border border-white/15 px-3 py-1.5 text-xs text-white/80">
             <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
-            {meta?.school?.name || schoolSlug} {meta?.school?.nameAr ? `· ${meta.school.nameAr}` : ''} · {t('2025-2026 Intake', 'التسجيل 2025-2026')} · {t('Secure', 'آمن')}
+            {meta?.church?.name || meta?.school?.name || schoolSlug} · {t('2025-2026 Intake', 'التسجيل 2025-2026')} · {t('Secure', 'آمن')}
           </div>
         </div>
       </div>
@@ -176,13 +178,15 @@ export default function RegisterPage() {
               <div className="space-y-4">
                 <div className="flex flex-col items-center gap-3 pb-2">
                   <div className="relative">
-                    {photoPreview ? <Image src={photoPreview} alt="preview" width={80} height={80} className="h-20 w-20 rounded-full object-cover border-2 border-gold-200" unoptimized /> : <div className="h-20 w-20 rounded-full bg-gray-100 border-2 border-dashed border-gray-300 flex items-center justify-center"><User className="h-8 w-8 text-gray-400" /></div>}
+                    {photoPreview ? <Image src={photoPreview} alt="preview" width={80} height={80} className="h-20 w-20 rounded-full object-cover border-2 border-gold-200" unoptimized /> : <div className={`h-20 w-20 rounded-full bg-gray-100 border-2 border-dashed flex items-center justify-center ${!photoPreview ? 'border-amber-300 bg-amber-50' : 'border-gray-300'}`}><User className="h-8 w-8 text-gray-400" /></div>}
                     <label className="absolute -bottom-1 -end-1 flex h-7 w-7 items-center justify-center rounded-full bg-gold-500 text-white shadow cursor-pointer hover:bg-gold-600">
                       <input type="file" accept="image/*" className="hidden" onChange={e=>handlePhoto(e.target.files?.[0]||null)} />
                       <span className="text-xs">+</span>
                     </label>
                   </div>
-                  <span className="text-xs text-gray-500">{t('Profile picture — helps servant recognize your child', 'الصورة — تساعد الخادم على التعرف على طفلك')}</span>
+                  <span className="text-xs font-medium text-amber-700">{t('Profile picture * — required', 'الصورة الشخصية * — مطلوبة')}</span>
+                  <span className="text-xs text-gray-500">{t('Helps servant recognize your child', 'تساعد الخادم على التعرف على طفلك')}</span>
+                  {!photoPreview && <span className="text-xs text-red-500 flex items-center gap-1"><AlertCircle className="h-3 w-3" />{t('Please upload a photo to continue', 'يرجى رفع صورة للمتابعة')}</span>}
                 </div>
                 <div><label className="block text-sm font-medium text-gray-700">{t('Full name (English) *','الاسم الكامل (إنجليزي) *')}</label><input value={form.name} onChange={e=>update('name',e.target.value)} placeholder="e.g. Mina George" className="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2.5 text-sm focus:border-gold-400 focus:ring-2 focus:ring-gold-100 outline-none" /></div>
                 <div className="grid grid-cols-2 gap-3">

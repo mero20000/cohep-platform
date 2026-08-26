@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 import { MailService } from '../mail/mail.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { uploadRecording } from '../../common/storage/r2';
 import { ConfigService } from '@nestjs/config';
 
@@ -10,10 +11,14 @@ export class RegistrationsService {
     private readonly prisma: PrismaService,
     private readonly mailService: MailService,
     private readonly configService: ConfigService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   private async resolveSchool(schoolSlug: string) {
-    const school = await this.prisma.school.findFirst({ where: { slug: schoolSlug, deletedAt: null } });
+    const school = await this.prisma.school.findFirst({
+      where: { slug: schoolSlug, deletedAt: null },
+      include: { church: { select: { name: true, nameAr: true, logoUrl: true } } },
+    });
     if (!school) throw new NotFoundException('School not found');
     return school;
   }
@@ -53,7 +58,11 @@ export class RegistrationsService {
       this.prisma.group.findMany({ where: { schoolId: school.id, deletedAt: null }, orderBy: { orderIndex: 'asc' }, select: { id: true, name: true } }),
       this.prisma.schoolGrade.findMany({ where: { schoolId: school.id, deletedAt: null }, select: { id: true, name: true, groupId: true } }),
     ]);
-    return { school: { id: school.id, name: school.name, nameAr: school.nameAr, slug: school.slug, logoUrl: school.logoUrl }, levels, groups, grades };
+    return {
+      school: { id: school.id, name: school.name, nameAr: school.nameAr, slug: school.slug, logoUrl: school.logoUrl },
+      church: school.church ? { name: school.church.name, nameAr: school.church.nameAr, logoUrl: school.church.logoUrl } : null,
+      levels, groups, grades,
+    };
   }
 
   async create(schoolSlug: string, dto: any, files?: { voiceFile?: Express.Multer.File[]; photoFile?: Express.Multer.File[] }) {
@@ -74,9 +83,10 @@ export class RegistrationsService {
     const photoFile = files?.photoFile?.[0];
     let voiceUrl: string | undefined;
     if (voiceFile) {
-      const ext = voiceFile.mimetype.includes('mp4') ? 'mp4' : 'webm';
+      const mime = voiceFile.mimetype;
+      const ext = mime.includes('mp4') ? 'mp4' : (mime.includes('mpeg') || mime.includes('mp3')) ? 'mp3' : 'webm';
       const key = `recordings/registrations/${schoolSlug}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
-      voiceUrl = await uploadRecording(voiceFile.buffer, key, voiceFile.mimetype);
+      voiceUrl = await uploadRecording(voiceFile.buffer, key, mime);
     } else if (dto.voiceRecordingUrl) {
       voiceUrl = dto.voiceRecordingUrl;
     }
@@ -108,12 +118,46 @@ export class RegistrationsService {
   }
 
   private async notifyStaff(schoolId: string, app: any) {
-    // Find admins/servants for this school to notify — we just create in-app notifications if needed
-    // For now, also send email to school email if exists
+    const sd: any = app.studentData || {};
+    const name = sd.name || `${sd.firstName || ''} ${sd.lastName || ''}`.trim() || 'New applicant';
+
+    // In-app notifications for school staff (admins always; servants scoped to the
+    // application's grade→group when determinable)
+    try {
+      const staff = await this.prisma.user.findMany({
+        where: {
+          schoolId, deletedAt: null, isActive: true,
+          userRoles: { some: { role: { name: { in: ['admin', 'principal', 'super_admin', 'servant', 'group_leader', 'level_leader'] } } } },
+        },
+        select: { id: true, metadata: true, userRoles: { select: { role: { select: { name: true } } } } },
+      });
+      const gradeId: string | undefined = sd.gradeId;
+      let gradeGroupId: string | undefined;
+      if (gradeId) {
+        const grade = await this.prisma.schoolGrade.findUnique({ where: { id: gradeId }, select: { groupId: true } });
+        gradeGroupId = grade?.groupId;
+      }
+      const isLeader = (u: any) => (u.userRoles || []).some((ur: any) => ['admin', 'principal', 'super_admin'].includes(ur.role?.name));
+      const matchesGroup = (u: any) => !gradeGroupId || ((u.metadata as any)?.groupId === gradeGroupId);
+      const targets = staff.filter(u => isLeader(u) || matchesGroup(u)).slice(0, 30);
+      await Promise.all(targets.map(u =>
+        this.notifications.createNotification({
+          schoolId,
+          userId: u.id,
+          type: 'registration',
+          title: 'New registration',
+          titleAr: 'تسجيل جديد',
+          body: `${name} applied — hymn: ${app.hymnChoice}`,
+          bodyAr: `${name} قدّم طلب انضمام — اللحن: ${app.hymnChoice}`,
+          data: { url: '/dashboard/pending-registrations', applicationId: app.id },
+          channels: ['in_app'],
+        }).catch(() => undefined),
+      ));
+    } catch {}
+
+    // Email the school's contact address when set
     const school = await this.prisma.school.findUnique({ where: { id: schoolId }, select: { email: true, name: true } });
     if (school?.email) {
-      const sd: any = app.studentData || {};
-      const name = sd.name || `${sd.firstName || ''} ${sd.lastName || ''}`.trim() || 'New applicant';
       try {
         await this.mailService.sendMail(
           school.email,
@@ -139,17 +183,36 @@ export class RegistrationsService {
     }
     if (!schoolId) throw new BadRequestException('schoolId is required');
 
-    // Servants see only their group's pending (if they have groupId)
     const where: any = { schoolId };
     if (status) where.status = status;
-    // For non-admin, filter by group if servant has assignment — optional, keep simple for now: all pending for school
-    // But enforce same-school
 
-    return this.prisma.registrationApplication.findMany({
+    const rows = await this.prisma.registrationApplication.findMany({
       where,
       orderBy: { createdAt: 'desc' },
       take: 100,
     });
+
+    // Group scoping: servants/group leaders only see applications for their
+    // assigned group (matched via the application's grade → group mapping).
+    const BROAD_ROLES = ['super_admin', 'admin', 'principal', 'curriculum_manager'];
+    const isBroad = user?.roles?.some((r: string) => BROAD_ROLES.includes(r));
+    const servantGroupId = (user?.metadata as any)?.groupId;
+    if (!isBroad && servantGroupId) {
+      const grades = await this.prisma.schoolGrade.findMany({
+        where: { schoolId },
+        select: { id: true, groupId: true },
+      });
+      const gradeIdsForGroup = new Set(grades.filter(g => g.groupId === servantGroupId).map(g => g.id));
+      return rows.filter(a => {
+        const sd: any = a.studentData || {};
+        if (sd.groupId === servantGroupId) return true;
+        if (sd.gradeId && gradeIdsForGroup.has(sd.gradeId)) return true;
+        // No grade info on the application yet — leaders still see it for triage
+        return !sd.gradeId;
+      });
+    }
+
+    return rows;
   }
 
   async getOne(id: string, user?: any) {

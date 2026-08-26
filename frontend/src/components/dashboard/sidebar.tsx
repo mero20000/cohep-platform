@@ -83,7 +83,8 @@ export function DashboardSidebar({
                 aria-current={isActive ? 'page' : undefined}
                 className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all ${isActive ? `bg-blue-50 text-blue-700 ${language === 'ar' ? 'border-l-2' : 'border-r-2'} border-gold-500` : `text-gray-600 hover:bg-gray-100 hover:text-gray-900 ${language === 'ar' ? 'border-l-2' : 'border-r-2'} border-transparent`}`}>
                 <item.icon className={`h-5 w-5 ${isActive ? 'text-blue-700' : 'text-gray-400'}`} />
-                {language === 'ar' ? item.nameAr || item.name : item.name}
+                <span className="flex-1">{language === 'ar' ? item.nameAr || item.name : item.name}</span>
+                {item.badge > 0 && <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-500 px-1.5 text-xs font-bold text-white">{item.badge > 9 ? '9+' : item.badge}</span>}
               </Link>
             )
           })}

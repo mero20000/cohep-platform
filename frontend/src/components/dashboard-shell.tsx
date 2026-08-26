@@ -43,7 +43,7 @@ const navigation = [
   { name: 'Gamification', nameAr: 'الألعاب التحفيزية', href: '/dashboard/gamification', icon: Trophy, perm: 'gamification:view' as const },
   { name: 'Announcements', nameAr: 'الإعلانات', href: '/dashboard/announcements', icon: Megaphone, perm: 'announcement:view' as const },
   { name: 'Subscribers', nameAr: 'المشتركين', href: '/dashboard/subscribers', icon: Mail, superAdminOnly: true, perm: 'announcement:view' as const },
-  { name: 'Pending Reg.', nameAr: 'تسجيلات معلقة', href: '/dashboard/pending-registrations', icon: ClipboardList, superAdminOnly: true, perm: 'registrations:approve' as const },
+  { name: 'Pending Reg.', nameAr: 'تسجيلات معلقة', href: '/dashboard/pending-registrations', icon: ClipboardList, roles: ['super_admin','admin','principal','servant','group_leader','level_leader','curriculum_manager'] as const },
 ]
 
 const secondaryNav = [
@@ -97,13 +97,15 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
   const showParentsNav = isSuperAdmin || effectiveRole === 'parent' || effectiveRole === 'admin' || effectiveRole === 'principal'
   const { can } = usePermission()
   const isParent = effectiveRole === 'parent'
+  const [pendingRegsCount, setPendingRegsCount] = useState(0)
   const mainNav: any[] = isParent
     ? [...navigation.filter((n) => n.name === 'Dashboard'), parentsNav]
     : navigation.filter((item) => {
         if ((item as any).superAdminOnly && !isSuperAdmin) return false
+        if ((item as any).roles && !user?.roles?.some((r: string) => (item as any).roles.includes(r))) return false
         if ((item as any).perm && !can((item as any).perm)) return false
         return item.href !== parentsNav.href || showParentsNav
-      })
+      }).map(item => item.href === '/dashboard/pending-registrations' && pendingRegsCount > 0 ? { ...item, badge: pendingRegsCount } : item)
   const [notifications, setNotifications] = useState<NotificationItem[]>([])
   const [notiLoading, setNotiLoading] = useState(false)
   const notiRef = useRef<HTMLDivElement>(null)
@@ -111,6 +113,17 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date())
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [isDesktop, setIsDesktop] = useState(false)
+
+  // Pending student registrations badge (group-scoped on backend)
+  useEffect(() => {
+    if (!user || isParent) return
+    const roles: string[] = (user as any).roles || []
+    const isStaffForRegs = roles.some(r => ['super_admin','admin','principal','servant','group_leader','level_leader','curriculum_manager'].includes(r))
+    if (!isStaffForRegs) return
+    const sid = (user as any).schoolId || getSchoolId()
+    if (!sid) return
+    http.get<any[]>(`/registrations`, { schoolId: sid, status: 'pending' }).then(d => setPendingRegsCount(Array.isArray(d) ? d.length : 0)).catch(()=>{})
+  }, [user, pathname, isParent])
 
   useEffect(() => {
     const mq = window.matchMedia('(min-width: 1024px)')
