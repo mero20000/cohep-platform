@@ -136,6 +136,16 @@ function StudentsPanel() {
     setRejecting(false)
   }
 
+  const handleDelete = async () => {
+    if (!selected) return
+    if (!window.confirm(t('Delete this registration permanently? The parent would need to register again.', 'حذف هذا التسجيل نهائيًا؟ سيحتاج ولي الأمر للتسجيل مرة أخرى.'))) return
+    try {
+      await http.delete(`/registrations/${selected.id}`)
+      toast('success', t('Registration deleted', 'تم حذف التسجيل'))
+      setSelected(null); fetchAll()
+    } catch (e: any) { toast('error', e?.message || t('Failed to delete', 'فشل الحذف')) }
+  }
+
   const handleUpdate = async () => {
     if (!selected || !editData) return
     try {
@@ -186,23 +196,44 @@ function StudentsPanel() {
                       </div>
                     </div>
                   </div>
-                  {app.voiceRecordingUrl && <div className="mt-3"><AudioPlayer src={assetUrl(app.voiceRecordingUrl)} /></div>}
-                  <div className="mt-3 text-xs text-gray-600 line-clamp-2">{sd.notes || sd.address || ''} · {sd.parentEmail}</div>
-                  <div className="mt-3 flex items-center gap-2 flex-wrap">
-                    <Button size="sm" variant="outline" onClick={() => { setSelected(app); setEditData(app.studentData) }}>
-                      <Eye className="h-3.5 w-3.5" />{t('View/Edit', 'عرض/تعديل')}
-                    </Button>
-                    {app.status === 'pending' && (
-                      <>
-                        <Button size="sm" onClick={() => { setSelected(app); setLevelId(''); setGroupId(''); setGradeId(sd.gradeId || '') }} className="bg-gold-500 hover:bg-gold-600 text-white">
-                          <CheckCircle2 className="h-3.5 w-3.5" />{t('Approve', 'موافقة')}
-                        </Button>
-                        <Button size="sm" variant="outline" onClick={() => { setSelected(app); handleReject() }} className="text-red-600 border-red-200 hover:bg-red-50">
-                          <XCircle className="h-3.5 w-3.5" />{t('Reject', 'رفض')}
-                        </Button>
-                      </>
-                    )}
-                  </div>
+                  {(() => {
+                    const recs = sd.recordings || {}
+                    const players: { label: string; url: string }[] = []
+                    if (recs.amen_be_mawteka) players.push({ label: t('Amen be mawteka', 'امين امين بموتك'), url: recs.amen_be_mawteka })
+                    if (recs.be_shafaat) players.push({ label: t('Be shafaat', 'بي شفاعات'), url: recs.be_shafaat })
+                    if (!players.length && app.voiceRecordingUrl) players.push({ label: t('Recording', 'التسجيل'), url: app.voiceRecordingUrl })
+                    return players.length ? (
+                      <div className="mt-3 space-y-2">
+                        {players.map(p => (
+                          <div key={p.url}>
+                            <div className="text-xs font-semibold text-gray-600 flex items-center gap-1 mb-0.5">
+                              <Music className="h-3 w-3 text-gold-600" />{p.label}
+                            </div>
+                            <AudioPlayer src={assetUrl(p.url)} />
+                          </div>
+                        ))}
+                      </div>
+                    ) : null
+                  })()}
+                   <div className="mt-3 text-xs text-gray-600 line-clamp-2">{sd.notes || sd.address || ''} · {sd.parentEmail}</div>
+                   <div className="mt-3 flex items-center gap-2 flex-wrap">
+                     <Button size="sm" variant="outline" onClick={() => { setSelected(app); setEditData(app.studentData) }}>
+                       <Eye className="h-3.5 w-3.5" />{t('View/Edit', 'عرض/تعديل')}
+                     </Button>
+                     {app.status === 'pending' && (
+                       <>
+                         <Button size="sm" onClick={() => { setSelected(app); setLevelId(''); setGroupId(''); setGradeId(sd.gradeId || '') }} className="bg-gold-500 hover:bg-gold-600 text-white">
+                           <CheckCircle2 className="h-3.5 w-3.5" />{t('Approve', 'موافقة')}
+                         </Button>
+                         <Button size="sm" variant="outline" onClick={() => { setSelected(app); handleReject() }} className="text-red-600 border-red-200 hover:bg-red-50">
+                           <XCircle className="h-3.5 w-3.5" />{t('Reject', 'رفض')}
+                         </Button>
+                         <Button size="sm" variant="outline" onClick={() => { setSelected(app); handleDelete() }} className="text-red-600 border-red-200 hover:bg-red-50">
+                           <Trash2 className="h-3.5 w-3.5" />{t('Delete', 'حذف')}
+                         </Button>
+                       </>
+                     )}
+                   </div>
                 </div>
               )
             })}
@@ -214,6 +245,7 @@ function StudentsPanel() {
         footer={selected?.status === 'pending' ? (
           <>
             <Button variant="outline" onClick={() => setSelected(null)}>{t('Close', 'إغلاق')}</Button>
+            <Button variant="outline" onClick={handleDelete} className="text-red-600 border-red-200 hover:bg-red-50"><Trash2 className="h-4 w-4" />{t('Delete', 'حذف')}</Button>
             <Button variant="outline" onClick={handleUpdate}><Pencil className="h-4 w-4" />{t('Save Edits', 'حفظ التعديلات')}</Button>
             <Button onClick={handleApprove} disabled={approving} className="bg-emerald-600 hover:bg-emerald-700 text-white">
               {approving && <Loader2 className="h-4 w-4 animate-spin" />}{t('Approve & Create Student', 'موافقة وإنشاء طالب')}
@@ -224,29 +256,60 @@ function StudentsPanel() {
         }>
         {selected && (
           <div className="space-y-4 max-h-[60vh] overflow-y-auto">
-            <div className="rounded-xl bg-gray-50 p-4 space-y-2 text-sm">
-              {Object.entries(selected.studentData || {}).map(([k, v]) => (
-                <div key={k} className="flex gap-2"><span className="text-gray-500 w-40 shrink-0">{k}:</span><span className="font-medium text-gray-900 break-all">{String(v || '—')}</span></div>
-              ))}
-            </div>
-            {selected.voiceRecordingUrl && <AudioPlayer src={assetUrl(selected.voiceRecordingUrl)} />}
+            {/* Recordings — one player per hymn */}
+            {(() => {
+              const sd: any = selected.studentData || {}
+              const recs = sd.recordings || {}
+              const players: { label: string; url: string }[] = []
+              if (recs.amen_be_mawteka) players.push({ label: t('Amen be mawteka', 'امين امين بموتك'), url: recs.amen_be_mawteka })
+              if (recs.be_shafaat) players.push({ label: t('Be shafaat', 'بي شفاعات'), url: recs.be_shafaat })
+              if (!players.length && selected.voiceRecordingUrl) players.push({ label: t('Recording', 'التسجيل'), url: selected.voiceRecordingUrl })
+              return players.length ? (
+                <div className="space-y-2">
+                  <p className="text-xs font-semibold text-gray-700">{t('Voice recordings', 'التسجيلات الصوتية')}</p>
+                  {players.map(p => (
+                    <div key={p.url} className="rounded-xl border border-gray-200 bg-gray-50 p-3">
+                      <div className="text-xs font-semibold text-gray-600 flex items-center gap-1 mb-1">
+                        <Music className="h-3 w-3 text-gold-600" />{p.label}
+                      </div>
+                      <AudioPlayer src={assetUrl(p.url)} />
+                    </div>
+                  ))}
+                </div>
+              ) : null
+            })()}
             {selected.status === 'pending' && (
               <div className="space-y-2">
-                <p className="text-xs font-semibold text-gray-700">{t('Edit before approve — fields flow straight into the Student record', 'عدّل قبل الموافقة — الحقول تُنقل مباشرة لملف الطالب')}</p>
-                <FormField label={t('Student Name', 'اسم الطالب')} value={editData?.name || ''} onChange={e => setEditData({ ...editData, name: e.target.value })} />
-                <FormField label={t('Parent Email', 'بريد ولي الأمر')} value={editData?.parentEmail || ''} onChange={e => setEditData({ ...editData, parentEmail: e.target.value })} />
-                <FormField label={t('Phone', 'الهاتف')} value={editData?.phone || ''} onChange={e => setEditData({ ...editData, phone: e.target.value })} />
-                <FormField label={t('Address', 'العنوان')} value={editData?.address || ''} onChange={e => setEditData({ ...editData, address: e.target.value })} />
-                <div className="grid grid-cols-2 gap-2">
-                  <select value={gradeId} onChange={e => setGradeId(e.target.value)} className="rounded-lg border border-gray-300 px-3 py-2 text-sm bg-white">
-                    <option value="">{t('Select grade (for group)', 'اختر المرحلة')}</option>
-                    {grades.map((g: any) => <option key={g.id} value={g.id}>{g.name}</option>)}
-                  </select>
-                  <select value={levelId} onChange={e => setLevelId(e.target.value)} className="rounded-lg border border-gray-300 px-3 py-2 text-sm bg-white">
-                    <option value="">{t('Select level', 'اختر المستوى')}</option>
-                    {levels.map((l: any) => <option key={l.id} value={l.id}>{l.name}</option>)}
-                  </select>
+                <p className="text-xs font-semibold text-gray-700">{t('Edit any information before approving — everything flows into the Student record', 'عدّل أي معلومة قبل الموافقة — كل الحقول تُنقل لملف الطالب')}</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <FormField label={t('Student Name *', 'اسم الطالب *')} value={editData?.name || ''} onChange={e => setEditData({ ...editData, name: e.target.value })} />
+                  <FormField label={t('First Name (Arabic)', 'الاسم الأول (عربي)')} value={editData?.firstNameAr || ''} onChange={e => setEditData({ ...editData, firstNameAr: e.target.value })} />
+                  <FormField label={t('Last Name (Arabic)', 'الاسم الأخير (عربي)')} value={editData?.lastNameAr || ''} onChange={e => setEditData({ ...editData, lastNameAr: e.target.value })} />
+                  <FormField label={t('Date of Birth', 'تاريخ الميلاد')} type="date" value={editData?.dateOfBirth || ''} onChange={e => setEditData({ ...editData, dateOfBirth: e.target.value })} />
+                  <FormField label={t('Gender', 'الجنس')} as="select" value={editData?.gender || 'male'} onChange={e => setEditData({ ...editData, gender: e.target.value })}>
+                    <option value="male">{t('Male', 'ذكر')}</option>
+                    <option value="female">{t('Female', 'أنثى')}</option>
+                  </FormField>
+                  <FormField label={t('Grade (for group)', 'المرحلة (للمجموعة)')} as="select" value={gradeId} onChange={e => setGradeId(e.target.value)}>
+                    <option value="">{t('Select grade', 'اختر المرحلة')}</option>
+                    {grades.map((g: any) => <option key={g.id} value={g.id}>{g.name}{g.nameAr ? ` – ${g.nameAr}` : ''}</option>)}
+                  </FormField>
+                  <FormField label={t('Church', 'الكنيسة')} value={editData?.churchName || ''} onChange={e => setEditData({ ...editData, churchName: e.target.value })} />
+                  <FormField label={t('Parent / Guardian Name', 'اسم ولي الأمر')} value={editData?.parentName || ''} onChange={e => setEditData({ ...editData, parentName: e.target.value })} />
+                  <FormField label={t('Relationship', 'صلة القرابة')} as="select" value={editData?.relationship || 'father'} onChange={e => setEditData({ ...editData, relationship: e.target.value })}>
+                    <option value="father">{t('Father', 'أب')}</option>
+                    <option value="mother">{t('Mother', 'أم')}</option>
+                    <option value="guardian">{t('Guardian', 'ولي أمر')}</option>
+                  </FormField>
+                  <FormField label={t('Phone', 'الهاتف')} value={editData?.phone || ''} onChange={e => setEditData({ ...editData, phone: e.target.value })} />
+                  <FormField label={t('Parent Email', 'بريد ولي الأمر')} value={editData?.parentEmail || ''} onChange={e => setEditData({ ...editData, parentEmail: e.target.value })} />
+                  <FormField label={t('Student Email', 'بريد الطالب')} value={editData?.email || ''} onChange={e => setEditData({ ...editData, email: e.target.value })} />
+                  <FormField label={t('Address', 'العنوان')} value={editData?.address || ''} onChange={e => setEditData({ ...editData, address: e.target.value })} />
+                  <FormField label={t('Emergency Name', 'اسم الطوارئ')} value={editData?.emergencyContactName || ''} onChange={e => setEditData({ ...editData, emergencyContactName: e.target.value })} />
+                  <FormField label={t('Emergency Phone', 'هاتف الطوارئ')} value={editData?.emergencyContactPhone || ''} onChange={e => setEditData({ ...editData, emergencyContactPhone: e.target.value })} />
+                  <FormField label={t('Emergency Relation', 'صلة الطوارئ')} value={editData?.emergencyContactRelation || ''} onChange={e => setEditData({ ...editData, emergencyContactRelation: e.target.value })} />
                 </div>
+                <FormField label={t('Notes', 'ملاحظات')} as="textarea" value={editData?.notes || ''} onChange={e => setEditData({ ...editData, notes: e.target.value })} />
               </div>
             )}
           </div>

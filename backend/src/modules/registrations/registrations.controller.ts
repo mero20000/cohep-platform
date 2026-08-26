@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Patch, Param, Body, Query, Req, UseGuards, UseInterceptors, UploadedFile, UploadedFiles, BadRequestException } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Delete, Param, Body, Query, Req, UseGuards, UseInterceptors, UploadedFile, UploadedFiles, BadRequestException } from '@nestjs/common';
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
@@ -69,6 +69,14 @@ export class RegistrationsController {
   @Roles('super_admin', 'admin', 'principal', 'group_leader', 'level_leader', 'servant', 'curriculum_manager')
   async update(@Param('id') id: string, @Body() dto: UpdateRegistrationDto, @Req() req: any) {
     return this.registrationsService.update(id, dto, req.user);
+  }
+
+  @Delete(':id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('super_admin', 'admin', 'principal', 'group_leader', 'level_leader', 'servant', 'curriculum_manager')
+  @ApiOperation({ summary: 'Delete a pending registration application' })
+  async remove(@Param('id') id: string, @Req() req: any) {
+    return this.registrationsService.remove(id, req.user);
   }
 
   @Post(':id/approve')

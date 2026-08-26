@@ -261,6 +261,16 @@ export class RegistrationsService {
     });
   }
 
+  async remove(id: string, user: any) {
+    const app = await this.prisma.registrationApplication.findUnique({ where: { id } });
+    if (!app) throw new NotFoundException('Application not found');
+    if (user?.schoolId && app.schoolId !== user.schoolId && !user.roles?.includes('super_admin')) {
+      throw new ForbiddenException('Not allowed for this school');
+    }
+    await this.prisma.registrationApplication.delete({ where: { id } });
+    return { success: true };
+  }
+
   async approve(id: string, user: any, levelId?: string, groupId?: string, gradeId?: string) {
     const app = await this.prisma.registrationApplication.findUnique({ where: { id } });
     if (!app) throw new NotFoundException('Application not found');

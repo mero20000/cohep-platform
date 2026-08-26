@@ -38,6 +38,7 @@ export function SchoolTab() {
   const [saving, setSaving] = useState(false)
   const [showDelete, setShowDelete] = useState(false)
   const [deleting, setDeleting] = useState<SchoolItem | null>(null)
+  const [qrSchool, setQrSchool] = useState<SchoolItem | null>(null)
   const [togglingId, setTogglingId] = useState<string | null>(null)
 
   const fetchSchools = () => {
@@ -118,12 +119,11 @@ export function SchoolTab() {
 
   return (
     <>
-      <RegistrationLinkCard schools={schools} loading={loading} />
       <div className="rounded-xl border border-gray-200 bg-white">
         <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4">
           <div>
             <h2 className="text-lg font-semibold text-gray-900">{lang === 'ar' ? 'المدارس' : 'Schools'}</h2>
-            <p className="text-sm text-gray-500">{lang === 'ar' ? 'إدارة المدارس وإعداداتها' : 'Manage schools and their settings'}</p>
+            <p className="text-sm text-gray-500">{lang === 'ar' ? 'إدارة المدارس وإعداداتها — استخدم زر رمز QR لرابط تسجيل كل مدرسة' : 'Manage schools — use each school\'s QR button for its registration link'}</p>
           </div>
           <Button onClick={openCreate} aria-label={lang === 'ar' ? 'إضافة مدرسة' : 'Add school'} size="sm">
             <Plus className="h-4 w-4" /> {lang === 'ar' ? 'إضافة مدرسة' : 'Add School'}
@@ -182,6 +182,10 @@ export function SchoolTab() {
                     </td>
                     <td className="px-6 py-3.5 text-right" data-label="Actions">
                       <div className="flex items-center justify-end gap-1">
+                        <Button variant="ghost" size="icon" onClick={() => setQrSchool(s)} disabled={!s.slug} aria-label={lang === 'ar' ? `رابط تسجيل ${s.name}` : `Registration link for ${s.name}`} title={lang === 'ar' ? 'رابط التسجيل ورمز QR' : 'Registration link & QR'}
+                          className="rounded-lg p-1.5 text-gray-400 hover:bg-gold-50 hover:text-gold-700">
+                          <Link2 className="h-4 w-4" />
+                        </Button>
                         <Button variant="ghost" size="icon" onClick={() => handleToggleActive(s)} disabled={togglingId === s.id} aria-label={lang === 'ar' ? (s.isActive ? `إيقاف ${s.name}` : `تفعيل ${s.name}`) : (s.isActive ? `Deactivate ${s.name}` : `Activate ${s.name}`)} title={lang === 'ar' ? (s.isActive ? 'إيقاف' : 'تفعيل') : (s.isActive ? 'Deactivate' : 'Activate')}
                           className={`rounded-lg p-1.5 ${s.isActive ? 'text-gray-400 hover:bg-gray-50 active:bg-gray-100 hover:text-gray-600' : 'text-green-500 hover:bg-green-50'}`}>
                           {s.isActive ? <Ban className="h-4 w-4" /> : <CheckCircle2 className="h-4 w-4" />}
@@ -273,27 +277,26 @@ export function SchoolTab() {
         title={lang === 'ar' ? 'حذف المدرسة' : 'Delete School'}
         message={deleting ? (lang === 'ar' ? `هل أنت متأكد أنك تريد حذف ${deleting.name}؟ لا يمكن التراجع عن هذا الإجراء.` : `Are you sure you want to delete ${deleting.name}? This action cannot be undone.`) : ''}
       />
+      <SchoolQrModal school={qrSchool} onClose={() => setQrSchool(null)} />
     </>
   )
 }
 
-// ── Registration link + QR ───────────────────────────────────────────────────
+// ── Per-school Registration link + QR modal ──────────────────────────────────
 import { QRCodeSVG } from 'qrcode.react'
 import { Link2, Copy, Check, Download, ExternalLink } from 'lucide-react'
 
 const REG_BASE = typeof window !== 'undefined' ? window.location.origin : 'https://cohep-platform.vercel.app'
 
-function RegistrationLinkCard({ schools, loading }: { schools: SchoolItem[]; loading: boolean }) {
+function SchoolQrModal({ school, onClose }: { school: SchoolItem | null; onClose: () => void }) {
   const lang = useLanguage()
   const t = (en: string, ar: string) => lang === 'ar' ? ar : en
   const [copied, setCopied] = useState(false)
   const qrRef = useRef<HTMLDivElement>(null)
-  const active = schools.find(s => s.slug) || schools[0]
 
-  if (loading) return null
-  if (!active?.slug) return null
+  if (!school?.slug) return null
+  const link = `${REG_BASE}/register/${school.slug}`
 
-  const link = `${REG_BASE}/register/${active.slug}`
   const copy = async () => {
     try { await navigator.clipboard.writeText(link) } catch {}
     setCopied(true); setTimeout(() => setCopied(false), 2000)
@@ -304,20 +307,16 @@ function RegistrationLinkCard({ schools, loading }: { schools: SchoolItem[]; loa
     const xml = new XMLSerializer().serializeToString(svg)
     const url = URL.createObjectURL(new Blob([xml], { type: 'image/svg+xml' }))
     const a = document.createElement('a')
-    a.href = url; a.download = `registration-qr-${active.slug}.svg`; a.click()
+    a.href = url; a.download = `registration-qr-${school.slug}.svg`; a.click()
     URL.revokeObjectURL(url)
   }
 
   return (
-    <div className="rounded-xl border border-gold-200 bg-gradient-to-br from-gold-50 to-white p-6 mb-6">
-      <div className="flex items-center gap-2 mb-1">
-        <Link2 className="h-5 w-5 text-gold-700" />
-        <h2 className="text-lg font-semibold text-gray-900">{t('Registration Link', 'رابط التسجيل')}</h2>
-      </div>
-      <p className="text-sm text-gray-500 mb-4">{t('Share this link or QR code with parents — new joiners register directly, no account needed.', 'شارك هذا الرابط أو رمز QR مع أولياء الأمور — يسجل الأطفال الجدد مباشرة دون حساب.')}</p>
+    <Modal open={!!school} onClose={onClose} title={t('Registration Link', 'رابط التسجيل')}
+      description={`${school.name}${school.nameAr ? ` · ${school.nameAr}` : ''}`}>
       <div className="flex flex-col sm:flex-row items-start sm:items-center gap-5">
-        <div ref={qrRef} className="rounded-2xl border-4 border-white shadow-lg bg-white p-2 shrink-0">
-          <QRCodeSVG value={link} size={120} fgColor="#1A2744" bgColor="#FFFFFF" />
+        <div ref={qrRef} className="rounded-2xl border-4 border-white shadow-lg bg-white p-2 shrink-0 mx-auto sm:mx-0">
+          <QRCodeSVG value={link} size={140} fgColor="#1A2744" bgColor="#FFFFFF" />
         </div>
         <div className="flex-1 min-w-0 space-y-3 w-full">
           <div className="flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2.5">
@@ -336,12 +335,12 @@ function RegistrationLinkCard({ schools, loading }: { schools: SchoolItem[]; loa
               <Download className="h-4 w-4" />{t('Download QR', 'تحميل رمز QR')}
             </Button>
             <a href={link} target="_blank" rel="noopener noreferrer">
-              <Button size="sm" variant="outline"><ExternalLink className="h-4 w-4" />{t('Open', 'فتح')}</Button>
+              <Button size="sm" variant="outline"><ExternalLink className="h-4 w-4" />{t('Open form', 'فتح النموذج')}</Button>
             </a>
           </div>
-          <p className="text-xs text-gray-400">{t('Parents fill the form, record a hymn, and you review it under Dashboard → Registrations.', 'يملأ أولياء الأمور النموذج ويسجلون اللحن، ثم تراجعونه من لوحة التحكم → التسجيلات.')}</p>
+          <p className="text-xs text-gray-400">{t('Parents open this link, fill the form, record hymns — applications appear under Dashboard → Registrations.', 'يفتح أولياء الأمور هذا الرابط ويملأون النموذج ويسجلون الألحان — تظهر الطلبات في لوحة التحكم → التسجيلات.')}</p>
         </div>
       </div>
-    </div>
+    </Modal>
   )
 }
