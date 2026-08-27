@@ -21,6 +21,8 @@
     "@fullcalendar/list": "^6.1.21",
     "@fullcalendar/react": "^6.1.21",
     "@fullcalendar/timegrid": "^6.1.21",
+    "@logto/next": "^4.2.10",
+    "@logto/react": "^4.0.14",
     "@nivo/bar": "^0.99.0",
     "@nivo/core": "^0.99.0",
     "@nivo/heatmap": "^0.99.0",
