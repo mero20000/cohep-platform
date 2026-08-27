@@ -120,6 +120,7 @@ export default function LoginPage() {
       const data = await res.json()
       if (!res.ok) throw new Error(data?.message || 'Demo login failed')
       localStorage.setItem('niangelos_token', data.accessToken)
+      if (data.refreshToken) localStorage.setItem('niangelos_refresh_token', data.refreshToken)
       router.replace('/dashboard')
     } catch (e: any) {
       setError(e.message || 'Demo unavailable — please try registering')

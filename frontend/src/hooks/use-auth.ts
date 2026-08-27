@@ -116,6 +116,9 @@ export function useAuth(options: UseAuthOptions = {}) {
     if (data.accessToken) {
       localStorage.setItem('niangelos_token', data.accessToken)
     }
+    if (data.refreshToken) {
+      localStorage.setItem('niangelos_refresh_token', data.refreshToken)
+    }
     localStorage.setItem('user', JSON.stringify(data.user))
     setUser(data.user)
     return data
@@ -127,6 +130,7 @@ export function useAuth(options: UseAuthOptions = {}) {
       setUser(null)
       localStorage.removeItem('user')
       localStorage.removeItem('niangelos_token')
+      localStorage.removeItem('niangelos_refresh_token')
       localStorage.removeItem('niangelos_active_school')
       router.push('/auth/login')
       return
@@ -137,6 +141,7 @@ export function useAuth(options: UseAuthOptions = {}) {
     void fetch(baseUrl + '/auth/logout', { method: 'POST', credentials: 'include' }).catch(() => {})
     localStorage.removeItem('user')
     localStorage.removeItem('niangelos_token')
+    localStorage.removeItem('niangelos_refresh_token')
     localStorage.removeItem('niangelos_active_school')
     setUser(null)
     router.push('/auth/login')

@@ -19,17 +19,22 @@ class HttpClient {
     if (typeof window === 'undefined') return
     localStorage.removeItem('user')
     localStorage.removeItem('niangelos_token')
+    localStorage.removeItem('niangelos_refresh_token')
   }
 
   private async refreshAuth(): Promise<boolean> {
     try {
-      const currentToken = typeof window !== 'undefined' ? localStorage.getItem('niangelos_token') : null
-      const headers: Record<string, string> = { 'Content-Type': 'application/json' }
-      if (currentToken) headers['Authorization'] = `Bearer ${currentToken}`
+      const refreshToken = typeof window !== 'undefined' ? localStorage.getItem('niangelos_refresh_token') : null
+      if (!refreshToken) {
+        this.clearAuth()
+        if (typeof window !== 'undefined') window.location.href = '/auth/login'
+        return false
+      }
       const res = await fetch(`${this.baseUrl}/auth/refresh`, {
         method: 'POST',
-        headers,
+        headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
+        body: JSON.stringify({ refreshToken }),
       })
       if (!res.ok) {
         this.clearAuth()
@@ -39,6 +44,9 @@ class HttpClient {
       const data = await res.json()
       if (data.accessToken) {
         localStorage.setItem('niangelos_token', data.accessToken)
+      }
+      if (data.refreshToken) {
+        localStorage.setItem('niangelos_refresh_token', data.refreshToken)
       }
       return true
     } catch {
