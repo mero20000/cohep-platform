@@ -93,7 +93,7 @@ export function useStudentRecordingUpload(code: string) {
       const fd = new FormData()
       fd.append('file', file)
       const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/student-portal/${code}/recordings`,
+        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/student-portal/${code}/recordings`,
         { method: 'POST', credentials: 'include', body: fd }
       )
       if (!res.ok) throw new Error('Upload failed')

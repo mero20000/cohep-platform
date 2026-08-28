@@ -108,8 +108,8 @@ export function PracticeRecorder({ lessonId, lessonTitle, referenceAudioUrl, onS
         fd.append('file', recordingBlob, `practice-${lessonId}-${Date.now()}.webm`)
         try {
           const uploadUrl = code
-            ? `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/student-portal/${code}/recordings`
-            : `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/upload/audio`
+            ? `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/student-portal/${code}/recordings`
+            : `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/upload/audio`
           const headers: Record<string, string> = {}
           if (code) {
             // Portal uploads authenticate with the session token, not cookies.
