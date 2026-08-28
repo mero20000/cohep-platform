@@ -24,7 +24,7 @@ export function createCloudinaryStorage(folder: string) {
       const ext = file.originalname.split('.').pop()?.toLowerCase() || 'png';
       return {
         folder: `cohep/${folder}`,
-        allowed_formats: ['jpg', 'jpeg', 'png', 'gif', 'webp'],
+        allowed_formats: ['jpg', 'jpeg', 'png', 'gif', 'webp', 'webm', 'mp3', 'm4a', 'ogg', 'mp4', 'pdf'],
         public_id: `${folder}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
         format: ext,
       };
