@@ -89,6 +89,20 @@ export default function StudentDashboard() {
     document.addEventListener('mousedown', h); return () => document.removeEventListener('mousedown', h)
   }, [])
 
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => { if (e.key === 'Escape' && drill) setDrill(null) }
+    if (drill) document.addEventListener('keydown', handleEscape)
+    return () => document.removeEventListener('keydown', handleEscape)
+  }, [drill])
+
+  const toggleLanguage = () => {
+    const newLang = lang === 'en' ? 'ar' : 'en'
+    localStorage.setItem('niangelos_language', newLang)
+    window.dispatchEvent(new CustomEvent('langchange', { detail: newLang }))
+    document.documentElement.lang = newLang
+    document.documentElement.dir = newLang === 'ar' ? 'rtl' : 'ltr'
+  }
+
   // Practice state
   const [practiceLesson, setPracticeLesson] = useState<HymnMapItem | null>(null)
   const [celebration, setCelebration] = useState<{ title: string; titleCoptic?: string } | null>(null)
@@ -254,6 +268,9 @@ export default function StudentDashboard() {
               <ArrowLeft className="h-3.5 w-3.5 rtl:rotate-180" />
               {lang === 'ar' ? 'خروج' : 'Sign Out'}
             </Link>
+            <button onClick={toggleLanguage} aria-label={lang === 'ar' ? 'Switch to English' : 'Switch to Arabic'} className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10 border border-white/15 text-white hover:bg-white/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40 text-xs font-bold">
+              {lang === 'ar' ? 'EN' : 'AR'}
+            </button>
             <div ref={menuRef} className="relative">
               <button onClick={() => setMenuOpen(o => !o)} aria-label="Menu" aria-expanded={menuOpen} className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10 border border-white/15 text-white hover:bg-white/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40">
                 <MoreVertical className="h-4 w-4" />
