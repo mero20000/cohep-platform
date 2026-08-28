@@ -197,8 +197,19 @@ export class StudentPortalController {
   }))
   async uploadRecording(@UploadedFile() file: Express.Multer.File) {
     if (!file) throw new Error('No file uploaded');
-    if (isCloudinaryConfigured && (file as any).secure_url) {
-      return { url: (file as any).secure_url };
+    console.log('Upload handler - isCloudinaryConfigured:', isCloudinaryConfigured);
+    console.log('Upload handler - file object keys:', Object.keys(file || {}));
+    console.log('Upload handler - file object:', JSON.stringify(file, null, 2));
+
+    if (isCloudinaryConfigured) {
+      if ((file as any).secure_url) {
+        return { url: (file as any).secure_url };
+      }
+      throw new Error(`Cloudinary configured but no secure_url in file object. File object: ${JSON.stringify(file)}`);
+    }
+
+    if (!file.filename) {
+      throw new Error(`File has no filename. File object: ${JSON.stringify(file)}`);
     }
     return { url: `/uploads/recordings/${file.filename}` };
   }
