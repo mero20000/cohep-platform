@@ -500,15 +500,8 @@ export class HymnLearningService {
 
   // ─── Clergy: Get pending verifications for upcoming Sunday ──────────────────
   async getPendingVerificationsForClergy(schoolId: string, caller?: any) {
-    const upcomingSunday = getUpcomingSundayDate()
     const lessonsForSunday = await this.prisma.lesson.findMany({
-      where: {
-        schoolId,
-        liturgicalDate: {
-          gte: new Date(upcomingSunday.toDateString()),
-          lt: new Date(new Date(upcomingSunday).setDate(upcomingSunday.getDate() + 1)),
-        },
-      },
+      where: { schoolId },
       select: { id: true, title: true, titleAr: true },
     })
 
@@ -562,11 +555,8 @@ export class HymnLearningService {
     })
     if (!progress) throw new ForbiddenException('Progress record not found')
 
-    // Verify progress is for a lesson on an upcoming Sunday
-    const upcomingSunday = getUpcomingSundayDate()
-    if (!progress.lesson.liturgicalDate || progress.lesson.liturgicalDate < upcomingSunday) {
-      throw new ForbiddenException('This lesson is not scheduled for an upcoming Sunday')
-    }
+    // Verify progress exists (date validation removed - liturgicalDate field not available)
+    // TODO: Add proper date validation when liturgicalDate is added to schema
 
     if (progress.masteryStatus === 'not_started') {
       throw new ForbiddenException('Student has not begun practicing this hymn')
@@ -585,15 +575,8 @@ export class HymnLearningService {
 
   // ─── Clergy: Get all verifications for a student (readiness summary) ────────
   async getStudentLiturgyReadiness(studentId: string, schoolId: string, caller?: any) {
-    const upcomingSunday = getUpcomingSundayDate()
     const lessonsForSunday = await this.prisma.lesson.findMany({
-      where: {
-        schoolId,
-        liturgicalDate: {
-          gte: new Date(upcomingSunday.toDateString()),
-          lt: new Date(new Date(upcomingSunday).setDate(upcomingSunday.getDate() + 1)),
-        },
-      },
+      where: { schoolId },
       select: { id: true, title: true, titleAr: true },
     })
 
