@@ -438,4 +438,63 @@ export class HymnLearningService {
 
     return { total, ...counts, touched: progresses.length }
   }
+
+  // ─── Servant: Get submissions for a lesson (group-scoped) ────────────────
+  async getSubmissionsForServant(lessonId: string, servantGroupId: string, caller?: any) {
+    // Ensure caller is a servant in this group
+    const metadata = (caller.metadata ?? {}) as Record<string, any>
+    if (!metadata.groupId || metadata.groupId !== servantGroupId) {
+      throw new ForbiddenException('You can only review submissions from your own group')
+    }
+
+    const submissions = await this.prisma.lessonProgress.findMany({
+      where: {
+        lessonId,
+        student: { groupId: servantGroupId } as any,
+      },
+      include: {
+        student: { select: { id: true, firstName: true, lastName: true, firstNameAr: true, lastNameAr: true } },
+        practiceSessions: { orderBy: { createdAt: 'desc' }, take: 1 },
+      },
+      orderBy: { createdAt: 'desc' },
+    })
+
+    return submissions.map(s => ({
+      id: s.id,
+      studentId: s.student.id,
+      studentName: `${s.student.firstName} ${s.student.lastName}`,
+      lessonId: s.lessonId,
+      recordingUrl: (s.practiceSessions[0] as any)?.recordingUrl,
+      submittedAt: s.practiceSessions[0]?.createdAt ?? s.lastAccessedAt,
+      selfRating: (s.practiceSessions[0] as any)?.selfRating,
+      masteryStatus: s.masteryStatus,
+      servantFeedback: s.servantFeedback,
+      servantFeedbackAt: s.servantFeedbackAt,
+      awaitingFeedback: !s.servantFeedback,
+    }))
+  }
+
+  // ─── Servant: Add feedback to a lesson progress ──────────────────────────
+  async addFeedback(progressId: string, feedbackText: string, servantId: string, caller?: any) {
+    const progress = await this.prisma.lessonProgress.findUnique({
+      where: { id: progressId },
+      include: { student: { select: { groupId: true } } },
+    })
+    if (!progress) throw new ForbiddenException('Progress record not found')
+
+    // Ensure caller is servant in this group
+    const metadata = (caller.metadata ?? {}) as Record<string, any>
+    if (!metadata.groupId || metadata.groupId !== progress.student.groupId) {
+      throw new ForbiddenException('You can only provide feedback for students in your group')
+    }
+
+    return this.prisma.lessonProgress.update({
+      where: { id: progressId },
+      data: {
+        servantFeedback: feedbackText.slice(0, 200),
+        servantFeedbackAt: new Date(),
+        servantId,
+      },
+    })
+  }
 }
