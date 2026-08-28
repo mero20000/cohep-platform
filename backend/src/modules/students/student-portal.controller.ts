@@ -3,9 +3,10 @@ import {
   UseGuards, SetMetadata,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { diskStorage } from 'multer';
+import { memoryStorage } from 'multer';
 import { extname } from 'path';
 import { v4 as uuidv4 } from 'uuid';
+import { uploadRecording } from '../../common/storage/r2';
 import { ApiTags, ApiOperation, ApiConsumes } from '@nestjs/swagger';
 import { JwtService } from '@nestjs/jwt';
 import { Throttle } from '@nestjs/throttler';
@@ -177,13 +178,7 @@ export class StudentPortalController {
   @ApiOperation({ summary: 'Upload a practice recording' })
   @ApiConsumes('multipart/form-data')
   @UseInterceptors(FileInterceptor('file', {
-    storage: diskStorage({
-      destination: 'uploads/recordings',
-      filename: (_req, file, cb) => {
-        const uniqueName = `${uuidv4()}${extname(file.originalname)}`;
-        cb(null, uniqueName);
-      },
-    }),
+    storage: memoryStorage(),
     limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
     fileFilter: (_req, file, cb) => {
       const allowed = ['.webm', '.mp3', '.m4a', '.ogg'];
@@ -194,7 +189,9 @@ export class StudentPortalController {
   }))
   async uploadRecording(@UploadedFile() file: Express.Multer.File) {
     if (!file) throw new Error('No file uploaded');
-    if (!file.filename) throw new Error('Upload failed: no filename');
-    return { url: `/uploads/recordings/${file.filename}` };
+    if (!file.buffer) throw new Error('No file buffer');
+    const filename = `${uuidv4()}${extname(file.originalname)}`;
+    const url = await uploadRecording(file.buffer, `practice-recordings/${filename}`, file.mimetype);
+    return { url };
   }
 }
