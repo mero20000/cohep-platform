@@ -75,4 +75,21 @@ export class HymnLearningController {
     @Body() body: { servantRating: number; servantNote?: string }) {
     return this.svc.reviewSession(id, req.user.id, body, req.user)
   }
+
+  @Get('lessons/:lessonId/submissions')
+  @ApiOperation({ summary: 'Servant: get submissions for a lesson (group-scoped)' })
+  async getSubmissions(@Req() req: any, @Param('lessonId') lessonId: string) {
+    const groupId = (req.user.metadata ?? {}).groupId
+    if (!groupId) throw new Error('Servant group context missing')
+    return this.svc.getSubmissionsForServant(lessonId, groupId, req.user)
+  }
+
+  @Post('lessons/:lessonId/submissions/:submissionId/feedback')
+  @ApiOperation({ summary: 'Servant: add feedback to a lesson progress' })
+  async addFeedback(@Req() req: any, @Param('lessonId') lessonId: string, @Param('submissionId') submissionId: string,
+    @Body() body: { feedbackText: string }) {
+    const groupId = (req.user.metadata ?? {}).groupId
+    if (!groupId) throw new Error('Servant group context missing')
+    return this.svc.addFeedback(submissionId, body.feedbackText, req.user.id, req.user)
+  }
 }
