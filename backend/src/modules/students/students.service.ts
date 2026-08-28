@@ -713,6 +713,7 @@ async getPortalData(portalAccessKey: string) {
         },
         orderBy: { createdAt: 'desc' },
         take: 20,
+        distinct: ['assessmentId'], // Only latest submission per assessment
       }),
       // Liturgy attendance (FamilyLiturgy) — verified + pending entries
       this.prisma.familyLiturgy.findMany({
