@@ -14,7 +14,7 @@ export class HymnLearningController {
   @ApiOperation({ summary: 'Log a practice session for a hymn (runs SM-2)' })
   async logPractice(@Req() req: any, @Body() body: {
     lessonId: string
-    selfRating: number
+    selfRating?: number
     recordingUrl?: string
     durationSec?: number
     studentId?: string
