@@ -56,7 +56,7 @@ interface PortalData {
 const STATUS_ICONS: Record<string, any> = { present: CheckCircle2, late: Clock, absent: XCircle, excused: AlertCircle }
 const STATUS_COLORS: Record<string, string> = {
   present: 'text-green-600 bg-green-50', late: 'text-amber-600 bg-amber-50',
-  absent: 'text-red-600 bg-red-50', excused: 'text-gray-500 bg-gray-50',
+  absent: 'text-red-600 bg-red-50', excused: 'text-gray-700 bg-gray-100',
 }
 const HW_COLORS: Record<string, string> = {
   completed: 'text-green-700 bg-green-100', partial: 'text-amber-700 bg-amber-100',
@@ -548,7 +548,7 @@ export default function StudentDashboard() {
                               </span>
                               {l.servantNote && <span className="truncate text-gray-500 italic flex-1 text-end">“{l.servantNote}”</span>}
                               <span className={`shrink-0 rounded-full px-2 py-0.5 font-medium ${
-                                l.status === 'verified' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'
+                                l.status === 'verified' ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-700'
                               }`}>
                                 {l.status === 'verified' ? (lang === 'ar' ? 'مؤكد ✓' : 'Verified ✓') : (lang === 'ar' ? 'قيد المراجعة' : 'In review')}
                               </span>
