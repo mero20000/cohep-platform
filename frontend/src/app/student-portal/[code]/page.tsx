@@ -89,6 +89,11 @@ export default function StudentDashboard() {
     document.addEventListener('mousedown', h); return () => document.removeEventListener('mousedown', h)
   }, [])
 
+  // Practice state
+  const [practiceLesson, setPracticeLesson] = useState<HymnMapItem | null>(null)
+  const [celebration, setCelebration] = useState<{ title: string; titleCoptic?: string } | null>(null)
+  const [drill, setDrill] = useState<null | 'xp' | 'badges' | 'attendance' | 'homework'>(null)
+
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => { if (e.key === 'Escape' && drill) setDrill(null) }
     if (drill) document.addEventListener('keydown', handleEscape)
@@ -102,11 +107,6 @@ export default function StudentDashboard() {
     document.documentElement.lang = newLang
     document.documentElement.dir = newLang === 'ar' ? 'rtl' : 'ltr'
   }
-
-  // Practice state
-  const [practiceLesson, setPracticeLesson] = useState<HymnMapItem | null>(null)
-  const [celebration, setCelebration] = useState<{ title: string; titleCoptic?: string } | null>(null)
-  const [drill, setDrill] = useState<null | 'xp' | 'badges' | 'attendance' | 'homework'>(null)
   const { data: achievements } = useStudentAchievements(code, drill === 'xp')
   const [searchQuery, setSearchQuery] = useState('')
   const [filterMastery, setFilterMastery] = useState('')
