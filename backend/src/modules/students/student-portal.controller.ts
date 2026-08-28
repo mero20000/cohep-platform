@@ -197,8 +197,8 @@ export class StudentPortalController {
   }))
   async uploadRecording(@UploadedFile() file: Express.Multer.File) {
     if (!file) throw new Error('No file uploaded');
-    if (isCloudinaryConfigured && file.path) {
-      return { url: file.path };
+    if (isCloudinaryConfigured && (file as any).secure_url) {
+      return { url: (file as any).secure_url };
     }
     return { url: `/uploads/recordings/${file.filename}` };
   }
