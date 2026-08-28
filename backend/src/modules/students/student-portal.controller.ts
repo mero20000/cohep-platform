@@ -177,13 +177,20 @@ export class StudentPortalController {
   @ApiOperation({ summary: 'Upload a practice recording' })
   @ApiConsumes('multipart/form-data')
   @UseInterceptors(FileInterceptor('file', {
-    storage: diskStorage({
-      destination: 'uploads/recordings',
-      filename: (_req, file, cb) => {
-        const uniqueName = `${uuidv4()}${extname(file.originalname)}`;
-        cb(null, uniqueName);
-      },
-    }),
+    storage: (() => {
+      if (isCloudinaryConfigured) {
+        console.log('Using Cloudinary storage for recordings');
+        return createCloudinaryStorage('recordings');
+      }
+      console.log('Using disk storage for recordings (Cloudinary not configured)');
+      return diskStorage({
+        destination: 'uploads/recordings',
+        filename: (_req, file, cb) => {
+          const uniqueName = `${uuidv4()}${extname(file.originalname)}`;
+          cb(null, uniqueName);
+        },
+      });
+    })(),
     limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
     fileFilter: (_req, file, cb) => {
       const allowed = ['.webm', '.mp3', '.m4a', '.ogg'];
@@ -194,6 +201,19 @@ export class StudentPortalController {
   }))
   async uploadRecording(@UploadedFile() file: Express.Multer.File) {
     if (!file) throw new Error('No file uploaded');
-    return { url: `/uploads/recordings/${file.filename}` };
+    console.log('Recording uploaded - file object keys:', Object.keys(file || {}));
+    console.log('Is Cloudinary configured:', isCloudinaryConfigured);
+
+    if (isCloudinaryConfigured && (file as any).secure_url) {
+      console.log('Returning Cloudinary URL:', (file as any).secure_url);
+      return { url: (file as any).secure_url };
+    }
+
+    if (file.filename) {
+      console.log('Returning disk storage URL:', `/uploads/recordings/${file.filename}`);
+      return { url: `/uploads/recordings/${file.filename}` };
+    }
+
+    throw new Error(`Upload failed: no secure_url from Cloudinary and no filename from disk storage. File object: ${JSON.stringify(file)}`);
   }
 }
