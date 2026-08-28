@@ -87,12 +87,12 @@ export class HymnLearningService {
     studentId: string
     lessonId: string
     schoolId: string
-    selfRating: number
+    selfRating?: number
     recordingUrl?: string
     durationSec?: number
   }, caller?: any) {
     await this.assertCanWriteStudent(caller, dto.studentId)
-    const quality = Math.max(1, Math.min(5, dto.selfRating))
+    const quality = Math.max(1, Math.min(5, dto.selfRating ?? 3))
 
     // Upsert LessonProgress
     let progress = await this.prisma.lessonProgress.findUnique({

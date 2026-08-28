@@ -98,8 +98,8 @@ export function PracticeRecorder({ lessonId, lessonTitle, referenceAudioUrl, onS
     else { el.pause(); if (which === 'ref') setPlayingRef(false); else setPlayingRec(false) }
   }
 
-  const handleSubmit = async () => {
-    if (!rating) return
+  const handleSubmit = async (ratingToSubmit?: number) => {
+    const finalRating = ratingToSubmit ?? rating
     setStage('submitting')
     try {
       let uploadedUrl: string | undefined
@@ -122,7 +122,7 @@ export function PracticeRecorder({ lessonId, lessonTitle, referenceAudioUrl, onS
           if (res.ok) { const json = await res.json(); uploadedUrl = json.url }
         } catch {}
       }
-      await onSubmit(rating, uploadedUrl, elapsed)
+      await onSubmit(finalRating || 3, uploadedUrl, elapsed)
     } catch {
       setStage('rating')
       toast('error', t('Failed to submit', 'فشل التسليم'))
@@ -228,10 +228,11 @@ export function PracticeRecorder({ lessonId, lessonTitle, referenceAudioUrl, onS
         </div>
       )}
 
-      {/* Rating */}
+      {/* Rating (optional) */}
       {(stage === 'rating' || stage === 'submitting') && (
         <div className="rounded-xl border border-gray-200 p-5">
-          <p className="text-sm font-medium text-gray-700 mb-4 text-center">{t('How well did you know this hymn?', 'كم تعرف هذه التسبيحة؟')}</p>
+          <p className="text-sm font-medium text-gray-700 mb-1 text-center">{t('How confident are you?', 'ما مدى ثقتك؟')}</p>
+          <p className="text-xs text-gray-400 mb-4 text-center">{t('(optional)', '(اختياري)')}</p>
           <div className="flex justify-center gap-3 mb-3">
             {STARS.map(s => (
               <button key={s} onClick={() => setRating(s)}
@@ -248,11 +249,19 @@ export function PracticeRecorder({ lessonId, lessonTitle, referenceAudioUrl, onS
               {STAR_LABELS[hovered || rating]?.[lang as 'en' | 'ar']}
             </p>
           )}
-          {rating > 0 && stage === 'rating' && (
-            <button onClick={handleSubmit}
-              className="mt-5 w-full flex items-center justify-center gap-2 rounded-lg bg-gold-500 py-2.5 text-sm font-medium text-white hover:bg-gold-600">
-              <Send className="h-4 w-4" /> {t('Submit practice', 'سلّم التدريب')}
-            </button>
+          {stage === 'rating' && (
+            <div className="mt-5 space-y-2">
+              {rating > 0 && (
+                <button onClick={() => handleSubmit(rating)}
+                  className="w-full flex items-center justify-center gap-2 rounded-lg bg-gold-500 py-2.5 text-sm font-medium text-white hover:bg-gold-600">
+                  <Send className="h-4 w-4" /> {t('Submit practice', 'سلّم التدريب')}
+                </button>
+              )}
+              <button onClick={() => handleSubmit(3)}
+                className="w-full rounded-lg border border-gray-200 bg-white py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50">
+                {t('Submit without rating', 'سلّم بدون تقييم')}
+              </button>
+            </div>
           )}
           {stage === 'submitting' && (
             <div className="mt-5 flex items-center justify-center gap-2 rounded-lg bg-gold-100 py-2.5 text-sm text-gold-700">
