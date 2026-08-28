@@ -229,35 +229,94 @@ export default function TakeAssessment({ assessmentId, mode, accessKey, studentI
 
   if (submission) {
     const res = computeResult(submission.grades ?? [], payload.questions)
+    const isPassing = res.earned >= payload.assessment.passingScore
+
     return (
       <div className="mx-auto max-w-2xl px-4 py-8">
-        <div className="rounded-2xl border border-green-200 bg-green-50 p-6 text-center">
-          <CheckCircle2 className="mx-auto h-8 w-8 text-green-600" />
-          <h2 className="mt-2 text-lg font-semibold text-gray-900">
-            {lang === 'ar' ? 'تم التسليم' : 'Submitted'}
+        {/* Success Card */}
+        <div className="rounded-2xl border border-green-200 bg-gradient-to-br from-green-50 to-emerald-50 p-8 text-center">
+          <div className="flex justify-center">
+            <div className="relative">
+              <div className="absolute inset-0 animate-pulse rounded-full bg-green-200 opacity-75 blur"></div>
+              <CheckCircle2 className="relative h-12 w-12 text-green-600" />
+            </div>
+          </div>
+
+          <h2 className="mt-4 text-2xl font-bold text-gray-900">
+            {lang === 'ar' ? '✓ تم التسليم بنجاح' : '✓ Assessment Submitted'}
           </h2>
-          <p className="mt-1 text-3xl font-bold text-gray-900">{res.earned} / {payload.assessment.totalPoints}</p>
-          <p className="text-sm text-gray-500">
-            {lang === 'ar' ? 'النتيجة تعتمد على الأسئلة المُصححة تلقائيًا' : 'Score from auto-graded questions'}
+
+          <p className="mt-2 text-sm text-gray-600">
+            {isPassing
+              ? (lang === 'ar' ? 'ممتاز! لقد أكملت التقييم.' : 'Great job! You\'ve completed the assessment.')
+              : (lang === 'ar' ? 'شكراً لتسليمك. تحقق من النتائج أدناه.' : 'Thank you for your submission. Check your results below.')}
+          </p>
+
+          {/* Score Display */}
+          <div className="mt-6 flex items-center justify-center gap-4">
+            <div>
+              <p className="text-4xl font-bold text-gray-900">{res.earned}</p>
+              <p className="text-sm text-gray-500">{lang === 'ar' ? 'نقاط' : 'points'}</p>
+            </div>
+            <div className="text-2xl text-gray-400">/</div>
+            <div>
+              <p className="text-4xl font-bold text-gray-400">{payload.assessment.totalPoints}</p>
+              <p className="text-sm text-gray-500">{lang === 'ar' ? 'من' : 'total'}</p>
+            </div>
+          </div>
+
+          <p className="mt-3 text-xs text-gray-500">
+            {lang === 'ar' ? 'بناءً على الأسئلة المصححة تلقائيًا' : 'Based on auto-graded questions'}
           </p>
         </div>
-        <div className="mt-6 space-y-4">
-          {payload.questions.map((q, i) => {
-            const r = res.items[i]
-            return (
-              <div key={q.id} className="rounded-xl border border-gray-200 bg-white p-4">
-                <div className="flex items-start justify-between gap-3">
-                  <p className="text-sm font-medium text-gray-900">{q.text}</p>
-                  {r.status === 'correct' && <CheckCircle2 className="h-5 w-5 flex-shrink-0 text-green-600" />}
-                  {r.status === 'incorrect' && <XCircle className="h-5 w-5 flex-shrink-0 text-red-500" />}
-                  {r.status === 'pending' && <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">{lang === 'ar' ? 'بانتظار التصحيح' : 'Awaiting grading'}</span>}
+
+        {/* Action Buttons */}
+        <div className="mt-8 grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <button
+            onClick={() => router.back()}
+            className="rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+          >
+            {lang === 'ar' ? '← العودة للتقييم' : '← Back to Assessment'}
+          </button>
+          <button
+            onClick={() => router.push('/dashboard')}
+            className="rounded-lg border border-blue-300 bg-blue-50 px-4 py-2.5 text-sm font-medium text-blue-700 hover:bg-blue-100 transition-colors"
+          >
+            {lang === 'ar' ? 'لوحة التحكم' : 'Dashboard'}
+          </button>
+          <button
+            onClick={() => router.push('/')}
+            className="rounded-lg border border-indigo-300 bg-indigo-50 px-4 py-2.5 text-sm font-medium text-indigo-700 hover:bg-indigo-100 transition-colors"
+          >
+            {lang === 'ar' ? 'الرئيسية' : 'Home'}
+          </button>
+        </div>
+
+        {/* Detailed Results */}
+        <div className="mt-8">
+          <h3 className="text-sm font-semibold text-gray-900 mb-4">
+            {lang === 'ar' ? 'تفاصيل الإجابات' : 'Your Answers'}
+          </h3>
+          <div className="space-y-3">
+            {payload.questions.map((q, i) => {
+              const r = res.items[i]
+              return (
+                <div key={q.id} className="rounded-lg border border-gray-200 bg-white p-4 hover:shadow-sm transition-shadow">
+                  <div className="flex items-start justify-between gap-3">
+                    <p className="text-sm font-medium text-gray-900">{q.text}</p>
+                    <div className="flex-shrink-0">
+                      {r.status === 'correct' && <CheckCircle2 className="h-5 w-5 text-green-600" />}
+                      {r.status === 'incorrect' && <XCircle className="h-5 w-5 text-red-500" />}
+                      {r.status === 'pending' && <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">{lang === 'ar' ? 'بانتظار' : 'Pending'}</span>}
+                    </div>
+                  </div>
+                  {r.status !== 'pending' && (
+                    <p className="mt-2 text-xs text-gray-600">{lang === 'ar' ? 'إجابتك:' : 'Your answer:'} <span className="font-medium text-gray-900">{answers[q.id]}</span></p>
+                  )}
                 </div>
-                {r.status !== 'pending' && (
-                  <p className="mt-1 text-xs text-gray-500">{lang === 'ar' ? 'إجابتك' : 'Your answer'}: {answers[q.id]}</p>
-                )}
-              </div>
-            )
-          })}
+              )
+            })}
+          </div>
         </div>
       </div>
     )
