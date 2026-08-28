@@ -170,7 +170,7 @@ export class StudentPortalController {
       selfRating: body.selfRating,
       recordingUrl: body.recordingUrl,
       durationSec: body.durationSec,
-    });
+    }, { id: student.id });
   }
 
   @Post(':code/recordings')
