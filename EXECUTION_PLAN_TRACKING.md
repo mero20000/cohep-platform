@@ -10,23 +10,25 @@
 
 **Status**: 🔄 IN PROGRESS
 
-### Task 0.1: Reduce Practice Friction ⏳ STARTING NOW
+### Task 0.1: Reduce Practice Friction ✅ COMPLETED
 - **Effort**: 1 day (0.5 FE + 0.5 BE)
 - **Goal**: Replace mandatory star-rating after every practice with optional daily check-in
 - **Files**:
-  - `frontend/src/components/hymn-learning/practice-recorder.tsx`
-  - `backend/src/modules/curriculum/hymn-learning.service.ts`
-- **Status**: Starting
-- **Assigned**: (awaiting dev assignment)
+  - ✅ `frontend/src/components/hymn-learning/practice-recorder.tsx`
+  - ✅ `backend/src/modules/curriculum/hymn-learning.service.ts`
+  - ✅ `backend/src/modules/curriculum/hymn-learning.controller.ts`
+- **Status**: ✅ DONE
+- **Commits**: 9d90b8c
 
-### Task 0.2: Inline Practice History
+### Task 0.2: Inline Practice History ⏳ IN PROGRESS
 - **Effort**: 2 days (FE only)
 - **Goal**: Show last 3 attempts in hymn detail modal
 - **Files**:
-  - `frontend/src/components/hymn-learning/hymn-detail-modal.tsx` (new)
-  - `frontend/src/components/hymn-learning/practice-history.tsx` (refactor)
-- **Status**: Queued (starts after 0.1)
-- **Assigned**: (awaiting dev assignment)
+  - ✅ `frontend/src/components/hymn-learning/practice-history-inline.tsx` (new component created)
+  - ⏳ `frontend/src/app/student-portal/[code]/page.tsx` (integrate into modal, TBD)
+- **Status**: Component ready, integration pending
+- **Commits**: 5f08c67
+- **Next**: Integrate into practice recorder modal; test rendering
 
 ### Task 0.3: XP/Badge Governance Documentation
 - **Effort**: 3 days (product + clergy)
