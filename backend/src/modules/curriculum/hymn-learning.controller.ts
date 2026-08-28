@@ -92,4 +92,25 @@ export class HymnLearningController {
     if (!groupId) throw new Error('Servant group context missing')
     return this.svc.addFeedback(submissionId, body.feedbackText, req.user.id, req.user)
   }
+
+  @Get('liturgy/pending-verifications')
+  @ApiOperation({ summary: 'Clergy: get pending verifications for upcoming Sunday' })
+  async getPendingVerifications(@Req() req: any) {
+    const schoolId = req.user.schoolId ?? req.user.currentSchoolId
+    return this.svc.getPendingVerificationsForClergy(schoolId, req.user)
+  }
+
+  @Post('liturgy/verify/:progressId')
+  @ApiOperation({ summary: 'Clergy: mark a student ready for liturgy' })
+  async markReadyForLiturgy(@Req() req: any, @Param('progressId') progressId: string,
+    @Body() body: { notes?: string }) {
+    return this.svc.markReadyForLiturgy(progressId, body.notes, req.user.id, req.user)
+  }
+
+  @Get('liturgy/student-readiness/:studentId')
+  @ApiOperation({ summary: 'Clergy: get student liturgy readiness summary for upcoming Sunday' })
+  async getStudentReadiness(@Req() req: any, @Param('studentId') studentId: string) {
+    const schoolId = req.user.schoolId ?? req.user.currentSchoolId
+    return this.svc.getStudentLiturgyReadiness(studentId, schoolId, req.user)
+  }
 }

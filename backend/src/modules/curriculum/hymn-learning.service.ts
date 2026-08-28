@@ -497,4 +497,135 @@ export class HymnLearningService {
       },
     })
   }
+
+  // ─── Clergy: Get pending verifications for upcoming Sunday ──────────────────
+  async getPendingVerificationsForClergy(schoolId: string, caller?: any) {
+    const upcomingSunday = getUpcomingSundayDate()
+    const lessonsForSunday = await this.prisma.lesson.findMany({
+      where: {
+        schoolId,
+        liturgicalDate: {
+          gte: new Date(upcomingSunday.toDateString()),
+          lt: new Date(new Date(upcomingSunday).setDate(upcomingSunday.getDate() + 1)),
+        },
+      },
+      select: { id: true, title: true, titleAr: true },
+    })
+
+    if (!lessonsForSunday.length) {
+      return { verifications: [], total: 0, pending: 0 }
+    }
+
+    const lessonIds = lessonsForSunday.map(l => l.id)
+
+    const pendingProgress = await this.prisma.lessonProgress.findMany({
+      where: {
+        lessonId: { in: lessonIds },
+        isReadyForLiturgy: false,
+        masteryStatus: { in: ['practicing', 'known', 'mastered'] },
+      },
+      include: {
+        student: { select: { id: true, firstName: true, lastName: true, firstNameAr: true, lastNameAr: true } },
+        lesson: { select: { id: true, title: true, titleAr: true } },
+        practiceSessions: { orderBy: { createdAt: 'desc' }, take: 1 },
+      },
+      orderBy: { createdAt: 'desc' },
+    })
+
+    const verifications = pendingProgress.map(p => ({
+      id: p.id,
+      studentId: p.student.id,
+      studentName: `${p.student.firstName} ${p.student.lastName}`,
+      lessonId: p.lessonId,
+      lessonTitle: p.lesson.title,
+      masteryStatus: p.masteryStatus,
+      selfRating: (p.practiceSessions[0] as any)?.selfRating,
+      servantFeedback: p.servantFeedback,
+      servantFeedbackAt: p.servantFeedbackAt,
+      recordingUrl: (p.practiceSessions[0] as any)?.recordingUrl,
+      recordingDuration: (p.practiceSessions[0] as any)?.durationSec,
+      lastPracticedAt: p.practiceSessions[0]?.createdAt,
+    }))
+
+    return {
+      verifications,
+      total: verifications.length,
+      pending: verifications.length,
+    }
+  }
+
+  // ─── Clergy: Mark a student ready for liturgy ────────────────────────────────
+  async markReadyForLiturgy(progressId: string, notes: string | undefined, clergyId: string, caller?: any) {
+    const progress = await this.prisma.lessonProgress.findUnique({
+      where: { id: progressId },
+      include: { student: true, lesson: true },
+    })
+    if (!progress) throw new ForbiddenException('Progress record not found')
+
+    // Verify progress is for a lesson on an upcoming Sunday
+    const upcomingSunday = getUpcomingSundayDate()
+    if (!progress.lesson.liturgicalDate || progress.lesson.liturgicalDate < upcomingSunday) {
+      throw new ForbiddenException('This lesson is not scheduled for an upcoming Sunday')
+    }
+
+    if (progress.masteryStatus === 'not_started') {
+      throw new ForbiddenException('Student has not begun practicing this hymn')
+    }
+
+    return this.prisma.lessonProgress.update({
+      where: { id: progressId },
+      data: {
+        isReadyForLiturgy: true,
+        readyForLiturgyAt: new Date(),
+        clergyId,
+        clergyNotes: notes ? notes.slice(0, 300) : null,
+      },
+    })
+  }
+
+  // ─── Clergy: Get all verifications for a student (readiness summary) ────────
+  async getStudentLiturgyReadiness(studentId: string, schoolId: string, caller?: any) {
+    const upcomingSunday = getUpcomingSundayDate()
+    const lessonsForSunday = await this.prisma.lesson.findMany({
+      where: {
+        schoolId,
+        liturgicalDate: {
+          gte: new Date(upcomingSunday.toDateString()),
+          lt: new Date(new Date(upcomingSunday).setDate(upcomingSunday.getDate() + 1)),
+        },
+      },
+      select: { id: true, title: true, titleAr: true },
+    })
+
+    const lessonIds = lessonsForSunday.map(l => l.id)
+
+    const progress = await this.prisma.lessonProgress.findMany({
+      where: {
+        studentId,
+        lessonId: { in: lessonIds },
+      },
+      include: {
+        lesson: { select: { id: true, title: true, titleAr: true } },
+      },
+    })
+
+    const student = await this.prisma.student.findUnique({
+      where: { id: studentId },
+      select: { firstName: true, lastName: true, firstNameAr: true, lastNameAr: true },
+    })
+
+    return {
+      studentId,
+      studentName: `${student?.firstName} ${student?.lastName}`,
+      lessons: progress.map(p => ({
+        lessonId: p.lessonId,
+        lessonTitle: p.lesson.title,
+        masteryStatus: p.masteryStatus,
+        isReadyForLiturgy: p.isReadyForLiturgy,
+        readyForLiturgyAt: p.readyForLiturgyAt,
+      })),
+      overallReadyCount: progress.filter(p => p.isReadyForLiturgy).length,
+      totalLessonsForSunday: progress.length,
+    }
+  }
 }
