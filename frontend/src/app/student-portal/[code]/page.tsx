@@ -563,7 +563,7 @@ export default function StudentDashboard() {
                               <span className="text-gray-600">
                                 {new Date(l.date).toLocaleDateString(lang === 'ar' ? 'ar-EG' : 'en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
                               </span>
-                              {l.servantNote && <span className=”truncate text-gray-600 italic flex-1 text-end”>{`”${l.servantNote}”`}</span>}
+                              {l.servantNote && <span className=”truncate text-gray-600 italic flex-1 text-end”>{l.servantNote}</span>}
                               <span className={`shrink-0 rounded-full px-2 py-0.5 font-medium ${
                                 l.status === 'verified' ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-700'
                               }`}>
