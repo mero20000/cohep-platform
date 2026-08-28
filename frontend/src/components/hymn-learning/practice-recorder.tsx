@@ -119,13 +119,21 @@ export function PracticeRecorder({ lessonId, lessonTitle, referenceAudioUrl, onS
             } catch {}
           }
           const res = await fetch(uploadUrl, { method: 'POST', credentials: 'include', headers, body: fd })
+          if (!res.ok) {
+            console.error('Recording upload failed:', res.status, res.statusText)
+          }
           if (res.ok) { const json = await res.json(); uploadedUrl = json.url }
-        } catch {}
+        } catch (err) {
+          console.error('Recording upload error:', err)
+        }
       }
       await onSubmit(finalRating || 3, uploadedUrl, elapsed)
-    } catch {
+      // Reset on success
+      reset()
+    } catch (err) {
+      console.error('Practice submission error:', err)
       setStage('rating')
-      toast('error', t('Failed to submit', 'فشل التسليم'))
+      toast('error', t('Failed to submit practice — please try again', 'فشل تسليم التدريب — يرجى المحاولة مرة أخرى'))
     }
   }
 

@@ -1,10 +1,11 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { http } from '@/lib/http-client'
 import { assetUrl } from '@/lib/asset-url'
 import { computeResult, formatCountdown, type TakeQuestion } from '../../app/dashboard/assessments/take-helpers'
-import { Loader2, AlertCircle, CheckCircle2, XCircle, Clock, ClipboardCheck, Music, FileText, Presentation, StickyNote, Mic, Square, Trash2 } from 'lucide-react'
+import { Loader2, AlertCircle, CheckCircle2, XCircle, Clock, ClipboardCheck, Music, FileText, Presentation, StickyNote, Mic, Square, Trash2, ArrowLeft } from 'lucide-react'
 import { AudioPlayer } from '@/components/audio-player'
 
 interface TakePayload {
@@ -35,6 +36,7 @@ interface TakeProps {
 type AnswerMap = Record<string, string>
 
 export default function TakeAssessment({ assessmentId, mode, accessKey, studentId, lang = 'en' }: TakeProps) {
+  const router = useRouter()
   const [payload, setPayload] = useState<TakePayload | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
@@ -264,6 +266,12 @@ export default function TakeAssessment({ assessmentId, mode, accessKey, studentI
   return (
     <div className="mx-auto max-w-2xl px-4 py-8">
       <div className="sticky top-0 z-10 -mx-4 border-b border-gray-200 bg-white px-4 py-3">
+        <div className="flex items-center gap-3 mb-3">
+          <button onClick={() => router.back()} className="inline-flex items-center gap-1.5 text-sm text-gray-600 hover:text-gray-900 transition-colors">
+            <ArrowLeft className="h-4 w-4" />
+            {lang === 'ar' ? 'رجوع' : 'Back'}
+          </button>
+        </div>
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-base font-semibold text-gray-900">{payload.assessment.titleAr || payload.assessment.title}</h1>

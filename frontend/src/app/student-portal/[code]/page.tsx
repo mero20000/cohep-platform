@@ -147,21 +147,26 @@ export default function StudentDashboard() {
 
   const handleSubmitPractice = async (selfRating: number, recordingUrl?: string, durationSec?: number) => {
     if (!practiceLesson) return
-    const before = practiceLesson.progress?.masteryStatus ?? 'not_started'
-    const res: any = await practiceMutation.mutateAsync({
-      lessonId: practiceLesson.id,
-      selfRating,
-      recordingUrl,
-      durationSec,
-    })
-    // Celebration moment: first time a hymn becomes known/mastered
-    const after = (res?.mastery ?? res?.progress?.masteryStatus) as string | undefined
-    if ((after === 'known' || after === 'mastered') && !['known', 'mastered'].includes(before)) {
-      setCelebration({ title: practiceLesson.title, titleCoptic: practiceLesson.titleCoptic })
-      setTimeout(() => setCelebration(null), 3000)
+    try {
+      const before = practiceLesson.progress?.masteryStatus ?? 'not_started'
+      const res: any = await practiceMutation.mutateAsync({
+        lessonId: practiceLesson.id,
+        selfRating,
+        recordingUrl,
+        durationSec,
+      })
+      // Celebration moment: first time a hymn becomes known/mastered
+      const after = (res?.mastery ?? res?.progress?.masteryStatus) as string | undefined
+      if ((after === 'known' || after === 'mastered') && !['known', 'mastered'].includes(before)) {
+        setCelebration({ title: practiceLesson.title, titleCoptic: practiceLesson.titleCoptic })
+        setTimeout(() => setCelebration(null), 3000)
+      }
+      markLessonCompleted()
+      setPracticeLesson(null)
+    } catch (err: any) {
+      console.error('Practice mutation failed:', err)
+      throw err
     }
-    markLessonCompleted()
-    setPracticeLesson(null)
   }
 
   // Filter and group hymns — curriculum-scoped: own level and below only
