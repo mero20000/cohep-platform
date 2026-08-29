@@ -8,6 +8,19 @@ interface ApiError {
   error?: string
 }
 
+/**
+ * A student-portal request came back 401. Thrown rather than redirected, so the portal's
+ * own re-exchange of the access key can recover the session in place — a student has no
+ * password to re-enter, and the staff login page has no access-key field.
+ */
+export class PortalUnauthorizedError extends Error {
+  readonly status = 401
+  constructor() {
+    super('Invalid or expired portal session')
+    this.name = 'PortalUnauthorizedError'
+  }
+}
+
 class HttpClient {
   private baseUrl: string
 
@@ -105,6 +118,15 @@ class HttpClient {
       credentials: 'include',
       body: opts?.formData ? (body as FormData) : body ? JSON.stringify(body) : undefined,
     })
+
+    // Portal requests must never touch the staff refresh/redirect path. This interceptor
+    // used to fire first on every portal 401: it found no staff refresh token, cleared
+    // auth and hard-navigated to /auth/login — a form with no access-key field — which
+    // made portal-session's own clear-and-retry logic unreachable and lost in-flight
+    // answers. A portal 401 is thrown instead, for portalGet to recover from.
+    if (res.status === 401 && isPortal) {
+      throw new PortalUnauthorizedError()
+    }
 
     if (res.status === 401 && path !== '/auth/refresh') {
       const refreshed = await this.refreshAuth()

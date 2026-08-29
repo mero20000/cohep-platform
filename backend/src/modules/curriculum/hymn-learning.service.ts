@@ -565,23 +565,33 @@ export class HymnLearningService {
   }
 
   // ─── Overall student learning stats ─────────────────────────────────────
-  async getStudentStats(studentId: string, schoolId: string) {
-    const [total, progresses] = await Promise.all([
-      this.prisma.lesson.count({ where: { schoolId, deletedAt: null, status: 'published' } }),
-      this.prisma.lessonProgress.findMany({
-        where: { studentId } as any,
-        select: { masteryStatus: true } as any,
-      }),
-    ])
+  /**
+   * Stats are derived from the same hymn map the student actually sees.
+   *
+   * They used to count every published lesson school-wide as the denominator and derive
+   * not_started by subtracting the student's progress rows — which are not restricted to
+   * that set. The two views therefore contradicted each other, and not_started could go
+   * negative whenever a student had progress on a hymn outside their allocations. Sharing
+   * one source makes disagreement impossible rather than merely unlikely.
+   */
+  async getStudentStats(
+    studentId: string,
+    schoolId: string,
+    maxLevelNumber?: number,
+    levelId?: string | null,
+    groupName?: string | null,
+  ) {
+    const map = await this.getStudentHymnMap(studentId, schoolId, maxLevelNumber, levelId, groupName)
 
     const counts = { not_started: 0, introduced: 0, practicing: 0, known: 0, mastered: 0 }
-    for (const p of progresses as any[]) {
-      const s = p.masteryStatus ?? 'not_started'
+    let touched = 0
+    for (const item of map as any[]) {
+      const s = (item.progress?.masteryStatus ?? 'not_started') as keyof typeof counts
       counts[s] = (counts[s] ?? 0) + 1
+      if (item.progress) touched++
     }
-    counts.not_started = total - (progresses.length)
 
-    return { total, ...counts, touched: progresses.length }
+    return { total: map.length, ...counts, touched }
   }
 
   // ─── Servant: Get submissions for a lesson (group-scoped) ────────────────

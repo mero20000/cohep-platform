@@ -76,7 +76,9 @@ type Tab = 'dashboard' | 'practice' | 'assessments'
 export default function StudentDashboard() {
   const params = useParams()
   const code = params?.code as string
-  const lang = useLanguage() as string
+  // The hook already returns the union; widening it to string was what let the practice
+  // components be passed a hardcoded "en" without a type error.
+  const lang = useLanguage()
   const [data, setData] = useState<PortalData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -965,6 +967,13 @@ export default function StudentDashboard() {
                 if (n.includes('bible') || n.includes('study')) return { accent: 'border-l-emerald-400', bg: 'bg-emerald-50', chip: 'bg-emerald-100 text-emerald-700' }
                 return { accent: 'border-l-indigo-400', bg: 'bg-indigo-50', chip: 'bg-indigo-100 text-indigo-700' }
               }
+              // Titles and subject names exist in both languages. Preferring the Arabic
+              // one unconditionally meant English readers were shown Arabic; prefer the
+              // reader's language and fall back to whichever is present.
+              const aTitle = (a: { title: string; titleAr?: string | null }) =>
+                lang === 'ar' ? (a.titleAr || a.title) : (a.title || a.titleAr)
+              const sName = (s: { name: string; nameAr?: string | null }) =>
+                lang === 'ar' ? (s.nameAr || s.name) : (s.name || s.nameAr)
               const daysLeft = (d: string) => {
                 const diff = Math.ceil((new Date(d).getTime() - Date.now()) / 86400000)
                 return diff
@@ -1050,7 +1059,7 @@ export default function StudentDashboard() {
                         <div className="mb-5">
                           <h3 className="text-xs font-bold uppercase tracking-wide text-red-500 mb-2 flex items-center gap-1.5">
                             <AlertCircle className="h-3.5 w-3.5" />
-                            {lang === 'ar' ? 'متأخرة — ت需要 اهتمام فوري' : 'Overdue — needs your attention'}
+                            {lang === 'ar' ? 'متأخرة — تحتاج اهتمامك الفوري' : 'Overdue — needs your attention'}
                           </h3>
                           <div className="space-y-2.5">
                             {overdue.map(a => {
@@ -1064,9 +1073,9 @@ export default function StudentDashboard() {
                                       <AlertCircle className="h-5 w-5 text-red-500" />
                                     </div>
                                     <div className="flex-1 min-w-0">
-                                      <p className="text-sm font-bold text-gray-900 truncate">{a.titleAr || a.title}</p>
+                                      <p className="text-sm font-bold text-gray-900 truncate">{aTitle(a)}</p>
                                       <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
-                                        <span className={`text-[11px] px-2 py-0.5 rounded-full font-medium ${ss.chip}`}>{a.subject.nameAr || a.subject.name}</span>
+                                        <span className={`text-[11px] px-2 py-0.5 rounded-full font-medium ${ss.chip}`}>{sName(a.subject)}</span>
                                         <span className="text-[11px] text-red-300">·</span>
                                         <span className="text-[11px] text-red-700">{a.totalPoints} pts</span>
                                         <span className="text-[11px] text-red-300">·</span>
@@ -1109,9 +1118,9 @@ export default function StudentDashboard() {
                                       <BookOpen className={`h-5 w-5 ${ss.chip.split(' ')[1]}`} />
                                     </div>
                                     <div className="flex-1 min-w-0">
-                                      <p className="text-sm font-bold text-gray-900 truncate">{a.titleAr || a.title}</p>
+                                      <p className="text-sm font-bold text-gray-900 truncate">{aTitle(a)}</p>
                                       <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
-                                        <span className={`text-[11px] px-2 py-0.5 rounded-full font-medium ${ss.chip}`}>{a.subject.nameAr || a.subject.name}</span>
+                                        <span className={`text-[11px] px-2 py-0.5 rounded-full font-medium ${ss.chip}`}>{sName(a.subject)}</span>
                                         <span className="text-[11px] text-gray-300">·</span>
                                         <span className="text-[11px] text-gray-700">{a.totalPoints} pts</span>
                                         {a.dueDate && (
@@ -1164,9 +1173,9 @@ export default function StudentDashboard() {
                                       <Clock className="h-5 w-5 text-amber-600" />
                                     </div>
                                     <div className="flex-1 min-w-0">
-                                      <p className="text-sm font-bold text-gray-900 truncate">{lang === 'ar' ? (a.titleAr || a.title) : (a.title || a.titleAr)}</p>
+                                      <p className="text-sm font-bold text-gray-900 truncate">{aTitle(a)}</p>
                                       <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
-                                        <span className={`text-[11px] px-2 py-0.5 rounded-full font-medium ${ss.chip}`}>{lang === 'ar' ? (a.subject.nameAr || a.subject.name) : (a.subject.name || a.subject.nameAr)}</span>
+                                        <span className={`text-[11px] px-2 py-0.5 rounded-full font-medium ${ss.chip}`}>{sName(a.subject)}</span>
                                         <span className="text-[11px] text-gray-300">·</span>
                                         <span className="text-[11px] text-gray-700">{a.totalPoints} pts</span>
                                       </div>
@@ -1208,9 +1217,9 @@ export default function StudentDashboard() {
                                       <CheckCircle2 className="h-5 w-5 text-green-500" />
                                     </div>
                                     <div className="flex-1 min-w-0">
-                                      <p className="text-sm font-medium text-gray-900 truncate line-through decoration-green-300">{a.titleAr || a.title}</p>
+                                      <p className="text-sm font-medium text-gray-900 truncate line-through decoration-green-300">{aTitle(a)}</p>
                                       <div className="flex flex-wrap items-center gap-1.5 mt-1">
-                                        <span className={`text-[11px] px-2 py-0.5 rounded-full font-medium ${ss.chip}`}>{a.subject.nameAr || a.subject.name}</span>
+                                        <span className={`text-[11px] px-2 py-0.5 rounded-full font-medium ${ss.chip}`}>{sName(a.subject)}</span>
                                         <span className="text-[11px] text-green-300">·</span>
                                         <span className="text-[11px] text-green-700">{a.totalPoints} pts</span>
                                         {score !== null && (
@@ -1254,7 +1263,7 @@ export default function StudentDashboard() {
                     <div key={s} className="rounded-lg bg-white border border-gray-200 p-2 text-center">
                       <div className="h-2 w-2 rounded-full mx-auto mb-1" style={{ background: meta.dot }} />
                       <div className="text-lg font-bold text-gray-900">{stats[s]}</div>
-                      <div className="text-[10px] text-gray-500 leading-tight">{meta.label}</div>
+                      <div className="text-[10px] text-gray-500 leading-tight">{lang === 'ar' ? meta.labelAr : meta.label}</div>
                     </div>
                   )
                 })}
@@ -1267,7 +1276,7 @@ export default function StudentDashboard() {
               isLoading={sundayLoading}
               hymnMap={hymnMap}
               onSelect={handleSelectHymn}
-              lang="en"
+              lang={lang}
             />
 
             {/* Due for Review */}
@@ -1296,7 +1305,7 @@ export default function StudentDashboard() {
                         <div className="flex items-center gap-2 flex-shrink-0">
                           <span className="text-xs text-amber-700 font-medium">{item.overdueDays}d overdue</span>
                           <span className={`text-xs px-2 py-0.5 rounded-full ${meta.bg} ${meta.color}`}>
-                            {meta.label}
+                            {lang === 'ar' ? meta.labelAr : meta.label}
                           </span>
                         </div>
                       </button>
@@ -1327,7 +1336,7 @@ export default function StudentDashboard() {
                   className="rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-xs focus:border-blue-500 focus:outline-none">
                   <option value="">All Status</option>
                   {(['not_started', 'introduced', 'practicing', 'known', 'mastered'] as const).map(s => (
-                    <option key={s} value={s}>{MASTERY_META[s].label}</option>
+                    <option key={s} value={s}>{lang === 'ar' ? MASTERY_META[s].labelAr : MASTERY_META[s].label}</option>
                   ))}
                 </select>
               </div>
@@ -1385,7 +1394,7 @@ export default function StudentDashboard() {
                                     <div className="flex items-center justify-between mt-2">
                                       <span className={`inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-medium ${meta.bg} ${meta.color}`}>
                                         <span className="h-1.5 w-1.5 rounded-full" style={{ background: meta.dot }} aria-hidden="true" />
-                                        {meta.label}
+                                        {lang === 'ar' ? meta.labelAr : meta.label}
                                       </span>
                                       <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-700 group-hover:text-emerald-600">
                                         <Play className="h-3 w-3 fill-emerald-600" />{lang === 'ar' ? 'صلِّ' : 'Pray Hymn'}
@@ -1548,7 +1557,7 @@ export default function StudentDashboard() {
               referenceAudioUrl={getAudioUrl(practiceLesson)}
               onSubmit={handleSubmitPractice}
               onCancel={() => setPracticeLesson(null)}
-              lang="en"
+              lang={lang}
               code={code}
             />
             {/* Listening Loop: past practices + servant feedback for this hymn */}
@@ -1556,7 +1565,7 @@ export default function StudentDashboard() {
               <PracticeHistory
                 code={code}
                 lessonId={practiceLesson.id}
-                lang="en"
+                lang={lang}
                 onResubmit={() => {
                   setRecorderKey(k => k + 1)
                   practiceModalRef.current?.scrollTo({ top: 0, behavior: 'smooth' })

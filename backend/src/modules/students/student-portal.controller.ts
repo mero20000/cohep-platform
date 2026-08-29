@@ -148,7 +148,18 @@ export class StudentPortalController {
   @ApiOperation({ summary: 'Student learning stats' })
   async getStats(@Param('code') code: string) {
     const student = await this.resolveStudent(code);
-    return this.hymnLearning.getStudentStats(student.id, student.schoolId);
+    // Same scoping as /hymn-map, so the two cannot disagree.
+    const full = await (this.studentsService as any).prisma?.student?.findFirst({
+      where: { portalAccessKey: code, deletedAt: null },
+      select: { levelId: true, group: { select: { name: true } } },
+    });
+    return this.hymnLearning.getStudentStats(
+      student.id,
+      student.schoolId,
+      student.level?.number ?? undefined,
+      full?.levelId ?? null,
+      full?.group?.name ?? null,
+    );
   }
 
   @Get(':code/achievements')

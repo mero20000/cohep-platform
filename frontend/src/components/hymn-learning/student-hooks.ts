@@ -1,7 +1,7 @@
 'use client'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { http } from '@/lib/http-client'
-import { portalGet, ensurePortalSession } from '@/lib/portal-session'
+import { portalGet, portalPost, ensurePortalSession } from '@/lib/portal-session'
 import type { HymnMapItem, DueReviewItem, ThisSundayResponse, LearningStats } from './hooks'
 
 // ─── Student-code-scoped query keys ────────────────────────────────────────
@@ -78,8 +78,7 @@ export function useStudentPractice(code: string) {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async (dto: { lessonId: string; selfRating: number; recordingUrl?: string; durationSec?: number }) => {
-      await ensurePortalSession(code)
-      return http.post<any>(`/student-portal/${code}/practice`, dto)
+      return portalPost<any>(code, `/student-portal/${code}/practice`, dto)
     },
     onSuccess: (_, vars) => {
       qc.invalidateQueries({ queryKey: studentHymnKeys.map(code) })
