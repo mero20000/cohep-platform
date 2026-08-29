@@ -262,6 +262,19 @@ export default function StudentsClient() {
         selectedCount={selectedIds.size}
         onDelete={()=>setBulkOpen(b=>({...b,delete:true}))} onChangeStatus={()=>setBulkOpen(b=>({...b,status:true}))}
         onChangeLevel={()=>setBulkOpen(b=>({...b,level:true}))} onChangeGrade={()=>setBulkOpen(b=>({...b,grade:true}))}
+        onAssignServant={()=>alert(lang==='ar'?'سيتم إضافة هذه الميزة قريباً':'This feature will be added soon')}
+        onExport={()=>{
+          const selectedStudents = sortedStudents.filter(s=>selectedIds.has(s.id))
+          const csv = ['Name,Code,Email,Phone,Level,Group,Status,Church,Grade'].concat(selectedStudents.map(s=>`"${s.firstName} ${s.lastName}","${s.studentCode}","${s.metadata?.email||''}","${s.metadata?.phone||''}","${s.level?.name||''}","${s.group?.name||''}","${s.status}","${s.churchName||''}","${s.grade?.name||''}"`)).join('\n')
+          const blob = new Blob([csv],{type:'text/csv'})
+          const url = URL.createObjectURL(blob)
+          const a = document.createElement('a')
+          a.href = url
+          a.download = `students-${new Date().toISOString().split('T')[0]}.csv`
+          a.click()
+          URL.revokeObjectURL(url)
+          toast('success', lang==='ar'?'تم تصدير الطلاب بنجاح':'Students exported successfully')
+        }}
         onClear={()=>setSelectedIds(new Set())} lang={lang}/>}
 
       <ErrorBoundary fallback={<div role="alert" className="flex flex-col items-center justify-center rounded-xl border border-red-200 bg-red-50 px-6 py-16 text-center"><AlertCircle className="h-10 w-10 text-red-300 mb-3"/><p className="text-sm font-medium text-red-700">{t('Something went wrong','حدث خطأ ما')}</p><Button variant="ghost" size="sm" onClick={()=>fetchStudents(pagination.page)} className="mt-3"><RefreshCw className="h-3.5 w-3.5"/> {t('Retry','إعادة المحاولة')}</Button></div>}>
