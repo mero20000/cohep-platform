@@ -82,6 +82,50 @@ export class HymnLearningService {
     throw new ForbiddenException('Not allowed to write for this student')
   }
 
+  // ─── Delete a practice session and reset progress ────────────────────────
+  async deletePracticeSession(sessionId: string, caller?: any) {
+    const session = await this.prisma.hymnPracticeSession.findUnique({
+      where: { id: sessionId },
+      select: { studentId: true, lessonId: true, progressId: true },
+    })
+    if (!session) throw new Error('Session not found')
+
+    await this.assertCanWriteStudent(caller, session.studentId)
+
+    // Check if session has been reviewed by servant
+    const reviewed = await this.prisma.hymnPracticeSession.findUnique({
+      where: { id: sessionId },
+      select: { servantReviewedAt: true },
+    })
+    if (reviewed?.servantReviewedAt) {
+      throw new ForbiddenException('Cannot delete reviewed submission')
+    }
+
+    // Delete the session
+    await this.prisma.hymnPracticeSession.delete({ where: { id: sessionId } })
+
+    // Reset lesson progress to not_started
+    if (session.progressId) {
+      await this.prisma.lessonProgress.update({
+        where: { id: session.progressId },
+        data: {
+          status: 'not_started',
+          masteryStatus: 'not_started',
+          sessionsCompleted: 0,
+          srEaseFactor: 2.5,
+          srInterval: 1,
+          srRepetitions: 0,
+          nextReviewAt: null,
+          progressPercent: 0,
+          completedAt: null,
+          lastAccessedAt: new Date(),
+        } as any,
+      })
+    }
+
+    return { success: true }
+  }
+
   // ─── Log a practice session + run SM-2 ──────────────────────────────────
   async logPracticeSession(dto: {
     studentId: string

@@ -1,5 +1,5 @@
 import {
-  Controller, Get, Param, Post, Body, HttpCode, UploadedFile, UseInterceptors, Query,
+  Controller, Get, Param, Post, Body, HttpCode, UploadedFile, UseInterceptors, Query, Delete,
   UseGuards, SetMetadata,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
@@ -172,6 +172,17 @@ export class StudentPortalController {
       recordingUrl: body.recordingUrl,
       durationSec: body.durationSec,
     }, { id: student.id });
+  }
+
+  @Delete(':code/practice/:sessionId')
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Delete a practice session (only if not reviewed)' })
+  async deletePractice(
+    @Param('code') code: string,
+    @Param('sessionId') sessionId: string,
+  ) {
+    const student = await this.resolveStudent(code);
+    return this.hymnLearning.deletePracticeSession(sessionId, { id: student.id });
   }
 
   @Post(':code/recordings')

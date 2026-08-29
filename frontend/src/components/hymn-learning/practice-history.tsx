@@ -1,7 +1,9 @@
 'use client'
 
-import { useStudentHymnHistory } from './student-hooks'
-import { Star, Loader2 } from 'lucide-react'
+import { useStudentHymnHistory, useStudentPracticeDelete } from './student-hooks'
+import { Star, Loader2, Trash2, RotateCcw } from 'lucide-react'
+import { useToast } from '@/components/ui/toast'
+import { useState } from 'react'
 
 /**
  * Practice history timeline for one hymn — closes the Listening Loop by
@@ -20,9 +22,26 @@ function Stars({ value, max = 5, tone }: { value: number | null; max?: number; t
   )
 }
 
-export function PracticeHistory({ code, lessonId, lang = 'en' }: { code: string; lessonId: string; lang?: 'en' | 'ar' }) {
+export function PracticeHistory({ code, lessonId, lang = 'en', onResubmit }: { code: string; lessonId: string; lang?: 'en' | 'ar'; onResubmit?: () => void }) {
   const { data: sessions, isLoading } = useStudentHymnHistory(code, lessonId)
+  const deleteSession = useStudentPracticeDelete(code)
+  const { toast } = useToast()
+  const [deletingId, setDeletingId] = useState<string | null>(null)
   const t = (en: string, ar: string) => (lang === 'ar' ? ar : en)
+
+  const handleDelete = async (sessionId: string) => {
+    if (!window.confirm(t('Delete this submission? You can resubmit later.', 'هل تريد حذف هذا الإرسال؟ يمكنك إرساله لاحقاً.'))) return
+    setDeletingId(sessionId)
+    try {
+      await deleteSession.mutateAsync(sessionId)
+      toast('success', t('Submission deleted', 'تم حذف الإرسال'))
+    } catch (err) {
+      console.error('Delete failed:', err)
+      toast('error', t('Failed to delete submission', 'فشل حذف الإرسال'))
+    } finally {
+      setDeletingId(null)
+    }
+  }
 
   if (isLoading) {
     return (
@@ -61,6 +80,11 @@ export function PracticeHistory({ code, lessonId, lang = 'en' }: { code: string;
                   <Stars value={s.servantRating} tone="servant" />
                 </span>
               )}
+              {!s.servantReviewedAt && (
+                <span className="text-[11px] uppercase tracking-wide text-amber-600">
+                  {t('Awaiting review', 'قيد المراجعة')}
+                </span>
+              )}
             </div>
             {s.servantNote && (
               <p className="mt-1 rounded-lg bg-gold-neutral-50 border border-gold-neutral-200 px-3 py-2 text-sm text-gray-800">
@@ -68,9 +92,24 @@ export function PracticeHistory({ code, lessonId, lang = 'en' }: { code: string;
                 {s.servantNote}
               </p>
             )}
+            {!s.servantReviewedAt && (
+              <div className="mt-2 flex gap-2">
+                <button onClick={() => handleDelete(s.id)}
+                  disabled={deletingId === s.id || deleteSession.isPending}
+                  className="inline-flex items-center gap-1.5 text-xs font-medium text-red-600 hover:text-red-700 disabled:opacity-50">
+                  {deletingId === s.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Trash2 className="h-3 w-3" />}
+                  {t('Delete', 'حذف')}
+                </button>
+              </div>
+            )}
           </li>
         ))}
       </ol>
+      {onResubmit && (
+        <button onClick={onResubmit} className="mt-4 w-full inline-flex items-center justify-center gap-2 rounded-lg bg-blue-100 py-2.5 text-sm font-medium text-blue-700 hover:bg-blue-200">
+          <RotateCcw className="h-4 w-4" /> {t('Submit again', 'أرسل مرة أخرى')}
+        </button>
+      )}
     </div>
   )
 }

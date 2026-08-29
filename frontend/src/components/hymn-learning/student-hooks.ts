@@ -101,3 +101,18 @@ export function useStudentRecordingUpload(code: string) {
     },
   })
 }
+
+export function useStudentPracticeDelete(code: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (sessionId: string) => {
+      await ensurePortalSession(code)
+      return http.delete<any>(`/student-portal/${code}/practice/${sessionId}`)
+    },
+    onSuccess: (_, __, ctx?: any) => {
+      qc.invalidateQueries({ queryKey: studentHymnKeys.map(code) })
+      qc.invalidateQueries({ queryKey: studentHymnKeys.dueReview(code) })
+      qc.invalidateQueries({ queryKey: studentHymnKeys.stats(code) })
+    },
+  })
+}

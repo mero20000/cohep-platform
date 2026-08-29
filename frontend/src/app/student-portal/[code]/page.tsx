@@ -1484,7 +1484,7 @@ export default function StudentDashboard() {
             />
             {/* Listening Loop: past practices + servant feedback for this hymn */}
             <div className="mt-4">
-              <PracticeHistory code={code} lessonId={practiceLesson.id} />
+              <PracticeHistory code={code} lessonId={practiceLesson.id} lang="en" onResubmit={() => window.scrollTo({ top: 0, behavior: 'smooth' })} />
             </div>
           </div>
         </div>
