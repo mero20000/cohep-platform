@@ -109,9 +109,8 @@ export function useStudentPracticeDelete(code: string) {
       await ensurePortalSession(code)
       return http.delete<any>(`/student-portal/${code}/practice/${sessionId}`)
     },
-    onSuccess: (_, __, ctx?: any) => {
-      qc.invalidateQueries({ queryKey: studentHymnKeys.map(code) })
-      qc.invalidateQueries({ queryKey: studentHymnKeys.dueReview(code) })
+    onSuccess: (_, sessionId) => {
+      qc.invalidateQueries({ queryKey: studentHymnKeys.all(code) })
       qc.invalidateQueries({ queryKey: studentHymnKeys.stats(code) })
     },
   })
