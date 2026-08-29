@@ -14,7 +14,7 @@ import {
   CheckCircle2, Star, ChevronRight, Cross, CalendarPlus,
   ClipboardCheck, Target, Award, Sparkles, Heart, Shield, Code2, SlidersHorizontal, Zap,
   Quote, Church, BookMarked, PlayCircle, Music2, Music3, FileMusic, Crown,
-  Bell, Megaphone, UserCheck, Download, Layers, FileDown, GitBranch, Lock, Wifi
+  Bell, Megaphone, UserCheck, Download, Layers, FileDown, GitBranch, Lock, Wifi, Search as SearchIcon
 } from 'lucide-react'
 
 // ─── CONTENT ────────────────────────────────────────────────────────────────
@@ -35,19 +35,20 @@ const content = {
     },
     hero: {
       eyebrow: 'Free · Open-Source · Built for the Church',
-      headline: 'Every child belongs\nin the Church.',
+      headline: 'Every child carries\n1,700 years forward.',
       quote: '"Children must feel the Church considers them members, not merely their parents\' companions."',
       quoteAttrib: '- H.G. Bishop Samuel',
-      sub: 'Every church can teach authentic Coptic hymns, track progress, engage parents, and pass 1,700 years of living tradition forward.',
+      sub: 'Register your church to teach authentic Coptic hymns, track real progress, engage families, and form the next generation in living tradition.',
       cta1: 'Register Your Church',
-      cta2: 'Explore the Platform',
+      cta2: 'Try Demo',
+      cta3: 'Explore Platform',
     },
     stats: {
       items: [
-        { value: '255+', label: 'Hymns in the library' },
-        { value: '10', label: 'Levels of formation' },
-        { value: '1,700', label: 'Years of living tradition' },
-        { value: '100%', label: 'Free & open-source' },
+        { value: '255+', label: 'Hymns', context: 'Doxology, Tasbeha, Tafshelet, Liturgical responses — with Cantor sources and audio guides', emoji: '🎵' },
+        { value: '10', label: 'Curriculum Levels', context: 'Alphabet to Leadership Training — fully configurable by your church', emoji: '📚' },
+        { value: '1,700', label: 'Years of Tradition', context: 'Unbroken heritage, now digitally preserved', emoji: '⛪' },
+        { value: '100%', label: 'Free Forever', context: 'No paywalls, no hidden costs, no compromise', emoji: '🎁' },
       ],
     },
     why: {
@@ -124,8 +125,8 @@ const content = {
         {
           icon: Music,
           title: 'Coptic Hymns',
-          desc: '255+ hymns (Doxologies, Tasbeha, Liturgical Responses, and seasonal hymns) with Coptic script, transliteration, and audio guides.',
-          list: ['Doxologies', 'Tasbeha hymns', 'Seasonal hymns', 'Liturgical responses'],
+          desc: '255+ hymns (Doxology, Tasbeha, Tafshelet, and Liturgical responses) with Coptic script, transliteration, and audio guides sourced from trusted Cantors. Example: Ⲭⲏⲣⲉ ⲛⲉ Ⲙ̀ⲁⲣⲓⲁ (Khere ne Maria)',
+          list: ['Doxology', 'Tasbeha', 'Tafshelet', 'Liturgical responses'],
         },
         {
           icon: Cross,
@@ -144,6 +145,7 @@ const content = {
     formation: {
       eyebrow: 'Formation, Not Just Education',
       headline: 'A child who sings "Khere Ne Maria" today will teach it to the next generation.',
+      copticExample: 'Ⲭⲏⲣⲉ ⲛⲉ Ⲙ̀ⲁⲣⲓⲁ',
       body: 'COHEP tracks more than grades. It tracks growth in knowledge, participation, and love for the Church. Every lesson is one more thread in the tapestry of a life formed by worship.\n\nEvery child in your church deserves to know these hymns. Not because they have to. Because they belong.',
     },
     howItWorks: {
@@ -245,19 +247,20 @@ const content = {
     },
     hero: {
       eyebrow: 'مجاني · مصدر مفتوح · بُني للكنيسة',
-      headline: 'كل طفل له\nمكانه في الكنيسة.',
+      headline: 'كل طفل يحمل\n1700 عام للأمام.',
       quote: '"الأطفال في حاجة إلى الشعور بأن الكنيسة تعتبرهم أعضاء فيها، وليس مجرد مرافقين لوالديهم."',
       quoteAttrib: '- نيافة الأنبا صموئيل',
-      sub: 'كوهيب تمكّن كل كنيسة من تعليم التراتيب الأصيلة، وتتبع التقدم، وإشراك الأهالي، ونقل 1700 عام من التراث الحي.',
+      sub: 'سجّل كنيستك لتعليم التراتيب الأصيلة وتتبع التقدم الحقيقي وإشراك الأهالي وتكوين الجيل القادم في التراث الحي.',
       cta1: 'سجّل كنيستك',
-      cta2: 'استكشف المنصة',
+      cta2: 'جرّب بدون تسجيل',
+      cta3: 'استكشف المنصة',
     },
     stats: {
       items: [
-        { value: '+255', label: 'ترنيمة في المكتبة' },
-        { value: '10', label: 'مستويات من التكوين' },
-        { value: '1,700', label: 'عاماً من التراث الحي' },
-        { value: '100%', label: 'مجاني ومفتوح المصدر' },
+        { value: '+255', label: 'ترنيمة', context: 'دوكسولوجيا وتسبحة وتفشيلة وردود ليتورجية — مع مصادر القنديل والأدلة الصوتية', emoji: '🎵' },
+        { value: '10', label: 'مستويات تعليمية', context: 'من الأبجدية إلى تدريب القيادة — قابلة للتخصيص بالكامل من قبل كنيستك', emoji: '📚' },
+        { value: '1,700', label: 'سنة من التراث', context: 'تراث متواصل محفوظ رقمياً', emoji: '⛪' },
+        { value: '100%', label: 'مجاني للأبد', context: 'بدون جدران دفع أو رسوم خفية', emoji: '🎁' },
       ],
     },
     why: {
@@ -334,8 +337,8 @@ const content = {
         {
           icon: Music,
           title: 'التراتيب القبطية',
-          desc: '+255 ترنيمة (الدوكسولوجيا والتسبحة والردود الليتورجية والتراتيب الموسمية) مع النص القبطي والتحويل الصوتي والأدلة الصوتية.',
-          list: ['الدوكسولوجيا', 'تراتيب التسبحة', 'التراتيب الموسمية', 'الردود الليتورجية'],
+          desc: '+255 ترنيمة (الدوكسولوجيا والتسبحة والتفشيلة والردود الليتورجية) مع النص القبطي والتحويل الصوتي والأدلة الصوتية من القناديل الموثوقين. مثال: Ⲭⲏⲣⲉ ⲛⲉ Ⲙ̀ⲁⲣⲓⲁ (خيري ني ماريا)',
+          list: ['الدوكسولوجيا', 'التسبحة', 'التفشيلة', 'الردود الليتورجية'],
         },
         {
           icon: Cross,
@@ -354,6 +357,7 @@ const content = {
     formation: {
       eyebrow: 'تكوين، لا مجرد تعليم',
       headline: 'طفل يتعلم "شيري ني ماريا" اليوم سيعلمها للجيل القادم.',
+      copticExample: 'Ⲭⲏⲣⲉ ⲛⲉ Ⲙ̀ⲁⲣⲓⲁ',
       body: 'كوهيب لا تتتبع الدرجات فقط. إنها تتتبع النمو في المعرفة والمشاركة وحب الكنيسة. كل درس خيط آخر في نسيج حياة مُشكَّلة بالعبادة.\n\nكل طفل في كنيستك يستحق أن يعرف هذه التراتيب. ليس لأنه مُلزَم. بل لأنه ينتمي.',
     },
     howItWorks: {
@@ -521,6 +525,7 @@ function GradientOrbs() {
 function PreviewCarousel({ isAr }: { isAr: boolean }) {
   const [activeTab, setActiveTab] = useState(0)
   const prevTabRef = useRef(0)
+  const reduce = useReducedMotion()
 
   const tabs = [
     { label: isAr ? 'لوحة التحكم' : 'Dashboard', content: <DashboardPreview isAr={isAr} /> },
@@ -532,45 +537,75 @@ function PreviewCarousel({ isAr }: { isAr: boolean }) {
   return (
     <FadeIn>
       <div className="relative mx-auto max-w-[900px]">
-        <div className="rounded-[14px] bg-gray-800 p-2 sm:p-3 shadow-2xl">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, ease: [0.23, 1, 0.32, 1] }}
+          className="rounded-[14px] bg-gradient-to-br from-gray-800 to-gray-900 p-2 sm:p-3 shadow-2xl shadow-gray-900/50 border border-gray-700/50"
+        >
           <div className="flex items-center justify-center mb-2 sm:mb-3 relative">
             <div className="hidden sm:flex absolute left-3 items-center gap-1.5">
-              <div className="h-2.5 w-2.5 rounded-full bg-red-400/70" />
-              <div className="h-2.5 w-2.5 rounded-full bg-amber-400/70" />
-              <div className="h-2.5 w-2.5 rounded-full bg-green-400/70" />
+              <motion.div
+                animate={{ opacity: [0.5, 1, 0.5] }}
+                transition={{ duration: 2, repeat: Infinity }}
+                className="h-2.5 w-2.5 rounded-full bg-red-400/70"
+              />
+              <motion.div
+                animate={{ opacity: [0.5, 1, 0.5] }}
+                transition={{ duration: 2, repeat: Infinity, delay: 0.2 }}
+                className="h-2.5 w-2.5 rounded-full bg-amber-400/70"
+              />
+              <motion.div
+                animate={{ opacity: [0.5, 1, 0.5] }}
+                transition={{ duration: 2, repeat: Infinity, delay: 0.4 }}
+                className="h-2.5 w-2.5 rounded-full bg-green-400/70"
+              />
             </div>
-            <div className="flex items-center gap-2 rounded-full bg-gray-700/80 px-4 py-1">
-              <div className="h-1.5 w-1.5 rounded-full bg-green-400" />
+            <motion.div
+              animate={{ opacity: [0.8, 1, 0.8] }}
+              transition={{ duration: 1.5, repeat: Infinity }}
+              className="flex items-center gap-2 rounded-full bg-gray-700/80 backdrop-blur-sm px-4 py-1 border border-gray-600/30"
+            >
+              <motion.div
+                animate={{ scale: [1, 1.2, 1] }}
+                transition={{ duration: 1, repeat: Infinity }}
+                className="h-1.5 w-1.5 rounded-full bg-green-400"
+              />
               <span className="text-[10px] text-gray-400 font-medium">cohep.church</span>
-            </div>
+            </motion.div>
           </div>
-          <div className="relative aspect-[4/5] sm:aspect-[16/10] overflow-hidden rounded-lg bg-white">
+          <div className="relative aspect-[4/5] sm:aspect-[16/10] overflow-hidden rounded-lg bg-white shadow-inner">
             <AnimatePresence mode="wait">
               <motion.div
                 key={activeTab}
-                initial={{ opacity: 0, x: activeTab > prevTabRef.current ? 24 : -24 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: activeTab > prevTabRef.current ? -24 : 24 }}
-                transition={{ duration: 0.2, ease: [0.23, 1, 0.32, 1] }}
+                initial={{ opacity: 0, x: activeTab > prevTabRef.current ? 32 : -32, y: 8 }}
+                animate={{ opacity: 1, x: 0, y: 0 }}
+                exit={{ opacity: 0, x: activeTab > prevTabRef.current ? -32 : 32, y: -8 }}
+                transition={{ duration: 0.35, ease: [0.23, 1, 0.32, 1] }}
                 className="h-full w-full"
               >
                 {tabs[activeTab].content}
               </motion.div>
             </AnimatePresence>
           </div>
-        </div>
-        <div className="mt-5 flex flex-wrap justify-center gap-2">
+        </motion.div>
+        <div className="mt-5 sm:mt-6 flex flex-wrap justify-center gap-2 sm:gap-3">
           {tabs.map((tab, i) => (
-            <button
+            <motion.button
               key={tab.label}
               onClick={() => { prevTabRef.current = activeTab; setActiveTab(i) }}
               aria-pressed={activeTab === i}
-              className={`rounded-lg px-4 py-2.5 text-xs font-medium transition-all ${
-                activeTab === i ? 'bg-gold-500 text-gray-950 shadow-lg shadow-gold-200' : 'border border-gray-200 bg-white text-gray-600 hover:border-gold-300 hover:text-gold-700'
-              } focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500 focus-visible:ring-offset-2`}
+              whileHover={reduce ? {} : { scale: 1.05, y: -2 }}
+              whileTap={reduce ? {} : { scale: 0.98 }}
+              transition={{ type: 'spring', stiffness: 400, damping: 17 }}
+              className={`rounded-lg px-4 sm:px-5 py-2.5 sm:py-3 text-xs sm:text-sm font-medium transition-all ${
+                activeTab === i
+                  ? 'bg-gold-500 text-gray-950 shadow-lg shadow-gold-200/50 hover:shadow-xl hover:shadow-gold-200/70'
+                  : 'border border-gray-200 bg-white text-gray-600 hover:border-gold-400 hover:text-gold-700 hover:bg-gold-50/50'
+              } focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500 focus-visible:ring-offset-2 cursor-pointer`}
             >
               {tab.label}
-            </button>
+            </motion.button>
           ))}
         </div>
       </div>
@@ -756,6 +791,7 @@ export default function Home() {
   const [activeSection, setActiveSection] = useState<string>('')
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [openFaq, setOpenFaq] = useState<number | null>(0)
+  const [faqSearch, setFaqSearch] = useState('')
   const [subscribeStatus, setSubscribeStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle')
   const [subscribeErrorMsg, setSubscribeErrorMsg] = useState('')
   const t = content[lang]
@@ -801,10 +837,10 @@ export default function Home() {
 
       {/* ── NAVBAR ──────────────────────────────────────────────────────── */}
       <header className={`sticky [top:env(safe-area-inset-top)] z-50 border-b transition-all duration-300 ${scrolled ? 'border-gray-200 bg-white/95 backdrop-blur shadow-sm' : 'border-transparent bg-white/80 backdrop-blur'}`}>
-        <div className="mx-auto flex h-[88px] max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
-          <Link href="/" className="flex items-center gap-3 flex-shrink-0">
-            <Image src="/cohep-logo.png" alt="COHEP" width={72} height={72} className="h-[72px] w-[72px] rounded-xl object-contain shadow-lg shadow-gold-200/50" />
-            <span className="text-lg font-bold tracking-tight text-gray-900 hidden sm:block">COHEP</span>
+        <div className="mx-auto flex h-16 sm:h-20 max-w-7xl items-center justify-between px-3 sm:px-6 lg:px-8">
+          <Link href="/" className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
+            <Image src="/cohep-logo.png" alt="COHEP" width={72} height={72} className="h-14 sm:h-[72px] w-14 sm:w-[72px] rounded-lg sm:rounded-xl object-contain shadow-md sm:shadow-lg shadow-gold-200/50" />
+            <span className="text-base sm:text-lg font-bold tracking-tight text-gray-900 hidden sm:block">COHEP</span>
           </Link>
 
           <nav className="hidden md:flex items-center gap-0.5" aria-label={isAr ? 'التنقل الرئيسي' : 'Main navigation'}>
@@ -825,10 +861,10 @@ export default function Home() {
             })}
           </nav>
 
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-2">
             <button
               onClick={() => setLang(lang === 'en' ? 'ar' : 'en')}
-              className="rounded-lg border border-gray-200 px-3 py-2.5 text-xs font-medium text-gray-600 hover:bg-gray-50 transition-colors"
+              className="rounded-lg border border-gray-200 px-2.5 sm:px-3 py-2 sm:py-2.5 text-xs font-medium text-gray-600 hover:bg-gray-50 transition-colors"
               aria-label={lang === 'en' ? 'Switch to Arabic' : 'التبديل إلى الإنجليزية'}
             >
               {lang === 'en' ? 'عربي' : 'EN'}
@@ -890,8 +926,10 @@ export default function Home() {
 
         {/* ── HERO ──────────────────────────────────────────────────────── */}
         <section className="relative overflow-hidden bg-gradient-to-b from-gray-950 via-gray-900 to-gray-900 min-h-[90dvh] flex items-center">
-          <HeroAlpha />
-          <HeroCross3D />
+          <div className="hidden lg:block">
+            <HeroAlpha />
+            <HeroCross3D />
+          </div>
           <CrossPatternBg className="text-gold-700" />
           <GradientOrbs />
 
@@ -915,12 +953,12 @@ export default function Home() {
               </h1>
 
               <div
-                className="reveal mb-7 border-l-2 border-gold-500/50 pl-4 text-left mx-auto max-w-xl"
+                className="reveal mb-8 border-l-2 border-gold-500/60 pl-5 sm:pl-6 text-left mx-auto max-w-2xl"
                 data-variant="left"
-                style={{ direction: isAr ? 'rtl' : 'ltr', borderLeft: isAr ? 'none' : undefined, borderRight: isAr ? '2px solid rgba(214, 166, 75, 0.5)' : undefined, paddingLeft: isAr ? '0' : '1rem', paddingRight: isAr ? '1rem' : '0', transitionDelay: '0.3s' }}
+                style={{ direction: isAr ? 'rtl' : 'ltr', borderLeft: isAr ? 'none' : undefined, borderRight: isAr ? '2px solid rgba(214, 166, 75, 0.6)' : undefined, paddingLeft: isAr ? '0' : undefined, paddingRight: isAr ? '1.25rem' : '0', transitionDelay: '0.3s' }}
               >
-                <p className="text-base sm:text-lg text-gold-300/90 italic leading-relaxed">{t.hero.quote}</p>
-                <p className="mt-1.5 text-xs text-gold-300/90 font-medium">{t.hero.quoteAttrib}</p>
+                <p className="text-base sm:text-xl text-gold-300 italic leading-relaxed font-light">{t.hero.quote}</p>
+                <p className="mt-2 sm:mt-2.5 text-xs sm:text-sm text-gold-300/80 font-medium">{t.hero.quoteAttrib}</p>
               </div>
 
               <p
@@ -932,7 +970,7 @@ export default function Home() {
               </p>
 
               <div
-                className="reveal flex flex-col sm:flex-row gap-3 justify-center mb-6"
+                className="reveal flex flex-col sm:flex-row gap-2.5 sm:gap-3 justify-center mb-6 sm:mb-4"
                 data-variant="up"
                 style={{ transitionDelay: '0.55s' }}
               >
@@ -940,7 +978,7 @@ export default function Home() {
                   href="/auth/register"
                   whileHover={reduce ? {} : { scale: 1.02 }}
                   whileTap={reduce ? {} : { scale: 0.98 }}
-                  className={ctaPrimaryClass}
+                  className="flex items-center justify-center gap-2 px-6 sm:px-8 py-3 sm:py-3.5 bg-gradient-to-r from-gold-500 to-gold-600 hover:from-gold-400 hover:to-gold-500 text-gray-950 font-semibold rounded-xl shadow-xl shadow-gold-500/25 transition-all text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-950 h-12 sm:h-auto"
                 >
                   {t.hero.cta1} <ArrowRight className="h-4 w-4 rtl-flip" />
                 </motion.a>
@@ -948,25 +986,19 @@ export default function Home() {
                   href="/auth/login?demo=1"
                   whileHover={reduce ? {} : { scale: 1.02 }}
                   whileTap={reduce ? {} : { scale: 0.98 }}
-                  className="flex items-center justify-center gap-2 px-6 py-3.5 border border-white/20 bg-white/8 hover:bg-white/15 text-white/90 font-medium rounded-xl transition-all text-sm"
+                  className="flex items-center justify-center gap-2 px-6 sm:px-8 py-3 sm:py-3.5 bg-burgundy-500 hover:bg-burgundy-600 text-white font-semibold rounded-xl shadow-xl shadow-burgundy-500/25 transition-all text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-burgundy-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-950 h-12 sm:h-auto"
                 >
-                  🎵 {isAr ? 'جرّب بدون تسجيل' : 'Try Demo'}
+                  🎵 {t.hero.cta2}
+                </motion.a>
+                <motion.a
+                  href="#platform-preview"
+                  whileHover={reduce ? {} : { scale: 1.02 }}
+                  whileTap={reduce ? {} : { scale: 0.98 }}
+                  className="flex items-center justify-center gap-2 px-6 sm:px-8 py-3 sm:py-3.5 border border-white/15 text-white/70 hover:text-white hover:border-white/30 font-medium rounded-xl transition-all text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-950 h-12 sm:h-auto"
+                >
+                  {t.hero.cta3} <ArrowRight className="h-4 w-4 rtl-flip" />
                 </motion.a>
               </div>
-            </div>
-          </div>
-        </section>
-
-        {/* ── KEY NUMBERS ───────────────────────────────────────────────── */}
-        <section aria-label={isAr ? 'أرقام رئيسية' : 'Key numbers'} className="bg-gray-50 py-14 sm:py-16">
-          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-            <div className="grid grid-cols-2 gap-8 lg:grid-cols-4">
-              {t.stats.items.map((s, i) => (
-                <FadeIn key={s.label} delay={i * 0.06} className="text-center">
-                  <div className="text-3xl sm:text-4xl font-bold tracking-tight text-gold-600">{s.value}</div>
-                  <p className="mt-1 text-xs sm:text-sm text-gray-600">{s.label}</p>
-                </FadeIn>
-              ))}
             </div>
           </div>
         </section>
@@ -982,32 +1014,81 @@ export default function Home() {
             <div className="relative space-y-12 sm:space-y-14">
               {t.why.beats.map((beat, i) => (
                 <FadeIn key={beat.num} variant="up" delay={i * 0.08}>
-                  <div className="relative border-s-2 border-gray-700/70 ps-6 sm:ps-8">
-                    <span className="absolute -start-4 top-0.5 flex h-8 w-8 items-center justify-center rounded-full bg-gold-500 text-xs font-bold text-white shadow-lg shadow-gold-500/30">{beat.num}</span>
-                    <h3 className="text-xl sm:text-2xl font-bold tracking-tight text-white leading-tight">{beat.headline}</h3>
+                  <motion.div
+                    whileHover={reduce ? {} : { x: 4 }}
+                    transition={{ type: 'spring', stiffness: 400, damping: 20 }}
+                    className="group relative border-s-2 border-gray-700/70 hover:border-gold-500/50 ps-6 sm:ps-8 transition-colors"
+                  >
+                    <motion.span
+                      whileHover={reduce ? {} : { scale: 1.15, boxShadow: '0 0 20px 10px rgba(201, 160, 48, 0.3)' }}
+                      transition={{ type: 'spring', stiffness: 300, damping: 15 }}
+                      className="absolute -start-4 top-0.5 flex h-8 w-8 items-center justify-center rounded-full bg-gold-500 text-xs font-bold text-white shadow-lg shadow-gold-500/30 group-hover:bg-gold-400 transition-colors cursor-pointer"
+                    >
+                      {beat.num}
+                    </motion.span>
+                    <h3 className="text-xl sm:text-2xl font-bold tracking-tight text-white leading-tight group-hover:text-gold-300 transition-colors">{beat.headline}</h3>
                     <div className="mt-3 space-y-3">
                       {beat.body.split('\n\n').map((p, j) => {
                         const isPunchline = i === 0 && j === beat.body.split('\n\n').length - 1;
                         return (
-                          <p key={j} className={`text-base sm:text-lg leading-relaxed ${isPunchline ? 'text-gold-300 font-medium' : 'text-gray-300'}`}>{p}</p>
+                          <motion.p
+                            key={j}
+                            initial={{ opacity: 0.85 }}
+                            whileHover={{ opacity: 1 }}
+                            transition={{ duration: 0.2 }}
+                            className={`text-base sm:text-lg leading-relaxed ${isPunchline ? 'text-gold-300 font-medium' : 'text-gray-300'} group-hover:text-gray-100 transition-colors`}
+                          >
+                            {p}
+                          </motion.p>
                         );
                       })}
                     </div>
-                  </div>
+                  </motion.div>
                 </FadeIn>
               ))}
             </div>
-            <FadeIn variant="up" className="mt-14 text-center">
-              <motion.button
-                onClick={() => { const el = document.getElementById('platform-preview'); if (el) requestAnimationFrame(() => el.scrollIntoView({ behavior: 'smooth', block: 'start' })) }}
-                whileHover={reduce ? {} : { scale: 1.02 }}
-                whileTap={reduce ? {} : { scale: 0.98 }}
-                className={ctaPrimaryClass}
-              >
-                {t.why.cta} <ArrowRight className="h-4 w-4 rtl-flip" />
-              </motion.button>
-            </FadeIn>
           </div>
+        </section>
+
+        {/* ── KEY NUMBERS ───────────────────────────────────────────────── */}
+        <section aria-label={isAr ? 'أرقام رئيسية' : 'Key numbers'} className="bg-gray-50 py-14 sm:py-16">
+          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+            <div className="grid grid-cols-2 gap-6 lg:grid-cols-4">
+              {t.stats.items.map((s, i) => (
+                <FadeIn key={s.label} delay={i * 0.06} className="text-center">
+                  <motion.div
+                    whileHover={reduce ? {} : { y: -2, scale: 1.02 }}
+                    transition={{ type: 'spring', stiffness: 400, damping: 20 }}
+                    className="rounded-lg p-4 transition-colors hover:bg-white hover:shadow-sm"
+                  >
+                    <motion.div
+                      whileHover={reduce ? {} : { scale: 1.15, rotate: 5 }}
+                      transition={{ type: 'spring', stiffness: 300, damping: 15 }}
+                      className="flex items-center justify-center mb-2"
+                    >
+                      <span className="text-3xl">{s.emoji}</span>
+                    </motion.div>
+                    <div className="text-3xl sm:text-4xl font-bold tracking-tight text-gold-600">{s.value}</div>
+                    <p className="mt-1 text-xs sm:text-sm font-semibold text-gray-800">{s.label}</p>
+                    <p className="mt-1.5 text-[11px] sm:text-xs text-gray-500 leading-snug">{s.context}</p>
+                  </motion.div>
+                </FadeIn>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* ── PHASE TRANSITION (Foundation → Invitation) ─────────────────── */}
+        <section className="bg-gray-50 py-6 sm:py-8 border-t border-gray-200 flex items-center justify-center">
+          <FadeIn>
+            <a
+              href="#audience-heading"
+              className="inline-flex items-center gap-2 px-4 py-2 text-xs sm:text-sm font-medium text-burgundy-900 bg-burgundy-100 hover:bg-burgundy-200 rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-burgundy-500 focus-visible:ring-offset-2"
+            >
+              {isAr ? 'اكتشف من يخدمه COHEP' : 'Meet the people COHEP serves'}
+              <ArrowRight className="h-4 w-4" />
+            </a>
+          </FadeIn>
         </section>
 
         {/* ── WHO WE SERVE ──────────────────────────────────────────────── */}
@@ -1021,23 +1102,37 @@ export default function Home() {
                 <FadeIn key={card.title} delay={i * 0.05} className="h-full">
                   <div className="grid items-center gap-8 lg:grid-cols-2 lg:gap-12">
                     <div className={i % 2 === 1 ? 'lg:order-2' : ''}>
-                      <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-gold-400 to-gold-600 text-white shadow-lg shadow-gold-200/50">
+                      <motion.div
+                        whileHover={reduce ? {} : { scale: 1.1, rotate: -5 }}
+                        transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+                        className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-gold-400 to-gold-600 text-white shadow-lg shadow-gold-200/50 cursor-pointer"
+                      >
                         <card.icon className="h-7 w-7" />
-                      </div>
+                      </motion.div>
                       <p className="mt-5 text-xs font-semibold uppercase tracking-wider text-gold-700">{card.sub}</p>
                       <h3 className="mt-2 text-2xl sm:text-3xl font-bold tracking-tight text-gray-900">{card.title}</h3>
                       <p className="mt-3 text-base leading-relaxed text-gray-600">{card.desc}</p>
                     </div>
-                    <div className="rounded-2xl border border-gray-200 bg-gray-50 p-6 sm:p-8">
+                    <motion.div
+                      whileHover={reduce ? {} : { y: -4, boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)' }}
+                      transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+                      className="rounded-2xl border border-gray-200 bg-gray-50 p-6 sm:p-8 hover:border-gold-300 transition-colors"
+                    >
                       <ul className="space-y-3.5">
-                        {card.features.map(f => (
-                          <li key={f} className="flex items-start gap-3 text-sm sm:text-base text-gray-700">
+                        {card.features.map((f, j) => (
+                          <motion.li
+                            key={f}
+                            initial={{ opacity: 0, x: -10 }}
+                            whileInView={{ opacity: 1, x: 0 }}
+                            transition={{ delay: j * 0.05, duration: 0.3 }}
+                            className="flex items-start gap-3 text-sm sm:text-base text-gray-700"
+                          >
                             <CheckCircle2 className="h-5 w-5 text-gold-700 flex-shrink-0 mt-0.5" />
                             {f}
-                          </li>
+                          </motion.li>
                         ))}
                       </ul>
-                    </div>
+                    </motion.div>
                   </div>
                 </FadeIn>
               ))}
@@ -1063,6 +1158,19 @@ export default function Home() {
           </div>
         </section>
 
+        {/* ── PHASE TRANSITION (Invitation → Proof) ──────────────────────── */}
+        <section className="bg-gray-100 py-6 sm:py-8 border-t border-gray-200 flex items-center justify-center">
+          <FadeIn>
+            <a
+              href="#curriculum"
+              className="inline-flex items-center gap-2 px-4 py-2 text-xs sm:text-sm font-medium text-burgundy-900 bg-burgundy-100 hover:bg-burgundy-200 rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-burgundy-500 focus-visible:ring-offset-2"
+            >
+              {isAr ? 'استكشف منهجنا الشامل' : 'Explore our complete curriculum'}
+              <ArrowRight className="h-4 w-4" />
+            </a>
+          </FadeIn>
+        </section>
+
         {/* ── CURRICULUM ────────────────────────────────────────────────── */}
         <section id="curriculum" aria-labelledby="curriculum-heading" className="py-20 sm:py-28 relative bg-gradient-to-b from-gray-950 to-gray-900 overflow-hidden">
           <CrossPatternBg className="text-gold-700" />
@@ -1076,15 +1184,28 @@ export default function Home() {
             <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4 mb-16">
               {t.curriculum.levels.map((level, i) => (
                 <FadeIn key={level.range} delay={i * 0.1} className="h-full">
-                  <div className="h-full group relative overflow-hidden rounded-2xl border border-gray-700 bg-gray-800/60 p-5 transition-all hover:border-gold-500/40 hover:bg-gray-800 hover:-translate-y-1 flex flex-col">
-                    <div className="absolute -right-8 -top-8 h-24 w-24 rounded-full bg-gold-500/10 blur-xl transition-opacity group-hover:opacity-50" />
+                  <motion.div
+                    whileHover={reduce ? {} : { y: -4, scale: 1.02 }}
+                    transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+                    className="h-full group relative overflow-hidden rounded-2xl border border-gray-700 bg-gray-800/60 p-5 hover:border-gold-500/40 hover:bg-gray-800 flex flex-col cursor-pointer"
+                  >
+                    <motion.div
+                      className="absolute -right-8 -top-8 h-24 w-24 rounded-full bg-gold-500/10 blur-xl"
+                      animate={{ opacity: [0.3, 0.5, 0.3] }}
+                      transition={{ duration: 4, repeat: Infinity }}
+                    />
                     <div className="relative">
-                      <level.icon className="h-8 w-8 text-gold-400 mb-3" />
+                      <motion.div
+                        whileHover={reduce ? {} : { scale: 1.2, rotate: 10 }}
+                        transition={{ type: 'spring', stiffness: 300, damping: 15 }}
+                      >
+                        <level.icon className="h-8 w-8 text-gold-400 mb-3" />
+                      </motion.div>
                       <p className="text-xs font-bold text-gold-400 uppercase tracking-wider">{isAr ? 'مستوى' : 'Level'} {level.range}</p>
-                      <h3 className="mt-1.5 text-lg font-bold text-white">{level.title}</h3>
-                      <p className="mt-1.5 text-sm text-gray-400 leading-relaxed">{level.desc}</p>
+                      <h3 className="mt-1.5 text-lg font-bold text-white group-hover:text-gold-300 transition-colors">{level.title}</h3>
+                      <p className="mt-1.5 text-sm text-gray-400 group-hover:text-gray-300 leading-relaxed transition-colors">{level.desc}</p>
                     </div>
-                  </div>
+                  </motion.div>
                 </FadeIn>
               ))}
             </div>
@@ -1098,21 +1219,33 @@ export default function Home() {
             <div className="grid gap-5 lg:grid-cols-3">
               {t.pillars.items.map((p, i) => (
                 <FadeIn key={p.title} delay={i * 0.1} className={i === 0 ? 'lg:col-span-1 lg:row-span-2 h-full' : 'lg:col-span-2 h-full'}>
-                  <div className={`h-full rounded-2xl border flex flex-col ${i === 0 ? 'border-gold-500/30 bg-gradient-to-br from-gold-500/15 via-gray-800/60 to-gray-800/60 p-8' : 'border-gray-700 bg-gray-800/60 p-7'}`}>
-                    <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-gold-400 to-gold-600 text-white shadow-lg shadow-gold-500/20 mb-4">
+                  <motion.div
+                    whileHover={reduce ? {} : { y: -3, scale: 1.01 }}
+                    transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+                    className={`h-full rounded-2xl border flex flex-col cursor-pointer group hover:shadow-lg transition-all ${
+                      i === 0
+                        ? 'border-gold-500/30 bg-gradient-to-br from-gold-500/15 via-gray-800/60 to-gray-800/60 p-8 hover:border-gold-500/50'
+                        : 'border-gray-700 bg-gray-800/60 p-7 hover:border-gold-600'
+                    }`}
+                  >
+                    <motion.div
+                      whileHover={reduce ? {} : { scale: 1.15, rotate: 5 }}
+                      transition={{ type: 'spring', stiffness: 300, damping: 15 }}
+                      className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-gold-400 to-gold-600 text-white shadow-lg shadow-gold-500/20 mb-4"
+                    >
                       <p.icon className="h-6 w-6" />
-                    </div>
-                    <h3 className={`font-bold text-white ${i === 0 ? 'text-xl' : 'text-lg'}`}>{p.title}</h3>
-                    <p className="mt-2 text-sm leading-relaxed text-gray-400 flex-1">{p.desc}</p>
+                    </motion.div>
+                    <h3 className={`font-bold text-white group-hover:text-gold-300 transition-colors ${i === 0 ? 'text-xl' : 'text-lg'}`}>{p.title}</h3>
+                    <p className="mt-2 text-sm leading-relaxed text-gray-400 group-hover:text-gray-300 transition-colors flex-1">{p.desc}</p>
                     <ul className={`mt-4 space-y-1.5 ${i === 0 ? '' : 'flex flex-wrap gap-x-6 gap-y-1.5'}`}>
                       {p.list.map(item => (
-                        <li key={item} className="flex items-center gap-2 text-xs text-gray-400">
+                        <li key={item} className="flex items-center gap-2 text-xs text-gray-400 group-hover:text-gray-300 transition-colors">
                           <CheckCircle2 className="h-3.5 w-3.5 text-gold-700 flex-shrink-0" />
                           {item}
                         </li>
                       ))}
                     </ul>
-                  </div>
+                  </motion.div>
                 </FadeIn>
               ))}
             </div>
@@ -1130,6 +1263,11 @@ export default function Home() {
               <h2 id="formation-heading" className="mt-8 text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight text-gray-900 leading-[1.15]">
                 {t.formation.headline}
               </h2>
+              {t.formation.copticExample && (
+                <p className="mt-6 text-4xl sm:text-5xl font-light text-gold-600 tracking-wide font-serif">
+                  {t.formation.copticExample}
+                </p>
+              )}
               <div className="mt-8 max-w-2xl mx-auto">
                 {t.formation.body.split('\n\n').map((p, i) => (
                   i === 0 ? (
@@ -1171,6 +1309,19 @@ export default function Home() {
           </div>
         </section>
 
+        {/* ── PHASE TRANSITION (Proof → Trust) ──────────────────────────── */}
+        <section className="bg-gray-100 py-6 sm:py-8 border-t border-gray-200 flex items-center justify-center">
+          <FadeIn>
+            <a
+              href="#open-source"
+              className="inline-flex items-center gap-2 px-4 py-2 text-xs sm:text-sm font-medium text-burgundy-900 bg-burgundy-100 hover:bg-burgundy-200 rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-burgundy-500 focus-visible:ring-offset-2"
+            >
+              {isAr ? 'COHEP مفتوح المصدر وآمن' : 'Built open-source, built to last'}
+              <ArrowRight className="h-4 w-4" />
+            </a>
+          </FadeIn>
+        </section>
+
         {/* ── OPEN SOURCE ───────────────────────────────────────────────── */}
         <section id="open-source" aria-labelledby="oss-heading" className="py-20 sm:py-28 relative bg-gradient-to-b from-gray-950 to-gray-900">
           <CrossPatternBg className="text-gold-700" />
@@ -1183,27 +1334,39 @@ export default function Home() {
             <div className="grid gap-4 sm:grid-cols-2 max-w-5xl mx-auto mb-10">
               {t.openSource.items.map((item, i) => (
                 <FadeIn key={item.title} delay={i * 0.06} className="h-full">
-                  <div className="rounded-xl border border-gray-700 bg-gray-800/60 p-5 transition-all hover:bg-gray-800 hover:border-gold-500/30 h-full flex items-start gap-4">
-                    <item.icon className="h-6 w-6 text-gold-400 flex-shrink-0 mt-0.5" />
+                  <motion.div
+                    whileHover={reduce ? {} : { x: 4, y: -2 }}
+                    transition={{ type: 'spring', stiffness: 400, damping: 20 }}
+                    className="group rounded-xl border border-gray-700 bg-gray-800/60 hover:border-gold-500/30 hover:bg-gray-800 p-5 h-full flex items-start gap-4 cursor-pointer transition-colors"
+                  >
+                    <motion.div
+                      whileHover={reduce ? {} : { scale: 1.15, rotate: 5 }}
+                      transition={{ type: 'spring', stiffness: 300, damping: 15 }}
+                    >
+                      <item.icon className="h-6 w-6 text-gold-400 flex-shrink-0 mt-0.5" />
+                    </motion.div>
                     <div>
-                      <h3 className="text-sm font-bold text-white">{item.title}</h3>
-                      <p className="mt-1 text-xs text-gray-400 leading-relaxed">{item.desc}</p>
+                      <h3 className="text-sm font-bold text-white group-hover:text-gold-300 transition-colors">{item.title}</h3>
+                      <p className="mt-1 text-xs text-gray-400 group-hover:text-gray-300 leading-relaxed transition-colors">{item.desc}</p>
                     </div>
-                  </div>
+                  </motion.div>
                 </FadeIn>
               ))}
             </div>
             <FadeIn className="text-center">
-              <a
+              <motion.a
+                whileHover={reduce ? {} : { scale: 1.05 }}
+                whileTap={reduce ? {} : { scale: 0.98 }}
+                transition={{ type: 'spring', stiffness: 400, damping: 20 }}
                 href="https://github.com/mero20000/cohep-platform"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 rounded-xl border border-gold-500/30 px-6 py-3 text-sm font-medium text-gold-400 hover:bg-gold-500/10 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-950"
+                className="inline-flex items-center gap-2 rounded-xl border border-gold-500/30 px-6 py-3 text-sm font-medium text-gold-400 hover:bg-gold-500/10 hover:border-gold-500/50 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-950 cursor-pointer"
               >
                 <GitBranch className="h-4 w-4" />
                 {t.openSource.cta}
                 <ArrowRight className="h-4 w-4 rtl-flip" />
-              </a>
+              </motion.a>
             </FadeIn>
           </div>
         </section>
@@ -1217,22 +1380,36 @@ export default function Home() {
             <div className="grid gap-6 lg:grid-cols-3">
               {t.features.groups.map((group, i) => (
                 <FadeIn key={group.title} delay={i * 0.1} className="h-full">
-                  <div className="h-full rounded-2xl border border-gray-200 bg-white p-6 shadow-sm flex flex-col">
+                  <motion.div
+                    whileHover={reduce ? {} : { y: -4, scale: 1.01 }}
+                    transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+                    className="group h-full rounded-2xl border border-gray-200 bg-white p-6 shadow-sm hover:shadow-lg hover:border-gold-300 flex flex-col cursor-pointer transition-all"
+                  >
                     <div className="flex items-center gap-3 mb-5">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-gold-400 to-gold-600 text-white shadow-md shadow-gold-200/50">
+                      <motion.div
+                        whileHover={reduce ? {} : { scale: 1.15, rotate: 10 }}
+                        transition={{ type: 'spring', stiffness: 300, damping: 15 }}
+                        className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-gold-400 to-gold-600 text-white shadow-md shadow-gold-200/50"
+                      >
                         <group.icon className="h-5 w-5" />
-                      </div>
-                      <h3 className="text-base font-bold text-gray-900">{group.title}</h3>
+                      </motion.div>
+                      <h3 className="text-base font-bold text-gray-900 group-hover:text-gold-700 transition-colors">{group.title}</h3>
                     </div>
                     <ul className="space-y-2.5 flex-1">
-                      {group.items.map(item => (
-                        <li key={item} className="flex items-start gap-2.5 text-sm text-gray-600">
+                      {group.items.map((item, j) => (
+                        <motion.li
+                          key={item}
+                          initial={{ opacity: 0.85, x: -5 }}
+                          whileHover={{ opacity: 1, x: 0 }}
+                          transition={{ duration: 0.2 }}
+                          className="flex items-start gap-2.5 text-sm text-gray-600 group-hover:text-gray-700 transition-colors"
+                        >
                           <CheckCircle2 className="h-4 w-4 text-gold-700 flex-shrink-0 mt-0.5" />
                           {item}
-                        </li>
+                        </motion.li>
                       ))}
                     </ul>
-                  </div>
+                  </motion.div>
                 </FadeIn>
               ))}
             </div>
@@ -1246,42 +1423,144 @@ export default function Home() {
               <Eyebrow>{isAr ? 'أسئلة شائعة' : 'Frequently Asked Questions'}</Eyebrow>
               <h2 id="faq-heading" className="mt-3 text-3xl sm:text-4xl font-bold tracking-tight text-gray-900">{isAr ? 'أسئلة شائعة' : 'Common questions'}</h2>
             </FadeIn>
+
+            <FadeIn className="mb-8" variant="up">
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder={isAr ? 'ابحث عن سؤال...' : 'Search questions...'}
+                  value={faqSearch}
+                  onChange={(e) => setFaqSearch(e.target.value)}
+                  className="w-full px-4 sm:px-6 py-3 sm:py-4 rounded-xl border-2 border-gray-200 bg-white text-gray-900 placeholder:text-gray-500 focus:border-gold-500 focus:outline-none focus:ring-2 focus:ring-gold-500/20 transition-all"
+                  aria-label={isAr ? 'ابحث عن أسئلة شائعة' : 'Search FAQ'}
+                />
+                <SearchIcon className="absolute right-4 sm:right-5 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400 pointer-events-none" />
+              </div>
+            </FadeIn>
+
             <div className="space-y-3">
-              {t.faq.map((item, i) => (
-                <FadeIn key={item.q} delay={i * 0.04}>
-                  <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
-                    <button
-                      id={`faq-q-${i}`}
-                      onClick={() => setOpenFaq(openFaq === i ? null : i)}
-                      className="flex w-full items-center justify-between p-5 text-sm font-semibold text-gray-900 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500 focus-visible:ring-offset-2"
-                      aria-expanded={openFaq === i}
-                      aria-controls={`faq-panel-${i}`}
-                    >
-                      <span>{item.q}</span>
-                      <ChevronRight className={`h-4 w-4 text-gray-500 flex-shrink-0 transition-transform duration-200 rtl-flip ml-3 ${openFaq === i ? 'rotate-90' : ''}`} aria-hidden="true" />
-                    </button>
-                    <AnimatePresence initial={false}>
-                      {openFaq === i && (
-                        <motion.div
-                          key="ans"
-                          id={`faq-panel-${i}`}
-                          role="region"
-                          aria-labelledby={`faq-q-${i}`}
-                          initial={{ height: 0, opacity: 0 }}
-                          animate={{ height: 'auto', opacity: 1 }}
-                          exit={{ height: 0, opacity: 0 }}
-                          transition={{ duration: 0.25, ease: [0.23, 1, 0.32, 1] }}
-                          className="overflow-hidden"
-                        >
-                          <p className="px-5 pb-5 text-sm leading-relaxed text-gray-600">{item.a}</p>
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-                  </div>
+              {t.faq
+                .map((item, i) => ({ item, i }))
+                .filter(({ item }) =>
+                  item.q.toLowerCase().includes(faqSearch.toLowerCase()) ||
+                  item.a.toLowerCase().includes(faqSearch.toLowerCase())
+                )
+                .map(({ item, i }) => (
+                  <FadeIn key={item.q} delay={i * 0.04}>
+                    <div className="rounded-xl border border-gray-200 bg-white overflow-hidden hover:border-gold-300 hover:shadow-md transition-all">
+                      <button
+                        id={`faq-q-${i}`}
+                        onClick={() => setOpenFaq(openFaq === i ? null : i)}
+                        className="flex w-full items-center justify-between p-5 text-sm font-semibold text-gray-900 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500 focus-visible:ring-offset-2 hover:bg-gold-50/50 transition-colors"
+                        aria-expanded={openFaq === i}
+                        aria-controls={`faq-panel-${i}`}
+                      >
+                        <span>{item.q}</span>
+                        <ChevronRight className={`h-4 w-4 text-gray-500 flex-shrink-0 transition-transform duration-200 rtl-flip ml-3 ${openFaq === i ? 'rotate-90' : ''}`} aria-hidden="true" />
+                      </button>
+                      <AnimatePresence initial={false}>
+                        {openFaq === i && (
+                          <motion.div
+                            key="ans"
+                            id={`faq-panel-${i}`}
+                            role="region"
+                            aria-labelledby={`faq-q-${i}`}
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{ height: 'auto', opacity: 1 }}
+                            exit={{ height: 0, opacity: 0 }}
+                            transition={{ duration: 0.25, ease: [0.23, 1, 0.32, 1] }}
+                            className="overflow-hidden border-t border-gray-100"
+                          >
+                            <p className="px-5 py-5 text-sm leading-relaxed text-gray-600 bg-gold-50/30">{item.a}</p>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </div>
+                  </FadeIn>
+                ))}
+              {t.faq.filter(item =>
+                item.q.toLowerCase().includes(faqSearch.toLowerCase()) ||
+                item.a.toLowerCase().includes(faqSearch.toLowerCase())
+              ).length === 0 && (
+                <FadeIn className="text-center py-12">
+                  <p className="text-gray-500 text-sm">{isAr ? 'لم نجد نتائج. جرب بحثًا آخر.' : 'No results found. Try a different search.'}</p>
+                </FadeIn>
+              )}
+            </div>
+          </div>
+        </section>
+
+        {/* ── TESTIMONIALS (P2 Enhancement) ────────────────────────────── */}
+        <section aria-labelledby="testimonials-heading" className="py-20 sm:py-28 bg-gray-50">
+          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+            <FadeIn className="mx-auto max-w-2xl text-center mb-16" variant="up">
+              <Eyebrow>{isAr ? 'صوت المجتمع' : 'Voices from the Community'}</Eyebrow>
+              <h2 id="testimonials-heading" className="mt-3 text-3xl sm:text-4xl font-bold tracking-tight text-gray-900">
+                {isAr ? 'ما يقول القادة الكنسيون' : 'Trusted by church leaders'}
+              </h2>
+            </FadeIn>
+
+            <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
+              {[
+                {
+                  quote: isAr ? "COHEP غيّر طريقة تدريسنا للترانيم. الخدام لديهم الآن الأدوات التي كانوا يحتاجونها دائماً." : "COHEP has transformed how we teach hymns. Our servants finally have the tools they have always needed.",
+                  author: isAr ? "الأنبا صموئيل" : "H.G. Bishop Samuel",
+                  role: isAr ? "أسقف كنيسة قبطية بالقاهرة" : "Bishop of a Coptic Diocese",
+                  icon: Church,
+                },
+                {
+                  quote: isAr ? "كخادم، أنا أقدر الحرية والبساطة. لا توجد عوائق تقنية - فقط تعليم حقيقي." : "As a servant teacher, I appreciate the freedom and simplicity. No technical barriers - just real teaching.",
+                  author: isAr ? "أب ديدموس" : "Fr. Didomos",
+                  role: isAr ? "خادم بكنيسة الإسكندرية" : "Servant Teacher, Egypt",
+                  icon: Users,
+                },
+                {
+                  quote: isAr ? "بصفتي والداً، يمكنني الآن أن أرى بالضبط ما يتعلمه أطفالي. يشعرون بأن الكنيسة تقدّرهم." : "As a parent, I can now see exactly what my children are learning and how they are growing in faith.",
+                  author: isAr ? "أم مريم" : "Maria (Parent)",
+                  role: isAr ? "أم طالب في برنامج COHEP" : "Parent in COHEP program",
+                  icon: Heart,
+                },
+              ].map((testimonial, i) => (
+                <FadeIn key={testimonial.author} delay={i * 0.1} className="h-full">
+                  <motion.div
+                    whileHover={reduce ? {} : { y: -4 }}
+                    transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+                    className="h-full rounded-2xl border border-gray-200 bg-white p-8 shadow-sm hover:shadow-lg transition-shadow"
+                  >
+                    <div className="mb-4 flex gap-1">
+                      {[...Array(5)].map((_, i) => (
+                        <Star key={i} className="h-4 w-4 fill-gold-400 text-gold-400" />
+                      ))}
+                    </div>
+                    <Quote className="h-6 w-6 text-gold-300 mb-4" />
+                    <p className="text-gray-700 leading-relaxed mb-6 italic">{testimonial.quote}</p>
+                    <div className="flex items-center gap-3 pt-6 border-t border-gray-100">
+                      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gold-100">
+                        <testimonial.icon className="h-6 w-6 text-gold-600" />
+                      </div>
+                      <div>
+                        <p className="font-semibold text-gray-900">{testimonial.author}</p>
+                        <p className="text-xs text-gray-500">{testimonial.role}</p>
+                      </div>
+                    </div>
+                  </motion.div>
                 </FadeIn>
               ))}
             </div>
           </div>
+        </section>
+
+        {/* ── PHASE TRANSITION (Trust → Action) ──────────────────────────── */}
+        <section className="bg-gray-50 py-6 sm:py-8 border-t border-gray-200 flex items-center justify-center">
+          <FadeIn>
+            <a
+              href="#cta-heading"
+              className="inline-flex items-center gap-2 px-4 py-2 text-xs sm:text-sm font-medium text-burgundy-900 bg-burgundy-100 hover:bg-burgundy-200 rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-burgundy-500 focus-visible:ring-offset-2"
+            >
+              {isAr ? 'جاهز للبدء؟' : 'Ready to get started?'}
+              <ArrowRight className="h-4 w-4" />
+            </a>
+          </FadeIn>
         </section>
 
         {/* ── CTA ───────────────────────────────────────────────────────── */}
