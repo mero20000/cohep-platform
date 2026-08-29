@@ -1023,7 +1023,7 @@ export default function Home() {
           <FadeIn>
             <a
               href="#audience-heading"
-              className="inline-flex items-center gap-2 px-4 py-2 text-xs sm:text-sm font-medium text-burgundy-700 hover:text-burgundy-900 transition-colors"
+              className="inline-flex items-center gap-2 px-4 py-2 text-xs sm:text-sm font-medium text-burgundy-900 bg-burgundy-100 hover:bg-burgundy-200 rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-burgundy-500 focus-visible:ring-offset-2"
             >
               {isAr ? 'اكتشف من يخدمه COHEP' : 'Meet the people COHEP serves'}
               <ArrowRight className="h-4 w-4" />
@@ -1089,7 +1089,7 @@ export default function Home() {
           <FadeIn>
             <a
               href="#curriculum"
-              className="inline-flex items-center gap-2 px-4 py-2 text-xs sm:text-sm font-medium text-burgundy-700 hover:text-burgundy-900 transition-colors"
+              className="inline-flex items-center gap-2 px-4 py-2 text-xs sm:text-sm font-medium text-burgundy-900 bg-burgundy-100 hover:bg-burgundy-200 rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-burgundy-500 focus-visible:ring-offset-2"
             >
               {isAr ? 'استكشف منهجنا الشامل' : 'Explore our complete curriculum'}
               <ArrowRight className="h-4 w-4" />
@@ -1215,7 +1215,7 @@ export default function Home() {
           <FadeIn>
             <a
               href="#open-source"
-              className="inline-flex items-center gap-2 px-4 py-2 text-xs sm:text-sm font-medium text-burgundy-700 hover:text-burgundy-900 transition-colors"
+              className="inline-flex items-center gap-2 px-4 py-2 text-xs sm:text-sm font-medium text-burgundy-900 bg-burgundy-100 hover:bg-burgundy-200 rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-burgundy-500 focus-visible:ring-offset-2"
             >
               {isAr ? 'COHEP مفتوح المصدر وآمن' : 'Built open-source, built to last'}
               <ArrowRight className="h-4 w-4" />
@@ -1341,7 +1341,7 @@ export default function Home() {
           <FadeIn>
             <a
               href="#cta-heading"
-              className="inline-flex items-center gap-2 px-4 py-2 text-xs sm:text-sm font-medium text-burgundy-700 hover:text-burgundy-900 transition-colors"
+              className="inline-flex items-center gap-2 px-4 py-2 text-xs sm:text-sm font-medium text-burgundy-900 bg-burgundy-100 hover:bg-burgundy-200 rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-burgundy-500 focus-visible:ring-offset-2"
             >
               {isAr ? 'جاهز للبدء؟' : 'Ready to get started?'}
               <ArrowRight className="h-4 w-4" />
