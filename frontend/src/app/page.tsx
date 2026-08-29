@@ -525,6 +525,7 @@ function GradientOrbs() {
 function PreviewCarousel({ isAr }: { isAr: boolean }) {
   const [activeTab, setActiveTab] = useState(0)
   const prevTabRef = useRef(0)
+  const reduce = useReducedMotion()
 
   const tabs = [
     { label: isAr ? 'لوحة التحكم' : 'Dashboard', content: <DashboardPreview isAr={isAr} /> },
@@ -1409,21 +1410,21 @@ export default function Home() {
             <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
               {[
                 {
-                  quote: isAr ? 'COHEP غيّر طريقة تدريسنا للترانيم. الخدام لديهم الآن الأدوات التي كانوا يحتاجونها دائماً.' : 'COHEP has transformed how we teach hymns. Our servants finally have the tools they've always needed.',
-                  author: isAr ? 'الأنبا صموئيل' : 'H.G. Bishop Samuel',
-                  role: isAr ? 'أسقف كنيسة قبطية بالقاهرة' : 'Bishop of a Coptic Diocese',
+                  quote: isAr ? "COHEP غيّر طريقة تدريسنا للترانيم. الخدام لديهم الآن الأدوات التي كانوا يحتاجونها دائماً." : "COHEP has transformed how we teach hymns. Our servants finally have the tools they have always needed.",
+                  author: isAr ? "الأنبا صموئيل" : "H.G. Bishop Samuel",
+                  role: isAr ? "أسقف كنيسة قبطية بالقاهرة" : "Bishop of a Coptic Diocese",
                   icon: Church,
                 },
                 {
-                  quote: isAr ? 'كخادم، أنا أقدر الحرية والبساطة. لا توجد عوائق تقنية - فقط تعليم حقيقي.' : 'As a servant teacher, I appreciate the freedom and simplicity. No technical barriers—just real teaching.',
-                  author: isAr ? 'أب ديدموس' : 'Fr. Didomos',
-                  role: isAr ? 'خادم بكنيسة الإسكندرية' : 'Servant Teacher, Egypt',
+                  quote: isAr ? "كخادم، أنا أقدر الحرية والبساطة. لا توجد عوائق تقنية - فقط تعليم حقيقي." : "As a servant teacher, I appreciate the freedom and simplicity. No technical barriers - just real teaching.",
+                  author: isAr ? "أب ديدموس" : "Fr. Didomos",
+                  role: isAr ? "خادم بكنيسة الإسكندرية" : "Servant Teacher, Egypt",
                   icon: Users,
                 },
                 {
-                  quote: isAr ? 'بصفتي والداً، يمكنني الآن أن أرى بالضبط ما يتعلمه أطفالي. يشعرون بأن الكنيسة تقدّرهم.' : 'As a parent, I can now see exactly what my children are learning and how they are growing in faith.',
-                  author: isAr ? 'أم مريم' : 'Maria (Parent)',
-                  role: isAr ? 'أم طالب في برنامج COHEP' : 'Parent in COHEP program',
+                  quote: isAr ? "بصفتي والداً، يمكنني الآن أن أرى بالضبط ما يتعلمه أطفالي. يشعرون بأن الكنيسة تقدّرهم." : "As a parent, I can now see exactly what my children are learning and how they are growing in faith.",
+                  author: isAr ? "أم مريم" : "Maria (Parent)",
+                  role: isAr ? "أم طالب في برنامج COHEP" : "Parent in COHEP program",
                   icon: Heart,
                 },
               ].map((testimonial, i) => (
