@@ -14,7 +14,7 @@ import {
   CheckCircle2, Star, ChevronRight, Cross, CalendarPlus,
   ClipboardCheck, Target, Award, Sparkles, Heart, Shield, Code2, SlidersHorizontal, Zap,
   Quote, Church, BookMarked, PlayCircle, Music2, Music3, FileMusic, Crown,
-  Bell, Megaphone, UserCheck, Download, Layers, FileDown, GitBranch, Lock, Wifi
+  Bell, Megaphone, UserCheck, Download, Layers, FileDown, GitBranch, Lock, Wifi, Search as SearchIcon
 } from 'lucide-react'
 
 // ─── CONTENT ────────────────────────────────────────────────────────────────
@@ -536,45 +536,75 @@ function PreviewCarousel({ isAr }: { isAr: boolean }) {
   return (
     <FadeIn>
       <div className="relative mx-auto max-w-[900px]">
-        <div className="rounded-[14px] bg-gray-800 p-2 sm:p-3 shadow-2xl">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, ease: [0.23, 1, 0.32, 1] }}
+          className="rounded-[14px] bg-gradient-to-br from-gray-800 to-gray-900 p-2 sm:p-3 shadow-2xl shadow-gray-900/50 border border-gray-700/50"
+        >
           <div className="flex items-center justify-center mb-2 sm:mb-3 relative">
             <div className="hidden sm:flex absolute left-3 items-center gap-1.5">
-              <div className="h-2.5 w-2.5 rounded-full bg-red-400/70" />
-              <div className="h-2.5 w-2.5 rounded-full bg-amber-400/70" />
-              <div className="h-2.5 w-2.5 rounded-full bg-green-400/70" />
+              <motion.div
+                animate={{ opacity: [0.5, 1, 0.5] }}
+                transition={{ duration: 2, repeat: Infinity }}
+                className="h-2.5 w-2.5 rounded-full bg-red-400/70"
+              />
+              <motion.div
+                animate={{ opacity: [0.5, 1, 0.5] }}
+                transition={{ duration: 2, repeat: Infinity, delay: 0.2 }}
+                className="h-2.5 w-2.5 rounded-full bg-amber-400/70"
+              />
+              <motion.div
+                animate={{ opacity: [0.5, 1, 0.5] }}
+                transition={{ duration: 2, repeat: Infinity, delay: 0.4 }}
+                className="h-2.5 w-2.5 rounded-full bg-green-400/70"
+              />
             </div>
-            <div className="flex items-center gap-2 rounded-full bg-gray-700/80 px-4 py-1">
-              <div className="h-1.5 w-1.5 rounded-full bg-green-400" />
+            <motion.div
+              animate={{ opacity: [0.8, 1, 0.8] }}
+              transition={{ duration: 1.5, repeat: Infinity }}
+              className="flex items-center gap-2 rounded-full bg-gray-700/80 backdrop-blur-sm px-4 py-1 border border-gray-600/30"
+            >
+              <motion.div
+                animate={{ scale: [1, 1.2, 1] }}
+                transition={{ duration: 1, repeat: Infinity }}
+                className="h-1.5 w-1.5 rounded-full bg-green-400"
+              />
               <span className="text-[10px] text-gray-400 font-medium">cohep.church</span>
-            </div>
+            </motion.div>
           </div>
-          <div className="relative aspect-[4/5] sm:aspect-[16/10] overflow-hidden rounded-lg bg-white">
+          <div className="relative aspect-[4/5] sm:aspect-[16/10] overflow-hidden rounded-lg bg-white shadow-inner">
             <AnimatePresence mode="wait">
               <motion.div
                 key={activeTab}
-                initial={{ opacity: 0, x: activeTab > prevTabRef.current ? 24 : -24 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: activeTab > prevTabRef.current ? -24 : 24 }}
-                transition={{ duration: 0.2, ease: [0.23, 1, 0.32, 1] }}
+                initial={{ opacity: 0, x: activeTab > prevTabRef.current ? 32 : -32, y: 8 }}
+                animate={{ opacity: 1, x: 0, y: 0 }}
+                exit={{ opacity: 0, x: activeTab > prevTabRef.current ? -32 : 32, y: -8 }}
+                transition={{ duration: 0.35, ease: [0.23, 1, 0.32, 1] }}
                 className="h-full w-full"
               >
                 {tabs[activeTab].content}
               </motion.div>
             </AnimatePresence>
           </div>
-        </div>
-        <div className="mt-5 flex flex-wrap justify-center gap-2">
+        </motion.div>
+        <div className="mt-5 sm:mt-6 flex flex-wrap justify-center gap-2 sm:gap-3">
           {tabs.map((tab, i) => (
-            <button
+            <motion.button
               key={tab.label}
               onClick={() => { prevTabRef.current = activeTab; setActiveTab(i) }}
               aria-pressed={activeTab === i}
-              className={`rounded-lg px-4 py-2.5 text-xs font-medium transition-all ${
-                activeTab === i ? 'bg-gold-500 text-gray-950 shadow-lg shadow-gold-200' : 'border border-gray-200 bg-white text-gray-600 hover:border-gold-300 hover:text-gold-700'
-              } focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500 focus-visible:ring-offset-2`}
+              whileHover={reduce ? {} : { scale: 1.05, y: -2 }}
+              whileTap={reduce ? {} : { scale: 0.98 }}
+              transition={{ type: 'spring', stiffness: 400, damping: 17 }}
+              className={`rounded-lg px-4 sm:px-5 py-2.5 sm:py-3 text-xs sm:text-sm font-medium transition-all ${
+                activeTab === i
+                  ? 'bg-gold-500 text-gray-950 shadow-lg shadow-gold-200/50 hover:shadow-xl hover:shadow-gold-200/70'
+                  : 'border border-gray-200 bg-white text-gray-600 hover:border-gold-400 hover:text-gold-700 hover:bg-gold-50/50'
+              } focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500 focus-visible:ring-offset-2 cursor-pointer`}
             >
               {tab.label}
-            </button>
+            </motion.button>
           ))}
         </div>
       </div>
@@ -760,6 +790,7 @@ export default function Home() {
   const [activeSection, setActiveSection] = useState<string>('')
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [openFaq, setOpenFaq] = useState<number | null>(0)
+  const [faqSearch, setFaqSearch] = useState('')
   const [subscribeStatus, setSubscribeStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle')
   const [subscribeErrorMsg, setSubscribeErrorMsg] = useState('')
   const t = content[lang]
@@ -1298,38 +1329,127 @@ export default function Home() {
               <Eyebrow>{isAr ? 'أسئلة شائعة' : 'Frequently Asked Questions'}</Eyebrow>
               <h2 id="faq-heading" className="mt-3 text-3xl sm:text-4xl font-bold tracking-tight text-gray-900">{isAr ? 'أسئلة شائعة' : 'Common questions'}</h2>
             </FadeIn>
+
+            <FadeIn className="mb-8" variant="up">
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder={isAr ? 'ابحث عن سؤال...' : 'Search questions...'}
+                  value={faqSearch}
+                  onChange={(e) => setFaqSearch(e.target.value)}
+                  className="w-full px-4 sm:px-6 py-3 sm:py-4 rounded-xl border-2 border-gray-200 bg-white text-gray-900 placeholder:text-gray-500 focus:border-gold-500 focus:outline-none focus:ring-2 focus:ring-gold-500/20 transition-all"
+                  aria-label={isAr ? 'ابحث عن أسئلة شائعة' : 'Search FAQ'}
+                />
+                <SearchIcon className="absolute right-4 sm:right-5 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400 pointer-events-none" />
+              </div>
+            </FadeIn>
+
             <div className="space-y-3">
-              {t.faq.map((item, i) => (
-                <FadeIn key={item.q} delay={i * 0.04}>
-                  <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
-                    <button
-                      id={`faq-q-${i}`}
-                      onClick={() => setOpenFaq(openFaq === i ? null : i)}
-                      className="flex w-full items-center justify-between p-5 text-sm font-semibold text-gray-900 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500 focus-visible:ring-offset-2"
-                      aria-expanded={openFaq === i}
-                      aria-controls={`faq-panel-${i}`}
-                    >
-                      <span>{item.q}</span>
-                      <ChevronRight className={`h-4 w-4 text-gray-500 flex-shrink-0 transition-transform duration-200 rtl-flip ml-3 ${openFaq === i ? 'rotate-90' : ''}`} aria-hidden="true" />
-                    </button>
-                    <AnimatePresence initial={false}>
-                      {openFaq === i && (
-                        <motion.div
-                          key="ans"
-                          id={`faq-panel-${i}`}
-                          role="region"
-                          aria-labelledby={`faq-q-${i}`}
-                          initial={{ height: 0, opacity: 0 }}
-                          animate={{ height: 'auto', opacity: 1 }}
-                          exit={{ height: 0, opacity: 0 }}
-                          transition={{ duration: 0.25, ease: [0.23, 1, 0.32, 1] }}
-                          className="overflow-hidden"
-                        >
-                          <p className="px-5 pb-5 text-sm leading-relaxed text-gray-600">{item.a}</p>
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-                  </div>
+              {t.faq
+                .map((item, i) => ({ item, i }))
+                .filter(({ item }) =>
+                  item.q.toLowerCase().includes(faqSearch.toLowerCase()) ||
+                  item.a.toLowerCase().includes(faqSearch.toLowerCase())
+                )
+                .map(({ item, i }) => (
+                  <FadeIn key={item.q} delay={i * 0.04}>
+                    <div className="rounded-xl border border-gray-200 bg-white overflow-hidden hover:border-gold-300 hover:shadow-md transition-all">
+                      <button
+                        id={`faq-q-${i}`}
+                        onClick={() => setOpenFaq(openFaq === i ? null : i)}
+                        className="flex w-full items-center justify-between p-5 text-sm font-semibold text-gray-900 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500 focus-visible:ring-offset-2 hover:bg-gold-50/50 transition-colors"
+                        aria-expanded={openFaq === i}
+                        aria-controls={`faq-panel-${i}`}
+                      >
+                        <span>{item.q}</span>
+                        <ChevronRight className={`h-4 w-4 text-gray-500 flex-shrink-0 transition-transform duration-200 rtl-flip ml-3 ${openFaq === i ? 'rotate-90' : ''}`} aria-hidden="true" />
+                      </button>
+                      <AnimatePresence initial={false}>
+                        {openFaq === i && (
+                          <motion.div
+                            key="ans"
+                            id={`faq-panel-${i}`}
+                            role="region"
+                            aria-labelledby={`faq-q-${i}`}
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{ height: 'auto', opacity: 1 }}
+                            exit={{ height: 0, opacity: 0 }}
+                            transition={{ duration: 0.25, ease: [0.23, 1, 0.32, 1] }}
+                            className="overflow-hidden border-t border-gray-100"
+                          >
+                            <p className="px-5 py-5 text-sm leading-relaxed text-gray-600 bg-gold-50/30">{item.a}</p>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </div>
+                  </FadeIn>
+                ))}
+              {t.faq.filter(item =>
+                item.q.toLowerCase().includes(faqSearch.toLowerCase()) ||
+                item.a.toLowerCase().includes(faqSearch.toLowerCase())
+              ).length === 0 && (
+                <FadeIn className="text-center py-12">
+                  <p className="text-gray-500 text-sm">{isAr ? 'لم نجد نتائج. جرب بحثًا آخر.' : 'No results found. Try a different search.'}</p>
+                </FadeIn>
+              )}
+            </div>
+          </div>
+        </section>
+
+        {/* ── TESTIMONIALS (P2 Enhancement) ────────────────────────────── */}
+        <section aria-labelledby="testimonials-heading" className="py-20 sm:py-28 bg-gray-50">
+          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+            <FadeIn className="mx-auto max-w-2xl text-center mb-16" variant="up">
+              <Eyebrow>{isAr ? 'صوت المجتمع' : 'Voices from the Community'}</Eyebrow>
+              <h2 id="testimonials-heading" className="mt-3 text-3xl sm:text-4xl font-bold tracking-tight text-gray-900">
+                {isAr ? 'ما يقول القادة الكنسيون' : 'Trusted by church leaders'}
+              </h2>
+            </FadeIn>
+
+            <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
+              {[
+                {
+                  quote: isAr ? 'COHEP غيّر طريقة تدريسنا للترانيم. الخدام لديهم الآن الأدوات التي كانوا يحتاجونها دائماً.' : 'COHEP has transformed how we teach hymns. Our servants finally have the tools they've always needed.',
+                  author: isAr ? 'الأنبا صموئيل' : 'H.G. Bishop Samuel',
+                  role: isAr ? 'أسقف كنيسة قبطية بالقاهرة' : 'Bishop of a Coptic Diocese',
+                  icon: Church,
+                },
+                {
+                  quote: isAr ? 'كخادم، أنا أقدر الحرية والبساطة. لا توجد عوائق تقنية - فقط تعليم حقيقي.' : 'As a servant teacher, I appreciate the freedom and simplicity. No technical barriers—just real teaching.',
+                  author: isAr ? 'أب ديدموس' : 'Fr. Didomos',
+                  role: isAr ? 'خادم بكنيسة الإسكندرية' : 'Servant Teacher, Egypt',
+                  icon: Users,
+                },
+                {
+                  quote: isAr ? 'بصفتي والداً، يمكنني الآن أن أرى بالضبط ما يتعلمه أطفالي. يشعرون بأن الكنيسة تقدّرهم.' : 'As a parent, I can now see exactly what my children are learning and how they are growing in faith.',
+                  author: isAr ? 'أم مريم' : 'Maria (Parent)',
+                  role: isAr ? 'أم طالب في برنامج COHEP' : 'Parent in COHEP program',
+                  icon: Heart,
+                },
+              ].map((testimonial, i) => (
+                <FadeIn key={testimonial.author} delay={i * 0.1} className="h-full">
+                  <motion.div
+                    whileHover={reduce ? {} : { y: -4 }}
+                    transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+                    className="h-full rounded-2xl border border-gray-200 bg-white p-8 shadow-sm hover:shadow-lg transition-shadow"
+                  >
+                    <div className="mb-4 flex gap-1">
+                      {[...Array(5)].map((_, i) => (
+                        <Star key={i} className="h-4 w-4 fill-gold-400 text-gold-400" />
+                      ))}
+                    </div>
+                    <Quote className="h-6 w-6 text-gold-300 mb-4" />
+                    <p className="text-gray-700 leading-relaxed mb-6 italic">{testimonial.quote}</p>
+                    <div className="flex items-center gap-3 pt-6 border-t border-gray-100">
+                      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gold-100">
+                        <testimonial.icon className="h-6 w-6 text-gold-600" />
+                      </div>
+                      <div>
+                        <p className="font-semibold text-gray-900">{testimonial.author}</p>
+                        <p className="text-xs text-gray-500">{testimonial.role}</p>
+                      </div>
+                    </div>
+                  </motion.div>
                 </FadeIn>
               ))}
             </div>
@@ -1337,7 +1457,7 @@ export default function Home() {
         </section>
 
         {/* ── PHASE TRANSITION (Trust → Action) ──────────────────────────── */}
-        <section className="bg-white py-6 sm:py-8 border-t border-gray-200 flex items-center justify-center">
+        <section className="bg-gray-50 py-6 sm:py-8 border-t border-gray-200 flex items-center justify-center">
           <FadeIn>
             <a
               href="#cta-heading"
