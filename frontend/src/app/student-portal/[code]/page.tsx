@@ -92,6 +92,9 @@ export default function StudentDashboard() {
 
   // Practice state
   const [practiceLesson, setPracticeLesson] = useState<HymnMapItem | null>(null)
+  // Bumped to remount the recorder for a fresh take; the modal is its own scroll container.
+  const [recorderKey, setRecorderKey] = useState(0)
+  const practiceModalRef = useRef<HTMLDivElement>(null)
   const [celebration, setCelebration] = useState<{ title: string; titleCoptic?: string } | null>(null)
   const [drill, setDrill] = useState<null | 'xp' | 'badges' | 'attendance' | 'homework'>(null)
 
@@ -1529,7 +1532,7 @@ export default function StudentDashboard() {
       {/* ─── PRACTICE MODAL ─────────────────────────────────────────── */}
       {practiceLesson && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setPracticeLesson(null)}>
-          <div className="bg-white rounded-2xl max-w-lg w-full max-h-[85vh] overflow-y-auto p-6" onClick={e => e.stopPropagation()}>
+          <div ref={practiceModalRef} className="bg-white rounded-2xl max-w-lg w-full max-h-[85vh] overflow-y-auto p-6" onClick={e => e.stopPropagation()}>
             {practiceLesson?.referenceRecordingUrl && (
               <div className="mt-3 rounded-lg border border-gray-200 p-3">
                 <div className="text-xs font-medium text-gray-500 mb-1">{lang === 'ar' ? 'تسجيل المرجع' : 'Reference recording'}{practiceLesson.referenceRecordingName ? ` — ${practiceLesson.referenceRecordingName}` : ''}</div>
@@ -1537,6 +1540,9 @@ export default function StudentDashboard() {
               </div>
             )}
             <PracticeRecorder
+              // Remounting is what actually starts a fresh take: it returns the recorder
+              // to its idle stage. "Submit again" previously only called window.scrollTo.
+              key={recorderKey}
               lessonId={practiceLesson.id}
               lessonTitle={practiceLesson.title}
               referenceAudioUrl={getAudioUrl(practiceLesson)}
@@ -1547,7 +1553,15 @@ export default function StudentDashboard() {
             />
             {/* Listening Loop: past practices + servant feedback for this hymn */}
             <div className="mt-4">
-              <PracticeHistory code={code} lessonId={practiceLesson.id} lang="en" onResubmit={() => window.scrollTo({ top: 0, behavior: 'smooth' })} />
+              <PracticeHistory
+                code={code}
+                lessonId={practiceLesson.id}
+                lang="en"
+                onResubmit={() => {
+                  setRecorderKey(k => k + 1)
+                  practiceModalRef.current?.scrollTo({ top: 0, behavior: 'smooth' })
+                }}
+              />
             </div>
           </div>
         </div>

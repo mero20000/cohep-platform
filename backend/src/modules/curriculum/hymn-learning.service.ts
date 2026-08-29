@@ -32,6 +32,19 @@ function sm2(easeFactor: number, interval: number, repetitions: number, quality:
   return { easeFactor: ef, interval: newInterval, repetitions: newRep, nextReviewAt }
 }
 
+/**
+ * The SM-2 quality for one practice session.
+ *
+ * A servant's rating outranks the student's self-rating wherever one exists, so a 1★
+ * review can correct an inflated self-assessment — previously the servant's rating was
+ * written to the row and never read by the scheduler, making it decorative exactly where
+ * it mattered most. An unreviewed session still counts on its self-rating, so the loop
+ * never stalls waiting on the school-wide review queue.
+ */
+function practiceQuality(s: { servantRating?: number | null; selfRating?: number | null }): number {
+  return Math.max(0, Math.min(5, s.servantRating ?? s.selfRating ?? 3))
+}
+
 function masteryFromRepetitions(rep: number, selfRating: number): string {
   if (rep === 0) return 'not_started'
   if (selfRating <= 2) return 'introduced'
@@ -104,10 +117,38 @@ export class HymnLearningService {
     // Delete the session
     await this.prisma.hymnPracticeSession.delete({ where: { id: sessionId } })
 
-    // Reset lesson progress to not_started
-    if (session.progressId) {
+    // Progress used to be reset to not_started unconditionally, regardless of how many
+    // sessions survived: a mastered hymn with eight sessions dropped to zero because the
+    // student removed a ninth, while the eight remaining sessions still showed in history.
+    // Rebuild from what is actually left instead.
+    await this.recomputeProgressFromSessions(session.studentId, session.lessonId)
+
+    return { success: true }
+  }
+
+  /**
+   * Rebuild LessonProgress by replaying SM-2 over the sessions that remain, oldest first.
+   *
+   * This is the single source of truth for progress after any change to the session set —
+   * a deletion, or a servant review that supersedes a self-rating. With no sessions left
+   * it resets to not_started, which is the only case where the old behaviour was right.
+   */
+  private async recomputeProgressFromSessions(studentId: string, lessonId: string) {
+    const progress = await this.prisma.lessonProgress.findUnique({
+      where: { studentId_lessonId: { studentId, lessonId } },
+      select: { id: true },
+    })
+    if (!progress) return
+
+    const sessions = await this.prisma.hymnPracticeSession.findMany({
+      where: { studentId, lessonId },
+      orderBy: { createdAt: 'asc' },
+      select: { selfRating: true, servantRating: true, createdAt: true },
+    })
+
+    if (sessions.length === 0) {
       await this.prisma.lessonProgress.update({
-        where: { id: session.progressId },
+        where: { id: progress.id },
         data: {
           status: 'not_started',
           masteryStatus: 'not_started',
@@ -121,9 +162,44 @@ export class HymnLearningService {
           lastAccessedAt: new Date(),
         } as any,
       })
+      return
     }
 
-    return { success: true }
+    let ef = 2.5
+    let interval = 1
+    let rep = 0
+    let quality = 3
+    for (const s of sessions) {
+      quality = practiceQuality(s)
+      const sr = sm2(ef, interval, rep, quality)
+      ef = sr.easeFactor
+      interval = sr.interval
+      rep = sr.repetitions
+    }
+
+    // The next review is due relative to the last surviving session, not to now —
+    // otherwise deleting an old session would push the review date forward.
+    const lastAt = sessions[sessions.length - 1].createdAt
+    const nextReviewAt = new Date(lastAt)
+    nextReviewAt.setDate(nextReviewAt.getDate() + interval)
+
+    const mastery = masteryFromRepetitions(rep, quality)
+
+    await this.prisma.lessonProgress.update({
+      where: { id: progress.id },
+      data: {
+        status: mastery,
+        masteryStatus: mastery,
+        sessionsCompleted: sessions.length,
+        srEaseFactor: ef,
+        srInterval: interval,
+        srRepetitions: rep,
+        nextReviewAt,
+        progressPercent: Math.min(100, (rep / 5) * 100),
+        completedAt: mastery === 'mastered' ? lastAt : null,
+        lastAccessedAt: new Date(),
+      } as any,
+    })
   }
 
   // ─── Log a practice session + run SM-2 ──────────────────────────────────
@@ -458,11 +534,11 @@ export class HymnLearningService {
   async reviewSession(sessionId: string, reviewerId: string, dto: { servantRating: number; servantNote?: string }, caller?: any) {
     const session = await this.prisma.hymnPracticeSession.findUnique({
       where: { id: sessionId },
-      select: { id: true, studentId: true },
+      select: { id: true, studentId: true, lessonId: true },
     })
     if (!session) throw new ForbiddenException('Session not found')
     await this.assertCanWriteStudent(caller, session.studentId)
-    return this.prisma.hymnPracticeSession.update({
+    const updated = await this.prisma.hymnPracticeSession.update({
       where: { id: sessionId },
       data: {
         servantRating: dto.servantRating,
@@ -471,6 +547,12 @@ export class HymnLearningService {
         servantReviewedAt: new Date(),
       } as any,
     })
+
+    // The servant's rating now outranks the self-rating in SM-2, so the schedule has to
+    // be rebuilt when a review lands — not only when the student submits.
+    await this.recomputeProgressFromSessions(session.studentId, session.lessonId)
+
+    return updated
   }
 
   // ─── Student practice history for a hymn ────────────────────────────────

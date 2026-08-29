@@ -74,6 +74,61 @@ describe('HymnLearningService - student-scoped write ownership (P-C1)', () => {
     prisma.hymnPracticeSession.create.mockResolvedValue({ id: 's1' } as any);
   });
 
+  describe('deletePracticeSession recomputes rather than wiping', () => {
+    const sess = (over: any = {}) => ({
+      studentId: 'stu1', lessonId: 'l1', progressId: 'p1', ...over,
+    });
+
+    beforeEach(() => {
+      prisma.hymnPracticeSession.findUnique
+        .mockResolvedValueOnce(sess())          // ownership lookup
+        .mockResolvedValueOnce({ servantReviewedAt: null }); // reviewed check
+      prisma.hymnPracticeSession.delete = jest.fn().mockResolvedValue({});
+      prisma.hymnPracticeSession.findMany = jest.fn();
+      prisma.lessonProgress.findUnique.mockResolvedValue({ id: 'p1' });
+      prisma.lessonProgress.update = jest.fn().mockResolvedValue({});
+    });
+
+    it('keeps progress when sessions survive the deletion', async () => {
+      const day = (n: number) => new Date(2026, 0, n);
+      prisma.hymnPracticeSession.findMany.mockResolvedValue([
+        { selfRating: 5, servantRating: null, createdAt: day(1) },
+        { selfRating: 5, servantRating: null, createdAt: day(2) },
+        { selfRating: 5, servantRating: null, createdAt: day(3) },
+      ]);
+
+      await svc.deletePracticeSession('sess9', { id: 'stu1' });
+
+      const data = prisma.lessonProgress.update.mock.calls[0][0].data;
+      expect(data.sessionsCompleted).toBe(3);
+      expect(data.srRepetitions).toBe(3);
+      expect(data.masteryStatus).not.toBe('not_started');
+    });
+
+    it('resets to not_started only when nothing is left', async () => {
+      prisma.hymnPracticeSession.findMany.mockResolvedValue([]);
+
+      await svc.deletePracticeSession('sess9', { id: 'stu1' });
+
+      const data = prisma.lessonProgress.update.mock.calls[0][0].data;
+      expect(data.sessionsCompleted).toBe(0);
+      expect(data.masteryStatus).toBe('not_started');
+    });
+
+    it('lets a servant rating override an inflated self-rating', async () => {
+      prisma.hymnPracticeSession.findMany.mockResolvedValue([
+        { selfRating: 5, servantRating: 1, createdAt: new Date(2026, 0, 1) },
+      ]);
+
+      await svc.deletePracticeSession('sess9', { id: 'stu1' });
+
+      // quality 1 is below the SM-2 pass threshold, so repetitions stay at 0.
+      const data = prisma.lessonProgress.update.mock.calls[0][0].data;
+      expect(data.srRepetitions).toBe(0);
+      expect(data.masteryStatus).toBe('not_started');
+    });
+  });
+
   it('rejects a lessonId belonging to another school (403)', async () => {
     prisma.lesson.findFirst.mockResolvedValue({ id: 'l1', schoolId: 'other-school' } as any);
     await expect(

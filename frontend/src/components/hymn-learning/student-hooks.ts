@@ -56,7 +56,10 @@ export function useStudentStats(code: string) {
 export function useStudentHymnHistory(code: string, lessonId: string) {
   return useQuery({
     queryKey: studentHymnKeys.history(code, lessonId),
-    queryFn: () => http.get<any[]>(`/student-portal/${code}/history/${lessonId}`),
+    // portalGet, not the raw http client: the raw client has no portal session bootstrap
+    // and no 401 retry, so an expired token here cleared auth and ejected the student to
+    // the staff login page — which has no access-key field.
+    queryFn: () => portalGet<any[]>(code, `/student-portal/${code}/history/${lessonId}`),
     enabled: !!code && !!lessonId,
     staleTime: 10_000,
   })

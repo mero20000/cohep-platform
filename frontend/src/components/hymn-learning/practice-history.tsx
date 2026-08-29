@@ -30,7 +30,12 @@ export function PracticeHistory({ code, lessonId, lang = 'en', onResubmit }: { c
   const t = (en: string, ar: string) => (lang === 'ar' ? ar : en)
 
   const handleDelete = async (sessionId: string) => {
-    if (!window.confirm(t('Delete this submission? You can resubmit later.', 'هل تريد حذف هذا الإرسال؟ يمكنك إرساله لاحقاً.'))) return
+    // Deleting now recomputes this hymn's progress from the sessions that remain, so the
+    // copy can say what actually happens instead of only "you can resubmit later".
+    if (!window.confirm(t(
+      'Delete this practice? Your progress on this hymn will be recalculated from your remaining practices.',
+      'هل تريد حذف هذا التدريب؟ سيُعاد حساب تقدمك في هذا اللحن من تدريباتك المتبقية.',
+    ))) return
     setDeletingId(sessionId)
     try {
       await deleteSession.mutateAsync(sessionId)
@@ -107,7 +112,7 @@ export function PracticeHistory({ code, lessonId, lang = 'en', onResubmit }: { c
       </ol>
       {onResubmit && (
         <button onClick={onResubmit} className="mt-4 w-full inline-flex items-center justify-center gap-2 rounded-lg bg-blue-100 py-2.5 text-sm font-medium text-blue-700 hover:bg-blue-200">
-          <RotateCcw className="h-4 w-4" /> {t('Submit again', 'أرسل مرة أخرى')}
+          <RotateCcw className="h-4 w-4" /> {t('Record again', 'سجّل مرة أخرى')}
         </button>
       )}
     </div>

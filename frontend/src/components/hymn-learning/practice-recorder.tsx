@@ -2,6 +2,15 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
 import { Mic, Square, Play, Pause, RotateCcw, Send, Loader2 } from 'lucide-react'
 import { useToast } from '@/components/ui/toast'
+import { pickRecorderMime, extensionForMime, canRecordAudio } from '@/lib/recorder-mime'
+
+/** Distinguishes "the recording never reached the server" from a failed practice log. */
+class UploadFailed extends Error {
+  constructor() {
+    super('recording upload failed')
+    this.name = 'UploadFailed'
+  }
+}
 
 interface Props {
   lessonId: string
@@ -48,21 +57,35 @@ export function PracticeRecorder({ lessonId, lessonTitle, referenceAudioUrl, onS
   const streamRef = useRef<MediaStream | null>(null)
 
   useEffect(() => {
-    if (!navigator.mediaDevices) setCanRecord(false)
+    // Previously this only checked for navigator.mediaDevices, so an iPhone — which has
+    // it, but supports no webm — fell through to the recorder and got an error with no
+    // way past. canRecordAudio also requires a usable MIME, so iOS now gets the
+    // skip-to-rating path instead of a dead end.
+    if (!canRecordAudio()) setCanRecord(false)
     return () => {
       if (recordingUrl.startsWith('blob:')) URL.revokeObjectURL(recordingUrl)
     }
   }, [])
 
   const startRecording = useCallback(async () => {
+    if (!canRecordAudio()) {
+      setCanRecord(false)
+      toast('error', t(
+        'Recording is not supported on this device — you can still rate your practice',
+        'التسجيل غير مدعوم على هذا الجهاز — لا يزال بإمكانك تقييم تدريبك',
+      ))
+      return
+    }
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
       streamRef.current = stream
-      const mr = new MediaRecorder(stream, { mimeType: 'audio/webm' })
+      const mimeType = pickRecorderMime()
+      const mr = new MediaRecorder(stream, mimeType ? { mimeType } : undefined)
       chunks.current = []
       mr.ondataavailable = e => { if (e.data.size > 0) chunks.current.push(e.data) }
       mr.onstop = () => {
-        const blob = new Blob(chunks.current, { type: 'audio/webm' })
+        const type = mr.mimeType || mimeType || 'audio/webm'
+        const blob = new Blob(chunks.current, { type })
         const url = URL.createObjectURL(blob)
         setRecordingBlob(blob)
         setRecordingUrl(url)
@@ -75,7 +98,14 @@ export function PracticeRecorder({ lessonId, lessonTitle, referenceAudioUrl, onS
       setStage('recording')
       intervalRef.current = setInterval(() => setElapsed(e => e + 1), 1000)
     } catch (err) {
-      toast('error', t('Microphone access denied', 'لم يتم السماح بالوصول إلى الميكروفون'))
+      // Only a getUserMedia rejection is genuinely a permission problem. The constructor
+      // failure that used to land here was a codec problem wearing a permissions label.
+      const denied = err instanceof DOMException &&
+        ['NotAllowedError', 'SecurityError', 'PermissionDeniedError'].includes(err.name)
+      toast('error', denied
+        ? t('Microphone access denied', 'لم يتم السماح بالوصول إلى الميكروفون')
+        : t('Could not start recording on this device', 'لم نتمكن من بدء التسجيل على هذا الجهاز'))
+      if (!denied) setCanRecord(false)
     }
   }, [])
 
@@ -104,31 +134,68 @@ export function PracticeRecorder({ lessonId, lessonTitle, referenceAudioUrl, onS
     try {
       let uploadedUrl: string | undefined
       if (recordingBlob) {
+        const ext = extensionForMime(recordingBlob.type || 'audio/webm')
         const fd = new FormData()
-        fd.append('file', recordingBlob, `practice-${lessonId}-${Date.now()}.webm`)
+        fd.append('file', recordingBlob, `practice-${lessonId}-${Date.now()}.${ext}`)
+        // A failed upload used only to reach the console: the practice was then logged
+        // with no recordingUrl and the modal closed as though it had worked. Because the
+        // servant queue requires a non-null recording, that session could never be
+        // reviewed, while the student's history showed it "Awaiting review" forever.
+        // Failing loudly here keeps the recording — the student can retry or skip.
+        const uploadUrl = code
+          ? `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/student-portal/${code}/recordings`
+          : `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/upload/audio`
+        const headers: Record<string, string> = {}
+        if (code) {
+          // Portal uploads authenticate with the session token, not cookies.
+          try {
+            const t = sessionStorage.getItem('student_portal_token')
+            if (t) headers['Authorization'] = `Bearer ${t}`
+          } catch {}
+        }
+        let res: Response
         try {
-          const uploadUrl = code
-            ? `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/student-portal/${code}/recordings`
-            : `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'}/upload/audio`
-          const headers: Record<string, string> = {}
-          if (code) {
-            // Portal uploads authenticate with the session token, not cookies.
-            try {
-              const t = sessionStorage.getItem('student_portal_token')
-              if (t) headers['Authorization'] = `Bearer ${t}`
-            } catch {}
-          }
-          const res = await fetch(uploadUrl, { method: 'POST', credentials: 'include', headers, body: fd })
-          if (!res.ok) {
-            console.error('Recording upload failed:', res.status, res.statusText)
-          }
-          if (res.ok) { const json = await res.json(); uploadedUrl = json.url }
+          res = await fetch(uploadUrl, { method: 'POST', credentials: 'include', headers, body: fd })
         } catch (err) {
           console.error('Recording upload error:', err)
+          throw new UploadFailed()
         }
+        if (!res.ok) {
+          console.error('Recording upload failed:', res.status, res.statusText)
+          throw new UploadFailed()
+        }
+        const json = await res.json().catch(() => null)
+        if (!json?.url) {
+          console.error('Recording upload returned no url')
+          throw new UploadFailed()
+        }
+        uploadedUrl = json.url
       }
       await onSubmit(finalRating || 3, uploadedUrl, elapsed)
       // Reset on success
+      reset()
+    } catch (err) {
+      console.error('Practice submission error:', err)
+      setStage('rating')
+      if (err instanceof UploadFailed) {
+        toast('error', t(
+          'Your recording could not be uploaded, so nothing was saved. Your take is still here — try again, or submit your rating without it.',
+          'لم نتمكن من رفع تسجيلك، ولم يتم حفظ أي شيء. تسجيلك ما زال موجوداً — حاول مرة أخرى، أو أرسل تقييمك بدونه.',
+        ))
+      } else {
+        toast('error', t('Failed to submit practice — please try again', 'فشل تسليم التدريب — يرجى المحاولة مرة أخرى'))
+      }
+    }
+  }
+
+  /** Submit the rating only, discarding a recording that will not upload. */
+  const submitWithoutRecording = async () => {
+    setRecordingBlob(null)
+    if (recordingUrl.startsWith('blob:')) URL.revokeObjectURL(recordingUrl)
+    setRecordingUrl('')
+    setStage('submitting')
+    try {
+      await onSubmit(rating || 3, undefined, elapsed)
       reset()
     } catch (err) {
       console.error('Practice submission error:', err)
@@ -269,6 +336,14 @@ export function PracticeRecorder({ lessonId, lessonTitle, referenceAudioUrl, onS
                 className="w-full rounded-lg border border-gray-200 bg-white py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50">
                 {t('Submit without rating', 'سلّم بدون تقييم')}
               </button>
+              {recordingBlob && (
+                // An escape hatch for a recording that will not upload, so a student is
+                // not stuck between a failing upload and losing the practice entirely.
+                <button onClick={submitWithoutRecording}
+                  className="w-full rounded-lg py-2 text-xs font-medium text-gray-500 hover:text-gray-700 hover:underline">
+                  {t('Submit rating without my recording', 'سلّم التقييم بدون تسجيلي')}
+                </button>
+              )}
             </div>
           )}
           {stage === 'submitting' && (
