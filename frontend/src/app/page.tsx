@@ -894,8 +894,10 @@ export default function Home() {
 
         {/* ── HERO ──────────────────────────────────────────────────────── */}
         <section className="relative overflow-hidden bg-gradient-to-b from-gray-950 via-gray-900 to-gray-900 min-h-[90dvh] flex items-center">
-          <HeroAlpha />
-          <HeroCross3D />
+          <div className="hidden lg:block">
+            <HeroAlpha />
+            <HeroCross3D />
+          </div>
           <CrossPatternBg className="text-gold-700" />
           <GradientOrbs />
 
@@ -952,7 +954,7 @@ export default function Home() {
                   href="/auth/login?demo=1"
                   whileHover={reduce ? {} : { scale: 1.02 }}
                   whileTap={reduce ? {} : { scale: 0.98 }}
-                  className="flex items-center justify-center gap-2 px-6 sm:px-8 py-3 sm:py-3.5 border border-white/20 bg-white/8 hover:bg-white/15 text-white/90 font-medium rounded-xl transition-all text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-950 h-12 sm:h-auto"
+                  className="flex items-center justify-center gap-2 px-6 sm:px-8 py-3 sm:py-3.5 bg-burgundy-500 hover:bg-burgundy-600 text-white font-semibold rounded-xl shadow-xl shadow-burgundy-500/25 transition-all text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-burgundy-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-950 h-12 sm:h-auto"
                 >
                   🎵 {t.hero.cta2}
                 </motion.a>
