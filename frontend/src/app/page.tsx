@@ -1014,18 +1014,36 @@ export default function Home() {
             <div className="relative space-y-12 sm:space-y-14">
               {t.why.beats.map((beat, i) => (
                 <FadeIn key={beat.num} variant="up" delay={i * 0.08}>
-                  <div className="relative border-s-2 border-gray-700/70 ps-6 sm:ps-8">
-                    <span className="absolute -start-4 top-0.5 flex h-8 w-8 items-center justify-center rounded-full bg-gold-500 text-xs font-bold text-white shadow-lg shadow-gold-500/30">{beat.num}</span>
-                    <h3 className="text-xl sm:text-2xl font-bold tracking-tight text-white leading-tight">{beat.headline}</h3>
+                  <motion.div
+                    whileHover={reduce ? {} : { x: 4 }}
+                    transition={{ type: 'spring', stiffness: 400, damping: 20 }}
+                    className="group relative border-s-2 border-gray-700/70 hover:border-gold-500/50 ps-6 sm:ps-8 transition-colors"
+                  >
+                    <motion.span
+                      whileHover={reduce ? {} : { scale: 1.15, boxShadow: '0 0 20px 10px rgba(201, 160, 48, 0.3)' }}
+                      transition={{ type: 'spring', stiffness: 300, damping: 15 }}
+                      className="absolute -start-4 top-0.5 flex h-8 w-8 items-center justify-center rounded-full bg-gold-500 text-xs font-bold text-white shadow-lg shadow-gold-500/30 group-hover:bg-gold-400 transition-colors cursor-pointer"
+                    >
+                      {beat.num}
+                    </motion.span>
+                    <h3 className="text-xl sm:text-2xl font-bold tracking-tight text-white leading-tight group-hover:text-gold-300 transition-colors">{beat.headline}</h3>
                     <div className="mt-3 space-y-3">
                       {beat.body.split('\n\n').map((p, j) => {
                         const isPunchline = i === 0 && j === beat.body.split('\n\n').length - 1;
                         return (
-                          <p key={j} className={`text-base sm:text-lg leading-relaxed ${isPunchline ? 'text-gold-300 font-medium' : 'text-gray-300'}`}>{p}</p>
+                          <motion.p
+                            key={j}
+                            initial={{ opacity: 0.85 }}
+                            whileHover={{ opacity: 1 }}
+                            transition={{ duration: 0.2 }}
+                            className={`text-base sm:text-lg leading-relaxed ${isPunchline ? 'text-gold-300 font-medium' : 'text-gray-300'} group-hover:text-gray-100 transition-colors`}
+                          >
+                            {p}
+                          </motion.p>
                         );
                       })}
                     </div>
-                  </div>
+                  </motion.div>
                 </FadeIn>
               ))}
             </div>
