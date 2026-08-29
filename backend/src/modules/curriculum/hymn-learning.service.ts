@@ -475,34 +475,13 @@ export class HymnLearningService {
       submittedAt: s.practiceSessions[0]?.createdAt ?? s.lastAccessedAt,
       selfRating: (s.practiceSessions[0] as any)?.selfRating,
       masteryStatus: s.masteryStatus,
-      servantFeedback: s.servantFeedback,
-      servantFeedbackAt: s.servantFeedbackAt,
-      awaitingFeedback: !s.servantFeedback,
     }))
   }
 
   // ─── Servant: Add feedback to a lesson progress ──────────────────────────
+  // TODO: Implement when servant_feedback column is added to database
   async addFeedback(progressId: string, feedbackText: string, servantId: string, caller?: any) {
-    const progress = await this.prisma.lessonProgress.findUnique({
-      where: { id: progressId },
-      include: { student: { select: { groupId: true } } },
-    })
-    if (!progress) throw new ForbiddenException('Progress record not found')
-
-    // Ensure caller is servant in this group
-    const metadata = (caller.metadata ?? {}) as Record<string, any>
-    if (!metadata.groupId || metadata.groupId !== progress.student.groupId) {
-      throw new ForbiddenException('You can only provide feedback for students in your group')
-    }
-
-    return this.prisma.lessonProgress.update({
-      where: { id: progressId },
-      data: {
-        servantFeedback: feedbackText.slice(0, 200),
-        servantFeedbackAt: new Date(),
-        servantId,
-      },
-    })
+    throw new Error('Feature not yet implemented: servant feedback requires database schema update')
   }
 
   // ─── Clergy: Get pending verifications for upcoming Sunday ──────────────────
@@ -540,8 +519,6 @@ export class HymnLearningService {
       lessonTitle: p.lesson.title,
       masteryStatus: p.masteryStatus,
       selfRating: (p.practiceSessions[0] as any)?.selfRating,
-      servantFeedback: p.servantFeedback,
-      servantFeedbackAt: p.servantFeedbackAt,
       recordingUrl: (p.practiceSessions[0] as any)?.recordingUrl,
       recordingDuration: (p.practiceSessions[0] as any)?.durationSec,
       lastPracticedAt: p.practiceSessions[0]?.createdAt,
