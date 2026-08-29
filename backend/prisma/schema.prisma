@@ -1256,7 +1256,7 @@ model HymnPracticeSession {
   studentId         String    @map("student_id")
   lessonId          String    @map("lesson_id")
   progressId        String?   @map("progress_id")
-  schoolId          String    @map("school_id")
+  schoolId          String?   @map("school_id")
   recordingUrl      String?   @map("recording_url")
   durationSec       Int?      @map("duration_sec")
   selfRating        Int?      @map("self_rating")
@@ -1271,7 +1271,7 @@ model HymnPracticeSession {
   student  Student         @relation(fields: [studentId], references: [id], onDelete: Cascade)
   lesson   Lesson          @relation(fields: [lessonId], references: [id], onDelete: Cascade)
   progress LessonProgress? @relation(fields: [progressId], references: [id], onDelete: SetNull)
-  school   School          @relation(fields: [schoolId], references: [id])
+  school   School?         @relation(fields: [schoolId], references: [id], onDelete: SetNull)
 
   @@index([studentId, lessonId])
   @@index([studentId, createdAt])
