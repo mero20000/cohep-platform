@@ -1,13 +1,13 @@
 import {
   Controller, Get, Post, Put, Delete,
-  Body, Param, Query, Req, UseGuards,
+  Body, Param, Query, Req, UseGuards, BadRequestException,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { Roles, STAFF_ROLES } from '../../common/decorators/roles.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { GamificationService } from './gamification.service';
-import { CreateBadgeDto, UpdateBadgeDto, AddXpDto } from './dto/gamification.dto';
+import { CreateBadgeDto, UpdateBadgeDto, AddXpDto, AmendXpDto, ResetStudentXpDto } from './dto/gamification.dto';
 
 @ApiTags('gamification')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -55,8 +55,8 @@ export class GamificationController {
 
   @Put('badges/:id')
   @ApiOperation({ summary: 'Update a badge' })
-  async updateBadge(@Param('id') id: string, @Body() dto: UpdateBadgeDto) {
-    return this.gamificationService.updateBadge(id, dto);
+  async updateBadge(@Param('id') id: string, @Body() dto: UpdateBadgeDto, @Req() req: any) {
+    return this.gamificationService.updateBadge(id, dto, req.user?.schoolId);
   }
 
   @Delete('badges/:id')
@@ -64,6 +64,12 @@ export class GamificationController {
   @ApiOperation({ summary: 'Delete a badge (Super Admin only)' })
   async deleteBadge(@Param('id') id: string) {
     return this.gamificationService.deleteBadge(id);
+  }
+
+  @Get('badges/:id/students')
+  @ApiOperation({ summary: 'Get all students who earned a badge' })
+  async getBadgeStudents(@Param('id') id: string) {
+    return this.gamificationService.getBadgeStudents(id);
   }
 
   // ── Seasonal badges ─────────────────────────────────────────────────────
@@ -130,6 +136,28 @@ export class GamificationController {
   @ApiOperation({ summary: 'Add XP to student' })
   async addXp(@Param('id') id: string, @Body() dto: AddXpDto) {
     return this.gamificationService.addXp(id, dto.amount, dto.type, dto.description);
+  }
+
+  @Get('students/:id/xp-info')
+  @Roles('admin', 'servant', 'super_admin')
+  @ApiOperation({ summary: 'Get student XP information and recent transactions' })
+  async getStudentXpInfo(@Param('id') id: string) {
+    return this.gamificationService.getStudentXpInfo(id);
+  }
+
+  @Put('students/:id/xp')
+  @Roles('admin', 'servant', 'super_admin')
+  @ApiOperation({ summary: 'Amend (adjust) student XP up or down' })
+  async amendStudentXp(@Param('id') id: string, @Body() dto: AmendXpDto) {
+    return this.gamificationService.amendStudentXp(id, dto.amount, dto.reason);
+  }
+
+  @Delete('students/:id/xp')
+  @Roles('admin', 'super_admin')
+  @ApiOperation({ summary: 'Reset all XP for a student (Admin only)' })
+  async deleteStudentXp(@Param('id') id: string, @Query('reason') reason?: string) {
+    if (!reason) throw new BadRequestException('Reason is required');
+    return this.gamificationService.deleteStudentXp(id, reason);
   }
 
   // ── Group trophies ──────────────────────────────────────────────────────

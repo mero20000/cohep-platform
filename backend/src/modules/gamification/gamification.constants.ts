@@ -1,0 +1,54 @@
+/**
+ * Gamification system constants and configurable defaults.
+ * These can be overridden per school via system config if needed.
+ */
+
+export const GAMIFICATION_CONSTANTS = {
+  // XP and Levels
+  XP_PER_LEVEL: 100, // XP required to level up (level = floor(totalXp / 100) + 1)
+
+  // Leaderboard
+  DEFAULT_LEADERBOARD_LIMIT: 20,
+
+  // Badge Criteria Defaults
+  BEHAVIOR_STREAK_DEFAULT: 3,
+  PARTICIPATION_TOTAL_DEFAULT: 5,
+  LITURGY_TOTAL_DEFAULT: 5,
+  ATTENDANCE_TOTAL_DEFAULT: 50,
+  ATTENDANCE_STREAK_WEEKS_DEFAULT: 4,
+  POINTS_TOTAL_DEFAULT: 500,
+  ATTENDANCE_IMPROVEMENT_PERCENT_DEFAULT: 15,
+  XP_TOTAL_DEFAULT: 1000,
+  PRACTICE_TOTAL_DEFAULT: 5,
+  PRACTICE_STREAK_WEEKS_DEFAULT: 3,
+  SUBJECT_ITEMS_PASSED_DEFAULT: 5,
+  RECORDINGS_SUBMITTED_DEFAULT: 5,
+  ASSESSMENT_STREAK_DEFAULT: 3,
+  PARENT_REPORTS_TOTAL_DEFAULT: 3,
+
+  // Group Trophy Milestones
+  GROUP_ATTENDANCE_GOAL_PERCENT: 80,
+
+  // Point Calculation Rules
+  PRESENT_POINTS_DEFAULT: 5,
+  LITURGY_POINTS_DEFAULT: 3,
+
+  // Query Limits
+  RECENT_TRANSACTIONS_LIMIT: 10,
+  STREAK_CHECK_LIMIT: 50,
+
+  // Servant Milestones
+  SERVANT_MILESTONES: {
+    SESSIONS_10: 10,
+    SESSIONS_50: 50,
+    SESSIONS_100: 100,
+    SESSIONS_500: 500,
+    STUDENTS_10: 10,
+    STUDENTS_50: 50,
+    STUDENTS_100: 100,
+    YEARS_1: 1,
+    YEARS_3: 3,
+    YEARS_5: 5,
+    LESSONS_20: 20,
+  },
+} as const;

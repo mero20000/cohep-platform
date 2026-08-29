@@ -2,6 +2,7 @@ import { Injectable, NotFoundException, BadRequestException } from '@nestjs/comm
 import { PrismaService } from '../../database/prisma.service';
 import { SchoolResolver } from '../../common/utils/school-resolver';
 import { CreateBadgeDto, UpdateBadgeDto } from './dto/gamification.dto';
+import { GAMIFICATION_CONSTANTS } from './gamification.constants';
 
 interface BadgeCheckResult {
   badgeId: string
@@ -27,33 +28,38 @@ export class GamificationService {
       take: limit,
     });
 
-    const leaderboard = await Promise.all(
-      xpAggregates.map(async (entry, index) => {
-        const student = await this.prisma.student.findUnique({
-          where: { id: entry.studentId },
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-          },
-        });
-        const badgeCount = await this.prisma.studentBadge.count({
-          where: { studentId: entry.studentId },
-        });
-        const totalXp = entry._sum.amount || 0;
-        const level = Math.floor(totalXp / 100) + 1;
-        return {
-          id: student?.id || entry.studentId,
-          firstName: student?.firstName || 'Unknown',
-          lastName: student?.lastName || '',
-          xp: totalXp,
-          level,
-          streak: 0,
-          rank: index + 1,
-          badgeCount,
-        };
+    const studentIds = xpAggregates.map(x => x.studentId);
+
+    const [students, badgeCounts] = await Promise.all([
+      this.prisma.student.findMany({
+        where: { id: { in: studentIds } },
+        select: { id: true, firstName: true, lastName: true },
       }),
-    );
+      this.prisma.studentBadge.groupBy({
+        by: ['studentId'],
+        where: { studentId: { in: studentIds } },
+        _count: true,
+      }),
+    ]);
+
+    const studentMap = new Map(students.map(s => [s.id, s]));
+    const badgeMap = new Map(badgeCounts.map(b => [b.studentId, b._count]));
+
+    const leaderboard = xpAggregates.map((entry, index) => {
+      const student = studentMap.get(entry.studentId);
+      const totalXp = entry._sum.amount || 0;
+      const level = Math.floor(totalXp / GAMIFICATION_CONSTANTS.XP_PER_LEVEL) + 1;
+      return {
+        id: student?.id || entry.studentId,
+        firstName: student?.firstName || 'Unknown',
+        lastName: student?.lastName || '',
+        xp: totalXp,
+        level,
+        streak: 0,
+        rank: index + 1,
+        badgeCount: badgeMap.get(entry.studentId) || 0,
+      };
+    });
 
     const roles: string[] = requestingUser?.roles ?? [];
     const isStaff = ['super_admin', 'admin', 'principal', 'curriculum_manager', 'servant', 'group_leader', 'level_leader', 'assistant_servant']
@@ -166,9 +172,10 @@ export class GamificationService {
     });
   }
 
-  async updateBadge(id: string, data: UpdateBadgeDto) {
+  async updateBadge(id: string, data: UpdateBadgeDto, userSchoolId?: string) {
     const badge = await this.prisma.badge.findUnique({ where: { id } });
     if (!badge) throw new NotFoundException('Badge not found');
+    if (userSchoolId && badge.schoolId !== userSchoolId) throw new BadRequestException('Cannot modify badge from another school');
     return this.prisma.badge.update({
       where: { id },
       data: {
@@ -253,8 +260,9 @@ export class GamificationService {
             await this.addXp(studentId, badge.xpReward, 'badge_award', `Badge: ${badge.name}`);
           }
           awarded++;
-        } catch {
-          // ignore duplicate race conditions
+        } catch (error) {
+          // Log error but continue: duplicate constraint or transient failure
+          console.warn(`Failed to award badge ${badge.id} to student ${studentId}:`, error instanceof Error ? error.message : error);
         }
       }
     }
@@ -265,15 +273,20 @@ export class GamificationService {
     const criteria = (badge.criteria || {}) as Record<string, any>;
     const rule = criteria.rule as string;
 
+    if (!rule) {
+      console.warn(`Badge ${badge.id} has no criteria rule defined`);
+      return { badgeId: badge.id, earned: false };
+    }
+
     switch (rule) {
       case 'perfect_week':
         return this.checkPerfectWeek(student);
       case 'perfect_month':
         return this.checkPerfectMonth(student);
       case 'behavior_streak':
-        return this.checkBehaviorStreak(student, criteria.count as number ?? 3);
+        return this.checkBehaviorStreak(student, criteria.count as number ?? GAMIFICATION_CONSTANTS.BEHAVIOR_STREAK_DEFAULT);
       case 'participation_total':
-        return this.checkParticipationTotal(student, criteria.count as number ?? 5);
+        return this.checkParticipationTotal(student, criteria.count as number ?? GAMIFICATION_CONSTANTS.PARTICIPATION_TOTAL_DEFAULT);
       case 'liturgy_total':
         return this.checkLiturgyTotal(student, criteria.count as number ?? 5);
       case 'attendance_total':
@@ -301,6 +314,7 @@ export class GamificationService {
       case 'parent_reports_total':
         return this.checkParentReportsTotal(student, criteria.count as number ?? 3);
       default:
+        console.warn(`Badge ${badge.id} has unknown criterion rule: ${rule}`);
         return { badgeId: badge.id, earned: false };
     }
   }
@@ -466,8 +480,8 @@ export class GamificationService {
       }),
     ]);
     const rules: any = (pointConfig?.value as any) || {};
-    const presentPoints = rules.presentPoints ?? 5;
-    const liturgyPoints = rules.liturgyPoints ?? 3;
+    const presentPoints = rules.presentPoints ?? GAMIFICATION_CONSTANTS.PRESENT_POINTS_DEFAULT;
+    const liturgyPoints = rules.liturgyPoints ?? GAMIFICATION_CONSTANTS.LITURGY_POINTS_DEFAULT;
     const totalPoints = attRecords.reduce((sum: number, r: any) => {
       let s = 0;
       if (r.status === 'present') s += presentPoints;
@@ -565,15 +579,15 @@ export class GamificationService {
   private async checkPracticeStreak(student: { id: string }, weeks: number): Promise<BadgeCheckResult> {
     const now = new Date();
     const startOfThisWeek = new Date(now);
-    startOfThisWeek.setDate(now.getDate() - now.getDay());
+    startOfThisWeek.setDate(now.getDate() - now.getDay()); // Sunday
     startOfThisWeek.setHours(0, 0, 0, 0);
 
     let consecutiveWeeks = 0;
-    let checkDate = new Date(startOfThisWeek);
 
-    for (let i = 0; i < weeks + 2; i++) {
-      const weekStart = new Date(checkDate);
-      weekStart.setDate(checkDate.getDate() - (consecutiveWeeks === 0 ? 0 : consecutiveWeeks * 7));
+    // Check backwards from this week
+    for (let weekOffset = 0; weekOffset < weeks + 2; weekOffset++) {
+      const weekStart = new Date(startOfThisWeek);
+      weekStart.setDate(startOfThisWeek.getDate() - weekOffset * 7);
       const weekEnd = new Date(weekStart);
       weekEnd.setDate(weekStart.getDate() + 6);
       weekEnd.setHours(23, 59, 59, 999);
@@ -581,11 +595,14 @@ export class GamificationService {
       const count = await this.prisma.familyPractice.count({
         where: { studentId: student.id, practicedAt: { gte: weekStart, lte: weekEnd } },
       });
+
       if (count > 0) {
         consecutiveWeeks++;
-      } else if (consecutiveWeeks > 0) {
+      } else {
+        // Streak broken
         break;
       }
+
       if (consecutiveWeeks >= weeks) break;
     }
 
@@ -721,7 +738,7 @@ export class GamificationService {
 
       const balanceAfter = (currentBalance._sum.amount || 0) + amount;
 
-      return tx.xPTransaction.create({
+      const transaction = await tx.xPTransaction.create({
         data: {
           studentId,
           amount,
@@ -730,6 +747,14 @@ export class GamificationService {
           description,
         },
       });
+
+      // Sync StudentProgress.totalXp if it exists
+      await tx.studentProgress.updateMany({
+        where: { studentId },
+        data: { totalXp: balanceAfter },
+      }).catch(() => {}); // Ignore if no progress record exists
+
+      return transaction;
     });
   }
 
@@ -742,6 +767,40 @@ export class GamificationService {
       include: { badge: true },
       orderBy: { awardedAt: 'desc' },
     });
+  }
+
+  async getBadgeStudents(badgeId: string) {
+    const badge = await this.prisma.badge.findUnique({ where: { id: badgeId } });
+    if (!badge) throw new NotFoundException('Badge not found');
+
+    const studentBadges = await this.prisma.studentBadge.findMany({
+      where: { badgeId },
+      include: {
+        student: {
+          select: { id: true, firstName: true, lastName: true, groupId: true },
+        },
+      },
+      orderBy: { awardedAt: 'desc' },
+    });
+
+    return {
+      badge: {
+        id: badge.id,
+        name: badge.name,
+        description: badge.description,
+        category: badge.category,
+        iconUrl: badge.iconUrl,
+        xpReward: badge.xpReward,
+      },
+      totalStudents: studentBadges.length,
+      students: studentBadges.map(sb => ({
+        studentId: sb.student.id,
+        firstName: sb.student.firstName,
+        lastName: sb.student.lastName,
+        groupId: sb.student.groupId,
+        awardedAt: sb.awardedAt,
+      })),
+    };
   }
 
   async getStudentTransactions(studentId: string, skip = 0, take = 50) {
@@ -964,7 +1023,7 @@ export class GamificationService {
     const avgAttendance = attByStudent.length
       ? Math.round(attByStudent.reduce((a, b) => a + b, 0) / attByStudent.length)
       : 0;
-    const groupAttendanceGoalMet = avgAttendance >= 80;
+    const groupAttendanceGoalMet = avgAttendance >= GAMIFICATION_CONSTANTS.GROUP_ATTENDANCE_GOAL_PERCENT;
 
     // Total XP earned by group
     const groupXp = await this.prisma.xPTransaction.aggregate({
@@ -1153,6 +1212,110 @@ export class GamificationService {
   }
 
   // ── Servant Recognition ──────────────────────────────────────────────────
+
+  async deleteStudentXp(studentId: string, reason: string) {
+    const student = await this.prisma.student.findUnique({ where: { id: studentId } });
+    if (!student) throw new NotFoundException('Student not found');
+
+    const currentTotal = await this.prisma.xPTransaction.aggregate({
+      where: { studentId },
+      _sum: { amount: true },
+      _count: true,
+    });
+
+    const deletedCount = currentTotal._count;
+    const deletedXp = currentTotal._sum.amount || 0;
+
+    await this.prisma.$transaction(async tx => {
+      await tx.xPTransaction.deleteMany({ where: { studentId } });
+      // Sync StudentProgress.totalXp to 0
+      await tx.studentProgress.updateMany({
+        where: { studentId },
+        data: { totalXp: 0 },
+      }).catch(() => {});
+    });
+
+    return {
+      message: `All XP deleted for student ${student.firstName} ${student.lastName}`,
+      studentId,
+      deletedTransactions: deletedCount,
+      deletedXp,
+      reason,
+    };
+  }
+
+  async amendStudentXp(studentId: string, amount: number, reason: string) {
+    return this.prisma.$transaction(async tx => {
+      const student = await tx.student.findUnique({ where: { id: studentId } });
+      if (!student) throw new NotFoundException('Student not found');
+
+      await tx.$queryRawUnsafe('SELECT id FROM students WHERE id = $1 FOR UPDATE', studentId);
+
+      const currentBalance = await tx.xPTransaction.aggregate({
+        where: { studentId },
+        _sum: { amount: true },
+      });
+
+      const oldBalance = currentBalance._sum.amount || 0;
+      const newBalance = Math.max(0, oldBalance + amount);
+
+      const transaction = await tx.xPTransaction.create({
+        data: {
+          studentId,
+          amount,
+          balanceAfter: newBalance,
+          type: 'xp_amendment',
+          description: reason,
+        },
+      });
+
+      // Sync StudentProgress.totalXp
+      await tx.studentProgress.updateMany({
+        where: { studentId },
+        data: { totalXp: newBalance },
+      }).catch(() => {});
+
+      return {
+        transactionId: transaction.id,
+        studentId,
+        previousBalance: oldBalance,
+        amendment: amount,
+        newBalance,
+        reason,
+      };
+    });
+  }
+
+  async getStudentXpInfo(studentId: string) {
+    const student = await this.prisma.student.findUnique({ where: { id: studentId } });
+    if (!student) throw new NotFoundException('Student not found');
+
+    const xpResult = await this.prisma.xPTransaction.aggregate({
+      where: { studentId },
+      _sum: { amount: true },
+      _count: true,
+    });
+
+    const recentTransactions = await this.prisma.xPTransaction.findMany({
+      where: { studentId },
+      orderBy: { createdAt: 'desc' },
+      take: GAMIFICATION_CONSTANTS.RECENT_TRANSACTIONS_LIMIT,
+      select: { id: true, amount: true, type: true, description: true, createdAt: true, balanceAfter: true },
+    });
+
+    const totalXp = xpResult._sum.amount || 0;
+    const level = Math.floor(totalXp / 100) + 1;
+
+    return {
+      studentId,
+      firstName: student.firstName,
+      lastName: student.lastName,
+      totalXp,
+      level,
+      transactionCount: xpResult._count,
+      recentTransactions,
+    };
+  }
 
   async getServantMilestones(userId: string, schoolIdentifier: string) {
     const schoolId = await this.schoolResolver.resolve(schoolIdentifier);

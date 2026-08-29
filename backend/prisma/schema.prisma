@@ -1053,7 +1053,9 @@ model StudentBadge {
   student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
   badge   Badge   @relation(fields: [badgeId], references: [id])
 
+  @@unique([studentId, badgeId])
   @@index([studentId])
+  @@index([badgeId])
   @@map("student_badges")
 }
 
