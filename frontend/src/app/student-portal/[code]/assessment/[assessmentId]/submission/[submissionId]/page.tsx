@@ -52,7 +52,7 @@ export default function SubmissionReview() {
   const router = useRouter()
   const code = params?.code as string
   const submissionId = params?.submissionId as string
-  const assessmentId = params?.id as string
+  const assessmentId = params?.assessmentId as string
   const lang = useLanguage() as 'en' | 'ar'
   const { toast } = useToast()
   const t = (en: string, ar: string) => lang === 'ar' ? ar : en
