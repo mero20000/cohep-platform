@@ -1286,7 +1286,7 @@ export default function GamificationPage() {
               </div>
               <div className="flex gap-2 justify-end">
                 <Button variant="outline" onClick={() => setXpManagementTab('info')}>{t('Cancel', 'إلغاء')}</Button>
-                <Button variant="danger" onClick={handleResetXp} disabled={resetting || !resetReason.trim()}>
+                <Button variant="destructive" onClick={handleResetXp} disabled={resetting || !resetReason.trim()}>
                   {resetting && <Loader2 className="h-4 w-4 animate-spin" />}
                   {t('Delete All XP', 'حذف الكل')}
                 </Button>
