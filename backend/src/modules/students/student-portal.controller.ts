@@ -72,6 +72,28 @@ export class StudentPortalController {
     return this.assessmentsService.submit(id, student.id, body);
   }
 
+  @Get(':code/assessments/:assessmentId/submission/:submissionId')
+  @ApiOperation({ summary: 'Get submission review details for a completed assessment' })
+  async getSubmissionReview(
+    @Param('code') code: string,
+    @Param('assessmentId') assessmentId: string,
+    @Param('submissionId') submissionId: string,
+  ) {
+    const student = await this.resolveStudent(code);
+    return this.assessmentsService.getSubmissionReview(submissionId, student.id, assessmentId);
+  }
+
+  @Post(':code/assessments/:id/retake')
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Retake a non-essay assessment (creates new submission with blank state)' })
+  async retakeAssessment(
+    @Param('code') code: string,
+    @Param('id') id: string,
+  ) {
+    const student = await this.resolveStudent(code);
+    return this.assessmentsService.prepareRetake(id, student.id);
+  }
+
   // ─── Hymn Learning endpoints (code-scoped) ───────────────────────────────
 
   private async resolveStudent(code: string) {

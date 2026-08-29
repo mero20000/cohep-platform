@@ -710,6 +710,7 @@ async getPortalData(portalAccessKey: string) {
               subject: { select: { id: true, name: true, nameAr: true } },
             },
           },
+          grades: { select: { score: true, maxScore: true } },
         },
         orderBy: { createdAt: 'desc' },
         take: 20,
@@ -808,20 +809,24 @@ async getPortalData(portalAccessKey: string) {
         time: s.scheduledTime,
       })),
       recentHomework,
-      assessments: assignedAssessments.map((sub: any) => ({
-        id: sub.assessment.id,
-        title: sub.assessment.title,
-        titleAr: sub.assessment.titleAr,
-        type: sub.assessment.type,
-        totalPoints: Number(sub.assessment.totalPoints),
-        passingScore: Number(sub.assessment.passingScore),
-        dueDate: sub.assessment.dueDate,
-        level: sub.assessment.level,
-        subject: sub.assessment.subject,
-        submissionStatus: sub.status,
-        submissionId: sub.id,
-        submittedAt: sub.submittedAt,
-      })),
+      assessments: assignedAssessments.map((sub: any) => {
+        const totalScore = sub.grades?.reduce((sum: number, g: any) => sum + Number(g.score || 0), 0) ?? 0;
+        return {
+          id: sub.assessment.id,
+          title: sub.assessment.title,
+          titleAr: sub.assessment.titleAr,
+          type: sub.assessment.type,
+          totalPoints: Number(sub.assessment.totalPoints),
+          passingScore: Number(sub.assessment.passingScore),
+          dueDate: sub.assessment.dueDate,
+          level: sub.assessment.level,
+          subject: sub.assessment.subject,
+          submissionStatus: sub.status,
+          submissionId: sub.id,
+          submittedAt: sub.submittedAt,
+          earnedScore: sub.status === 'completed' ? totalScore : null,
+        };
+      }),
     };
   }
 

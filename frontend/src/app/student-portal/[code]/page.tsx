@@ -50,6 +50,7 @@ interface PortalData {
     level: { id: string; name: string };
     subject: { id: string; name: string; nameAr?: string };
     submissionStatus: string; submissionId: string; submittedAt: string;
+    earnedScore?: number | null;
   }>
 }
 
@@ -1142,9 +1143,12 @@ export default function StudentDashboard() {
                           <div className="space-y-2">
                             {done.map(a => {
                               const ss = subjectStyle(a.subject.name)
+                              const score = a.earnedScore
+                              const passed = score !== null && score >= a.passingScore
                               return (
-                                <div key={a.id}
-                                  className="rounded-2xl border border-green-200 bg-green-50/50 border-l-4 border-l-green-400 p-4 opacity-80">
+                                <Link key={a.id}
+                                  href={`/student-portal/${code}/assessment/${a.id}/submission/${a.submissionId}`}
+                                  className="rounded-2xl border border-green-200 bg-green-50/50 border-l-4 border-l-green-400 p-4 transition-all hover:shadow-md active:motion-safe:scale-[0.98] cursor-pointer">
                                   <div className="flex items-start gap-3">
                                     <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-green-100">
                                       <CheckCircle2 className="h-5 w-5 text-green-500" />
@@ -1155,13 +1159,21 @@ export default function StudentDashboard() {
                                         <span className={`text-[11px] px-2 py-0.5 rounded-full font-medium ${ss.chip}`}>{a.subject.nameAr || a.subject.name}</span>
                                         <span className="text-[11px] text-gray-400">·</span>
                                         <span className="text-[11px] text-gray-500">{a.totalPoints} pts</span>
+                                        {score !== null && (
+                                          <>
+                                            <span className="text-[11px] text-gray-400">·</span>
+                                            <span className={`text-[11px] font-bold ${passed ? 'text-green-700' : 'text-amber-700'}`}>
+                                              {lang === 'ar' ? `${score} / ${a.totalPoints} نقاط` : `${score}/${a.totalPoints}`}
+                                            </span>
+                                          </>
+                                        )}
                                       </div>
                                     </div>
                                     <span className="shrink-0 inline-flex items-center gap-1 rounded-full bg-green-100 px-2.5 py-1 text-xs font-bold text-green-700">
-                                      <CheckCircle2 className="h-3 w-3" /> {lang === 'ar' ? 'تم' : 'Done'}
+                                      <CheckCircle2 className="h-3 w-3" /> {lang === 'ar' ? 'عرض' : 'View'}
                                     </span>
                                   </div>
-                                </div>
+                                </Link>
                               )
                             })}
                           </div>

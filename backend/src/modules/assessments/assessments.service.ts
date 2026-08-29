@@ -639,6 +639,109 @@ export class AssessmentsService {
     };
   }
 
+  async getSubmissionReview(submissionId: string, studentId: string, assessmentId: string) {
+    const submission = await this.prisma.assessmentSubmission.findFirst({
+      where: { id: submissionId, studentId, assessmentId },
+      include: {
+        assessment: {
+          select: {
+            id: true, title: true, titleAr: true, type: true, totalPoints: true, passingScore: true,
+            questions: { orderBy: { orderIndex: 'asc' } },
+          },
+        },
+        grades: { include: { question: true } },
+      },
+    });
+    if (!submission) throw new NotFoundException('Submission not found');
+
+    const answers = JSON.parse(submission.submissionContent || '[]') as any[];
+    const totalScore = submission.grades.reduce((sum, g) => sum + Number(g.score), 0);
+    const maxScore = Number(submission.assessment.totalPoints);
+
+    return {
+      submission: {
+        id: submission.id,
+        submittedAt: submission.submittedAt,
+        status: submission.status,
+        fileUrl: submission.fileUrl,
+        durationSeconds: submission.durationSeconds,
+        isLate: submission.isLate,
+      },
+      assessment: {
+        id: submission.assessment.id,
+        title: submission.assessment.title,
+        titleAr: submission.assessment.titleAr,
+        type: submission.assessment.type,
+        totalPoints: maxScore,
+        passingScore: Number(submission.assessment.passingScore),
+      },
+      grade: {
+        earned: totalScore,
+        max: maxScore,
+        percentage: Math.round((totalScore / maxScore) * 100),
+        passed: totalScore >= Number(submission.assessment.passingScore),
+      },
+      questions: submission.assessment.questions.map((q: any) => {
+        const grade = submission.grades.find(g => g.questionId === q.id);
+        const answer = answers.find(a => a.questionId === q.id);
+        return {
+          id: q.id,
+          text: q.questionText,
+          type: q.type,
+          options: q.options || null,
+          points: Number(q.points),
+          studentAnswer: answer?.answer || null,
+          correctAnswer: q.type === 'essay' ? null : q.correctAnswer,
+          isCorrect: grade ? Number(grade.score) === Number(grade.maxScore) : null,
+          score: grade ? Number(grade.score) : null,
+          maxScore: grade ? Number(grade.maxScore) : null,
+          feedback: grade?.feedback || null,
+          feedbackAr: grade?.feedbackAr || null,
+        };
+      }),
+      metadata: submission.metadata,
+    };
+  }
+
+  async prepareRetake(assessmentId: string, studentId: string) {
+    const assessment = await this.prisma.assessment.findUnique({
+      where: { id: assessmentId },
+      include: { questions: true },
+    });
+    if (!assessment || assessment.deletedAt) throw new NotFoundException('Assessment not found');
+    if (assessment.status !== 'published') throw new BadRequestException('Assessment is not open');
+
+    const existing = await this.prisma.assessmentSubmission.findFirst({
+      where: { assessmentId, studentId },
+    });
+    if (!existing) throw new BadRequestException('Student not assigned to this assessment');
+
+    // Check if has essay questions (not retakeable)
+    const hasEssay = assessment.questions.some(q => q.type === 'essay');
+    if (hasEssay) throw new BadRequestException('Cannot retake assessments with essay questions');
+
+    // Check if grading is incomplete (servant is still reviewing)
+    const grades = await this.prisma.grade.findMany({
+      where: { submissionId: existing.id, score: null },
+    });
+    if (grades.length > 0) throw new BadRequestException('Cannot retake while grading is in progress');
+
+    // Create new submission record, reset to assigned state
+    const newSubmission = await this.prisma.assessmentSubmission.create({
+      data: {
+        assessmentId,
+        studentId,
+        submissionType: 'online',
+        status: 'assigned',
+      },
+    });
+
+    return {
+      newSubmissionId: newSubmission.id,
+      message: 'Ready to retake. You can now access the assessment again.',
+    };
+  }
+
   private validateQuestions(questions: CreateQuestionDto[], totalPoints: number) {
     const sum = questions.reduce((a, q) => a + q.points, 0);
     if (sum > totalPoints) {
