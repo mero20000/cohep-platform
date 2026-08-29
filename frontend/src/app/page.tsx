@@ -1334,27 +1334,39 @@ export default function Home() {
             <div className="grid gap-4 sm:grid-cols-2 max-w-5xl mx-auto mb-10">
               {t.openSource.items.map((item, i) => (
                 <FadeIn key={item.title} delay={i * 0.06} className="h-full">
-                  <div className="rounded-xl border border-gray-700 bg-gray-800/60 p-5 transition-all hover:bg-gray-800 hover:border-gold-500/30 h-full flex items-start gap-4">
-                    <item.icon className="h-6 w-6 text-gold-400 flex-shrink-0 mt-0.5" />
+                  <motion.div
+                    whileHover={reduce ? {} : { x: 4, y: -2 }}
+                    transition={{ type: 'spring', stiffness: 400, damping: 20 }}
+                    className="group rounded-xl border border-gray-700 bg-gray-800/60 hover:border-gold-500/30 hover:bg-gray-800 p-5 h-full flex items-start gap-4 cursor-pointer transition-colors"
+                  >
+                    <motion.div
+                      whileHover={reduce ? {} : { scale: 1.15, rotate: 5 }}
+                      transition={{ type: 'spring', stiffness: 300, damping: 15 }}
+                    >
+                      <item.icon className="h-6 w-6 text-gold-400 flex-shrink-0 mt-0.5" />
+                    </motion.div>
                     <div>
-                      <h3 className="text-sm font-bold text-white">{item.title}</h3>
-                      <p className="mt-1 text-xs text-gray-400 leading-relaxed">{item.desc}</p>
+                      <h3 className="text-sm font-bold text-white group-hover:text-gold-300 transition-colors">{item.title}</h3>
+                      <p className="mt-1 text-xs text-gray-400 group-hover:text-gray-300 leading-relaxed transition-colors">{item.desc}</p>
                     </div>
-                  </div>
+                  </motion.div>
                 </FadeIn>
               ))}
             </div>
             <FadeIn className="text-center">
-              <a
+              <motion.a
+                whileHover={reduce ? {} : { scale: 1.05 }}
+                whileTap={reduce ? {} : { scale: 0.98 }}
+                transition={{ type: 'spring', stiffness: 400, damping: 20 }}
                 href="https://github.com/mero20000/cohep-platform"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 rounded-xl border border-gold-500/30 px-6 py-3 text-sm font-medium text-gold-400 hover:bg-gold-500/10 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-950"
+                className="inline-flex items-center gap-2 rounded-xl border border-gold-500/30 px-6 py-3 text-sm font-medium text-gold-400 hover:bg-gold-500/10 hover:border-gold-500/50 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-950 cursor-pointer"
               >
                 <GitBranch className="h-4 w-4" />
                 {t.openSource.cta}
                 <ArrowRight className="h-4 w-4 rtl-flip" />
-              </a>
+              </motion.a>
             </FadeIn>
           </div>
         </section>
@@ -1368,22 +1380,36 @@ export default function Home() {
             <div className="grid gap-6 lg:grid-cols-3">
               {t.features.groups.map((group, i) => (
                 <FadeIn key={group.title} delay={i * 0.1} className="h-full">
-                  <div className="h-full rounded-2xl border border-gray-200 bg-white p-6 shadow-sm flex flex-col">
+                  <motion.div
+                    whileHover={reduce ? {} : { y: -4, scale: 1.01 }}
+                    transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+                    className="group h-full rounded-2xl border border-gray-200 bg-white p-6 shadow-sm hover:shadow-lg hover:border-gold-300 flex flex-col cursor-pointer transition-all"
+                  >
                     <div className="flex items-center gap-3 mb-5">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-gold-400 to-gold-600 text-white shadow-md shadow-gold-200/50">
+                      <motion.div
+                        whileHover={reduce ? {} : { scale: 1.15, rotate: 10 }}
+                        transition={{ type: 'spring', stiffness: 300, damping: 15 }}
+                        className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-gold-400 to-gold-600 text-white shadow-md shadow-gold-200/50"
+                      >
                         <group.icon className="h-5 w-5" />
-                      </div>
-                      <h3 className="text-base font-bold text-gray-900">{group.title}</h3>
+                      </motion.div>
+                      <h3 className="text-base font-bold text-gray-900 group-hover:text-gold-700 transition-colors">{group.title}</h3>
                     </div>
                     <ul className="space-y-2.5 flex-1">
-                      {group.items.map(item => (
-                        <li key={item} className="flex items-start gap-2.5 text-sm text-gray-600">
+                      {group.items.map((item, j) => (
+                        <motion.li
+                          key={item}
+                          initial={{ opacity: 0.85, x: -5 }}
+                          whileHover={{ opacity: 1, x: 0 }}
+                          transition={{ duration: 0.2 }}
+                          className="flex items-start gap-2.5 text-sm text-gray-600 group-hover:text-gray-700 transition-colors"
+                        >
                           <CheckCircle2 className="h-4 w-4 text-gold-700 flex-shrink-0 mt-0.5" />
                           {item}
-                        </li>
+                        </motion.li>
                       ))}
                     </ul>
-                  </div>
+                  </motion.div>
                 </FadeIn>
               ))}
             </div>
