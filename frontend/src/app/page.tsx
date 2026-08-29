@@ -804,10 +804,10 @@ export default function Home() {
 
       {/* ── NAVBAR ──────────────────────────────────────────────────────── */}
       <header className={`sticky [top:env(safe-area-inset-top)] z-50 border-b transition-all duration-300 ${scrolled ? 'border-gray-200 bg-white/95 backdrop-blur shadow-sm' : 'border-transparent bg-white/80 backdrop-blur'}`}>
-        <div className="mx-auto flex h-[88px] max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
-          <Link href="/" className="flex items-center gap-3 flex-shrink-0">
-            <Image src="/cohep-logo.png" alt="COHEP" width={72} height={72} className="h-[72px] w-[72px] rounded-xl object-contain shadow-lg shadow-gold-200/50" />
-            <span className="text-lg font-bold tracking-tight text-gray-900 hidden sm:block">COHEP</span>
+        <div className="mx-auto flex h-16 sm:h-20 max-w-7xl items-center justify-between px-3 sm:px-6 lg:px-8">
+          <Link href="/" className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
+            <Image src="/cohep-logo.png" alt="COHEP" width={72} height={72} className="h-14 sm:h-[72px] w-14 sm:w-[72px] rounded-lg sm:rounded-xl object-contain shadow-md sm:shadow-lg shadow-gold-200/50" />
+            <span className="text-base sm:text-lg font-bold tracking-tight text-gray-900 hidden sm:block">COHEP</span>
           </Link>
 
           <nav className="hidden md:flex items-center gap-0.5" aria-label={isAr ? 'التنقل الرئيسي' : 'Main navigation'}>
@@ -828,10 +828,10 @@ export default function Home() {
             })}
           </nav>
 
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-2">
             <button
               onClick={() => setLang(lang === 'en' ? 'ar' : 'en')}
-              className="rounded-lg border border-gray-200 px-3 py-2.5 text-xs font-medium text-gray-600 hover:bg-gray-50 transition-colors"
+              className="rounded-lg border border-gray-200 px-2.5 sm:px-3 py-2 sm:py-2.5 text-xs font-medium text-gray-600 hover:bg-gray-50 transition-colors"
               aria-label={lang === 'en' ? 'Switch to Arabic' : 'التبديل إلى الإنجليزية'}
             >
               {lang === 'en' ? 'عربي' : 'EN'}
@@ -918,12 +918,12 @@ export default function Home() {
               </h1>
 
               <div
-                className="reveal mb-7 border-l-2 border-gold-500/50 pl-4 text-left mx-auto max-w-xl"
+                className="reveal mb-8 border-l-2 border-gold-500/60 pl-5 sm:pl-6 text-left mx-auto max-w-2xl"
                 data-variant="left"
-                style={{ direction: isAr ? 'rtl' : 'ltr', borderLeft: isAr ? 'none' : undefined, borderRight: isAr ? '2px solid rgba(214, 166, 75, 0.5)' : undefined, paddingLeft: isAr ? '0' : '1rem', paddingRight: isAr ? '1rem' : '0', transitionDelay: '0.3s' }}
+                style={{ direction: isAr ? 'rtl' : 'ltr', borderLeft: isAr ? 'none' : undefined, borderRight: isAr ? '2px solid rgba(214, 166, 75, 0.6)' : undefined, paddingLeft: isAr ? '0' : undefined, paddingRight: isAr ? '1.25rem' : '0', transitionDelay: '0.3s' }}
               >
-                <p className="text-base sm:text-lg text-gold-300/90 italic leading-relaxed">{t.hero.quote}</p>
-                <p className="mt-1.5 text-xs text-gold-300/90 font-medium">{t.hero.quoteAttrib}</p>
+                <p className="text-base sm:text-xl text-gold-300 italic leading-relaxed font-light">{t.hero.quote}</p>
+                <p className="mt-2 sm:mt-2.5 text-xs sm:text-sm text-gold-300/80 font-medium">{t.hero.quoteAttrib}</p>
               </div>
 
               <p
@@ -935,7 +935,7 @@ export default function Home() {
               </p>
 
               <div
-                className="reveal flex flex-col sm:flex-row gap-3 justify-center mb-4"
+                className="reveal flex flex-col sm:flex-row gap-2.5 sm:gap-3 justify-center mb-6 sm:mb-4"
                 data-variant="up"
                 style={{ transitionDelay: '0.55s' }}
               >
@@ -943,7 +943,7 @@ export default function Home() {
                   href="/auth/register"
                   whileHover={reduce ? {} : { scale: 1.02 }}
                   whileTap={reduce ? {} : { scale: 0.98 }}
-                  className={ctaPrimaryClass}
+                  className="flex items-center justify-center gap-2 px-6 sm:px-8 py-3 sm:py-3.5 bg-gradient-to-r from-gold-500 to-gold-600 hover:from-gold-400 hover:to-gold-500 text-gray-950 font-semibold rounded-xl shadow-xl shadow-gold-500/25 transition-all text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-950 h-12 sm:h-auto"
                 >
                   {t.hero.cta1} <ArrowRight className="h-4 w-4 rtl-flip" />
                 </motion.a>
@@ -951,7 +951,7 @@ export default function Home() {
                   href="/auth/login?demo=1"
                   whileHover={reduce ? {} : { scale: 1.02 }}
                   whileTap={reduce ? {} : { scale: 0.98 }}
-                  className="flex items-center justify-center gap-2 px-6 py-3.5 border border-white/20 bg-white/8 hover:bg-white/15 text-white/90 font-medium rounded-xl transition-all text-sm"
+                  className="flex items-center justify-center gap-2 px-6 sm:px-8 py-3 sm:py-3.5 border border-white/20 bg-white/8 hover:bg-white/15 text-white/90 font-medium rounded-xl transition-all text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-950 h-12 sm:h-auto"
                 >
                   🎵 {t.hero.cta2}
                 </motion.a>
@@ -959,7 +959,7 @@ export default function Home() {
                   href="#platform-preview"
                   whileHover={reduce ? {} : { scale: 1.02 }}
                   whileTap={reduce ? {} : { scale: 0.98 }}
-                  className="flex items-center justify-center gap-2 px-6 py-3.5 border border-white/15 text-white/70 hover:text-white hover:border-white/30 font-medium rounded-xl transition-all text-sm"
+                  className="flex items-center justify-center gap-2 px-6 sm:px-8 py-3 sm:py-3.5 border border-white/15 text-white/70 hover:text-white hover:border-white/30 font-medium rounded-xl transition-all text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-950 h-12 sm:h-auto"
                 >
                   {t.hero.cta3} <ArrowRight className="h-4 w-4 rtl-flip" />
                 </motion.a>
