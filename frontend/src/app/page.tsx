@@ -45,8 +45,8 @@ const content = {
     },
     stats: {
       items: [
-        { value: '255+', label: 'Hymns', context: 'Doxologies, Tasbeha, Liturgical Responses, Seasonal', emoji: '🎵' },
-        { value: '10', label: 'Curriculum Levels', context: 'Foundation to Mastery certification', emoji: '📚' },
+        { value: '255+', label: 'Hymns', context: 'Doxology, Tasbeha, Tafshelet, Liturgical responses — with Cantor sources and audio guides', emoji: '🎵' },
+        { value: '10', label: 'Curriculum Levels', context: 'Alphabet to Leadership Training — fully configurable by your church', emoji: '📚' },
         { value: '1,700', label: 'Years of Tradition', context: 'Unbroken heritage, now digitally preserved', emoji: '⛪' },
         { value: '100%', label: 'Free Forever', context: 'No paywalls, no hidden costs, no compromise', emoji: '🎁' },
       ],
@@ -125,8 +125,8 @@ const content = {
         {
           icon: Music,
           title: 'Coptic Hymns',
-          desc: '255+ hymns (Doxologies, Tasbeha, Liturgical Responses, and seasonal hymns) with Coptic script, transliteration, and audio guides. Example: Ⲭⲏⲣⲉ ⲛⲉ Ⲙ̀ⲁⲣⲓⲁ (Khere ne Maria)',
-          list: ['Doxologies', 'Tasbeha hymns', 'Seasonal hymns', 'Liturgical responses'],
+          desc: '255+ hymns (Doxology, Tasbeha, Tafshelet, and Liturgical responses) with Coptic script, transliteration, and audio guides sourced from trusted Cantors. Example: Ⲭⲏⲣⲉ ⲛⲉ Ⲙ̀ⲁⲣⲓⲁ (Khere ne Maria)',
+          list: ['Doxology', 'Tasbeha', 'Tafshelet', 'Liturgical responses'],
         },
         {
           icon: Cross,
@@ -257,8 +257,8 @@ const content = {
     },
     stats: {
       items: [
-        { value: '+255', label: 'ترنيمة', context: 'دوكسولوجيا وتسبحة وردود وتراتيل موسمية', emoji: '🎵' },
-        { value: '10', label: 'مستويات تعليمية', context: 'من الأساسيات إلى الاعتماد', emoji: '📚' },
+        { value: '+255', label: 'ترنيمة', context: 'دوكسولوجيا وتسبحة وتفشيلة وردود ليتورجية — مع مصادر القنديل والأدلة الصوتية', emoji: '🎵' },
+        { value: '10', label: 'مستويات تعليمية', context: 'من الأبجدية إلى تدريب القيادة — قابلة للتخصيص بالكامل من قبل كنيستك', emoji: '📚' },
         { value: '1,700', label: 'سنة من التراث', context: 'تراث متواصل محفوظ رقمياً', emoji: '⛪' },
         { value: '100%', label: 'مجاني للأبد', context: 'بدون جدران دفع أو رسوم خفية', emoji: '🎁' },
       ],
@@ -337,8 +337,8 @@ const content = {
         {
           icon: Music,
           title: 'التراتيب القبطية',
-          desc: '+255 ترنيمة (الدوكسولوجيا والتسبحة والردود الليتورجية والتراتيب الموسمية) مع النص القبطي والتحويل الصوتي والأدلة الصوتية. مثال: Ⲭⲏⲣⲉ ⲛⲉ Ⲙ̀ⲁⲣⲓⲁ (خيري ني ماريا)',
-          list: ['الدوكسولوجيا', 'تراتيب التسبحة', 'التراتيب الموسمية', 'الردود الليتورجية'],
+          desc: '+255 ترنيمة (الدوكسولوجيا والتسبحة والتفشيلة والردود الليتورجية) مع النص القبطي والتحويل الصوتي والأدلة الصوتية من القناديل الموثوقين. مثال: Ⲭⲏⲣⲉ ⲛⲉ Ⲙ̀ⲁⲣⲓⲁ (خيري ني ماريا)',
+          list: ['الدوكسولوجيا', 'التسبحة', 'التفشيلة', 'الردود الليتورجية'],
         },
         {
           icon: Cross,
