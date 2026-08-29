@@ -696,6 +696,24 @@ export default function GamificationPage() {
   const [transactionsLoading, setTransactionsLoading] = useState(false)
   const [transactionsLoadingMore, setTransactionsLoadingMore] = useState(false)
 
+  // XP management
+  const [showXpManagement, setShowXpManagement] = useState(false)
+  const [xpManagementStudent, setXpManagementStudent] = useState<LeaderboardEntry | null>(null)
+  const [xpInfo, setXpInfo] = useState<any>(null)
+  const [xpInfoLoading, setXpInfoLoading] = useState(false)
+  const [amendAmount, setAmendAmount] = useState('')
+  const [amendReason, setAmendReason] = useState('')
+  const [resetReason, setResetReason] = useState('')
+  const [amendError, setAmendError] = useState('')
+  const [amending, setAmending] = useState(false)
+  const [resetting, setResetting] = useState(false)
+  const [xpManagementTab, setXpManagementTab] = useState<'info' | 'amend' | 'reset'>('info')
+
+  // Badge students view
+  const [showBadgeStudents, setShowBadgeStudents] = useState(false)
+  const [badgeStudentsData, setBadgeStudentsData] = useState<any>(null)
+  const [badgeStudentsLoading, setBadgeStudentsLoading] = useState(false)
+
   const schoolId = getSchoolId()
 
   const fetchLeaderboard = useCallback(async () => {
@@ -741,6 +759,69 @@ export default function GamificationPage() {
       setTransactions(data.items || []); setTransactionsTotal(data.total || 0)
     } catch { /* ignore */ }
     setTransactionsLoading(false)
+  }
+
+  const openXpManagement = async (entry: LeaderboardEntry) => {
+    setXpManagementStudent(entry)
+    setXpManagementTab('info')
+    setAmendAmount('')
+    setAmendReason('')
+    setResetReason('')
+    setAmendError('')
+    setXpInfoLoading(true)
+    setShowXpManagement(true)
+    try {
+      const data = await http.get<any>(`/gamification/students/${entry.id}/xp-info`)
+      setXpInfo(data)
+    } catch (e: any) {
+      setAmendError(friendlyError(e, lang))
+      setXpInfo(null)
+    }
+    setXpInfoLoading(false)
+  }
+
+  const handleAmendXp = async () => {
+    if (!xpManagementStudent) return
+    setAmendError('')
+    const amount = Number(amendAmount)
+    if (!Number.isInteger(amount)) { setAmendError(t('Amount must be a whole number', 'يجب أن يكون المبلغ رقماً صحيحاً')); return }
+    if (!amendReason.trim()) { setAmendError(t('Reason is required', 'السبب مطلوب')); return }
+    setAmending(true)
+    try {
+      await http.put(`/gamification/students/${xpManagementStudent.id}/xp`, { amount, reason: amendReason })
+      toast('success', t('XP amended successfully', 'تم تعديل نقاط الخبرة'))
+      setAmendAmount('')
+      setAmendReason('')
+      await openXpManagement(xpManagementStudent)
+      fetchLeaderboard(); fetchStats()
+    } catch (e: any) { setAmendError(friendlyError(e, lang)) }
+    setAmending(false)
+  }
+
+  const handleResetXp = async () => {
+    if (!xpManagementStudent) return
+    setAmendError('')
+    if (!resetReason.trim()) { setAmendError(t('Reason is required', 'السبب مطلوب')); return }
+    setResetting(true)
+    try {
+      await http.delete(`/gamification/students/${xpManagementStudent.id}/xp`, { reason: encodeURIComponent(resetReason) })
+      toast('success', t('All XP deleted for student', 'تم حذف جميع نقاط الخبرة للطالب'))
+      setResetReason('')
+      setShowXpManagement(false)
+      fetchLeaderboard(); fetchStats()
+    } catch (e: any) { setAmendError(friendlyError(e, lang)) }
+    setResetting(false)
+  }
+
+  const openBadgeStudents = async (badgeId: string) => {
+    setBadgeStudentsLoading(true)
+    setBadgeStudentsData(null)
+    setShowBadgeStudents(true)
+    try {
+      const data = await http.get<any>(`/gamification/badges/${badgeId}/students`)
+      setBadgeStudentsData(data)
+    } catch { /* ignore */ }
+    setBadgeStudentsLoading(false)
   }
 
   const loadMoreTransactions = async () => {
@@ -939,6 +1020,9 @@ export default function GamificationPage() {
                       <Button variant="outline" size="sm" onClick={() => openDrillDown(growthStudent)}>
                         <Eye className="h-3.5 w-3.5" /> {t('XP Log', 'سجل XP')}
                       </Button>
+                      <Button variant="outline" size="sm" onClick={() => openXpManagement(growthStudent)} className="text-blue-600 hover:bg-blue-50">
+                        <Zap className="h-3.5 w-3.5" /> {t('Manage', 'إدارة')}
+                      </Button>
                     </div>
                   </div>
                   <GrowthMirrorPanel entry={growthStudent} lang={lang} />
@@ -997,10 +1081,10 @@ export default function GamificationPage() {
               {filteredBadges.map(badge => {
                 const Icon = ICON_MAP[badge.iconUrl]
                 return (
-                  <div key={badge.id} className={`rounded-xl border p-4 transition-all hover:shadow-sm ${CATEGORY_COLORS[badge.category] || CATEGORY_COLORS.default}`}>
+                  <button key={badge.id} onClick={() => openBadgeStudents(badge.id)} className={`rounded-xl border p-4 transition-all hover:shadow-lg hover:border-gold-300 text-left group ${CATEGORY_COLORS[badge.category] || CATEGORY_COLORS.default}`}>
                     <div className="flex items-start justify-between">
                       <div className="text-2xl">{Icon ? <Icon className="h-7 w-7" /> : (badge.iconUrl || '🏅')}</div>
-                      <div className="flex items-center gap-1">
+                      <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
                         <Button variant="ghost" size="icon" onClick={() => { setBadgeToEdit(badge); setEditBadgeForm({ name: badge.name, description: badge.description || '', category: badge.category, iconUrl: badge.iconUrl || '', points: String(badge.points) }); setEditBadgeFormError(''); setShowEditBadge(true) }} className="text-gray-500 hover:bg-amber-50 hover:text-amber-600"><Pencil className="h-3.5 w-3.5" /></Button>
                         <Button variant="ghost" size="icon" onClick={() => { setBadgeToDelete(badge); setShowDeleteBadge(true) }} className="text-gray-500 hover:bg-red-50 hover:text-red-600"><Trash2 className="h-3.5 w-3.5" /></Button>
                       </div>
@@ -1011,7 +1095,7 @@ export default function GamificationPage() {
                       <UIBadge variant="outline" size="sm">{categoryLabel(badge.category)}</UIBadge>
                       <span className="text-xs font-semibold text-gray-600">{badge.points} pts</span>
                     </div>
-                  </div>
+                  </button>
                 )
               })}
             </div>
@@ -1093,6 +1177,125 @@ export default function GamificationPage() {
         }
       </Modal>
 
+      {/* XP Management Modal */}
+      <Modal open={showXpManagement} onClose={() => { setShowXpManagement(false); setXpInfo(null); setAmendError(''); setAmendAmount(''); setAmendReason(''); setResetReason('') }}
+        title={xpManagementStudent ? `${t('Manage XP', 'إدارة نقاط الخبرة')} — ${xpManagementStudent.firstName} ${xpManagementStudent.lastName}` : ''} size="lg">
+        <div className="space-y-4">
+          {/* Tab selection */}
+          <div className="flex gap-2 border-b border-gray-200">
+            <button onClick={() => setXpManagementTab('info')} className={`px-4 py-2 text-sm font-medium border-b-2 ${xpManagementTab === 'info' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-600 hover:text-gray-900'}`}>
+              {t('Information', 'معلومات')}
+            </button>
+            <button onClick={() => setXpManagementTab('amend')} className={`px-4 py-2 text-sm font-medium border-b-2 ${xpManagementTab === 'amend' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-600 hover:text-gray-900'}`}>
+              {t('Adjust', 'تعديل')}
+            </button>
+            <button onClick={() => setXpManagementTab('reset')} className={`px-4 py-2 text-sm font-medium border-b-2 ${xpManagementTab === 'reset' ? 'border-red-600 text-red-600' : 'border-transparent text-gray-600 hover:text-gray-900'}`}>
+              {t('Delete All', 'حذف الكل')}
+            </button>
+          </div>
+
+          {amendError && <div className="rounded-lg bg-red-50 border border-red-200 p-3 text-sm text-red-700">{amendError}</div>}
+
+          {/* Info tab */}
+          {xpManagementTab === 'info' && (
+            <div className="space-y-3">
+              {xpInfoLoading ? (
+                <div className="py-8 space-y-3"><Skeleton className="h-6 w-40" /><Skeleton className="h-20 w-full" /><Skeleton className="h-4 w-full" /></div>
+              ) : xpInfo ? (
+                <>
+                  <div className="grid grid-cols-3 gap-3">
+                    <div className="rounded-lg bg-blue-50 border border-blue-100 p-3 text-center">
+                      <div className="text-2xl font-black text-blue-600">{xpInfo.totalXp.toLocaleString()}</div>
+                      <div className="text-xs text-blue-700 font-semibold">{t('Total XP', 'إجمالي XP')}</div>
+                    </div>
+                    <div className="rounded-lg bg-purple-50 border border-purple-100 p-3 text-center">
+                      <div className="text-2xl font-black text-purple-600">{xpInfo.level}</div>
+                      <div className="text-xs text-purple-700 font-semibold">{t('Level', 'المستوى')}</div>
+                    </div>
+                    <div className="rounded-lg bg-amber-50 border border-amber-100 p-3 text-center">
+                      <div className="text-2xl font-black text-amber-600">{xpInfo.transactionCount}</div>
+                      <div className="text-xs text-amber-700 font-semibold">{t('Transactions', 'المعاملات')}</div>
+                    </div>
+                  </div>
+                  {xpInfo.recentTransactions.length > 0 && (
+                    <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+                      <h4 className="text-sm font-bold text-gray-900 mb-3">{t('Recent Transactions', 'المعاملات الأخيرة')}</h4>
+                      <div className="space-y-2 max-h-48 overflow-y-auto">
+                        {xpInfo.recentTransactions.map((tx: any) => (
+                          <div key={tx.id} className="flex items-center justify-between rounded-lg bg-white p-2 text-xs">
+                            <div className="flex-1 min-w-0">
+                              <div className="font-medium text-gray-900 truncate">{TX_LABELS[tx.type] || tx.description || 'XP'}</div>
+                              <div className="text-gray-500">{new Date(tx.createdAt).toLocaleString()}</div>
+                            </div>
+                            <div className="text-right shrink-0 ml-2">
+                              <div className={`font-semibold ${tx.amount >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                {tx.amount >= 0 ? '+' : ''}{tx.amount}
+                              </div>
+                              <div className="text-gray-500">{t('Bal:', 'ر:')} {tx.balanceAfter}</div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <p className="text-center py-6 text-gray-500">{t('Unable to load XP information', 'تعذر تحميل معلومات XP')}</p>
+              )}
+            </div>
+          )}
+
+          {/* Amend tab */}
+          {xpManagementTab === 'amend' && (
+            <div className="space-y-4">
+              <div className="rounded-lg bg-blue-50 border border-blue-100 p-3 text-sm text-blue-800">
+                <p className="font-semibold">{t('Adjust Student XP', 'تعديل نقاط الخبرة')}</p>
+                <p className="text-blue-700 text-xs mt-1">{t('Enter a positive number to add XP or a negative number to subtract.', 'أدخل رقماً موجباً لإضافة نقاط أو سالباً للطرح.')}</p>
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1.5">{t('Amount', 'المبلغ')} *</label>
+                <input type="number" value={amendAmount} onChange={e => setAmendAmount(e.target.value)} placeholder={t('e.g., 50 or -25', 'مثال: 50 أو -25')}
+                  className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1.5">{t('Reason', 'السبب')} *</label>
+                <textarea value={amendReason} onChange={e => setAmendReason(e.target.value)} placeholder={t('Why is this adjustment being made?', 'لماذا يتم هذا التعديل؟')}
+                  className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 min-h-20" />
+              </div>
+              <div className="flex gap-2 justify-end">
+                <Button variant="outline" onClick={() => setXpManagementTab('info')}>{t('Back', 'رجوع')}</Button>
+                <Button onClick={handleAmendXp} disabled={amending || !amendAmount || !amendReason.trim()}>
+                  {amending && <Loader2 className="h-4 w-4 animate-spin" />}
+                  {t('Apply Adjustment', 'تطبيق التعديل')}
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* Reset tab */}
+          {xpManagementTab === 'reset' && (
+            <div className="space-y-4">
+              <div className="rounded-lg bg-red-50 border border-red-200 p-3 text-sm text-red-800">
+                <p className="font-semibold">{t('Delete All XP', 'حذف جميع نقاط الخبرة')}</p>
+                <p className="text-red-700 text-xs mt-1">{t('This permanently removes all XP transactions for this student. This action cannot be undone.', 'سيؤدي هذا إلى حذف جميع معاملات نقاط الخبرة للطالب بشكل دائم. لا يمكن التراجع عن هذا الإجراء.')}</p>
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1.5">{t('Confirmation Reason', 'سبب التأكيد')} *</label>
+                <textarea value={resetReason} onChange={e => setResetReason(e.target.value)} placeholder={t('Why is all XP being deleted?', 'لماذا يتم حذف جميع نقاط الخبرة؟')}
+                  className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-500/20 min-h-20" />
+              </div>
+              <div className="flex gap-2 justify-end">
+                <Button variant="outline" onClick={() => setXpManagementTab('info')}>{t('Cancel', 'إلغاء')}</Button>
+                <Button variant="danger" onClick={handleResetXp} disabled={resetting || !resetReason.trim()}>
+                  {resetting && <Loader2 className="h-4 w-4 animate-spin" />}
+                  {t('Delete All XP', 'حذف الكل')}
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
+      </Modal>
+
       {/* Reset confirm */}
       <ConfirmDialog open={showResetConfirm} onClose={() => { setShowResetConfirm(false); setResetConfirmText('') }}
         onConfirm={handleResetLeaderboard} title={t('Reset Leaderboard', 'إعادة تعيين')}
@@ -1132,6 +1335,77 @@ export default function GamificationPage() {
             </select>
           </div>
         </div>
+      </Modal>
+
+      {/* Badge Students Modal */}
+      <Modal open={showBadgeStudents} onClose={() => { setShowBadgeStudents(false); setBadgeStudentsData(null) }} size="lg"
+        title={badgeStudentsData ? badgeStudentsData.badge.name : ''}>
+        {badgeStudentsLoading ? (
+          <div className="py-8 space-y-3"><Skeleton className="h-6 w-40" /><Skeleton className="h-32 w-full" /><Skeleton className="h-4 w-full" /></div>
+        ) : badgeStudentsData ? (
+          <div className="space-y-4">
+            {/* Badge info */}
+            <div className="rounded-lg bg-gradient-to-br from-blue-50 to-purple-50 border border-blue-100 p-4">
+              <div className="flex items-start gap-4">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-white border border-blue-200">
+                  {(() => {
+                    const Icon = ICON_MAP[badgeStudentsData.badge.iconUrl]
+                    return Icon ? <Icon className="h-6 w-6 text-blue-600" /> : <span className="text-2xl">🏅</span>
+                  })()}
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-sm font-bold text-gray-900">{badgeStudentsData.badge.name}</h3>
+                  <p className="text-xs text-gray-600 mt-1">{badgeStudentsData.badge.description}</p>
+                  <div className="flex items-center gap-4 mt-3 flex-wrap">
+                    <div>
+                      <div className="text-lg font-black text-blue-600">{badgeStudentsData.totalStudents}</div>
+                      <div className="text-xs text-gray-600">{t('Students earned', 'طالب حصل عليها')}</div>
+                    </div>
+                    <div>
+                      <div className="text-lg font-black text-purple-600">{badgeStudentsData.badge.xpReward}</div>
+                      <div className="text-xs text-gray-600">{t('XP reward', 'مكافأة XP')}</div>
+                    </div>
+                    <div>
+                      <div className="text-lg font-black text-amber-600">{categoryLabel(badgeStudentsData.badge.category)}</div>
+                      <div className="text-xs text-gray-600">{t('Category', 'التصنيف')}</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Students list */}
+            {badgeStudentsData.students.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-12 rounded-lg bg-gray-50 border border-dashed border-gray-200">
+                <Award className="h-8 w-8 text-gray-300 mb-2" />
+                <p className="text-sm text-gray-600">{t('No students have earned this badge yet', 'لم ينل أي طالب هذه الشارة بعد')}</p>
+              </div>
+            ) : (
+              <div className="rounded-lg border border-gray-200 bg-white overflow-hidden">
+                <div className="max-h-96 overflow-y-auto divide-y divide-gray-100">
+                  {badgeStudentsData.students.map((student: any, idx: number) => (
+                    <div key={student.studentId} className="flex items-center justify-between p-3 hover:bg-gray-50 transition-colors">
+                      <div className="flex items-center gap-3 flex-1 min-w-0">
+                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-100 text-xs font-bold text-blue-600">
+                          {idx + 1}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="text-sm font-medium text-gray-900 truncate">{student.firstName} {student.lastName}</div>
+                          <div className="text-xs text-gray-500">{new Date(student.awardedAt).toLocaleDateString()}</div>
+                        </div>
+                      </div>
+                      <Button variant="outline" size="sm" onClick={() => { setGrowthStudent(leaderboard.find(s => s.id === student.studentId) || null); setShowBadgeStudents(false) }} className="shrink-0">
+                        {t('View', 'عرض')}
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        ) : (
+          <p className="text-center py-6 text-gray-500">{t('Unable to load badge information', 'تعذر تحميل معلومات الشارة')}</p>
+        )}
       </Modal>
     </div>
   )

@@ -1,4 +1,25 @@
-import { IsString, IsOptional, IsUUID, IsInt, IsObject, Min, IsNotEmpty, MinLength } from 'class-validator';
+import { IsString, IsOptional, IsUUID, IsInt, IsObject, Min, IsNotEmpty, MinLength, ValidateNested } from 'class-validator';
+import { Type } from 'class-transformer';
+
+class BadgeCriteriaDto {
+  @IsString()
+  rule: string;
+
+  @IsOptional()
+  count?: number;
+
+  @IsOptional()
+  weeks?: number;
+
+  @IsOptional()
+  points?: number;
+
+  @IsOptional()
+  percent?: number;
+
+  @IsOptional()
+  xp?: number;
+}
 
 export class UpdateBadgeDto {
   @IsOptional()
@@ -18,8 +39,9 @@ export class UpdateBadgeDto {
   iconUrl?: string;
 
   @IsOptional()
-  @IsObject()
-  criteria?: Record<string, any>;
+  @ValidateNested()
+  @Type(() => BadgeCriteriaDto)
+  criteria?: BadgeCriteriaDto;
 
   @IsOptional()
   @IsInt()
@@ -43,8 +65,9 @@ export class CreateBadgeDto {
   iconUrl?: string;
 
   @IsOptional()
-  @IsObject()
-  criteria?: Record<string, any>;
+  @ValidateNested()
+  @Type(() => BadgeCriteriaDto)
+  criteria?: BadgeCriteriaDto;
 
   @IsInt()
   @Min(0)
@@ -79,4 +102,21 @@ export class AddXpDto {
   @IsNotEmpty({ message: 'A reason for the award is required' })
   @MinLength(3, { message: 'Reason must be at least 3 characters' })
   description: string;
+}
+
+export class AmendXpDto {
+  @IsInt()
+  amount: number;
+
+  @IsString()
+  @IsNotEmpty({ message: 'A reason for the amendment is required' })
+  @MinLength(3, { message: 'Reason must be at least 3 characters' })
+  reason: string;
+}
+
+export class ResetStudentXpDto {
+  @IsString()
+  @IsNotEmpty({ message: 'A confirmation reason is required' })
+  @MinLength(3, { message: 'Reason must be at least 3 characters' })
+  reason: string;
 }
