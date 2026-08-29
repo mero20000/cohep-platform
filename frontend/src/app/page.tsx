@@ -1184,15 +1184,28 @@ export default function Home() {
             <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4 mb-16">
               {t.curriculum.levels.map((level, i) => (
                 <FadeIn key={level.range} delay={i * 0.1} className="h-full">
-                  <div className="h-full group relative overflow-hidden rounded-2xl border border-gray-700 bg-gray-800/60 p-5 transition-all hover:border-gold-500/40 hover:bg-gray-800 hover:-translate-y-1 flex flex-col">
-                    <div className="absolute -right-8 -top-8 h-24 w-24 rounded-full bg-gold-500/10 blur-xl transition-opacity group-hover:opacity-50" />
+                  <motion.div
+                    whileHover={reduce ? {} : { y: -4, scale: 1.02 }}
+                    transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+                    className="h-full group relative overflow-hidden rounded-2xl border border-gray-700 bg-gray-800/60 p-5 hover:border-gold-500/40 hover:bg-gray-800 flex flex-col cursor-pointer"
+                  >
+                    <motion.div
+                      className="absolute -right-8 -top-8 h-24 w-24 rounded-full bg-gold-500/10 blur-xl"
+                      animate={{ opacity: [0.3, 0.5, 0.3] }}
+                      transition={{ duration: 4, repeat: Infinity }}
+                    />
                     <div className="relative">
-                      <level.icon className="h-8 w-8 text-gold-400 mb-3" />
+                      <motion.div
+                        whileHover={reduce ? {} : { scale: 1.2, rotate: 10 }}
+                        transition={{ type: 'spring', stiffness: 300, damping: 15 }}
+                      >
+                        <level.icon className="h-8 w-8 text-gold-400 mb-3" />
+                      </motion.div>
                       <p className="text-xs font-bold text-gold-400 uppercase tracking-wider">{isAr ? 'مستوى' : 'Level'} {level.range}</p>
-                      <h3 className="mt-1.5 text-lg font-bold text-white">{level.title}</h3>
-                      <p className="mt-1.5 text-sm text-gray-400 leading-relaxed">{level.desc}</p>
+                      <h3 className="mt-1.5 text-lg font-bold text-white group-hover:text-gold-300 transition-colors">{level.title}</h3>
+                      <p className="mt-1.5 text-sm text-gray-400 group-hover:text-gray-300 leading-relaxed transition-colors">{level.desc}</p>
                     </div>
-                  </div>
+                  </motion.div>
                 </FadeIn>
               ))}
             </div>
@@ -1206,21 +1219,33 @@ export default function Home() {
             <div className="grid gap-5 lg:grid-cols-3">
               {t.pillars.items.map((p, i) => (
                 <FadeIn key={p.title} delay={i * 0.1} className={i === 0 ? 'lg:col-span-1 lg:row-span-2 h-full' : 'lg:col-span-2 h-full'}>
-                  <div className={`h-full rounded-2xl border flex flex-col ${i === 0 ? 'border-gold-500/30 bg-gradient-to-br from-gold-500/15 via-gray-800/60 to-gray-800/60 p-8' : 'border-gray-700 bg-gray-800/60 p-7'}`}>
-                    <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-gold-400 to-gold-600 text-white shadow-lg shadow-gold-500/20 mb-4">
+                  <motion.div
+                    whileHover={reduce ? {} : { y: -3, scale: 1.01 }}
+                    transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+                    className={`h-full rounded-2xl border flex flex-col cursor-pointer group hover:shadow-lg transition-all ${
+                      i === 0
+                        ? 'border-gold-500/30 bg-gradient-to-br from-gold-500/15 via-gray-800/60 to-gray-800/60 p-8 hover:border-gold-500/50'
+                        : 'border-gray-700 bg-gray-800/60 p-7 hover:border-gold-600'
+                    }`}
+                  >
+                    <motion.div
+                      whileHover={reduce ? {} : { scale: 1.15, rotate: 5 }}
+                      transition={{ type: 'spring', stiffness: 300, damping: 15 }}
+                      className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-gold-400 to-gold-600 text-white shadow-lg shadow-gold-500/20 mb-4"
+                    >
                       <p.icon className="h-6 w-6" />
-                    </div>
-                    <h3 className={`font-bold text-white ${i === 0 ? 'text-xl' : 'text-lg'}`}>{p.title}</h3>
-                    <p className="mt-2 text-sm leading-relaxed text-gray-400 flex-1">{p.desc}</p>
+                    </motion.div>
+                    <h3 className={`font-bold text-white group-hover:text-gold-300 transition-colors ${i === 0 ? 'text-xl' : 'text-lg'}`}>{p.title}</h3>
+                    <p className="mt-2 text-sm leading-relaxed text-gray-400 group-hover:text-gray-300 transition-colors flex-1">{p.desc}</p>
                     <ul className={`mt-4 space-y-1.5 ${i === 0 ? '' : 'flex flex-wrap gap-x-6 gap-y-1.5'}`}>
                       {p.list.map(item => (
-                        <li key={item} className="flex items-center gap-2 text-xs text-gray-400">
+                        <li key={item} className="flex items-center gap-2 text-xs text-gray-400 group-hover:text-gray-300 transition-colors">
                           <CheckCircle2 className="h-3.5 w-3.5 text-gold-700 flex-shrink-0" />
                           {item}
                         </li>
                       ))}
                     </ul>
-                  </div>
+                  </motion.div>
                 </FadeIn>
               ))}
             </div>
