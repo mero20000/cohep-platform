@@ -20,6 +20,15 @@
         ],
         "createdAt": "2026-08-29T19:16:58.503Z",
         "reason": "pre-existing code unmodified by this change (file-picker button hover state, text-gray-600 hover:bg-blue-50) - out of scope for import validation feature work"
+      },
+      {
+        "rule": "side-tab",
+        "value": "*",
+        "files": [
+          "frontend/src/app/dashboard/students/_components/student-table.tsx"
+        ],
+        "createdAt": "2026-08-29T19:27:40.073Z",
+        "reason": "pre-existing border-s-4 status-bar styling predates this session's tags/status-toggle work; unrelated to today's feature changes, out of scope to redesign here"
       }
     ]
   }
