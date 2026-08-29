@@ -1038,12 +1038,22 @@ export default function Home() {
             <div className="grid grid-cols-2 gap-6 lg:grid-cols-4">
               {t.stats.items.map((s, i) => (
                 <FadeIn key={s.label} delay={i * 0.06} className="text-center">
-                  <div className="flex items-center justify-center mb-2">
-                    <span className="text-3xl">{s.emoji}</span>
-                  </div>
-                  <div className="text-3xl sm:text-4xl font-bold tracking-tight text-gold-600">{s.value}</div>
-                  <p className="mt-1 text-xs sm:text-sm font-semibold text-gray-800">{s.label}</p>
-                  <p className="mt-1.5 text-[11px] sm:text-xs text-gray-500 leading-snug">{s.context}</p>
+                  <motion.div
+                    whileHover={reduce ? {} : { y: -2, scale: 1.02 }}
+                    transition={{ type: 'spring', stiffness: 400, damping: 20 }}
+                    className="rounded-lg p-4 transition-colors hover:bg-white hover:shadow-sm"
+                  >
+                    <motion.div
+                      whileHover={reduce ? {} : { scale: 1.15, rotate: 5 }}
+                      transition={{ type: 'spring', stiffness: 300, damping: 15 }}
+                      className="flex items-center justify-center mb-2"
+                    >
+                      <span className="text-3xl">{s.emoji}</span>
+                    </motion.div>
+                    <div className="text-3xl sm:text-4xl font-bold tracking-tight text-gold-600">{s.value}</div>
+                    <p className="mt-1 text-xs sm:text-sm font-semibold text-gray-800">{s.label}</p>
+                    <p className="mt-1.5 text-[11px] sm:text-xs text-gray-500 leading-snug">{s.context}</p>
+                  </motion.div>
                 </FadeIn>
               ))}
             </div>
@@ -1074,23 +1084,37 @@ export default function Home() {
                 <FadeIn key={card.title} delay={i * 0.05} className="h-full">
                   <div className="grid items-center gap-8 lg:grid-cols-2 lg:gap-12">
                     <div className={i % 2 === 1 ? 'lg:order-2' : ''}>
-                      <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-gold-400 to-gold-600 text-white shadow-lg shadow-gold-200/50">
+                      <motion.div
+                        whileHover={reduce ? {} : { scale: 1.1, rotate: -5 }}
+                        transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+                        className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-gold-400 to-gold-600 text-white shadow-lg shadow-gold-200/50 cursor-pointer"
+                      >
                         <card.icon className="h-7 w-7" />
-                      </div>
+                      </motion.div>
                       <p className="mt-5 text-xs font-semibold uppercase tracking-wider text-gold-700">{card.sub}</p>
                       <h3 className="mt-2 text-2xl sm:text-3xl font-bold tracking-tight text-gray-900">{card.title}</h3>
                       <p className="mt-3 text-base leading-relaxed text-gray-600">{card.desc}</p>
                     </div>
-                    <div className="rounded-2xl border border-gray-200 bg-gray-50 p-6 sm:p-8">
+                    <motion.div
+                      whileHover={reduce ? {} : { y: -4, boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)' }}
+                      transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+                      className="rounded-2xl border border-gray-200 bg-gray-50 p-6 sm:p-8 hover:border-gold-300 transition-colors"
+                    >
                       <ul className="space-y-3.5">
-                        {card.features.map(f => (
-                          <li key={f} className="flex items-start gap-3 text-sm sm:text-base text-gray-700">
+                        {card.features.map((f, j) => (
+                          <motion.li
+                            key={f}
+                            initial={{ opacity: 0, x: -10 }}
+                            whileInView={{ opacity: 1, x: 0 }}
+                            transition={{ delay: j * 0.05, duration: 0.3 }}
+                            className="flex items-start gap-3 text-sm sm:text-base text-gray-700"
+                          >
                             <CheckCircle2 className="h-5 w-5 text-gold-700 flex-shrink-0 mt-0.5" />
                             {f}
-                          </li>
+                          </motion.li>
                         ))}
                       </ul>
-                    </div>
+                    </motion.div>
                   </div>
                 </FadeIn>
               ))}
