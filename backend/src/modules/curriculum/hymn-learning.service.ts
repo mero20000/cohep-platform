@@ -361,12 +361,21 @@ export class HymnLearningService {
           select: {
             status: true, masteryStatus: true, srRepetitions: true,
             progressPercent: true, nextReviewAt: true, lastAccessedAt: true,
+            // Clergy write these three; no student endpoint returned any of them, so a
+            // student was never told they had been cleared to sing in the liturgy.
+            isReadyForLiturgy: true, readyForLiturgyAt: true, clergyNotes: true,
           },
         } as any,
+        // Narrowing to audio+video made a PDF of lyrics or notation attached to a lesson
+        // invisible to the student by construction. Documents are what a student reads
+        // while practising, so they are the last thing that should be filtered out.
         resources: {
-          where: { deletedAt: null, type: { in: ['audio', 'video'] } },
-          select: { id: true, type: true, fileUrl: true, language: true, durationSeconds: true },
-          take: 3,
+          where: { deletedAt: null },
+          select: {
+            id: true, type: true, title: true, titleAr: true, fileUrl: true,
+            language: true, durationSeconds: true, isDownloadable: true,
+          },
+          orderBy: { orderIndex: 'asc' },
         },
         subjectItem: {
           select: { id: true, name: true, recordingUrl: true, recordingMeta: true },
@@ -394,7 +403,19 @@ export class HymnLearningService {
       estimatedDurationMinutes: l.estimatedDurationMinutes,
       liturgicalTags: l.liturgicalTags,
       resources: l.resources,
-      audioUrl: (l as any).audioUrl ?? l.resources[0]?.fileUrl ?? null,
+      // resources is no longer audio-only, so the reference recording has to be found by
+      // type rather than by taking the first row.
+      audioUrl: (l as any).audioUrl ?? l.resources.find(r => r.type === 'audio')?.fileUrl ?? null,
+      // A student was previously given a single audio file and no text of any kind — no
+      // lyrics, no Coptic, no transliteration, no pronunciation guide. These four columns
+      // existed on the lesson all along and were never surfaced.
+      description: l.description,
+      descriptionAr: l.descriptionAr,
+      requiredMemorization: l.requiredMemorization,
+      requiredMemorizationAr: l.requiredMemorizationAr,
+      objectives: l.objectives,
+      objectivesAr: l.objectivesAr,
+      presentationUrl: l.presentationUrl,
       progress: (l.lessonProgress as any[])[0] ?? null,
       referenceRecordingUrl: (l as any).subjectItem?.recordingUrl ?? null,
       referenceRecordingName: (l as any).subjectItem?.recordingMeta?.originalName ?? null,
@@ -416,10 +437,15 @@ export class HymnLearningService {
           include: {
             level: { select: { number: true, name: true } },
             subject: { select: { name: true, color: true } },
+            // The due-for-review path narrowed to a single audio file, so a hymn's lyrics
+            // and notation vanished exactly when the student came back to revise it.
             resources: {
-              where: { deletedAt: null, type: 'audio' },
-              take: 1,
-              select: { fileUrl: true, language: true },
+              where: { deletedAt: null },
+              select: {
+                id: true, type: true, title: true, titleAr: true, fileUrl: true,
+                language: true, durationSeconds: true, isDownloadable: true,
+              },
+              orderBy: { orderIndex: 'asc' },
             },
           },
         },
@@ -437,7 +463,13 @@ export class HymnLearningService {
         titleCoptic: p.lesson.titleCoptic,
         level: p.lesson.level,
         subject: p.lesson.subject,
-        audioUrl: (p.lesson as any).audioUrl ?? p.lesson.resources[0]?.fileUrl ?? null,
+        audioUrl: (p.lesson as any).audioUrl ?? p.lesson.resources.find(r => r.type === 'audio')?.fileUrl ?? null,
+        resources: p.lesson.resources,
+        description: p.lesson.description,
+        descriptionAr: p.lesson.descriptionAr,
+        requiredMemorization: p.lesson.requiredMemorization,
+        requiredMemorizationAr: p.lesson.requiredMemorizationAr,
+        presentationUrl: p.lesson.presentationUrl,
       },
       mastery: (p as any).masteryStatus,
       srRepetitions: (p as any).srRepetitions,

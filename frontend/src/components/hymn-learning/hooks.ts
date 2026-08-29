@@ -13,6 +13,10 @@ export interface HymnProgress {
   progressPercent: number
   nextReviewAt: string | null
   lastAccessedAt: string | null
+  /** Clergy clearance to sing this hymn in the liturgy. */
+  isReadyForLiturgy?: boolean
+  readyForLiturgyAt?: string | null
+  clergyNotes?: string | null
 }
 
 export interface HymnMapItem {
@@ -24,10 +28,34 @@ export interface HymnMapItem {
   subject: { id?: string; name: string; color?: string }
   estimatedDurationMinutes?: number
   liturgicalTags?: { seasons?: string[]; weekdayTypes?: string[]; feasts?: string[] }
-  resources: { id: string; type: string; fileUrl: string; language: string; durationSeconds?: number }[]
+  resources: HymnResource[]
   progress: HymnProgress | null
   referenceRecordingUrl?: string | null
   referenceRecordingName?: string | null
+  /**
+   * Lesson text. The backend has always had these columns; none of them reached the
+   * student, which left them learning liturgical chant from one audio file.
+   */
+  description?: string | null
+  descriptionAr?: string | null
+  requiredMemorization?: string | null
+  requiredMemorizationAr?: string | null
+  objectives?: unknown
+  objectivesAr?: unknown
+  presentationUrl?: string | null
+  /** The lesson-level audio column the frontend type never declared. */
+  audioUrl?: string | null
+}
+
+export interface HymnResource {
+  id: string
+  type: string
+  title?: string
+  titleAr?: string | null
+  fileUrl: string
+  language: string
+  durationSeconds?: number
+  isDownloadable?: boolean
 }
 
 export interface DueReviewItem {

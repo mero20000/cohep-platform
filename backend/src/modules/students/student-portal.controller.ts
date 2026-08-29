@@ -13,6 +13,7 @@ import { Throttle } from '@nestjs/throttler';
 import { StudentsService } from './students.service';
 import { HymnLearningService } from '../curriculum/hymn-learning.service';
 import { AssessmentsService } from '../assessments/assessments.service';
+import { ParentsService, STUDENT_SELF } from '../parents/parents.service';
 import { SubmitAssessmentDto } from '../assessments/dto/assessment.dto';
 import { StudentLoginDto } from './dto/student-login.dto';
 import { LogPracticeDto } from './dto/log-practice.dto';
@@ -29,6 +30,7 @@ export class StudentPortalController {
     private readonly studentsService: StudentsService,
     private readonly hymnLearning: HymnLearningService,
     private readonly assessmentsService: AssessmentsService,
+    private readonly parentsService: ParentsService,
     private readonly jwt: JwtService,
   ) {}
 
@@ -220,6 +222,61 @@ export class StudentPortalController {
   ) {
     const student = await this.resolveStudent(code);
     return this.hymnLearning.deletePracticeSession(sessionId, { id: student.id });
+  }
+
+  // ─── The student's own view of themselves ────────────────────────────────
+  // Every route below already existed as a working parent endpoint on the same data.
+  // The parent portal was materially richer than the student's view of their own
+  // formation — an aggregated feed of servant reviews, a streak, XP as a level, a
+  // milestones timeline, a formation archive, a term report — and none of it reached the
+  // child. These are the missing student routes, not missing capability.
+
+  @Get(':code/me/home')
+  @ApiOperation({ summary: 'Aggregated home: recent servant reviews, streak, XP level, current lesson' })
+  async getMyHome(@Param('code') code: string) {
+    const student = await this.resolveStudent(code);
+    return this.parentsService.getChildHome(student.id, STUDENT_SELF);
+  }
+
+  @Get(':code/me/milestones')
+  @ApiOperation({ summary: 'Chronological milestones timeline' })
+  async getMyMilestones(@Param('code') code: string) {
+    const student = await this.resolveStudent(code);
+    return this.parentsService.getMilestones(student.id, STUDENT_SELF);
+  }
+
+  @Get(':code/me/archive')
+  @ApiOperation({ summary: 'Formation archive' })
+  async getMyArchive(@Param('code') code: string) {
+    const student = await this.resolveStudent(code);
+    return this.parentsService.getArchiveData(student.id, STUDENT_SELF);
+  }
+
+  @Get(':code/me/practice-summary')
+  @ApiOperation({ summary: "This week's practice summary, including practice a parent logged" })
+  async getMyPracticeSummary(@Param('code') code: string) {
+    const student = await this.resolveStudent(code);
+    return this.parentsService.getPracticeSummary(student.id, STUDENT_SELF);
+  }
+
+  @Get(':code/me/term-report')
+  @ApiOperation({ summary: 'Term report: attendance across the academic year plus a servant note' })
+  async getMyTermReport(
+    @Param('code') code: string,
+    @Query('term') term?: string,
+    @Query('academicYearId') academicYearId?: string,
+  ) {
+    const student = await this.resolveStudent(code);
+    const parsed = Number(term);
+    const termNumber = Number.isInteger(parsed) && parsed >= 1 && parsed <= 3 ? parsed : 1;
+    return this.parentsService.getTermReport(student.id, termNumber, academicYearId, STUDENT_SELF);
+  }
+
+  @Get(':code/me/liturgy')
+  @ApiOperation({ summary: 'Liturgy attendance records filed for this student' })
+  async getMyLiturgy(@Param('code') code: string) {
+    const student = await this.resolveStudent(code);
+    return this.parentsService.getLiturgyRecords(student.id, STUDENT_SELF);
   }
 
   @Post(':code/recordings')

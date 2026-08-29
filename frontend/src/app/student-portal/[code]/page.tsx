@@ -24,6 +24,7 @@ import { useStudentHymnMap, useStudentThisSunday, useStudentDueReview, useStuden
 import { ThisSundayPanel } from '@/components/hymn-learning/this-sunday'
 import { PracticeRecorder } from '@/components/hymn-learning/practice-recorder'
 import { PracticeHistory } from '@/components/hymn-learning/practice-history'
+import { LessonText } from '@/components/hymn-learning/lesson-text'
 import { MASTERY_META, type HymnMapItem } from '@/components/hymn-learning/hooks'
 
 interface PortalData {
@@ -162,7 +163,9 @@ export default function StudentDashboard() {
 
   // Extract audio URL from resources array
   const getAudioUrl = (hymn: HymnMapItem): string | undefined => {
-    return hymn.resources?.find(r => r.type === 'audio')?.fileUrl ?? undefined
+    // The backend also returns a lesson-level audioUrl, which the frontend type never
+    // declared — so a hymn whose audio lives on the lesson row appeared to have none.
+    return hymn.audioUrl ?? hymn.resources?.find(r => r.type === 'audio')?.fileUrl ?? undefined
   }
 
   const handleSubmitPractice = async (selfRating: number, recordingUrl?: string, durationSec?: number) => {
@@ -1548,6 +1551,10 @@ export default function StudentDashboard() {
                 <AudioPlayer src={assetUrl(practiceLesson.referenceRecordingUrl)} />
               </div>
             )}
+            {/* The words first — a student cannot practise what they cannot read. */}
+            <div className="mt-3">
+              <LessonText hymn={practiceLesson} lang={lang} />
+            </div>
             <PracticeRecorder
               // Remounting is what actually starts a fresh take: it returns the recorder
               // to its idle stage. "Submit again" previously only called window.scrollTo.

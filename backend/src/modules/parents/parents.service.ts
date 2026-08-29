@@ -2,6 +2,15 @@ import { Injectable, NotFoundException, ForbiddenException, HttpException } from
 import { PrismaService } from '../../database/prisma.service';
 import { HymnLearningService } from '../curriculum/hymn-learning.service';
 
+/**
+ * Passed in place of a parent's user id when the student themselves is the caller.
+ *
+ * Deliberately not a valid uuid, so it can never collide with a real User.id and can only
+ * originate from server-side code in this repository — it is never accepted from a
+ * request body, a query parameter or a route parameter.
+ */
+export const STUDENT_SELF = '__student_self__';
+
 @Injectable()
 export class ParentsService {
   constructor(
@@ -1037,6 +1046,13 @@ export class ParentsService {
   }
 
   private async verifyParent(userId: string, studentId: string) {
+    // The student's own view of themselves reuses these aggregations rather than
+    // reimplementing them — the parent portal was materially richer than the student's,
+    // on exactly the same underlying data. There is no parent link to check in that case:
+    // the student-portal guard has already bound the access key to the route and
+    // re-derived the student id from the JWT claim before we get here.
+    if (userId === STUDENT_SELF) return { student: { id: studentId } } as any;
+
     const parent = await this.prisma.user.findUnique({
       where: { id: userId },
       select: { email: true },
