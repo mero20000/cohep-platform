@@ -45,10 +45,10 @@ const content = {
     },
     stats: {
       items: [
-        { value: '255+', label: 'Hymns', context: 'Doxologies, Tasbeha, Liturgical Responses, Seasonal' },
-        { value: '10', label: 'Curriculum Levels', context: 'Foundation to Mastery certification' },
-        { value: '1,700', label: 'Years of Tradition', context: 'Unbroken heritage, now digitally preserved' },
-        { value: '100%', label: 'Free Forever', context: 'No paywalls, no hidden costs, no compromise' },
+        { value: '255+', label: 'Hymns', context: 'Doxologies, Tasbeha, Liturgical Responses, Seasonal', emoji: '🎵' },
+        { value: '10', label: 'Curriculum Levels', context: 'Foundation to Mastery certification', emoji: '📚' },
+        { value: '1,700', label: 'Years of Tradition', context: 'Unbroken heritage, now digitally preserved', emoji: '⛪' },
+        { value: '100%', label: 'Free Forever', context: 'No paywalls, no hidden costs, no compromise', emoji: '🎁' },
       ],
     },
     why: {
@@ -256,10 +256,10 @@ const content = {
     },
     stats: {
       items: [
-        { value: '+255', label: 'ترنيمة', context: 'دوكسولوجيا وتسبحة وردود وتراتيل موسمية' },
-        { value: '10', label: 'مستويات تعليمية', context: 'من الأساسيات إلى الاعتماد' },
-        { value: '1,700', label: 'سنة من التراث', context: 'تراث متواصل محفوظ رقمياً' },
-        { value: '100%', label: 'مجاني للأبد', context: 'بدون جدران دفع أو رسوم خفية' },
+        { value: '+255', label: 'ترنيمة', context: 'دوكسولوجيا وتسبحة وردود وتراتيل موسمية', emoji: '🎵' },
+        { value: '10', label: 'مستويات تعليمية', context: 'من الأساسيات إلى الاعتماد', emoji: '📚' },
+        { value: '1,700', label: 'سنة من التراث', context: 'تراث متواصل محفوظ رقمياً', emoji: '⛪' },
+        { value: '100%', label: 'مجاني للأبد', context: 'بدون جدران دفع أو رسوم خفية', emoji: '🎁' },
       ],
     },
     why: {
@@ -1003,6 +1003,9 @@ export default function Home() {
             <div className="grid grid-cols-2 gap-6 lg:grid-cols-4">
               {t.stats.items.map((s, i) => (
                 <FadeIn key={s.label} delay={i * 0.06} className="text-center">
+                  <div className="flex items-center justify-center mb-2">
+                    <span className="text-3xl">{s.emoji}</span>
+                  </div>
                   <div className="text-3xl sm:text-4xl font-bold tracking-tight text-gold-600">{s.value}</div>
                   <p className="mt-1 text-xs sm:text-sm font-semibold text-gray-800">{s.label}</p>
                   <p className="mt-1.5 text-[11px] sm:text-xs text-gray-500 leading-snug">{s.context}</p>
