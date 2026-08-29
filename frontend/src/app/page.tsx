@@ -1018,6 +1018,19 @@ export default function Home() {
           </div>
         </section>
 
+        {/* ── PHASE TRANSITION (Foundation → Invitation) ─────────────────── */}
+        <section className="bg-gray-50 py-6 sm:py-8 border-t border-gray-200 flex items-center justify-center">
+          <FadeIn>
+            <a
+              href="#audience-heading"
+              className="inline-flex items-center gap-2 px-4 py-2 text-xs sm:text-sm font-medium text-burgundy-700 hover:text-burgundy-900 transition-colors"
+            >
+              {isAr ? 'اكتشف من يخدمه COHEP' : 'Meet the people COHEP serves'}
+              <ArrowRight className="h-4 w-4" />
+            </a>
+          </FadeIn>
+        </section>
+
         {/* ── WHO WE SERVE ──────────────────────────────────────────────── */}
         <section aria-labelledby="audience-heading" className="py-20 sm:py-28 bg-white">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -1069,6 +1082,19 @@ export default function Home() {
               <PreviewCarousel isAr={isAr} />
             </div>
           </div>
+        </section>
+
+        {/* ── PHASE TRANSITION (Invitation → Proof) ──────────────────────── */}
+        <section className="bg-gray-100 py-6 sm:py-8 border-t border-gray-200 flex items-center justify-center">
+          <FadeIn>
+            <a
+              href="#curriculum"
+              className="inline-flex items-center gap-2 px-4 py-2 text-xs sm:text-sm font-medium text-burgundy-700 hover:text-burgundy-900 transition-colors"
+            >
+              {isAr ? 'استكشف منهجنا الشامل' : 'Explore our complete curriculum'}
+              <ArrowRight className="h-4 w-4" />
+            </a>
+          </FadeIn>
         </section>
 
         {/* ── CURRICULUM ────────────────────────────────────────────────── */}
@@ -1184,6 +1210,19 @@ export default function Home() {
           </div>
         </section>
 
+        {/* ── PHASE TRANSITION (Proof → Trust) ──────────────────────────── */}
+        <section className="bg-gray-100 py-6 sm:py-8 border-t border-gray-200 flex items-center justify-center">
+          <FadeIn>
+            <a
+              href="#open-source"
+              className="inline-flex items-center gap-2 px-4 py-2 text-xs sm:text-sm font-medium text-burgundy-700 hover:text-burgundy-900 transition-colors"
+            >
+              {isAr ? 'COHEP مفتوح المصدر وآمن' : 'Built open-source, built to last'}
+              <ArrowRight className="h-4 w-4" />
+            </a>
+          </FadeIn>
+        </section>
+
         {/* ── OPEN SOURCE ───────────────────────────────────────────────── */}
         <section id="open-source" aria-labelledby="oss-heading" className="py-20 sm:py-28 relative bg-gradient-to-b from-gray-950 to-gray-900">
           <CrossPatternBg className="text-gold-700" />
@@ -1295,6 +1334,19 @@ export default function Home() {
               ))}
             </div>
           </div>
+        </section>
+
+        {/* ── PHASE TRANSITION (Trust → Action) ──────────────────────────── */}
+        <section className="bg-white py-6 sm:py-8 border-t border-gray-200 flex items-center justify-center">
+          <FadeIn>
+            <a
+              href="#cta-heading"
+              className="inline-flex items-center gap-2 px-4 py-2 text-xs sm:text-sm font-medium text-burgundy-700 hover:text-burgundy-900 transition-colors"
+            >
+              {isAr ? 'جاهز للبدء؟' : 'Ready to get started?'}
+              <ArrowRight className="h-4 w-4" />
+            </a>
+          </FadeIn>
         </section>
 
         {/* ── CTA ───────────────────────────────────────────────────────── */}
