@@ -465,3 +465,74 @@ describe('getSchoolServantSummary', () => {
     expect(result[0].dateJoined).toBe(new Date('2021-06-01T00:00:00.000Z').toISOString());
   });
 });
+
+describe('ServantsService.rejectLiturgy', () => {
+  let service: ServantsService;
+  let prisma: any;
+
+  const prismaMock = {
+    familyLiturgy: { findUnique: jest.fn(), update: jest.fn(), delete: jest.fn() },
+    user: { findUnique: jest.fn() },
+  };
+
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        ServantsService,
+        { provide: PrismaService, useValue: prismaMock },
+        { provide: GamificationService, useValue: { addXp: jest.fn(), awardBadge: jest.fn() } },
+      ],
+    }).compile();
+    service = module.get<ServantsService>(ServantsService);
+    prisma = module.get(PrismaService);
+    jest.clearAllMocks();
+    prisma.familyLiturgy.findUnique.mockResolvedValue({
+      id: 'fl1', studentId: 'stu-1', status: 'pending', student: { schoolId: 'school-1' },
+    });
+    prisma.user.findUnique.mockResolvedValue({ schoolId: 'school-1' });
+    prisma.familyLiturgy.update.mockImplementation(({ data }: any) =>
+      Promise.resolve({ id: 'fl1', ...data }),
+    );
+  });
+
+  // The whole point of this change: the claim must survive a rejection.
+  it('never deletes the claim', async () => {
+    await service.rejectLiturgy('fl1', 'staff-1', 'Wrong date');
+    expect(prisma.familyLiturgy.delete).not.toHaveBeenCalled();
+  });
+
+  it('marks the claim rejected and records who, when and why', async () => {
+    const res: any = await service.rejectLiturgy('fl1', 'staff-1', 'Not at this liturgy');
+
+    const data = prisma.familyLiturgy.update.mock.calls[0][0].data;
+    expect(data.status).toBe('rejected');
+    expect(data.rejectedBy).toBe('staff-1');
+    expect(data.rejectedAt).toBeInstanceOf(Date);
+    expect(data.rejectionReason).toBe('Not at this liturgy');
+    expect(res.status).toBe('rejected');
+  });
+
+  it('clears any earlier verification so the two cannot both stand', async () => {
+    await service.rejectLiturgy('fl1', 'staff-1', 'Filed twice');
+    const data = prisma.familyLiturgy.update.mock.calls[0][0].data;
+    expect(data.verifiedBy).toBeNull();
+    expect(data.verifiedAt).toBeNull();
+  });
+
+  it('stores a whitespace-only reason as null rather than as blank text', async () => {
+    await service.rejectLiturgy('fl1', 'staff-1', '   ');
+    expect(prisma.familyLiturgy.update.mock.calls[0][0].data.rejectionReason).toBeNull();
+  });
+
+  it('refuses a claim from another school and changes nothing', async () => {
+    prisma.user.findUnique.mockResolvedValue({ schoolId: 'other-school' });
+    await expect(service.rejectLiturgy('fl1', 'staff-1', 'nope')).rejects.toMatchObject({ status: 403 });
+    expect(prisma.familyLiturgy.update).not.toHaveBeenCalled();
+    expect(prisma.familyLiturgy.delete).not.toHaveBeenCalled();
+  });
+
+  it('404s on an unknown claim', async () => {
+    prisma.familyLiturgy.findUnique.mockResolvedValue(null);
+    await expect(service.rejectLiturgy('nope', 'staff-1', 'x')).rejects.toMatchObject({ status: 404 });
+  });
+});

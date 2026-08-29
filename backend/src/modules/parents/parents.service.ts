@@ -809,6 +809,26 @@ export class ParentsService {
     const existing = await this.prisma.familyLiturgy.findUnique({
       where: { studentId_date: { studentId, date: liturgyDate } },
     });
+
+    // (studentId, date) is unique. Rejection used to delete the row, which freed the date
+    // to be claimed again; now that the row survives, a rejected claim would block that
+    // date permanently unless re-filing re-opens it. Losing the ability to correct a
+    // mistaken rejection would be a worse bug than the one being fixed.
+    if (existing?.status === 'rejected') {
+      const reopened = await this.prisma.familyLiturgy.update({
+        where: { id: existing.id },
+        data: {
+          status: 'pending',
+          notedBy: userId,
+          notes,
+          rejectedBy: null,
+          rejectedAt: null,
+          rejectionReason: null,
+        },
+      });
+      return { id: reopened.id, status: reopened.status, date: reopened.date, reopened: true };
+    }
+
     if (existing) {
       throw new HttpException({ error: 'Liturgy already logged for this date' }, 409);
     }
@@ -817,7 +837,7 @@ export class ParentsService {
       data: { studentId, date: liturgyDate, notedBy: userId, notes, status: 'pending' },
     });
 
-    return { id: record.id, status: record.status, date: record.date };
+    return { id: record.id, status: record.status, date: record.date, reopened: false };
   }
 
   async getLiturgyRecords(studentId: string, userId: string) {
@@ -832,7 +852,12 @@ export class ParentsService {
       date: r.date,
       status: r.status,
       notes: r.notes,
+      servantNote: r.servantNote,
       verifiedAt: r.verifiedAt,
+      // Without these a rejection is indistinguishable from a claim still pending, which
+      // is most of what made the old hard delete so opaque.
+      rejectedAt: r.rejectedAt,
+      rejectionReason: r.rejectionReason,
       createdAt: r.createdAt,
     }));
   }

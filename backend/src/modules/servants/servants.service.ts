@@ -254,7 +254,16 @@ export class ServantsService {
     return { id: updated.id, status: updated.status, badgeAwarded };
   }
 
-  async rejectLiturgy(id: string, userId: string) {
+  /**
+   * Refuse a liturgy attendance claim.
+   *
+   * This was a hard row delete: no reason was recorded and no one was told, so the claim
+   * silently vanished for both the student and the parent who filed it. It is now a status
+   * change carrying a reason, which makes the rejection answerable — and, because the
+   * (studentId, date) pair is unique, means logLiturgy has to be able to re-open a
+   * rejected claim rather than being permanently blocked by it.
+   */
+  async rejectLiturgy(id: string, userId: string, reason?: string) {
     const record = await this.prisma.familyLiturgy.findUnique({
       where: { id },
       include: { student: { select: { schoolId: true } } },
@@ -269,8 +278,26 @@ export class ServantsService {
       throw new ForbiddenException('Cannot reject liturgy from another school');
     }
 
-    await this.prisma.familyLiturgy.delete({ where: { id } });
-    return { deleted: true };
+    const trimmed = reason?.trim() || null;
+    const updated = await this.prisma.familyLiturgy.update({
+      where: { id },
+      data: {
+        status: 'rejected',
+        rejectedBy: userId,
+        rejectedAt: new Date(),
+        rejectionReason: trimmed,
+        // A rejection undoes any earlier verification, so the two cannot both stand.
+        verifiedBy: null,
+        verifiedAt: null,
+      },
+    });
+
+    return {
+      id: updated.id,
+      status: updated.status,
+      rejectionReason: updated.rejectionReason,
+      rejectedAt: updated.rejectedAt,
+    };
   }
 
   async getServantProfile(userId: string, viewerId: string): Promise<ServantProfileData | null> {

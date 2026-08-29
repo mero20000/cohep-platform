@@ -17,6 +17,7 @@ import { ParentsService, STUDENT_SELF } from '../parents/parents.service';
 import { SubmitAssessmentDto } from '../assessments/dto/assessment.dto';
 import { StudentLoginDto } from './dto/student-login.dto';
 import { LogPracticeDto } from './dto/log-practice.dto';
+import { LogLiturgyDto } from './dto/log-liturgy.dto';
 import { Public } from '../../common/decorators/public.decorator';
 import { StudentPortalAuthGuard, SKIP_PORTAL_AUTH } from './student-portal-auth.guard';
 import { createCloudinaryStorage, isCloudinaryConfigured } from '../../common/config/cloudinary';
@@ -273,10 +274,19 @@ export class StudentPortalController {
   }
 
   @Get(':code/me/liturgy')
-  @ApiOperation({ summary: 'Liturgy attendance records filed for this student' })
+  @ApiOperation({ summary: 'Liturgy attendance records filed for this student, including rejections' })
   async getMyLiturgy(@Param('code') code: string) {
     const student = await this.resolveStudent(code);
     return this.parentsService.getLiturgyRecords(student.id, STUDENT_SELF);
+  }
+
+  @Post(':code/me/liturgy')
+  @HttpCode(201)
+  @ApiOperation({ summary: 'File a liturgy attendance claim as this student' })
+  async logMyLiturgy(@Param('code') code: string, @Body() body: LogLiturgyDto) {
+    const student = await this.resolveStudent(code);
+    // Filing was parent-only, so a student who served at the liturgy could not say so.
+    return this.parentsService.logLiturgy(student.id, body.date, body.notes, STUDENT_SELF);
   }
 
   @Post(':code/recordings')

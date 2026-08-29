@@ -71,8 +71,12 @@ function LiturgySection({ childId, language }: { childId: string; language: stri
   const handleLogLiturgy = async () => {
     setLogging(true)
     try {
-      await http.post(`/parents/me/children/${childId}/liturgy`, { date: selectedDate })
-      setFeedback(t('Logged! Awaiting verification.', 'تم التسجيل! في انتظار التحقق.'))
+      const res = await http.post(`/parents/me/children/${childId}/liturgy`, { date: selectedDate }) as { reopened?: boolean }
+      setFeedback(res?.reopened
+        // A previously rejected date can be claimed again; say so, rather than letting it
+        // look like a fresh log that mysteriously kept its old rejection.
+        ? t('Re-submitted for verification.', 'تم إعادة الإرسال للتحقق.')
+        : t('Logged! Awaiting verification.', 'تم التسجيل! في انتظار التحقق.'))
       fetchRecords()
       setTimeout(() => setFeedback(null), 3000)
     } catch (err: any) {
@@ -128,17 +132,28 @@ function LiturgySection({ childId, language }: { childId: string; language: stri
       {!loading && records.length > 0 && (
         <div className="space-y-2 max-h-48 overflow-y-auto">
           {records.map(r => (
-            <div key={r.id} className="flex items-center justify-between p-2 bg-white rounded-lg border border-gray-100">
-              <span className="text-sm text-gray-700">{new Date(r.date).toLocaleDateString()}</span>
-              <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
-                r.status === 'verified' ? 'bg-green-100 text-green-700' :
-                r.status === 'rejected' ? 'bg-red-100 text-red-700' :
-                'bg-yellow-100 text-yellow-700'
-              }`}>
-                {r.status === 'verified' ? t('Verified', 'معتمد') :
-                 r.status === 'rejected' ? t('Rejected', 'مرفوض') :
-                 t('Pending', 'قيد الانتظار')}
-              </span>
+            <div key={r.id} className="p-2 bg-white rounded-lg border border-gray-100">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-gray-700">{new Date(r.date).toLocaleDateString()}</span>
+                <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+                  r.status === 'verified' ? 'bg-green-100 text-green-700' :
+                  r.status === 'rejected' ? 'bg-red-100 text-red-700' :
+                  'bg-yellow-100 text-yellow-700'
+                }`}>
+                  {r.status === 'verified' ? t('Verified', 'معتمد') :
+                   r.status === 'rejected' ? t('Rejected', 'مرفوض') :
+                   t('Pending', 'قيد الانتظار')}
+                </span>
+              </div>
+              {/* This branch existed already but was unreachable: rejection deleted the
+                  row, so a refused claim simply vanished instead of explaining itself. */}
+              {r.status === 'rejected' && (
+                <p className="mt-1 text-xs text-red-700">
+                  {r.rejectionReason
+                    ? `“${r.rejectionReason}”`
+                    : t('No reason was given. You can log this date again.', 'لم يُذكر سبب. يمكنك تسجيل هذا التاريخ مرة أخرى.')}
+                </p>
+              )}
             </div>
           ))}
         </div>

@@ -47,10 +47,25 @@ export default function LiturgyVerificationPage() {
   }
 
   const handleReject = async (id: string) => {
+    // Rejection used to DELETE the claim outright — no reason, nobody told, gone for the
+    // student and the parent who filed it. It is now a status change, and the family sees
+    // whatever is typed here, so a reason is required rather than optional.
+    const reason = window.prompt(
+      t(
+        'Why are you rejecting this? The student and their parent will see this.',
+        'لماذا ترفض هذا؟ سيرى الطالب ووالداه هذا السبب.',
+      ),
+    )
+    if (reason === null) return
+    if (reason.trim().length < 3) {
+      setActionFeedback(t('Please give a reason the family can understand', 'يرجى إعطاء سبب يمكن للأسرة فهمه'))
+      setTimeout(() => setActionFeedback(null), 3000)
+      return
+    }
     try {
-      await http.delete(`/servants/liturgy/${id}`)
+      await http.patch(`/servants/liturgy/${id}/reject`, { reason: reason.trim() })
       setRecords(prev => prev.filter(r => r.id !== id))
-      setActionFeedback(t('Rejected', 'تم الرفض'))
+      setActionFeedback(t('Rejected — the family can see your reason', 'تم الرفض — يمكن للأسرة رؤية سببك'))
       setTimeout(() => setActionFeedback(null), 3000)
     } catch {
       setActionFeedback(t('Error rejecting', 'خطأ في الرفض'))

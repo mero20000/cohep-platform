@@ -1,10 +1,11 @@
-import { Controller, Get, Patch, Delete, Param, Query, Req, UseGuards, NotFoundException } from '@nestjs/common';
+import { Controller, Get, Patch, Delete, Param, Query, Req, Body, UseGuards, NotFoundException } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { ServantsService } from './servants.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles, STAFF_ROLES } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { RejectLiturgyDto } from './dto/reject-liturgy.dto';
 
 @ApiTags('servants')
 @Controller('servants')
@@ -42,11 +43,28 @@ export class ServantsController {
     return this.servantsService.verifyLiturgy(id, req.user.id);
   }
 
+  @Patch('liturgy/:id/reject')
+  @Roles(...STAFF_ROLES)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Reject a liturgy record, recording a reason the family can see' })
+  async rejectLiturgy(
+    @Param('id') id: string,
+    @Body() body: RejectLiturgyDto,
+    @Req() req: any,
+  ) {
+    return this.servantsService.rejectLiturgy(id, req.user.id, body.reason);
+  }
+
+  /**
+   * Retained so any client still issuing the old DELETE does not fail — but it no longer
+   * deletes anything. It marks the claim rejected without a reason, which is worse for the
+   * family than the PATCH above and is why the UI uses that instead.
+   */
   @Delete('liturgy/:id')
   @Roles(...STAFF_ROLES)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Reject/delete a liturgy record' })
-  async rejectLiturgy(@Param('id') id: string, @Req() req: any) {
+  @ApiOperation({ summary: 'Deprecated — use PATCH liturgy/:id/reject. Rejects without a reason; never deletes.' })
+  async rejectLiturgyLegacy(@Param('id') id: string, @Req() req: any) {
     return this.servantsService.rejectLiturgy(id, req.user.id);
   }
 

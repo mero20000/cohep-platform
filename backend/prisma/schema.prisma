@@ -1305,7 +1305,14 @@ model FamilyLiturgy {
   notedBy     String    @map("noted_by")
   verifiedBy  String?   @map("verified_by")
   verifiedAt  DateTime? @map("verified_at")
+  /// pending | verified | rejected.
+  /// "rejected" replaces what used to be a hard row delete, so the claim survives with
+  /// a reason attached and the student and parent can both see what happened.
   status      String    @default("pending")
+  rejectedBy  String?   @map("rejected_by")
+  rejectedAt  DateTime? @map("rejected_at")
+  /// Why the claim was refused. Recorded so a rejection is answerable rather than silent.
+  rejectionReason String? @map("rejection_reason") @db.VarChar(300)
   notes       String?
   photoUrl    String?   @map("photo_url")
   servantNote String?   @map("servant_note")
@@ -1315,6 +1322,7 @@ model FamilyLiturgy {
 
   @@unique([studentId, date])
   @@index([studentId, status])
+  @@index([studentId, status, date])
   @@map("family_liturgies")
 }
 
