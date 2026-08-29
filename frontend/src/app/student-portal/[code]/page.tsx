@@ -1145,7 +1145,7 @@ export default function StudentDashboard() {
                             {done.map(a => {
                               const ss = subjectStyle(a.subject.name)
                               const score = a.earnedScore
-                              const passed = score !== null && score >= a.passingScore
+                              const passed = score !== null && score !== undefined && score >= a.passingScore
                               return (
                                 <Link key={a.id}
                                   href={`/student-portal/${code}/assessment/${a.id}/submission/${a.submissionId}`}
