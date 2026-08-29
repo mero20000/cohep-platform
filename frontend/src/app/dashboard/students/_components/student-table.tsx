@@ -1,12 +1,15 @@
 'use client'
+import { useState } from 'react'
 import Image from 'next/image'
-import { Loader2, AlertCircle, User, ArrowUpDown, Eye, Pencil, Trash2, RefreshCw, Star } from 'lucide-react'
+import { Loader2, AlertCircle, User, ArrowUpDown, Eye, Pencil, Trash2, RefreshCw, Star, CheckCircle2, Clock } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Pagination } from '@/components/ui/pagination'
 import { STATUS_STYLE, photoSrc, calcAge, type Student } from './student-types'
 import { PhoneLink } from './phone-link'
 import { usePermission } from '@/lib/use-permission'
+import { http } from '@/lib/http-client'
+import { useToast } from '@/components/ui/toast'
 
 interface Pag { page: number; limit: number; total: number; totalPages: number }
 interface Props {
@@ -20,6 +23,7 @@ interface Props {
   pageSize?: number; onPageSizeChange?: (s: number) => void
   onPreviewPhoto: (url: string) => void; lang: 'en'|'ar'
   favorites?: string[]; onToggleFavorite?: (id: string) => void
+  onStudentUpdated?: (student: Student) => void
 }
 const COLS = [
   ['name','Student','الطالب'],['code','Student Code','رمز الطالب'],['gender','Gender','الجنس'],
@@ -27,7 +31,15 @@ const COLS = [
   ['age','Age','العمر'],['church','Church','الكنيسة'],['grade','Grade','المرحلة'],['status','Status','الحالة'],
 ] as const
 
-export function StudentTable({ students, loading, fetchError, selectedIds, allSelected, toggleId, toggleAll, sortKey, sortDir, toggleSort, onView, onEdit, onDelete, onRetry, hasActiveFilters, onClearFilters, onOpenCreate, pagination, onPageChange, pageSize, onPageSizeChange, onPreviewPhoto, lang, favorites = [], onToggleFavorite }: Props) {
+export function StudentTable({ students, loading, fetchError, selectedIds, allSelected, toggleId, toggleAll, sortKey, sortDir, toggleSort, onView, onEdit, onDelete, onRetry, hasActiveFilters, onClearFilters, onOpenCreate, pagination, onPageChange, pageSize, onPageSizeChange, onPreviewPhoto, lang, favorites = [], onToggleFavorite, onStudentUpdated }: Props) {
+  const [updatingId, setUpdatingId] = useState<string | null>(null)
+  const [localStudents, setLocalStudents] = useState(students)
+
+  const handleStudentUpdated = (student: Student) => {
+    setUpdatingId(null)
+    setLocalStudents(prev => prev.map(s => s.id === student.id ? student : s))
+    onStudentUpdated?.(student)
+  }
   const t = (en: string, ar: string) => lang === 'ar' ? ar : en
   if (loading) return (
     <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
@@ -92,7 +104,7 @@ export function StudentTable({ students, loading, fetchError, selectedIds, allSe
                   <div className="text-sm font-medium text-gray-900 truncate">{s.firstName} {s.lastName}</div>
                   <div className="flex items-center gap-1.5 mt-0.5">
                     <span className="text-xs text-gray-500">#{s.studentCode}</span>
-                    <StatusBadge status={s.status} lang={lang} />
+                    <StatusBadge status={s.status} lang={lang} student={s} onUpdated={handleStudentUpdated} isUpdating={updatingId === s.id} />
                   </div>
                 </div>
               </div>
@@ -159,7 +171,7 @@ export function StudentTable({ students, loading, fetchError, selectedIds, allSe
                 <td className="hidden md:table-cell px-4 py-3 text-sm text-gray-600">{calcAge(s.dateOfBirth)}</td>
                 <td className="hidden md:table-cell px-4 py-3 text-sm text-gray-600 max-w-[120px] truncate">{s.churchName||'—'}</td>
                 <td className="hidden md:table-cell px-4 py-3 text-sm text-gray-900">{s.grade?.name||'—'}</td>
-                <td className="px-4 py-3"><StatusBadge status={s.status} lang={lang} /></td>
+                <td className="px-4 py-3"><StatusBadge status={s.status} lang={lang} student={s} onUpdated={handleStudentUpdated} isUpdating={updatingId === s.id} /></td>
                 <td className="px-4 py-3 text-end" onClick={e => e.stopPropagation()}>
                   <div className="flex items-center justify-end gap-1">
                     {onToggleFavorite && (
@@ -192,17 +204,52 @@ function RowCheckbox({ checked, onChange, ariaLabel }: { checked: boolean; onCha
     </label>
   )
 }
-function StatusBadge({ status, lang }: { status: string; lang: 'en'|'ar' }) {
+function StatusBadge({ status, lang, student, onUpdated, isUpdating }: { status: string; lang: 'en'|'ar'; student?: Student; onUpdated?: (s: Student) => void; isUpdating?: boolean }) {
   const label = status==='active'?(lang==='ar'?'نشط':'Active'):status==='inactive'?(lang==='ar'?'غير نشط':'Inactive'):status==='graduated'?(lang==='ar'?'متخرج':'Graduated'):status
+  const { toast } = useToast()
+  const { can } = usePermission()
+
+  const handleStatusToggle = async (e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (!student || !can('student:edit') || isUpdating) return
+
+    const nextStatus = status === 'active' ? 'inactive' : 'active'
+    try {
+      await http.put(`/students/${student.id}`, { status: nextStatus })
+      onUpdated?.({ ...student, status: nextStatus })
+      toast('success', lang === 'ar' ? `تم تغيير الحالة إلى ${nextStatus === 'active' ? 'نشط' : 'غير نشط'}` : `Status changed to ${nextStatus}`)
+    } catch (e: any) {
+      toast('error', e?.message || (lang === 'ar' ? 'فشل تحديث الحالة' : 'Failed to update status'))
+    }
+  }
+
+  if (student && can('student:edit') && status !== 'graduated') {
+    return (
+      <button
+        onClick={handleStatusToggle}
+        disabled={isUpdating}
+        className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg font-medium text-xs transition-all cursor-pointer ${
+          status === 'active'
+            ? 'bg-green-100 text-green-700 hover:bg-green-200 disabled:opacity-60'
+            : 'bg-amber-100 text-amber-700 hover:bg-amber-200 disabled:opacity-60'
+        }`}
+        title={lang === 'ar' ? 'انقر لتغيير الحالة' : 'Click to toggle status'}>
+        {isUpdating ? <Loader2 className="h-3 w-3 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
+        {label}
+      </button>
+    )
+  }
+
   return <Badge variant={STATUS_STYLE[status]?.variant||'default'}>{label}</Badge>
 }
+
 function Actions({ s, onView, onEdit, onDelete, lang }: { s: Student; onView: (s:Student)=>void; onEdit: (s:Student)=>void; onDelete: (s:Student)=>void; lang: 'en'|'ar' }) {
   const { can } = usePermission()
   return (
     <div className="flex items-center justify-end gap-1">
-      <Button variant="ghost" size="icon" onClick={() => onView(s)} aria-label={`${lang==='ar'?'عرض':'View'} ${s.firstName}`}><Eye className="h-4 w-4" /></Button>
-      {can('student:edit')&&<Button variant="ghost" size="icon" onClick={() => onEdit(s)} aria-label={`${lang==='ar'?'تعديل':'Edit'} ${s.firstName}`}><Pencil className="h-4 w-4" /></Button>}
-      {can('student:delete')&&<Button variant="ghost" size="icon" onClick={() => onDelete(s)} aria-label={`${lang==='ar'?'حذف':'Delete'} ${s.firstName}`}><Trash2 className="h-4 w-4" /></Button>}
+      <Button variant="ghost" size="icon" onClick={() => onView(s)} title={lang==='ar'?'عرض التفاصيل':'View details'} className="hover:bg-blue-50 hover:text-blue-600"><Eye className="h-4 w-4" /></Button>
+      {can('student:edit')&&<Button variant="ghost" size="icon" onClick={() => onEdit(s)} title={lang==='ar'?'تعديل البيانات':'Edit student'} className="hover:bg-amber-50 hover:text-amber-600"><Pencil className="h-4 w-4" /></Button>}
+      {can('student:delete')&&<Button variant="ghost" size="icon" onClick={() => onDelete(s)} title={lang==='ar'?'حذف الطالب':'Delete student'} className="hover:bg-red-50 hover:text-red-600"><Trash2 className="h-4 w-4" /></Button>}
     </div>
   )
 }
