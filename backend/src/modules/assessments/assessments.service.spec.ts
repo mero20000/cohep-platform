@@ -9,6 +9,7 @@ import { Reflector } from '@nestjs/core';
 import { STAFF_ROLES } from '../../common/decorators/roles.decorator';
 import { CreateAssessmentDto, CreateQuestionDto } from './dto/assessment.dto';
 import { validate } from 'class-validator';
+import { StudentNotificationsService } from '../student-notifications/student-notifications.service';
 
 describe('AssessmentsService', () => {
   let service: AssessmentsService;
@@ -68,6 +69,7 @@ describe('AssessmentsService', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AssessmentsService,
+        { provide: StudentNotificationsService, useValue: { notify: jest.fn(), notifyOrRefresh: jest.fn() } },
         { provide: PrismaService, useValue: prismaMock },
         { provide: SchoolResolver, useValue: { resolve: jest.fn().mockResolvedValue(schoolId) } },
         { provide: AuditService, useValue: { log: jest.fn().mockResolvedValue(undefined) } },

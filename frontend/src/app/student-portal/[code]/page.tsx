@@ -25,6 +25,7 @@ import { ThisSundayPanel } from '@/components/hymn-learning/this-sunday'
 import { PracticeRecorder } from '@/components/hymn-learning/practice-recorder'
 import { PracticeHistory } from '@/components/hymn-learning/practice-history'
 import { LessonText } from '@/components/hymn-learning/lesson-text'
+import { NotificationBell } from '@/components/hymn-learning/notification-bell'
 import { MASTERY_META, type HymnMapItem } from '@/components/hymn-learning/hooks'
 
 interface PortalData {
@@ -361,6 +362,24 @@ export default function StudentDashboard() {
                 <span className="text-white/60 text-xs font-medium">{student.studentCode}</span>
               </div>
 
+            </div>
+            {/* Notifications. Everything that happens to a student was previously
+                discoverable only by opening the right screen and spotting a change. */}
+            <div className="shrink-0 self-start">
+              <NotificationBell
+                code={code}
+                lang={lang}
+                onNavigate={(linkPath) => {
+                  // The backend stores portal-relative links only; map the tab hint onto
+                  // local state rather than navigating, since the tabs are not routes.
+                  const tab = new URLSearchParams(linkPath.replace(/^\?/, '')).get('tab')
+                  if (tab === 'assessments' || tab === 'practice' || tab === 'dashboard') {
+                    setActiveTab(tab)
+                  } else {
+                    setActiveTab('practice')
+                  }
+                }}
+              />
             </div>
           </div>
           {/* XP mini + CTA inside hero */}

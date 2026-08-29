@@ -7,9 +7,10 @@ import { RecordingStreamController } from './recording-stream.controller';
 import { DatabaseModule } from '../../database/database.module';
 import { JwtModule } from '@nestjs/jwt';
 import { AuditModule } from '../audit/audit.module';
+import { StudentNotificationsModule } from '../student-notifications/student-notifications.module';
 
 @Module({
-  imports: [DatabaseModule, AuditModule, JwtModule.register({})],
+  imports: [DatabaseModule, AuditModule, StudentNotificationsModule, JwtModule.register({})],
   controllers: [CurriculumController, HymnLearningController, RecordingStreamController],
   providers: [CurriculumService, HymnLearningService],
   exports: [HymnLearningService],

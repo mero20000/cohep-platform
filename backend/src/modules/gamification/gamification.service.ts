@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 import { SchoolResolver } from '../../common/utils/school-resolver';
+import { StudentNotificationsService } from '../student-notifications/student-notifications.service';
 import { CreateBadgeDto, UpdateBadgeDto } from './dto/gamification.dto';
 
 interface BadgeCheckResult {
@@ -14,6 +15,7 @@ export class GamificationService {
   constructor(
     private readonly prisma: PrismaService,
     private schoolResolver: SchoolResolver,
+    private readonly studentNotifications: StudentNotificationsService,
   ) {}
 
   async getLeaderboard(schoolIdentifier: string, limit = 20, requestingUser?: any) {
@@ -208,6 +210,19 @@ export class GamificationService {
     if (badge.xpReward > 0) {
       await this.addXp(studentId, badge.xpReward, 'badge_award', `Badge: ${badge.name}`);
     }
+
+    // A badge the student is never told about is barely a reward.
+    await this.studentNotifications.notify({
+      studentId,
+      type: 'badge_awarded',
+      title: 'You earned a badge',
+      titleAr: 'لقد حصلت على شارة',
+      body: badge.name,
+      bodyAr: (badge as any).nameAr ?? badge.name,
+      linkPath: '?tab=progress',
+      referenceType: 'badge',
+      referenceId: badge.id,
+    });
 
     return result;
   }

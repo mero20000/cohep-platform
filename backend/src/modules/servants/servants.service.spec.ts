@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { ServantsService } from './servants.service';
 import { PrismaService } from '../../database/prisma.service';
 import { GamificationService } from '../gamification/gamification.service';
+import { StudentNotificationsService } from '../student-notifications/student-notifications.service';
 
 describe('ServantsService.listServants', () => {
   let service: ServantsService;
@@ -22,6 +23,7 @@ describe('ServantsService.listServants', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         ServantsService,
+        { provide: StudentNotificationsService, useValue: { notify: jest.fn(), notifyOrRefresh: jest.fn() } },
         { provide: PrismaService, useValue: prismaMock },
         { provide: GamificationService, useValue: { addXp: jest.fn(), awardBadge: jest.fn() } },
       ],
@@ -99,6 +101,7 @@ describe('getGroupMates', () => {
     const module = await Test.createTestingModule({
       providers: [
         ServantsService,
+        { provide: StudentNotificationsService, useValue: { notify: jest.fn(), notifyOrRefresh: jest.fn() } },
         { provide: PrismaService, useValue: prismaMock },
         { provide: GamificationService, useValue: { addXp: jest.fn(), awardBadge: jest.fn() } },
       ],
@@ -196,6 +199,7 @@ describe('getServantProfile', () => {
     const module = await Test.createTestingModule({
       providers: [
         ServantsService,
+        { provide: StudentNotificationsService, useValue: { notify: jest.fn(), notifyOrRefresh: jest.fn() } },
         { provide: PrismaService, useValue: prismaMock },
         { provide: GamificationService, useValue: { addXp: jest.fn(), awardBadge: jest.fn() } },
       ],
@@ -297,6 +301,7 @@ describe('getServantTimeline', () => {
     const module = await Test.createTestingModule({
       providers: [
         ServantsService,
+        { provide: StudentNotificationsService, useValue: { notify: jest.fn(), notifyOrRefresh: jest.fn() } },
         { provide: PrismaService, useValue: prismaMock },
         { provide: GamificationService, useValue: { addXp: jest.fn(), awardBadge: jest.fn() } },
       ],
@@ -346,6 +351,7 @@ describe('checkAndLogMilestones', () => {
     const module = await Test.createTestingModule({
       providers: [
         ServantsService,
+        { provide: StudentNotificationsService, useValue: { notify: jest.fn(), notifyOrRefresh: jest.fn() } },
         { provide: PrismaService, useValue: prismaMock },
         { provide: GamificationService, useValue: { addXp: jest.fn(), awardBadge: jest.fn() } },
       ],
@@ -420,6 +426,7 @@ describe('getSchoolServantSummary', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         ServantsService,
+        { provide: StudentNotificationsService, useValue: { notify: jest.fn(), notifyOrRefresh: jest.fn() } },
         { provide: PrismaService, useValue: prismaMock },
         { provide: GamificationService, useValue: { addXp: jest.fn(), awardBadge: jest.fn() } },
       ],
@@ -479,6 +486,7 @@ describe('ServantsService.rejectLiturgy', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         ServantsService,
+        { provide: StudentNotificationsService, useValue: { notify: jest.fn(), notifyOrRefresh: jest.fn() } },
         { provide: PrismaService, useValue: prismaMock },
         { provide: GamificationService, useValue: { addXp: jest.fn(), awardBadge: jest.fn() } },
       ],

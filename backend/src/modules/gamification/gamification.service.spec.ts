@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { GamificationService } from './gamification.service';
 import { PrismaService } from '../../database/prisma.service';
 import { SchoolResolver } from '../../common/utils/school-resolver';
+import { StudentNotificationsService } from '../student-notifications/student-notifications.service';
 
 describe('GamificationService - getLeaderboard parent scoping', () => {
   let svc: GamificationService;
@@ -38,6 +39,7 @@ describe('GamificationService - getLeaderboard parent scoping', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         GamificationService,
+        { provide: StudentNotificationsService, useValue: { notify: jest.fn(), notifyOrRefresh: jest.fn() } },
         { provide: PrismaService, useValue: prismaMock },
         { provide: SchoolResolver, useValue: { resolve: jest.fn().mockResolvedValue('sch1') } },
       ],

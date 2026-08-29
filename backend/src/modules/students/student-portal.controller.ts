@@ -1,5 +1,5 @@
 import {
-  Controller, Get, Param, Post, Body, HttpCode, UploadedFile, UseInterceptors, Query, Delete,
+  Controller, Get, Param, Post, Patch, Body, HttpCode, UploadedFile, UseInterceptors, Query, Delete,
   UseGuards, SetMetadata, BadRequestException, NotFoundException,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
@@ -18,6 +18,7 @@ import { SubmitAssessmentDto } from '../assessments/dto/assessment.dto';
 import { StudentLoginDto } from './dto/student-login.dto';
 import { LogPracticeDto } from './dto/log-practice.dto';
 import { LogLiturgyDto } from './dto/log-liturgy.dto';
+import { StudentNotificationsService } from '../student-notifications/student-notifications.service';
 import { Public } from '../../common/decorators/public.decorator';
 import { StudentPortalAuthGuard, SKIP_PORTAL_AUTH } from './student-portal-auth.guard';
 import { createCloudinaryStorage, isCloudinaryConfigured } from '../../common/config/cloudinary';
@@ -32,6 +33,7 @@ export class StudentPortalController {
     private readonly hymnLearning: HymnLearningService,
     private readonly assessmentsService: AssessmentsService,
     private readonly parentsService: ParentsService,
+    private readonly studentNotifications: StudentNotificationsService,
     private readonly jwt: JwtService,
   ) {}
 
@@ -287,6 +289,50 @@ export class StudentPortalController {
     const student = await this.resolveStudent(code);
     // Filing was parent-only, so a student who served at the liturgy could not say so.
     return this.parentsService.logLiturgy(student.id, body.date, body.notes, STUDENT_SELF);
+  }
+
+  // ─── Notifications ───────────────────────────────────────────────────────
+  // A student had no way to be told anything: Notification.userId points at User and
+  // Student has no User relation, so they could not be addressed as a recipient at all.
+  // This is the student-scoped feed, polled by the portal — there is no push transport.
+
+  @Get(':code/me/notifications')
+  @ApiOperation({ summary: "This student's notification feed" })
+  async getMyNotifications(
+    @Param('code') code: string,
+    @Query('unreadOnly') unreadOnly?: string,
+    @Query('limit') limit?: string,
+  ) {
+    const student = await this.resolveStudent(code);
+    const parsed = Number(limit);
+    return this.studentNotifications.list(student.id, {
+      unreadOnly: unreadOnly === 'true',
+      limit: Number.isFinite(parsed) ? parsed : undefined,
+    });
+  }
+
+  @Get(':code/me/notifications/unread-count')
+  @ApiOperation({ summary: 'Unread notification count for the badge' })
+  async getMyUnreadCount(@Param('code') code: string) {
+    const student = await this.resolveStudent(code);
+    return this.studentNotifications.unreadCount(student.id);
+  }
+
+  @Patch(':code/me/notifications/read-all')
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Mark every notification read' })
+  async markAllMyNotificationsRead(@Param('code') code: string) {
+    const student = await this.resolveStudent(code);
+    return this.studentNotifications.markAllRead(student.id);
+  }
+
+  @Patch(':code/me/notifications/:id/read')
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Mark one notification read' })
+  async markMyNotificationRead(@Param('code') code: string, @Param('id') id: string) {
+    const student = await this.resolveStudent(code);
+    // Scoped by studentId as well as id, so one student cannot mark another's as read.
+    return this.studentNotifications.markRead(student.id, id);
   }
 
   @Post(':code/recordings')

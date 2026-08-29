@@ -72,3 +72,16 @@ export async function portalPost<T>(code: string, path: string, body?: unknown):
     return http.post<T>(path, body)
   }
 }
+
+/** Authenticated portal PATCH with the same one-shot recovery. */
+export async function portalPatch<T>(code: string, path: string, body?: unknown): Promise<T> {
+  if (!hasPortalSession()) await ensurePortalSession(code)
+  try {
+    return await http.patch<T>(path, body)
+  } catch (e: any) {
+    if (!isPortalAuthFailure(e)) throw e
+    clearPortalSession()
+    await ensurePortalSession(code)
+    return http.patch<T>(path, body)
+  }
+}

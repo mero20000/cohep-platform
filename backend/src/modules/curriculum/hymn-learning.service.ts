@@ -1,5 +1,6 @@
 import { Injectable, ForbiddenException, NotFoundException } from '@nestjs/common'
 import { PrismaService } from '../../database/prisma.service'
+import { StudentNotificationsService } from '../student-notifications/student-notifications.service'
 import {
   COPTIC_MONTHS, gregorianToJD, jdToCoptic,
   getCopticSeason, getUpcomingSundayDate,
@@ -55,7 +56,10 @@ function masteryFromRepetitions(rep: number, selfRating: number): string {
 
 @Injectable()
 export class HymnLearningService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly studentNotifications: StudentNotificationsService,
+  ) {}
 
   private static readonly SERVANT_ROLES = ['servant', 'group_leader', 'level_leader', 'assistant_servant']
   private static readonly BYPASS_ROLES = ['super_admin', 'admin', 'principal']
@@ -584,6 +588,24 @@ export class HymnLearningService {
     // be rebuilt when a review lands — not only when the student submits.
     await this.recomputeProgressFromSessions(session.studentId, session.lessonId)
 
+    // Feedback did reach the student before this, but only if they thought to open that
+    // one specific hymn. Now they are told.
+    const lesson = await this.prisma.lesson.findUnique({
+      where: { id: session.lessonId },
+      select: { title: true, titleAr: true },
+    })
+    await this.studentNotifications.notifyOrRefresh({
+      studentId: session.studentId,
+      type: 'practice_reviewed',
+      title: 'A servant reviewed your practice',
+      titleAr: 'قام أحد الخدام بمراجعة تدريبك',
+      body: [lesson?.title, `${dto.servantRating}/5`, dto.servantNote].filter(Boolean).join(' — '),
+      bodyAr: [lesson?.titleAr ?? lesson?.title, `${dto.servantRating}/5`, dto.servantNote].filter(Boolean).join(' — '),
+      linkPath: '?tab=hymns',
+      referenceType: 'hymn_practice_session',
+      referenceId: sessionId,
+    })
+
     return updated
   }
 
@@ -726,7 +748,7 @@ export class HymnLearningService {
       throw new ForbiddenException('Student has not begun practicing this hymn')
     }
 
-    return this.prisma.lessonProgress.update({
+    const cleared = await this.prisma.lessonProgress.update({
       where: { id: progressId },
       data: {
         isReadyForLiturgy: true,
@@ -735,6 +757,22 @@ export class HymnLearningService {
         clergyNotes: notes ? notes.slice(0, 300) : null,
       },
     })
+
+    // Arguably the single most meaningful moment in this platform's purpose, and until now
+    // the student was never told it had happened.
+    await this.studentNotifications.notifyOrRefresh({
+      studentId: progress.studentId,
+      type: 'liturgy_clearance',
+      title: 'You are cleared to sing in the liturgy',
+      titleAr: 'تم اعتمادك للترتيل في القداس',
+      body: [progress.lesson?.title, notes].filter(Boolean).join(' — '),
+      bodyAr: [progress.lesson?.titleAr ?? progress.lesson?.title, notes].filter(Boolean).join(' — '),
+      linkPath: '?tab=hymns',
+      referenceType: 'lesson_progress',
+      referenceId: progressId,
+    })
+
+    return cleared
   }
 
   // ─── Clergy: Get all verifications for a student (readiness summary) ────────

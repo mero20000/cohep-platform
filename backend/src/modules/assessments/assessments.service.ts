@@ -2,6 +2,7 @@ import { Injectable, NotFoundException, BadRequestException } from '@nestjs/comm
 import { PrismaService } from '../../database/prisma.service';
 import { SchoolResolver } from '../../common/utils/school-resolver';
 import { AuditService } from '../audit/audit.service';
+import { StudentNotificationsService } from '../student-notifications/student-notifications.service';
 import { CreateAssessmentDto, UpdateAssessmentDto, SubmitAssessmentDto, CreateQuestionDto } from './dto/assessment.dto';
 
 @Injectable()
@@ -10,6 +11,7 @@ export class AssessmentsService {
     private readonly prisma: PrismaService,
     private schoolResolver: SchoolResolver,
     private readonly audit: AuditService,
+    private readonly studentNotifications: StudentNotificationsService,
   ) {}
 
   async findAll(schoolIdentifier: string, filters: {
@@ -559,6 +561,21 @@ export class AssessmentsService {
         },
       });
     }
+
+    // Grading was pull-only: a student had to reopen the assessment to discover a mark.
+    // notifyOrRefresh rather than notify, so a re-grade updates the message and shows as
+    // unread again instead of being silently swallowed as a duplicate.
+    await this.studentNotifications.notifyOrRefresh({
+      studentId,
+      type: 'assessment_graded',
+      title: 'Your assessment was marked',
+      titleAr: 'تم تصحيح تقييمك',
+      body: `${assessment.title} — ${score}/${maxScore}`,
+      bodyAr: `${assessment.titleAr ?? assessment.title} — ${score}/${maxScore}`,
+      linkPath: '?tab=assessments',
+      referenceType: 'assessment_submission',
+      referenceId: submission.id,
+    });
 
     return this.prisma.assessmentSubmission.findUnique({
       where: { id: submission.id },

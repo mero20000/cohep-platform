@@ -2,6 +2,7 @@ import { Injectable, Logger, NotFoundException, ForbiddenException } from '@nest
 import { Cron } from '@nestjs/schedule';
 import { PrismaService } from '../../database/prisma.service';
 import { GamificationService } from '../gamification/gamification.service';
+import { StudentNotificationsService } from '../student-notifications/student-notifications.service';
 
 const SERVANT_ROLE_NAMES = ['servant', 'group_leader', 'level_leader'] as const;
 
@@ -53,6 +54,7 @@ export class ServantsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly gamification: GamificationService,
+    private readonly studentNotifications: StudentNotificationsService,
   ) {}
 
   async listServants(
@@ -211,7 +213,27 @@ export class ServantsService {
 
     const updated = await this.prisma.familyLiturgy.update({
       where: { id },
-      data: { status: 'verified', verifiedBy: userId, verifiedAt: new Date() },
+      data: {
+        status: 'verified',
+        verifiedBy: userId,
+        verifiedAt: new Date(),
+        // Verifying supersedes any earlier rejection of the same claim.
+        rejectedBy: null,
+        rejectedAt: null,
+        rejectionReason: null,
+      },
+    });
+
+    await this.studentNotifications.notifyOrRefresh({
+      studentId: record.studentId,
+      type: 'liturgy_verified',
+      title: 'Your liturgy attendance was confirmed',
+      titleAr: 'تم تأكيد حضورك القداس',
+      body: new Date(updated.date).toLocaleDateString('en-GB'),
+      bodyAr: new Date(updated.date).toLocaleDateString('en-GB'),
+      linkPath: '?tab=liturgy',
+      referenceType: 'family_liturgy',
+      referenceId: updated.id,
     });
 
     const xpCfg = await this.prisma.systemConfig.findUnique({
@@ -290,6 +312,24 @@ export class ServantsService {
         verifiedBy: null,
         verifiedAt: null,
       },
+    });
+
+    // Keeping the row was only half the fix — without this the student still has to go
+    // looking to discover the claim was refused.
+    await this.studentNotifications.notifyOrRefresh({
+      studentId: record.studentId,
+      type: 'liturgy_rejected',
+      title: 'A liturgy attendance record was not approved',
+      titleAr: 'لم يتم اعتماد حضور قداس',
+      body: trimmed
+        ? `${new Date(updated.date).toLocaleDateString('en-GB')} — ${trimmed}`
+        : `${new Date(updated.date).toLocaleDateString('en-GB')} — no reason was given.`,
+      bodyAr: trimmed
+        ? `${new Date(updated.date).toLocaleDateString('en-GB')} — ${trimmed}`
+        : `${new Date(updated.date).toLocaleDateString('en-GB')} — لم يُذكر سبب.`,
+      linkPath: '?tab=liturgy',
+      referenceType: 'family_liturgy',
+      referenceId: updated.id,
     });
 
     return {

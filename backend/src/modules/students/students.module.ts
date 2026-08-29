@@ -11,6 +11,7 @@ import { AssessmentsModule } from '../assessments/assessments.module';
 // The student's own aggregate routes reuse ParentsService rather than reimplementing the
 // same aggregations. ParentsModule does not import StudentsModule, so there is no cycle.
 import { ParentsModule } from '../parents/parents.module';
+import { StudentNotificationsModule } from '../student-notifications/student-notifications.module';
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import { ParentsModule } from '../parents/parents.module';
     CurriculumModule,
     AssessmentsModule,
     ParentsModule,
+    StudentNotificationsModule,
     // Secret is supplied per-call (process.env.JWT_SECRET) to match auth module config.
     JwtModule.register({}),
   ],

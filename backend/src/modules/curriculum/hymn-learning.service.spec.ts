@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { HymnLearningService } from './hymn-learning.service';
 import { PrismaService } from '../../database/prisma.service';
+import { StudentNotificationsService } from '../student-notifications/student-notifications.service';
 
 describe('HymnLearningService - subject item recording on hymn map', () => {
   let svc: HymnLearningService;
@@ -19,6 +20,7 @@ describe('HymnLearningService - subject item recording on hymn map', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         HymnLearningService,
+        { provide: StudentNotificationsService, useValue: { notify: jest.fn(), notifyOrRefresh: jest.fn() } },
         { provide: PrismaService, useValue: prismaMock },
       ],
     }).compile();
@@ -46,12 +48,14 @@ describe('HymnLearningService - student-scoped write ownership (P-C1)', () => {
   let prisma: any;
 
   const prismaMock = {
-    lesson: { findFirst: jest.fn() },
+    // findUnique as well as findFirst: reviewSession looks the lesson up by id to build
+    // the notification body.
+    lesson: { findFirst: jest.fn(), findUnique: jest.fn() },
     student: { findUnique: jest.fn() },
     studentParent: { findUnique: jest.fn() },
     user: { findUnique: jest.fn() },
-    hymnPracticeSession: { findUnique: jest.fn(), create: jest.fn() },
-    lessonProgress: { findUnique: jest.fn(), upsert: jest.fn() },
+    hymnPracticeSession: { findUnique: jest.fn(), create: jest.fn(), findMany: jest.fn(), delete: jest.fn() },
+    lessonProgress: { findUnique: jest.fn(), upsert: jest.fn(), update: jest.fn() },
   };
 
   const student = { id: 'stu1', groupId: 'g1', parentEmail: null, deletedAt: null };
@@ -61,6 +65,7 @@ describe('HymnLearningService - student-scoped write ownership (P-C1)', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         HymnLearningService,
+        { provide: StudentNotificationsService, useValue: { notify: jest.fn(), notifyOrRefresh: jest.fn() } },
         { provide: PrismaService, useValue: prismaMock },
       ],
     }).compile();
@@ -70,6 +75,7 @@ describe('HymnLearningService - student-scoped write ownership (P-C1)', () => {
     jest.clearAllMocks();
     prisma.student.findUnique.mockResolvedValue(student);
     prisma.lesson.findFirst.mockResolvedValue({ id: 'l1', schoolId: 'sch1' } as any);
+    prisma.lesson.findUnique.mockResolvedValue({ title: 'Hymn', titleAr: 'لحن' } as any);
     prisma.lessonProgress.upsert.mockResolvedValue({ id: 'p1' } as any);
     prisma.hymnPracticeSession.create.mockResolvedValue({ id: 's1' } as any);
   });
