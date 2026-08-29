@@ -35,19 +35,20 @@ const content = {
     },
     hero: {
       eyebrow: 'Free · Open-Source · Built for the Church',
-      headline: 'Every child belongs\nin the Church.',
+      headline: 'Every child carries\n1,700 years forward.',
       quote: '"Children must feel the Church considers them members, not merely their parents\' companions."',
       quoteAttrib: '- H.G. Bishop Samuel',
-      sub: 'Every church can teach authentic Coptic hymns, track progress, engage parents, and pass 1,700 years of living tradition forward.',
+      sub: 'Register your church to teach authentic Coptic hymns, track real progress, engage families, and form the next generation in living tradition.',
       cta1: 'Register Your Church',
-      cta2: 'Explore the Platform',
+      cta2: 'Try Demo',
+      cta3: 'Explore Platform',
     },
     stats: {
       items: [
-        { value: '255+', label: 'Hymns in the library' },
-        { value: '10', label: 'Levels of formation' },
-        { value: '1,700', label: 'Years of living tradition' },
-        { value: '100%', label: 'Free & open-source' },
+        { value: '255+', label: 'Hymns', context: 'Doxologies, Tasbeha, Liturgical Responses, Seasonal' },
+        { value: '10', label: 'Curriculum Levels', context: 'Foundation to Mastery certification' },
+        { value: '1,700', label: 'Years of Tradition', context: 'Unbroken heritage, now digitally preserved' },
+        { value: '100%', label: 'Free Forever', context: 'No paywalls, no hidden costs, no compromise' },
       ],
     },
     why: {
@@ -254,10 +255,10 @@ const content = {
     },
     stats: {
       items: [
-        { value: '+255', label: 'ترنيمة في المكتبة' },
-        { value: '10', label: 'مستويات من التكوين' },
-        { value: '1,700', label: 'عاماً من التراث الحي' },
-        { value: '100%', label: 'مجاني ومفتوح المصدر' },
+        { value: '+255', label: 'ترنيمة', context: 'دوكسولوجيا وتسبحة وردود وتراتيل موسمية' },
+        { value: '10', label: 'مستويات تعليمية', context: 'من الأساسيات إلى الاعتماد' },
+        { value: '1,700', label: 'سنة من التراث', context: 'تراث متواصل محفوظ رقمياً' },
+        { value: '100%', label: 'مجاني للأبد', context: 'بدون جدران دفع أو رسوم خفية' },
       ],
     },
     why: {
@@ -932,7 +933,7 @@ export default function Home() {
               </p>
 
               <div
-                className="reveal flex flex-col sm:flex-row gap-3 justify-center mb-6"
+                className="reveal flex flex-col sm:flex-row gap-3 justify-center mb-4"
                 data-variant="up"
                 style={{ transitionDelay: '0.55s' }}
               >
@@ -950,23 +951,17 @@ export default function Home() {
                   whileTap={reduce ? {} : { scale: 0.98 }}
                   className="flex items-center justify-center gap-2 px-6 py-3.5 border border-white/20 bg-white/8 hover:bg-white/15 text-white/90 font-medium rounded-xl transition-all text-sm"
                 >
-                  🎵 {isAr ? 'جرّب بدون تسجيل' : 'Try Demo'}
+                  🎵 {t.hero.cta2}
+                </motion.a>
+                <motion.a
+                  href="#platform-preview"
+                  whileHover={reduce ? {} : { scale: 1.02 }}
+                  whileTap={reduce ? {} : { scale: 0.98 }}
+                  className="flex items-center justify-center gap-2 px-6 py-3.5 border border-white/15 text-white/70 hover:text-white hover:border-white/30 font-medium rounded-xl transition-all text-sm"
+                >
+                  {t.hero.cta3} <ArrowRight className="h-4 w-4 rtl-flip" />
                 </motion.a>
               </div>
-            </div>
-          </div>
-        </section>
-
-        {/* ── KEY NUMBERS ───────────────────────────────────────────────── */}
-        <section aria-label={isAr ? 'أرقام رئيسية' : 'Key numbers'} className="bg-gray-50 py-14 sm:py-16">
-          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-            <div className="grid grid-cols-2 gap-8 lg:grid-cols-4">
-              {t.stats.items.map((s, i) => (
-                <FadeIn key={s.label} delay={i * 0.06} className="text-center">
-                  <div className="text-3xl sm:text-4xl font-bold tracking-tight text-gold-600">{s.value}</div>
-                  <p className="mt-1 text-xs sm:text-sm text-gray-600">{s.label}</p>
-                </FadeIn>
-              ))}
             </div>
           </div>
         </section>
@@ -997,16 +992,21 @@ export default function Home() {
                 </FadeIn>
               ))}
             </div>
-            <FadeIn variant="up" className="mt-14 text-center">
-              <motion.button
-                onClick={() => { const el = document.getElementById('platform-preview'); if (el) requestAnimationFrame(() => el.scrollIntoView({ behavior: 'smooth', block: 'start' })) }}
-                whileHover={reduce ? {} : { scale: 1.02 }}
-                whileTap={reduce ? {} : { scale: 0.98 }}
-                className={ctaPrimaryClass}
-              >
-                {t.why.cta} <ArrowRight className="h-4 w-4 rtl-flip" />
-              </motion.button>
-            </FadeIn>
+          </div>
+        </section>
+
+        {/* ── KEY NUMBERS ───────────────────────────────────────────────── */}
+        <section aria-label={isAr ? 'أرقام رئيسية' : 'Key numbers'} className="bg-gray-50 py-14 sm:py-16">
+          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+            <div className="grid grid-cols-2 gap-6 lg:grid-cols-4">
+              {t.stats.items.map((s, i) => (
+                <FadeIn key={s.label} delay={i * 0.06} className="text-center">
+                  <div className="text-3xl sm:text-4xl font-bold tracking-tight text-gold-600">{s.value}</div>
+                  <p className="mt-1 text-xs sm:text-sm font-semibold text-gray-800">{s.label}</p>
+                  <p className="mt-1.5 text-[11px] sm:text-xs text-gray-500 leading-snug">{s.context}</p>
+                </FadeIn>
+              ))}
+            </div>
           </div>
         </section>
 
