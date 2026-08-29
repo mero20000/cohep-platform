@@ -308,14 +308,14 @@ function HeroSection({ stats, churchLogo, churchName, loading }: { stats: Dashbo
       {churchLogo && (
         <div className="relative shrink-0">
           <div className="absolute inset-0 rounded-2xl bg-white/10 blur-xl" />
-          <Image src={churchLogo} alt="Church Logo" width={100} height={100}
+          <Image unoptimized src={churchLogo} alt="Church Logo" width={100} height={100}
             className="relative h-14 w-14 sm:h-24 sm:w-24 rounded-xl sm:rounded-2xl border border-white/15 sm:border-2 bg-white/10 object-cover shadow-xl" />
         </div>
       )}
       {s.school?.logoUrl && (
         <div className="relative shrink-0">
           <div className="absolute inset-0 rounded-2xl bg-white/10 blur-xl" />
-          <Image src={s.school.logoUrl.startsWith('http') ? s.school.logoUrl : (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api').replace('/api', '') + s.school.logoUrl}
+          <Image unoptimized src={s.school.logoUrl.startsWith('http') ? s.school.logoUrl : (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api').replace('/api', '') + s.school.logoUrl}
             alt="School Logo" width={100} height={100}
             className="relative h-14 w-14 sm:h-24 sm:w-24 rounded-xl sm:rounded-2xl border border-white/15 sm:border-2 bg-white/10 object-cover shadow-xl" />
         </div>
@@ -2091,14 +2091,14 @@ export function MinistryDashboard({ data, loading, error, onRetry }: { data: any
    {churchLogo && (
     <div className="relative shrink-0">
      <div className="absolute inset-0 rounded-2xl bg-white/10 blur-xl" />
-     <Image src={churchLogo} alt="Church Logo" width={100} height={100}
+     <Image unoptimized src={churchLogo} alt="Church Logo" width={100} height={100}
       className="relative h-24 w-24 rounded-2xl border-2 border-white/20 bg-white/10 object-cover shadow-xl" />
     </div>
    )}
    {schoolLogo && (
     <div className="relative shrink-0">
      <div className="absolute inset-0 rounded-2xl bg-white/10 blur-xl" />
-     <Image src={schoolLogo} alt="School Logo" width={100} height={100}
+     <Image unoptimized src={schoolLogo} alt="School Logo" width={100} height={100}
       className="relative h-24 w-24 rounded-2xl border-2 border-white/20 bg-white/10 object-cover shadow-xl" />
     </div>
    )}
