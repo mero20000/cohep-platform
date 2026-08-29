@@ -722,9 +722,11 @@ export class AssessmentsService {
 
     // Check if grading is incomplete (servant is still reviewing)
     const grades = await this.prisma.grade.findMany({
-      where: { submissionId: existing.id, score: null },
+      where: { submissionId: existing.id },
+      select: { score: true },
     });
-    if (grades.length > 0) throw new BadRequestException('Cannot retake while grading is in progress');
+    const hasUngraded = grades.some(g => g.score === null);
+    if (hasUngraded) throw new BadRequestException('Cannot retake while grading is in progress');
 
     // Create new submission record, reset to assigned state
     const newSubmission = await this.prisma.assessmentSubmission.create({
