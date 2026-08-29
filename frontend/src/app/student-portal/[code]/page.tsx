@@ -1047,7 +1047,7 @@ export default function StudentDashboard() {
                               const days = a.dueDate ? Math.abs(daysLeft(a.dueDate)) : 0
                               return (
                                 <Link key={a.id} href={`/student-portal/${code}/assessment/${a.id}/take`}
-                                  className={`block rounded-2xl border border-red-200 bg-white border-l-4 border-l-red-400 p-4 transition-all hover:shadow-md active:motion-safe:scale-[0.98]`}>
+                                  className={`block rounded-2xl border-2 border-red-300 bg-white p-4 transition-all hover:shadow-md active:motion-safe:scale-[0.98]`}>
                                   <div className="flex items-start gap-3">
                                     <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-red-100">
                                       <AlertCircle className="h-5 w-5 text-red-500" />
@@ -1056,10 +1056,10 @@ export default function StudentDashboard() {
                                       <p className="text-sm font-bold text-gray-900 truncate">{a.titleAr || a.title}</p>
                                       <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
                                         <span className={`text-[11px] px-2 py-0.5 rounded-full font-medium ${ss.chip}`}>{a.subject.nameAr || a.subject.name}</span>
-                                        <span className="text-[11px] text-gray-400">·</span>
-                                        <span className="text-[11px] text-gray-500">{a.totalPoints} pts</span>
-                                        <span className="text-[11px] text-gray-400">·</span>
-                                        <span className="text-[11px] font-medium text-red-600">{days} {lang === 'ar' ? 'أيام متأخرة' : 'days overdue'}</span>
+                                        <span className="text-[11px] text-red-300">·</span>
+                                        <span className="text-[11px] text-red-700">{a.totalPoints} pts</span>
+                                        <span className="text-[11px] text-red-300">·</span>
+                                        <span className="text-[11px] font-medium text-red-700">{days} {lang === 'ar' ? 'أيام متأخرة' : 'days overdue'}</span>
                                       </div>
                                     </div>
                                     <span className="shrink-0 inline-flex items-center gap-1 rounded-full bg-red-100 px-2.5 py-1 text-xs font-bold text-red-700">
@@ -1091,7 +1091,8 @@ export default function StudentDashboard() {
                               const urgent = days !== null && days <= 3
                               return (
                                 <Link key={a.id} href={`/student-portal/${code}/assessment/${a.id}/take`}
-                                  className={`block rounded-2xl border bg-white border-l-4 ${ss.accent} p-4 transition-all hover:shadow-md active:motion-safe:scale-[0.98]`}>
+                                  className={`block rounded-2xl border-2 bg-white p-4 transition-all hover:shadow-md active:motion-safe:scale-[0.98]`}
+                                  style={{ borderColor: ss.accent.replace('border-l-', '').replace('-400', '-300') }}>
                                   <div className="flex items-start gap-3">
                                     <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${ss.bg}`}>
                                       <BookOpen className={`h-5 w-5 ${ss.chip.split(' ')[1]}`} />
@@ -1100,12 +1101,12 @@ export default function StudentDashboard() {
                                       <p className="text-sm font-bold text-gray-900 truncate">{a.titleAr || a.title}</p>
                                       <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
                                         <span className={`text-[11px] px-2 py-0.5 rounded-full font-medium ${ss.chip}`}>{a.subject.nameAr || a.subject.name}</span>
-                                        <span className="text-[11px] text-gray-400">·</span>
-                                        <span className="text-[11px] text-gray-500">{a.totalPoints} pts</span>
+                                        <span className="text-[11px] text-gray-300">·</span>
+                                        <span className="text-[11px] text-gray-700">{a.totalPoints} pts</span>
                                         {a.dueDate && (
                                           <>
-                                            <span className="text-[11px] text-gray-400">·</span>
-                                            <span className={`text-[11px] font-medium ${urgent ? 'text-amber-600' : 'text-gray-500'}`}>
+                                            <span className="text-[11px] text-gray-300">·</span>
+                                            <span className={`text-[11px] font-medium ${urgent ? 'text-amber-700' : 'text-gray-700'}`}>
                                               {days !== null && days <= 0
                                                 ? (lang === 'ar' ? 'اليوم!' : 'Due today!')
                                                 : days !== null
@@ -1148,20 +1149,20 @@ export default function StudentDashboard() {
                               return (
                                 <Link key={a.id}
                                   href={`/student-portal/${code}/assessment/${a.id}/submission/${a.submissionId}`}
-                                  className="rounded-2xl border border-green-200 bg-green-50/50 border-l-4 border-l-green-400 p-4 transition-all hover:shadow-md active:motion-safe:scale-[0.98] cursor-pointer">
+                                  className="rounded-2xl border-2 border-green-300 bg-white p-4 transition-all hover:shadow-md active:motion-safe:scale-[0.98] cursor-pointer">
                                   <div className="flex items-start gap-3">
                                     <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-green-100">
                                       <CheckCircle2 className="h-5 w-5 text-green-500" />
                                     </div>
                                     <div className="flex-1 min-w-0">
-                                      <p className="text-sm font-medium text-gray-700 truncate line-through decoration-green-400">{a.titleAr || a.title}</p>
+                                      <p className="text-sm font-medium text-gray-900 truncate line-through decoration-green-300">{a.titleAr || a.title}</p>
                                       <div className="flex flex-wrap items-center gap-1.5 mt-1">
                                         <span className={`text-[11px] px-2 py-0.5 rounded-full font-medium ${ss.chip}`}>{a.subject.nameAr || a.subject.name}</span>
-                                        <span className="text-[11px] text-gray-400">·</span>
-                                        <span className="text-[11px] text-gray-500">{a.totalPoints} pts</span>
+                                        <span className="text-[11px] text-green-300">·</span>
+                                        <span className="text-[11px] text-green-700">{a.totalPoints} pts</span>
                                         {score !== null && (
                                           <>
-                                            <span className="text-[11px] text-gray-400">·</span>
+                                            <span className="text-[11px] text-green-300">·</span>
                                             <span className={`text-[11px] font-bold ${passed ? 'text-green-700' : 'text-amber-700'}`}>
                                               {lang === 'ar' ? `${score} / ${a.totalPoints} نقاط` : `${score}/${a.totalPoints}`}
                                             </span>
