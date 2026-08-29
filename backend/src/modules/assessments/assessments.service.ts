@@ -220,6 +220,21 @@ export class AssessmentsService {
     return { message: 'Assessment deleted successfully' };
   }
 
+  /**
+   * The live submission for a student on an assessment: the newest attempt that a
+   * re-take has not archived. Prior attempts are retained with status 'superseded'.
+   *
+   * Every caller must go through this. An unordered findFirst on
+   * {assessmentId, studentId} leaves it undefined which attempt wins, which is how a
+   * re-take could resolve to an old 'submitted' row and fail as "already submitted".
+   */
+  private liveSubmission(assessmentId: string, studentId: string) {
+    return this.prisma.assessmentSubmission.findFirst({
+      where: { assessmentId, studentId, status: { not: 'superseded' } },
+      orderBy: [{ attemptNumber: 'desc' }, { createdAt: 'desc' }],
+    });
+  }
+
   async submit(assessmentId: string, studentId: string, dto: SubmitAssessmentDto, actor?: { id?: string; schoolId?: string }) {
     const assessment = await this.prisma.assessment.findUnique({
       where: { id: assessmentId },
@@ -232,9 +247,7 @@ export class AssessmentsService {
       throw new BadRequestException('Assessment is not open for submission');
     }
 
-    const assignment = await this.prisma.assessmentSubmission.findFirst({
-      where: { assessmentId, studentId },
-    });
+    const assignment = await this.liveSubmission(assessmentId, studentId);
     if (!assignment) {
       throw new BadRequestException('This student is not assigned to this assessment');
     }
@@ -242,11 +255,21 @@ export class AssessmentsService {
       throw new BadRequestException('This student has already submitted this assessment');
     }
 
+    // Due dates were displayed but never enforced: isLate was never written and
+    // allowLateSubmission was never read. Stamp the one, honour the other.
+    const isLate = !!(assessment.dueDate && new Date() > assessment.dueDate);
+    if (isLate && !assessment.allowLateSubmission) {
+      throw new BadRequestException(
+        'The due date for this assessment has passed and late submissions are not allowed',
+      );
+    }
+
     const submission = await this.prisma.$transaction(async (tx) => {
-      const sub = await tx.assessmentSubmission.create({
+      // Fill in the attempt row itself rather than inserting a second row beside it.
+      // Two live rows per attempt is what made the findFirst lookups undefined.
+      const sub = await tx.assessmentSubmission.update({
+        where: { id: assignment.id },
         data: {
-          assessmentId,
-          studentId,
           submissionType: 'online',
           submissionContent: JSON.stringify(dto.answers),
           fileUrl: dto.fileUrl || null,
@@ -254,8 +277,13 @@ export class AssessmentsService {
           durationSeconds: dto.durationSeconds ?? null,
           ...(dto.notes ? { metadata: { notes: dto.notes } } : {}),
           status: 'submitted',
+          submittedAt: new Date(),
+          isLate,
         },
       });
+
+      // A re-submission on a reused row must not accumulate stale auto-grades.
+      await tx.grade.deleteMany({ where: { submissionId: sub.id, questionId: { not: null } } });
 
       const gradeData = dto.answers
         .map((answer) => {
@@ -308,7 +336,7 @@ export class AssessmentsService {
     }
 
     return this.prisma.assessmentSubmission.findMany({
-      where: { assessmentId },
+      where: { assessmentId, status: { not: 'superseded' } },
       include: {
         student: { select: { id: true, firstName: true, lastName: true, studentCode: true } },
         grades: true,
@@ -333,9 +361,7 @@ export class AssessmentsService {
       throw new BadRequestException('Assessment is not open for submission');
     }
 
-    const submission = await this.prisma.assessmentSubmission.findFirst({
-      where: { assessmentId, studentId },
-    });
+    const submission = await this.liveSubmission(assessmentId, studentId);
     if (!submission) {
       throw new BadRequestException('This student is not assigned to this assessment');
     }
@@ -457,9 +483,7 @@ export class AssessmentsService {
       throw new BadRequestException('maxScore cannot exceed the assessment total');
     }
 
-    let submission = await this.prisma.assessmentSubmission.findFirst({
-      where: { assessmentId, studentId },
-    });
+    let submission = await this.liveSubmission(assessmentId, studentId);
 
     if (!submission) {
       submission = await this.prisma.assessmentSubmission.create({
@@ -571,9 +595,11 @@ export class AssessmentsService {
         orderBy: { firstName: 'asc' },
       });
 
+      // Superseded attempts must not shadow the live one in this map.
       const submissions = await this.prisma.assessmentSubmission.findMany({
-        where: { assessmentId },
+        where: { assessmentId, status: { not: 'superseded' } },
         include: { grades: true },
+        orderBy: [{ attemptNumber: 'asc' }, { createdAt: 'asc' }],
       });
       const submissionByStudent = new Map(submissions.map(s => [s.studentId, s]));
 
@@ -655,8 +681,24 @@ export class AssessmentsService {
     if (!submission) throw new NotFoundException('Submission not found');
 
     const answers = JSON.parse(submission.submissionContent || '[]') as any[];
-    const totalScore = submission.grades.reduce((sum, g) => sum + Number(g.score), 0);
-    const maxScore = Number(submission.assessment.totalPoints);
+
+    // A servant's overall mark is stored as a grade row with a null questionId. Where it
+    // exists it is authoritative for the submission as a whole — summing it alongside the
+    // per-question auto-grades double-counts and can push the score past 100%.
+    const overallGrade = submission.grades.find(g => g.questionId === null);
+    const totalScore = overallGrade
+      ? Number(overallGrade.score)
+      : submission.grades
+          .filter(g => g.questionId !== null)
+          .reduce((sum, g) => sum + Number(g.score), 0);
+    const maxScore = overallGrade
+      ? Number(overallGrade.maxScore)
+      : Number(submission.assessment.totalPoints);
+
+    // Marking is only finished at 'completed'. Until then the answer key must stay shut:
+    // this endpoint is reachable directly with a known submission id, so a student could
+    // otherwise read the answers off a previous attempt and then re-take.
+    const gradingComplete = submission.status === 'completed';
 
     return {
       submission: {
@@ -676,10 +718,15 @@ export class AssessmentsService {
         passingScore: Number(submission.assessment.passingScore),
       },
       grade: {
-        earned: totalScore,
+        gradingComplete,
+        earned: gradingComplete ? totalScore : null,
         max: maxScore,
-        percentage: Math.round((totalScore / maxScore) * 100),
-        passed: totalScore >= Number(submission.assessment.passingScore),
+        percentage: gradingComplete && maxScore > 0
+          ? Math.min(100, Math.round((totalScore / maxScore) * 100))
+          : null,
+        passed: gradingComplete
+          ? totalScore >= Number(submission.assessment.passingScore)
+          : null,
       },
       questions: submission.assessment.questions.map((q: any) => {
         const grade = submission.grades.find(g => g.questionId === q.id);
@@ -691,9 +738,9 @@ export class AssessmentsService {
           options: q.options || null,
           points: Number(q.points),
           studentAnswer: answer?.answer || null,
-          correctAnswer: q.type === 'essay' ? null : q.correctAnswer,
-          isCorrect: grade ? Number(grade.score) === Number(grade.maxScore) : null,
-          score: grade ? Number(grade.score) : null,
+          correctAnswer: gradingComplete && q.type !== 'essay' ? q.correctAnswer : null,
+          isCorrect: gradingComplete && grade ? Number(grade.score) === Number(grade.maxScore) : null,
+          score: gradingComplete && grade ? Number(grade.score) : null,
           maxScore: grade ? Number(grade.maxScore) : null,
           feedback: grade?.feedback || null,
           feedbackAr: grade?.feedbackAr || null,
@@ -711,35 +758,65 @@ export class AssessmentsService {
     if (!assessment || assessment.deletedAt) throw new NotFoundException('Assessment not found');
     if (assessment.status !== 'published') throw new BadRequestException('Assessment is not open');
 
-    const existing = await this.prisma.assessmentSubmission.findFirst({
-      where: { assessmentId, studentId },
-    });
+    const existing = await this.liveSubmission(assessmentId, studentId);
     if (!existing) throw new BadRequestException('Student not assigned to this assessment');
 
     // Check if has essay questions (not retakeable)
     const hasEssay = assessment.questions.some(q => q.type === 'essay');
     if (hasEssay) throw new BadRequestException('Cannot retake assessments with essay questions');
 
-    // Check if grading is incomplete (servant is still reviewing)
-    const grades = await this.prisma.grade.findMany({
-      where: { submissionId: existing.id },
-      select: { score: true },
-    });
-    const hasUngraded = grades.some(g => g.score === null);
-    if (hasUngraded) throw new BadRequestException('Cannot retake while grading is in progress');
+    // Grading is in progress while the attempt sits at 'submitted' and no servant has
+    // marked it completed. The previous test — `grades.some(g => g.score === null)` —
+    // could never fire: Grade.score is a non-nullable Decimal.
+    if (existing.status === 'submitted') {
+      throw new BadRequestException('Cannot retake while grading is in progress');
+    }
 
-    // Create new submission record, reset to assigned state
-    const newSubmission = await this.prisma.assessmentSubmission.create({
-      data: {
-        assessmentId,
-        studentId,
-        submissionType: 'online',
-        status: 'assigned',
-      },
+    // An untaken attempt is already open; handing back a second one would strand a row.
+    if (existing.status === 'assigned') {
+      return {
+        newSubmissionId: existing.id,
+        attemptNumber: existing.attemptNumber,
+        attemptsRemaining: assessment.maxAttempts === null
+          ? null
+          : Math.max(0, assessment.maxAttempts - existing.attemptNumber),
+        message: 'Ready to retake. You can now access the assessment again.',
+      };
+    }
+
+    const attemptsUsed = await this.prisma.assessmentSubmission.count({
+      where: { assessmentId, studentId },
+    });
+    if (assessment.maxAttempts !== null && attemptsUsed >= assessment.maxAttempts) {
+      throw new BadRequestException(
+        `No attempts remaining — this assessment allows ${assessment.maxAttempts}.`,
+      );
+    }
+
+    // Archive the attempt being replaced and open the next one atomically, so a student
+    // never holds two live rows. The prior attempt is retained, as the dialog promises.
+    const newSubmission = await this.prisma.$transaction(async (tx) => {
+      await tx.assessmentSubmission.update({
+        where: { id: existing.id },
+        data: { status: 'superseded' },
+      });
+      return tx.assessmentSubmission.create({
+        data: {
+          assessmentId,
+          studentId,
+          submissionType: 'online',
+          status: 'assigned',
+          attemptNumber: existing.attemptNumber + 1,
+        },
+      });
     });
 
     return {
       newSubmissionId: newSubmission.id,
+      attemptNumber: newSubmission.attemptNumber,
+      attemptsRemaining: assessment.maxAttempts === null
+        ? null
+        : Math.max(0, assessment.maxAttempts - newSubmission.attemptNumber),
       message: 'Ready to retake. You can now access the assessment again.',
     };
   }

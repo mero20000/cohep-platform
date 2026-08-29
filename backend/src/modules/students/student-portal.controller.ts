@@ -1,12 +1,12 @@
 import {
   Controller, Get, Param, Post, Body, HttpCode, UploadedFile, UseInterceptors, Query, Delete,
-  UseGuards, SetMetadata,
+  UseGuards, SetMetadata, BadRequestException, NotFoundException,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
 import { extname } from 'path';
 import { v4 as uuidv4 } from 'uuid';
-import { uploadRecording } from '../../common/storage/r2';
+import { uploadRecording, isOwnedRecordingUrl } from '../../common/storage/r2';
 import { ApiTags, ApiOperation, ApiConsumes } from '@nestjs/swagger';
 import { JwtService } from '@nestjs/jwt';
 import { Throttle } from '@nestjs/throttler';
@@ -15,6 +15,7 @@ import { HymnLearningService } from '../curriculum/hymn-learning.service';
 import { AssessmentsService } from '../assessments/assessments.service';
 import { SubmitAssessmentDto } from '../assessments/dto/assessment.dto';
 import { StudentLoginDto } from './dto/student-login.dto';
+import { LogPracticeDto } from './dto/log-practice.dto';
 import { Public } from '../../common/decorators/public.decorator';
 import { StudentPortalAuthGuard, SKIP_PORTAL_AUTH } from './student-portal-auth.guard';
 import { createCloudinaryStorage, isCloudinaryConfigured } from '../../common/config/cloudinary';
@@ -101,7 +102,7 @@ export class StudentPortalController {
       where: { portalAccessKey: code, deletedAt: null },
       select: { id: true, schoolId: true, firstName: true, lastName: true, level: { select: { number: true } } },
     });
-    if (!student) throw new Error('Student not found');
+    if (!student) throw new NotFoundException('Student not found');
     return student;
   }
 
@@ -183,9 +184,12 @@ export class StudentPortalController {
   @ApiOperation({ summary: 'Log a practice session' })
   async logPractice(
     @Param('code') code: string,
-    @Body() body: { lessonId: string; selfRating: number; recordingUrl?: string; durationSec?: number },
+    @Body() body: LogPracticeDto,
   ) {
     const student = await this.resolveStudent(code);
+    if (body.recordingUrl && !isOwnedRecordingUrl(body.recordingUrl)) {
+      throw new BadRequestException('recordingUrl must be a recording uploaded to this platform');
+    }
     return this.hymnLearning.logPracticeSession({
       studentId: student.id,
       schoolId: student.schoolId,
@@ -220,11 +224,23 @@ export class StudentPortalController {
       else cb(new Error('Only .webm, .mp3, .m4a, .ogg files are allowed'), false);
     },
   }))
-  async uploadRecording(@UploadedFile() file: Express.Multer.File) {
-    if (!file) throw new Error('No file uploaded');
-    if (!file.buffer) throw new Error('No file buffer');
+  async uploadRecording(
+    @Param('code') code: string,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    // This handler previously took only the file: it never read the route's access key,
+    // never resolved a student, and wrote into one shared prefix — general-purpose file
+    // hosting for anyone holding any valid portal session. Resolving the student both
+    // scopes the object key and makes the guard's route binding actually mean something.
+    const student = await this.resolveStudent(code);
+    if (!file) throw new BadRequestException('No file uploaded');
+    if (!file.buffer) throw new BadRequestException('No file buffer');
     const filename = `${uuidv4()}${extname(file.originalname)}`;
-    const url = await uploadRecording(file.buffer, `practice-recordings/${filename}`, file.mimetype);
+    const url = await uploadRecording(
+      file.buffer,
+      `practice-recordings/${student.id}/${filename}`,
+      file.mimetype,
+    );
     return { url };
   }
 }

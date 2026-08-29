@@ -813,6 +813,8 @@ model Assessment {
   timeLimitMinutes       Int?      @map("time_limit_minutes")
   dueDate                DateTime? @map("due_date")
   allowLateSubmission    Boolean   @default(false) @map("allow_late_submission")
+  /// Maximum attempts a student may make. Null means unlimited.
+  maxAttempts            Int?      @map("max_attempts")
   instructions           String?
   instructionsAr         String?   @map("instructions_ar")
   status                 String    @default("draft")
@@ -874,7 +876,11 @@ model AssessmentSubmission {
   durationSeconds   Int?      @map("duration_seconds")
   startedAt         DateTime? @map("started_at")
   submittedAt       DateTime  @default(now()) @map("submitted_at")
+  /// assigned | submitted | completed | superseded.
+  /// "superseded" is a prior attempt archived by a re-take — it is never the live row.
   status            String    @default("submitted")
+  /// 1-based attempt counter, so the live row is findable without relying on insertion order.
+  attemptNumber     Int       @default(1) @map("attempt_number")
   isLate            Boolean   @default(false) @map("is_late")
   metadata          Json?
   createdAt         DateTime  @default(now()) @map("created_at")
@@ -885,6 +891,7 @@ model AssessmentSubmission {
   grades     Grade[]
 
   @@index([assessmentId, studentId])
+  @@index([assessmentId, studentId, attemptNumber])
   @@map("assessment_submissions")
 }
 

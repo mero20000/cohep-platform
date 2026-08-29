@@ -699,6 +699,8 @@ async getPortalData(portalAccessKey: string) {
       this.prisma.assessmentSubmission.findMany({
         where: {
           studentId: student.id,
+          // A prior attempt archived by a re-take must never surface as the live row.
+          status: { not: 'superseded' },
           assessment: { status: 'published', deletedAt: null, schoolId: student.schoolId },
         },
         include: {

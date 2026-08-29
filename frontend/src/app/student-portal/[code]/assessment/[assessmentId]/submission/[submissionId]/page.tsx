@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation'
 import { http } from '@/lib/http-client'
 import { portalGet, ensurePortalSession } from '@/lib/portal-session'
 import { useLanguage } from '@/lib/use-language'
-import { ArrowLeft, Play, Pause, RotateCcw, Volume2, Loader2 } from 'lucide-react'
+import { ArrowLeft, Play, Pause, RotateCcw, Volume2, Loader2, Clock } from 'lucide-react'
 import Link from 'next/link'
 import { useToast } from '@/components/ui/toast'
 
@@ -26,10 +26,12 @@ interface SubmissionData {
     passingScore: number
   }
   grade: {
-    earned: number
+    /** False until a servant has marked the submission. Everything below is null then. */
+    gradingComplete: boolean
+    earned: number | null
     max: number
-    percentage: number
-    passed: boolean
+    percentage: number | null
+    passed: boolean | null
   }
   questions: Array<{
     id: string
@@ -119,34 +121,54 @@ export default function SubmissionReview() {
       </div>
 
       <div className="max-w-4xl mx-auto px-4 py-8 space-y-6">
-        {/* Grade Card */}
-        <div className={`rounded-2xl border-2 p-6 ${grade.passed ? 'border-green-200 bg-green-50' : 'border-amber-200 bg-amber-50'}`}>
-          <div className="flex items-start justify-between mb-4">
-            <div>
-              <p className="text-sm text-gray-600 mb-1">{t('Your Score', 'درجتك')}</p>
-              <div className="flex items-baseline gap-2">
-                <span className={`text-4xl font-bold ${grade.passed ? 'text-green-600' : 'text-amber-600'}`}>
-                  {grade.earned}/{grade.max}
-                </span>
-                <span className="text-xl font-semibold text-gray-600">{grade.percentage}%</span>
+        {/* Grade Card — the score only exists once a servant has marked the submission. */}
+        {grade.gradingComplete ? (
+          <div className={`rounded-2xl border-2 p-6 ${grade.passed ? 'border-green-200 bg-green-50' : 'border-amber-200 bg-amber-50'}`}>
+            <div className="flex items-start justify-between mb-4">
+              <div>
+                <p className="text-sm text-gray-600 mb-1">{t('Your Score', 'درجتك')}</p>
+                <div className="flex items-baseline gap-2">
+                  <span className={`text-4xl font-bold ${grade.passed ? 'text-green-600' : 'text-amber-600'}`}>
+                    {grade.earned}/{grade.max}
+                  </span>
+                  <span className="text-xl font-semibold text-gray-600">{grade.percentage}%</span>
+                </div>
+              </div>
+              <div className={`rounded-full px-4 py-2 text-sm font-bold ${grade.passed ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
+                {grade.passed ? t('Passed ✓', 'نجحت ✓') : t('Review Needed', 'تحتاج مراجعة')}
               </div>
             </div>
-            <div className={`rounded-full px-4 py-2 text-sm font-bold ${grade.passed ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
-              {grade.passed ? t('Passed ✓', 'نجحت ✓') : t('Review Needed', 'تحتاج مراجعة')}
+            <div className="h-2 rounded-full bg-gray-200 overflow-hidden">
+              <div className="h-full rounded-full transition-all"
+                style={{
+                  width: `${grade.percentage}%`,
+                  background: grade.passed ? '#16a34a' : '#f59e0b'
+                }} />
+            </div>
+            <div className="mt-3 flex items-center justify-between text-sm">
+              <span className="text-gray-600">{t('Passing Score', 'الحد الأدنى للنجاح')}: {assessment.passingScore} pts</span>
+              <span className="text-gray-500 text-xs">{t('Submitted', 'تم الإرسال')}: {new Date(submission.submittedAt).toLocaleString(lang === 'ar' ? 'ar-EG' : 'en-GB')}</span>
             </div>
           </div>
-          <div className="h-2 rounded-full bg-gray-200 overflow-hidden">
-            <div className="h-full rounded-full transition-all"
-              style={{
-                width: `${grade.percentage}%`,
-                background: grade.passed ? '#16a34a' : '#f59e0b'
-              }} />
+        ) : (
+          <div className="rounded-2xl border-2 border-amber-200 bg-amber-50 p-6">
+            <div className="flex items-start gap-3">
+              <Clock className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
+              <div>
+                <p className="text-base font-bold text-gray-900">{t('Awaiting marking', 'بانتظار التصحيح')}</p>
+                <p className="mt-1 text-sm text-gray-600">
+                  {t(
+                    'Your answers are saved. A servant has not marked this yet, so there is no score to show and the correct answers stay hidden.',
+                    'تم حفظ إجاباتك. لم يصححها الخادم بعد، لذلك لا توجد درجة لعرضها وتظل الإجابات الصحيحة مخفية.',
+                  )}
+                </p>
+                <p className="mt-2 text-xs text-gray-500">
+                  {t('Submitted', 'تم الإرسال')}: {new Date(submission.submittedAt).toLocaleString(lang === 'ar' ? 'ar-EG' : 'en-GB')}
+                </p>
+              </div>
+            </div>
           </div>
-          <div className="mt-3 flex items-center justify-between text-sm">
-            <span className="text-gray-600">{t('Passing Score', 'الحد الأدنى للنجاح')}: {assessment.passingScore} pts</span>
-            <span className="text-gray-500 text-xs">{t('Submitted', 'تم الإرسال')}: {new Date(submission.submittedAt).toLocaleString(lang === 'ar' ? 'ar-EG' : 'en-GB')}</span>
-          </div>
-        </div>
+        )}
 
         {/* Recording if exists */}
         {submission.fileUrl && (

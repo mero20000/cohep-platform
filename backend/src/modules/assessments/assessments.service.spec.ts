@@ -49,12 +49,17 @@ describe('AssessmentsService', () => {
       createMany: jest.fn(),
       update: jest.fn(),
       delete: jest.fn(),
+      count: jest.fn(),
     },
     user: {
       findFirst: jest.fn(),
     },
     grade: {
       createMany: jest.fn(),
+      deleteMany: jest.fn(),
+      findFirst: jest.fn(),
+      create: jest.fn(),
+      update: jest.fn(),
     },
   };
 
@@ -306,8 +311,9 @@ describe('AssessmentsService', () => {
           { id: 'q1', type: 'essay', correctAnswer: null, points: 10 },
         ],
       });
-      prisma.assessmentSubmission.findFirst.mockResolvedValue({ id: 's1', status: 'assigned' });
-      prisma.assessmentSubmission.create.mockResolvedValue({ id: 'sub1' });
+      // submit() fills in the assigned attempt row rather than inserting beside it.
+      prisma.assessmentSubmission.findFirst.mockResolvedValue({ id: 's1', status: 'assigned', attemptNumber: 1 });
+      prisma.assessmentSubmission.update.mockResolvedValue({ id: 'sub1' });
       prisma.assessmentSubmission.findUnique.mockResolvedValue({ id: 'sub1', grades: [], student: null });
       prisma.grade.createMany = jest.fn().mockResolvedValue({ count: 0 });
 
@@ -381,8 +387,8 @@ describe('AssessmentsService', () => {
 
     it('writes a PROXY_SUBMIT audit row on proxied submit', async () => {
       prisma.assessment.findUnique.mockResolvedValue(staffAssess());
-      prisma.assessmentSubmission.findFirst.mockResolvedValue({ id: 's1', status: 'assigned' });
-      prisma.assessmentSubmission.create.mockResolvedValue({ id: 'sub9' });
+      prisma.assessmentSubmission.findFirst.mockResolvedValue({ id: 's1', status: 'assigned', attemptNumber: 1 });
+      prisma.assessmentSubmission.update.mockResolvedValue({ id: 'sub9' });
       prisma.assessmentSubmission.findUnique.mockResolvedValue({ id: 'sub9', grades: [], student: null });
 
       await service.submit('a1', 'stu-1', { answers: [] }, { id: 'staff-1', schoolId: 'school-1' });
@@ -419,6 +425,191 @@ describe('AssessmentsService', () => {
           getClass: () => undefined,
         } as any),
       ).toBe(true);
+    });
+  });
+
+  describe('due date enforcement', () => {
+    const yesterday = () => new Date(Date.now() - 86_400_000);
+
+    const overdueAssess = (allowLate: boolean) => ({
+      id: 'a1', schoolId: 'school-1', status: 'published', deletedAt: null,
+      questions: [], dueDate: yesterday(), allowLateSubmission: allowLate,
+    });
+
+    it('refuses a late submission when allowLateSubmission is false', async () => {
+      prisma.assessment.findUnique.mockResolvedValue(overdueAssess(false));
+      prisma.assessmentSubmission.findFirst.mockResolvedValue({ id: 's1', status: 'assigned', attemptNumber: 1 });
+
+      await expect(service.submit('a1', 'stu-1', { answers: [] })).rejects.toThrow(
+        /late submissions are not allowed/,
+      );
+    });
+
+    it('accepts a late submission and stamps isLate when allowLateSubmission is true', async () => {
+      prisma.assessment.findUnique.mockResolvedValue(overdueAssess(true));
+      prisma.assessmentSubmission.findFirst.mockResolvedValue({ id: 's1', status: 'assigned', attemptNumber: 1 });
+      prisma.assessmentSubmission.update.mockResolvedValue({ id: 's1' });
+      prisma.assessmentSubmission.findUnique.mockResolvedValue({ id: 's1', grades: [], student: null });
+
+      await service.submit('a1', 'stu-1', { answers: [] });
+
+      expect(prisma.assessmentSubmission.update).toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({ isLate: true }) }),
+      );
+    });
+
+    it('does not mark a submission late when there is no due date', async () => {
+      prisma.assessment.findUnique.mockResolvedValue({
+        id: 'a1', schoolId: 'school-1', status: 'published', deletedAt: null,
+        questions: [], dueDate: null, allowLateSubmission: false,
+      });
+      prisma.assessmentSubmission.findFirst.mockResolvedValue({ id: 's1', status: 'assigned', attemptNumber: 1 });
+      prisma.assessmentSubmission.update.mockResolvedValue({ id: 's1' });
+      prisma.assessmentSubmission.findUnique.mockResolvedValue({ id: 's1', grades: [], student: null });
+
+      await service.submit('a1', 'stu-1', { answers: [] });
+
+      expect(prisma.assessmentSubmission.update).toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({ isLate: false }) }),
+      );
+    });
+  });
+
+  describe('prepareRetake', () => {
+    const retakeable = (over: any = {}) => ({
+      id: 'a1', status: 'published', deletedAt: null, maxAttempts: null,
+      questions: [{ id: 'q1', type: 'multiple_choice' }],
+      ...over,
+    });
+
+    // The previous guard tested `grade.score === null`, which is unreachable: Grade.score
+    // is a non-nullable Decimal. Grading-in-progress is the 'submitted' status.
+    it('refuses a retake while the attempt is submitted but not yet marked', async () => {
+      prisma.assessment.findUnique.mockResolvedValue(retakeable());
+      prisma.assessmentSubmission.findFirst.mockResolvedValue({ id: 's1', status: 'submitted', attemptNumber: 1 });
+
+      await expect(service.prepareRetake('a1', 'stu-1')).rejects.toThrow(
+        /grading is in progress/,
+      );
+    });
+
+    it('reuses an already-open attempt instead of opening a second one', async () => {
+      prisma.assessment.findUnique.mockResolvedValue(retakeable());
+      prisma.assessmentSubmission.findFirst.mockResolvedValue({ id: 's1', status: 'assigned', attemptNumber: 2 });
+
+      const res = await service.prepareRetake('a1', 'stu-1');
+
+      expect(res.newSubmissionId).toBe('s1');
+      expect(prisma.assessmentSubmission.create).not.toHaveBeenCalled();
+    });
+
+    it('archives the prior attempt and increments the attempt number', async () => {
+      prisma.assessment.findUnique.mockResolvedValue(retakeable());
+      prisma.assessmentSubmission.findFirst.mockResolvedValue({ id: 's1', status: 'completed', attemptNumber: 1 });
+      prisma.assessmentSubmission.count.mockResolvedValue(1);
+      prisma.assessmentSubmission.create.mockResolvedValue({ id: 's2', attemptNumber: 2 });
+
+      const res = await service.prepareRetake('a1', 'stu-1');
+
+      expect(prisma.assessmentSubmission.update).toHaveBeenCalledWith({
+        where: { id: 's1' },
+        data: { status: 'superseded' },
+      });
+      expect(prisma.assessmentSubmission.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ status: 'assigned', attemptNumber: 2 }),
+        }),
+      );
+      expect(res.attemptNumber).toBe(2);
+    });
+
+    it('refuses a retake once maxAttempts is used up', async () => {
+      prisma.assessment.findUnique.mockResolvedValue(retakeable({ maxAttempts: 2 }));
+      prisma.assessmentSubmission.findFirst.mockResolvedValue({ id: 's2', status: 'completed', attemptNumber: 2 });
+      prisma.assessmentSubmission.count.mockResolvedValue(2);
+
+      await expect(service.prepareRetake('a1', 'stu-1')).rejects.toThrow(
+        /No attempts remaining/,
+      );
+    });
+
+    it('reports remaining attempts when a cap is set', async () => {
+      prisma.assessment.findUnique.mockResolvedValue(retakeable({ maxAttempts: 3 }));
+      prisma.assessmentSubmission.findFirst.mockResolvedValue({ id: 's1', status: 'completed', attemptNumber: 1 });
+      prisma.assessmentSubmission.count.mockResolvedValue(1);
+      prisma.assessmentSubmission.create.mockResolvedValue({ id: 's2', attemptNumber: 2 });
+
+      const res = await service.prepareRetake('a1', 'stu-1');
+
+      expect(res.attemptsRemaining).toBe(1);
+    });
+  });
+
+  describe('getSubmissionReview', () => {
+    const review = (status: string, grades: any[]) => ({
+      id: 'sub1', studentId: 'stu-1', assessmentId: 'a1', status,
+      submissionContent: JSON.stringify([{ questionId: 'q1', answer: 'B' }]),
+      submittedAt: new Date(), fileUrl: null, durationSeconds: null, isLate: false,
+      metadata: null,
+      assessment: {
+        id: 'a1', title: 'Quiz', titleAr: null, type: 'quiz',
+        totalPoints: 10, passingScore: 5,
+        questions: [{ id: 'q1', questionText: 'Q?', type: 'multiple_choice', options: ['A', 'B'], points: 10, correctAnswer: 'B' }],
+      },
+      grades,
+    });
+
+    // Reachable directly with a known submission id, so it must not leak the key early.
+    it('withholds the answer key and the score until marking is complete', async () => {
+      prisma.assessmentSubmission.findFirst.mockResolvedValue(
+        review('submitted', [{ questionId: 'q1', score: 10, maxScore: 10, feedback: null, feedbackAr: null }]),
+      );
+
+      const res: any = await service.getSubmissionReview('sub1', 'stu-1', 'a1');
+
+      expect(res.grade.gradingComplete).toBe(false);
+      expect(res.grade.earned).toBeNull();
+      expect(res.grade.percentage).toBeNull();
+      expect(res.questions[0].correctAnswer).toBeNull();
+      expect(res.questions[0].score).toBeNull();
+    });
+
+    it('releases the answer key once marking is complete', async () => {
+      prisma.assessmentSubmission.findFirst.mockResolvedValue(
+        review('completed', [{ questionId: 'q1', score: 10, maxScore: 10, feedback: null, feedbackAr: null }]),
+      );
+
+      const res: any = await service.getSubmissionReview('sub1', 'stu-1', 'a1');
+
+      expect(res.grade.gradingComplete).toBe(true);
+      expect(res.questions[0].correctAnswer).toBe('B');
+      expect(res.grade.percentage).toBe(100);
+    });
+
+    // The servant's overall row and the per-question auto-grades used to be summed
+    // together, which double-counted and pushed the percentage past 100.
+    it('treats a servant overall mark as authoritative rather than summing it in', async () => {
+      prisma.assessmentSubmission.findFirst.mockResolvedValue(
+        review('completed', [
+          { questionId: 'q1', score: 10, maxScore: 10, feedback: null, feedbackAr: null },
+          { questionId: null, score: 8, maxScore: 10, feedback: 'good', feedbackAr: null },
+        ]),
+      );
+
+      const res: any = await service.getSubmissionReview('sub1', 'stu-1', 'a1');
+
+      expect(res.grade.earned).toBe(8);
+      expect(res.grade.percentage).toBe(80);
+    });
+
+    it('never reports a percentage above 100', async () => {
+      prisma.assessmentSubmission.findFirst.mockResolvedValue(
+        review('completed', [{ questionId: null, score: 25, maxScore: 10, feedback: null, feedbackAr: null }]),
+      );
+
+      const res: any = await service.getSubmissionReview('sub1', 'stu-1', 'a1');
+
+      expect(res.grade.percentage).toBe(100);
     });
   });
 });

@@ -218,10 +218,23 @@ export default function TakeAssessment({ assessmentId, mode, accessKey, studentI
     return <div className="flex justify-center py-20"><Loader2 className="h-6 w-6 animate-spin text-indigo-500" /></div>
   }
   if (error) {
+    // A bare red line was a dead end: the most common way to land here is an
+    // already-submitted assessment, where the student needs a way back, not a diagnosis.
+    const backHref = mode === 'portal' && accessKey
+      ? `/student-portal/${accessKey}`
+      : '/dashboard/assessments'
     return (
-      <div className="flex flex-col items-center gap-3 py-20 text-center">
+      <div className="flex flex-col items-center gap-4 py-20 text-center">
         <AlertCircle className="h-8 w-8 text-red-500" />
-        <p className="text-sm text-red-600">{error}</p>
+        <p className="max-w-sm text-sm text-red-600">{error}</p>
+        <button
+          type="button"
+          onClick={() => router.push(backHref)}
+          className="inline-flex items-center gap-1.5 rounded-full bg-indigo-100 px-4 py-2 text-sm font-bold text-indigo-700 transition-colors hover:bg-indigo-200"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          {lang === 'ar' ? 'رجوع إلى تقييماتي' : 'Back to my assessments'}
+        </button>
       </div>
     )
   }

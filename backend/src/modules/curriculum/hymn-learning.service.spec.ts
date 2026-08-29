@@ -46,6 +46,7 @@ describe('HymnLearningService - student-scoped write ownership (P-C1)', () => {
   let prisma: any;
 
   const prismaMock = {
+    lesson: { findFirst: jest.fn() },
     student: { findUnique: jest.fn() },
     studentParent: { findUnique: jest.fn() },
     user: { findUnique: jest.fn() },
@@ -68,8 +69,23 @@ describe('HymnLearningService - student-scoped write ownership (P-C1)', () => {
     prisma = module.get(PrismaService);
     jest.clearAllMocks();
     prisma.student.findUnique.mockResolvedValue(student);
+    prisma.lesson.findFirst.mockResolvedValue({ id: 'l1', schoolId: 'sch1' } as any);
     prisma.lessonProgress.upsert.mockResolvedValue({ id: 'p1' } as any);
     prisma.hymnPracticeSession.create.mockResolvedValue({ id: 's1' } as any);
+  });
+
+  it('rejects a lessonId belonging to another school (403)', async () => {
+    prisma.lesson.findFirst.mockResolvedValue({ id: 'l1', schoolId: 'other-school' } as any);
+    await expect(
+      svc.logPracticeSession(dto, { id: 'stu1' }),
+    ).rejects.toMatchObject({ status: 403 });
+  });
+
+  it('rejects an unknown lessonId (404)', async () => {
+    prisma.lesson.findFirst.mockResolvedValue(null);
+    await expect(
+      svc.logPracticeSession(dto, { id: 'stu1' }),
+    ).rejects.toMatchObject({ status: 404 });
   });
 
   it('rejects unrelated parent logging practice for a student (403)', async () => {

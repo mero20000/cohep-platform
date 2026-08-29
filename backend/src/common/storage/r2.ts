@@ -21,6 +21,28 @@ function getClient(): S3Client {
   });
 }
 
+/**
+ * True only for a URL this platform itself issued from uploadRecording — either the local
+ * fallback path or an object under the configured R2 public base.
+ *
+ * Callers accept recording URLs from the client, and those URLs are later rendered as
+ * audio sources in the servant review queue and the parent portal. An off-site URL there
+ * is an attacker choosing what a servant's browser fetches, so it must be refused.
+ */
+export function isOwnedRecordingUrl(url: string): boolean {
+  if (typeof url !== 'string' || url.length === 0 || url.length > 2048) return false;
+
+  // Local fallback: /uploads/audio/<filename>, no traversal.
+  if (/^\/uploads\/audio\/[A-Za-z0-9._-]+$/.test(url)) return true;
+
+  if (!PUBLIC_URL) return false;
+  const base = `${PUBLIC_URL.replace(/\/$/, '')}/`;
+  if (!url.startsWith(base)) return false;
+  // Reject anything that tries to climb out of the prefix or smuggle a second URL.
+  const key = url.slice(base.length);
+  return /^[A-Za-z0-9/._-]+$/.test(key) && !key.includes('..');
+}
+
 export async function uploadRecording(
   buffer: Buffer,
   key: string,

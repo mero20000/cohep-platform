@@ -1,4 +1,4 @@
-import { Injectable, ForbiddenException } from '@nestjs/common'
+import { Injectable, ForbiddenException, NotFoundException } from '@nestjs/common'
 import { PrismaService } from '../../database/prisma.service'
 import {
   COPTIC_MONTHS, gregorianToJD, jdToCoptic,
@@ -136,6 +136,18 @@ export class HymnLearningService {
     durationSec?: number
   }, caller?: any) {
     await this.assertCanWriteStudent(caller, dto.studentId)
+
+    // The lessonId arrives from the client. Without this check a student can log practice
+    // against — and so create LessonProgress for — a lesson belonging to another school.
+    const lesson = await this.prisma.lesson.findFirst({
+      where: { id: dto.lessonId, deletedAt: null },
+      select: { id: true, schoolId: true },
+    })
+    if (!lesson) throw new NotFoundException('Lesson not found')
+    if (lesson.schoolId !== dto.schoolId) {
+      throw new ForbiddenException('This lesson does not belong to your school')
+    }
+
     const quality = Math.max(1, Math.min(5, dto.selfRating ?? 3))
 
     // Upsert LessonProgress

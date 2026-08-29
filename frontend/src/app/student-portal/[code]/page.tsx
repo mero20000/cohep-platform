@@ -376,7 +376,9 @@ export default function StudentDashboard() {
         <div className="max-w-3xl mx-auto px-4">
           <div className="flex gap-0">
             {(['dashboard', 'assessments', 'practice'] as Tab[]).map(tab => {
-              const pendingCount = assessments.filter(a => a.submissionStatus !== 'completed').length
+              // Only what the student can actually act on — a submitted-but-unmarked
+              // assessment is waiting on a servant, not on them.
+              const pendingCount = assessments.filter(a => a.submissionStatus !== 'completed' && a.submissionStatus !== 'submitted').length
               const badge = tab === 'assessments' && pendingCount > 0
                 ? <span className="ml-1 inline-flex items-center justify-center h-5 min-w-5 rounded-full bg-red-500 px-1 text-[10px] font-bold text-white align-middle">{pendingCount}</span>
                 : null
@@ -941,8 +943,14 @@ export default function StudentDashboard() {
         {activeTab === 'assessments' && (
           <>
             {(() => {
-              const pending = assessments.filter(a => a.submissionStatus !== 'completed' && !(a.dueDate && new Date(a.dueDate) < new Date()))
-              const overdue = assessments.filter(a => a.submissionStatus !== 'completed' && a.dueDate && new Date(a.dueDate) < new Date())
+              // A submission sitting at 'submitted' is done as far as the student is
+              // concerned — it is waiting on a servant. Bucketing it as not-completed put
+              // it back under Overdue with a "Start →" link that the take endpoint then
+              // rejects as "already submitted", with no way out. It gets its own bucket.
+              const awaiting = assessments.filter(a => a.submissionStatus === 'submitted')
+              const actionable = assessments.filter(a => a.submissionStatus !== 'completed' && a.submissionStatus !== 'submitted')
+              const pending = actionable.filter(a => !(a.dueDate && new Date(a.dueDate) < new Date()))
+              const overdue = actionable.filter(a => a.dueDate && new Date(a.dueDate) < new Date())
               const done = assessments.filter(a => a.submissionStatus === 'completed')
               const total = assessments.length
               const pct = total > 0 ? Math.round((done.length / total) * 100) : 0
@@ -1125,6 +1133,48 @@ export default function StudentDashboard() {
                                     </div>
                                     <span className="shrink-0 inline-flex items-center gap-1 rounded-full bg-indigo-100 px-2.5 py-1 text-xs font-bold text-indigo-700">
                                       {lang === 'ar' ? 'ابدأ' : 'Start →'}
+                                    </span>
+                                  </div>
+                                </Link>
+                              )
+                            })}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Awaiting marking — submitted, not yet graded. Reviewable, not retakeable. */}
+                      {awaiting.length > 0 && (
+                        <div className="mb-5">
+                          <h3 className="text-xs font-bold uppercase tracking-wide text-amber-600 mb-2 flex items-center gap-1.5">
+                            <Clock className="h-3.5 w-3.5" />
+                            {lang === 'ar' ? 'بانتظار التصحيح' : 'Awaiting marking'}
+                          </h3>
+                          <div className="space-y-2.5">
+                            {awaiting.map(a => {
+                              const ss = subjectStyle(a.subject.name)
+                              return (
+                                <Link key={a.id}
+                                  href={`/student-portal/${code}/assessment/${a.id}/submission/${a.submissionId}`}
+                                  className="block rounded-2xl border-2 border-amber-300 bg-white p-4 transition-all hover:shadow-md active:motion-safe:scale-[0.98]">
+                                  <div className="flex items-start gap-3">
+                                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-100">
+                                      <Clock className="h-5 w-5 text-amber-600" />
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                      <p className="text-sm font-bold text-gray-900 truncate">{lang === 'ar' ? (a.titleAr || a.title) : (a.title || a.titleAr)}</p>
+                                      <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
+                                        <span className={`text-[11px] px-2 py-0.5 rounded-full font-medium ${ss.chip}`}>{lang === 'ar' ? (a.subject.nameAr || a.subject.name) : (a.subject.name || a.subject.nameAr)}</span>
+                                        <span className="text-[11px] text-gray-300">·</span>
+                                        <span className="text-[11px] text-gray-700">{a.totalPoints} pts</span>
+                                      </div>
+                                      <p className="mt-1.5 text-[11px] text-amber-700">
+                                        {lang === 'ar'
+                                          ? 'تم التسليم. سيظهر تقديرك بعد أن يصححه الخادم.'
+                                          : 'Submitted. Your mark appears once a servant has looked at it.'}
+                                      </p>
+                                    </div>
+                                    <span className="shrink-0 inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-1 text-xs font-bold text-amber-700">
+                                      {lang === 'ar' ? 'مراجعة' : 'Review →'}
                                     </span>
                                   </div>
                                 </Link>
