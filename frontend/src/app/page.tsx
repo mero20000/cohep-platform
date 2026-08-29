@@ -125,7 +125,7 @@ const content = {
         {
           icon: Music,
           title: 'Coptic Hymns',
-          desc: '255+ hymns (Doxologies, Tasbeha, Liturgical Responses, and seasonal hymns) with Coptic script, transliteration, and audio guides.',
+          desc: '255+ hymns (Doxologies, Tasbeha, Liturgical Responses, and seasonal hymns) with Coptic script, transliteration, and audio guides. Example: Ⲭⲏⲣⲉ ⲛⲉ Ⲙ̀ⲁⲣⲓⲁ (Khere ne Maria)',
           list: ['Doxologies', 'Tasbeha hymns', 'Seasonal hymns', 'Liturgical responses'],
         },
         {
@@ -145,6 +145,7 @@ const content = {
     formation: {
       eyebrow: 'Formation, Not Just Education',
       headline: 'A child who sings "Khere Ne Maria" today will teach it to the next generation.',
+      copticExample: 'Ⲭⲏⲣⲉ ⲛⲉ Ⲙ̀ⲁⲣⲓⲁ',
       body: 'COHEP tracks more than grades. It tracks growth in knowledge, participation, and love for the Church. Every lesson is one more thread in the tapestry of a life formed by worship.\n\nEvery child in your church deserves to know these hymns. Not because they have to. Because they belong.',
     },
     howItWorks: {
@@ -335,7 +336,7 @@ const content = {
         {
           icon: Music,
           title: 'التراتيب القبطية',
-          desc: '+255 ترنيمة (الدوكسولوجيا والتسبحة والردود الليتورجية والتراتيب الموسمية) مع النص القبطي والتحويل الصوتي والأدلة الصوتية.',
+          desc: '+255 ترنيمة (الدوكسولوجيا والتسبحة والردود الليتورجية والتراتيب الموسمية) مع النص القبطي والتحويل الصوتي والأدلة الصوتية. مثال: Ⲭⲏⲣⲉ ⲛⲉ Ⲙ̀ⲁⲣⲓⲁ (خيري ني ماريا)',
           list: ['الدوكسولوجيا', 'تراتيب التسبحة', 'التراتيب الموسمية', 'الردود الليتورجية'],
         },
         {
@@ -355,6 +356,7 @@ const content = {
     formation: {
       eyebrow: 'تكوين، لا مجرد تعليم',
       headline: 'طفل يتعلم "شيري ني ماريا" اليوم سيعلمها للجيل القادم.',
+      copticExample: 'Ⲭⲏⲣⲉ ⲛⲉ Ⲙ̀ⲁⲣⲓⲁ',
       body: 'كوهيب لا تتتبع الدرجات فقط. إنها تتتبع النمو في المعرفة والمشاركة وحب الكنيسة. كل درس خيط آخر في نسيج حياة مُشكَّلة بالعبادة.\n\nكل طفل في كنيستك يستحق أن يعرف هذه التراتيب. ليس لأنه مُلزَم. بل لأنه ينتمي.',
     },
     howItWorks: {
@@ -1130,6 +1132,11 @@ export default function Home() {
               <h2 id="formation-heading" className="mt-8 text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight text-gray-900 leading-[1.15]">
                 {t.formation.headline}
               </h2>
+              {t.formation.copticExample && (
+                <p className="mt-6 text-4xl sm:text-5xl font-light text-gold-600 tracking-wide font-serif">
+                  {t.formation.copticExample}
+                </p>
+              )}
               <div className="mt-8 max-w-2xl mx-auto">
                 {t.formation.body.split('\n\n').map((p, i) => (
                   i === 0 ? (
