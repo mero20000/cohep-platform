@@ -167,7 +167,7 @@ export class GamificationService {
         category: data.category,
         iconUrl: data.iconUrl || '',
         xpReward: data.points || 0,
-        criteria: data.criteria || {},
+        criteria: (data.criteria || {}) as any,
         isActive: true,
         isSecret: false,
       },
@@ -186,7 +186,7 @@ export class GamificationService {
         ...(data.category !== undefined && { category: data.category }),
         ...(data.iconUrl !== undefined && { iconUrl: data.iconUrl }),
         ...(data.points !== undefined && { xpReward: data.points }),
-        ...(data.criteria !== undefined && { criteria: data.criteria }),
+        ...(data.criteria !== undefined && { criteria: data.criteria as any }),
       },
     });
   }
