@@ -95,8 +95,15 @@ export class HymnLearningService {
     const quality = Math.max(1, Math.min(5, dto.selfRating ?? 3))
 
     // Upsert LessonProgress
+    // Only select SR fields needed for calculation, avoiding non-existent servant fields
     let progress = await this.prisma.lessonProgress.findUnique({
       where: { studentId_lessonId: { studentId: dto.studentId, lessonId: dto.lessonId } },
+      select: {
+        id: true,
+        srEaseFactor: true,
+        srInterval: true,
+        srRepetitions: true,
+      },
     })
 
     const currentEF = (progress as any)?.srEaseFactor ?? 2.5

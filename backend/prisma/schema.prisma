@@ -933,9 +933,6 @@ model LessonProgress {
   metadata          Json?
   milestonePhotoUrl String?   @map("milestone_photo_url")
   milestoneCaption  String?   @map("milestone_caption")
-  servantFeedback   String?   @map("servant_feedback") @db.VarChar(200)
-  servantFeedbackAt DateTime? @map("servant_feedback_at")
-  servantId         String?   @map("servant_id")
   isReadyForLiturgy Boolean   @default(false) @map("is_ready_for_liturgy")
   readyForLiturgyAt DateTime? @map("ready_for_liturgy_at")
   clergyId          String?   @map("clergy_id")
