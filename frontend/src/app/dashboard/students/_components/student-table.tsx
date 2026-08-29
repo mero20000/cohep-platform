@@ -1,7 +1,7 @@
 'use client'
 import { useState } from 'react'
 import Image from 'next/image'
-import { Loader2, AlertCircle, User, ArrowUpDown, Eye, Pencil, Trash2, RefreshCw, Star, CheckCircle2, Clock } from 'lucide-react'
+import { Loader2, AlertCircle, User, ArrowUpDown, Eye, Pencil, Trash2, RefreshCw, Star, CheckCircle2 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Pagination } from '@/components/ui/pagination'
@@ -10,6 +10,7 @@ import { PhoneLink } from './phone-link'
 import { usePermission } from '@/lib/use-permission'
 import { http } from '@/lib/http-client'
 import { useToast } from '@/components/ui/toast'
+import { TagBadge } from './student-tags'
 
 interface Pag { page: number; limit: number; total: number; totalPages: number }
 interface Props {
@@ -33,11 +34,9 @@ const COLS = [
 
 export function StudentTable({ students, loading, fetchError, selectedIds, allSelected, toggleId, toggleAll, sortKey, sortDir, toggleSort, onView, onEdit, onDelete, onRetry, hasActiveFilters, onClearFilters, onOpenCreate, pagination, onPageChange, pageSize, onPageSizeChange, onPreviewPhoto, lang, favorites = [], onToggleFavorite, onStudentUpdated }: Props) {
   const [updatingId, setUpdatingId] = useState<string | null>(null)
-  const [localStudents, setLocalStudents] = useState(students)
 
   const handleStudentUpdated = (student: Student) => {
     setUpdatingId(null)
-    setLocalStudents(prev => prev.map(s => s.id === student.id ? student : s))
     onStudentUpdated?.(student)
   }
   const t = (en: string, ar: string) => lang === 'ar' ? ar : en
@@ -104,8 +103,13 @@ export function StudentTable({ students, loading, fetchError, selectedIds, allSe
                   <div className="text-sm font-medium text-gray-900 truncate">{s.firstName} {s.lastName}</div>
                   <div className="flex items-center gap-1.5 mt-0.5">
                     <span className="text-xs text-gray-500">#{s.studentCode}</span>
-                    <StatusBadge status={s.status} lang={lang} student={s} onUpdated={handleStudentUpdated} isUpdating={updatingId === s.id} />
+                    <StatusBadge status={s.status} lang={lang} student={s} onUpdated={handleStudentUpdated} onUpdating={setUpdatingId} isUpdating={updatingId === s.id} />
                   </div>
+                  {(s.metadata?.tags?.length ?? 0) > 0 && (
+                    <div className="flex items-center gap-1 mt-1 flex-wrap">
+                      {s.metadata!.tags!.slice(0,3).map(tag => <TagBadge key={tag} tag={tag} size="xs" />)}
+                    </div>
+                  )}
                 </div>
               </div>
               <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
@@ -160,6 +164,12 @@ export function StudentTable({ students, loading, fetchError, selectedIds, allSe
                     <div className="min-w-0">
                       <div className="text-sm font-medium text-gray-900 truncate">{s.firstName} {s.lastName}</div>
                       {s.firstNameAr && <div className="text-xs text-gray-400 truncate">{s.firstNameAr} {s.lastNameAr}</div>}
+                      {(s.metadata?.tags?.length ?? 0) > 0 && (
+                        <div className="flex items-center gap-1 mt-1 flex-wrap">
+                          {s.metadata!.tags!.slice(0,3).map(tag => <TagBadge key={tag} tag={tag} size="xs" />)}
+                          {s.metadata!.tags!.length > 3 && <span className="text-[10px] text-gray-400">+{s.metadata!.tags!.length - 3}</span>}
+                        </div>
+                      )}
                     </div>
                   </div>
                 </td>
@@ -171,7 +181,7 @@ export function StudentTable({ students, loading, fetchError, selectedIds, allSe
                 <td className="hidden md:table-cell px-4 py-3 text-sm text-gray-600">{calcAge(s.dateOfBirth)}</td>
                 <td className="hidden md:table-cell px-4 py-3 text-sm text-gray-600 max-w-[120px] truncate">{s.churchName||'—'}</td>
                 <td className="hidden md:table-cell px-4 py-3 text-sm text-gray-900">{s.grade?.name||'—'}</td>
-                <td className="px-4 py-3"><StatusBadge status={s.status} lang={lang} student={s} onUpdated={handleStudentUpdated} isUpdating={updatingId === s.id} /></td>
+                <td className="px-4 py-3"><StatusBadge status={s.status} lang={lang} student={s} onUpdated={handleStudentUpdated} onUpdating={setUpdatingId} isUpdating={updatingId === s.id} /></td>
                 <td className="px-4 py-3 text-end" onClick={e => e.stopPropagation()}>
                   <div className="flex items-center justify-end gap-1">
                     {onToggleFavorite && (
@@ -204,7 +214,7 @@ function RowCheckbox({ checked, onChange, ariaLabel }: { checked: boolean; onCha
     </label>
   )
 }
-function StatusBadge({ status, lang, student, onUpdated, isUpdating }: { status: string; lang: 'en'|'ar'; student?: Student; onUpdated?: (s: Student) => void; isUpdating?: boolean }) {
+function StatusBadge({ status, lang, student, onUpdated, onUpdating, isUpdating }: { status: string; lang: 'en'|'ar'; student?: Student; onUpdated?: (s: Student) => void; onUpdating?: (id: string) => void; isUpdating?: boolean }) {
   const label = status==='active'?(lang==='ar'?'نشط':'Active'):status==='inactive'?(lang==='ar'?'غير نشط':'Inactive'):status==='graduated'?(lang==='ar'?'متخرج':'Graduated'):status
   const { toast } = useToast()
   const { can } = usePermission()
@@ -214,11 +224,13 @@ function StatusBadge({ status, lang, student, onUpdated, isUpdating }: { status:
     if (!student || !can('student:edit') || isUpdating) return
 
     const nextStatus = status === 'active' ? 'inactive' : 'active'
+    onUpdating?.(student.id)
     try {
       await http.put(`/students/${student.id}`, { status: nextStatus })
       onUpdated?.({ ...student, status: nextStatus })
       toast('success', lang === 'ar' ? `تم تغيير الحالة إلى ${nextStatus === 'active' ? 'نشط' : 'غير نشط'}` : `Status changed to ${nextStatus}`)
     } catch (e: any) {
+      onUpdated?.(student)
       toast('error', e?.message || (lang === 'ar' ? 'فشل تحديث الحالة' : 'Failed to update status'))
     }
   }

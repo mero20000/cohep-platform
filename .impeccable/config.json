@@ -1,0 +1,26 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "gray-on-color",
+        "value": "*",
+        "files": [
+          "frontend/src/app/dashboard/students/_components/student-detail-modal.tsx"
+        ],
+        "createdAt": "2026-08-29T19:12:00.153Z",
+        "reason": "false positive: text-gray-400 only applies in unselected branch of ternary (transparent/hover:bg-gray-100 bg), bg-blue-100 only applies in selected branch with text-blue-700 - they never co-occur"
+      },
+      {
+        "rule": "gray-on-color",
+        "value": "*",
+        "files": [
+          "frontend/src/app/dashboard/students/_components/student-import-modal.tsx"
+        ],
+        "createdAt": "2026-08-29T19:16:58.503Z",
+        "reason": "pre-existing code unmodified by this change (file-picker button hover state, text-gray-600 hover:bg-blue-50) - out of scope for import validation feature work"
+      }
+    ]
+  }
+}

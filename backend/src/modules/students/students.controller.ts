@@ -137,6 +137,21 @@ export class StudentsController {
     return this.studentsService.bulkDelete(dto.ids, schoolId);
   }
 
+  @Post("bulk-assign-servant")
+  @ApiOperation({ summary: "Bulk assign a servant to students" })
+  async bulkAssignServant(
+    @Body() dto: { ids: string[]; servantId: string },
+    @Query("schoolId") schoolId: string = "",
+  ) {
+    return this.studentsService.bulkAssignServant(dto.ids, dto.servantId, schoolId);
+  }
+
+  @Get("duplicates")
+  @ApiOperation({ summary: "Find potential duplicate students" })
+  async findDuplicates(@Query("schoolId") schoolId: string = "") {
+    return this.studentsService.findDuplicates(schoolId);
+  }
+
   @Get(":id")
   @ApiOperation({ summary: "Get student by ID" })
   @ApiResponse({ status: 200, description: "Student retrieved successfully" })
@@ -177,6 +192,16 @@ export class StudentsController {
     @Query("schoolId") schoolId: string = "",
   ) {
     return this.studentsService.remove(id, schoolId);
+  }
+
+  @Patch(":id/tags")
+  @ApiOperation({ summary: "Set student tags" })
+  async updateTags(
+    @Param("id") id: string,
+    @Body() dto: { tags: string[] },
+    @Query("schoolId") schoolId: string = "",
+  ) {
+    return this.studentsService.updateTags(id, dto.tags || [], schoolId);
   }
 
   @Get(":id/attendance")

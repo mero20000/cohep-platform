@@ -1,6 +1,6 @@
 'use client'
 import { useState, useEffect, useCallback, useRef, useMemo, useOptimistic, startTransition } from 'react'
-import { Download, Upload, Plus, X, AlertCircle, RefreshCw, Star, Search } from 'lucide-react'
+import { Download, Upload, Plus, X, AlertCircle, RefreshCw, Star, Search, Copy } from 'lucide-react'
 import { ErrorBoundary } from '@/components/ui/error-boundary'
 import { Button } from '@/components/ui/button'
 import { useToast } from '@/components/ui/toast'
@@ -19,6 +19,8 @@ import { StudentDetailModal } from './_components/student-detail-modal'
 import { StudentDeleteModal } from './_components/student-delete-modal'
 import { StudentImportModal } from './_components/student-import-modal'
 import { StudentBulkModals }  from './_components/student-bulk-modals'
+import { StudentAssignServantModal } from './_components/student-assign-servant-modal'
+import { StudentDuplicatesModal } from './_components/student-duplicates-modal'
 import { AssignedServants, type Servant } from './_components/assigned-servants'
 import { type Student, type Group, type ChurchItem, type PaginatedResponse, type StudentStats as StatsType } from './_components/student-types'
 import { useStudentFavorites } from './_components/use-student-favorites'
@@ -75,6 +77,8 @@ export default function StudentsClient() {
   const [showImport, setShowImport] = useState(false)
   const [bulkOpen, setBulkOpen]   = useState<Record<BulkModal,boolean>>({delete:false,status:false,level:false,grade:false})
   const [previewPhotoUrl, setPreviewPhotoUrl] = useState('')
+  const [showAssignServant, setShowAssignServant] = useState(false)
+  const [showDuplicates, setShowDuplicates] = useState(false)
 
   // Derived
   const activeLevels     = useMemo(()=>levels.filter(l=>l.status!=='inactive'),[levels])
@@ -217,6 +221,7 @@ export default function StudentsClient() {
           <p className="text-sm text-gray-500">{pagination.total} {t('students enrolled','طالب مسجل')}</p>
         </div>
         <div className="flex items-center gap-3">
+          {can('student:edit')&&<Button variant="outline" size="sm" onClick={()=>setShowDuplicates(true)} title={t('Find duplicate students','البحث عن طلاب مكررين')}><Copy className="h-4 w-4"/><span className="hidden sm:inline">{t('Duplicates','مكررون')}</span></Button>}
           {can('student:export')&&<Button variant="outline" size="sm" onClick={handleExport}><Download className="h-4 w-4"/>{t('Export','تصدير')}</Button>}
           {can('student:import')&&<Button variant="outline" size="sm" onClick={()=>setShowImport(true)}><Upload className="h-4 w-4"/>{t('Import','استيراد')}</Button>}
           {can('student:create')&&<Button size="sm" onClick={openCreate} title={t('Add Student (Ctrl+N)','إضافة طالب (Ctrl+N)')}><Plus className="h-4 w-4"/>{t('Add Student','إضافة طالب')}</Button>}
@@ -262,7 +267,7 @@ export default function StudentsClient() {
         selectedCount={selectedIds.size}
         onDelete={()=>setBulkOpen(b=>({...b,delete:true}))} onChangeStatus={()=>setBulkOpen(b=>({...b,status:true}))}
         onChangeLevel={()=>setBulkOpen(b=>({...b,level:true}))} onChangeGrade={()=>setBulkOpen(b=>({...b,grade:true}))}
-        onAssignServant={()=>alert(lang==='ar'?'سيتم إضافة هذه الميزة قريباً':'This feature will be added soon')}
+        onAssignServant={()=>setShowAssignServant(true)}
         onExport={()=>{
           const selectedStudents = sortedStudents.filter(s=>selectedIds.has(s.id))
           const csv = ['Name,Code,Email,Phone,Level,Group,Status,Church,Grade'].concat(selectedStudents.map(s=>`"${s.firstName} ${s.lastName}","${s.studentCode}","${s.metadata?.email||''}","${s.metadata?.phone||''}","${s.level?.name||''}","${s.group?.name||''}","${s.status}","${s.churchName||''}","${s.grade?.name||''}"`)).join('\n')
@@ -287,7 +292,8 @@ export default function StudentsClient() {
         pagination={pagination} onPageChange={p=>{fetchStudents(p)}}
         pageSize={pageSize} onPageSizeChange={s=>{setPageSize(s);fetchStudents(1)}}
         onPreviewPhoto={setPreviewPhotoUrl} lang={lang}
-        favorites={favorites} onToggleFavorite={toggleFavorite}/>
+        favorites={favorites} onToggleFavorite={toggleFavorite}
+        onStudentUpdated={updated=>setStudents(list=>list.map(s=>s.id===updated.id?updated:s))}/>
       </ErrorBoundary>
 
       {filterLevel&&filterGroup&&<AssignedServants servants={assignedServants} loading={servantsLoading} show={showAssignedServants} onToggle={()=>setShowAssignedServants(v=>!v)} lang={lang}/>}
@@ -302,6 +308,10 @@ export default function StudentsClient() {
       {showDelete&&selectedStudent&&<StudentDeleteModal student={selectedStudent} onClose={()=>setShowDelete(false)} onConfirm={handleDelete} lang={lang}/>}
 
       {showImport&&<StudentImportModal onClose={()=>setShowImport(false)} onSuccess={()=>{fetchStudents(1);fetchStats()}} levelNameMap={levelNameMap} lang={lang}/>}
+
+      {showAssignServant&&<StudentAssignServantModal studentIds={[...selectedIds]} onClose={()=>setShowAssignServant(false)} onSuccess={()=>{setSelectedIds(new Set());fetchStudents(pagination.page)}} lang={lang}/>}
+
+      {showDuplicates&&<StudentDuplicatesModal onClose={()=>setShowDuplicates(false)} onChanged={()=>{fetchStudents(pagination.page);fetchStats()}} lang={lang}/>}
 
       <StudentBulkModals
         showBulkDelete={bulkOpen.delete} showBulkStatus={bulkOpen.status} showBulkLevel={bulkOpen.level} showBulkGrade={bulkOpen.grade}

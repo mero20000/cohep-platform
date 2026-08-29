@@ -12,7 +12,7 @@ export interface Student {
   levelId: string; groupId: string; status: string; enrollmentDate: string
   level: { id: string; name: string; number: number }
   group: { id: string; name: string }
-  metadata?: { phone?: string; email?: string; address?: string; notes?: string; churchToolId?: string }
+  metadata?: { phone?: string; email?: string; address?: string; notes?: string; churchToolId?: string; tags?: string[]; assignedServantIds?: string[] }
   parentEmail?: string
   portalAccessKey?: string
   studentParents?: Array<{ parent?: { id: string; firstName: string; lastName: string; phone?: string; email?: string }; relationship?: string }>

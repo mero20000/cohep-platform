@@ -574,6 +574,112 @@ export class StudentsService {
     return { deleted: result.count };
   }
 
+  async bulkAssignServant(ids: string[], servantId: string, schoolIdentifier: string) {
+    const schoolId = await this.schoolResolver.resolve(schoolIdentifier);
+    if (!Array.isArray(ids) || ids.length === 0) throw new BadRequestException('ids are required');
+    if (!servantId) throw new BadRequestException('servantId is required');
+
+    const servant = await this.prisma.user.findFirst({ where: { id: servantId, schoolId, deletedAt: null } });
+    if (!servant) throw new BadRequestException('Servant not found');
+
+    const students = await this.prisma.student.findMany({
+      where: { id: { in: ids }, schoolId, deletedAt: null },
+      select: { id: true, metadata: true },
+    });
+
+    await this.prisma.$transaction(
+      students.map(s => {
+        const meta = (s.metadata as any) || {};
+        const current: string[] = Array.isArray(meta.assignedServantIds) ? meta.assignedServantIds : [];
+        const next = current.includes(servantId) ? current : [...current, servantId];
+        return this.prisma.student.update({
+          where: { id: s.id },
+          data: { metadata: { ...meta, assignedServantIds: next } },
+        });
+      }),
+    );
+
+    await this.audit.log({
+      schoolId,
+      action: 'BULK_ASSIGN_SERVANT',
+      entityType: 'student',
+      newValues: { ids, servantId, count: students.length },
+    });
+
+    return { assigned: students.length };
+  }
+
+  async updateTags(id: string, tags: string[], schoolIdentifier: string) {
+    const schoolId = await this.schoolResolver.resolve(schoolIdentifier);
+    const student = await this.findOne(id, schoolId);
+    const meta = ((student as any).metadata as any) || {};
+    const cleanTags = [...new Set(tags.map(t => t.trim()).filter(Boolean))].slice(0, 10);
+
+    const updated = await this.prisma.student.update({
+      where: { id },
+      data: { metadata: { ...meta, tags: cleanTags } },
+    });
+
+    await this.audit.log({
+      schoolId,
+      action: 'UPDATE_TAGS',
+      entityType: 'student',
+      entityId: id,
+      newValues: { tags: cleanTags },
+    });
+
+    return { tags: cleanTags, student: updated };
+  }
+
+  async findDuplicates(schoolIdentifier: string) {
+    const schoolId = await this.schoolResolver.resolve(schoolIdentifier);
+    const students = await this.prisma.student.findMany({
+      where: { schoolId, deletedAt: null },
+      select: {
+        id: true, firstName: true, lastName: true, dateOfBirth: true, studentCode: true,
+        status: true, photoUrl: true, metadata: true, createdAt: true,
+        level: { select: { name: true } }, group: { select: { name: true } },
+      },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    const groups = new Map<string, typeof students>();
+    for (const s of students) {
+      const nameKey = `name:${s.firstName.trim().toLowerCase()}|${s.lastName.trim().toLowerCase()}|${s.dateOfBirth.toISOString().slice(0, 10)}`;
+      if (!groups.has(nameKey)) groups.set(nameKey, []);
+      groups.get(nameKey)!.push(s);
+
+      const phone = (s.metadata as any)?.phone;
+      if (phone) {
+        const phoneKey = `phone:${phone.replace(/\D/g, '')}`;
+        if (!groups.has(phoneKey)) groups.set(phoneKey, []);
+        groups.get(phoneKey)!.push(s);
+      }
+
+      const email = (s.metadata as any)?.email;
+      if (email) {
+        const emailKey = `email:${email.trim().toLowerCase()}`;
+        if (!groups.has(emailKey)) groups.set(emailKey, []);
+        groups.get(emailKey)!.push(s);
+      }
+    }
+
+    const seenPairs = new Set<string>();
+    const duplicateGroups: { reason: string; students: typeof students }[] = [];
+    for (const [key, group] of groups.entries()) {
+      const uniqueIds = [...new Set(group.map(s => s.id))];
+      if (uniqueIds.length < 2) continue;
+      const pairKey = uniqueIds.sort().join(',');
+      if (seenPairs.has(pairKey)) continue;
+      seenPairs.add(pairKey);
+      const reason = key.startsWith('name:') ? 'same_name_dob' : key.startsWith('phone:') ? 'same_phone' : 'same_email';
+      const uniqueStudents = uniqueIds.map(id => group.find(s => s.id === id)!);
+      duplicateGroups.push({ reason, students: uniqueStudents });
+    }
+
+    return { groups: duplicateGroups, totalGroups: duplicateGroups.length };
+  }
+
   async getLevels(schoolIdentifier: string) {
     const schoolId = await this.schoolResolver.resolve(schoolIdentifier);
     return this.prisma.level.findMany({

@@ -12,9 +12,25 @@ import { StudentQrCard } from '@/components/qr/qr-code-card'
 import { STATUS_STYLE, photoSrc, calcAge, type Student } from './student-types'
 import { PhoneLink } from './phone-link'
 import { StudentSubjectItemsPanel } from './student-subject-items'
+import { StudentTagEditor } from './student-tags'
 
 interface Activity { id: string; action: string; createdAt: string; user?: { firstName: string; lastName: string } }
 interface Props { student: Student; onClose: () => void; onEdit: () => void; onPreviewPhoto: (url: string) => void; lang: 'en'|'ar' }
+
+function formatRelativeTime(dateStr: string, lang: 'en'|'ar'): string {
+  const date = new Date(dateStr)
+  const now = new Date()
+  const diffMs = now.getTime() - date.getTime()
+  const diffMin = Math.floor(diffMs / 60000)
+  const diffHr = Math.floor(diffMin / 60)
+  const diffDay = Math.floor(diffHr / 24)
+
+  if (diffMin < 1) return lang === 'ar' ? 'الآن' : 'just now'
+  if (diffMin < 60) return lang === 'ar' ? `منذ ${diffMin} د` : `${diffMin}m ago`
+  if (diffHr < 24) return lang === 'ar' ? `منذ ${diffHr} س` : `${diffHr}h ago`
+  if (diffDay < 7) return lang === 'ar' ? `منذ ${diffDay} يوم` : `${diffDay}d ago`
+  return date.toLocaleDateString(lang === 'ar' ? 'ar-EG' : 'en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+}
 
 export function StudentDetailModal({ student:s, onClose, onEdit, onPreviewPhoto, lang }: Props) {
   const [log, setLog] = useState<Activity[]>([])
@@ -31,6 +47,8 @@ export function StudentDetailModal({ student:s, onClose, onEdit, onPreviewPhoto,
   const dialogRef = useRef<HTMLDivElement>(null)
   const t = (en: string, ar: string) => lang==='ar'?ar:en
   const { toast } = useToast()
+  const [activityFilter, setActivityFilter] = useState<'all'|'CREATE'|'UPDATE'|'DELETE'>('all')
+  const [tags, setTags] = useState<string[]>(s.metadata?.tags || [])
 
   useEffect(() => {
     dialogRef.current?.focus()
@@ -86,7 +104,14 @@ export function StudentDetailModal({ student:s, onClose, onEdit, onPreviewPhoto,
           <div className="flex items-center gap-4 mb-6">
             {s.photoUrl?<Button type="button" variant="ghost" size="icon" onClick={()=>onPreviewPhoto(photoSrc(s.photoUrl))} className="flex-shrink-0"><Image src={photoSrc(s.photoUrl)} alt={`${s.firstName} ${s.lastName}`} width={64} height={64} className="h-16 w-16 rounded-full object-cover border border-gray-200 cursor-pointer hover:ring-2 hover:ring-gold-400" /></Button>
             :<div className={`flex h-16 w-16 items-center justify-center rounded-full text-xl font-bold flex-shrink-0 ${s.gender==='female'?'bg-pink-100 text-pink-700':'bg-blue-100 text-blue-700'}`}>{s.firstName[0]}{s.lastName[0]}</div>}
-            <div><h3 className="text-xl font-bold text-gray-900">{s.firstName} {s.lastName}</h3>{s.firstNameAr&&<p className="text-sm text-gray-500">{s.firstNameAr} {s.lastNameAr}</p>}<p className="text-sm text-gray-500">{s.studentCode}</p></div>
+            <div className="flex-1">
+              <h3 className="text-xl font-bold text-gray-900">{s.firstName} {s.lastName}</h3>
+              {s.firstNameAr&&<p className="text-sm text-gray-500">{s.firstNameAr} {s.lastNameAr}</p>}
+              <p className="text-sm text-gray-500">{s.studentCode}</p>
+            </div>
+          </div>
+          <div className="mb-4">
+            <StudentTagEditor studentId={s.id} tags={tags} onChanged={setTags} lang={lang} />
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="flex items-start gap-3 rounded-lg border border-gray-100 p-3">
@@ -177,16 +202,30 @@ export function StudentDetailModal({ student:s, onClose, onEdit, onPreviewPhoto,
             </div>
           )}
           <div className="mt-4">
-            <h4 className="text-sm font-semibold text-gray-900 mb-2">{t('Activity','النشاط')}</h4>
+            <div className="flex items-center justify-between mb-2">
+              <h4 className="text-sm font-semibold text-gray-900">{t('Activity','النشاط')}</h4>
+              <div className="flex items-center gap-1">
+                {(['all','CREATE','UPDATE','DELETE'] as const).map(f=>{
+                  const flabel=f==='all'?t('All','الكل'):f==='CREATE'?t('Created','إنشاء'):f==='UPDATE'?t('Updated','تحديث'):t('Deleted','حذف')
+                  return <button key={f} onClick={()=>setActivityFilter(f)}
+                    className={`px-2 py-0.5 rounded-full text-[11px] font-medium transition-colors ${activityFilter===f?'bg-blue-100 text-blue-700':'text-gray-400 hover:bg-gray-100'}`}>
+                    {flabel}
+                  </button>
+                })}
+              </div>
+            </div>
             {logLoading?<div className="flex items-center justify-center py-4"><Loader2 className="h-4 w-4 animate-spin text-gray-400" /></div>
-            :log.length===0?<p className="text-xs text-gray-400 py-2">{t('No activity recorded','لا يوجد نشاط مسجل')}</p>
-            :<div className="space-y-2 max-h-48 overflow-y-auto">
-              {log.map(entry=>{
-                const label=entry.action==='CREATE'?t('create','إنشاء'):entry.action==='UPDATE'?t('update','تحديث'):entry.action==='DELETE'?t('delete','حذف'):entry.action.toLowerCase()
-                const dot=entry.action==='CREATE'?'bg-green-400':entry.action==='UPDATE'?'bg-amber-400':entry.action==='DELETE'?'bg-red-400':'bg-gray-400'
-                return <div key={entry.id} className="flex items-start gap-2 text-xs"><div className={`mt-1 h-2 w-2 rounded-full flex-shrink-0 ${dot}`}/><div className="flex-1 min-w-0"><span className="font-medium text-gray-700">{label}</span>{entry.user&&<span className="text-gray-500"> {t('by','بواسطة')} {entry.user.firstName} {entry.user.lastName}</span>}<span className="text-gray-400 ms-1">{entry.createdAt?new Date(entry.createdAt).toLocaleDateString(lang==='ar'?'ar-EG':'en-GB',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}):''}</span></div></div>
-              })}
-            </div>}
+            :(()=>{
+              const filtered = activityFilter==='all' ? log : log.filter(e=>e.action===activityFilter)
+              return filtered.length===0?<p className="text-xs text-gray-400 py-2">{t('No activity recorded','لا يوجد نشاط مسجل')}</p>
+              :<div className="space-y-2 max-h-48 overflow-y-auto">
+                {filtered.map(entry=>{
+                  const label=entry.action==='CREATE'?t('create','إنشاء'):entry.action==='UPDATE'?t('update','تحديث'):entry.action==='DELETE'?t('delete','حذف'):entry.action.toLowerCase()
+                  const dot=entry.action==='CREATE'?'bg-green-400':entry.action==='UPDATE'?'bg-amber-400':entry.action==='DELETE'?'bg-red-400':'bg-gray-400'
+                  return <div key={entry.id} className="flex items-start gap-2 text-xs"><div className={`mt-1 h-2 w-2 rounded-full flex-shrink-0 ${dot}`}/><div className="flex-1 min-w-0"><span className="font-medium text-gray-700">{label}</span>{entry.user&&<span className="text-gray-500"> {t('by','بواسطة')} {entry.user.firstName} {entry.user.lastName}</span>}<span className="text-gray-400 ms-1" title={entry.createdAt?new Date(entry.createdAt).toLocaleString(lang==='ar'?'ar-EG':'en-GB'):''}>{entry.createdAt?formatRelativeTime(entry.createdAt,lang):''}</span></div></div>
+                })}
+              </div>
+            })()}
           </div>
         </div>
         <div className="flex items-center justify-end gap-3 border-t border-gray-100 px-6 py-4 flex-shrink-0">
