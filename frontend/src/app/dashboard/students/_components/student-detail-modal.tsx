@@ -49,6 +49,7 @@ export function StudentDetailModal({ student:s, onClose, onEdit, onPreviewPhoto,
   const { toast } = useToast()
   const [activityFilter, setActivityFilter] = useState<'all'|'CREATE'|'UPDATE'|'DELETE'>('all')
   const [tags, setTags] = useState<string[]>(s.metadata?.tags || [])
+  const [photoLoading, setPhotoLoading] = useState(true)
 
   useEffect(() => {
     dialogRef.current?.focus()
@@ -94,15 +95,15 @@ export function StudentDetailModal({ student:s, onClose, onEdit, onPreviewPhoto,
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-label={t('Student Details','تفاصيل الطالب')} className="w-full max-w-lg rounded-2xl bg-white shadow-xl max-h-[90vh] flex flex-col outline-none">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 animate-fadeIn">
+      <div ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-label={t('Student Details','تفاصيل الطالب')} className="w-full max-w-lg rounded-2xl bg-white shadow-xl max-h-[90vh] flex flex-col outline-none animate-scaleIn">
         <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4 flex-shrink-0">
           <h2 className="text-lg font-semibold">{t('Student Details','تفاصيل الطالب')}</h2>
           <Button variant="ghost" size="icon" onClick={onClose}><X className="h-5 w-5" /></Button>
         </div>
         <div className="px-6 py-5 overflow-y-auto flex-1">
           <div className="flex items-center gap-4 mb-6">
-            {s.photoUrl?<Button type="button" variant="ghost" size="icon" onClick={()=>onPreviewPhoto(photoSrc(s.photoUrl))} className="flex-shrink-0"><Image src={photoSrc(s.photoUrl)} alt={`${s.firstName} ${s.lastName}`} width={64} height={64} className="h-16 w-16 rounded-full object-cover border border-gray-200 cursor-pointer hover:ring-2 hover:ring-gold-400" /></Button>
+            {s.photoUrl?<Button type="button" variant="ghost" size="icon" onClick={()=>onPreviewPhoto(photoSrc(s.photoUrl))} className="flex-shrink-0 relative"><div className={`absolute inset-0 rounded-full bg-gray-200 animate-pulse flex items-center justify-center ${photoLoading?'':'hidden'}`}><Loader2 className="h-4 w-4 text-gray-400 animate-spin" /></div><Image src={photoSrc(s.photoUrl)} alt={`${s.firstName} ${s.lastName} profile photo`} width={64} height={64} onLoadingComplete={()=>setPhotoLoading(false)} className="h-16 w-16 rounded-full object-cover border border-gray-200 cursor-pointer hover:ring-2 hover:ring-gold-400" priority /></Button>
             :<div className={`flex h-16 w-16 items-center justify-center rounded-full text-xl font-bold flex-shrink-0 ${s.gender==='female'?'bg-semantic-gender-female-bg text-semantic-gender-female':'bg-semantic-gender-male-bg text-semantic-gender-male'}`}>{s.firstName[0]}{s.lastName[0]}</div>}
             <div className="flex-1">
               <h3 className="text-xl font-bold text-gray-900">{s.firstName} {s.lastName}</h3>
@@ -152,7 +153,7 @@ export function StudentDetailModal({ student:s, onClose, onEdit, onPreviewPhoto,
               </div>}
             {showAward && (
               <div className="mt-3 rounded-xl border border-amber-200 bg-white p-3 space-y-3">
-                <select value={selectedBadgeId} onChange={e=>setSelectedBadgeId(e.target.value)} className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:border-amber-400 focus:outline-none">
+                <select value={selectedBadgeId} onChange={e=>setSelectedBadgeId(e.target.value)} className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gold-500 focus:border-gold-500">
                   <option value="">{t('Select badge...','اختر شارة...')}</option>
                   {badges.map((b: any) => <option key={b.id} value={b.id}>{b.name} — {b.points ?? b.xpReward ?? 0} pts</option>)}
                 </select>
@@ -234,8 +235,8 @@ export function StudentDetailModal({ student:s, onClose, onEdit, onPreviewPhoto,
         </div>
       </div>
       {showQr && s.portalAccessKey && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4" onClick={() => setShowQr(false)}>
-          <div className="bg-white rounded-2xl p-6 max-w-sm w-full" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4 animate-fadeIn" onClick={() => setShowQr(false)}>
+          <div className="bg-white rounded-2xl p-6 max-w-sm w-full animate-scaleIn" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-sm font-semibold text-gray-900">{t('Student Portal QR Code','رمز QR لبوابة الطالب')}</h3>
               <Button variant="ghost" size="icon" onClick={() => setShowQr(false)}><X className="h-4 w-4" /></Button>
@@ -247,8 +248,8 @@ export function StudentDetailModal({ student:s, onClose, onEdit, onPreviewPhoto,
       
       {/* Contact Parent Modal */}
       {showContactParent && s.studentParents && s.studentParents.length > 0 && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4" onClick={() => setShowContactParent(false)}>
-          <div className="bg-white rounded-2xl p-6 max-w-sm w-full" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4 animate-fadeIn" onClick={() => setShowContactParent(false)}>
+          <div className="bg-white rounded-2xl p-6 max-w-sm w-full animate-scaleIn" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-sm font-semibold text-gray-900">{t('Contact Parent', 'تواصل مع الوالد')}</h3>
               <Button variant="ghost" size="icon" onClick={() => setShowContactParent(false)}><X className="h-4 w-4" /></Button>

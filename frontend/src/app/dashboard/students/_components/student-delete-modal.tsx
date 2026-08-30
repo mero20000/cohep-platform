@@ -11,8 +11,8 @@ export function StudentDeleteModal({ student:s, onClose, onConfirm, lang }: Prop
   const [confirmText, setConfirmText] = useState('')
   useEffect(() => { confirmRef.current?.focus() }, [])
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-label={t('Delete Student','حذف الطالب')} className="w-full max-w-sm rounded-2xl bg-white shadow-xl p-6 outline-none">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 animate-fadeIn">
+      <div ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-label={t('Delete Student','حذف الطالب')} className="w-full max-w-sm rounded-2xl bg-white shadow-xl p-6 outline-none animate-scaleIn">
         <div className="flex h-12 w-12 items-center justify-center rounded-full mx-auto" style={{backgroundColor: 'hsl(var(--semantic-status-inactive-bg) / 0.1)'}}><Trash2 className="h-6 w-6" style={{color: 'hsl(var(--semantic-status-inactive-text))'}} /></div>
         <h3 className="mt-4 text-lg font-semibold text-center text-gray-900">{t('Delete Student','حذف الطالب')}</h3>
         <p className="mt-2 text-sm text-gray-500 text-center">
@@ -32,7 +32,7 @@ export function StudentDeleteModal({ student:s, onClose, onConfirm, lang }: Prop
         <p className="mt-2 text-xs text-gray-500 text-center">{t('Recovery is only possible via an administrator.','لا يمكن الاستعادة إلا بواسطة مسؤول النظام.')}</p>
         <p className="mt-4 text-sm font-medium text-gray-700">{t('Type','اكتب')} <span className="font-bold text-semantic-status-inactive">DELETE</span> {t('to confirm','للتأكيد')}:</p>
         <input type="text" value={confirmText} onChange={e=>setConfirmText(e.target.value)} placeholder="DELETE"
-          className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-red-500 focus:outline-none" />
+          className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-semantic-status-inactive focus:border-semantic-status-inactive" />
         <div className="mt-4 flex items-center gap-3">
           <Button variant="outline" onClick={onClose} className="flex-1">{t('Cancel','إلغاء')}</Button>
           <Button variant="destructive" ref={confirmRef} disabled={confirmText!=='DELETE'} onClick={onConfirm} className="flex-1">{t('Delete','حذف')}</Button>

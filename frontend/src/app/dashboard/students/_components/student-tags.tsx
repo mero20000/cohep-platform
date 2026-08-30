@@ -76,7 +76,7 @@ export function StudentTagEditor({ studentId, tags, onChanged, lang }: Props) {
           onKeyDown={e => { if (e.key === 'Enter') handleAdd(); if (e.key === 'Escape') { setAdding(false); setInput('') } }}
           onBlur={handleAdd}
           placeholder={t('Tag name...', 'اسم التصنيف...')}
-          className="w-24 text-xs rounded-full border border-gray-200 px-2 py-0.5 focus:outline-none focus:ring-1 focus:ring-blue-500"
+          className="w-24 text-xs rounded-full border border-gray-200 px-2 py-0.5 focus:outline-none focus:ring-2 focus:ring-gold-500"
         />
       ) : (
         <button onClick={() => setAdding(true)} disabled={saving} className="inline-flex items-center gap-1 text-xs text-gray-500 hover:text-gray-700 rounded-full border border-dashed border-gray-300 px-2 py-0.5 hover:border-gray-400">

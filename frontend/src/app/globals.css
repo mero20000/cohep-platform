@@ -23,6 +23,7 @@
     --border: 214.3 31.8% 91.4%;
     --input: 214.3 31.8% 91.4%;
     --ring: 44 61% 49%;
+    --focus: 44 61% 49%;
     --radius: 0.5rem;
     /* Semantic Colors for Student Module */
     --semantic-gender-male-bg: 219 14% 96%;
@@ -68,6 +69,7 @@
     --border: 217.2 32.6% 17.5%;
     --input: 217.2 32.6% 17.5%;
     --ring: 44 61% 49%;
+    --focus: 44 61% 49%;
     /* Semantic Colors for Student Module (Dark Mode) */
     --semantic-gender-male-bg: 221 39% 25%;
     --semantic-gender-male-text: 221 83% 53%;

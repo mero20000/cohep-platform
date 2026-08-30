@@ -28,7 +28,7 @@ export function StudentFormModal({ student, activeLevels, churches, gradeOptions
   const blobRef = useRef('')
   const revoke = useCallback(() => { if (blobRef.current) URL.revokeObjectURL(blobRef.current); blobRef.current = '' }, [])
   const t = (en: string, ar: string) => lang==='ar'?ar:en
-  const ic = (err?: string) => `mt-1 block w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-1 ${err?'border-red-300 focus:border-red-500 focus:ring-red-500':'border-gray-300 focus:border-gold-500 focus:ring-blue-500'}`
+  const ic = (err?: string) => `mt-1 block w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 ${err?'border-semantic-status-inactive focus:border-semantic-status-inactive focus:ring-semantic-status-inactive':'border-gray-300 focus:border-gold-500 focus:ring-gold-500'}`
 
   useEffect(() => {
     dialogRef.current?.focus()
