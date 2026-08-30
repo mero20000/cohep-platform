@@ -1,7 +1,7 @@
 'use client'
 import Image from 'next/image'
 import { useState, useEffect, useRef } from 'react'
-import { X, Loader2, Pencil, Calendar, User, MapPin, Phone, Layers, Users, Church, GraduationCap, Mail, UserCheck, Copy, Check, QrCode, MessageSquare, Award, Plus, Trash2 } from 'lucide-react'
+import { X, Loader2, Pencil, Calendar, User, MapPin, Phone, Layers, Users, Church, GraduationCap, Mail, UserCheck, Copy, Check, QrCode, MessageSquare, Award, Plus, Trash2, Zap, History, Key } from 'lucide-react'
 import { Badge as UIBadge } from '@/components/ui/badge'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -13,6 +13,7 @@ import { STATUS_STYLE, photoSrc, calcAge, type Student } from './student-types'
 import { PhoneLink } from './phone-link'
 import { StudentSubjectItemsPanel } from './student-subject-items'
 import { StudentTagEditor } from './student-tags'
+import { CollapsibleSection } from './collapsible-section'
 
 interface Activity { id: string; action: string; createdAt: string; user?: { firstName: string; lastName: string } }
 interface Props { student: Student; onClose: () => void; onEdit: () => void; onPreviewPhoto: (url: string) => void; lang: 'en'|'ar' }
@@ -101,7 +102,8 @@ export function StudentDetailModal({ student:s, onClose, onEdit, onPreviewPhoto,
           <h2 className="text-lg font-semibold">{t('Student Details','تفاصيل الطالب')}</h2>
           <Button variant="ghost" size="icon" onClick={onClose}><X className="h-5 w-5" /></Button>
         </div>
-        <div className="px-6 py-5 overflow-y-auto flex-1">
+        <div className="px-6 py-5 overflow-y-auto flex-1 space-y-2">
+          {/* Header: Photo, Name, Code */}
           <div className="flex items-center gap-4 mb-6">
             {s.photoUrl?<Button type="button" variant="ghost" size="icon" onClick={()=>onPreviewPhoto(photoSrc(s.photoUrl))} className="flex-shrink-0 relative"><div className={`absolute inset-0 rounded-full bg-gray-200 animate-pulse flex items-center justify-center ${photoLoading?'':'hidden'}`}><Loader2 className="h-4 w-4 text-gray-400 animate-spin" /></div><Image src={photoSrc(s.photoUrl)} alt={`${s.firstName} ${s.lastName} profile photo`} width={64} height={64} onLoadingComplete={()=>setPhotoLoading(false)} className="h-16 w-16 rounded-full object-cover border border-gray-200 cursor-pointer hover:ring-2 hover:ring-gold-400" priority /></Button>
             :<div className={`flex h-16 w-16 items-center justify-center rounded-full text-xl font-bold flex-shrink-0 ${s.gender==='female'?'bg-semantic-gender-female-bg text-semantic-gender-female':'bg-semantic-gender-male-bg text-semantic-gender-male'}`}>{s.firstName[0]}{s.lastName[0]}</div>}
@@ -111,101 +113,129 @@ export function StudentDetailModal({ student:s, onClose, onEdit, onPreviewPhoto,
               <p className="text-sm text-gray-500">{s.studentCode}</p>
             </div>
           </div>
-          <div className="mb-4">
-            <StudentTagEditor studentId={s.id} tags={tags} onChanged={setTags} lang={lang} />
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="flex items-start gap-3 rounded-lg border border-gray-100 p-3">
-              <Phone className="h-4 w-4 text-gray-400 mt-0.5" />
-              <div><div className="text-xs text-gray-500">{t('Phone','رقم الهاتف')}</div><div className="text-sm font-medium text-gray-900"><PhoneLink phone={s.metadata?.phone||''} lang={lang} /></div></div>
-            </div>
-            {details.map(item=>(
-              <div key={item.label} className="flex items-start gap-3 rounded-lg border border-gray-100 p-3">
-                <item.icon className="h-4 w-4 text-gray-400 mt-0.5" />
-                <div><div className="text-xs text-gray-500">{item.label}</div><div className="text-sm font-medium text-gray-900">{item.value}</div></div>
-              </div>
-            ))}
-          </div>
-          <div className="mt-4 grid grid-cols-2 gap-4">
-            <div className="rounded-lg border border-gray-100 p-3"><div className="text-xs text-gray-500">{t('Status','الحالة')}</div><Badge variant={STATUS_STYLE[s.status]?.variant||'default'}>{statusLabel}</Badge></div>
-            <div className="rounded-lg border border-gray-100 p-3"><div className="text-xs text-gray-500">{t('Enrolled','تاريخ التسجيل')}</div><div className="text-sm font-medium text-gray-900">{new Date(s.enrollmentDate).toLocaleDateString('en-GB',{day:'2-digit',month:'2-digit',year:'numeric'})}</div></div>
-          </div>
-          {s.metadata?.notes&&<div className="mt-4 rounded-lg border border-gray-100 p-3"><div className="text-xs text-gray-500">{t('Notes','ملاحظات')}</div><div className="text-sm text-gray-900 mt-1 whitespace-pre-wrap">{s.metadata.notes}</div></div>}
 
-          {/* Badges — view & manual award */}
-          <div className="mt-4 rounded-lg border border-amber-100 bg-amber-50/50 p-3">
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-1.5 text-xs font-semibold text-amber-800">
-                <Award className="h-3.5 w-3.5" /> {t('Badges', 'الشارات')} {studentBadges.length > 0 && <span className="text-amber-600 font-normal">({studentBadges.length})</span>}
+          {/* 1. Overview Section */}
+          <CollapsibleSection title={t('Overview','نظرة عامة')} icon={<Layers className="h-4 w-4" />} defaultOpen={true}>
+            <div className="space-y-4">
+              {/* Tags Editor */}
+              <div>
+                <StudentTagEditor studentId={s.id} tags={tags} onChanged={setTags} lang={lang} />
               </div>
-              <button onClick={() => setShowAward(true)} className="inline-flex items-center gap-1 rounded-full bg-white border border-amber-200 px-2.5 py-1 text-xs font-medium text-amber-700 hover:bg-amber-100">
-                <Plus className="h-3 w-3" /> {t('Award', 'منح')}
-              </button>
-            </div>
-            {badgesLoading ? <div className="py-2 text-xs text-gray-500">{t('Loading...','جاري التحميل...')}</div>
-            : studentBadges.length === 0 ? <div className="py-2 text-xs text-gray-500">{t('No badges yet','لا توجد شارات بعد')}</div>
-            : <div className="flex flex-wrap gap-1.5">
-                {studentBadges.map((sb: any) => (
-                  <span key={sb.id} className="inline-flex items-center gap-1 rounded-full bg-white border border-amber-200 px-2.5 py-1 text-xs font-medium text-amber-800">
-                    {sb.badge?.name || sb.name || sb.badgeId}
-                  </span>
-                ))}
-              </div>}
-            {showAward && (
-              <div className="mt-3 rounded-xl border border-amber-200 bg-white p-3 space-y-3">
-                <select value={selectedBadgeId} onChange={e=>setSelectedBadgeId(e.target.value)} className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gold-500 focus:border-gold-500">
-                  <option value="">{t('Select badge...','اختر شارة...')}</option>
-                  {badges.map((b: any) => <option key={b.id} value={b.id}>{b.name} — {b.points ?? b.xpReward ?? 0} pts</option>)}
-                </select>
-                <div className="flex items-center gap-2">
-                  <Button size="sm" onClick={handleAward} disabled={!selectedBadgeId || awarding}>
-                    {awarding && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-                    {t('Award Badge','منح الشارة')}
-                  </Button>
-                  <Button variant="ghost" size="sm" onClick={()=>{setShowAward(false); setSelectedBadgeId('')}}>{t('Cancel','إلغاء')}</Button>
+
+              {/* Basic Info Grid (2 columns) */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="flex items-start gap-3 rounded-lg border border-gray-100 p-3">
+                  <Phone className="h-4 w-4 text-gray-400 mt-0.5 flex-shrink-0" />
+                  <div className="min-w-0"><div className="text-xs text-gray-500">{t('Phone','رقم الهاتف')}</div><div className="text-sm font-medium text-gray-900 truncate"><PhoneLink phone={s.metadata?.phone||''} lang={lang} /></div></div>
                 </div>
+                {details.slice(0, 6).map(item=>(
+                  <div key={item.label} className="flex items-start gap-3 rounded-lg border border-gray-100 p-3">
+                    <item.icon className="h-4 w-4 text-gray-400 mt-0.5 flex-shrink-0" />
+                    <div className="min-w-0"><div className="text-xs text-gray-500">{item.label}</div><div className="text-sm font-medium text-gray-900 truncate">{item.value}</div></div>
+                  </div>
+                ))}
               </div>
-            )}
-          </div>
-          
-          {/* Allocated Hymns — subject items with passed toggle */}
-          <StudentSubjectItemsPanel studentId={s.id} lang={lang} />
 
-          {/* Contact Parent Button */}
-          {s.studentParents && s.studentParents.length > 0 && (
-            <div className="mt-4">
-              <button onClick={() => setShowContactParent(true)}
-                className="flex items-center gap-2 w-full px-4 py-2.5 rounded-xl bg-blue-50 text-blue-600 font-medium hover:bg-blue-100 transition-colors">
-                <MessageSquare className="h-4 w-4" />
-                {t('Contact Parent', 'تواصل مع الوالد')}
-              </button>
+              {/* Status & Enrollment (2 columns) */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="rounded-lg border border-gray-100 p-3"><div className="text-xs text-gray-500">{t('Status','الحالة')}</div><Badge variant={STATUS_STYLE[s.status]?.variant||'default'}>{statusLabel}</Badge></div>
+                <div className="rounded-lg border border-gray-100 p-3"><div className="text-xs text-gray-500">{t('Enrolled','تاريخ التسجيل')}</div><div className="text-sm font-medium text-gray-900">{new Date(s.enrollmentDate).toLocaleDateString('en-GB',{day:'2-digit',month:'2-digit',year:'numeric'})}</div></div>
+              </div>
+
+              {/* Notes if exists */}
+              {s.metadata?.notes&&<div className="rounded-lg border border-gray-100 p-3"><div className="text-xs text-gray-500">{t('Notes','ملاحظات')}</div><div className="text-sm text-gray-900 mt-1 whitespace-pre-wrap">{s.metadata.notes}</div></div>}
+
+              {/* Contact Parent Button */}
+              {s.studentParents && s.studentParents.length > 0 && (
+                <button onClick={() => setShowContactParent(true)}
+                  className="flex items-center gap-2 w-full px-4 py-2.5 rounded-xl bg-blue-50 text-blue-600 font-medium hover:bg-blue-100 transition-colors">
+                  <MessageSquare className="h-4 w-4" />
+                  {t('Contact Parent', 'تواصل مع الوالد')}
+                </button>
+              )}
             </div>
-          )}
+          </CollapsibleSection>
 
+          {/* 2. Achievements Section */}
+          <CollapsibleSection title={t('Achievements','الإنجازات')} icon={<Award className="h-4 w-4" />} defaultOpen={false} badge={studentBadges.length > 0 ? studentBadges.length : undefined}>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="text-sm text-gray-600">
+                  {badgesLoading ? t('Loading...','جاري التحميل...')
+                  : studentBadges.length === 0 ? t('No badges yet','لا توجد شارات بعد')
+                  : t(`${studentBadges.length} badge awarded`, `${studentBadges.length} شارة ممنوحة`)}
+                </div>
+                <button onClick={() => setShowAward(true)} className="inline-flex items-center gap-1 rounded-full bg-gold-50 border border-gold-200 px-2.5 py-1 text-xs font-medium text-gold-700 hover:bg-gold-100">
+                  <Plus className="h-3 w-3" /> {t('Award', 'منح')}
+                </button>
+              </div>
+
+              {/* Display Badges */}
+              {!badgesLoading && studentBadges.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {studentBadges.map((sb: any) => (
+                    <span key={sb.id} className="inline-flex items-center rounded-full bg-amber-50 border border-amber-200 px-3 py-1.5 text-xs font-medium text-amber-800">
+                      {sb.badge?.name || sb.name || sb.badgeId}
+                    </span>
+                  ))}
+                </div>
+              )}
+
+              {/* Award Form */}
+              {showAward && (
+                <div className="rounded-xl border border-gold-200 bg-white p-3 space-y-3">
+                  <select value={selectedBadgeId} onChange={e=>setSelectedBadgeId(e.target.value)} className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gold-500 focus:border-gold-500">
+                    <option value="">{t('Select badge...','اختر شارة...')}</option>
+                    {badges.map((b: any) => <option key={b.id} value={b.id}>{b.name} — {b.points ?? b.xpReward ?? 0} pts</option>)}
+                  </select>
+                  <div className="flex items-center gap-2">
+                    <Button size="sm" onClick={handleAward} disabled={!selectedBadgeId || awarding}>
+                      {awarding && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                      {t('Award Badge','منح الشارة')}
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={()=>{setShowAward(false); setSelectedBadgeId('')}}>{t('Cancel','إلغاء')}</Button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </CollapsibleSection>
+
+          {/* 3. Academics Section */}
+          <CollapsibleSection title={t('Academics','الدراسة')} icon={<Zap className="h-4 w-4" />} defaultOpen={false}>
+            <StudentSubjectItemsPanel studentId={s.id} lang={lang} />
+          </CollapsibleSection>
+
+          {/* 4. Portal Access Section */}
           {s.portalAccessKey && (
-            <div className="mt-4 rounded-lg border border-gray-100 p-3">
-              <div className="text-xs text-gray-500 mb-2">{t('Portal Access Key','مفتاح الوصول للبوابة')}</div>
-              <div className="flex items-center gap-2">
-                <code className="flex-1 text-xs font-mono text-gray-700 bg-gray-50 rounded px-2 py-1.5 truncate">{s.portalAccessKey}</code>
-                <button onClick={() => { navigator.clipboard.writeText(s.portalAccessKey!); setCopied(true); setTimeout(() => setCopied(false), 2000) }}
-                  className="shrink-0 p-1.5 rounded hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors" title={t('Copy','نسخ')}>
-                  {copied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
-                </button>
-                <button onClick={() => setShowQr(true)}
-                  className="shrink-0 p-1.5 rounded hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors" title={t('Show QR Code','عرض رمز QR')}>
-                  <QrCode className="h-4 w-4" />
-                </button>
+            <CollapsibleSection title={t('Portal Access','وصول البوابة')} icon={<Key className="h-4 w-4" />} defaultOpen={true}>
+              <div className="space-y-3">
+                <div>
+                  <div className="text-xs text-gray-500 mb-2">{t('Portal Access Key','مفتاح الوصول للبوابة')}</div>
+                  <div className="flex items-center gap-2">
+                    <code className="flex-1 text-xs font-mono text-gray-700 bg-gray-50 rounded px-2 py-1.5 truncate">{s.portalAccessKey}</code>
+                    <button onClick={() => { navigator.clipboard.writeText(s.portalAccessKey!); setCopied(true); setTimeout(() => setCopied(false), 2000) }}
+                      className="shrink-0 p-1.5 rounded hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors" title={t('Copy','نسخ')}>
+                      {copied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+                    </button>
+                    <button onClick={() => setShowQr(true)}
+                      className="shrink-0 p-1.5 rounded hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors" title={t('Show QR Code','عرض رمز QR')}>
+                      <QrCode className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+                <a href={`/student-portal/${s.portalAccessKey}`} target="_blank" rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700 font-medium">
+                  {t('Open Student Portal','فتح بوابة الطالب')} →
+                </a>
               </div>
-              <a href={`/student-portal/${s.portalAccessKey}`} target="_blank" rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 mt-2 text-xs text-blue-600 hover:text-blue-700">
-                {t('Open Student Portal','فتح بوابة الطالب')} →
-              </a>
-            </div>
+            </CollapsibleSection>
           )}
-          <div className="mt-4">
-            <div className="flex items-center justify-between mb-2">
-              <h4 className="text-sm font-semibold text-gray-900">{t('Activity','النشاط')}</h4>
-              <div className="flex items-center gap-1">
+
+          {/* 5. Activity Section */}
+          <CollapsibleSection title={t('Activity','النشاط')} icon={<History className="h-4 w-4" />} defaultOpen={false}>
+            <div className="space-y-3">
+              {/* Filter Buttons */}
+              <div className="flex items-center gap-1 flex-wrap">
                 {(['all','CREATE','UPDATE','DELETE'] as const).map(f=>{
                   const flabel=f==='all'?t('All','الكل'):f==='CREATE'?t('Created','إنشاء'):f==='UPDATE'?t('Updated','تحديث'):t('Deleted','حذف')
                   return <button key={f} onClick={()=>setActivityFilter(f)}
@@ -214,20 +244,22 @@ export function StudentDetailModal({ student:s, onClose, onEdit, onPreviewPhoto,
                   </button>
                 })}
               </div>
+
+              {/* Activity Log */}
+              {logLoading?<div className="flex items-center justify-center py-4"><Loader2 className="h-4 w-4 animate-spin text-gray-400" /></div>
+              :(()=>{
+                const filtered = activityFilter==='all' ? log : log.filter(e=>e.action===activityFilter)
+                return filtered.length===0?<p className="text-xs text-gray-400 py-2">{t('No activity recorded','لا يوجد نشاط مسجل')}</p>
+                :<div className="space-y-2 max-h-48 overflow-y-auto">
+                  {filtered.map(entry=>{
+                    const label=entry.action==='CREATE'?t('create','إنشاء'):entry.action==='UPDATE'?t('update','تحديث'):entry.action==='DELETE'?t('delete','حذف'):entry.action.toLowerCase()
+                    const dotColor=entry.action==='CREATE'?'hsl(var(--semantic-activity-create))':entry.action==='UPDATE'?'hsl(var(--semantic-activity-update))':entry.action==='DELETE'?'hsl(var(--semantic-activity-delete))':'hsl(var(--muted-foreground))'
+                    return <div key={entry.id} className="flex items-start gap-2 text-xs"><div className="mt-1 h-2 w-2 rounded-full flex-shrink-0" style={{backgroundColor: dotColor}}/><div className="flex-1 min-w-0"><span className="font-medium text-gray-700">{label}</span>{entry.user&&<span className="text-gray-500"> {t('by','بواسطة')} {entry.user.firstName} {entry.user.lastName}</span>}<span className="text-gray-400 ms-1" title={entry.createdAt?new Date(entry.createdAt).toLocaleString(lang==='ar'?'ar-EG':'en-GB'):''}>{entry.createdAt?formatRelativeTime(entry.createdAt,lang):''}</span></div></div>
+                  })}
+                </div>
+              })()}
             </div>
-            {logLoading?<div className="flex items-center justify-center py-4"><Loader2 className="h-4 w-4 animate-spin text-gray-400" /></div>
-            :(()=>{
-              const filtered = activityFilter==='all' ? log : log.filter(e=>e.action===activityFilter)
-              return filtered.length===0?<p className="text-xs text-gray-400 py-2">{t('No activity recorded','لا يوجد نشاط مسجل')}</p>
-              :<div className="space-y-2 max-h-48 overflow-y-auto">
-                {filtered.map(entry=>{
-                  const label=entry.action==='CREATE'?t('create','إنشاء'):entry.action==='UPDATE'?t('update','تحديث'):entry.action==='DELETE'?t('delete','حذف'):entry.action.toLowerCase()
-                  const dotColor=entry.action==='CREATE'?'hsl(var(--semantic-activity-create))':entry.action==='UPDATE'?'hsl(var(--semantic-activity-update))':entry.action==='DELETE'?'hsl(var(--semantic-activity-delete))':'hsl(var(--muted-foreground))'
-                  return <div key={entry.id} className="flex items-start gap-2 text-xs"><div className="mt-1 h-2 w-2 rounded-full flex-shrink-0" style={{backgroundColor: dotColor}}/><div className="flex-1 min-w-0"><span className="font-medium text-gray-700">{label}</span>{entry.user&&<span className="text-gray-500"> {t('by','بواسطة')} {entry.user.firstName} {entry.user.lastName}</span>}<span className="text-gray-400 ms-1" title={entry.createdAt?new Date(entry.createdAt).toLocaleString(lang==='ar'?'ar-EG':'en-GB'):''}>{entry.createdAt?formatRelativeTime(entry.createdAt,lang):''}</span></div></div>
-                })}
-              </div>
-            })()}
-          </div>
+          </CollapsibleSection>
         </div>
         <div className="flex items-center justify-end gap-3 border-t border-gray-100 px-6 py-4 flex-shrink-0">
           <Button variant="outline" onClick={onEdit} className="inline-flex items-center gap-2"><Pencil className="h-4 w-4" />{t('Edit','تعديل')}</Button>
