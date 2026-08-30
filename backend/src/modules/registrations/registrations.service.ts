@@ -228,12 +228,12 @@ export class RegistrationsService {
       let allowedGroupIds: string[] = [];
 
       if (levelId) {
-        // Level leader: get all groups in their level
-        const groupsInLevel = await this.prisma.group.findMany({
-          where: { level: { id: levelId }, deletedAt: null },
-          select: { id: true },
+        // Level leader: get all groups with students in their level
+        const studentsInLevel = await this.prisma.student.findMany({
+          where: { levelId, deletedAt: null },
+          select: { groupId: true },
         });
-        allowedGroupIds = groupsInLevel.map(g => g.id);
+        allowedGroupIds = [...new Set(studentsInLevel.map(s => s.groupId))];
       } else if (groupId) {
         // Group leader or servant: only their group
         allowedGroupIds = [groupId];

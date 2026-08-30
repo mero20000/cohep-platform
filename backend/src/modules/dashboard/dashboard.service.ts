@@ -1390,17 +1390,17 @@ export class DashboardService {
       select: { name: true, nameAr: true },
     });
 
-    // Get all groups in this level
-    const groups = await this.prisma.group.findMany({
-      where: { level: { id: levelId }, deletedAt: null },
-      select: { id: true, name: true },
-    });
-    const groupIds = groups.map(g => g.id);
-
     // Get all students in this level
     const students = await this.prisma.student.findMany({
-      where: { level: { id: levelId }, groupId: { in: groupIds }, deletedAt: null },
-      select: { id: true, firstName: true, lastName: true, firstNameAr: true, lastNameAr: true },
+      where: { levelId, deletedAt: null },
+      select: { id: true, groupId: true, firstName: true, lastName: true, firstNameAr: true, lastNameAr: true },
+    });
+
+    // Get unique group IDs from students
+    const groupIds = [...new Set(students.map(s => s.groupId))];
+    const groups = await this.prisma.group.findMany({
+      where: { id: { in: groupIds }, deletedAt: null },
+      select: { id: true, name: true },
     });
 
     // Count servants
@@ -1423,8 +1423,9 @@ export class DashboardService {
       : 0;
 
     // Assessment completion
+    const studentIds = students.map(s => s.id);
     const assessmentSubmissions = await this.prisma.assessmentSubmission.findMany({
-      where: { student: { level: { id: levelId }, groupId: { in: groupIds } } },
+      where: { studentId: { in: studentIds } },
       select: { id: true },
     });
     const assessmentCompletionRate = students.length > 0
@@ -1433,7 +1434,7 @@ export class DashboardService {
 
     // Mastery distribution (from grades)
     const grades = await this.prisma.grade.findMany({
-      where: { submission: { student: { levelId, groupId: { in: groupIds } } }, questionId: null },
+      where: { submission: { studentId: { in: studentIds } }, questionId: null },
       select: { score: true, maxScore: true },
     });
 
