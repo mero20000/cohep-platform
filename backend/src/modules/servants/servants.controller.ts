@@ -216,7 +216,7 @@ export class ServantsController {
       });
     }
 
-    const results = [];
+    const results: any[] = [];
     for (const record of body.records) {
       const attendanceRecord = await this.prisma.attendanceRecord.create({
         data: {
