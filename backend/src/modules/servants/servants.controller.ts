@@ -18,8 +18,8 @@ export class ServantsController {
   ) {}
 
   @Get()
-  @Roles('super_admin', 'admin', 'principal', 'level_leader')
-  @ApiOperation({ summary: 'List servant-role users (school-scoped)' })
+  @Roles('super_admin', 'admin', 'principal', 'level_leader', 'group_leader', 'servant')
+  @ApiOperation({ summary: 'List servant-role users (school-scoped, role-filtered)' })
   listServants(
     @Req() req: any,
     @Query('search') search?: string,
