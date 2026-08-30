@@ -1375,4 +1375,112 @@ export class DashboardService {
       })),
     };
   }
+
+  async getLevelReport(user: any, schoolIdentifier: string) {
+    const schoolId = await this.schoolResolver.resolve(schoolIdentifier);
+    const userMeta = (user.metadata as any) || {};
+    const levelId = userMeta.levelId as string | undefined;
+
+    if (!levelId) {
+      return { error: 'No level assigned to this user' };
+    }
+
+    const level = await this.prisma.level.findUnique({
+      where: { id: levelId },
+      select: { name: true, nameAr: true },
+    });
+
+    // Get all groups in this level
+    const groups = await this.prisma.group.findMany({
+      where: { levelId, deletedAt: null },
+      select: { id: true, name: true },
+    });
+    const groupIds = groups.map(g => g.id);
+
+    // Get all students in this level
+    const students = await this.prisma.student.findMany({
+      where: { levelId, groupId: { in: groupIds }, deletedAt: null },
+      select: { id: true, firstName: true, lastName: true, firstNameAr: true, lastNameAr: true },
+    });
+
+    // Count servants
+    const servants = await this.prisma.user.findMany({
+      where: {
+        schoolId,
+        metadata: { path: ['levelId'], equals: levelId },
+        deletedAt: null,
+      },
+      select: { id: true },
+    });
+
+    // Attendance rate
+    const attendanceRecords = await this.prisma.attendanceRecord.findMany({
+      where: { attendanceSession: { schoolId, groupId: { in: groupIds } } },
+      select: { status: true },
+    });
+    const attendanceRate = attendanceRecords.length > 0
+      ? Math.round((attendanceRecords.filter(r => r.status === 'present' || r.status === 'late').length / attendanceRecords.length) * 100)
+      : 0;
+
+    // Assessment completion
+    const assessmentSubmissions = await this.prisma.assessmentSubmission.findMany({
+      where: { student: { levelId, groupId: { in: groupIds } }, deletedAt: null },
+      select: { id: true },
+    });
+    const assessmentCompletionRate = students.length > 0
+      ? Math.round((assessmentSubmissions.length / (students.length * 5)) * 100) // Assume 5 assessments per student
+      : 0;
+
+    // Mastery distribution (from grades)
+    const grades = await this.prisma.grade.findMany({
+      where: { submission: { student: { levelId, groupId: { in: groupIds } } }, questionId: null },
+      select: { score: true, maxScore: true },
+    });
+
+    const masteryRates = grades.map(g => (g.maxScore > 0 ? (g.score / g.maxScore) * 100 : 0));
+    const masteryDistribution = {
+      excellent: masteryRates.filter(r => r >= 90).length,
+      good: masteryRates.filter(r => r >= 80 && r < 90).length,
+      satisfactory: masteryRates.filter(r => r >= 70 && r < 80).length,
+      needsImprovement: masteryRates.filter(r => r < 70).length,
+    };
+
+    // Normalize to percentages
+    const total = Object.values(masteryDistribution).reduce((a, b) => a + b, 0) || 1;
+    const masteryPct = {
+      excellent: Math.round((masteryDistribution.excellent / total) * 100),
+      good: Math.round((masteryDistribution.good / total) * 100),
+      satisfactory: Math.round((masteryDistribution.satisfactory / total) * 100),
+      needsImprovement: Math.round((masteryDistribution.needsImprovement / total) * 100),
+    };
+
+    // Top and low performers
+    const studentScores = students.map(s => {
+      const studentGrades = grades.filter(g => g.maxScore > 0);
+      const avgScore = studentGrades.length > 0
+        ? Math.round(studentGrades.reduce((sum, g) => sum + (g.score / g.maxScore), 0) / studentGrades.length * 100)
+        : 0;
+      return {
+        name: `${s.firstName} ${s.lastName}`,
+        score: avgScore,
+      };
+    });
+
+    const topPerformers = studentScores.sort((a, b) => b.score - a.score).slice(0, 10);
+    const lowPerformers = studentScores.sort((a, b) => a.score - b.score).slice(0, 10);
+
+    return {
+      levelName: level?.name || 'Level',
+      levelNameAr: level?.nameAr || 'مستوى',
+      totalStudents: students.length,
+      totalServants: servants.length,
+      totalGroups: groupIds.length,
+      attendanceRate,
+      assessmentCompletionRate,
+      masteryDistribution: masteryPct,
+      topPerformers,
+      lowPerformers,
+      recentActivity: [],
+    };
+  }
 }

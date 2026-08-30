@@ -1,12 +1,14 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import { ChevronDown, AlertTriangle, BookOpen, User, CalendarDays } from 'lucide-react'
+import { ChevronDown, AlertTriangle, BookOpen, User, CalendarDays, Send, X } from 'lucide-react'
 import { http } from '@/lib/http-client'
 import { useLanguage } from '@/lib/use-language'
 import { assetUrl } from '@/lib/asset-url'
 import { TableSkeleton } from '@/components/ui/skeleton'
 import { EmptyState } from '@/components/ui/empty-state'
+import { Button } from '@/components/ui/button'
+import { useToast } from '@/components/ui/toast'
 
 interface Note { category?: string; note?: string; isPrivate: boolean; createdAt: string }
 interface RosterStudent {
@@ -50,10 +52,14 @@ const STATUS_BADGE: Record<string, { en: string; ar: string; cls: string }> = {
 export default function MyClassPage() {
   const lang = useLanguage()
   const t = (en: string, ar: string) => lang === 'ar' ? ar : en
+  const { toast } = useToast()
   const [data, setData] = useState<ClassOverview | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
   const [openStudent, setOpenStudent] = useState<string | null>(null)
+  const [noteModal, setNoteModal] = useState<{ studentId: string; name: string } | null>(null)
+  const [noteText, setNoteText] = useState('')
+  const [sending, setSending] = useState(false)
 
   const load = useCallback(() => {
     setError(false)
@@ -63,6 +69,28 @@ export default function MyClassPage() {
       .catch(() => setError(true))
       .finally(() => setLoading(false))
   }, [])
+
+  const sendNote = async () => {
+    if (!noteModal || !noteText.trim()) return
+    setSending(true)
+    try {
+      await http.post('/student-notifications', {
+        studentId: noteModal.studentId,
+        title: t('Note from your servant', 'ملاحظة من خادمك'),
+        titleAr: 'ملاحظة من خادمك',
+        body: noteText,
+        bodyAr: noteText,
+        type: 'note',
+      })
+      toast('success', t('Note sent', 'تم إرسال الملاحظة'))
+      setNoteModal(null)
+      setNoteText('')
+    } catch (err) {
+      toast('error', t('Failed to send note', 'فشل إرسال الملاحظة'))
+    } finally {
+      setSending(false)
+    }
+  }
 
   useEffect(() => {
     load()
@@ -162,6 +190,44 @@ export default function MyClassPage() {
           <div className="space-y-2">{settled.map(s => renderRow(s))}</div>
         </div>
       )}
+
+      {noteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="mx-4 w-full max-w-md rounded-xl bg-white p-6 shadow-lg">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-gray-900">
+                {t('Send note to', 'إرسال ملاحظة لـ')} {noteModal.name}
+              </h2>
+              <button onClick={() => { setNoteModal(null); setNoteText(''); }} className="text-gray-400 hover:text-gray-600">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <textarea
+              value={noteText}
+              onChange={(e) => setNoteText(e.target.value)}
+              placeholder={t('Write your note...', 'اكتب ملاحظتك...')}
+              className="w-full rounded-lg border border-gray-200 p-3 text-sm placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              rows={4}
+            />
+            <div className="mt-4 flex gap-2 justify-end">
+              <Button
+                variant="outline"
+                onClick={() => { setNoteModal(null); setNoteText(''); }}
+                disabled={sending}
+              >
+                {t('Cancel', 'إلغاء')}
+              </Button>
+              <Button
+                onClick={sendNote}
+                disabled={sending || !noteText.trim()}
+                className="bg-blue-600 hover:bg-blue-700 text-white"
+              >
+                {sending ? t('Sending...', 'جاري الإرسال...') : t('Send', 'إرسال')}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 
@@ -225,6 +291,17 @@ export default function MyClassPage() {
             ) : (
               <p className="mt-3 text-xs text-gray-400">{t('No notes.', 'لا توجد ملاحظات.')}</p>
             )}
+            <div className="mt-4 flex gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setNoteModal({ studentId: s.studentId, name: `${s.firstName} ${s.lastName}` })}
+                className="flex items-center gap-1.5 text-xs"
+              >
+                <Send className="h-3.5 w-3.5" />
+                {t('Send Note', 'إرسال ملاحظة')}
+              </Button>
+            </div>
           </div>
         )}
       </div>

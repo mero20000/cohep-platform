@@ -214,24 +214,45 @@ export class RegistrationsService {
       take: 100,
     });
 
-    // Group scoping: servants/group leaders only see applications for their
-    // assigned group (matched via the application's grade → group mapping).
+    // Role-based scoping:
+    // - super_admin, admin, principal, curriculum_manager: see all
+    // - level_leader: see applications for their level (all groups in that level)
+    // - group_leader, servant: see applications for their group
     const BROAD_ROLES = ['super_admin', 'admin', 'principal', 'curriculum_manager'];
     const isBroad = user?.roles?.some((r: string) => BROAD_ROLES.includes(r));
-    const servantGroupId = (user?.metadata as any)?.groupId;
-    if (!isBroad && servantGroupId) {
-      const grades = await this.prisma.schoolGrade.findMany({
-        where: { schoolId },
-        select: { id: true, groupId: true },
-      });
-      const gradeIdsForGroup = new Set(grades.filter(g => g.groupId === servantGroupId).map(g => g.id));
-      return rows.filter(a => {
-        const sd: any = a.studentData || {};
-        if (sd.groupId === servantGroupId) return true;
-        if (sd.gradeId && gradeIdsForGroup.has(sd.gradeId)) return true;
-        // No grade info on the application yet — leaders still see it for triage
-        return !sd.gradeId;
-      });
+    const meta = (user?.metadata as any) || {};
+    const levelId = meta.levelId as string | undefined;
+    const groupId = meta.groupId as string | undefined;
+
+    if (!isBroad) {
+      let allowedGroupIds: string[] = [];
+
+      if (levelId) {
+        // Level leader: get all groups in their level
+        const groupsInLevel = await this.prisma.group.findMany({
+          where: { levelId, deletedAt: null },
+          select: { id: true },
+        });
+        allowedGroupIds = groupsInLevel.map(g => g.id);
+      } else if (groupId) {
+        // Group leader or servant: only their group
+        allowedGroupIds = [groupId];
+      }
+
+      if (allowedGroupIds.length > 0) {
+        const grades = await this.prisma.schoolGrade.findMany({
+          where: { schoolId, groupId: { in: allowedGroupIds } },
+          select: { id: true, groupId: true },
+        });
+        const gradeIds = new Set(grades.map(g => g.id));
+        return rows.filter(a => {
+          const sd: any = a.studentData || {};
+          if (sd.groupId && allowedGroupIds.includes(sd.groupId)) return true;
+          if (sd.gradeId && gradeIds.has(sd.gradeId)) return true;
+          // No grade info on the application yet — leaders still see it for triage
+          return !sd.gradeId;
+        });
+      }
     }
 
     return rows;

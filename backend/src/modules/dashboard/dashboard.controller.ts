@@ -92,4 +92,14 @@ export class DashboardController {
   ) {
     return this.service.runAbsenceCascade(schoolId, this.notificationsService);
   }
+
+  @Get('level-report')
+  @Roles('level_leader', 'admin', 'principal', 'super_admin')
+  @ApiOperation({ summary: 'Get level-wide aggregated reporting — attendance, assessments, mastery distribution' })
+  async getLevelReport(
+    @CurrentUser() user: any,
+    @Query('schoolId') schoolId: string = '',
+  ) {
+    return this.service.getLevelReport(user, schoolId);
+  }
 }

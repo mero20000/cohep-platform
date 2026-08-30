@@ -36,6 +36,8 @@ interface DashboardHeaderProps {
   switchSchools: { id: string; name: string; churchName: string }[]
   activeSchoolId: string | null
   roleOptions: { value: string; label: string; labelAr: string; icon: any }[]
+  scopeName?: string
+  scopeNameAr?: string
   onSetSidebarOpen: (v: boolean) => void
   onSetShowNotiPanel: (v: boolean) => void
   onSetShowUserMenu: (v: boolean) => void
@@ -81,6 +83,8 @@ export function DashboardHeader({
   switchSchools,
   activeSchoolId,
   roleOptions,
+  scopeName,
+  scopeNameAr,
   onSetSidebarOpen,
   onSetShowNotiPanel,
   onSetShowUserMenu,
@@ -135,7 +139,17 @@ export function DashboardHeader({
             <Cross className="h-8 w-8" />
           </div>
         )}
-        <span className="hidden sm:block text-sm font-bold text-gray-900">{language === 'ar' && schoolNameAr ? schoolNameAr : schoolName}</span>
+        <div className="hidden sm:block">
+          <span className="text-sm font-bold text-gray-900">{language === 'ar' && schoolNameAr ? schoolNameAr : schoolName}</span>
+          {scopeName && (
+            <div className="mt-1 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-blue-50 border border-blue-200">
+              <span className="h-1.5 w-1.5 rounded-full bg-blue-500" />
+              <span className="text-xs font-medium text-blue-700">
+                {language === 'ar' && scopeNameAr ? scopeNameAr : scopeName}
+              </span>
+            </div>
+          )}
+        </div>
       </Link>
 
       <div className="flex-1 flex items-center mx-2">

@@ -7,7 +7,7 @@ import {
   LayoutDashboard, Users, BookOpen, Calendar, ClipboardCheck,
   Trophy, Settings, UserCheck, Baby, ClipboardList, Megaphone,
   Crown, Shield, GraduationCap, Layers, Heart, Church, Mail,
-  Headphones, School, Sun,
+  Headphones, School, Sun, BarChart3,
 } from 'lucide-react'
 import { HelpButton } from './help-button'
 import { useDashboardHotkeys } from '@/hooks/use-hotkeys'
@@ -34,6 +34,8 @@ const navigation = [
   { name: 'Dashboard', nameAr: 'لوحة التحكم', href: '/dashboard', icon: LayoutDashboard },
   { name: 'Students', nameAr: 'الطلاب', href: '/dashboard/students', icon: Users },
   { name: 'Servants', nameAr: 'الخدام', href: '/dashboard/servants', icon: UserCheck, perm: 'servant:view' as const },
+  { name: 'My Servants', nameAr: 'خدامي', href: '/dashboard/my-servants', icon: Heart, roles: ['level_leader'] as const },
+  { name: 'Level Report', nameAr: 'تقرير المستوى', href: '/dashboard/level-report', icon: BarChart3, roles: ['level_leader'] as const },
   { name: 'Curriculum', nameAr: 'المنهج', href: '/dashboard/curriculum', icon: BookOpen, perm: 'curriculum:view' as const },
   { name: 'Attendance', nameAr: 'الحضور', href: '/dashboard/attendance', icon: Calendar, perm: 'attendance:view' as const },
   { name: 'Assessments', nameAr: 'التقييمات', href: '/dashboard/assessments', icon: ClipboardCheck, perm: 'assessment:view' as const },
@@ -113,6 +115,27 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date())
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [isDesktop, setIsDesktop] = useState(false)
+  const [scopeName, setScopeName] = useState<string>('')
+  const [scopeNameAr, setScopeNameAr] = useState<string>('')
+
+  // Scope name from user metadata
+  useEffect(() => {
+    const metadata = (user as any)?.metadata as any
+    if (!metadata) {
+      setScopeName('')
+      setScopeNameAr('')
+      return
+    }
+    const groupName = metadata.groupName as string | undefined
+    const groupNameAr = metadata.groupNameAr as string | undefined
+    const levelName = metadata.levelName as string | undefined
+    const levelNameAr = metadata.levelNameAr as string | undefined
+
+    if (groupName || levelName) {
+      setScopeName(groupName || levelName || '')
+      setScopeNameAr(groupNameAr || levelNameAr || '')
+    }
+  }, [user])
 
   // Pending student registrations badge (group-scoped on backend)
   useEffect(() => {
@@ -450,6 +473,8 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
           switchSchools={switchSchools}
           activeSchoolId={activeSchoolId}
           roleOptions={ROLE_SWITCH_OPTIONS}
+          scopeName={scopeName}
+          scopeNameAr={scopeNameAr}
           onSetSidebarOpen={setSidebarOpen}
           onSetShowNotiPanel={setShowNotiPanel}
           onSetShowUserMenu={setShowUserMenu}
