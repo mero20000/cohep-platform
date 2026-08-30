@@ -41,6 +41,7 @@ const navigation = [
   { name: 'Assessments', nameAr: 'التقييمات', href: '/dashboard/assessments', icon: ClipboardCheck, perm: 'assessment:view' as const },
   { name: 'Hymn Review', nameAr: 'مراجعة التسابيح', href: '/dashboard/hymn-review', icon: Headphones, perm: 'practice:view' as const },
   { name: 'My Class', nameAr: 'صفي', href: '/dashboard/my-class', icon: School, perm: 'attendance:record' as const },
+  { name: 'Liturgy Attendance', nameAr: 'حضور القداس', href: '/dashboard/liturgy-attendance', icon: Church, perm: 'attendance:record' as const },
   { name: 'This Sunday', nameAr: 'أحد الأسبوع', href: '/dashboard/briefing', icon: Sun, perm: 'attendance:record' as const },
   { name: 'Gamification', nameAr: 'الألعاب التحفيزية', href: '/dashboard/gamification', icon: Trophy, perm: 'gamification:view' as const },
   { name: 'Announcements', nameAr: 'الإعلانات', href: '/dashboard/announcements', icon: Megaphone, perm: 'announcement:view' as const },
