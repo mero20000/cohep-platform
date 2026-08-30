@@ -110,24 +110,35 @@ export class ServantsService {
       orderBy: { firstName: 'asc' },
     });
 
-    const userMeta = user.metadata as any || {};
+    const userMeta = (user.metadata as any) || {};
+    const userGroupId = userMeta.groupId as string | undefined;
+    const userLevelId = userMeta.levelId as string | undefined;
+
     const filtered = users
       .filter((u: any) => !u.deletedAt)
       .filter((u: any) => {
+        const uMeta = (u.metadata as any) || {};
+
         // Scope by role: servants/group leaders only see their own group, level leaders see their level
         if (!isSuperAdmin && !isAdmin) {
-          if ((isServant || isGroupLeader) && userMeta.groupId) {
-            if ((u.metadata?.groupId ?? '') !== userMeta.groupId) return false;
-          } else if (isLevelLeader && userMeta.levelId) {
-            if ((u.metadata?.levelId ?? '') !== userMeta.levelId) return false;
+          if (isServant && userGroupId) {
+            // Servants only see other servants in their group
+            if (uMeta.groupId !== userGroupId) return false;
+          } else if (isGroupLeader && userGroupId) {
+            // Group leaders only see other servants in their group
+            if (uMeta.groupId !== userGroupId) return false;
+          } else if (isLevelLeader && userLevelId) {
+            // Level leaders only see servants in their level
+            if (uMeta.levelId !== userLevelId) return false;
           }
         }
 
-        if (query.levelId && (u.metadata?.levelId ?? '') !== query.levelId) return false;
-        if (query.groupId && (u.metadata?.groupId ?? '') !== query.groupId) return false;
+        // Apply explicit query filters on top
+        if (query.levelId && uMeta.levelId !== query.levelId) return false;
+        if (query.groupId && uMeta.groupId !== query.groupId) return false;
         if (query.teachingSubject) {
           const want = query.teachingSubject.toLowerCase().replace(/\s+/g, '_');
-          const have = ((u.metadata?.teachingSubjects ?? []) as string[]).map((s: string) => s.toLowerCase().replace(/\s+/g, '_'));
+          const have = ((uMeta.teachingSubjects ?? []) as string[]).map((s: string) => s.toLowerCase().replace(/\s+/g, '_'));
           if (!have.includes(want)) return false;
         }
         return true;
