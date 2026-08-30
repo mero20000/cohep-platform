@@ -230,7 +230,7 @@ export class RegistrationsService {
       if (levelId) {
         // Level leader: get all groups in their level
         const groupsInLevel = await this.prisma.group.findMany({
-          where: { levelId, deletedAt: null },
+          where: { level: { id: levelId }, deletedAt: null },
           select: { id: true },
         });
         allowedGroupIds = groupsInLevel.map(g => g.id);

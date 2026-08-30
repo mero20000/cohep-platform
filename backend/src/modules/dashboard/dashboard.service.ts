@@ -1392,14 +1392,14 @@ export class DashboardService {
 
     // Get all groups in this level
     const groups = await this.prisma.group.findMany({
-      where: { levelId, deletedAt: null },
+      where: { level: { id: levelId }, deletedAt: null },
       select: { id: true, name: true },
     });
     const groupIds = groups.map(g => g.id);
 
     // Get all students in this level
     const students = await this.prisma.student.findMany({
-      where: { levelId, groupId: { in: groupIds }, deletedAt: null },
+      where: { level: { id: levelId }, groupId: { in: groupIds }, deletedAt: null },
       select: { id: true, firstName: true, lastName: true, firstNameAr: true, lastNameAr: true },
     });
 
@@ -1424,7 +1424,7 @@ export class DashboardService {
 
     // Assessment completion
     const assessmentSubmissions = await this.prisma.assessmentSubmission.findMany({
-      where: { student: { levelId, groupId: { in: groupIds } }, deletedAt: null },
+      where: { student: { level: { id: levelId }, groupId: { in: groupIds } } },
       select: { id: true },
     });
     const assessmentCompletionRate = students.length > 0
@@ -1437,7 +1437,11 @@ export class DashboardService {
       select: { score: true, maxScore: true },
     });
 
-    const masteryRates = grades.map(g => (g.maxScore > 0 ? (g.score / g.maxScore) * 100 : 0));
+    const masteryRates = grades.map(g => {
+      const maxScore = typeof g.maxScore === 'object' ? g.maxScore.toNumber() : Number(g.maxScore);
+      const score = typeof g.score === 'object' ? g.score.toNumber() : Number(g.score);
+      return maxScore > 0 ? (score / maxScore) * 100 : 0;
+    });
     const masteryDistribution = {
       excellent: masteryRates.filter(r => r >= 90).length,
       good: masteryRates.filter(r => r >= 80 && r < 90).length,
@@ -1456,9 +1460,16 @@ export class DashboardService {
 
     // Top and low performers
     const studentScores = students.map(s => {
-      const studentGrades = grades.filter(g => g.maxScore > 0);
+      const studentGrades = grades.filter(g => {
+        const maxScore = typeof g.maxScore === 'object' ? g.maxScore.toNumber() : Number(g.maxScore);
+        return maxScore > 0;
+      });
       const avgScore = studentGrades.length > 0
-        ? Math.round(studentGrades.reduce((sum, g) => sum + (g.score / g.maxScore), 0) / studentGrades.length * 100)
+        ? Math.round(studentGrades.reduce((sum, g) => {
+          const score = typeof g.score === 'object' ? g.score.toNumber() : Number(g.score);
+          const maxScore = typeof g.maxScore === 'object' ? g.maxScore.toNumber() : Number(g.maxScore);
+          return sum + (score / maxScore);
+        }, 0) / studentGrades.length * 100)
         : 0;
       return {
         name: `${s.firstName} ${s.lastName}`,
