@@ -116,6 +116,31 @@ export function StudentFilters(p: Props) {
         </div>
       </div>
 
+      {/* Quick preset filters */}
+      <div className="flex gap-2 flex-wrap items-center">
+        <span className="text-xs text-gray-500 font-medium">{t('Quick Filters','الفلاتر السريعة')}:</span>
+        <button
+          onClick={() => { p.onStatusChange('active'); p.onLevelChange(''); p.onGroupChange('') }}
+          className="text-xs px-2 py-1 rounded border border-green-200 bg-green-50 text-green-700 hover:bg-green-100 transition-colors whitespace-nowrap"
+          title={t('Show only active students','اعرض الطلاب النشطين فقط')}
+        >
+          {t('Active Only','نشطين فقط')}
+        </button>
+        <button
+          onClick={() => { p.onStatusChange('inactive'); p.onLevelChange(''); p.onGroupChange('') }}
+          className="text-xs px-2 py-1 rounded border border-orange-200 bg-orange-50 text-orange-700 hover:bg-orange-100 transition-colors whitespace-nowrap"
+          title={t('Show inactive students','اعرض الطلاب غير النشطين')}
+        >
+          {t('Inactive','غير نشطين')}
+        </button>
+        <button
+          onClick={() => p.onStatusChange('')}
+          className="text-xs px-2 py-1 rounded border border-gray-200 bg-gray-50 text-gray-600 hover:bg-gray-100 transition-colors whitespace-nowrap"
+        >
+          {t('All Status','جميع الحالات')}
+        </button>
+      </div>
+
       {/* Advanced filters - collapsible on mobile */}
       <div className="md:flex gap-2 flex-wrap hidden">
         <select

@@ -49,6 +49,7 @@ export function StudentDetailModal({ student:s, onClose, onEdit, onPreviewPhoto,
   const t = (en: string, ar: string) => lang==='ar'?ar:en
   const { toast } = useToast()
   const [activityFilter, setActivityFilter] = useState<'all'|'CREATE'|'UPDATE'|'DELETE'>('all')
+  const [activityDisplayCount, setActivityDisplayCount] = useState(10)
   const [tags, setTags] = useState<string[]>(s.metadata?.tags || [])
   const [photoLoading, setPhotoLoading] = useState(true)
 
@@ -249,13 +250,22 @@ export function StudentDetailModal({ student:s, onClose, onEdit, onPreviewPhoto,
               {logLoading?<div className="flex items-center justify-center py-4"><Loader2 className="h-4 w-4 animate-spin text-gray-400" /></div>
               :(()=>{
                 const filtered = activityFilter==='all' ? log : log.filter(e=>e.action===activityFilter)
+                const displayed = filtered.slice(0, activityDisplayCount)
+                const hasMore = filtered.length > activityDisplayCount
                 return filtered.length===0?<p className="text-xs text-gray-400 py-2">{t('No activity recorded','لا يوجد نشاط مسجل')}</p>
-                :<div className="space-y-2 max-h-48 overflow-y-auto">
-                  {filtered.map(entry=>{
-                    const label=entry.action==='CREATE'?t('create','إنشاء'):entry.action==='UPDATE'?t('update','تحديث'):entry.action==='DELETE'?t('delete','حذف'):entry.action.toLowerCase()
-                    const dotColor=entry.action==='CREATE'?'hsl(var(--semantic-activity-create))':entry.action==='UPDATE'?'hsl(var(--semantic-activity-update))':entry.action==='DELETE'?'hsl(var(--semantic-activity-delete))':'hsl(var(--muted-foreground))'
-                    return <div key={entry.id} className="flex items-start gap-2 text-xs"><div className="mt-1 h-2 w-2 rounded-full flex-shrink-0" style={{backgroundColor: dotColor}}/><div className="flex-1 min-w-0"><span className="font-medium text-gray-700">{label}</span>{entry.user&&<span className="text-gray-500"> {t('by','بواسطة')} {entry.user.firstName} {entry.user.lastName}</span>}<span className="text-gray-400 ms-1" title={entry.createdAt?new Date(entry.createdAt).toLocaleString(lang==='ar'?'ar-EG':'en-GB'):''}>{entry.createdAt?formatRelativeTime(entry.createdAt,lang):''}</span></div></div>
-                  })}
+                :<div className="space-y-2">
+                  <div className="max-h-48 overflow-y-auto space-y-2">
+                    {displayed.map(entry=>{
+                      const label=entry.action==='CREATE'?t('create','إنشاء'):entry.action==='UPDATE'?t('update','تحديث'):entry.action==='DELETE'?t('delete','حذف'):entry.action.toLowerCase()
+                      const dotColor=entry.action==='CREATE'?'hsl(var(--semantic-activity-create))':entry.action==='UPDATE'?'hsl(var(--semantic-activity-update))':entry.action==='DELETE'?'hsl(var(--semantic-activity-delete))':'hsl(var(--muted-foreground))'
+                      return <div key={entry.id} className="flex items-start gap-2 text-xs"><div className="mt-1 h-2 w-2 rounded-full flex-shrink-0" style={{backgroundColor: dotColor}}/><div className="flex-1 min-w-0"><span className="font-medium text-gray-700">{label}</span>{entry.user&&<span className="text-gray-500"> {t('by','بواسطة')} {entry.user.firstName} {entry.user.lastName}</span>}<span className="text-gray-400 ms-1" title={entry.createdAt?new Date(entry.createdAt).toLocaleString(lang==='ar'?'ar-EG':'en-GB'):''}>{entry.createdAt?formatRelativeTime(entry.createdAt,lang):''}</span></div></div>
+                    })}
+                  </div>
+                  {hasMore && (
+                    <button onClick={() => setActivityDisplayCount(c => c + 10)} className="w-full text-xs text-blue-600 hover:text-blue-700 font-medium py-1 rounded hover:bg-blue-50 transition-colors">
+                      {t('Load more','تحميل المزيد')} ({displayed.length}/{filtered.length})
+                    </button>
+                  )}
                 </div>
               })()}
             </div>

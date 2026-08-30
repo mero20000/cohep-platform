@@ -260,8 +260,27 @@ export default function StudentsClient() {
         onAssignServant={()=>setShowAssignServant(true)}
         onExport={()=>{
           const selectedStudents = sortedStudents.filter(s=>selectedIds.has(s.id))
-          const csv = ['Name,Code,Email,Phone,Level,Group,Status,Church,Grade'].concat(selectedStudents.map(s=>`"${s.firstName} ${s.lastName}","${s.studentCode}","${s.metadata?.email||''}","${s.metadata?.phone||''}","${s.level?.name||''}","${s.group?.name||''}","${s.status}","${s.churchName||''}","${s.grade?.name||''}"`)).join('\n')
-          const blob = new Blob([csv],{type:'text/csv'})
+          const headers = ['Name','Code','Email','Phone','Level','Group','Status','Church','Grade','Enrollment Date','Gender','Tags','Assigned Servants']
+          const csv = [headers].concat(selectedStudents.map(s=>{
+            const assignedServantCount = Array.isArray(s.metadata?.assignedServantIds) ? s.metadata.assignedServantIds.length : 0
+            const tags = Array.isArray(s.metadata?.tags) ? s.metadata.tags.join(';') : ''
+            return [
+              `"${s.firstName} ${s.lastName}"`,
+              `"${s.studentCode}"`,
+              `"${s.metadata?.email||''}"`,
+              `"${s.metadata?.phone||''}"`,
+              `"${s.level?.name||''}"`,
+              `"${s.group?.name||''}"`,
+              `"${s.status}"`,
+              `"${s.churchName||''}"`,
+              `"${s.grade?.name||''}"`,
+              `"${s.enrollmentDate.split('T')[0]}"`,
+              `"${s.gender||''}"`,
+              `"${tags}"`,
+              `"${assignedServantCount}"`
+            ].join(',')
+          })).map(r=>r).join('\n')
+          const blob = new Blob([csv],{type:'text/csv;charset=utf-8'})
           const url = URL.createObjectURL(blob)
           const a = document.createElement('a')
           a.href = url
