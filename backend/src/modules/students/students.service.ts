@@ -456,7 +456,7 @@ export class StudentsService {
       }
       if (!s.grade && !s.groupId) errors.push({ row: rowNum, message: 'Grade or group is required' });
 
-      let dob: Date;
+      let dob: Date | null = null;
       const rawDate = s.dateOfBirth.trim();
       try {
         if (/^\d{4}-\d{2}-\d{2}/.test(rawDate)) {
@@ -483,11 +483,13 @@ export class StudentsService {
         } else {
           dob = new Date(rawDate);
         }
-        if (isNaN(dob.getTime())) {
+        if (dob && isNaN(dob.getTime())) {
           errors.push({ row: rowNum, message: `Invalid date "${s.dateOfBirth}" - use DD/MM/YYYY or YYYY-MM-DD format` });
+          dob = null;
         }
       } catch (e) {
         errors.push({ row: rowNum, message: `Invalid date "${s.dateOfBirth}" - use DD/MM/YYYY or YYYY-MM-DD format` });
+        dob = null;
       }
 
       const metadata: Record<string, string> = {};
@@ -502,7 +504,7 @@ export class StudentsService {
         lastName: s.lastName,
         firstNameAr: s.firstNameAr,
         lastNameAr: s.lastNameAr,
-        dateOfBirth: dob,
+        dateOfBirth: dob || new Date(),
         gender: s.gender,
         churchName: s.churchName,
         levelId: resolvedLevelId || '',
