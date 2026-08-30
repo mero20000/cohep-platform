@@ -458,18 +458,37 @@ export class StudentsService {
 
       let dob: Date;
       const rawDate = s.dateOfBirth.trim();
-      if (/^\d{4}-\d{2}-\d{2}/.test(rawDate)) {
-        dob = new Date(rawDate);
-      } else if (/^\d{2}\/\d{2}\/\d{4}$/.test(rawDate)) {
-        const [d, m, y] = rawDate.split('/');
-        dob = new Date(`${y}-${m}-${d}`);
-      } else if (/^\d{2}\.\d{2}\.\d{4}$/.test(rawDate)) {
-        const [d, m, y] = rawDate.split('.');
-        dob = new Date(`${y}-${m}-${d}`);
-      } else {
-        dob = new Date(rawDate);
+      try {
+        if (/^\d{4}-\d{2}-\d{2}/.test(rawDate)) {
+          // YYYY-MM-DD format
+          dob = new Date(rawDate + 'T00:00:00Z');
+        } else if (/^\d{2}\/\d{2}\/\d{4}$/.test(rawDate)) {
+          // DD/MM/YYYY format
+          const [d, m, y] = rawDate.split('/');
+          const day = String(d).padStart(2, '0');
+          const month = String(m).padStart(2, '0');
+          dob = new Date(`${y}-${month}-${day}T00:00:00Z`);
+        } else if (/^\d{2}\.\d{2}\.\d{4}$/.test(rawDate)) {
+          // DD.MM.YYYY format
+          const [d, m, y] = rawDate.split('.');
+          const day = String(d).padStart(2, '0');
+          const month = String(m).padStart(2, '0');
+          dob = new Date(`${y}-${month}-${day}T00:00:00Z`);
+        } else if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(rawDate)) {
+          // D/M/YYYY or DD/MM/YYYY (flexible)
+          const parts = rawDate.split('/');
+          const day = String(parts[0]).padStart(2, '0');
+          const month = String(parts[1]).padStart(2, '0');
+          dob = new Date(`${parts[2]}-${month}-${day}T00:00:00Z`);
+        } else {
+          dob = new Date(rawDate);
+        }
+        if (isNaN(dob.getTime())) {
+          errors.push({ row: rowNum, message: `Invalid date "${s.dateOfBirth}" - use DD/MM/YYYY or YYYY-MM-DD format` });
+        }
+      } catch (e) {
+        errors.push({ row: rowNum, message: `Invalid date "${s.dateOfBirth}" - use DD/MM/YYYY or YYYY-MM-DD format` });
       }
-      if (isNaN(dob.getTime())) errors.push({ row: rowNum, message: `Invalid date "${s.dateOfBirth}"` });
 
       const metadata: Record<string, string> = {};
       if (s.phone) metadata.phone = s.phone.replace(/[^+\d]/g, '');
