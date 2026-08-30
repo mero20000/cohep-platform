@@ -1,6 +1,6 @@
 'use client'
 import { useState } from 'react'
-import { Search, Loader2, ChevronDown, Sliders, Star } from 'lucide-react'
+import { Search, Loader2, ChevronDown, Sliders, Star, Users } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import type { Level, Group, ChurchItem } from './student-types'
 import type { GradeItem } from '@/lib/grades'
@@ -18,6 +18,7 @@ interface Props {
   gradeOptions: GradeItem[]; churches: ChurchItem[]
   hasActiveFilters: boolean; onClearFilters: () => void
   showFavoritesOnly?: boolean; onFavoritesToggle?: () => void; favorites?: string[]
+  showMyStudentsOnly?: boolean; onMyStudentsToggle?: () => void
   lang: 'en' | 'ar'
 }
 
@@ -94,6 +95,22 @@ export function StudentFilters(p: Props) {
               <Star className={`h-4 w-4 ${p.showFavoritesOnly ? 'fill-amber-500' : ''}`} />
               <span className="hidden sm:inline">{t('Favorites', 'المفضلة')}</span>
               <span className="text-xs ml-1">({p.favorites?.length || 0})</span>
+            </button>
+          )}
+
+          {p.onMyStudentsToggle && (
+            <button
+              onClick={p.onMyStudentsToggle}
+              aria-label={t('Filter by my students','تصفية حسب طلابي')}
+              className={`flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors whitespace-nowrap ${
+                p.showMyStudentsOnly
+                  ? 'bg-purple-100 text-purple-700 border border-purple-200'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200 border border-transparent'
+              }`}
+              title={t('Show only students assigned to me', 'اعرض الطلاب المسندين إلي فقط')}
+            >
+              <Users className="h-4 w-4" />
+              <span className="hidden sm:inline">{t('My Students', 'طلابي')}</span>
             </button>
           )}
         </div>

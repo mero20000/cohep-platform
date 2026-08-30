@@ -52,6 +52,8 @@ export default function StudentsClient() {
   const [filterGrade, setFilterGrade]   = useState('')
   const [filterGender, setFilterGender] = useState('')
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false)
+  const [showMyStudentsOnly, setShowMyStudentsOnly] = useState(false)
+  const [currentUserId, setCurrentUserId] = useState('')
   // Sort
   const [sortKey, setSortKey] = useState('')
   const [sortDir, setSortDir] = useState<'asc'|'desc'>('asc')
@@ -83,7 +85,7 @@ export default function StudentsClient() {
   // Derived
   const activeLevels     = useMemo(()=>levels.filter(l=>l.status!=='inactive'),[levels])
   const filterGroups     = allGroups
-  const hasActiveFilters = !!(search||filterLevel||filterGroup||filterStatus||filterChurch||filterGrade||filterGender||showFavoritesOnly)
+  const hasActiveFilters = !!(search||filterLevel||filterGroup||filterStatus||filterChurch||filterGrade||filterGender||showFavoritesOnly||showMyStudentsOnly)
   const allSelected      = optimisticStudents.length>0&&selectedIds.size===optimisticStudents.length
   const levelNameMap     = useMemo(()=>{const m:Record<string,string>={};for(const l of activeLevels)m[l.id]=l.name;return m},[activeLevels])
   const sortedStudents   = useMemo(()=>{
@@ -101,11 +103,12 @@ export default function StudentsClient() {
       if(sortKey)params.sortDir=sortDir
       if(debouncedSearch)params.search=debouncedSearch; if(filterLevel)params.levelId=filterLevel; if(filterGroup)params.groupId=filterGroup
       if(filterStatus)params.status=filterStatus; if(filterChurch)params.churchName=filterChurch; if(filterGrade)params.gradeId=filterGrade; if(filterGender)params.gender=filterGender
+      if(showMyStudentsOnly && currentUserId) params.assignedServantId = currentUserId
       const data=await http.get<PaginatedResponse>('/students',params)
       setStudents(data.data); setPagination(data.pagination); setFetchError(false)
     }catch{setFetchError(true)}
     setLoading(false)
-  },[debouncedSearch,filterLevel,filterGroup,filterStatus,filterChurch,filterGrade,filterGender,sortKey,sortDir,pageSize])
+  },[debouncedSearch,filterLevel,filterGroup,filterStatus,filterChurch,filterGrade,filterGender,sortKey,sortDir,pageSize,showMyStudentsOnly,currentUserId])
 
   // M10: stats are refetched whenever the roster changes (add/edit/delete/import) or filters change
   const fetchStats = useCallback(()=>{
@@ -117,8 +120,9 @@ export default function StudentsClient() {
     if(filterGrade)params.gradeId=filterGrade
     if(filterGender)params.gender=filterGender
     if(debouncedSearch)params.search=debouncedSearch
+    if(showMyStudentsOnly && currentUserId) params.assignedServantId = currentUserId
     http.get<StatsType>('/students/stats',params).then(setStudentStats).catch(console.error).finally(()=>setStatsLoading(false))
-  },[filterLevel,filterGroup,filterStatus,filterChurch,filterGrade,filterGender,debouncedSearch])
+  },[filterLevel,filterGroup,filterStatus,filterChurch,filterGrade,filterGender,debouncedSearch,showMyStudentsOnly,currentUserId])
 
   useEffect(()=>{const t=setTimeout(()=>setDebouncedSearch(search),300);return ()=>clearTimeout(t)},[search])
   useEffect(()=>{fetchStudents(1)},[fetchStudents])
@@ -139,6 +143,7 @@ export default function StudentsClient() {
       const stored=localStorage.getItem('user')
       if(stored){
         const u=JSON.parse(stored)
+        setCurrentUserId(u.id)
         const isServant=u.roles?.some((r:string)=>SERVANT_ROLES.includes(r))
         if(isServant&&u.metadata){
           if(u.metadata.levelId)setFilterLevel(u.metadata.levelId)
@@ -161,7 +166,7 @@ export default function StudentsClient() {
     window.addEventListener('keydown',fn); return ()=>window.removeEventListener('keydown',fn)
   },[showForm,selectedIds,optimisticStudents])
 
-  const clearFilters = ()=>{setSearch('');setFilterLevel('');setFilterGroup('');setFilterStatus('');setFilterChurch('');setFilterGrade('');setFilterGender('');setShowFavoritesOnly(false)}
+  const clearFilters = ()=>{setSearch('');setFilterLevel('');setFilterGroup('');setFilterStatus('');setFilterChurch('');setFilterGrade('');setFilterGender('');setShowFavoritesOnly(false);setShowMyStudentsOnly(false)}
   const toggleSort   = (k:string)=>{if(k==='phone')return;if(sortKey===k)setSortDir(d=>d==='asc'?'desc':'asc');else{setSortKey(k);setSortDir('asc')}}
   const toggleAll    = ()=>setSelectedIds(allSelected?new Set():new Set(optimisticStudents.map(s=>s.id)))
   const toggleId     = (id:string,shiftKey?:boolean)=>{
@@ -192,6 +197,7 @@ export default function StudentsClient() {
     try{
       const baseParams:Record<string,string>={schoolId:getSchoolId(),limit:'100'}
       if(search)baseParams.search=search;if(filterLevel)baseParams.levelId=filterLevel;if(filterGroup)baseParams.groupId=filterGroup;if(filterStatus)baseParams.status=filterStatus;if(filterChurch)baseParams.churchName=filterChurch;if(filterGrade)baseParams.gradeId=filterGrade;if(filterGender)baseParams.gender=filterGender
+      if(showMyStudentsOnly && currentUserId) baseParams.assignedServantId = currentUserId
       // Get first page to know total pages
       const firstPage=await http.get<PaginatedResponse>('/students',{...baseParams,page:'1'})
       const all=[...firstPage.data]
@@ -244,7 +250,8 @@ export default function StudentsClient() {
         filterGrade={filterGrade} onGradeChange={setFilterGrade} filterGender={filterGender} onGenderChange={setFilterGender}
         activeLevels={activeLevels} filterGroups={filterGroups} gradeOptions={gradeOptions} churches={churches}
         hasActiveFilters={hasActiveFilters} onClearFilters={clearFilters} lang={lang}
-        showFavoritesOnly={showFavoritesOnly} onFavoritesToggle={() => setShowFavoritesOnly(!showFavoritesOnly)} favorites={favorites}/>
+        showFavoritesOnly={showFavoritesOnly} onFavoritesToggle={() => setShowFavoritesOnly(!showFavoritesOnly)} favorites={favorites}
+        showMyStudentsOnly={showMyStudentsOnly} onMyStudentsToggle={() => setShowMyStudentsOnly(!showMyStudentsOnly)}/>
 
       {selectedIds.size>0&&<StudentBulkToolbar
         selectedCount={selectedIds.size}

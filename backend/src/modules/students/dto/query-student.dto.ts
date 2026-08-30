@@ -65,4 +65,14 @@ export class QueryStudentDto {
   @IsString()
   @IsOptional()
   sortDir?: string;
+
+  @ApiPropertyOptional({ description: 'Filter by assigned servant ID' })
+  @IsUUID()
+  @IsOptional()
+  assignedServantId?: string;
+
+  @ApiPropertyOptional({ description: 'Filter by engagement status (active/inactive/at_risk)' })
+  @IsString()
+  @IsOptional()
+  engagementStatus?: string;
 }

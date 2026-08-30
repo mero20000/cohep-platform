@@ -19,7 +19,7 @@ export class StudentsService {
 
   async findAll(queryDto: QueryStudentDto, schoolIdentifier: string, user?: any) {
     const schoolId = await this.schoolResolver.resolve(schoolIdentifier);
-    const { levelId, groupId, status, churchName, gradeId, gender, search, page = 1, limit: rawLimit = 20, sortBy, sortDir } = queryDto;
+    const { levelId, groupId, status, churchName, gradeId, gender, search, page = 1, limit: rawLimit = 20, sortBy, sortDir, assignedServantId, engagementStatus } = queryDto;
     const limit = Math.min(rawLimit, 100);
 
     const where: any = {
@@ -61,6 +61,14 @@ export class StudentsService {
     if (churchName) where.churchName = churchName;
     if (gradeId) where.gradeId = gradeId;
     if (gender) where.gender = gender;
+
+    // Filter by assigned servant ID using JSON array containment
+    if (assignedServantId) {
+      where.metadata = {
+        path: ['assignedServantIds'],
+        array_contains: [assignedServantId],
+      };
+    }
 
     if (search) {
       where.OR = [
@@ -940,7 +948,7 @@ async getPortalData(portalAccessKey: string) {
 
   async getStats(schoolIdentifier: string, filters?: {
     levelId?: string; groupId?: string; status?: string; gradeId?: string;
-    gender?: string; churchName?: string; search?: string;
+    gender?: string; churchName?: string; search?: string; assignedServantId?: string;
   }, user?: any) {
     const schoolId = await this.schoolResolver.resolve(schoolIdentifier);
     const where: any = { deletedAt: null, schoolId };
@@ -970,6 +978,14 @@ async getPortalData(portalAccessKey: string) {
     if (filters?.gradeId) where.gradeId = filters.gradeId;
     if (filters?.gender) where.gender = filters.gender;
     if (filters?.churchName) where.churchName = filters.churchName;
+
+    if (filters?.assignedServantId) {
+      where.metadata = {
+        path: ['assignedServantIds'],
+        array_contains: [filters.assignedServantId],
+      };
+    }
+
     if (filters?.search) {
       where.OR = [
         { firstName: { contains: filters.search, mode: 'insensitive' } },

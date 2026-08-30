@@ -41,10 +41,11 @@ export class StudentsController {
     @Query("gender") gender?: string,
     @Query("churchName") churchName?: string,
     @Query("search") search?: string,
+    @Query("assignedServantId") assignedServantId?: string,
   ) {
     return this.studentsService.getStats(
       schoolId,
-      { levelId, groupId, status, gradeId, gender, churchName, search },
+      { levelId, groupId, status, gradeId, gender, churchName, search, assignedServantId },
       req.user,
     );
   }
