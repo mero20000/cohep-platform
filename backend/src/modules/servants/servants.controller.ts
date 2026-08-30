@@ -119,43 +119,50 @@ export class ServantsController {
   @Roles('servant', 'group_leader', 'level_leader')
   @ApiOperation({ summary: 'Get current liturgy session with students for quick attendance marking' })
   async getLiturgySession(@CurrentUser() user: any) {
-    const userMeta = (user.metadata as any) || {};
-    const groupId = userMeta.groupId as string | undefined;
-    const levelId = userMeta.levelId as string | undefined;
+    try {
+      const userMeta = (user.metadata as any) || {};
+      const groupId = userMeta.groupId as string | undefined;
+      const levelId = userMeta.levelId as string | undefined;
 
-    if (!groupId && !levelId) {
-      return { date: new Date().toISOString(), students: [] };
+      // Build where clause
+      const where: any = { deletedAt: null };
+      if (groupId) {
+        where.groupId = groupId;
+      } else if (levelId) {
+        where.levelId = levelId;
+      } else {
+        return { date: new Date().toISOString(), students: [] };
+      }
+
+      const students = await this.prisma.student.findMany({
+        where,
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          firstNameAr: true,
+          lastNameAr: true,
+          photoUrl: true,
+        },
+        orderBy: { firstName: 'asc' },
+      });
+
+      return {
+        date: new Date().toISOString(),
+        students: students.map(s => ({
+          studentId: s.id,
+          firstName: s.firstName,
+          lastName: s.lastName,
+          firstNameAr: s.firstNameAr,
+          lastNameAr: s.lastNameAr,
+          photoUrl: s.photoUrl,
+          status: null,
+        })),
+      };
+    } catch (error) {
+      console.error('Error loading liturgy session:', error);
+      return { date: new Date().toISOString(), students: [], error: 'Failed to load students' };
     }
-
-    const students = await this.prisma.student.findMany({
-      where: {
-        ...(groupId ? { groupId } : {}),
-        ...(levelId && !groupId ? { levelId } : {}),
-        deletedAt: null,
-      },
-      select: {
-        id: true,
-        firstName: true,
-        lastName: true,
-        firstNameAr: true,
-        lastNameAr: true,
-        photoUrl: true,
-      },
-      orderBy: { firstName: 'asc' },
-    });
-
-    return {
-      date: new Date().toISOString(),
-      students: students.map(s => ({
-        studentId: s.id,
-        firstName: s.firstName,
-        lastName: s.lastName,
-        firstNameAr: s.firstNameAr,
-        lastNameAr: s.lastNameAr,
-        photoUrl: s.photoUrl,
-        status: null,
-      })),
-    };
   }
 
   @Post('liturgy-attendance')
