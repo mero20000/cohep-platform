@@ -104,6 +104,29 @@ const config = {
           800: "rgb(var(--critical-800) / <alpha-value>)",
           900: "rgb(var(--critical-900) / <alpha-value>)",
         },
+        semantic: {
+          "gender-male": "hsl(var(--semantic-gender-male-text))",
+          "gender-male-bg": "hsl(var(--semantic-gender-male-bg))",
+          "gender-female": "hsl(var(--semantic-gender-female-text))",
+          "gender-female-bg": "hsl(var(--semantic-gender-female-bg))",
+          "status-active": "hsl(var(--semantic-status-active-text))",
+          "status-active-bg": "hsl(var(--semantic-status-active-bg))",
+          "status-inactive": "hsl(var(--semantic-status-inactive-text))",
+          "status-inactive-bg": "hsl(var(--semantic-status-inactive-bg))",
+          "status-graduated": "hsl(var(--semantic-status-graduated-text))",
+          "status-graduated-bg": "hsl(var(--semantic-status-graduated-bg))",
+          "role-servant": "hsl(var(--semantic-role-servant-text))",
+          "role-servant-bg": "hsl(var(--semantic-role-servant-bg))",
+          "role-group-leader": "hsl(var(--semantic-role-group-leader-text))",
+          "role-group-leader-bg": "hsl(var(--semantic-role-group-leader-bg))",
+          "role-level-leader": "hsl(var(--semantic-role-level-leader-text))",
+          "role-level-leader-bg": "hsl(var(--semantic-role-level-leader-bg))",
+          "activity-create": "hsl(var(--semantic-activity-create-bg))",
+          "activity-update": "hsl(var(--semantic-activity-update-bg))",
+          "activity-delete": "hsl(var(--semantic-activity-delete-bg))",
+          "toolbar": "hsl(var(--semantic-toolbar-bg))",
+          "toolbar-border": "hsl(var(--semantic-toolbar-border))",
+        },
       },
       borderRadius: {
         lg: "var(--radius)",
@@ -125,10 +148,15 @@ const config = {
           from: { height: "var(--radix-accordion-content-height)" },
           to: { height: "0" },
         },
+        "slideUp": {
+          from: { opacity: "0", transform: "translateY(8px)" },
+          to: { opacity: "1", transform: "translateY(0)" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
+        "slideUp": "slideUp 150ms ease-out",
       },
       transitionTimingFunction: {
         'out-strong': 'var(--ease-out)',
@@ -138,9 +166,22 @@ const config = {
   },
   plugins: [
     require("tailwindcss-animate"),
-    function({ addVariant }: { addVariant: (name: string, generator: string) => void }) {
+    function({ addVariant, addUtilities }: { addVariant: (name: string, generator: string) => void; addUtilities: (utilities: any) => void }) {
       addVariant("rtl", '[dir="rtl"] &')
       addVariant("ltr", '[dir="ltr"] &')
+      addVariant("motion-safe", "@media (prefers-reduced-motion: no-preference)")
+      addVariant("motion-reduce", "@media (prefers-reduced-motion: reduce)")
+
+      // Disable animations when motion is reduced
+      addUtilities({
+        "@media (prefers-reduced-motion: reduce)": {
+          "*": {
+            "animation-duration": "0.01ms !important",
+            "animation-iteration-count": "1 !important",
+            "transition-duration": "0.01ms !important",
+          },
+        },
+      })
     },
   ],
 } satisfies Config

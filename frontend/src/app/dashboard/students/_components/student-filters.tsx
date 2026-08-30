@@ -1,6 +1,6 @@
 'use client'
 import { useState } from 'react'
-import { Search, Loader2, ChevronDown, Sliders } from 'lucide-react'
+import { Search, Loader2, ChevronDown, Sliders, Star } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import type { Level, Group, ChurchItem } from './student-types'
 import type { GradeItem } from '@/lib/grades'
@@ -17,6 +17,7 @@ interface Props {
   activeLevels: Level[]; filterGroups: Group[]
   gradeOptions: GradeItem[]; churches: ChurchItem[]
   hasActiveFilters: boolean; onClearFilters: () => void
+  showFavoritesOnly?: boolean; onFavoritesToggle?: () => void; favorites?: string[]
   lang: 'en' | 'ar'
 }
 
@@ -78,6 +79,23 @@ export function StudentFilters(p: Props) {
             <option value="inactive">{t('Inactive','غير نشط')}</option>
             <option value="graduated">{t('Graduated','متخرج')}</option>
           </select>
+
+          {p.onFavoritesToggle && (
+            <button
+              onClick={p.onFavoritesToggle}
+              aria-label={t('Filter by favorites','تصفية حسب المفضلة')}
+              className={`flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors whitespace-nowrap ${
+                p.showFavoritesOnly
+                  ? 'bg-amber-100 text-amber-700 border border-amber-200'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200 border border-transparent'
+              }`}
+              title={t('Show favorites only', 'اعرض المفضلة فقط')}
+            >
+              <Star className={`h-4 w-4 ${p.showFavoritesOnly ? 'fill-amber-500' : ''}`} />
+              <span className="hidden sm:inline">{t('Favorites', 'المفضلة')}</span>
+              <span className="text-xs ml-1">({p.favorites?.length || 0})</span>
+            </button>
+          )}
         </div>
       </div>
 

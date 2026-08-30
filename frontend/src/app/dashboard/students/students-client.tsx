@@ -192,14 +192,21 @@ export default function StudentsClient() {
     try{
       const baseParams:Record<string,string>={schoolId:getSchoolId(),limit:'100'}
       if(search)baseParams.search=search;if(filterLevel)baseParams.levelId=filterLevel;if(filterGroup)baseParams.groupId=filterGroup;if(filterStatus)baseParams.status=filterStatus;if(filterChurch)baseParams.churchName=filterChurch;if(filterGrade)baseParams.gradeId=filterGrade;if(filterGender)baseParams.gender=filterGender
-      const all:any[]=[]
-      let page=1, totalPages=1
-      do{
-        const data=await http.get<PaginatedResponse>('/students',{...baseParams,page:String(page)})
-        all.push(...data.data)
-        totalPages=data.pagination.totalPages
-        page++
-      }while(page<=totalPages)
+      // Get first page to know total pages
+      const firstPage=await http.get<PaginatedResponse>('/students',{...baseParams,page:'1'})
+      const all=[...firstPage.data]
+      const totalPages=firstPage.pagination.totalPages
+
+      // Parallelize pages 2+ (fetch up to 5 concurrently)
+      if(totalPages>1){
+        const remaining=Array.from({length:totalPages-1},(_,i)=>i+2)
+        const batchSize=5
+        for(let i=0;i<remaining.length;i+=batchSize){
+          const batch=remaining.slice(i,i+batchSize)
+          const results=await Promise.all(batch.map(page=>http.get<PaginatedResponse>('/students',{...baseParams,page:String(page)})))
+          results.forEach(r=>all.push(...r.data))
+        }
+      }
       const escape=(v:any)=>String(v??'')
       const rows=[['Student Code','Name','First Name (Ar)','Last Name (Ar)','Date of Birth','Gender','Level','Group','Church','Grade','Phone','Email','Church Tool ID','Status','Enrollment Date'],...all.map(s=>[s.studentCode,`${s.firstName} ${s.lastName}`.trim(),s.firstNameAr||'',s.lastNameAr||'',s.dateOfBirth.split('T')[0],s.gender,s.level?.name||'',s.group?.name||'',s.churchName||'',s.grade?.name||'',s.metadata?.phone||'',s.metadata?.email||'',s.metadata?.churchToolId||'',s.status,s.enrollmentDate.split('T')[0]])]
       const csv=rows.map(r=>r.map(c=>{
@@ -236,32 +243,8 @@ export default function StudentsClient() {
         filterStatus={filterStatus} onStatusChange={setFilterStatus} filterChurch={filterChurch} onChurchChange={setFilterChurch}
         filterGrade={filterGrade} onGradeChange={setFilterGrade} filterGender={filterGender} onGenderChange={setFilterGender}
         activeLevels={activeLevels} filterGroups={filterGroups} gradeOptions={gradeOptions} churches={churches}
-        hasActiveFilters={hasActiveFilters} onClearFilters={clearFilters} lang={lang}/>
-
-      {/* Quick Search & Favorites */}
-      <div className="flex items-center gap-3">
-        <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-          <input
-            type="text"
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            placeholder={t('Quick search by name or code...', 'بحث سريع بالاسم أو الكود...')}
-            className="w-full pl-9 pr-4 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          />
-        </div>
-        <button
-          onClick={() => setShowFavoritesOnly(!showFavoritesOnly)}
-          className={`flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
-            showFavoritesOnly
-              ? 'bg-amber-100 text-amber-700 border border-amber-200'
-              : 'bg-gray-100 text-gray-600 hover:bg-gray-200 border border-transparent'
-          }`}
-        >
-          <Star className={`h-4 w-4 ${showFavoritesOnly ? 'fill-amber-500' : ''}`} />
-          {t('Favorites', 'المفضلة')} ({favorites.length})
-        </button>
-      </div>
+        hasActiveFilters={hasActiveFilters} onClearFilters={clearFilters} lang={lang}
+        showFavoritesOnly={showFavoritesOnly} onFavoritesToggle={() => setShowFavoritesOnly(!showFavoritesOnly)} favorites={favorites}/>
 
       {selectedIds.size>0&&<StudentBulkToolbar
         selectedCount={selectedIds.size}
@@ -321,11 +304,11 @@ export default function StudentsClient() {
         toast={toast} lang={lang}/>
 
       {previewPhotoUrl&&(
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 p-4" onClick={()=>setPreviewPhotoUrl('')}>
-          <div role="dialog" aria-modal="true" aria-label={t('Student Photo','صورة الطالب')} className="relative max-w-lg max-h-[80vh]" onClick={e=>e.stopPropagation()}>
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 p-4" onClick={()=>setPreviewPhotoUrl('')} onKeyDown={e=>{if(e.key==='Escape')setPreviewPhotoUrl('')}} role="presentation">
+          <div role="dialog" aria-modal="true" aria-label={t('Student Photo','صورة الطالب')} className="relative max-w-lg max-h-[80vh] outline-none" onClick={e=>e.stopPropagation()} tabIndex={-1} autoFocus>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={previewPhotoUrl} alt={selectedStudent ? `${selectedStudent.firstName} ${selectedStudent.lastName}` : 'Student photo'} className="max-w-full max-h-[75vh] rounded-2xl shadow-2xl object-contain"/>
-            <Button variant="ghost" size="icon" onClick={()=>setPreviewPhotoUrl('')} className="absolute -top-3 -end-3 rounded-full bg-white p-1.5 shadow-lg hover:bg-gray-100"><X className="h-4 w-4 text-gray-600"/></Button>
+            <Button variant="ghost" size="icon" onClick={()=>setPreviewPhotoUrl('')} className="absolute -top-3 -end-3 rounded-full bg-white p-1.5 shadow-lg hover:bg-gray-100" aria-label={t('Close photo','إغلق الصورة')}><X className="h-4 w-4 text-gray-600"/></Button>
           </div>
         </div>
       )}

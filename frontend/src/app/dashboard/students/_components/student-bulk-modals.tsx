@@ -47,7 +47,7 @@ export function StudentBulkModals({ showBulkDelete, showBulkStatus, showBulkLeve
   return (
     <>
       {showBulkDelete&&<M label={t('Delete Students','حذف الطلاب')} onClose={()=>{setConfirmText('');onClose('delete')}}>
-        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-red-100 mx-auto"><Trash2 className="h-6 w-6 text-red-600"/></div>
+        <div className="flex h-12 w-12 items-center justify-center rounded-full mx-auto" style={{backgroundColor: 'hsl(var(--semantic-status-inactive-bg) / 0.1)'}}><Trash2 className="h-6 w-6" style={{color: 'hsl(var(--semantic-status-inactive-text))'}} /></div>
         <h3 className="mt-4 text-lg font-semibold text-center text-gray-900">{t(`Delete ${ids.length} Students`,`حذف ${ids.length} طالب`)}</h3>
         <p className="mt-2 text-sm text-gray-500 text-center">{t('Are you sure you want to delete','هل أنت متأكد من حذف')} <strong>{ids.length}</strong> {t('students?','طالب؟')}</p>
         <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3">
@@ -62,7 +62,7 @@ export function StudentBulkModals({ showBulkDelete, showBulkStatus, showBulkLeve
           </div>
         </div>
         <p className="mt-2 text-xs text-gray-500 text-center">{t('This fully removes them from the active roster but does not erase historical records.','يُحذف الطالب من قائمة النشطاء لكن لا تُمسح السجلات التاريخية.')}</p>
-        <p className="mt-4 text-sm font-medium text-gray-700">{t('Type','اكتب')} <span className="font-bold text-red-600">{t('DELETE','DELETE')}</span> {t('to confirm','للتأكيد')}:</p>
+        <p className="mt-4 text-sm font-medium text-gray-700">{t('Type','اكتب')} <span className="font-bold text-semantic-status-inactive">{t('DELETE','DELETE')}</span> {t('to confirm','للتأكيد')}:</p>
         <input type="text" value={confirmText} onChange={e=>setConfirmText(e.target.value)} placeholder={t('Type DELETE','اكتب DELETE')}
           className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-red-500 focus:outline-none" />
         <div className="mt-4 flex gap-3">

@@ -24,6 +24,28 @@
     --input: 214.3 31.8% 91.4%;
     --ring: 44 61% 49%;
     --radius: 0.5rem;
+    /* Semantic Colors for Student Module */
+    --semantic-gender-male-bg: 219 14% 96%;
+    --semantic-gender-male-text: 221 83% 53%;
+    --semantic-gender-female-bg: 341 84% 96%;
+    --semantic-gender-female-text: 341 76% 48%;
+    --semantic-status-active-bg: 142 76% 36%;
+    --semantic-status-active-text: 142 76% 36%;
+    --semantic-status-inactive-bg: 0 84% 60%;
+    --semantic-status-inactive-text: 0 84% 60%;
+    --semantic-status-graduated-bg: 45 93% 47%;
+    --semantic-status-graduated-text: 45 93% 47%;
+    --semantic-role-servant-bg: 280 85% 80%;
+    --semantic-role-servant-text: 280 53% 53%;
+    --semantic-role-group-leader-bg: 45 100% 85%;
+    --semantic-role-group-leader-text: 45 100% 51%;
+    --semantic-role-level-leader-bg: 280 85% 80%;
+    --semantic-role-level-leader-text: 280 53% 53%;
+    --semantic-activity-create-bg: 142 76% 36%;
+    --semantic-activity-update-bg: 45 93% 47%;
+    --semantic-activity-delete-bg: 0 84% 60%;
+    --semantic-toolbar-bg: 221 83% 53%;
+    --semantic-toolbar-border: 221 83% 70%;
   }
 
   .dark {
@@ -46,6 +68,28 @@
     --border: 217.2 32.6% 17.5%;
     --input: 217.2 32.6% 17.5%;
     --ring: 44 61% 49%;
+    /* Semantic Colors for Student Module (Dark Mode) */
+    --semantic-gender-male-bg: 221 39% 25%;
+    --semantic-gender-male-text: 221 83% 53%;
+    --semantic-gender-female-bg: 341 48% 30%;
+    --semantic-gender-female-text: 341 100% 70%;
+    --semantic-status-active-bg: 142 76% 36%;
+    --semantic-status-active-text: 142 76% 70%;
+    --semantic-status-inactive-bg: 0 84% 60%;
+    --semantic-status-inactive-text: 0 84% 65%;
+    --semantic-status-graduated-bg: 45 93% 47%;
+    --semantic-status-graduated-text: 45 93% 65%;
+    --semantic-role-servant-bg: 280 39% 30%;
+    --semantic-role-servant-text: 280 73% 66%;
+    --semantic-role-group-leader-bg: 45 48% 28%;
+    --semantic-role-group-leader-text: 45 100% 65%;
+    --semantic-role-level-leader-bg: 280 39% 30%;
+    --semantic-role-level-leader-text: 280 73% 66%;
+    --semantic-activity-create-bg: 142 76% 36%;
+    --semantic-activity-update-bg: 45 93% 47%;
+    --semantic-activity-delete-bg: 0 84% 60%;
+    --semantic-toolbar-bg: 221 39% 25%;
+    --semantic-toolbar-border: 221 39% 35%;
   }
 }
 

@@ -103,7 +103,7 @@ export function StudentDetailModal({ student:s, onClose, onEdit, onPreviewPhoto,
         <div className="px-6 py-5 overflow-y-auto flex-1">
           <div className="flex items-center gap-4 mb-6">
             {s.photoUrl?<Button type="button" variant="ghost" size="icon" onClick={()=>onPreviewPhoto(photoSrc(s.photoUrl))} className="flex-shrink-0"><Image src={photoSrc(s.photoUrl)} alt={`${s.firstName} ${s.lastName}`} width={64} height={64} className="h-16 w-16 rounded-full object-cover border border-gray-200 cursor-pointer hover:ring-2 hover:ring-gold-400" /></Button>
-            :<div className={`flex h-16 w-16 items-center justify-center rounded-full text-xl font-bold flex-shrink-0 ${s.gender==='female'?'bg-pink-100 text-pink-700':'bg-blue-100 text-blue-700'}`}>{s.firstName[0]}{s.lastName[0]}</div>}
+            :<div className={`flex h-16 w-16 items-center justify-center rounded-full text-xl font-bold flex-shrink-0 ${s.gender==='female'?'bg-semantic-gender-female-bg text-semantic-gender-female':'bg-semantic-gender-male-bg text-semantic-gender-male'}`}>{s.firstName[0]}{s.lastName[0]}</div>}
             <div className="flex-1">
               <h3 className="text-xl font-bold text-gray-900">{s.firstName} {s.lastName}</h3>
               {s.firstNameAr&&<p className="text-sm text-gray-500">{s.firstNameAr} {s.lastNameAr}</p>}
@@ -221,8 +221,8 @@ export function StudentDetailModal({ student:s, onClose, onEdit, onPreviewPhoto,
               :<div className="space-y-2 max-h-48 overflow-y-auto">
                 {filtered.map(entry=>{
                   const label=entry.action==='CREATE'?t('create','إنشاء'):entry.action==='UPDATE'?t('update','تحديث'):entry.action==='DELETE'?t('delete','حذف'):entry.action.toLowerCase()
-                  const dot=entry.action==='CREATE'?'bg-green-400':entry.action==='UPDATE'?'bg-amber-400':entry.action==='DELETE'?'bg-red-400':'bg-gray-400'
-                  return <div key={entry.id} className="flex items-start gap-2 text-xs"><div className={`mt-1 h-2 w-2 rounded-full flex-shrink-0 ${dot}`}/><div className="flex-1 min-w-0"><span className="font-medium text-gray-700">{label}</span>{entry.user&&<span className="text-gray-500"> {t('by','بواسطة')} {entry.user.firstName} {entry.user.lastName}</span>}<span className="text-gray-400 ms-1" title={entry.createdAt?new Date(entry.createdAt).toLocaleString(lang==='ar'?'ar-EG':'en-GB'):''}>{entry.createdAt?formatRelativeTime(entry.createdAt,lang):''}</span></div></div>
+                  const dotColor=entry.action==='CREATE'?'hsl(var(--semantic-activity-create))':entry.action==='UPDATE'?'hsl(var(--semantic-activity-update))':entry.action==='DELETE'?'hsl(var(--semantic-activity-delete))':'hsl(var(--muted-foreground))'
+                  return <div key={entry.id} className="flex items-start gap-2 text-xs"><div className="mt-1 h-2 w-2 rounded-full flex-shrink-0" style={{backgroundColor: dotColor}}/><div className="flex-1 min-w-0"><span className="font-medium text-gray-700">{label}</span>{entry.user&&<span className="text-gray-500"> {t('by','بواسطة')} {entry.user.firstName} {entry.user.lastName}</span>}<span className="text-gray-400 ms-1" title={entry.createdAt?new Date(entry.createdAt).toLocaleString(lang==='ar'?'ar-EG':'en-GB'):''}>{entry.createdAt?formatRelativeTime(entry.createdAt,lang):''}</span></div></div>
                 })}
               </div>
             })()}

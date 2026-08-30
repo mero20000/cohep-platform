@@ -174,7 +174,7 @@ export function StudentTable({ students, loading, fetchError, selectedIds, allSe
                   </div>
                 </td>
                 <td className="hidden md:table-cell px-4 py-3 text-sm text-gray-600 font-mono">{s.studentCode}</td>
-                <td className="hidden md:table-cell px-4 py-3"><span className={`inline-flex items-center text-xs font-medium px-2 py-0.5 rounded-full ${s.gender==='female'?'bg-pink-100 text-pink-700':'bg-blue-100 text-blue-700'}`}>{s.gender==='female'?t('Female','أنثى'):t('Male','ذكر')}</span></td>
+                <td className="hidden md:table-cell px-4 py-3"><span className={`inline-flex items-center text-xs font-medium px-2 py-0.5 rounded-full ${s.gender==='female'?'bg-semantic-gender-female-bg text-semantic-gender-female':'bg-semantic-gender-male-bg text-semantic-gender-male'}`}>{s.gender==='female'?t('Female','أنثى'):t('Male','ذكر')}</span></td>
                 <td className="hidden md:table-cell px-4 py-3"><PhoneLink phone={s.metadata?.phone||''} lang={lang} /></td>
                 <td className="hidden md:table-cell px-4 py-3 text-sm text-gray-900">{s.level?.name||'—'}</td>
                 <td className="hidden md:table-cell px-4 py-3 text-sm text-gray-900">{s.group?.name||'—'}</td>
