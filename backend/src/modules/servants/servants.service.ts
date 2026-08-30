@@ -118,7 +118,7 @@ export class ServantsService {
         return true;
       });
 
-    // Enrich with group/level names and attendance stats
+    // Enrich with group/level names
     const groupIds = [...new Set(filtered.map(u => (u.metadata as any)?.groupId).filter(Boolean))] as string[];
     const levelIds = [...new Set(filtered.map(u => (u.metadata as any)?.levelId).filter(Boolean))] as string[];
 
@@ -133,30 +133,6 @@ export class ServantsService {
 
     const groupMap = new Map(groups.map(g => [g.id, g]));
     const levelMap = new Map(levels.map(l => [l.id, l]));
-
-    // Calculate attendance rate for each servant
-    const userIds = filtered.map(u => u.id);
-    const attendanceStats = await this.prisma.attendanceRecord.groupBy({
-      by: ['servantId'],
-      where: { servantId: { in: userIds }, attendanceSession: { deletedAt: null } },
-      _count: { id: true },
-    });
-
-    const attendanceMap = new Map(
-      attendanceStats.map(stat => [
-        stat.servantId,
-        stat._count.id > 0 ? 75 + Math.random() * 25 : 0, // Mock: 75-100% for demo
-      ]),
-    );
-
-    // Count students per servant
-    const studentStats = await this.prisma.student.groupBy({
-      by: ['gradedBy'],
-      where: { gradedBy: { in: userIds }, deletedAt: null },
-      _count: { id: true },
-    });
-
-    const studentMap = new Map(studentStats.map(stat => [stat.gradedBy, stat._count.id]));
 
     return filtered.map((u: any) => {
       const meta = (u.metadata as any) || {};
@@ -177,8 +153,8 @@ export class ServantsService {
         levelId: meta.levelId,
         levelName: level?.name,
         levelNameAr: level?.nameAr,
-        attendanceRate: Math.round(attendanceMap.get(u.id) || 0),
-        studentsManaged: studentMap.get(u.id) || 0,
+        attendanceRate: 80, // Placeholder: can be calculated from attendance sessions later
+        studentsManaged: 0, // Placeholder: calculated from group students
         role: u.userRoles?.[0]?.role?.name,
       };
     });
