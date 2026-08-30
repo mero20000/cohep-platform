@@ -732,12 +732,23 @@ export class DashboardService {
     const assignedLevelId = meta.levelId as string | undefined;
 
     if (assignedGroupId) {
+      // If assigned to a specific group, return that group's students
       const groupIds = [assignedGroupId];
       const levelIds = assignedLevelId ? [assignedLevelId] : [];
       const studentIds = (await this.prisma.student.findMany({
         where: { groupId: { in: groupIds }, deletedAt: null },
         select: { id: true },
       })).map((s: any) => s.id);
+      return { groupIds, levelIds, studentIds };
+    } else if (assignedLevelId) {
+      // If assigned to a level but not a specific group, return all students in that level
+      const levelIds = [assignedLevelId];
+      const students = await this.prisma.student.findMany({
+        where: { levelId: assignedLevelId, deletedAt: null },
+        select: { id: true, groupId: true },
+      });
+      const groupIds = [...new Set(students.map((s: any) => s.groupId).filter(Boolean))] as string[];
+      const studentIds = students.map((s: any) => s.id);
       return { groupIds, levelIds, studentIds };
     }
 
@@ -1453,10 +1464,10 @@ export class DashboardService {
     // Normalize to percentages
     const total = Object.values(masteryDistribution).reduce((a, b) => a + b, 0) || 1;
     const masteryPct = {
-      excellent: Math.round((masteryDistribution.excellent / total) * 100),
-      good: Math.round((masteryDistribution.good / total) * 100),
-      satisfactory: Math.round((masteryDistribution.satisfactory / total) * 100),
-      needsImprovement: Math.round((masteryDistribution.needsImprovement / total) * 100),
+      excellent: total > 0 ? Math.round((masteryDistribution.excellent / total) * 100) : 0,
+      good: total > 0 ? Math.round((masteryDistribution.good / total) * 100) : 0,
+      satisfactory: total > 0 ? Math.round((masteryDistribution.satisfactory / total) * 100) : 0,
+      needsImprovement: total > 0 ? Math.round((masteryDistribution.needsImprovement / total) * 100) : 0,
     };
 
     // Top and low performers
@@ -1478,8 +1489,8 @@ export class DashboardService {
       };
     });
 
-    const topPerformers = studentScores.sort((a, b) => b.score - a.score).slice(0, 10);
-    const lowPerformers = studentScores.sort((a, b) => a.score - b.score).slice(0, 10);
+    const topPerformers = studentScores.length > 0 ? studentScores.sort((a, b) => b.score - a.score).slice(0, 10) : [];
+    const lowPerformers = studentScores.length > 0 ? studentScores.sort((a, b) => a.score - b.score).slice(0, 10) : [];
 
     return {
       levelName: level?.name || 'Level',
@@ -1489,7 +1500,7 @@ export class DashboardService {
       totalGroups: groupIds.length,
       attendanceRate,
       assessmentCompletionRate,
-      masteryDistribution: masteryPct,
+      masteryDistribution: masteryPct || { excellent: 0, good: 0, satisfactory: 0, needsImprovement: 0 },
       topPerformers,
       lowPerformers,
       recentActivity: [],

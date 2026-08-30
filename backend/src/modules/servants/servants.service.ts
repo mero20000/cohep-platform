@@ -58,10 +58,15 @@ export class ServantsService {
   ) {}
 
   async listServants(
-    user: { id: string; schoolId?: string; roles: string[] },
+    user: { id: string; schoolId?: string; roles: string[]; metadata?: any },
     query: { search?: string; role?: string; levelId?: string; groupId?: string; teachingSubject?: string } = {},
   ) {
     const isSuperAdmin = user.roles?.includes('super_admin');
+    const isAdmin = user.roles?.includes('admin') || user.roles?.includes('principal');
+    const isLevelLeader = user.roles?.includes('level_leader');
+    const isGroupLeader = user.roles?.includes('group_leader');
+    const isServant = user.roles?.includes('servant');
+
     const where: any = {
       deletedAt: null,
       userRoles: {
@@ -105,9 +110,19 @@ export class ServantsService {
       orderBy: { firstName: 'asc' },
     });
 
+    const userMeta = user.metadata as any || {};
     const filtered = users
       .filter((u: any) => !u.deletedAt)
       .filter((u: any) => {
+        // Scope by role: servants/group leaders only see their own group, level leaders see their level
+        if (!isSuperAdmin && !isAdmin) {
+          if ((isServant || isGroupLeader) && userMeta.groupId) {
+            if ((u.metadata?.groupId ?? '') !== userMeta.groupId) return false;
+          } else if (isLevelLeader && userMeta.levelId) {
+            if ((u.metadata?.levelId ?? '') !== userMeta.levelId) return false;
+          }
+        }
+
         if (query.levelId && (u.metadata?.levelId ?? '') !== query.levelId) return false;
         if (query.groupId && (u.metadata?.groupId ?? '') !== query.groupId) return false;
         if (query.teachingSubject) {
