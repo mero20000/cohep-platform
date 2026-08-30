@@ -165,10 +165,62 @@ export class ServantsController {
     @CurrentUser() user: any,
     @Body() body: { records: Array<{ studentId: string; status: 'present' | 'absent' }> },
   ) {
+    const userMeta = (user.metadata as any) || {};
+    const groupId = userMeta.groupId as string | undefined;
+    let levelId = userMeta.levelId as string | undefined;
+
+    if (!groupId) {
+      return { success: false, error: 'No group assigned' };
+    }
+
+    // If no levelId in metadata, get it from a student in this group
+    if (!levelId) {
+      const student = await this.prisma.student.findFirst({
+        where: { groupId, deletedAt: null },
+        select: { levelId: true },
+      });
+      if (student) levelId = student.levelId;
+    }
+
+    if (!levelId) {
+      return { success: false, error: 'Cannot determine level' };
+    }
+
+    // Get or create a liturgy session for today in this group
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    let session = await this.prisma.attendanceSession.findFirst({
+      where: {
+        groupId,
+        levelId,
+        status: 'recorded',
+        scheduledDate: { gte: today, lt: tomorrow },
+        notes: 'liturgy',
+      },
+    });
+
+    if (!session) {
+      session = await this.prisma.attendanceSession.create({
+        data: {
+          groupId,
+          levelId,
+          schoolId: user.schoolId,
+          servantId: user.id,
+          status: 'recorded',
+          scheduledDate: new Date(),
+          notes: 'liturgy',
+        },
+      });
+    }
+
     const results = [];
     for (const record of body.records) {
       const attendanceRecord = await this.prisma.attendanceRecord.create({
         data: {
+          attendanceSessionId: session.id,
           studentId: record.studentId,
           status: record.status,
           recordedAt: new Date(),
@@ -176,6 +228,7 @@ export class ServantsController {
           noteCategory: 'liturgy',
           note: null,
           isPrivateNote: false,
+          attendedLiturgy: record.status === 'present',
         },
       });
       results.push(attendanceRecord);
