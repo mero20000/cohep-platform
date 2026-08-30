@@ -385,7 +385,14 @@ export class StudentsService {
 
     const levels = await this.prisma.level.findMany({ where: { schoolId, deletedAt: null } });
     const levelMap = new Map<string, string>();
-    for (const l of levels) { levelMap.set(l.id, l.id); levelMap.set(l.name.toLowerCase(), l.id); }
+    for (const l of levels) {
+      levelMap.set(l.id, l.id); // By UUID
+      levelMap.set(l.name.toLowerCase(), l.id); // By name (lowercase)
+      levelMap.set(l.name.trim().toLowerCase(), l.id); // By name (trimmed, lowercase)
+      levelMap.set(String(l.number), l.id); // By number: "1" → Level 1
+      levelMap.set(`level ${l.number}`, l.id); // By "Level 1" format
+      levelMap.set(`level${l.number}`, l.id); // By "Level1" format
+    }
 
     const grades = await this.prisma.schoolGrade.findMany({ where: { schoolId, deletedAt: null } });
     const gradeMap = new Map(grades.map(g => [g.name.trim().toLowerCase(), g]));
@@ -420,8 +427,14 @@ export class StudentsService {
       }
       seenInBatch.add(dupKey);
 
-      const resolvedLevelId = levelMap.get(s.levelId.trim().toLowerCase()) || levelMap.get(s.levelId.trim());
-      if (!resolvedLevelId) errors.push({ row: rowNum, message: `Level "${s.levelId}" not found` });
+      const levelInput = s.levelId.trim();
+      let resolvedLevelId = levelMap.get(levelInput.toLowerCase());
+      if (!resolvedLevelId) resolvedLevelId = levelMap.get(levelInput); // Try exact match
+      if (!resolvedLevelId && /^\d+$/.test(levelInput)) resolvedLevelId = levelMap.get(levelInput); // Try as number
+      if (!resolvedLevelId) {
+        const availableLevels = Array.from(levelMap.keys()).filter(k => !k.match(/^[a-f0-9-]{36}$/)); // Exclude UUIDs
+        errors.push({ row: rowNum, message: `Level "${s.levelId}" not found. Available: ${availableLevels.join(', ')}` });
+      }
       const resolvedGrade = s.grade ? gradeMap.get(s.grade.trim().toLowerCase()) : undefined;
       if (s.grade && !resolvedGrade) errors.push({ row: rowNum, message: `Grade "${s.grade}" not found` });
 
