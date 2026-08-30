@@ -17,6 +17,7 @@ export function StudentAssignServantModal({ studentIds, onClose, onSuccess, lang
   const [loading, setLoading] = useState(true)
   const [selectedId, setSelectedId] = useState('')
   const [assigning, setAssigning] = useState(false)
+  const [addMode, setAddMode] = useState(false)
   const dialogRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => { dialogRef.current?.focus() }, [])
@@ -33,8 +34,11 @@ export function StudentAssignServantModal({ studentIds, onClose, onSuccess, lang
     if (!selectedId) return
     setAssigning(true)
     try {
-      await http.post('/students/bulk-assign-servant', { ids: studentIds, servantId: selectedId }, { schoolId: getSchoolId() })
-      toast('success', t(`Assigned to ${studentIds.length} student(s)`, `تم التعيين لـ ${studentIds.length} طالب`))
+      await http.post('/students/bulk-assign-servant', { ids: studentIds, servantId: selectedId, mode: addMode ? 'add' : 'replace' }, { schoolId: getSchoolId() })
+      const message = addMode
+        ? t(`Added to ${studentIds.length} student(s)`, `تمت إضافته لـ ${studentIds.length} طالب`)
+        : t(`Assigned to ${studentIds.length} student(s)`, `تم التعيين لـ ${studentIds.length} طالب`)
+      toast('success', message)
       onSuccess()
       onClose()
     } catch (e: any) {
@@ -53,8 +57,31 @@ export function StudentAssignServantModal({ studentIds, onClose, onSuccess, lang
         </div>
         <div className="px-6 py-5 overflow-y-auto flex-1">
           <p className="text-sm text-gray-500 mb-4">
-            {t(`Assigning a servant to ${studentIds.length} selected student(s). This adds the servant to each student's assigned list.`, `تعيين خادم لـ ${studentIds.length} طالب محدد. يتم إضافة الخادم إلى قائمة كل طالب.`)}
+            {t(`Assigning a servant to ${studentIds.length} selected student(s).`, `تعيين خادم لـ ${studentIds.length} طالب محدد.`)}
           </p>
+
+          <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+            <p className="text-xs text-blue-800 font-medium mb-2">{t('Assignment Mode','طريقة التعيين')}</p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setAddMode(false)}
+                className={`flex-1 px-2 py-1.5 text-xs font-medium rounded transition-colors ${!addMode ? 'bg-red-100 text-red-700' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
+              >
+                {t('Replace', 'استبدال')} {t('current','الحالي')}
+              </button>
+              <button
+                onClick={() => setAddMode(true)}
+                className={`flex-1 px-2 py-1.5 text-xs font-medium rounded transition-colors ${addMode ? 'bg-green-100 text-green-700' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
+              >
+                {t('Add also', 'إضافة أيضا')}
+              </button>
+            </div>
+            <p className="text-xs text-blue-700 mt-2">
+              {addMode
+                ? t('Servant will be added to existing assignments', 'سيتم إضافة الخادم إلى التعيينات الموجودة')
+                : t('Servant will replace existing assignments', 'سيتم استبدال الخادم بدلا من التعيينات الموجودة')}
+            </p>
+          </div>
           {loading ? (
             <div className="flex items-center justify-center py-8"><Loader2 className="h-5 w-5 animate-spin text-gray-400" /></div>
           ) : servants.length === 0 ? (
