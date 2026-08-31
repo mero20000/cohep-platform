@@ -43,7 +43,7 @@ export class DashboardService {
 
     const attendanceRecords = await this.prisma.attendanceRecord.findMany({
       where: {
-        attendanceSession: { schoolId: resolvedId, deletedAt: null, sessionDate: { gte: today, lt: tomorrow } }
+        attendanceSession: { schoolId: resolvedId, deletedAt: null, scheduledDate: { gte: today, lt: tomorrow } }
       },
       select: { status: true },
     });
