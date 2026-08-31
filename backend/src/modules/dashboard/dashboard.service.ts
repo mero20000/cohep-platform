@@ -35,8 +35,16 @@ export class DashboardService {
     ]);
 
     // Student attendance rate (present + late / total records)
+    // Only count today's attendance records
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
     const attendanceRecords = await this.prisma.attendanceRecord.findMany({
-      where: { attendanceSession: { schoolId: resolvedId, deletedAt: null } },
+      where: {
+        attendanceSession: { schoolId: resolvedId, deletedAt: null, sessionDate: { gte: today, lt: tomorrow } }
+      },
       select: { status: true },
     });
     const attendanceRate = attendanceRecords.length > 0
