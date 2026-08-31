@@ -16,6 +16,7 @@ import Link from 'next/link'
 import { Modal } from '@/components/ui/modal'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { FormField } from '@/components/ui/form-field'
+import { DateField } from '@/components/ui/date-field'
 import { AudioPlayer } from '@/components/audio-player'
 import { assetUrl } from '@/lib/asset-url'
 import { languages as allLanguages } from '@/data/languages'
@@ -285,7 +286,7 @@ function StudentsPanel() {
                   <FormField label={t('Student Name *', 'اسم الطالب *')} value={editData?.name || ''} onChange={e => setEditData({ ...editData, name: e.target.value })} />
                   <FormField label={t('First Name (Arabic)', 'الاسم الأول (عربي)')} value={editData?.firstNameAr || ''} onChange={e => setEditData({ ...editData, firstNameAr: e.target.value })} />
                   <FormField label={t('Last Name (Arabic)', 'الاسم الأخير (عربي)')} value={editData?.lastNameAr || ''} onChange={e => setEditData({ ...editData, lastNameAr: e.target.value })} />
-                  <FormField label={t('Date of Birth', 'تاريخ الميلاد')} type="date" value={editData?.dateOfBirth || ''} onChange={e => setEditData({ ...editData, dateOfBirth: e.target.value })} />
+                  <DateField label={t('Date of Birth', 'تاريخ الميلاد')} value={editData?.dateOfBirth || ''} onChange={v => setEditData({ ...editData, dateOfBirth: v })} max={new Date().toISOString().split('T')[0]} />
                   <FormField label={t('Gender', 'الجنس')} as="select" value={editData?.gender || 'male'} onChange={e => setEditData({ ...editData, gender: e.target.value })}>
                     <option value="male">{t('Male', 'ذكر')}</option>
                     <option value="female">{t('Female', 'أنثى')}</option>
