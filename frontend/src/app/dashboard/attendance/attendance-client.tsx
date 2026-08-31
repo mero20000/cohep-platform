@@ -94,6 +94,10 @@ export function AttendanceClient() {
   const [deleting, setDeleting] = useState(false)
   const [showGenerateConfirm, setShowGenerateConfirm] = useState(false)
   const [generating, setGenerating] = useState(false)
+  const [generateMode, setGenerateMode] = useState<'all' | 'specific'>('all')
+  const [generateGroupId, setGenerateGroupId] = useState('')
+  const [generateLevelId, setGenerateLevelId] = useState('')
+  const [generateGradeId, setGenerateGradeId] = useState('')
   const [selectedSessionIds, setSelectedSessionIds] = useState<Set<string>>(new Set())
   const [showBatchDeleteConfirm, setShowBatchDeleteConfirm] = useState(false)
   const [batchDeleting, setBatchDeleting] = useState(false)
@@ -169,13 +173,13 @@ export function AttendanceClient() {
       e.preventDefault()
       const prevRecord = records[recordIndex - 1]
       if (prevRecord?.student) {
-        (document.querySelector(`[data-student-id="${prevRecord.student.id}"]`) as HTMLElement)?.focus()
+        document.querySelector(`[data-student-id="${prevRecord.student.id}"]`)?.focus()
       }
     } else if (e.key === 'ArrowDown' && recordIndex < records.length - 1) {
       e.preventDefault()
       const nextRecord = records[recordIndex + 1]
       if (nextRecord?.student) {
-        (document.querySelector(`[data-student-id="${nextRecord.student.id}"]`) as HTMLElement)?.focus()
+        document.querySelector(`[data-student-id="${nextRecord.student.id}"]`)?.focus()
       }
     }
   }
@@ -528,12 +532,22 @@ export function AttendanceClient() {
   const handleGenerateSessions = async () => {
     setGenerating(true)
     try {
-      const result = await http.post<{ created: number; skipped: number }>('/attendance/sessions/generate', undefined, { schoolId })
+      const params: any = { schoolId }
+      if (generateMode === 'specific') {
+        if (generateGroupId) params.groupId = generateGroupId
+        if (generateLevelId) params.levelId = generateLevelId
+        if (generateGradeId) params.gradeId = generateGradeId
+      }
+      const result = await http.post<{ created: number; skipped: number }>('/attendance/sessions/generate', undefined, params)
       toast('success', lang === 'ar' ? `تم إنشاء ${result.created} جلسات (${result.skipped} موجودة مسبقًا)` : `Generated ${result.created} sessions (${result.skipped} already existed)`)
       fetchSessions()
     } catch { toast('error', lang === 'ar' ? 'فشل إنشاء الجلسات' : 'Failed to generate sessions') }
     setGenerating(false)
     setShowGenerateConfirm(false)
+    setGenerateMode('all')
+    setGenerateGroupId('')
+    setGenerateLevelId('')
+    setGenerateGradeId('')
   }
 
   const handleReopenAttendance = async () => {
@@ -1431,17 +1445,116 @@ export function AttendanceClient() {
         </div>
       )}
 
-      <ConfirmDialog
-        open={showGenerateConfirm}
-        onClose={() => setShowGenerateConfirm(false)}
-        onConfirm={handleGenerateSessions}
-        title={lang === 'ar' ? 'إنشاء الجلسات' : 'Generate Sessions'}
-        message={lang === 'ar' ? 'هل تريد إنشاء جلسات حضور لجميع الأيام النشطة؟ سيتم إنشاء جلسات لكل مستوى ومجموعة في كل يوم نشط لا توجد فيه جلسة بعد.' : 'Generate attendance sessions for all active days? This will create sessions for every level and group on each active day where no session exists yet.'}
-        confirmLabel={lang === 'ar' ? 'إنشاء' : 'Generate'}
-        cancelLabel={lang === 'ar' ? 'إلغاء' : 'Cancel'}
-        variant="warning"
-        loading={generating}
-      />
+      {showGenerateConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-lg">
+            <h2 className="mb-4 text-lg font-semibold text-gray-900">{lang === 'ar' ? 'إنشاء الجلسات' : 'Generate Sessions'}</h2>
+
+            <div className="mb-6 space-y-3">
+              <label className="flex cursor-pointer items-center gap-3 rounded-lg border border-gray-200 p-3 hover:bg-gray-50">
+                <input
+                  type="radio"
+                  name="generateMode"
+                  value="all"
+                  checked={generateMode === 'all'}
+                  onChange={() => {
+                    setGenerateMode('all')
+                    setGenerateGroupId('')
+                    setGenerateLevelId('')
+                    setGenerateGradeId('')
+                  }}
+                  className="h-4 w-4"
+                />
+                <div className="flex-1">
+                  <div className="font-medium text-gray-900">{lang === 'ar' ? 'إنشاء الكل' : 'Generate All'}</div>
+                  <div className="text-sm text-gray-600">{lang === 'ar' ? 'إنشاء جلسات لجميع المستويات والمجموعات' : 'Create sessions for all levels and groups'}</div>
+                </div>
+              </label>
+
+              <label className="flex cursor-pointer items-center gap-3 rounded-lg border border-gray-200 p-3 hover:bg-gray-50">
+                <input
+                  type="radio"
+                  name="generateMode"
+                  value="specific"
+                  checked={generateMode === 'specific'}
+                  onChange={() => setGenerateMode('specific')}
+                  className="h-4 w-4"
+                />
+                <div className="flex-1">
+                  <div className="font-medium text-gray-900">{lang === 'ar' ? 'إنشاء محدد' : 'Generate Specific'}</div>
+                  <div className="text-sm text-gray-600">{lang === 'ar' ? 'إنشاء جلسات لمجموعة أو مستوى معين' : 'Create sessions for specific group or level'}</div>
+                </div>
+              </label>
+            </div>
+
+            {generateMode === 'specific' && (
+              <div className="mb-6 space-y-3 rounded-lg bg-gray-50 p-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">{lang === 'ar' ? 'المجموعة (اختياري)' : 'Group (Optional)'}</label>
+                  <select
+                    value={generateGroupId}
+                    onChange={(e) => setGenerateGroupId(e.target.value)}
+                    className="mt-1 block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900"
+                  >
+                    <option value="">{lang === 'ar' ? 'اختر مجموعة' : 'Select group'}</option>
+                    {groups.map((g) => (
+                      <option key={g.id} value={g.id}>{g.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">{lang === 'ar' ? 'المستوى (اختياري)' : 'Level (Optional)'}</label>
+                  <select
+                    value={generateLevelId}
+                    onChange={(e) => setGenerateLevelId(e.target.value)}
+                    className="mt-1 block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900"
+                  >
+                    <option value="">{lang === 'ar' ? 'اختر مستوى' : 'Select level'}</option>
+                    {levels.map((l) => (
+                      <option key={l.id} value={l.id}>{l.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">{lang === 'ar' ? 'الصف (اختياري)' : 'Grade (Optional)'}</label>
+                  <input
+                    type="text"
+                    value={generateGradeId}
+                    onChange={(e) => setGenerateGradeId(e.target.value)}
+                    placeholder={lang === 'ar' ? 'معرّف الصف' : 'Grade ID'}
+                    className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                  />
+                </div>
+              </div>
+            )}
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setShowGenerateConfirm(false)
+                  setGenerateMode('all')
+                  setGenerateGroupId('')
+                  setGenerateLevelId('')
+                  setGenerateGradeId('')
+                }}
+                className="flex-1 rounded-lg border border-gray-300 px-4 py-2 font-medium text-gray-700 hover:bg-gray-50"
+                disabled={generating}
+              >
+                {lang === 'ar' ? 'إلغاء' : 'Cancel'}
+              </button>
+              <button
+                onClick={handleGenerateSessions}
+                className="flex-1 rounded-lg bg-amber-500 px-4 py-2 font-medium text-white hover:bg-amber-600 disabled:opacity-50"
+                disabled={generating}
+              >
+                {generating ? <Loader2 className="inline h-4 w-4 animate-spin" /> : (lang === 'ar' ? 'إنشاء' : 'Generate')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

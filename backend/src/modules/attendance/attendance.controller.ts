@@ -125,9 +125,14 @@ export class AttendanceController {
   }
 
   @Post('sessions/generate')
-  @ApiOperation({ summary: 'Generate attendance sessions from active days' })
-  async generateSessions(@Query('schoolId') schoolId: string = '') {
-    return this.attendanceService.generateSessions(schoolId);
+  @ApiOperation({ summary: 'Generate attendance sessions from active days (all or specific)' })
+  async generateSessions(
+    @Query('schoolId') schoolId: string = '',
+    @Query('groupId') groupId?: string,
+    @Query('levelId') levelId?: string,
+    @Query('gradeId') gradeId?: string,
+  ) {
+    return this.attendanceService.generateSessions(schoolId, { groupId, levelId, gradeId });
   }
 
   @Post('sessions/recurring')

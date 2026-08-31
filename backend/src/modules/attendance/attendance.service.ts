@@ -937,7 +937,10 @@ export class AttendanceService {
     }));
   }
 
-  async generateSessions(schoolIdentifier: string) {
+  async generateSessions(
+    schoolIdentifier: string,
+    options?: { groupId?: string; levelId?: string; gradeId?: string },
+  ) {
     const schoolId = await this.schoolResolver.resolve(schoolIdentifier);
 
     const year = await this.prisma.academicYear.findFirst({
@@ -953,8 +956,13 @@ export class AttendanceService {
       orderBy: { weekNumber: 'asc' },
     });
 
+    const groupWhere: any = { schoolId, deletedAt: null, status: { not: 'inactive' } };
+    if (options?.groupId) {
+      groupWhere.id = options.groupId;
+    }
+
     const groups = await this.prisma.group.findMany({
-      where: { schoolId, deletedAt: null, status: { not: 'inactive' } },
+      where: groupWhere,
       orderBy: { orderIndex: 'asc' },
     });
 
@@ -981,8 +989,16 @@ export class AttendanceService {
         const dateStr = d.toISOString().split('T')[0];
 
         for (const group of groups) {
+          const levelWhere: any = { groupId: group.id, schoolId, deletedAt: null, status: 'active' };
+          if (options?.levelId) {
+            levelWhere.levelId = options.levelId;
+          }
+          if (options?.gradeId) {
+            levelWhere.gradeId = options.gradeId;
+          }
+
           const groupLevels = await this.prisma.student.findMany({
-            where: { groupId: group.id, schoolId, deletedAt: null, status: 'active' },
+            where: levelWhere,
             select: { levelId: true },
             distinct: ['levelId'],
           });
@@ -1003,8 +1019,13 @@ export class AttendanceService {
               continue;
             }
 
+            const studentWhere: any = { groupId: group.id, levelId, schoolId, deletedAt: null, status: 'active' };
+            if (options?.gradeId) {
+              studentWhere.gradeId = options.gradeId;
+            }
+
             const students = await this.prisma.student.findMany({
-              where: { groupId: group.id, levelId, schoolId, deletedAt: null, status: 'active' },
+              where: studentWhere,
               select: { id: true },
             });
 
