@@ -22,9 +22,10 @@ export function useAppeals() {
     setIsLoading(true);
     setError(null);
     try {
-      const params = studentId ? { studentId } : {};
-      const response = await api.get('/api/appeals/liturgy', { params });
-      setAppeals(response.data.data || response.data);
+      const params: Record<string, string | undefined> = studentId ? { studentId } : {};
+      const response = await api.get<{ data: Appeal[] } | Appeal[]>('/api/appeals/liturgy', { params });
+      const data = Array.isArray(response.data) ? response.data : (response.data as any).data || [];
+      setAppeals(data as Appeal[]);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch appeals');
     } finally {
@@ -36,13 +37,14 @@ export function useAppeals() {
     async (studentId: string, familyLiturgyId: string, appealReason: string) => {
       setError(null);
       try {
-        const response = await api.post('/api/appeals/liturgy', {
+        const response = await api.post<Appeal>('/api/appeals/liturgy', {
           studentId,
           familyLiturgyId,
           appealReason,
         });
-        setAppeals((prev) => [response.data, ...prev]);
-        return response.data;
+        const newAppeal = response.data as Appeal;
+        setAppeals((prev) => [newAppeal, ...prev]);
+        return newAppeal;
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Failed to submit appeal';
         setError(message);
@@ -54,8 +56,8 @@ export function useAppeals() {
 
   const getPendingCount = useCallback(async () => {
     try {
-      const response = await api.get('/api/appeals/liturgy/pending/count');
-      return response.data.pending || 0;
+      const response = await api.get<{ pending: number }>('/api/appeals/liturgy/pending/count');
+      return (response.data as any).pending || 0;
     } catch (err) {
       console.error('Failed to fetch pending count:', err);
       return 0;

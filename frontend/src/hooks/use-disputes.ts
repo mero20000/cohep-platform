@@ -22,9 +22,10 @@ export function useDisputes() {
     setIsLoading(true);
     setError(null);
     try {
-      const params = submissionId ? { submissionId } : {};
-      const response = await api.get('/api/disputes', { params });
-      setDisputes(response.data.data || response.data);
+      const params: Record<string, string | undefined> = submissionId ? { submissionId } : {};
+      const response = await api.get<{ data: Dispute[] } | Dispute[]>('/api/disputes', { params });
+      const data = Array.isArray(response.data) ? response.data : (response.data as any).data || [];
+      setDisputes(data as Dispute[]);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch disputes');
     } finally {
@@ -36,12 +37,13 @@ export function useDisputes() {
     async (submissionId: string, reason: string) => {
       setError(null);
       try {
-        const response = await api.post('/api/disputes', {
+        const response = await api.post<Dispute>('/api/disputes', {
           submissionId,
           reason,
         });
-        setDisputes((prev) => [response.data, ...prev]);
-        return response.data;
+        const newDispute = response.data as Dispute;
+        setDisputes((prev) => [newDispute, ...prev]);
+        return newDispute;
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Failed to submit dispute';
         setError(message);
@@ -53,8 +55,8 @@ export function useDisputes() {
 
   const getPendingCount = useCallback(async () => {
     try {
-      const response = await api.get('/api/disputes/pending/count');
-      return response.data.pending || 0;
+      const response = await api.get<{ pending: number }>('/api/disputes/pending/count');
+      return (response.data as any).pending || 0;
     } catch (err) {
       console.error('Failed to fetch pending count:', err);
       return 0;

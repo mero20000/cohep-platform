@@ -1,10 +1,10 @@
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
 interface RequestOptions extends RequestInit {
-  params?: Record<string, string | number | boolean>;
+  params?: Record<string, string | number | boolean | undefined>;
 }
 
-async function request<T>(
+async function request<T = unknown>(
   endpoint: string,
   options: RequestOptions = {}
 ): Promise<{ data: T }> {
@@ -14,7 +14,9 @@ async function request<T>(
   const url = new URL(endpoint, API_BASE_URL);
   if (params) {
     Object.entries(params).forEach(([key, value]) => {
-      url.searchParams.append(key, String(value));
+      if (value !== undefined && value !== null) {
+        url.searchParams.append(key, String(value));
+      }
     });
   }
 
@@ -22,7 +24,7 @@ async function request<T>(
   const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null;
 
   // Merge headers
-  const headers = new Headers(fetchOptions.headers);
+  const headers = new Headers(fetchOptions.headers as HeadersInit);
   headers.set('Content-Type', 'application/json');
   if (token) {
     headers.set('Authorization', `Bearer ${token}`);
@@ -45,7 +47,7 @@ async function request<T>(
       throw new Error(`API error: ${response.statusText}`);
     }
 
-    const data = await response.json();
+    const data: T = await response.json();
     return { data };
   } catch (error) {
     throw error instanceof Error ? error : new Error(String(error));
@@ -53,13 +55,13 @@ async function request<T>(
 }
 
 export const api = {
-  get: <T,>(endpoint: string, options?: RequestOptions) =>
+  get: <T = unknown,>(endpoint: string, options?: RequestOptions) =>
     request<T>(endpoint, { ...options, method: 'GET' }),
-  post: <T,>(endpoint: string, body?: any, options?: RequestOptions) =>
+  post: <T = unknown,>(endpoint: string, body?: unknown, options?: RequestOptions) =>
     request<T>(endpoint, { ...options, method: 'POST', body: JSON.stringify(body) }),
-  put: <T,>(endpoint: string, body?: any, options?: RequestOptions) =>
+  put: <T = unknown,>(endpoint: string, body?: unknown, options?: RequestOptions) =>
     request<T>(endpoint, { ...options, method: 'PUT', body: JSON.stringify(body) }),
-  delete: <T,>(endpoint: string, options?: RequestOptions) =>
+  delete: <T = unknown,>(endpoint: string, options?: RequestOptions) =>
     request<T>(endpoint, { ...options, method: 'DELETE' }),
 };
 
