@@ -44,6 +44,7 @@ export default function RegisterPage() {
   const [photoPreview, setPhotoPreview] = useState('')
   const [photoError, setPhotoError] = useState('')
   const [showArabicNames, setShowArabicNames] = useState(false)
+  const [confirmConsent, setConfirmConsent] = useState(false)
   const [recordings, setRecordings] = useState<Record<string, Blob | null>>({
     amen_be_mawteka: null,
     be_shafaat: null,
@@ -112,11 +113,11 @@ export default function RegisterPage() {
     return grouped
   }
 
-  const canNext1 = Boolean(form.name.trim() && form.dateOfBirth && form.gender && photoPreview)
+  const canNext1 = Boolean(form.name.trim() && form.dateOfBirth && form.gender && form.gradeId && photoPreview)
   const canNext2 = Boolean(form.parentEmail.trim() && form.parentName.trim() && form.phone.trim())
   const recordedHymns = HYMNS.filter(h => recordings[h.id])
   const canNext3 = recordedHymns.length > 0
-  const canSubmit = canNext1 && canNext2 && canNext3 && form.parentEmail.includes('@')
+  const canSubmit = canNext1 && canNext2 && canNext3 && form.parentEmail.includes('@') && confirmConsent
 
   const handlePhoto = (f: File | null) => {
     setPhotoError('')
@@ -658,9 +659,9 @@ export default function RegisterPage() {
                   </div>
                 )}
 
-                <label className="flex items-start gap-2 text-sm text-gray-600">
-                  <input type="checkbox" required className="mt-0.5" />
-                  {t('I confirm the information is correct and consent to the church using it for enrollment.', 'أؤكد صحة المعلومات وأوافق على استخدامها للتسجيل.')}
+                <label className="flex items-start gap-2 text-sm text-gray-600 cursor-pointer">
+                  <input type="checkbox" checked={confirmConsent} onChange={(e) => setConfirmConsent(e.target.checked)} className="mt-0.5 cursor-pointer" />
+                  <span className={confirmConsent ? 'text-gray-900 font-semibold' : ''}>{t('I confirm the information is correct and consent to the church using it for enrollment.', 'أؤكد صحة المعلومات وأوافق على استخدامها للتسجيل.')}</span>
                 </label>
 
               </div>
