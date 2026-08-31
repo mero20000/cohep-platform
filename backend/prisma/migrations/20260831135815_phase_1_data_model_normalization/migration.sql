@@ -56,12 +56,12 @@ DROP INDEX "curriculum_allocations_academic_year_id_level_id_subject_id_key";
 -- DropIndex
 DROP INDEX "family_liturgies_student_id_status_date_idx";
 
--- BACKFILL NULL values before setting NOT NULL
-UPDATE "analytics_events" SET "school_id" = (SELECT "id" FROM "schools" LIMIT 1) WHERE "school_id" IS NULL;
-UPDATE "app_sessions" SET "school_id" = (SELECT "id" FROM "schools" LIMIT 1) WHERE "school_id" IS NULL;
-UPDATE "audit_logs" SET "school_id" = (SELECT "id" FROM "schools" LIMIT 1) WHERE "school_id" IS NULL;
-UPDATE "badges" SET "school_id" = (SELECT "id" FROM "schools" LIMIT 1) WHERE "school_id" IS NULL;
-UPDATE "system_configs" SET "school_id" = (SELECT "id" FROM "schools" LIMIT 1) WHERE "school_id" IS NULL;
+-- BACKFILL NULL values and fix orphaned school_id references before setting NOT NULL
+UPDATE "analytics_events" SET "school_id" = (SELECT "id" FROM "schools" LIMIT 1) WHERE "school_id" IS NULL OR "school_id" NOT IN (SELECT "id" FROM "schools");
+UPDATE "app_sessions" SET "school_id" = (SELECT "id" FROM "schools" LIMIT 1) WHERE "school_id" IS NULL OR "school_id" NOT IN (SELECT "id" FROM "schools");
+UPDATE "audit_logs" SET "school_id" = (SELECT "id" FROM "schools" LIMIT 1) WHERE "school_id" IS NULL OR "school_id" NOT IN (SELECT "id" FROM "schools");
+UPDATE "badges" SET "school_id" = (SELECT "id" FROM "schools" LIMIT 1) WHERE "school_id" IS NULL OR "school_id" NOT IN (SELECT "id" FROM "schools");
+UPDATE "system_configs" SET "school_id" = (SELECT "id" FROM "schools" LIMIT 1) WHERE "school_id" IS NULL OR "school_id" NOT IN (SELECT "id" FROM "schools");
 
 -- AlterTable
 ALTER TABLE "academic_weeks" ALTER COLUMN "status" DROP NOT NULL;
