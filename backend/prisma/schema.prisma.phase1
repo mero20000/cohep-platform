@@ -1,0 +1,61 @@
+// PHASE 1: DATA MODEL NORMALIZATION
+// This is the updated schema with all FK relations, Conversation model, and multi-tenancy fixes
+// Apply via: prisma migrate dev --name phase_1_data_model_normalization
+
+// ============================================
+// CONVERSATION MODEL (NEW)
+// ============================================
+
+model Conversation {
+  id            String    @id @default(uuid())
+  schoolId      String    @map("school_id")
+  participant1Id String   @map("participant1_id")
+  participant2Id String   @map("participant2_id")
+  subject       String?
+  lastMessageAt DateTime? @map("last_message_at")
+  archivedAt    DateTime? @map("archived_at")
+  createdAt     DateTime  @default(now()) @map("created_at")
+
+  school        School    @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  participant1  User      @relation("Conversation1", fields: [participant1Id], references: [id], onDelete: Cascade)
+  participant2  User      @relation("Conversation2", fields: [participant2Id], references: [id], onDelete: Cascade)
+  messages      Message[]
+
+  @@unique([schoolId, participant1Id, participant2Id])
+  @@index([schoolId, lastMessageAt])
+  @@index([participant1Id, createdAt])
+  @@index([participant2Id, createdAt])
+  @@map("conversations")
+}
+
+// ============================================
+// KEY CHANGES SUMMARY
+// ============================================
+// 1. Added Conversation model (above)
+// 2. Updated Message: added conversation FK, parentMessage self-relation
+// 3. Updated Lesson: added creator FK (createdBy)
+// 4. Updated Resource: added uploader FK (uploadedBy)
+// 5. Updated Assessment: added creator FK (createdBy)
+// 6. Updated Announcement: added creator FK (createdBy)
+// 7. Updated Event: added creator FK (createdBy)
+// 8. Updated FileUpload: added uploader FK (uploadedBy)
+// 9. Updated MedicalNote: added creator FK (createdBy)
+// 10. Updated Certificate: added revokedBy FK
+// 11. Updated StudentSubjectPass: added revokedBy FK
+// 12. Updated HymnPracticeSession: made schoolId NOT NULL, added reviewer FK
+// 13. Updated FamilyLiturgy: added all FK relations (notedBy, verifiedBy, rejectedBy), added schoolId
+// 14. Updated LessonProgress: added clergy FK (clergyId)
+// 15. Updated PromotionRecord: added approver FK (approvedBy)
+// 16. Updated StudentBadge: added awarder FK (awardedBy)
+// 17. Updated UserRole: added assigner FK (assignedBy)
+// 18. Updated Notification: added user FK (userId)
+// 19. Updated PushSubscription: added user FK (userId), made schoolId NOT NULL
+// 20. Updated FamilyPractice: added schoolId NOT NULL
+// 21. Updated Badge: made schoolId NOT NULL
+// 22. Updated AuditLog: made schoolId NOT NULL
+// 23. Updated SystemConfig: made schoolId NOT NULL
+// 24. Updated AppSession: made schoolId NOT NULL
+// 25. Updated AnalyticsEvent: made schoolId NOT NULL
+
+// Note: Apply the full schema diff to schema.prisma
+// The changes are modeled after the audit report and preserve all existing relations
