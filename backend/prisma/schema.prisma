@@ -421,7 +421,7 @@ model Student {
   studentSubjectPasses  StudentSubjectPass[]
   familyLiturgies       FamilyLiturgy[]
   hymns                 HymnPracticeSession[]
-  notifications         StudentNotification[]
+  notifications         Notification[]
 
   @@unique([schoolId, studentCode])
   @@index([schoolId])
@@ -1248,29 +1248,35 @@ model Message {
 }
 
 model Notification {
-  id          String    @id @default(uuid())
-  schoolId    String    @map("school_id")
-  userId      String    @map("user_id")
-  type        String
-  title       String
-  titleAr     String?   @map("title_ar")
-  body        String
-  bodyAr      String?   @map("body_ar")
-  data        Json?
-  channels    Json
-  status      String    @default("pending")
-  isRead      Boolean   @default(false) @map("is_read")
-  readAt      DateTime? @map("read_at")
-  sentAt      DateTime? @map("sent_at")
-  deliveredAt DateTime? @map("delivered_at")
-  metadata    Json?
-  createdAt   DateTime  @default(now()) @map("created_at")
+  id            String    @id @default(uuid())
+  schoolId      String    @map("school_id")
+  userId        String?   @map("user_id")
+  studentId     String?   @map("student_id")
+  type          String
+  title         String
+  titleAr       String?   @map("title_ar")
+  body          String    @db.VarChar(500)
+  bodyAr        String?   @map("body_ar") @db.VarChar(500)
+  channel       String    @default("in_app")
+  linkPath      String?   @map("link_path")
+  referenceType String?   @map("reference_type")
+  referenceId   String?   @map("reference_id")
+  isRead        Boolean   @default(false) @map("is_read")
+  readAt        DateTime? @map("read_at")
+  sentAt        DateTime? @map("sent_at")
+  deliveredAt   DateTime? @map("delivered_at")
+  metadata      Json?
+  createdAt     DateTime  @default(now()) @map("created_at")
 
-  school School @relation(fields: [schoolId], references: [id])
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  school  School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  user    User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  student Student? @relation(fields: [studentId], references: [id], onDelete: Cascade)
 
+  @@unique([schoolId, studentId, type, referenceId])
+  @@unique([schoolId, userId, type, referenceId])
   @@index([userId, isRead, createdAt])
-  @@index([schoolId])
+  @@index([studentId, isRead, createdAt])
+  @@index([schoolId, createdAt])
   @@map("notifications")
 }
 
@@ -1608,38 +1614,3 @@ model NewsletterSubscriber {
 ///
 /// Delivery is pull-only: the portal polls. There is no push transport behind this (the
 /// PushSubscription model has no references and no VAPID endpoints exist), so nothing here
-/// should imply one.
-model StudentNotification {
-  id        String @id @default(uuid())
-  studentId String @map("student_id")
-
-  /// practice_reviewed | assessment_graded | liturgy_verified | liturgy_rejected
-  /// | liturgy_clearance | badge_awarded
-  type    String
-  title   String
-  titleAr String? @map("title_ar")
-  body    String? @db.VarChar(500)
-  bodyAr  String? @map("body_ar") @db.VarChar(500)
-
-  /// Portal-relative path this notification points at, e.g. "?tab=assessments".
-  /// Never a full URL: the access key belongs in the path the client already holds, and
-  /// storing absolute links would let a writer redirect a student off-site.
-  linkPath String? @map("link_path")
-
-  /// What the notification is about. The unique constraint below uses referenceId to make
-  /// emitting idempotent, so a servant re-saving a review does not stack duplicates.
-  referenceType String? @map("reference_type")
-  referenceId   String? @map("reference_id")
-
-  readAt    DateTime? @map("read_at")
-  createdAt DateTime  @default(now()) @map("created_at")
-
-  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
-
-  /// Postgres treats NULLs as distinct, so rows with no referenceId are never deduped —
-  /// which is the intended behaviour for one-off messages.
-  @@unique([studentId, type, referenceId])
-  @@index([studentId, readAt])
-  @@index([studentId, createdAt])
-  @@map("student_notifications")
-}
