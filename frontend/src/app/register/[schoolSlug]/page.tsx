@@ -101,8 +101,8 @@ export default function RegisterPage() {
     return missing
   }
 
-  const getGroupedGrades = (): any => {
-    const grouped = {} as Record<string, any[]>
+  const getGroupedGrades = (): Record<string, any[]> => {
+    const grouped: Record<string, any[]> = {}
     ;(meta?.grades || []).forEach((g: any) => {
       const num = g.name.match(/^\d+/)?.[0]
       const key = num ? (parseInt(num) < 7 ? 'Primary' : parseInt(num) < 10 ? 'Secondary' : 'Preparatory') : 'Other'
