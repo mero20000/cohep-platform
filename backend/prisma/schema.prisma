@@ -91,6 +91,8 @@ model School {
   pushSubscriptions        PushSubscription[]
   familyPractices          FamilyPractice[]
   familyLiturgies          FamilyLiturgy[]
+  gradeDisputes            GradeDispute[]
+  studentLiturgyAppeals    StudentLiturgyAppeal[]
   badges                   Badge[]
   systemConfigs            SystemConfig[]
   appSessions              AppSession[]
@@ -976,6 +978,32 @@ model Grade {
   @@map("grades")
 }
 
+model GradeDispute {
+  id             String    @id @default(uuid())
+  schoolId       String    @map("school_id")
+  gradeId        String    @map("grade_id")
+  submissionId   String    @map("submission_id")
+  requestedById  String    @map("requested_by_id")
+  reason         String    @db.VarChar(500)
+  status         String    @default("pending")
+  respondedById  String?   @map("responded_by_id")
+  respondedAt    DateTime? @map("responded_at")
+  newScore       Decimal?  @map("new_score")
+  response       String?   @db.VarChar(500)
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  school       School                @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  submission   AssessmentSubmission  @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  requestedBy  User                  @relation("GradeDisputeRequestedBy", fields: [requestedById], references: [id], onDelete: Restrict)
+  respondedBy  User?                 @relation("GradeDisputeRespondedBy", fields: [respondedById], references: [id], onDelete: Set Null)
+
+  @@index([schoolId, status])
+  @@index([submissionId])
+  @@index([requestedById])
+  @@map("grade_disputes")
+}
+
 // ============================================
 // PROGRESS
 // ============================================
@@ -1415,6 +1443,31 @@ model FamilyLiturgy {
   @@index([studentId, status])
   @@index([studentId, status, date])
   @@map("family_liturgies")
+}
+
+model StudentLiturgyAppeal {
+  id               String    @id @default(uuid())
+  schoolId         String    @map("school_id")
+  studentId        String    @map("student_id")
+  familyLiturgyId  String    @map("family_liturgy_id")
+  appealReason     String    @db.VarChar(500)
+  status           String    @default("pending")
+  respondedById    String?   @map("responded_by_id")
+  respondedAt      DateTime? @map("responded_at")
+  response         String?   @db.VarChar(500)
+  newStatus        String?   @map("new_status")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+
+  school           School         @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  student          Student        @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  familyLiturgy    FamilyLiturgy  @relation(fields: [familyLiturgyId], references: [id], onDelete: Cascade)
+  respondedBy      User?          @relation(fields: [respondedById], references: [id], onDelete: SetNull)
+
+  @@index([schoolId, status])
+  @@index([studentId, status])
+  @@index([familyLiturgyId])
+  @@map("student_liturgy_appeals")
 }
 
 // ============================================
