@@ -56,6 +56,13 @@ DROP INDEX "curriculum_allocations_academic_year_id_level_id_subject_id_key";
 -- DropIndex
 DROP INDEX "family_liturgies_student_id_status_date_idx";
 
+-- BACKFILL NULL values before setting NOT NULL
+UPDATE "analytics_events" SET "school_id" = (SELECT "id" FROM "schools" LIMIT 1) WHERE "school_id" IS NULL;
+UPDATE "app_sessions" SET "school_id" = (SELECT "id" FROM "schools" LIMIT 1) WHERE "school_id" IS NULL;
+UPDATE "audit_logs" SET "school_id" = (SELECT "id" FROM "schools" LIMIT 1) WHERE "school_id" IS NULL;
+UPDATE "badges" SET "school_id" = (SELECT "id" FROM "schools" LIMIT 1) WHERE "school_id" IS NULL;
+UPDATE "system_configs" SET "school_id" = (SELECT "id" FROM "schools" LIMIT 1) WHERE "school_id" IS NULL;
+
 -- AlterTable
 ALTER TABLE "academic_weeks" ALTER COLUMN "status" DROP NOT NULL;
 
@@ -79,11 +86,17 @@ ALTER TABLE "calendar_events" ALTER COLUMN "created_at" SET NOT NULL,
 ALTER COLUMN "updated_at" SET NOT NULL,
 ALTER COLUMN "updated_at" DROP DEFAULT;
 
--- AlterTable
-ALTER TABLE "family_liturgies" ADD COLUMN     "school_id" TEXT NOT NULL;
+-- AlterTable: First backfill family_liturgies and family_practices schoolId, then add constraint
+ALTER TABLE "family_liturgies" ADD COLUMN "school_id" TEXT;
+UPDATE "family_liturgies" SET "school_id" = (SELECT "school_id" FROM "students" WHERE "students"."id" = "family_liturgies"."student_id" LIMIT 1);
+UPDATE "family_liturgies" SET "school_id" = (SELECT "id" FROM "schools" LIMIT 1) WHERE "school_id" IS NULL;
+ALTER TABLE "family_liturgies" ALTER COLUMN "school_id" SET NOT NULL;
 
--- AlterTable
-ALTER TABLE "family_practices" ADD COLUMN     "school_id" TEXT NOT NULL;
+-- AlterTable: First backfill family_practices schoolId, then add constraint
+ALTER TABLE "family_practices" ADD COLUMN "school_id" TEXT;
+UPDATE "family_practices" SET "school_id" = (SELECT "school_id" FROM "students" WHERE "students"."id" = "family_practices"."student_id" LIMIT 1);
+UPDATE "family_practices" SET "school_id" = (SELECT "id" FROM "schools" LIMIT 1) WHERE "school_id" IS NULL;
+ALTER TABLE "family_practices" ALTER COLUMN "school_id" SET NOT NULL;
 
 -- AlterTable
 ALTER TABLE "hymn_practice_sessions" ALTER COLUMN "servant_reviewed_at" SET DATA TYPE TIMESTAMP(3),
@@ -92,10 +105,13 @@ ALTER COLUMN "created_at" SET DATA TYPE TIMESTAMP(3);
 -- AlterTable
 ALTER TABLE "lesson_progress" ALTER COLUMN "next_review_at" SET DATA TYPE TIMESTAMP(3);
 
--- AlterTable
-ALTER TABLE "push_subscriptions" DROP COLUMN "user_agent",
-ADD COLUMN     "school_id" TEXT NOT NULL,
-ADD COLUMN     "userAgent" TEXT,
+-- AlterTable: First backfill push_subscriptions schoolId, then add constraint
+ALTER TABLE "push_subscriptions" DROP COLUMN "user_agent";
+ALTER TABLE "push_subscriptions" ADD COLUMN "school_id" TEXT;
+UPDATE "push_subscriptions" SET "school_id" = (SELECT "school_id" FROM "users" WHERE "users"."id" = "push_subscriptions"."user_id" LIMIT 1);
+UPDATE "push_subscriptions" SET "school_id" = (SELECT "id" FROM "schools" LIMIT 1) WHERE "school_id" IS NULL;
+ALTER TABLE "push_subscriptions" ALTER COLUMN "school_id" SET NOT NULL;
+ALTER TABLE "push_subscriptions" ADD COLUMN "userAgent" TEXT,
 ALTER COLUMN "created_at" SET DATA TYPE TIMESTAMP(3),
 ALTER COLUMN "updated_at" DROP DEFAULT,
 ALTER COLUMN "updated_at" SET DATA TYPE TIMESTAMP(3);
