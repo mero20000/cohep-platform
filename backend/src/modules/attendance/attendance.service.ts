@@ -538,7 +538,6 @@ export class AttendanceService {
         titleAr: 'غائب عن الفصل',
         body: `${studentName} hasn't attended ${groupName} for 3 consecutive sessions. We miss them!`,
         bodyAr: `${studentNameAr} لم يحضر ${groupName} لمدة 3 جلسات متتالية. نحن نفتقدهم!`,
-        channels: ['in_app'],
       });
     }
 
@@ -560,7 +559,6 @@ export class AttendanceService {
       titleAr: 'تنبيه غياب',
       body: `${studentName} hasn't attended for 3 consecutive sessions. You may want to check in.`,
       bodyAr: `${studentNameAr} لم يحضر لمدة 3 جلسات متتالية. قد ترغب في التواصل.`,
-      channels: ['in_app'],
     });
   }
 
@@ -629,8 +627,6 @@ export class AttendanceService {
         titleAr: `وصل ${(record.student as any).firstNameAr || (record.student as any).firstName}!`,
         body: `${(record.student as any).firstName} ${(record.student as any).lastName} checked in for ${groupName}.`,
         bodyAr: `سجل ${(record.student as any).firstNameAr || (record.student as any).firstName} حضوره في ${groupName}.`,
-        channels: ['in_app', 'push'],
-        data: { url: '/portal' },
       }).catch(() => {});
     }
 

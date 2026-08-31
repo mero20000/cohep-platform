@@ -171,8 +171,6 @@ export class RegistrationsService {
           titleAr: 'تسجيل جديد',
           body: `${name} applied — hymn: ${app.hymnChoice}`,
           bodyAr: `${name} قدّم طلب انضمام — اللحن: ${app.hymnChoice}`,
-          data: { url: '/dashboard/pending-registrations', applicationId: app.id },
-          channels: ['in_app'],
         }).catch(() => undefined),
       ));
     } catch {}
