@@ -827,7 +827,7 @@ export default function ServantsPage() {
                         <div className="flex items-center gap-3">
                           <div className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-50 overflow-hidden flex-shrink-0">
                             {s.avatarUrl ? (
-                              <Image src={s.avatarUrl.startsWith('http') ? s.avatarUrl : `${API_ORIGIN}${s.avatarUrl}`} alt="" width={36} height={36} className="h-9 w-9 object-cover" unoptimized  />
+                              <Image src={s.avatarUrl.startsWith('http') ? s.avatarUrl : `${API_ORIGIN}${s.avatarUrl}`} alt="" width={36} height={36} className="h-9 w-9 object-cover" priority  />
                             ) : (
                               <span className="text-sm font-bold text-blue-700">{s.firstName[0]}{s.lastName[0]}</span>
                             )}
@@ -919,7 +919,7 @@ export default function ServantsPage() {
                     <div className="flex items-center gap-3">
                       <div className="flex h-11 w-11 items-center justify-center rounded-full bg-blue-50 overflow-hidden flex-shrink-0">
                         {s.avatarUrl ? (
-                          <Image src={s.avatarUrl.startsWith('http') ? s.avatarUrl : `${API_ORIGIN}${s.avatarUrl}`} alt="" width={44} height={44} className="h-11 w-11 object-cover" unoptimized />
+                          <Image src={s.avatarUrl.startsWith('http') ? s.avatarUrl : `${API_ORIGIN}${s.avatarUrl}`} alt="" width={44} height={44} className="h-11 w-11 object-cover" priority />
                         ) : (
                           <span className="text-sm font-bold text-blue-700">{s.firstName[0]}{s.lastName[0]}</span>
                         )}
@@ -1024,7 +1024,7 @@ export default function ServantsPage() {
               {photoFile ? (
                 <Image src={previewUrl || ''} alt="" width={64} height={64} className="h-16 w-16 object-cover"  />
               ) : editing?.avatarUrl ? (
-                <Image src={editing.avatarUrl.startsWith('http') ? editing.avatarUrl : `${API_ORIGIN}${editing.avatarUrl}`} alt="" width={64} height={64} className="h-16 w-16 object-cover" unoptimized  />
+                <Image src={editing.avatarUrl.startsWith('http') ? editing.avatarUrl : `${API_ORIGIN}${editing.avatarUrl}`} alt="" width={64} height={64} className="h-16 w-16 object-cover" priority  />
               ) : (
                 <User className="h-6 w-6 text-gray-300" />
               )}

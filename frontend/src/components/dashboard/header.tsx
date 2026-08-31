@@ -133,7 +133,7 @@ export function DashboardHeader({
 
       <Link href="/dashboard" className="flex items-center gap-2.5 flex-shrink-0 hover:opacity-80 transition-opacity">
         {schoolLogo ? (
-          <Image src={schoolLogo} alt={language === 'ar' && schoolNameAr ? schoolNameAr : schoolName} width={72} height={72} className="rounded-xl object-cover border border-gray-200 flex-shrink-0" unoptimized />
+          <Image src={schoolLogo} alt={language === 'ar' && schoolNameAr ? schoolNameAr : schoolName} width={72} height={72} className="rounded-xl object-cover border border-gray-200 flex-shrink-0" priority />
         ) : (
           <div className="flex h-[72px] w-[72px] items-center justify-center rounded-xl bg-blue-500 text-white flex-shrink-0">
             <Cross className="h-8 w-8" />
@@ -347,7 +347,7 @@ export function DashboardHeader({
             className="gap-1.5 px-1.5 h-auto hover:bg-gray-100">
             <div className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-100 overflow-hidden">
               {user?.avatarUrl && !avatarError ? (
-                <Image src={user.avatarUrl.startsWith('http') ? user.avatarUrl : `${API_ORIGIN}${user.avatarUrl}`} alt="" width={36} height={36} unoptimized onError={() => setAvatarError(true)} className="h-full w-full object-cover" />
+                <Image src={user.avatarUrl.startsWith('http') ? user.avatarUrl : `${API_ORIGIN}${user.avatarUrl}`} alt="" width={36} height={36} priority onError={() => setAvatarError(true)} className="h-full w-full object-cover" />
               ) : (
                 <span className="text-xs font-bold text-blue-700">{initials}</span>
               )}

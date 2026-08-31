@@ -308,14 +308,14 @@ function HeroSection({ stats, churchLogo, churchName, loading }: { stats: Dashbo
       {churchLogo && (
         <div className="relative shrink-0">
           <div className="absolute inset-0 rounded-2xl bg-white/10 blur-xl" />
-          <Image unoptimized src={churchLogo} alt="Church Logo" width={100} height={100}
+          <Image priority src={churchLogo} alt="Church Logo" width={100} height={100}
             className="relative h-14 w-14 sm:h-24 sm:w-24 rounded-xl sm:rounded-2xl border border-white/15 sm:border-2 bg-white/10 object-cover shadow-xl" />
         </div>
       )}
       {s.school?.logoUrl && (
         <div className="relative shrink-0">
           <div className="absolute inset-0 rounded-2xl bg-white/10 blur-xl" />
-          <Image unoptimized src={s.school.logoUrl.startsWith('http') ? s.school.logoUrl : (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api').replace('/api', '') + s.school.logoUrl}
+          <Image priority src={s.school.logoUrl.startsWith('http') ? s.school.logoUrl : (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api').replace('/api', '') + s.school.logoUrl}
             alt="School Logo" width={100} height={100}
             className="relative h-14 w-14 sm:h-24 sm:w-24 rounded-xl sm:rounded-2xl border border-white/15 sm:border-2 bg-white/10 object-cover shadow-xl" />
         </div>
@@ -2091,14 +2091,14 @@ export function MinistryDashboard({ data, loading, error, onRetry }: { data: any
    {churchLogo && (
     <div className="relative shrink-0">
      <div className="absolute inset-0 rounded-2xl bg-white/10 blur-xl" />
-     <Image unoptimized src={churchLogo} alt="Church Logo" width={100} height={100}
+     <Image priority src={churchLogo} alt="Church Logo" width={100} height={100}
       className="relative h-24 w-24 rounded-2xl border-2 border-white/20 bg-white/10 object-cover shadow-xl" />
     </div>
    )}
    {schoolLogo && (
     <div className="relative shrink-0">
      <div className="absolute inset-0 rounded-2xl bg-white/10 blur-xl" />
-     <Image unoptimized src={schoolLogo} alt="School Logo" width={100} height={100}
+     <Image priority src={schoolLogo} alt="School Logo" width={100} height={100}
       className="relative h-24 w-24 rounded-2xl border-2 border-white/20 bg-white/10 object-cover shadow-xl" />
     </div>
    )}
@@ -2169,7 +2169,7 @@ export function MinistryDashboard({ data, loading, error, onRetry }: { data: any
               {groupMates.map((m) => (
                 <li key={m.id} className="flex items-center gap-3 rounded-lg bg-gray-50 px-3 py-2">
                   {m.avatarUrl ? (
-                    <Image src={m.avatarUrl.startsWith('http') ? m.avatarUrl : `${API_ORIGIN}${m.avatarUrl}`} alt="" width={32} height={32} className="h-8 w-8 rounded-full object-cover" unoptimized />
+                    <Image src={m.avatarUrl.startsWith('http') ? m.avatarUrl : `${API_ORIGIN}${m.avatarUrl}`} alt="" width={32} height={32} className="h-8 w-8 rounded-full object-cover" priority />
                   ) : (
                     <div className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-600 text-sm font-bold text-white">
                       {(m.firstName || '?')[0]}

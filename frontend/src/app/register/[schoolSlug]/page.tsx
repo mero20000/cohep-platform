@@ -376,7 +376,7 @@ export default function RegisterPage() {
                 <div className="flex flex-col items-center gap-3 pb-2">
                   <div className="relative">
                     {photoPreview ? (
-                      <Image src={photoPreview} alt="preview" width={80} height={80} className="h-20 w-20 rounded-full object-cover border-2 border-gold-200" unoptimized />
+                      <Image src={photoPreview} alt="preview" width={80} height={80} className="h-20 w-20 rounded-full object-cover border-2 border-gold-200" priority />
                     ) : (
                       <div className="h-20 w-20 rounded-full bg-amber-50 border-2 border-dashed border-amber-300 flex items-center justify-center">
                         <User className="h-8 w-8 text-gray-400" />
@@ -611,7 +611,7 @@ export default function RegisterPage() {
                   <div className="px-4 py-2.5 bg-gray-50 border-b border-gray-100 text-xs font-bold uppercase tracking-wider text-gray-500">{t('Student', 'الطالب')}</div>
                   <div className="p-4 flex items-start gap-4">
                     {photoPreview ? (
-                      <Image src={photoPreview} alt="preview" width={56} height={56} className="h-14 w-14 rounded-full object-cover border border-gray-200" unoptimized />
+                      <Image src={photoPreview} alt="preview" width={56} height={56} className="h-14 w-14 rounded-full object-cover border border-gray-200" priority />
                     ) : (
                       <div className="h-14 w-14 rounded-full bg-gray-200 flex items-center justify-center"><User className="h-6 w-6 text-gray-400" /></div>
                     )}

@@ -58,7 +58,7 @@ export default function ServantProfilePage() {
                   alt={profile.name}
                   width={64}
                   height={64}
-                  unoptimized
+                  priority
                   className="h-full w-full object-cover rounded-full"
                 />
               ) : (
