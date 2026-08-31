@@ -101,6 +101,17 @@ export default function RegisterPage() {
     return missing
   }
 
+  const getGroupedGrades = (): any => {
+    const grouped: any = {}
+    (meta?.grades || []).forEach((g: any) => {
+      const num = g.name.match(/^\d+/)?.[0]
+      const key = num ? (parseInt(num) < 7 ? 'Primary' : parseInt(num) < 10 ? 'Secondary' : 'Preparatory') : 'Other'
+      if (!grouped[key]) grouped[key] = []
+      grouped[key].push(g)
+    })
+    return grouped
+  }
+
   const canNext1 = Boolean(form.name.trim() && form.dateOfBirth && form.gender && photoPreview)
   const canNext2 = Boolean(form.parentEmail.trim() && form.parentName.trim() && form.phone.trim())
   const recordedHymns = HYMNS.filter(h => recordings[h.id])
@@ -453,25 +464,13 @@ export default function RegisterPage() {
                     <label className="block text-sm font-medium text-gray-700">{t('Grade & Weekday *', 'المرحلة واليوم *')}</label>
                     <select value={form.gradeId} onChange={e => update('gradeId', e.target.value)} className="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2.5 text-sm bg-white focus:border-gold-400 focus:outline-none">
                       <option value="">{t('Select a grade...', 'اختر المرحلة...')}</option>
-                      {(() => {
-                        const grouped: Record<string, any[]> = {}
-                        (meta?.grades || []).forEach((g: any) => {
-                          const key = g.name.match(/^\d+/)?.[0] ? (g.name.match(/^\d+/)[0] < 7 ? 'Primary' : g.name.match(/^\d+/)[0] < 10 ? 'Secondary' : 'Preparatory') : 'Other'
-                          if (!grouped[key]) grouped[key] = []
-                          grouped[key].push(g)
-                        })
-                        return (
-                          <>
-                            {Object.entries(grouped).map(([group, grades]) => (
-                              <optgroup key={group} label={t(group === 'Primary' ? 'Primary (Grades 4-6)' : group === 'Secondary' ? 'Secondary (Grades 7-9)' : group === 'Preparatory' ? 'Preparatory (Grades 10-13)' : 'Other', group === 'Primary' ? 'الابتدائي (المراحل 4-6)' : group === 'Secondary' ? 'الإعدادي (المراحل 7-9)' : group === 'Preparatory' ? 'الثانوي (المراحل 10-13)' : 'أخرى')}>
-                                {grades.map((g: any) => (
-                                  <option key={g.id} value={g.id}>{gradeLabel(g)}</option>
-                                ))}
-                              </optgroup>
-                            ))}
-                          </>
-                        )
-                      })()}
+                      {Object.entries(getGroupedGrades()).map(([group, grades]) => (
+                        <optgroup key={group} label={t(group === 'Primary' ? 'Primary (Grades 4-6)' : group === 'Secondary' ? 'Secondary (Grades 7-9)' : group === 'Preparatory' ? 'Preparatory (Grades 10-13)' : 'Other', group === 'Primary' ? 'الابتدائي (المراحل 4-6)' : group === 'Secondary' ? 'الإعدادي (المراحل 7-9)' : group === 'Preparatory' ? 'الثانوي (المراحل 10-13)' : 'أخرى')}>
+                          {grades.map((g: any) => (
+                            <option key={g.id} value={g.id}>{gradeLabel(g)}</option>
+                          ))}
+                        </optgroup>
+                      ))}
                     </select>
                     <p className="mt-1 text-xs text-gray-500">{t('Shows the day this grade meets', 'يوضح موعد حضور هذه المرحلة')}</p>
                   </div>
