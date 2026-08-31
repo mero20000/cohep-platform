@@ -23,11 +23,22 @@ export class AnalyticsService {
    */
   async record(input: EventInput) {
     try {
+      // Derive schoolId from userId if not provided
+      let schoolId = input.schoolId;
+      if (!schoolId && input.userId) {
+        const user = await this.prisma.user.findUnique({
+          where: { id: input.userId },
+          select: { schoolId: true },
+        });
+        schoolId = user?.schoolId;
+      }
+      if (!schoolId) return; // Skip if no school context
+
       await this.prisma.analyticsEvent.create({
         data: {
           sessionId: input.sessionId || undefined,
           userId: input.userId || undefined,
-          schoolId: input.schoolId || undefined,
+          schoolId,
           name: input.name.slice(0, 100),
           category: input.category || undefined,
           locale: input.locale || undefined,
@@ -59,12 +70,23 @@ export class AnalyticsService {
     if (!input.sessionId) return;
     const now = new Date();
 
+    // Derive schoolId from userId if not provided
+    let schoolId = input.schoolId;
+    if (!schoolId && input.userId) {
+      const user = await this.prisma.user.findUnique({
+        where: { id: input.userId },
+        select: { schoolId: true },
+      });
+      schoolId = user?.schoolId;
+    }
+    if (!schoolId) return; // Skip if no school context
+
     const session = await this.prisma.appSession.upsert({
       where: { id: input.sessionId },
       create: {
         id: input.sessionId,
         userId: input.userId || undefined,
-        schoolId: input.schoolId || undefined,
+        schoolId,
         locale: input.locale || undefined,
         entryPage: input.entryPage || undefined,
         userAgent: input.userAgent ? input.userAgent.slice(0, 255) : undefined,
@@ -92,7 +114,7 @@ export class AnalyticsService {
         data: input.events.map((e) => ({
           sessionId: input.sessionId,
           userId: input.userId || undefined,
-          schoolId: input.schoolId || undefined,
+          schoolId,
           name: e.name.slice(0, 100),
           category: e.category || undefined,
           locale: input.locale || undefined,

@@ -111,6 +111,7 @@ export class GradesService {
       });
     }
     await this.audit.log({
+      schoolId: grade.schoolId,
       action: 'UPDATE',
       entityType: 'grade',
       entityId: id,

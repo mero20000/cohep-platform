@@ -56,16 +56,13 @@ export class CurriculumService {
   }
 
   async updateLevel(id: string, data: { name?: string; nameAr?: string; status?: string; description?: string; number?: number }) {
-    const existing = await this.prisma.level.findUnique({ where: { id }, select: { name: true, number: true, status: true } });
+    const existing = await this.prisma.level.findUnique({ where: { id }, select: { name: true, number: true, status: true, schoolId: true } });
     if (!existing) throw new NotFoundException('Level not found');
     if (data.name !== undefined) {
-      const level = await this.prisma.level.findUnique({ where: { id }, select: { schoolId: true } });
-      if (level) {
-        const dup = await this.prisma.level.findFirst({
-          where: { schoolId: level.schoolId, name: data.name, deletedAt: null, id: { not: id } },
-        });
-        if (dup) throw new ConflictException(`Level "${data.name}" already exists`);
-      }
+      const dup = await this.prisma.level.findFirst({
+        where: { schoolId: existing.schoolId, name: data.name, deletedAt: null, id: { not: id } },
+      });
+      if (dup) throw new ConflictException(`Level "${data.name}" already exists`);
     }
     const updated = await this.prisma.level.update({
       where: { id },
@@ -78,6 +75,7 @@ export class CurriculumService {
       },
     });
     await this.audit.log({
+      schoolId: existing.schoolId,
       action: 'UPDATE', entityType: 'level', entityId: id,
       oldValues: { name: existing.name, number: existing.number, status: existing.status },
       newValues: { name: updated.name, number: updated.number, status: updated.status },
@@ -339,12 +337,22 @@ export class CurriculumService {
         notes: dto.notes,
       },
     });
-    await this.audit.log({ action: 'CREATE', entityType: 'allocation', entityId: alloc.id, newValues: { lessonId: dto.lessonId, levelId: dto.levelId, groupNumber: alloc.groupNumber, term: dto.term, weekNumber: dto.weekNumber } });
+    const level = await this.prisma.level.findUnique({ where: { id: dto.levelId }, select: { schoolId: true } });
+    await this.audit.log({
+      schoolId: level?.schoolId || '',
+      action: 'CREATE',
+      entityType: 'allocation',
+      entityId: alloc.id,
+      newValues: { lessonId: dto.lessonId, levelId: dto.levelId, groupNumber: alloc.groupNumber, term: dto.term, weekNumber: dto.weekNumber }
+    });
     return alloc;
   }
 
   async updateAllocation(id: string, dto: UpdateAllocationDto) {
-    const old = await this.prisma.curriculumAllocation.findUnique({ where: { id }, select: { lessonId: true, term: true, weekNumber: true, status: true } });
+    const old = await this.prisma.curriculumAllocation.findUnique({
+      where: { id },
+      select: { lessonId: true, term: true, weekNumber: true, status: true, level: { select: { schoolId: true } } }
+    });
     const updated = await this.prisma.curriculumAllocation.update({
       where: { id },
       data: {
@@ -358,14 +366,34 @@ export class CurriculumService {
         ...(dto.notes !== undefined && { notes: dto.notes }),
       },
     });
-    await this.audit.log({ action: 'UPDATE', entityType: 'allocation', entityId: id, oldValues: { lessonId: old?.lessonId, status: old?.status }, newValues: { lessonId: updated.lessonId, status: updated.status } });
+    await this.audit.log({
+      schoolId: old?.level?.schoolId || '',
+      action: 'UPDATE',
+      entityType: 'allocation',
+      entityId: id,
+      oldValues: { lessonId: old?.lessonId, status: old?.status },
+      newValues: { lessonId: updated.lessonId, status: updated.status }
+    });
     return updated;
   }
 
   async deleteAllocation(id: string) {
-    const alloc = await this.prisma.curriculumAllocation.findUnique({ where: { id }, select: { lessonId: true, levelId: true } });
+    const alloc = await this.prisma.curriculumAllocation.findUnique({
+      where: { id },
+      select: {
+        lessonId: true,
+        levelId: true,
+        level: { select: { schoolId: true } }
+      }
+    });
     await this.prisma.curriculumAllocation.delete({ where: { id } });
-    await this.audit.log({ action: 'DELETE', entityType: 'allocation', entityId: id, oldValues: { lessonId: alloc?.lessonId } });
+    await this.audit.log({
+      schoolId: alloc?.level?.schoolId || '',
+      action: 'DELETE',
+      entityType: 'allocation',
+      entityId: id,
+      oldValues: { lessonId: alloc?.lessonId }
+    });
     return { success: true };
   }
 

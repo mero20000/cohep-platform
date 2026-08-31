@@ -725,7 +725,7 @@ export class ParentsService {
 
     const result = await this.prisma.$transaction(async (tx) => {
       const practice = await tx.familyPractice.create({
-        data: { studentId, lessonId, source: 'parent' },
+        data: { studentId, lessonId, schoolId: student.schoolId, source: 'parent' },
       });
 
       const xpAgg = await tx.xPTransaction.aggregate({
@@ -806,6 +806,15 @@ export class ParentsService {
     const liturgyDate = new Date(date);
     liturgyDate.setHours(0, 0, 0, 0);
 
+    // Fetch student to get schoolId
+    const student = await this.prisma.student.findUnique({
+      where: { id: studentId },
+      select: { schoolId: true },
+    });
+    if (!student) {
+      throw new HttpException({ error: 'Student not found' }, 404);
+    }
+
     const existing = await this.prisma.familyLiturgy.findUnique({
       where: { studentId_date: { studentId, date: liturgyDate } },
     });
@@ -834,7 +843,7 @@ export class ParentsService {
     }
 
     const record = await this.prisma.familyLiturgy.create({
-      data: { studentId, date: liturgyDate, notedBy: userId, notes, status: 'pending' },
+      data: { studentId, schoolId: student.schoolId, date: liturgyDate, notedBy: userId, notes, status: 'pending' },
     });
 
     return { id: record.id, status: record.status, date: record.date, reopened: false };
