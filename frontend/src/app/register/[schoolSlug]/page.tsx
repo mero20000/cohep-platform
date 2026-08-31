@@ -311,7 +311,7 @@ export default function RegisterPage() {
         </div>
       </div>
 
-      <div className="mx-auto max-w-3xl px-4 -mt-8 pb-12">
+      <div className="mx-auto max-w-3xl px-4 pt-6 pb-12">
         <div className="rounded-[24px] bg-white shadow-xl border border-gray-100 overflow-hidden">
 
           {/* ── STEPS navigator ── */}
