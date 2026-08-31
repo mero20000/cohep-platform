@@ -61,7 +61,8 @@ UPDATE "analytics_events" SET "school_id" = (SELECT "id" FROM "schools" LIMIT 1)
 UPDATE "app_sessions" SET "school_id" = (SELECT "id" FROM "schools" LIMIT 1) WHERE "school_id" IS NULL OR "school_id" NOT IN (SELECT "id" FROM "schools");
 UPDATE "audit_logs" SET "school_id" = (SELECT "id" FROM "schools" LIMIT 1) WHERE "school_id" IS NULL OR "school_id" NOT IN (SELECT "id" FROM "schools");
 UPDATE "badges" SET "school_id" = (SELECT "id" FROM "schools" LIMIT 1) WHERE "school_id" IS NULL OR "school_id" NOT IN (SELECT "id" FROM "schools");
-UPDATE "system_configs" SET "school_id" = (SELECT "id" FROM "schools" LIMIT 1) WHERE "school_id" IS NULL OR "school_id" NOT IN (SELECT "id" FROM "schools");
+-- Delete orphaned system_configs (they reference deleted schools) instead of remapping to avoid unique constraint violations
+DELETE FROM "system_configs" WHERE "school_id" NOT IN (SELECT "id" FROM "schools");
 
 -- AlterTable
 ALTER TABLE "academic_weeks" ALTER COLUMN "status" DROP NOT NULL;
