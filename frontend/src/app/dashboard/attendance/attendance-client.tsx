@@ -114,6 +114,7 @@ export function AttendanceClient() {
     records: { id: string; status: string; recordedAt: string; homeworkStatus?: string; behavior?: number; participation?: number; attendedLiturgy?: boolean; attendanceSession?: { level?: { number?: number } } }[];
   }[]>([])
   const [searching, setSearching] = useState(false)
+  const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(null)
 
   const schoolId = getSchoolId()
   const searchParams = useSearchParams()
@@ -133,6 +134,49 @@ export function AttendanceClient() {
       setTab(next)
       setSelectedSession(null)
       requestAnimationFrame(() => tabRefs.current[next]?.focus())
+    }
+  }
+
+  const handleRecordKeyDown = (e: React.KeyboardEvent, recordIndex: number, record: any) => {
+    if (!selectedSession?.attendanceRecords) return
+    const records = safeRecords
+    const status = tempMarks[record.student.id]
+    const b = tempBehavior[record.student.id] || 0
+    const p = tempParticipation[record.student.id] || 0
+
+    // Attendance status: P/L/A/E
+    if (e.key === 'p' || e.key === 'P') {
+      e.preventDefault()
+      setTempMarks({ ...tempMarks, [record.student.id]: status === 'present' ? 'unmarked' : 'present' })
+    } else if (e.key === 'l' || e.key === 'L') {
+      e.preventDefault()
+      setTempMarks({ ...tempMarks, [record.student.id]: status === 'late' ? 'unmarked' : 'late' })
+    } else if (e.key === 'a' || e.key === 'A') {
+      e.preventDefault()
+      setTempMarks({ ...tempMarks, [record.student.id]: status === 'absent' ? 'unmarked' : 'absent' })
+    } else if (e.key === 'e' || e.key === 'E') {
+      e.preventDefault()
+      setTempMarks({ ...tempMarks, [record.student.id]: status === 'excused' ? 'unmarked' : 'excused' })
+    }
+    // Behavior: 1-5
+    else if (e.key >= '1' && e.key <= '5') {
+      e.preventDefault()
+      const v = parseInt(e.key, 10)
+      setTempBehavior({ ...tempBehavior, [record.student.id]: b === v ? 0 : v })
+    }
+    // Navigation: Arrow Up/Down
+    else if (e.key === 'ArrowUp' && recordIndex > 0) {
+      e.preventDefault()
+      const prevRecord = records[recordIndex - 1]
+      if (prevRecord?.student) {
+        document.querySelector(`[data-student-id="${prevRecord.student.id}"]`)?.focus()
+      }
+    } else if (e.key === 'ArrowDown' && recordIndex < records.length - 1) {
+      e.preventDefault()
+      const nextRecord = records[recordIndex + 1]
+      if (nextRecord?.student) {
+        document.querySelector(`[data-student-id="${nextRecord.student.id}"]`)?.focus()
+      }
     }
   }
 
@@ -671,9 +715,19 @@ export function AttendanceClient() {
                 className="rounded-lg border border-gray-300 px-2 py-1.5 text-xs min-h-[40px] focus:border-gold-500 focus:outline-none" />
               <div className="relative flex-1 min-w-[140px]">
                 <Search className="absolute start-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
-                <input type="text" value={search} onChange={e => setSearch(e.target.value)} placeholder={lang === 'ar' ? 'بحث...' : 'Search...'}
+                <input type="text" value={search} onChange={e => {
+                  setSearch(e.target.value)
+                  if (searchTimeout) clearTimeout(searchTimeout)
+                  setSearchTimeout(setTimeout(() => {}, 300))
+                }} placeholder={lang === 'ar' ? 'بحث...' : 'Search...'}
                   className="w-full rounded-lg border border-gray-300 ps-8 pe-2 py-1.5 text-xs min-h-[40px] focus:border-gold-500 focus:outline-none" />
               </div>
+              {(filterLevel || filterGroup || filterStatus || filterDateFrom || filterDateTo) && (
+                <div className="inline-flex items-center gap-1 px-2 py-1.5 bg-blue-100 text-blue-700 rounded-lg text-xs font-medium">
+                  <span>🔍</span>
+                  <span>{Object.values([filterLevel, filterGroup, filterStatus, filterDateFrom, filterDateTo]).filter(Boolean).length}</span>
+                </div>
+              )}
             </div>
             {/* Session list header with select-all */}
             <div className="flex items-center gap-3 px-5 py-2 bg-gray-50 border-b border-gray-100">
@@ -697,7 +751,7 @@ export function AttendanceClient() {
               )}
             </div>
 
-            <div className="divide-y divide-gray-100 max-h-[500px] overflow-y-auto">
+            <div className="divide-y divide-gray-100 max-h-[60vh] overflow-y-auto">
               {filteredSessions.map(s => {
                 const isScheduled = s.status === 'scheduled'
                 const isSelected = selectedSessionIds.has(s.id)
@@ -817,6 +871,10 @@ export function AttendanceClient() {
                   <Button variant="ghost" size="sm" onClick={() => setShowMarkAllConfirm('present')} className="bg-green-100 text-green-700 hover:bg-green-200">{lang === 'ar' ? 'الكل حاضر' : 'All Present'}</Button>
                   <Button variant="ghost" size="sm" onClick={() => setShowMarkAllConfirm('late')} className="bg-amber-100 text-amber-700 hover:bg-amber-200">{lang === 'ar' ? 'الكل متأخر' : 'All Late'}</Button>
                   <Button variant="ghost" size="sm" onClick={() => setShowMarkAllConfirm('absent')} className="bg-red-100 text-red-700 hover:bg-red-200">{lang === 'ar' ? 'الكل غائب' : 'All Absent'}</Button>
+                  <div className="ms-4 ps-4 border-l border-gray-200">
+                    <Button variant="ghost" size="sm" onClick={() => safeRecords.forEach(r => setTempBehavior({ ...tempBehavior, [r.student.id]: 4 }))} className="text-xs text-emerald-600 hover:bg-emerald-50">{lang === 'ar' ? 'السلوك 4' : 'Behavior 4'}</Button>
+                    <Button variant="ghost" size="sm" onClick={() => safeRecords.forEach(r => setTempParticipation({ ...tempParticipation, [r.student.id]: 4 }))} className="text-xs text-blue-600 hover:bg-blue-50">{lang === 'ar' ? 'المشاركة 4' : 'Participation 4'}</Button>
+                  </div>
                   <div className="ms-auto">
                     <Button variant="outline" size="sm" onClick={() => setShowQrScanner(true)}>
                       <QrCode className="h-3.5 w-3.5 ms-1" />{lang === 'ar' ? 'مسح QR' : 'QR Scan'}
