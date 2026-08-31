@@ -89,7 +89,7 @@ export default function RegisterPage() {
       if (!form.name.trim()) missing.push(t('Full name (English)', 'الاسم الكامل (إنجليزي)'))
       if (!form.dateOfBirth) missing.push(t('Date of birth', 'تاريخ الميلاد'))
       if (!form.gender) missing.push(t('Gender', 'الجنس'))
-      if (!form.gradeId) missing.push(t('Grade & Weekday', 'المرحلة واليوم'))
+      if (!form.gradeId) missing.push(t('Grade & Weekday', 'المرحلة واليوم (A/B)'))
       if (!photoPreview) missing.push(t('Profile picture', 'الصورة الشخصية'))
     } else if (step === 2) {
       if (!form.parentName.trim()) missing.push(t('Parent / Guardian name', 'اسم ولي الأمر'))
@@ -461,7 +461,7 @@ export default function RegisterPage() {
                     <p className="mt-1 text-xs text-gray-500">{t('Auto-set by your school', 'محدد تلقائياً من مدرستك')}</p>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">{t('Grade & Weekday *', 'المرحلة واليوم *')}</label>
+                    <label className="block text-sm font-medium text-gray-700">{t('Grade & Weekday (A = Saturday, B = Sunday)', 'المرحلة واليوم (أ = السبت، ب = الأحد)')}</label>
                     <select value={form.gradeId} onChange={e => update('gradeId', e.target.value)} className="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2.5 text-sm bg-white focus:border-gold-400 focus:outline-none">
                       <option value="">{t('Select a grade...', 'اختر المرحلة...')}</option>
                       {Object.entries(getGroupedGrades()).map(([group, grades]) => (
@@ -472,7 +472,7 @@ export default function RegisterPage() {
                         </optgroup>
                       ))}
                     </select>
-                    <p className="mt-1 text-xs text-gray-500">{t('Shows the day this grade meets', 'يوضح موعد حضور هذه المرحلة')}</p>
+                    <p className="mt-1 text-xs text-gray-500">{t('A classes meet on Saturday, B classes meet on Sunday', 'فصول أ تجتمع يوم السبت، فصول ب تجتمع يوم الأحد')}</p>
                   </div>
                 </div>
 
