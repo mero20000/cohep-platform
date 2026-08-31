@@ -258,7 +258,7 @@ export default function RegisterPage() {
             <div className="flex flex-col items-center gap-2">
               <div className="flex h-16 w-16 sm:h-20 sm:w-20 items-center justify-center rounded-2xl bg-white/10 border-2 border-gold-400/40 shadow-xl overflow-hidden backdrop-blur">
                 {churchLogo ? (
-                  <Image src={abs(churchLogo)} alt={meta?.church?.name || ''} width={80} height={80} className="h-full w-full object-cover" unoptimized />
+                  <Image src={abs(churchLogo)} alt={meta?.church?.name || ''} width={80} height={80} className="h-full w-full object-cover" priority />
                 ) : (
                   <Church className="h-8 w-8 text-gold-300" />
                 )}
@@ -280,7 +280,7 @@ export default function RegisterPage() {
             <div className="flex flex-col items-center gap-2">
               <div className="flex h-16 w-16 sm:h-20 sm:w-20 items-center justify-center rounded-2xl bg-white/10 border-2 border-white/25 shadow-xl overflow-hidden backdrop-blur">
                 {schoolLogo ? (
-                  <Image src={abs(schoolLogo)} alt={meta?.school?.name || ''} width={80} height={80} className="h-full w-full object-cover" unoptimized />
+                  <Image src={abs(schoolLogo)} alt={meta?.school?.name || ''} width={80} height={80} className="h-full w-full object-cover" priority />
                 ) : (
                   <GraduationCap className="h-8 w-8 text-white/70" />
                 )}
