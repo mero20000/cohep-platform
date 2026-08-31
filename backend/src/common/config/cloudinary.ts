@@ -1,5 +1,4 @@
 import { v2 as cloudinary } from 'cloudinary';
-import CloudinaryStorage from 'multer-storage-cloudinary';
 
 const isCloudinaryConfigured = !!(
   process.env.CLOUDINARY_CLOUD_NAME &&
@@ -18,7 +17,13 @@ if (isCloudinaryConfigured) {
 export { cloudinary, isCloudinaryConfigured };
 
 export function createCloudinaryStorage(folder: string) {
+  if (!isCloudinaryConfigured) {
+    console.warn('Cloudinary not configured, falling back to disk storage');
+    return null; // Return null, caller will use disk storage fallback
+  }
+
   try {
+    const CloudinaryStorage = require('multer-storage-cloudinary');
     return new CloudinaryStorage({
       cloudinary,
       params: async (_req, file) => {

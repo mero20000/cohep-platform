@@ -79,7 +79,11 @@ export class UploadController {
   @UseInterceptors(
     FileInterceptor('file', {
       storage: (() => {
-        if (isCloudinaryConfigured) return createCloudinaryStorage('church-logos');
+        try {
+          if (isCloudinaryConfigured) return createCloudinaryStorage('church-logos');
+        } catch (err) {
+          console.error('Cloudinary initialization failed, using disk storage:', err);
+        }
         return diskStorage({
           destination: join(__dirname, '..', '..', '..', 'uploads', 'church-logos'),
           filename: (_req, file, cb) => { cb(null, `${uuid()}${extname(file.originalname).toLowerCase()}`); },
@@ -102,7 +106,11 @@ export class UploadController {
   @UseInterceptors(
     FileInterceptor('file', {
       storage: (() => {
-        if (isCloudinaryConfigured) return createCloudinaryStorage('school-logos');
+        try {
+          if (isCloudinaryConfigured) return createCloudinaryStorage('school-logos');
+        } catch (err) {
+          console.error('Cloudinary initialization failed, using disk storage:', err);
+        }
         return diskStorage({
           destination: join(__dirname, '..', '..', '..', 'uploads', 'church-logos'),
           filename: (_req, file, cb) => { cb(null, `school-${uuid()}${extname(file.originalname).toLowerCase()}`); },
@@ -125,7 +133,11 @@ export class UploadController {
   @UseInterceptors(
     FileInterceptor('file', {
       storage: (() => {
-        if (isCloudinaryConfigured) return createCloudinaryStorage('avatars');
+        try {
+          if (isCloudinaryConfigured) return createCloudinaryStorage('avatars');
+        } catch (err) {
+          console.error('Cloudinary initialization failed, using disk storage:', err);
+        }
         return diskStorage({
           destination: join(__dirname, '..', '..', '..', 'uploads', 'avatars'),
           filename: (_req, file, cb) => { cb(null, `avatar-${uuid()}${extname(file.originalname).toLowerCase()}`); },
