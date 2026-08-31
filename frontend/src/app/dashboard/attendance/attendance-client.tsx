@@ -994,7 +994,7 @@ export function AttendanceClient() {
                             className={`inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-medium transition-colors ${
                               passedIds.has(record.student.id)
                                 ? 'bg-green-100 text-green-700'
-                                : 'border border-gray-200 text-gray-600 hover:bg-green-50 hover:text-green-700'
+                                : 'border border-gray-300 text-gray-700 hover:bg-green-50 hover:text-green-700'
                             }`}>
                             {passingId === record.student.id ? (
                               <Loader2 className="h-3.5 w-3.5 animate-spin" />
