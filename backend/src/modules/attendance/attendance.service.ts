@@ -1165,13 +1165,6 @@ export class AttendanceService {
           type: 'practice_guide',
           title: `${student.firstName} practice guide for this week`,
           body: `${student.firstName} learned ${lesson.titleAr || lesson.title} today`,
-          data: {
-            url: `/portal/children/${student.id}/practice-guide`,
-            lessonId: lesson.id,
-            audioUrl: lesson.audioUrl,
-            hymnName: lesson.titleAr || lesson.title,
-          },
-          channels: ['in_app'],
         });
       }
     }
