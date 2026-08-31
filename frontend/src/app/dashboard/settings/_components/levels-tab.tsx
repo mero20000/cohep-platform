@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
-import { Plus, Pencil, Loader2, Check, X } from 'lucide-react'
+import { Plus, Pencil, Loader2, Check, X, Copy, Check2 } from 'lucide-react'
 import { TableSkeleton } from '@/components/ui/skeleton'
 import { useToast } from '@/components/ui/toast'
 import { Modal } from '@/components/ui/modal'
@@ -36,6 +36,7 @@ export function LevelsTab() {
   const [form, setForm] = useState(emptyForm)
   const [formError, setFormError] = useState('')
   const [saving, setSaving] = useState(false)
+  const [copiedId, setCopiedId] = useState<string | null>(null)
 
   const fetchLevels = () => {
     setLoading(true)
@@ -74,6 +75,12 @@ export function LevelsTab() {
     setForm({ name: level.name, nameAr: level.nameAr || '', description: level.description || '' })
     setFormError('')
     setShowForm(true)
+  }
+
+  const copyToClipboard = (text: string, id: string) => {
+    navigator.clipboard.writeText(text)
+    setCopiedId(id)
+    setTimeout(() => setCopiedId(null), 2000)
   }
 
   const handleSave = async () => {
@@ -126,53 +133,76 @@ export function LevelsTab() {
           <p className="text-sm text-gray-500">{lang === 'ar' ? 'لا توجد مستويات بعد. انقر على "إضافة مستوى" لإنشاء واحد.' : 'No levels yet. Click "Add Level" to create one.'}</p>
         </div>
       ) : (
-        <div className="space-y-3">
-          {levels.map(level => (
-            <div key={level.id}
-              className="flex items-center justify-between rounded-lg border border-gray-200 px-4 py-3 hover:border-gray-300 transition-colors">
-              <div className="flex items-center gap-4">
-                <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 text-sm font-bold text-blue-700">
-                  {level.number}
-                </span>
-                <div>
-                  <p className="text-sm font-medium text-gray-900">{level.name}</p>
-                  {level.nameAr && <p className="text-xs text-gray-500">{level.nameAr}</p>}
+        <div className="space-y-4">
+          <div className="rounded-lg bg-blue-50 border border-blue-200 p-4 text-sm">
+            <p className="text-blue-900 font-medium mb-3">{lang === 'ar' ? 'للاستخدام في استيراد CSV:' : 'For CSV import use:'}</p>
+            <div className="space-y-2">
+              {levels.map(level => (
+                <button
+                  key={`copy-${level.id}`}
+                  onClick={() => copyToClipboard(level.name, `copy-${level.id}`)}
+                  className="w-full text-left px-3 py-2 rounded-lg bg-white border border-blue-200 hover:border-blue-300 hover:bg-blue-50 transition-colors group flex items-center justify-between"
+                >
+                  <span className="font-mono text-sm text-blue-700">{level.name}</span>
+                  {copiedId === `copy-${level.id}` ? (
+                    <Check2 className="h-4 w-4 text-green-600" />
+                  ) : (
+                    <Copy className="h-4 w-4 text-blue-400 group-hover:text-blue-600 opacity-0 group-hover:opacity-100" />
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            {levels.map(level => (
+              <div key={level.id}
+                className="flex items-center justify-between rounded-lg border border-gray-200 px-4 py-4 hover:border-gray-300 transition-colors">
+                <div className="flex items-center gap-4 flex-1">
+                  <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-50 text-sm font-bold text-blue-700">
+                    {level.number}
+                  </span>
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-gray-900">{level.name}</p>
+                    {level.nameAr && <p className="text-xs text-gray-500">{level.nameAr}</p>}
+                    <p className="text-xs text-gray-400 mt-1 font-mono">ID: {level.id.substring(0, 8)}...</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button variant="ghost" size="icon" onClick={() => openEdit(level)}
+                    aria-label={lang === 'ar' ? `تعديل ${level.name}` : `Edit ${level.name}`}
+                    className="rounded-lg p-1.5 text-gray-400 hover:bg-amber-50 hover:text-amber-600 transition-colors">
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                  <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                    level.status === 'active'
+                      ? 'bg-green-50 text-green-700'
+                      : 'bg-gray-100 text-gray-500'
+                  }`}>
+                    <span className={`h-1.5 w-1.5 rounded-full ${
+                      level.status === 'active' ? 'bg-green-500' : 'bg-gray-400'
+                    }`} />
+                    {level.status === 'active' ? (lang === 'ar' ? 'نشط' : 'Active') : (lang === 'ar' ? 'غير نشط' : 'Inactive')}
+                  </span>
+                  <Button variant="outline" size="sm" onClick={() => toggleStatus(level)} disabled={toggling[level.id]}
+                    aria-label={lang === 'ar' ? `${level.status === 'active' ? 'إلغاء تفعيل' : 'تفعيل'} ${level.name}` : `${level.status === 'active' ? 'Deactivate' : 'Activate'} ${level.name}`}
+                    className={`inline-flex items-center gap-1.5 transition-colors ${
+                      level.status === 'active'
+                        ? 'border-red-200 text-red-600 hover:bg-red-50'
+                        : 'border-green-200 text-green-600 hover:bg-green-50'
+                    }`}>
+                    {toggling[level.id] ? (
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                    ) : level.status === 'active' ? (
+                      <><X className="h-3 w-3" /> {lang === 'ar' ? 'إلغاء التفعيل' : 'Deactivate'}</>
+                    ) : (
+                      <><Check className="h-3 w-3" /> {lang === 'ar' ? 'تفعيل' : 'Activate'}</>
+                    )}
+                  </Button>
                 </div>
               </div>
-              <div className="flex items-center gap-2">
-                <Button variant="ghost" size="icon" onClick={() => openEdit(level)}
-                  aria-label={lang === 'ar' ? `تعديل ${level.name}` : `Edit ${level.name}`}
-                  className="rounded-lg p-1.5 text-gray-400 hover:bg-amber-50 hover:text-amber-600 transition-colors">
-                  <Pencil className="h-4 w-4" />
-                </Button>
-                <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                  level.status === 'active'
-                    ? 'bg-green-50 text-green-700'
-                    : 'bg-gray-100 text-gray-500'
-                }`}>
-                  <span className={`h-1.5 w-1.5 rounded-full ${
-                    level.status === 'active' ? 'bg-green-500' : 'bg-gray-400'
-                  }`} />
-                  {level.status === 'active' ? (lang === 'ar' ? 'نشط' : 'Active') : (lang === 'ar' ? 'غير نشط' : 'Inactive')}
-                </span>
-                <Button variant="outline" size="sm" onClick={() => toggleStatus(level)} disabled={toggling[level.id]}
-                  aria-label={lang === 'ar' ? `${level.status === 'active' ? 'إلغاء تفعيل' : 'تفعيل'} ${level.name}` : `${level.status === 'active' ? 'Deactivate' : 'Activate'} ${level.name}`}
-                  className={`inline-flex items-center gap-1.5 transition-colors ${
-                    level.status === 'active'
-                      ? 'border-red-200 text-red-600 hover:bg-red-50'
-                      : 'border-green-200 text-green-600 hover:bg-green-50'
-                  }`}>
-                  {toggling[level.id] ? (
-                    <Loader2 className="h-3 w-3 animate-spin" />
-                  ) : level.status === 'active' ? (
-                    <><X className="h-3 w-3" /> {lang === 'ar' ? 'إلغاء التفعيل' : 'Deactivate'}</>
-                  ) : (
-                    <><Check className="h-3 w-3" /> {lang === 'ar' ? 'تفعيل' : 'Activate'}</>
-                  )}
-                </Button>
-              </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       )}
 
