@@ -210,6 +210,9 @@ ALTER TABLE "student_subject_passes" ADD CONSTRAINT "student_subject_passes_subj
 -- AddForeignKey
 ALTER TABLE "student_subject_passes" ADD CONSTRAINT "student_subject_passes_revoked_by_fkey" FOREIGN KEY ("revoked_by") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
+-- BACKFILL: Clear orphaned subject_item_ids before adding FK constraint
+UPDATE "lessons" SET "subject_item_id" = NULL WHERE "subject_item_id" IS NOT NULL AND "subject_item_id" NOT IN (SELECT "id" FROM "subject_items");
+
 -- AddForeignKey
 ALTER TABLE "lessons" ADD CONSTRAINT "lessons_subject_item_id_fkey" FOREIGN KEY ("subject_item_id") REFERENCES "subject_items"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
