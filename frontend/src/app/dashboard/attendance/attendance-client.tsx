@@ -94,6 +94,10 @@ export function AttendanceClient() {
   const [deleting, setDeleting] = useState(false)
   const [showGenerateConfirm, setShowGenerateConfirm] = useState(false)
   const [generating, setGenerating] = useState(false)
+  const [selectedSessionIds, setSelectedSessionIds] = useState<Set<string>>(new Set())
+  const [showBatchDeleteConfirm, setShowBatchDeleteConfirm] = useState(false)
+  const [batchDeleting, setBatchDeleting] = useState(false)
+  const [showMarkAllConfirm, setShowMarkAllConfirm] = useState<string | null>(null)
 
   const [showQrScanner, setShowQrScanner] = useState(false)
   const [startingClass, setStartingClass] = useState(false)
@@ -110,6 +114,7 @@ export function AttendanceClient() {
     records: { id: string; status: string; recordedAt: string; homeworkStatus?: string; behavior?: number; participation?: number; attendedLiturgy?: boolean; attendanceSession?: { level?: { number?: number } } }[];
   }[]>([])
   const [searching, setSearching] = useState(false)
+  const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(null)
 
   const schoolId = getSchoolId()
   const searchParams = useSearchParams()
@@ -132,6 +137,49 @@ export function AttendanceClient() {
     }
   }
 
+  const handleRecordKeyDown = (e: React.KeyboardEvent, recordIndex: number, record: any) => {
+    if (!selectedSession?.attendanceRecords) return
+    const records = safeRecords
+    const status = tempMarks[record.student.id]
+    const b = tempBehavior[record.student.id] || 0
+    const p = tempParticipation[record.student.id] || 0
+
+    // Attendance status: P/L/A/E
+    if (e.key === 'p' || e.key === 'P') {
+      e.preventDefault()
+      setTempMarks({ ...tempMarks, [record.student.id]: status === 'present' ? 'unmarked' : 'present' })
+    } else if (e.key === 'l' || e.key === 'L') {
+      e.preventDefault()
+      setTempMarks({ ...tempMarks, [record.student.id]: status === 'late' ? 'unmarked' : 'late' })
+    } else if (e.key === 'a' || e.key === 'A') {
+      e.preventDefault()
+      setTempMarks({ ...tempMarks, [record.student.id]: status === 'absent' ? 'unmarked' : 'absent' })
+    } else if (e.key === 'e' || e.key === 'E') {
+      e.preventDefault()
+      setTempMarks({ ...tempMarks, [record.student.id]: status === 'excused' ? 'unmarked' : 'excused' })
+    }
+    // Behavior: 1-5
+    else if (e.key >= '1' && e.key <= '5') {
+      e.preventDefault()
+      const v = parseInt(e.key, 10)
+      setTempBehavior({ ...tempBehavior, [record.student.id]: b === v ? 0 : v })
+    }
+    // Navigation: Arrow Up/Down
+    else if (e.key === 'ArrowUp' && recordIndex > 0) {
+      e.preventDefault()
+      const prevRecord = records[recordIndex - 1]
+      if (prevRecord?.student) {
+        document.querySelector(`[data-student-id="${prevRecord.student.id}"]`)?.focus()
+      }
+    } else if (e.key === 'ArrowDown' && recordIndex < records.length - 1) {
+      e.preventDefault()
+      const nextRecord = records[recordIndex + 1]
+      if (nextRecord?.student) {
+        document.querySelector(`[data-student-id="${nextRecord.student.id}"]`)?.focus()
+      }
+    }
+  }
+
   const fetchSessions = useCallback(async () => {
     setLoading(true)
     const params: Record<string, string> = { schoolId, limit: '500' }
@@ -143,9 +191,12 @@ export function AttendanceClient() {
     try {
       const data = await http.get<{ data: Session[] }>('/attendance/sessions', params)
       setSessions(data.data || [])
-    } catch (e) { console.error(e) }
+    } catch (e: any) {
+      toast('error', lang === 'ar' ? 'فشل تحميل الجلسات' : 'Failed to load sessions', e?.message || '')
+      console.error(e)
+    }
     setLoading(false)
-  }, [filterLevel, filterGroup, filterStatus, filterDateFrom, filterDateTo])
+  }, [filterLevel, filterGroup, filterStatus, filterDateFrom, filterDateTo, toast, lang])
 
   const fetchStats = useCallback(async () => {
     try {
@@ -157,8 +208,11 @@ export function AttendanceClient() {
       setStats(statsData)
       setLevelStats(levelData)
       setGroupStats(groupData)
-    } catch (e) { console.error(e) }
-  }, [])
+    } catch (e: any) {
+      toast('error', lang === 'ar' ? 'فشل تحميل الإحصائيات' : 'Failed to load statistics', e?.message || '')
+      console.error(e)
+    }
+  }, [toast, lang])
 
   const fetchLevelsGroups = useCallback(async () => {
     try {
@@ -168,8 +222,11 @@ export function AttendanceClient() {
       ])
       setLevels(allLevels.filter(l => l.status !== 'inactive'))
       setGroups((allGroups || []).filter(g => g.status !== 'inactive'))
-    } catch (e) { console.error(e) }
-  }, [schoolId])
+    } catch (e: any) {
+      toast('error', lang === 'ar' ? 'فشل تحميل المستويات والمجموعات' : 'Failed to load levels and groups', e?.message || '')
+      console.error(e)
+    }
+  }, [schoolId, toast, lang])
 
   useEffect(() => { fetchLevelsGroups() }, [fetchLevelsGroups])
   useEffect(() => { fetchSessions() }, [fetchSessions])
@@ -226,7 +283,10 @@ export function AttendanceClient() {
       setTempLiturgy(liturgy)
       setTempNotes(notes)
       setTab('sessions')
-    } catch (e) { console.error(e) }
+    } catch (e: any) {
+      toast('error', lang === 'ar' ? 'فشل تحميل تفاصيل الجلسة' : 'Failed to load session details', e?.message || '')
+      console.error(e)
+    }
   }
 
   const handleMarkAll = (status: string) => {
@@ -258,8 +318,12 @@ export function AttendanceClient() {
       }
       fetchSessionDetail(selectedSession.id)
       fetchSessions()
+      toast('success', lang === 'ar' ? 'تم حفظ الحضور' : 'Attendance saved')
       track('attendance.marked', 'action', { count: records.length, completed: markAsCompleted, sessionId: selectedSession.id })
-    } catch (e) { console.error(e) }
+    } catch (e: any) {
+      toast('error', lang === 'ar' ? 'فشل حفظ الحضور' : 'Failed to save attendance', e?.message || '')
+      console.error(e)
+    }
     setMarking(false)
   }
 
@@ -375,8 +439,12 @@ export function AttendanceClient() {
       })
       setShowCreateModal(false)
       setCreateForm({ levelId: '', groupId: '', servantId: '', scheduledDate: '', scheduledTime: '12:00', status: 'scheduled', notes: '' })
+      toast('success', lang === 'ar' ? 'تم إنشاء الجلسة' : 'Session created')
       fetchSessions()
-    } catch (e) { console.error(e) }
+    } catch (e: any) {
+      toast('error', lang === 'ar' ? 'فشل إنشاء الجلسة' : 'Failed to create session', e?.message || '')
+      console.error(e)
+    }
     setSaving(false)
   }
 
@@ -400,9 +468,13 @@ export function AttendanceClient() {
     try {
       await http.put(`/attendance/sessions/${editSessionId}`, editForm)
       setShowEditModal(false)
+      toast('success', lang === 'ar' ? 'تم تحديث الجلسة' : 'Session updated')
       fetchSessions()
       if (selectedSession?.id === editSessionId) fetchSessionDetail(editSessionId)
-    } catch (e) { console.error(e) }
+    } catch (e: any) {
+      toast('error', lang === 'ar' ? 'فشل تحديث الجلسة' : 'Failed to update session', e?.message || '')
+      console.error(e)
+    }
     setSaving(false)
   }
 
@@ -415,7 +487,10 @@ export function AttendanceClient() {
       setSelectedSession(null)
       fetchSessions()
       toast('success', lang === 'ar' ? 'تم حذف الجلسة' : 'Session deleted')
-    } catch (e) { console.error(e) }
+    } catch (e: any) {
+      toast('error', lang === 'ar' ? 'فشل حذف الجلسة' : 'Failed to delete session', e?.message || '')
+      console.error(e)
+    }
     setDeleting(false)
   }
 
@@ -466,10 +541,52 @@ export function AttendanceClient() {
     setMarking(true)
     try {
       await http.put(`/attendance/sessions/${selectedSession.id}`, { status: 'in_progress' })
+      toast('success', lang === 'ar' ? 'تم إعادة فتح الجلسة' : 'Session reopened')
       fetchSessionDetail(selectedSession.id)
       fetchSessions()
-    } catch (e) { console.error(e) }
+    } catch (e: any) {
+      toast('error', lang === 'ar' ? 'فشل إعادة فتح الجلسة' : 'Failed to reopen session', e?.message || '')
+      console.error(e)
+    }
     setMarking(false)
+  }
+
+  const toggleSessionSelection = (sessionId: string) => {
+    setSelectedSessionIds(prev => {
+      const next = new Set(prev)
+      if (next.has(sessionId)) {
+        next.delete(sessionId)
+      } else {
+        next.add(sessionId)
+      }
+      return next
+    })
+  }
+
+  const toggleSelectAll = () => {
+    const scheduledSessions = filteredSessions.filter(s => s.status === 'scheduled')
+    if (selectedSessionIds.size === scheduledSessions.length && selectedSessionIds.size > 0) {
+      setSelectedSessionIds(new Set())
+    } else {
+      setSelectedSessionIds(new Set(scheduledSessions.map(s => s.id)))
+    }
+  }
+
+  const handleBatchDeleteSessions = async () => {
+    if (selectedSessionIds.size === 0) return
+    setBatchDeleting(true)
+    try {
+      await http.post('/attendance/sessions/batch-delete', { sessionIds: Array.from(selectedSessionIds) })
+      setShowBatchDeleteConfirm(false)
+      setSelectedSessionIds(new Set())
+      fetchSessions()
+      toast('success', lang === 'ar' ? `تم حذف ${selectedSessionIds.size} جلسات` : `Deleted ${selectedSessionIds.size} sessions`)
+      track('attendance.batch_deleted', 'action', { count: selectedSessionIds.size })
+    } catch (e: any) {
+      toast('error', lang === 'ar' ? 'فشل حذف الجلسات' : 'Failed to delete sessions', e?.message || '')
+      console.error(e)
+    }
+    setBatchDeleting(false)
   }
 
   const safeRecords = selectedSession?.attendanceRecords?.filter(r => r?.student) || []
@@ -534,7 +651,8 @@ export function AttendanceClient() {
         </nav>
       </div>
 
-      {/* Stats Cards */}
+      {/* Stats Cards - only show on stats tab */}
+      {tab === 'stats' && (
       <div className="grid gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-6">
         {stats && (
           <>
@@ -556,6 +674,7 @@ export function AttendanceClient() {
           </>
         )}
       </div>
+      )}
 
       {/* Sessions Tab */}
       {tab === 'sessions' && (
@@ -596,21 +715,65 @@ export function AttendanceClient() {
                 className="rounded-lg border border-gray-300 px-2 py-1.5 text-xs min-h-[40px] focus:border-gold-500 focus:outline-none" />
               <div className="relative flex-1 min-w-[140px]">
                 <Search className="absolute start-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
-                <input type="text" value={search} onChange={e => setSearch(e.target.value)} placeholder={lang === 'ar' ? 'بحث...' : 'Search...'}
+                <input type="text" value={search} onChange={e => {
+                  setSearch(e.target.value)
+                  if (searchTimeout) clearTimeout(searchTimeout)
+                  setSearchTimeout(setTimeout(() => {}, 300))
+                }} placeholder={lang === 'ar' ? 'بحث...' : 'Search...'}
                   className="w-full rounded-lg border border-gray-300 ps-8 pe-2 py-1.5 text-xs min-h-[40px] focus:border-gold-500 focus:outline-none" />
               </div>
+              {(filterLevel || filterGroup || filterStatus || filterDateFrom || filterDateTo) && (
+                <div className="inline-flex items-center gap-1 px-2 py-1.5 bg-blue-100 text-blue-700 rounded-lg text-xs font-medium">
+                  <span>🔍</span>
+                  <span>{Object.values([filterLevel, filterGroup, filterStatus, filterDateFrom, filterDateTo]).filter(Boolean).length}</span>
+                </div>
+              )}
             </div>
-            <div className="divide-y divide-gray-100 max-h-[500px] overflow-y-auto">
-              {filteredSessions.map(s => (
-                <button key={s.id} aria-label={`session ${s.group?.name || s.id}`} onClick={() => fetchSessionDetail(s.id)}
-                  className={`w-full flex items-center gap-3 px-5 py-3 text-start transition-colors hover:bg-gray-50 active:bg-gray-100 ${
+            {/* Session list header with select-all */}
+            <div className="flex items-center gap-3 px-5 py-2 bg-gray-50 border-b border-gray-100">
+              <input type="checkbox"
+                checked={selectedSessionIds.size > 0 && selectedSessionIds.size === filteredSessions.filter(s => s.status === 'scheduled').length}
+                onChange={toggleSelectAll}
+                disabled={filteredSessions.filter(s => s.status === 'scheduled').length === 0}
+                aria-label={lang === 'ar' ? 'تحديد الكل' : 'Select all'}
+                className="h-5 w-5 rounded border-gray-300 text-gold-700 focus:ring-gold-500 cursor-pointer" />
+              <span className="text-xs text-gray-600 font-medium">
+                {selectedSessionIds.size > 0
+                  ? (lang === 'ar' ? `${selectedSessionIds.size} محدد` : `${selectedSessionIds.size} selected`)
+                  : (lang === 'ar' ? 'حدد للحذف' : 'Select to delete')}
+              </span>
+              {selectedSessionIds.size > 0 && (
+                <Button variant="destructive" size="sm" onClick={() => setShowBatchDeleteConfirm(true)} disabled={batchDeleting}
+                  className="ms-auto">
+                  <Trash2 className="h-3.5 w-3.5" />
+                  {batchDeleting ? (lang === 'ar' ? '...جاري' : 'Deleting...') : (lang === 'ar' ? `حذف ${selectedSessionIds.size}` : `Delete ${selectedSessionIds.size}`)}
+                </Button>
+              )}
+            </div>
+
+            <div className="divide-y divide-gray-100 max-h-[60vh] overflow-y-auto">
+              {filteredSessions.map(s => {
+                const isScheduled = s.status === 'scheduled'
+                const isSelected = selectedSessionIds.has(s.id)
+                return (
+                  <div key={s.id} className={`flex items-center px-5 py-3 hover:bg-gray-50 active:bg-gray-100 ${
                     selectedSession?.id === s.id ? 'bg-blue-50/50 border-s-2 border-gold-500' : ''
                   }`}>
-                  <div className={`flex h-9 w-9 items-center justify-center rounded-lg ${
-                    s.status === 'completed' ? 'bg-green-100 text-green-600' : s.status === 'scheduled' ? 'bg-blue-100 text-blue-600' : 'bg-amber-100 text-amber-600'
-                  }`}>
-                    <Calendar className="h-4 w-4" />
-                  </div>
+                    {isScheduled && (
+                      <input type="checkbox"
+                        checked={isSelected}
+                        onChange={(e) => { e.stopPropagation(); toggleSessionSelection(s.id) }}
+                        aria-label={lang === 'ar' ? `تحديد ${s.group?.name}` : `Select ${s.group?.name}`}
+                        className="h-5 w-5 rounded border-gray-300 text-gold-700 focus:ring-gold-500 cursor-pointer me-3" />
+                    )}
+                    <button onClick={() => fetchSessionDetail(s.id)}
+                      aria-label={`session ${s.group?.name || s.id}`}
+                      className="flex-1 flex items-center gap-3 text-start transition-colors">
+                      <div className={`flex h-9 w-9 items-center justify-center rounded-lg ${
+                        s.status === 'completed' ? 'bg-green-100 text-green-600' : s.status === 'scheduled' ? 'bg-blue-100 text-blue-600' : 'bg-amber-100 text-amber-600'
+                      }`}>
+                        <Calendar className="h-4 w-4" />
+                      </div>
                   <div className="flex-1 min-w-0">
                     <div className="text-sm font-medium text-gray-900 truncate">L{s.level?.number || '?'} &middot; {s.group?.name || '?'}</div>
                     <div className="flex items-center gap-2 text-xs text-gray-500 mt-0.5">
@@ -621,11 +784,13 @@ export function AttendanceClient() {
                       )}
                     </div>
                   </div>
-                  <Badge variant={s.status === 'completed' ? 'success' : s.status === 'scheduled' ? 'info' : s.status === 'cancelled' ? 'danger' : s.status === 'postponed' ? 'outline' : 'warning'} size="sm">
-                    {s.status === 'completed' ? (lang === 'ar' ? 'مكتمل' : 'Completed') : s.status === 'scheduled' ? (lang === 'ar' ? 'مجدول' : 'Scheduled') : s.status === 'in_progress' ? (lang === 'ar' ? 'قيد التنفيذ' : 'In Progress') : s.status === 'cancelled' ? (lang === 'ar' ? 'ملغي' : 'Cancelled') : s.status === 'postponed' ? (lang === 'ar' ? 'مؤجل' : 'Postponed') : s.status}
-                  </Badge>
-                </button>
-              ))}
+                      <Badge variant={s.status === 'completed' ? 'success' : s.status === 'scheduled' ? 'info' : s.status === 'cancelled' ? 'danger' : s.status === 'postponed' ? 'outline' : 'warning'} size="sm">
+                        {s.status === 'completed' ? (lang === 'ar' ? 'مكتمل' : 'Completed') : s.status === 'scheduled' ? (lang === 'ar' ? 'مجدول' : 'Scheduled') : s.status === 'in_progress' ? (lang === 'ar' ? 'قيد التنفيذ' : 'In Progress') : s.status === 'cancelled' ? (lang === 'ar' ? 'ملغي' : 'Cancelled') : s.status === 'postponed' ? (lang === 'ar' ? 'مؤجل' : 'Postponed') : s.status}
+                      </Badge>
+                    </button>
+                  </div>
+                )
+              })}
               {filteredSessions.length === 0 && (
                 <div className="py-12 text-center text-gray-500"><Calendar className="h-10 w-10 mx-auto mb-2 opacity-50" /><p>{lang === 'ar' ? 'لم يتم العثور على جلسات' : 'No sessions found'}</p></div>
               )}
@@ -703,9 +868,13 @@ export function AttendanceClient() {
               {!isCompleted && !showQrScanner && (
                 <div className="flex items-center gap-2 px-5 py-2 border-b border-gray-100 bg-gray-50">
                   <span className="text-xs text-gray-500">{lang === 'ar' ? 'تحديد الكل:' : 'Mark all:'}</span>
-                  <Button variant="ghost" size="sm" onClick={() => handleMarkAll('present')} className="bg-green-100 text-green-700 hover:bg-green-200">{lang === 'ar' ? 'الكل حاضر' : 'All Present'}</Button>
-                  <Button variant="ghost" size="sm" onClick={() => handleMarkAll('late')} className="bg-amber-100 text-amber-700 hover:bg-amber-200">{lang === 'ar' ? 'الكل متأخر' : 'All Late'}</Button>
-                  <Button variant="ghost" size="sm" onClick={() => handleMarkAll('absent')} className="bg-red-100 text-red-700 hover:bg-red-200">{lang === 'ar' ? 'الكل غائب' : 'All Absent'}</Button>
+                  <Button variant="ghost" size="sm" onClick={() => setShowMarkAllConfirm('present')} className="bg-green-100 text-green-700 hover:bg-green-200">{lang === 'ar' ? 'الكل حاضر' : 'All Present'}</Button>
+                  <Button variant="ghost" size="sm" onClick={() => setShowMarkAllConfirm('late')} className="bg-amber-100 text-amber-700 hover:bg-amber-200">{lang === 'ar' ? 'الكل متأخر' : 'All Late'}</Button>
+                  <Button variant="ghost" size="sm" onClick={() => setShowMarkAllConfirm('absent')} className="bg-red-100 text-red-700 hover:bg-red-200">{lang === 'ar' ? 'الكل غائب' : 'All Absent'}</Button>
+                  <div className="ms-4 ps-4 border-l border-gray-200">
+                    <Button variant="ghost" size="sm" onClick={() => safeRecords.forEach(r => setTempBehavior({ ...tempBehavior, [r.student.id]: 4 }))} className="text-xs text-emerald-600 hover:bg-emerald-50">{lang === 'ar' ? 'السلوك 4' : 'Behavior 4'}</Button>
+                    <Button variant="ghost" size="sm" onClick={() => safeRecords.forEach(r => setTempParticipation({ ...tempParticipation, [r.student.id]: 4 }))} className="text-xs text-blue-600 hover:bg-blue-50">{lang === 'ar' ? 'المشاركة 4' : 'Participation 4'}</Button>
+                  </div>
                   <div className="ms-auto">
                     <Button variant="outline" size="sm" onClick={() => setShowQrScanner(true)}>
                       <QrCode className="h-3.5 w-3.5 ms-1" />{lang === 'ar' ? 'مسح QR' : 'QR Scan'}
@@ -803,15 +972,17 @@ export function AttendanceClient() {
                             const statusLabel = s === 'present' ? (lang === 'ar' ? 'حاضر' : 'Present') : s === 'late' ? (lang === 'ar' ? 'متأخر' : 'Late') : s === 'absent' ? (lang === 'ar' ? 'غائب' : 'Absent') : (lang === 'ar' ? 'معذور' : 'Excused')
                             if (isCompleted) {
                               return (
-                                <div key={s} className={`rounded-lg p-2 ${status === s ? STATUS_COLORS[s] : 'text-gray-200'}`} aria-hidden="true">
+                                <div key={s} className={`rounded-lg p-3 ${status === s ? STATUS_COLORS[s] : 'text-gray-200'}`} role="img" aria-label={status === s ? statusLabel : ''}>
                                   <Icon className="h-5 w-5" />
+                                  {status === s && <span className="sr-only">{statusLabel}</span>}
                                 </div>
                               )
                             }
                             return (
                               <button key={s} onClick={() => setTempMarks({ ...tempMarks, [record.student.id]: status === s ? 'unmarked' : s })}
-                                className={`rounded-lg p-2 transition-colors ${status === s ? STATUS_COLORS[s] : 'text-gray-300 hover:bg-gray-100'}`} title={statusLabel} aria-label={`${statusLabel} - ${record.student.firstName} ${record.student.lastName}`} aria-pressed={status === s}>
+                                className={`rounded-lg p-3 transition-colors focus-visible:ring-2 focus-visible:ring-gold-500 focus-visible:ring-offset-1 ${status === s ? STATUS_COLORS[s] : 'text-gray-300 hover:bg-gray-100'}`} title={statusLabel} aria-label={`${statusLabel} - ${record.student.firstName} ${record.student.lastName}`} aria-pressed={status === s}>
                                 <Icon className="h-5 w-5" />
+                                <span className="sr-only">{statusLabel}</span>
                               </button>
                             )
                           })}
@@ -823,7 +994,7 @@ export function AttendanceClient() {
                             className={`inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-medium transition-colors ${
                               passedIds.has(record.student.id)
                                 ? 'bg-green-100 text-green-700'
-                                : 'border border-gray-200 text-gray-600 hover:bg-green-50 hover:text-green-700'
+                                : 'border border-gray-300 text-gray-700 hover:bg-green-50 hover:text-green-700'
                             }`}>
                             {passingId === record.student.id ? (
                               <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -849,7 +1020,7 @@ export function AttendanceClient() {
                               }
                               return (
 <button key={v} onClick={() => setTempBehavior({ ...tempBehavior, [record.student.id]: filled && b === v ? 0 : v })}
-                                  className={`h-7 w-7 rounded-full transition-all ${filled ? 'bg-emerald-500 shadow-sm shadow-emerald-200' : 'bg-gray-100 border border-gray-200 hover:border-emerald-300 hover:bg-emerald-50'}`} title={`${v}/5`} aria-label={lang === 'ar' ? `السلوك ${v} من 5` : `Behavior ${v} of 5`} aria-pressed={filled} />
+                                  className={`h-9 w-9 rounded-full transition-all focus-visible:ring-2 focus-visible:ring-gold-500 focus-visible:ring-offset-1 ${filled ? 'bg-emerald-500 shadow-sm shadow-emerald-200' : 'bg-gray-100 border border-gray-200 hover:border-emerald-300 hover:bg-emerald-50'}`} title={`${v}/5`} aria-label={lang === 'ar' ? `السلوك ${v} من 5` : `Behavior ${v} of 5`} aria-pressed={filled} />
                               )
                             })}
                           </div>
@@ -867,7 +1038,7 @@ export function AttendanceClient() {
                               }
                               return (
 <button key={v} onClick={() => setTempParticipation({ ...tempParticipation, [record.student.id]: filled && p === v ? 0 : v })}
-                                  className={`h-7 w-7 rounded-full transition-all ${filled ? 'bg-blue-500 shadow-sm shadow-blue-200' : 'bg-gray-100 border border-gray-200 hover:border-blue-300 hover:bg-blue-50'}`} title={`${v}/5`} aria-label={lang === 'ar' ? `المشاركة ${v} من 5` : `Participation ${v} of 5`} aria-pressed={filled} />
+                                  className={`h-9 w-9 rounded-full transition-all focus-visible:ring-2 focus-visible:ring-gold-500 focus-visible:ring-offset-1 ${filled ? 'bg-blue-500 shadow-sm shadow-blue-200' : 'bg-gray-100 border border-gray-200 hover:border-blue-300 hover:bg-blue-50'}`} title={`${v}/5`} aria-label={lang === 'ar' ? `المشاركة ${v} من 5` : `Participation ${v} of 5`} aria-pressed={filled} />
                               )
                             })}
                           </div>
@@ -932,6 +1103,48 @@ export function AttendanceClient() {
                     >
                     {deleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
                     {lang === 'ar' ? 'حذف' : 'Delete'}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Batch Delete Confirmation */}
+          {showBatchDeleteConfirm && selectedSessionIds.size > 0 && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setShowBatchDeleteConfirm(false)}>
+              <div role="dialog" aria-modal="true" aria-labelledby="batch-delete-title" className="bg-white rounded-2xl shadow-xl w-full max-w-sm mx-4 p-6 text-center" onClick={e => e.stopPropagation()}>
+                <h3 id="batch-delete-title" className="font-semibold text-gray-900 mb-2">{lang === 'ar' ? 'حذف جلسات متعددة' : 'Delete Multiple Sessions'}</h3>
+                <p className="text-sm text-gray-500 mb-2">{lang === 'ar' ? `هل أنت متأكد من حذف ${selectedSessionIds.size} جلسات؟` : `Are you sure you want to delete ${selectedSessionIds.size} sessions?`}</p>
+                <p className="text-xs text-gray-400 mb-6">{lang === 'ar' ? 'يتم حذف الجلسات غير المبلغ عنها فقط' : 'Only unscheduled/unReported sessions can be deleted'}</p>
+                <div className="flex items-center justify-center gap-3">
+                  <Button variant="outline" onClick={() => setShowBatchDeleteConfirm(false)}
+                    >{lang === 'ar' ? 'إلغاء' : 'Cancel'}</Button>
+                  <Button variant="destructive" onClick={handleBatchDeleteSessions} disabled={batchDeleting}
+                    >
+                    {batchDeleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                    {lang === 'ar' ? `حذف ${selectedSessionIds.size}` : `Delete ${selectedSessionIds.size}`}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Mark All Confirmation */}
+          {showMarkAllConfirm && selectedSession && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setShowMarkAllConfirm(null)}>
+              <div role="dialog" aria-modal="true" aria-labelledby="mark-all-title" className="bg-white rounded-2xl shadow-xl w-full max-w-sm mx-4 p-6 text-center" onClick={e => e.stopPropagation()}>
+                <h3 id="mark-all-title" className="font-semibold text-gray-900 mb-2">
+                  {showMarkAllConfirm === 'present' ? (lang === 'ar' ? 'تحديد الكل حاضر؟' : 'Mark all as Present?') :
+                   showMarkAllConfirm === 'late' ? (lang === 'ar' ? 'تحديد الكل متأخر؟' : 'Mark all as Late?') :
+                   (lang === 'ar' ? 'تحديد الكل غائب؟' : 'Mark all as Absent?')}
+                </h3>
+                <p className="text-sm text-gray-500 mb-6">{lang === 'ar' ? `هذا سيحدد جميع الطلاب (${totalStudents}) ${showMarkAllConfirm}` : `This will mark all ${totalStudents} students as ${showMarkAllConfirm}`}</p>
+                <div className="flex items-center justify-center gap-3">
+                  <Button variant="outline" onClick={() => setShowMarkAllConfirm(null)}
+                    >{lang === 'ar' ? 'إلغاء' : 'Cancel'}</Button>
+                  <Button onClick={() => { handleMarkAll(showMarkAllConfirm!); setShowMarkAllConfirm(null) }}
+                    className={showMarkAllConfirm === 'present' ? 'bg-green-600 hover:bg-green-700' : showMarkAllConfirm === 'late' ? 'bg-amber-600 hover:bg-amber-700' : 'bg-red-600 hover:bg-red-700'}>
+                    {lang === 'ar' ? 'تأكيد' : 'Confirm'}
                   </Button>
                 </div>
               </div>
