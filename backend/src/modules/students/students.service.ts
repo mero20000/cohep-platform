@@ -385,9 +385,7 @@ export class StudentsService {
 
     const levels = await this.prisma.level.findMany({ where: { schoolId, deletedAt: null } });
     const levelMap = new Map<string, string>();
-    console.log(`[IMPORT DEBUG] Found ${levels.length} levels in school ${schoolId}`);
     for (const l of levels) {
-      console.log(`[IMPORT DEBUG] Level: id=${l.id}, name=${l.name}, number=${l.number}`);
       levelMap.set(l.id, l.id); // By UUID
       levelMap.set(l.name.toLowerCase(), l.id); // By name (lowercase)
       levelMap.set(l.name.trim().toLowerCase(), l.id); // By name (trimmed, lowercase)
@@ -395,7 +393,6 @@ export class StudentsService {
       levelMap.set(`level ${l.number}`, l.id); // By "Level 1" format
       levelMap.set(`level${l.number}`, l.id); // By "Level1" format
     }
-    console.log(`[IMPORT DEBUG] LevelMap keys:`, Array.from(levelMap.keys()));
 
     const grades = await this.prisma.schoolGrade.findMany({ where: { schoolId, deletedAt: null } });
     const gradeMap = new Map(grades.map(g => [g.name.trim().toLowerCase(), g]));
@@ -431,11 +428,9 @@ export class StudentsService {
       seenInBatch.add(dupKey);
 
       const levelInput = s.levelId.trim();
-      console.log(`[IMPORT DEBUG] Row ${rowNum}: levelInput="${levelInput}", lowercase="${levelInput.toLowerCase()}"`);
       let resolvedLevelId = levelMap.get(levelInput.toLowerCase());
       if (!resolvedLevelId) resolvedLevelId = levelMap.get(levelInput); // Try exact match
       if (!resolvedLevelId && /^\d+$/.test(levelInput)) resolvedLevelId = levelMap.get(levelInput); // Try as number
-      console.log(`[IMPORT DEBUG] Row ${rowNum}: resolvedLevelId=${resolvedLevelId}`);
       if (!resolvedLevelId) {
         const availableLevels = Array.from(levelMap.keys()).filter(k => !k.match(/^[a-f0-9-]{36}$/)); // Exclude UUIDs
         errors.push({ row: rowNum, message: `Level "${s.levelId}" not found. Available: ${availableLevels.join(', ')}` });

@@ -81,31 +81,35 @@ async function bootstrap() {
     }),
   );
 
-  // Swagger documentation
-  const config = new DocumentBuilder()
-    .setTitle('COHEP API')
-    .setDescription('Coptic Orthodox Hymn Education Platform - API Documentation')
-    .setVersion('1.0')
-    .addBearerAuth()
-    .addTag('auth', 'Authentication endpoints')
-    .addTag('users', 'User management')
-    .addTag('students', 'Student management')
-    .addTag('curriculum', 'Curriculum management')
-    .addTag('attendance', 'Attendance tracking')
-    .addTag('assessments', 'Assessment system')
-    .addTag('progress', 'Progress tracking')
-    .addTag('gamification', 'Gamification system')
-    .addTag('notifications', 'Notification system')
-    .build();
+  // Swagger documentation (development only)
+  if (process.env.NODE_ENV !== 'production') {
+    const config = new DocumentBuilder()
+      .setTitle('COHEP API')
+      .setDescription('Coptic Orthodox Hymn Education Platform - API Documentation')
+      .setVersion('1.0')
+      .addBearerAuth()
+      .addTag('auth', 'Authentication endpoints')
+      .addTag('users', 'User management')
+      .addTag('students', 'Student management')
+      .addTag('curriculum', 'Curriculum management')
+      .addTag('attendance', 'Attendance tracking')
+      .addTag('assessments', 'Assessment system')
+      .addTag('progress', 'Progress tracking')
+      .addTag('gamification', 'Gamification system')
+      .addTag('notifications', 'Notification system')
+      .build();
 
-  const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('api/docs', app, document);
+    const document = SwaggerModule.createDocument(app, config);
+    SwaggerModule.setup('api/docs', app, document);
+  }
 
   const port = process.env.PORT || 3001;
   await app.listen(port);
-  
-  console.log(`🚀 COHEP API running on: http://localhost:${port}`);
-  console.log(`📚 API Documentation: http://localhost:${port}/api/docs`);
-  console.log(`🏥 Health Check: http://localhost:${port}/health`);
+
+  if (process.env.NODE_ENV !== 'production') {
+    console.log(`🚀 COHEP API running on: http://localhost:${port}`);
+    console.log(`📚 API Documentation: http://localhost:${port}/api/docs`);
+    console.log(`🏥 Health Check: http://localhost:${port}/health`);
+  }
 }
 bootstrap();
