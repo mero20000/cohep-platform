@@ -118,6 +118,12 @@ export class AttendanceController {
     return this.attendanceService.deleteSession(id);
   }
 
+  @Post('sessions/batch-delete')
+  @ApiOperation({ summary: 'Batch delete multiple attendance sessions (only scheduled status allowed)' })
+  async batchDeleteSessions(@Body() body: { sessionIds: string[] }) {
+    return this.attendanceService.batchDeleteSessions(body.sessionIds);
+  }
+
   @Post('sessions/generate')
   @ApiOperation({ summary: 'Generate attendance sessions from active days' })
   async generateSessions(@Query('schoolId') schoolId: string = '') {

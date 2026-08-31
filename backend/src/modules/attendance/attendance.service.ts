@@ -1177,6 +1177,52 @@ export class AttendanceService {
     return { deleted: true };
   }
 
+  async batchDeleteSessions(sessionIds: string[]) {
+    if (!sessionIds || sessionIds.length === 0) {
+      throw new BadRequestException('No session IDs provided');
+    }
+
+    // Fetch all sessions to check status and audit
+    const sessions = await this.prisma.attendanceSession.findMany({
+      where: { id: { in: sessionIds }, deletedAt: null },
+      select: { id: true, status: true, schoolId: true, levelId: true, groupId: true },
+    });
+
+    if (sessions.length !== sessionIds.length) {
+      throw new BadRequestException(`Some sessions not found or already deleted. Found ${sessions.length}/${sessionIds.length}`);
+    }
+
+    // Only allow deletion of 'scheduled' status sessions
+    const nonScheduled = sessions.filter(s => s.status !== 'scheduled');
+    if (nonScheduled.length > 0) {
+      throw new BadRequestException(`Cannot delete sessions with status other than 'scheduled'. Found ${nonScheduled.length} non-scheduled sessions`);
+    }
+
+    // Delete all sessions (soft delete)
+    const now = new Date();
+    await this.prisma.attendanceSession.updateMany({
+      where: { id: { in: sessionIds } },
+      data: { deletedAt: now },
+    });
+
+    // Audit each deletion
+    const schoolIdSet = new Set(sessions.map(s => s.schoolId));
+    for (const schoolId of schoolIdSet) {
+      const schoolSessions = sessions.filter(s => s.schoolId === schoolId);
+      for (const session of schoolSessions) {
+        await this.audit.log({
+          schoolId,
+          action: 'DELETE',
+          entityType: 'attendance_session',
+          entityId: session.id,
+          oldValues: { status: session.status, levelId: session.levelId, groupId: session.groupId },
+        });
+      }
+    }
+
+    return { deletedCount: sessions.length };
+  }
+
   async createRecurringSessions(servantId: string, schoolIdentifier: string, body: { groupId: string; levelId: string; dayOfWeek: number; time: string; weeks?: number }) {
     const schoolId = await this.schoolResolver.resolve(schoolIdentifier);
     const { groupId, levelId, dayOfWeek, time, weeks = 4 } = body;
