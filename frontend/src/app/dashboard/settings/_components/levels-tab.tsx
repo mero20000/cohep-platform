@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
-import { Plus, Pencil, Loader2, Check, X, Copy, Check2 } from 'lucide-react'
+import { Plus, Pencil, Loader2, Check, X, Copy, CheckCircle } from 'lucide-react'
 import { TableSkeleton } from '@/components/ui/skeleton'
 import { useToast } from '@/components/ui/toast'
 import { Modal } from '@/components/ui/modal'
@@ -145,7 +145,7 @@ export function LevelsTab() {
                 >
                   <span className="font-mono text-sm text-blue-700">{level.name}</span>
                   {copiedId === `copy-${level.id}` ? (
-                    <Check2 className="h-4 w-4 text-green-600" />
+                    <CheckCircle className="h-4 w-4 text-green-600" />
                   ) : (
                     <Copy className="h-4 w-4 text-blue-400 group-hover:text-blue-600 opacity-0 group-hover:opacity-100" />
                   )}
