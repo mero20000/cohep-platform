@@ -1,8 +1,11 @@
-import { Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
+import { Injectable, OnModuleInit, OnModuleDestroy, Logger } from '@nestjs/common';
 import { PrismaClient } from '@prisma/client';
 
 @Injectable()
 export class PrismaService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
+  private logger = new Logger(PrismaService.name);
+  private readonly SLOW_QUERY_THRESHOLD_MS = 500;
+
   constructor() {
     super({
       log: process.env.NODE_ENV === 'development'
@@ -13,6 +16,25 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
 
   async onModuleInit() {
     await this.$connect();
+
+    // Add middleware to log slow queries in production
+    if (process.env.NODE_ENV === 'production') {
+      this.$use(async (params, next) => {
+        const before = Date.now();
+        const result = await next(params);
+        const after = Date.now();
+        const duration = after - before;
+
+        if (duration > this.SLOW_QUERY_THRESHOLD_MS) {
+          this.logger.warn(
+            `[SLOW_QUERY] ${params.model}.${params.action} took ${duration}ms`,
+            { model: params.model, action: params.action, duration, args: params.args },
+          );
+        }
+
+        return result;
+      });
+    }
   }
 
   async onModuleDestroy() {
