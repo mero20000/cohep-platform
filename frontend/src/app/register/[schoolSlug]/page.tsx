@@ -334,7 +334,7 @@ export default function RegisterPage() {
                       <span className={`text-[10px] sm:text-xs font-bold uppercase tracking-wide ${active ? 'text-gold-700' : done ? 'text-emerald-600' : 'text-gray-400'}`}>
                         {t(s.en, s.ar)}
                       </span>
-                      <span className={`text-[9px] font-medium ${active ? 'text-gold-600' : 'text-gray-600'}`}>
+                      <span className={`text-[9px] font-medium ${active ? 'text-gold-700' : 'text-gray-600'}`}>
                         {t(s.descEn, s.descAr)}
                       </span>
                     </div>
