@@ -169,13 +169,13 @@ export function AttendanceClient() {
       e.preventDefault()
       const prevRecord = records[recordIndex - 1]
       if (prevRecord?.student) {
-        document.querySelector(`[data-student-id="${prevRecord.student.id}"]`)?.focus()
+        (document.querySelector(`[data-student-id="${prevRecord.student.id}"]`) as HTMLElement)?.focus()
       }
     } else if (e.key === 'ArrowDown' && recordIndex < records.length - 1) {
       e.preventDefault()
       const nextRecord = records[recordIndex + 1]
       if (nextRecord?.student) {
-        document.querySelector(`[data-student-id="${nextRecord.student.id}"]`)?.focus()
+        (document.querySelector(`[data-student-id="${nextRecord.student.id}"]`) as HTMLElement)?.focus()
       }
     }
   }
