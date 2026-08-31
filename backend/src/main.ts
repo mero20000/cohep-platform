@@ -3,7 +3,11 @@ import { ValidationPipe } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import helmet from 'helmet';
-import * as cookieParser from 'cookie-parser';
+// `import = require` rather than `import * as`: cookie-parser's export is a
+// callable, and a namespace import gets wrapped in an interop object by SWC,
+// which made `cookieParser()` throw "is not a function" at boot. This form
+// compiles to a plain require under both tsc and SWC while keeping the types.
+import cookieParser = require('cookie-parser');
 import * as Sentry from '@sentry/node';
 import { setDefaultResultOrder } from 'node:dns';
 import { join } from 'path';

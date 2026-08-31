@@ -8,6 +8,7 @@
   },
   "scripts": {
     "build": "nest build",
+    "type-check": "tsc --noEmit -p tsconfig.json",
     "postinstall": "prisma generate",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "start": "nest start",
@@ -74,6 +75,8 @@
   "devDependencies": {
     "@nestjs/schematics": "12.0.0",
     "@nestjs/testing": "12.0.1",
+    "@swc/cli": "^0.8.1",
+    "@swc/core": "^1.16.1",
     "@types/cookie-parser": "^1.4.10",
     "@types/jest": "^29.5.11",
     "@types/supertest": "^7.2.0",
