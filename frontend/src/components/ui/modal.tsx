@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useId, useRef } from 'react'
 import { X } from 'lucide-react'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 
@@ -22,6 +22,13 @@ export function Modal({ open, onClose, title, description, children, footer, siz
   const contentRef = useRef<HTMLDivElement>(null)
   const triggerRef = useRef<Element | null>(null)
 
+  // Previously these ids were the literal strings 'modal-title'/'modal-desc',
+  // so two mounted modals produced duplicate ids and aria-labelledby resolved
+  // to whichever came first in the document.
+  const baseId = useId()
+  const titleId = `${baseId}-title`
+  const descId = `${baseId}-desc`
+
   useEffect(() => {
     if (open) {
       triggerRef.current = document.activeElement
@@ -40,11 +47,54 @@ export function Modal({ open, onClose, title, description, children, footer, siz
 
   useEffect(() => {
     if (!open) return
-    const handleEscape = (e: KeyboardEvent) => { if (e.key === 'Escape') onCloseRef.current() }
-    document.addEventListener('keydown', handleEscape)
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onCloseRef.current()
+        return
+      }
+      if (e.key !== 'Tab') return
+
+      // Focus trap. Without this, Tab walks straight out of the dialog into the
+      // page behind it, which is still fully reachable — a keyboard user ends
+      // up navigating content they cannot see.
+      const panel = contentRef.current
+      if (!panel) return
+
+      // Deliberately not filtering on offsetParent: it is null for any
+      // position:fixed element, so a fixed control inside the panel would be
+      // dropped from the cycle.
+      const focusables = Array.from(
+        panel.querySelectorAll<HTMLElement>(
+          'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        ),
+      ).filter((el) => !el.hasAttribute('hidden') && el.getAttribute('aria-hidden') !== 'true')
+
+      if (focusables.length === 0) {
+        // Nothing focusable inside — keep focus on the panel rather than
+        // letting it escape.
+        e.preventDefault()
+        panel.focus()
+        return
+      }
+
+      const first = focusables[0]
+      const last = focusables[focusables.length - 1]
+      const active = document.activeElement
+
+      if (e.shiftKey && (active === first || active === panel)) {
+        e.preventDefault()
+        last.focus()
+      } else if (!e.shiftKey && active === last) {
+        e.preventDefault()
+        first.focus()
+      }
+    }
+
+    document.addEventListener('keydown', handleKeyDown)
     document.body.style.overflow = 'hidden'
     return () => {
-      document.removeEventListener('keydown', handleEscape)
+      document.removeEventListener('keydown', handleKeyDown)
       document.body.style.overflow = ''
     }
   }, [open])
@@ -56,16 +106,22 @@ export function Modal({ open, onClose, title, description, children, footer, siz
   return (
     <AnimatePresence>
       {open && (
-        <motion.div key="modal-overlay" ref={overlayRef} role="dialog" aria-modal="true"
-          aria-labelledby={title ? 'modal-title' : undefined}
-          aria-describedby={description ? 'modal-desc' : undefined}
+        <motion.div key="modal-overlay" ref={overlayRef}
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.2, ease: [0.23, 1, 0.32, 1] }}
           onClick={(e) => { if (e.target === overlayRef.current) onClose() }}>
+          {/*
+            The dialog semantics belong on the panel, not the full-screen
+            overlay: the overlay is only a backdrop, and naming it as the dialog
+            made the accessible name and the focused element disagree.
+          */}
           <motion.div key="modal-content" ref={contentRef} tabIndex={-1}
+            role="dialog" aria-modal="true"
+            aria-labelledby={title ? titleId : undefined}
+            aria-describedby={description ? descId : undefined}
             className={`w-full ${sizeMap[size]} rounded-2xl bg-white shadow-xl max-h-[95vh] flex flex-col outline-none`}
             initial={{ opacity: 0, ...(reduce ? {} : { scale: 0.95 }) }}
             animate={{ opacity: 1, ...(reduce ? {} : { scale: 1 }) }}
@@ -75,8 +131,8 @@ export function Modal({ open, onClose, title, description, children, footer, siz
             {(title || description) && (
               <div className="flex items-start justify-between px-6 py-4 border-b border-gray-100">
                 <div>
-                  {title && <h2 id="modal-title" className="text-lg font-semibold text-gray-900">{title}</h2>}
-                  {description && <p id="modal-desc" className="mt-1 text-sm text-gray-500">{description}</p>}
+                  {title && <h2 id={titleId} className="text-lg font-semibold text-gray-900">{title}</h2>}
+                  {description && <p id={descId} className="mt-1 text-sm text-gray-500">{description}</p>}
                 </div>
                 <button onClick={onClose} aria-label="Close" className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors">
                   <X className="h-5 w-5" />

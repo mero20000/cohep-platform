@@ -16,6 +16,7 @@ import {
   Play, Headphones, BookOpen, Home
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { DatePicker } from '@/components/ui/date-picker'
 import { TermReportModal } from '@/components/term-report-modal'
 import { FormationArchiveModal } from '@/components/formation-archive-modal'
 import { PhotoLightbox } from '@/components/photo-lightbox'
@@ -102,14 +103,14 @@ function LiturgySection({ childId, language }: { childId: string; language: stri
 
       <div className="flex items-center gap-3 mb-4">
         <label htmlFor="liturgy-date" className="sr-only">{t('Liturgy date', 'تاريخ القداس')}</label>
-        <input
-          id="liturgy-date"
-          type="date"
-          value={selectedDate}
-          onChange={e => setSelectedDate(e.target.value)}
-          max={new Date().toISOString().split('T')[0]}
-          className="px-3 py-2 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
-        />
+        <div className="w-44">
+          <DatePicker
+            id="liturgy-date"
+            value={selectedDate}
+            onChange={setSelectedDate}
+            max={new Date().toISOString().split('T')[0]}
+          />
+        </div>
         <button
           onClick={handleLogLiturgy}
           disabled={logging}

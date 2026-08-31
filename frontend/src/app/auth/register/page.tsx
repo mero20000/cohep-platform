@@ -3,8 +3,10 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
-import { useState, useCallback, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useLanguage } from '@/lib/use-language'
+import { useFormValidation } from '@/hooks/use-form-validation'
+import { email, matches, mobile, password, required, type Schema } from '@/lib/validation'
 import { Button } from '@/components/ui/button'
 import {
   Eye, EyeOff, Loader2, CheckCircle2, XCircle, ArrowRight,
@@ -46,8 +48,43 @@ const INPUT_ERROR_CLASS = "block w-full min-h-[48px] rounded-lg border border-re
 const SELECT_CLASS = "block w-full min-h-[48px] rounded-lg border border-gray-200 bg-white px-4 py-3 pe-10 text-sm shadow-sm focus:border-gold-500 focus:outline-none focus:ring-2 focus:ring-gold-500/20 transition-all appearance-none cursor-pointer"
 const SELECT_ERROR_CLASS = "block w-full min-h-[48px] rounded-lg border border-red-300 bg-white px-4 py-3 pe-10 text-sm shadow-sm focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-500/20 transition-all appearance-none cursor-pointer"
 
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-const MOBILE_RE = /^\+[0-9]{7,15}$/
+interface RegisterForm extends Record<string, unknown> {
+  firstName: string
+  lastName: string
+  email: string
+  password: string
+  confirmPassword: string
+  churchName: string
+  country: string
+  city: string
+  educationLanguage: string
+  mobileNumber: string
+}
+
+/**
+ * Validation rules for this form.
+ *
+ * These used to be a hand-written switch returning English-only strings, with
+ * its own copies of the email and mobile regexes. Both now come from
+ * `@/lib/validation`, and every message is bilingual.
+ */
+const registerSchema: Schema<RegisterForm> = {
+  churchName: [required({ en: 'Church name', ar: 'اسم الكنيسة' })],
+  firstName: [required({ en: 'First name', ar: 'الاسم الأول' })],
+  lastName: [required({ en: 'Last name', ar: 'الاسم الأخير' })],
+  email: [required({ en: 'Email', ar: 'البريد الإلكتروني' }), email()],
+  password: [required({ en: 'Password', ar: 'كلمة المرور' }), password(8)],
+  confirmPassword: [
+    required({ en: 'Password confirmation', ar: 'تأكيد كلمة المرور' }),
+    matches<RegisterForm>('password', {
+      en: 'Passwords do not match',
+      ar: 'كلمتا المرور غير متطابقتين',
+    }),
+  ],
+  country: [required({ en: 'Country', ar: 'البلد' })],
+  city: [required({ en: 'City', ar: 'المدينة' })],
+  mobileNumber: [required({ en: 'Mobile number', ar: 'رقم الهاتف' }), mobile()],
+}
 
 function useDebounce<T>(value: T, delay: number): T {
   const [debounced, setDebounced] = useState(value)
@@ -60,15 +97,13 @@ function useDebounce<T>(value: T, delay: number): T {
 
 export default function RegisterPage() {
   const router = useRouter()
-  const [form, setForm] = useState({
+  const [form, setForm] = useState<RegisterForm>({
     firstName: '', lastName: '', email: '', password: '', confirmPassword: '',
     churchName: '', country: '', city: '', educationLanguage: 'en', mobileNumber: '',
   })
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
-  const [touched, setTouched] = useState<Record<string, boolean>>({})
   const [submitted, setSubmitted] = useState(false)
   const [passwordFocused, setPasswordFocused] = useState(false)
   const [regStep, setRegStep] = useState<1|2|3>(1)
@@ -78,6 +113,15 @@ export default function RegisterPage() {
 
   const lang = useLanguage()
   const isAr = lang === 'ar'
+
+  // Each input's DOM id already equals its field name, so the hook can focus
+  // the first invalid field without threading refs through the markup.
+  const { fieldErrors, handleBlur, revalidate, validate, setServerError } = useFormValidation({
+    values: form,
+    schema: registerSchema,
+    lang,
+    fieldId: (field) => String(field),
+  })
 
   const debouncedEmail = useDebounce(form.email, 500)
   const debouncedPassword = useDebounce(form.password, 500)
@@ -91,115 +135,40 @@ export default function RegisterPage() {
 
   const availableCities = form.country ? countriesCities[form.country] || [] : []
 
-  const validateField = useCallback((name: string, value: string): string => {
-    switch (name) {
-      case 'email':
-        if (!value) return 'Email is required'
-        if (!EMAIL_RE.test(value)) return 'Enter a valid email address'
-        return ''
-      case 'password':
-        if (!value) return 'Password is required'
-        if (value.length < 8) return 'At least 8 characters'
-        if (!/\d/.test(value)) return 'Must contain a number'
-        if (!/[A-Z]/.test(value)) return 'Must contain an uppercase letter'
-        return ''
-      case 'confirmPassword':
-        if (!value) return 'Confirm your password'
-        if (value !== form.password) return 'Passwords do not match'
-        return ''
-      case 'mobileNumber':
-        if (!value) return 'Mobile number is required'
-        if (!MOBILE_RE.test(value)) return 'Format: +201001234567'
-        return ''
-      case 'churchName':
-        if (!value) return 'Church name is required'
-        return ''
-      case 'firstName':
-        if (!value) return 'First name is required'
-        return ''
-      case 'lastName':
-        if (!value) return 'Last name is required'
-        return ''
-      case 'country':
-        if (!value) return 'Select a country'
-        return ''
-      case 'city':
-        if (!value) return 'Select a city'
-        return ''
-      default:
-        return ''
-    }
-  }, [form.password])
+  // Debounced revalidation: while a touched field is being edited, re-check it
+  // only after typing settles, so the message does not thrash mid-word.
+  useEffect(() => { revalidate('email') }, [debouncedEmail, revalidate])
+  useEffect(() => { revalidate('password') }, [debouncedPassword, revalidate])
+  useEffect(() => { revalidate('confirmPassword') }, [debouncedConfirm, revalidate])
 
-  // Debounced field validation
-  useEffect(() => {
-    if (touched.email) setFieldErrors(prev => ({ ...prev, email: validateField('email', debouncedEmail) }))
-  }, [debouncedEmail, touched.email, validateField])
+  const update = (field: keyof RegisterForm, value: string) => {
+    const next: RegisterForm = { ...form, [field]: value }
+    // Changing country invalidates whatever city was chosen under the old one.
+    if (field === 'country') next.city = ''
+    setForm(next)
 
-  useEffect(() => {
-    if (touched.password) setFieldErrors(prev => ({ ...prev, password: validateField('password', debouncedPassword) }))
-  }, [debouncedPassword, touched.password, validateField])
-
-  useEffect(() => {
-    if (touched.confirmPassword) setFieldErrors(prev => ({ ...prev, confirmPassword: validateField('confirmPassword', debouncedConfirm) }))
-  }, [debouncedConfirm, touched.confirmPassword, validateField])
-
-  const update = (field: string, value: string) => {
-    setForm((prev) => {
-      const next = { ...prev, [field]: value }
-      if (field === 'country') next.city = ''
-      return next
-    })
-    if (touched[field]) {
-      setFieldErrors(prev => ({ ...prev, [field]: validateField(field, value) }))
-    }
-    if (field === 'password' && form.confirmPassword) {
-      setFieldErrors(prev => ({ ...prev, confirmPassword: validateField('confirmPassword', form.confirmPassword) }))
-    }
+    // Pass `next` explicitly: the hook cannot see this render's new values yet.
+    revalidate(field, next)
+    // Changing the password can invalidate an already-entered confirmation.
+    if (field === 'password' && next.confirmPassword) revalidate('confirmPassword', next)
   }
 
-  const validateStep = (s: 1|2|3): boolean => {
-    const stepFields: Record<number,string[]> = {
-      1: ['churchName','email','password','confirmPassword'],
-      2: ['firstName','lastName'],
-      3: ['country','city'],
-    }
-    const fields = stepFields[s]
-    const errs: Record<string,string> = {}
-    for (const f of fields) {
-      const e = validateField(f, form[f as keyof typeof form])
-      if (e) errs[f] = e
-    }
-    setFieldErrors(p => ({...p,...errs}))
-    setTouched(p => ({...p,...Object.fromEntries(fields.map(f=>[f,true]))}))
-    return Object.keys(errs).length === 0
+  const STEP_FIELDS: Record<1 | 2 | 3, (keyof RegisterForm)[]> = {
+    1: ['churchName', 'email', 'password', 'confirmPassword'],
+    2: ['firstName', 'lastName'],
+    3: ['country', 'city'],
   }
-  const handleNext = () => { if (validateStep(regStep)) setRegStep(s => (Math.min(3,s+1) as 1|2|3)) }
 
-  const handleBlur = (field: string) => {
-    setTouched(prev => ({ ...prev, [field]: true }))
-    setFieldErrors(prev => ({ ...prev, [field]: validateField(field, form[field as keyof typeof form]) }))
+  const handleNext = () => {
+    if (validate(STEP_FIELDS[regStep])) setRegStep(s => (Math.min(3, s + 1) as 1|2|3))
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
 
-    // Validate all fields
-    const allErrors: Record<string, string> = {}
-    const fields = ['churchName', 'firstName', 'lastName', 'email', 'password', 'confirmPassword', 'country', 'city', 'mobileNumber']
-    for (const f of fields) {
-      const err = validateField(f, form[f as keyof typeof form])
-      if (err) allErrors[f] = err
-    }
-    setFieldErrors(allErrors)
-    setTouched(Object.fromEntries(fields.map(f => [f, true])))
-
-    if (Object.keys(allErrors).length > 0) {
-      const firstInvalid = fields.find(f => allErrors[f])
-      if (firstInvalid) document.getElementById(firstInvalid)?.focus()
-      return
-    }
+    // Validates every field in the schema and focuses the first invalid one.
+    if (!validate()) return
 
     setLoading(true)
 
@@ -226,8 +195,8 @@ export default function RegisterPage() {
       if (!res.ok) {
         const msg = data.message
         if (typeof msg === 'string') {
-          if (msg.toLowerCase().includes('email')) setFieldErrors(p => ({ ...p, email: msg }))
-          else if (msg.toLowerCase().includes('password')) setFieldErrors(p => ({ ...p, password: msg }))
+          if (msg.toLowerCase().includes('email')) setServerError('email', msg)
+          else if (msg.toLowerCase().includes('password')) setServerError('password', msg)
           else setError(msg)
         } else if (Array.isArray(msg)) {
           setError(msg.join(', '))
@@ -252,7 +221,8 @@ export default function RegisterPage() {
     }
   }
 
-  const err = (name: string) => touched[name] ? fieldErrors[name] : ''
+  // The hook already withholds messages for untouched fields.
+  const err = (name: keyof RegisterForm) => fieldErrors[name] || ''
 
   useEffect(() => {
     if (error && errorRef.current) {
