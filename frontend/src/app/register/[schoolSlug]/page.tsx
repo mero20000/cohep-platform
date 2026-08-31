@@ -44,6 +44,7 @@ export default function RegisterPage() {
   const [photoPreview, setPhotoPreview] = useState('')
   const [photoError, setPhotoError] = useState('')
   const [showArabicNames, setShowArabicNames] = useState(false)
+  const [confirmConsent, setConfirmConsent] = useState(false)
   const [recordings, setRecordings] = useState<Record<string, Blob | null>>({
     amen_be_mawteka: null,
     be_shafaat: null,
@@ -112,11 +113,11 @@ export default function RegisterPage() {
     return grouped
   }
 
-  const canNext1 = Boolean(form.name.trim() && form.dateOfBirth && form.gender && photoPreview)
+  const canNext1 = Boolean(form.name.trim() && form.dateOfBirth && form.gender && form.gradeId && photoPreview)
   const canNext2 = Boolean(form.parentEmail.trim() && form.parentName.trim() && form.phone.trim())
   const recordedHymns = HYMNS.filter(h => recordings[h.id])
   const canNext3 = recordedHymns.length > 0
-  const canSubmit = canNext1 && canNext2 && canNext3 && form.parentEmail.includes('@')
+  const canSubmit = canNext1 && canNext2 && canNext3 && form.parentEmail.includes('@') && confirmConsent
 
   const handlePhoto = (f: File | null) => {
     setPhotoError('')
@@ -257,7 +258,7 @@ export default function RegisterPage() {
             <div className="flex flex-col items-center gap-2">
               <div className="flex h-16 w-16 sm:h-20 sm:w-20 items-center justify-center rounded-2xl bg-white/10 border-2 border-gold-400/40 shadow-xl overflow-hidden backdrop-blur">
                 {churchLogo ? (
-                  <Image src={abs(churchLogo)} alt={meta?.church?.name || ''} width={80} height={80} className="h-full w-full object-cover" unoptimized />
+                  <Image src={abs(churchLogo)} alt={meta?.church?.name || ''} width={80} height={80} className="h-full w-full object-cover" priority />
                 ) : (
                   <Church className="h-8 w-8 text-gold-300" />
                 )}
@@ -279,7 +280,7 @@ export default function RegisterPage() {
             <div className="flex flex-col items-center gap-2">
               <div className="flex h-16 w-16 sm:h-20 sm:w-20 items-center justify-center rounded-2xl bg-white/10 border-2 border-white/25 shadow-xl overflow-hidden backdrop-blur">
                 {schoolLogo ? (
-                  <Image src={abs(schoolLogo)} alt={meta?.school?.name || ''} width={80} height={80} className="h-full w-full object-cover" unoptimized />
+                  <Image src={abs(schoolLogo)} alt={meta?.school?.name || ''} width={80} height={80} className="h-full w-full object-cover" priority />
                 ) : (
                   <GraduationCap className="h-8 w-8 text-white/70" />
                 )}
@@ -333,7 +334,7 @@ export default function RegisterPage() {
                       <span className={`text-[10px] sm:text-xs font-bold uppercase tracking-wide ${active ? 'text-gold-700' : done ? 'text-emerald-600' : 'text-gray-400'}`}>
                         {t(s.en, s.ar)}
                       </span>
-                      <span className={`text-[9px] font-medium ${active ? 'text-gold-600' : 'text-gray-600'}`}>
+                      <span className={`text-[9px] font-medium ${active ? 'text-gold-700' : 'text-gray-600'}`}>
                         {t(s.descEn, s.descAr)}
                       </span>
                     </div>
@@ -658,9 +659,9 @@ export default function RegisterPage() {
                   </div>
                 )}
 
-                <label className="flex items-start gap-2 text-sm text-gray-600">
-                  <input type="checkbox" required className="mt-0.5" />
-                  {t('I confirm the information is correct and consent to the church using it for enrollment.', 'أؤكد صحة المعلومات وأوافق على استخدامها للتسجيل.')}
+                <label className="flex items-start gap-2 text-sm text-gray-600 cursor-pointer">
+                  <input type="checkbox" checked={confirmConsent} onChange={(e) => setConfirmConsent(e.target.checked)} className="mt-0.5 cursor-pointer" />
+                  <span className={confirmConsent ? 'text-gray-900 font-semibold' : ''}>{t('I confirm the information is correct and consent to the church using it for enrollment.', 'أؤكد صحة المعلومات وأوافق على استخدامها للتسجيل.')}</span>
                 </label>
 
               </div>
