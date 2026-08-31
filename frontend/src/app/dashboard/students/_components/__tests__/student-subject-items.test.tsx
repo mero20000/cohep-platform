@@ -4,9 +4,7 @@ import userEvent from '@testing-library/user-event'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { StudentSubjectItemsPanel } from '../student-subject-items'
 
-vi.mock('lucide-react', () => ({
-  Loader2: (props: any) => <span data-testid="icon-Loader2" {...props} />,
-}))
+vi.mock('lucide-react', async () => (await import('@/test/lucide-mock')).lucideMock())
 
 const mockToast = vi.fn()
 vi.mock('@/components/ui/toast', () => ({

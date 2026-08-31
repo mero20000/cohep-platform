@@ -14,20 +14,7 @@ vi.mock('next/image', () => ({
 }))
 
 // Mock lucide-react icons
-vi.mock('lucide-react', () => {
-  const icons: Record<string, any> = {}
-  const iconNames = [
-    'AlertCircle', 'AlertTriangle', 'ArrowUpDown', 'Award', 'Calendar', 'CalendarDays', 'Camera',
-    'Check', 'CheckCircle', 'ChevronDown', 'ChevronLeft', 'ChevronRight', 'Church', 'Download',
-    'Eye', 'FileSpreadsheet', 'GraduationCap', 'Layers', 'Loader', 'Loader2', 'Mail', 'MapPin',
-    'MessageCircle', 'Pencil', 'Phone', 'Plus', 'RefreshCw', 'Search', 'Shield', 'Star', 'Trash', 'Trash2',
-    'Upload', 'User', 'UserCheck', 'Users', 'X',
-  ]
-  for (const name of iconNames) {
-    icons[name] = (props: any) => <span data-testid={`icon-${name}`} {...props} />
-  }
-  return icons
-})
+vi.mock('lucide-react', async () => (await import('@/test/lucide-mock')).lucideMock())
 
 vi.mock('@/components/ui/pagination', () => ({
   Pagination: ({ page, totalPages, total, onPageChange }: any) => (
