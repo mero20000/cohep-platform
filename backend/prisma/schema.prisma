@@ -253,6 +253,9 @@ model User {
   approvedPromotions    PromotionRecord[]         @relation("PromotionApprovedBy")
   awardedBadges         StudentBadge[]            @relation("BadgeAwardedBy")
   assignedRoles         UserRole[]                @relation("RoleAssignedBy")
+  requestedDisputes     GradeDispute[]            @relation("GradeDisputeRequestedBy")
+  respondedDisputes     GradeDispute[]            @relation("GradeDisputeRespondedBy")
+  respondedAppeals      StudentLiturgyAppeal[]
   notifications         Notification[]
   pushSubscriptions     PushSubscription[]
 
@@ -424,6 +427,7 @@ model Student {
   familyLiturgies       FamilyLiturgy[]
   hymns                 HymnPracticeSession[]
   notifications         Notification[]
+  liturgyAppeals        StudentLiturgyAppeal[]
 
   @@unique([schoolId, studentCode])
   @@index([schoolId])
@@ -947,9 +951,10 @@ model AssessmentSubmission {
   createdAt         DateTime  @default(now()) @map("created_at")
   updatedAt         DateTime  @updatedAt @map("updated_at")
 
-  assessment Assessment @relation(fields: [assessmentId], references: [id])
-  student    Student    @relation(fields: [studentId], references: [id])
-  grades     Grade[]
+  assessment    Assessment     @relation(fields: [assessmentId], references: [id])
+  student       Student        @relation(fields: [studentId], references: [id])
+  grades        Grade[]
+  gradeDisputes GradeDispute[]
 
   @@index([assessmentId, studentId])
   @@index([assessmentId, studentId, attemptNumber])
@@ -996,7 +1001,7 @@ model GradeDispute {
   school       School                @relation(fields: [schoolId], references: [id], onDelete: Cascade)
   submission   AssessmentSubmission  @relation(fields: [submissionId], references: [id], onDelete: Cascade)
   requestedBy  User                  @relation("GradeDisputeRequestedBy", fields: [requestedById], references: [id], onDelete: Restrict)
-  respondedBy  User?                 @relation("GradeDisputeRespondedBy", fields: [respondedById], references: [id], onDelete: Set Null)
+  respondedBy  User?                 @relation("GradeDisputeRespondedBy", fields: [respondedById], references: [id], onDelete: SetNull)
 
   @@index([schoolId, status])
   @@index([submissionId])
@@ -1438,6 +1443,7 @@ model FamilyLiturgy {
   noted   User    @relation("LiturgyNotedBy", fields: [notedBy], references: [id], onDelete: Restrict)
   verified User?  @relation("LiturgyVerifiedBy", fields: [verifiedBy], references: [id], onDelete: SetNull)
   rejected User?  @relation("LiturgyRejectedBy", fields: [rejectedBy], references: [id], onDelete: SetNull)
+  appeals  StudentLiturgyAppeal[]
 
   @@unique([studentId, date])
   @@index([studentId, status])
@@ -1450,7 +1456,7 @@ model StudentLiturgyAppeal {
   schoolId         String    @map("school_id")
   studentId        String    @map("student_id")
   familyLiturgyId  String    @map("family_liturgy_id")
-  appealReason     String    @db.VarChar(500)
+  appealReason     String    @map("appeal_reason") @db.VarChar(500)
   status           String    @default("pending")
   respondedById    String?   @map("responded_by_id")
   respondedAt      DateTime? @map("responded_at")
