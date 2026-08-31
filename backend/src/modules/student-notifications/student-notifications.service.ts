@@ -61,14 +61,19 @@ export class StudentNotificationsService {
    */
   async notify(input: NotifyInput) {
     try {
-      return await this.prisma.studentNotification.create({
+      const student = await this.prisma.student.findUnique({ where: { id: input.studentId }, select: { schoolId: true } });
+      if (!student) return null;
+
+      return await this.prisma.notification.create({
         data: {
+          schoolId: student.schoolId,
           studentId: input.studentId,
           type: input.type,
           title: input.title,
           titleAr: input.titleAr ?? null,
           body: input.body?.slice(0, StudentNotificationsService.MAX_BODY) ?? null,
           bodyAr: input.bodyAr?.slice(0, StudentNotificationsService.MAX_BODY) ?? null,
+          channel: 'in_app',
           linkPath: this.safeLinkPath(input.linkPath),
           referenceType: input.referenceType ?? null,
           referenceId: input.referenceId ?? null,
@@ -92,21 +97,28 @@ export class StudentNotificationsService {
   async notifyOrRefresh(input: NotifyInput) {
     if (!input.referenceId) return this.notify(input);
     try {
-      return await this.prisma.studentNotification.upsert({
+      const student = await this.prisma.student.findUnique({ where: { id: input.studentId }, select: { schoolId: true } });
+      if (!student) return null;
+
+      return await this.prisma.notification.upsert({
         where: {
-          studentId_type_referenceId: {
+          // Use a composite key that matches the unique constraint
+          schoolId_studentId_type_referenceId: {
+            schoolId: student.schoolId,
             studentId: input.studentId,
             type: input.type,
-            referenceId: input.referenceId,
+            referenceId: input.referenceId || '',
           },
         },
         create: {
+          schoolId: student.schoolId,
           studentId: input.studentId,
           type: input.type,
           title: input.title,
           titleAr: input.titleAr ?? null,
           body: input.body?.slice(0, StudentNotificationsService.MAX_BODY) ?? null,
           bodyAr: input.bodyAr?.slice(0, StudentNotificationsService.MAX_BODY) ?? null,
+          channel: 'in_app',
           linkPath: this.safeLinkPath(input.linkPath),
           referenceType: input.referenceType ?? null,
           referenceId: input.referenceId,
@@ -118,7 +130,6 @@ export class StudentNotificationsService {
           bodyAr: input.bodyAr?.slice(0, StudentNotificationsService.MAX_BODY) ?? null,
           linkPath: this.safeLinkPath(input.linkPath),
           readAt: null,
-          createdAt: new Date(),
         },
       });
     } catch (err: any) {
@@ -129,7 +140,7 @@ export class StudentNotificationsService {
 
   async list(studentId: string, opts?: { unreadOnly?: boolean; limit?: number }) {
     const take = Math.min(Math.max(opts?.limit ?? 30, 1), 100);
-    const rows = await this.prisma.studentNotification.findMany({
+    const rows = await this.prisma.notification.findMany({
       where: {
         studentId,
         ...(opts?.unreadOnly ? { readAt: null } : {}),
@@ -151,7 +162,7 @@ export class StudentNotificationsService {
   }
 
   async unreadCount(studentId: string) {
-    const count = await this.prisma.studentNotification.count({
+    const count = await this.prisma.notification.count({
       where: { studentId, readAt: null },
     });
     return { unread: count };
@@ -159,7 +170,7 @@ export class StudentNotificationsService {
 
   /** Scoped by studentId as well as id, so one student cannot mark another's as read. */
   async markRead(studentId: string, id: string) {
-    const res = await this.prisma.studentNotification.updateMany({
+    const res = await this.prisma.notification.updateMany({
       where: { id, studentId, readAt: null },
       data: { readAt: new Date() },
     });
@@ -167,7 +178,7 @@ export class StudentNotificationsService {
   }
 
   async markAllRead(studentId: string) {
-    const res = await this.prisma.studentNotification.updateMany({
+    const res = await this.prisma.notification.updateMany({
       where: { studentId, readAt: null },
       data: { readAt: new Date() },
     });

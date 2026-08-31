@@ -1297,7 +1297,8 @@ export class DashboardService {
           where: {
             schoolId, userId: parentId, type: 'absence_cascade',
             createdAt: { gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) },
-            data: { path: ['studentId'], equals: student.id },
+            referenceType: 'student',
+            referenceId: student.id,
           },
         });
         if (existing) continue;
@@ -1310,8 +1311,6 @@ export class DashboardService {
           titleAr: `نشتاق إلى ${nameAr} في الفصل`,
           body: `${name} hasn\'t been to class for the last 3 sessions. We hope everything is alright and look forward to seeing them soon.`,
           bodyAr: `${nameAr} لم يحضر الفصل في آخر 3 جلسات. نأمل أن يكون كل شيء على ما يرام ونتطلع إلى رؤيته قريباً.`,
-          data: { studentId: student.id, type: 'absence_cascade' },
-          channels: ['in_app'],
         });
       }
 
@@ -1327,20 +1326,27 @@ export class DashboardService {
             where: {
               schoolId, userId: servantSession.servantId, type: 'absence_cascade_servant',
               createdAt: { gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) },
-              data: { path: ['studentId'], equals: student.id },
+              referenceType: 'student',
+              referenceId: student.id,
             },
           });
           if (!existingServant) {
-            await notificationsService.createNotification({
-              schoolId,
-              userId: servantSession.servantId,
-              type: 'absence_cascade_servant',
-              title: `${name} hasn\'t attended in 3 sessions`,
-              titleAr: `${nameAr} لم يحضر منذ 3 جلسات`,
-              body: `${name} has missed the last 3 sessions. No action required — just in case you want to check in.`,
-              bodyAr: `${nameAr} تغيّب عن آخر 3 جلسات. لا حاجة لأي إجراء — فقط للعلم، في حال أردت التواصل.`,
-              data: { studentId: student.id, type: 'absence_cascade_servant' },
-              channels: ['in_app'],
+            // Create servant notification (we'll add direct student reference support later)
+            await this.prisma.notification.create({
+              data: {
+                schoolId,
+                userId: servantSession.servantId,
+                type: 'absence_cascade_servant',
+                title: `${name} hasn\'t attended in 3 sessions`,
+                titleAr: `${nameAr} لم يحضر منذ 3 جلسات`,
+                body: `${name} has missed the last 3 sessions. No action required — just in case you want to check in.`,
+                bodyAr: `${nameAr} تغيّب عن آخر 3 جلسات. لا حاجة لأي إجراء — فقط للعلم، في حال أردت التواصل.`,
+                channel: 'in_app',
+                referenceType: 'student',
+                referenceId: student.id,
+                sentAt: new Date(),
+                deliveredAt: new Date(),
+              },
             });
           }
         }
