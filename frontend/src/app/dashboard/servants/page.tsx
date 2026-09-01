@@ -128,6 +128,7 @@ export default function ServantsPage() {
   const [filterSubject, setFilterSubject] = useState('')
   const [filterGrade, setFilterGrade] = useState('')
   const [filterGender, setFilterGender] = useState('')
+  const [filterHierarchy, setFilterHierarchy] = useState<'group' | 'level' | 'grade' | ''>('')
 
   const [levels, setLevels] = useState<Level[]>([])
   const [activeGroups, setActiveGroups] = useState<GroupOption[]>([])
@@ -266,6 +267,13 @@ export default function ServantsPage() {
       }
       if (filterGender && s.gender !== filterGender) return false
       return true
+      if (filterHierarchy) {
+        const meta = s.metadata || {}
+        const role = servantRole(s)
+        if (filterHierarchy === "group" && (!meta.groupId || role?.name !== "group_leader")) return false
+        if (filterHierarchy === "level" && (!meta.levelId || role?.name !== "level_leader")) return false
+        if (filterHierarchy === "grade" && (role?.name === "servant" || !meta.grade)) return false
+      }
     })
   }, [servants, search, filterRole, filterLevel, filterGroup, filterGrade, filterSubject, filterGender])
 
