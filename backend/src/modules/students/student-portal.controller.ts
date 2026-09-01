@@ -55,8 +55,15 @@ export class StudentPortalController {
 
   @Get(':portalAccessKey')
   @ApiOperation({ summary: 'Get student portal data by portal access key' })
-  async getPortal(@Param('portalAccessKey') portalAccessKey: string) {
-    return this.studentsService.getPortalData(portalAccessKey);
+  async getPortal(
+    @Param('portalAccessKey') portalAccessKey: string,
+    @Query('redactNames') redactNames?: string,
+  ) {
+    const data = await this.studentsService.getPortalData(portalAccessKey);
+    if (redactNames === 'true') {
+      return { ...data, student: { ...data.student, firstName: null, lastName: null, firstNameAr: null, lastNameAr: null } };
+    }
+    return data;
   }
 
   @Get(':code/assessments/:id')

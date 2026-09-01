@@ -84,7 +84,10 @@ export default function StudentDashboard() {
   const [data, setData] = useState<PortalData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [showName, setShowName] = useState(true)
+  const [showName, setShowName] = useState(() => {
+    if (typeof window === 'undefined') return true
+    return localStorage.getItem('niangelos_hide_name') !== 'true'
+  })
   const [activeTab, setActiveTab] = useState<Tab>('dashboard')
   const [menuOpen, setMenuOpen] = useState(false)
   const [subjectItems, setSubjectItems] = useState<SubjectItemEntry[]>([])
@@ -115,6 +118,11 @@ export default function StudentDashboard() {
     document.documentElement.lang = newLang
     document.documentElement.dir = newLang === 'ar' ? 'rtl' : 'ltr'
   }
+  const toggleName = () => {
+    const next = !showName
+    setShowName(next)
+    localStorage.setItem('niangelos_hide_name', String(!next))
+  }
   const { data: achievements } = useStudentAchievements(code, drill === 'xp')
   const [searchQuery, setSearchQuery] = useState('')
   const [filterMastery, setFilterMastery] = useState('')
@@ -126,7 +134,8 @@ export default function StudentDashboard() {
     const load = async () => {
       setLoading(true)
       try {
-        const data = await portalGet<PortalData>(code, `/student-portal/${encodeURIComponent(code)}`)
+        const redactParam = !showName ? '?redactNames=true' : ''
+        const data = await portalGet<PortalData>(code, `/student-portal/${encodeURIComponent(code)}${redactParam}`)
         if (!cancelled) setData(data)
       } catch (e: any) {
         // No valid session at all (bad/expired key): send to the login page.
@@ -138,7 +147,7 @@ export default function StudentDashboard() {
     }
     load()
     return () => { cancelled = true }
-  }, [code])
+  }, [code, showName])
 
   useEffect(() => {
     if (!code) return
@@ -258,7 +267,6 @@ export default function StudentDashboard() {
     ? (student.photoUrl.startsWith('http') ? student.photoUrl : `${API_ORIGIN}${student.photoUrl}`)
     : null
 
-  const displayName = showName ? (lang === 'ar' && student.firstNameAr ? `${student.firstNameAr} ${student.lastNameAr || ''}`.trim() : `${student.firstName} ${student.lastName}`) : null
   const xpPct = totalXp ? Math.min(100, (totalXp % 100)) : 0
   return (
     <div className="min-h-screen bg-gray-50" dir={lang === 'ar' ? 'rtl' : 'ltr'}>
@@ -287,7 +295,7 @@ export default function StudentDashboard() {
               </button>
               {menuOpen && (
                 <div className="absolute right-0 rtl:left-0 rtl:right-auto top-full mt-2 w-44 rounded-xl bg-white shadow-xl border border-gray-200 overflow-hidden z-50">
-                  <button onClick={() => { setShowName(v => !v); setMenuOpen(false) }} className="flex w-full items-center gap-2 px-3 py-2.5 text-sm text-gray-700 hover:bg-gray-50 text-left">
+                  <button onClick={() => { toggleName(); setMenuOpen(false) }} className="flex w-full items-center gap-2 px-3 py-2.5 text-sm text-gray-700 hover:bg-gray-50 text-left">
                     {showName ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     {showName ? (lang === 'ar' ? 'إخفاء الاسم' : 'Hide Name') : (lang === 'ar' ? 'إظهار الاسم' : 'Show Name')}
                   </button>
@@ -350,9 +358,11 @@ export default function StudentDashboard() {
               )}
             </div>
             <div className="flex-1 min-w-0">
-              {displayName && (
+              {student.firstName && (
                 <h1 lang={lang} className="text-[1.75rem] leading-tight font-bold text-white truncate">
-                  {displayName}
+                  {lang === 'ar' && student.firstNameAr
+                    ? `${student.firstNameAr} ${student.lastNameAr || ''}`.trim()
+                    : `${student.firstName} ${student.lastName}`}
                 </h1>
               )}
               <div className="flex flex-wrap items-center gap-2 mt-1.5">
