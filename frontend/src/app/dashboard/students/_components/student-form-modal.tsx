@@ -4,10 +4,13 @@ import { useState, useEffect, useRef, useCallback, useActionState, startTransiti
 import { X, Loader2, Camera, User } from 'lucide-react'
 import { DatePicker } from '@/components/ui/date-picker'
 import { Button } from '@/components/ui/button'
+import { FormField } from '@/components/ui/form-field'
 import { http } from '@/lib/http-client'
 import { getSchoolId } from '@/lib/school'
 import { useToast } from '@/components/ui/toast'
 import { usePermission } from '@/lib/use-permission'
+import { useFormValidation } from '@/hooks/use-form-validation'
+import { email, isoDate, notFuture, pattern, required, type Schema } from '@/lib/validation'
 import { emptyForm, photoSrc, type Student, type StudentForm, type Level, type ChurchItem } from './student-types'
 import { type GradeItem } from '@/lib/grades'
 
@@ -22,7 +25,6 @@ export function StudentFormModal({ student, activeLevels, churches, gradeOptions
   const { can } = usePermission()
   const dialogRef = useRef<HTMLFormElement>(null)
   const [form, setForm] = useState<StudentForm>(emptyForm)
-  const [formErrors, setFormErrors] = useState<Record<string,string>>({})
   const [photoFile, setPhotoFile] = useState<File|null>(null)
   const photoRef = useRef<HTMLInputElement>(null)
   const blobRef = useRef('')
@@ -30,30 +32,44 @@ export function StudentFormModal({ student, activeLevels, churches, gradeOptions
   const t = (en: string, ar: string) => lang==='ar'?ar:en
   const ic = (err?: string) => `mt-1 block w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 ${err?'border-semantic-status-inactive focus:border-semantic-status-inactive focus:ring-semantic-status-inactive':'border-gray-300 focus:border-gold-500 focus:ring-gold-500'}`
 
+  type StudentFormFields = {
+    name: string; dateOfBirth: string; levelId: string; gradeId: string
+    email: string; phone: string; parentEmail: string
+  }
+
+  const studentSchema: Schema<StudentFormFields> = {
+    name: [required({ en: 'Name', ar: 'الاسم' })],
+    dateOfBirth: [required({ en: 'Date of birth', ar: 'تاريخ الميلاد' }), isoDate(), notFuture()],
+    levelId: [required({ en: 'Level', ar: 'المستوى' })],
+    gradeId: [required({ en: 'Grade', ar: 'الصف' })],
+    email: [email()],
+    phone: [pattern(/^[\d\s\-\+\(\)]{6,20}$/, { en: 'Invalid phone format', ar: 'صيغة الهاتف غير صحيحة' })],
+    parentEmail: [email()],
+  }
+
+  const { fieldErrors, handleBlur, validate } = useFormValidation({
+    values: form as unknown as StudentFormFields,
+    schema: studentSchema,
+    lang,
+  })
+
   useEffect(() => {
     dialogRef.current?.focus()
   }, [])
 
   useEffect(() => {
-    revoke(); setPhotoFile(null); setFormErrors({})
+    revoke(); setPhotoFile(null)
     if (student) {
       setForm({ name:`${student.firstName} ${student.lastName}`.trim(), firstNameAr:student.firstNameAr||'', lastNameAr:student.lastNameAr||'', dateOfBirth:student.dateOfBirth.split('T')[0], gender:student.gender, churchName:student.churchName||'', gradeId:student.gradeId||'', levelId:student.levelId, groupId:student.groupId, groupName:student.group?.name||'', photoUrl:student.photoUrl||'', status:student.status, phone:student.metadata?.phone||'', email:student.metadata?.email||'', address:student.metadata?.address||'', notes:student.metadata?.notes||'', churchToolId:student.metadata?.churchToolId||'', parentEmail:student.parentEmail||'' })
     } else { setForm(emptyForm) }
   }, [student?.id])
   useEffect(() => () => revoke(), [])
 
-  const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-  const phoneRe = /^[\d\s\-\+\(\)]{6,20}$/
   const setField = (f: string, v: string) => {
     setForm(prev => ({ ...prev, [f]: v }))
-    const req = ['name','dateOfBirth','levelId','gradeId']
-    let err = ''
-    if (req.includes(f)&&!v.trim()) err = t('This field is required','هذا الحقل مطلوب')
-    else if (f==='email'&&v&&!emailRe.test(v)) err = t('Invalid email format','صيغة البريد غير صحيحة')
-    else if (f==='phone'&&v&&!phoneRe.test(v)) err = t('Invalid phone format','صيغة الهاتف غير صحيحة')
-    setFormErrors(e => ({ ...e, [f]: err }))
   }
   const [formState, saveAction, isSaving] = useActionState(async (_prev: {error:string}, data: {form:StudentForm;photoFile:File|null;editing:Student|null}) => {
+    if (!validate()) return { error: '' }
     if (!data.form.name||!data.form.dateOfBirth||!data.form.levelId||!data.form.gradeId)
       return { error: t('Please fill all required fields','يرجى ملء جميع الحقول المطلوبة') }
     const parts = data.form.name.trim().split(/\s+/)
@@ -81,7 +97,7 @@ export function StudentFormModal({ student, activeLevels, churches, gradeOptions
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
-      <form ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-label={student?t('Edit Student','تعديل الطالب'):t('Add New Student','إضافة طالب جديد')} className="w-full max-w-lg rounded-2xl bg-white shadow-xl max-h-[90vh] flex flex-col outline-none" onClick={e=>e.stopPropagation()}
+      <form ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-label={student?t('Edit Student','تعديل الطالب'):t('Add New Student','إضافة طالب جديد')} className="w-full max-w-lg rounded-2xl bg-white shadow-xl max-h-[90vh] flex flex-col outline-none" onClick={e=>e.stopPropagation()} noValidate
         onSubmit={e=>{e.preventDefault();startTransition(()=>saveAction({form,photoFile,editing:student}))}}>
         <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4 flex-shrink-0">
           <h2 className="text-lg font-semibold">{student?t('Edit Student','تعديل الطالب'):t('Add New Student','إضافة طالب جديد')}</h2>
@@ -89,11 +105,16 @@ export function StudentFormModal({ student, activeLevels, churches, gradeOptions
         </div>
         <div className="px-6 py-5 space-y-4 overflow-y-auto flex-1">
           {formState.error&&<div className="rounded-lg bg-red-50 border border-red-200 p-3 text-sm text-red-700">{formState.error}</div>}
-          <div>
-            <label htmlFor="sf-name" className="block text-sm font-medium text-gray-700">{t('Name *','الاسم *')}</label>
-            <input id="sf-name" type="text" value={form.name} onChange={e=>setField('name',e.target.value)} placeholder={t('Full name','الاسم الكامل')} className={ic(formErrors.name)} />
-            {formErrors.name&&<p className="mt-1 text-xs text-red-500">{formErrors.name}</p>}
-          </div>
+          <FormField
+            label={t('Name','الاسم')}
+            type="text"
+            value={form.name}
+            onChange={e=>setField('name',e.target.value)}
+            onBlur={()=>handleBlur('name')}
+            error={fieldErrors.name}
+            required
+            placeholder={t('Full name','الاسم الكامل')}
+          />
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div><label htmlFor="sf-name-ar" className="block text-sm font-medium text-gray-700">{t('First Name (Arabic)','الاسم الأول (عربي)')}</label><input id="sf-name-ar" type="text" value={form.firstNameAr} onChange={e=>setForm({...form,firstNameAr:e.target.value})} className={ic()} /></div>
             <div><label htmlFor="sf-last-ar" className="block text-sm font-medium text-gray-700">{t('Last Name (Arabic)','الاسم الأخير (عربي)')}</label><input id="sf-last-ar" type="text" value={form.lastNameAr} onChange={e=>setForm({...form,lastNameAr:e.target.value})} className={ic()} /></div>
@@ -101,19 +122,19 @@ export function StudentFormModal({ student, activeLevels, churches, gradeOptions
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label htmlFor="sf-dob" className="block text-sm font-medium text-gray-700">{t('Date of Birth *','تاريخ الميلاد *')}</label>
-              <DatePicker id="sf-dob" value={form.dateOfBirth} onChange={v=>setField('dateOfBirth',v)} max={new Date().toISOString().split('T')[0]} className={ic(formErrors.dateOfBirth)} />
-              {formErrors.dateOfBirth&&<p className="mt-1 text-xs text-red-500">{formErrors.dateOfBirth}</p>}
+              <div onBlur={()=>handleBlur('dateOfBirth')}><DatePicker id="sf-dob" value={form.dateOfBirth} onChange={v=>setField('dateOfBirth',v)} max={new Date().toISOString().split('T')[0]} className={ic(fieldErrors.dateOfBirth)} /></div>
+              {fieldErrors.dateOfBirth&&<p className="mt-1 text-xs text-red-500">{fieldErrors.dateOfBirth}</p>}
             </div>
             <div><label htmlFor="sf-gender" className="block text-sm font-medium text-gray-700">{t('Gender *','الجنس *')}</label><select id="sf-gender" value={form.gender} onChange={e=>setForm({...form,gender:e.target.value})} className={ic()}><option value="male">{t('Male','ذكر')}</option><option value="female">{t('Female','أنثى')}</option></select></div>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label htmlFor="sf-level" className="block text-sm font-medium text-gray-700">{t('Level *','المستوى *')}</label>
-              <select id="sf-level" value={form.levelId} onChange={e=>{setField('levelId',e.target.value);setForm(prev=>({...prev,levelId:e.target.value,gradeId:'',groupId:'',groupName:''}))}} className={ic(formErrors.levelId)}>
+              <select id="sf-level" value={form.levelId} onChange={e=>{setField('levelId',e.target.value);setForm(prev=>({...prev,levelId:e.target.value,gradeId:'',groupId:'',groupName:''}))}} className={ic(fieldErrors.levelId)}>
                 <option value="">{t('Select level','اختر المستوى')}</option>
                 {activeLevels.map(l=><option key={l.id} value={l.id}>{l.name}</option>)}
               </select>
-              {formErrors.levelId&&<p className="mt-1 text-xs text-red-500">{formErrors.levelId}</p>}
+              {fieldErrors.levelId&&<p className="mt-1 text-xs text-red-500">{fieldErrors.levelId}</p>}
             </div>
             <div>
               <label htmlFor="sf-group" className="block text-sm font-medium text-gray-700">{t('Group','المجموعة')}</label>
@@ -129,17 +150,36 @@ export function StudentFormModal({ student, activeLevels, churches, gradeOptions
             ))}</select><p className="mt-1 text-xs text-gray-400">{t('Group is auto-assigned from the grade','يتم تحديد المجموعة تلقائياً من المرحلة')}</p></div>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div><label htmlFor="sf-phone" className="block text-sm font-medium text-gray-700">{t('Phone','رقم الهاتف')}</label><input id="sf-phone" type="tel" value={form.phone} onChange={e=>setForm({...form,phone:e.target.value})} className={ic()} /></div>
-            <div><label htmlFor="sf-email" className="block text-sm font-medium text-gray-700">{t('Email','البريد الإلكتروني')}</label><input id="sf-email" type="email" value={form.email} onChange={e=>setForm({...form,email:e.target.value})} className={ic()} /></div>
+            <FormField
+              label={t('Phone','رقم الهاتف')}
+              type="tel"
+              value={form.phone}
+              onChange={e=>setForm({...form,phone:e.target.value})}
+              onBlur={()=>handleBlur('phone')}
+              error={fieldErrors.phone}
+            />
+            <FormField
+              label={t('Email','البريد الإلكتروني')}
+              type="email"
+              value={form.email}
+              onChange={e=>setForm({...form,email:e.target.value})}
+              onBlur={()=>handleBlur('email')}
+              error={fieldErrors.email}
+            />
           </div>
           <div><label htmlFor="sf-address" className="block text-sm font-medium text-gray-700">{t('Address','العنوان')}</label><input id="sf-address" type="text" value={form.address} onChange={e=>setForm({...form,address:e.target.value})} className={ic()} /></div>
           <div><label htmlFor="sf-notes" className="block text-sm font-medium text-gray-700">{t('Notes','ملاحظات')}</label><textarea id="sf-notes" rows={2} value={form.notes} onChange={e=>setForm({...form,notes:e.target.value})} className={ic()} /></div>
           {can('student:edit-sensitive')&&<><div><label htmlFor="sf-ctid" className="block text-sm font-medium text-gray-700">{t('Church Tool ID','معرف أداة الكنيسة')}</label><input id="sf-ctid" type="text" value={form.churchToolId} onChange={e=>setForm({...form,churchToolId:e.target.value})} placeholder={t('Optional external ID','معرف خارجي اختياري')} className={ic()} /></div>
-          <div>
-            <label htmlFor="sf-parent" className="block text-sm font-medium text-gray-700">{t('Parent Email (link)','بريد ولي الأمر (رابط)')}</label>
-            <input id="sf-parent" type="email" value={form.parentEmail} onChange={e=>setForm({...form,parentEmail:e.target.value})} placeholder={t("Parent's login email",'بريد دخول ولي الأمر')} className={ic()} />
-            <p className="mt-1 text-xs text-gray-500">{t('Any student with this email appears automatically on the parent dashboard','أي طالب يحمل هذا البريد يظهر تلقائياً في لوحة ولي الأمر')}</p>
-          </div></>}
+          <FormField
+            label={t('Parent Email (link)','بريد ولي الأمر (رابط)')}
+            type="email"
+            value={form.parentEmail}
+            onChange={e=>setForm({...form,parentEmail:e.target.value})}
+            onBlur={()=>handleBlur('parentEmail')}
+            error={fieldErrors.parentEmail}
+            placeholder={t("Parent's login email",'بريد دخول ولي الأمر')}
+          />
+          <p className="mt-1 text-xs text-gray-500">{t('Any student with this email appears automatically on the parent dashboard','أي طالب يحمل هذا البريد يظهر تلقائياً في لوحة ولي الأمر')}</p></>}
           {/* Photo */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">{t('Profile Photo','الصورة الشخصية')}</label>
