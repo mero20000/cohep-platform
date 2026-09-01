@@ -94,10 +94,10 @@ const tintStyle = (color?: string): React.CSSProperties | undefined => {
   return { backgroundColor: `${color}1a`, color }
 }
 
-const ROLE_BADGE: Record<string, { bg: string; text: string }> = {
-  servant: { bg: 'bg-blue-50', text: 'text-blue-700' },
-  group_leader: { bg: 'bg-amber-50', text: 'text-amber-700' },
-  level_leader: { bg: 'bg-purple-50', text: 'text-purple-700' },
+const ROLE_BADGE: Record<string, { bg: string; text: string; hierarchy?: string }> = {
+  servant: { bg: 'bg-blue-50', text: 'text-blue-700', hierarchy: 'under group/level' },
+  group_leader: { bg: 'bg-amber-50', text: 'text-amber-700', hierarchy: 'leads group' },
+  level_leader: { bg: 'bg-purple-50', text: 'text-purple-700', hierarchy: 'manages level' },
 }
 
 export default function ServantsPage() {
@@ -845,6 +845,7 @@ export default function ServantsPage() {
                         <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium border ${badgeStyle.bg} ${badgeStyle.text} border-transparent`}>
                           {role?.displayName || (lang === 'ar' ? 'خادم' : 'Servant')}
                         </span>
+                        <span className="text-xs text-gray-500 ml-1">{ROLE_BADGE[role?.name || 'servant']?.hierarchy || '—'}</span>
                       </td>
                       <td data-label="Gender" className="px-6 py-3.5 hidden md:table-cell">
                         {s.gender ? (
@@ -958,6 +959,7 @@ export default function ServantsPage() {
                     <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium border ${badgeStyle.bg} ${badgeStyle.text} border-transparent`}>
                       {role?.displayName || (lang === 'ar' ? 'خادم' : 'Servant')}
                     </span>
+                    <span className="text-xs text-gray-500 ml-1">{ROLE_BADGE[role?.name || 'servant']?.hierarchy || '—'}</span>
                     {s.gender && (
                       <span className={`ms-2 inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${s.gender === 'female' ? 'bg-pink-50 text-pink-700' : 'bg-blue-50 text-blue-700'}`}>
                         {lang === 'ar' ? (s.gender === 'female' ? 'أنثى' : 'ذكر') : s.gender === 'female' ? 'Female' : 'Male'}
