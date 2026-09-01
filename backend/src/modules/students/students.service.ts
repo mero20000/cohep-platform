@@ -1248,4 +1248,3 @@ return this.prisma.studentSubjectPass.findMany({
     return { newKey, message: 'Portal access key rotated successfully' };
   }
 }
-}
