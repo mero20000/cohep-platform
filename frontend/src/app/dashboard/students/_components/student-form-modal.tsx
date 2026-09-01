@@ -14,6 +14,21 @@ import { email, isoDate, notFuture, pattern, required, type Schema } from '@/lib
 import { emptyForm, photoSrc, type Student, type StudentForm, type Level, type ChurchItem } from './student-types'
 import { type GradeItem } from '@/lib/grades'
 
+type StudentFormFields = {
+  name: string; dateOfBirth: string; levelId: string; gradeId: string
+  email: string; phone: string; parentEmail: string
+}
+
+const studentSchema: Schema<StudentFormFields> = {
+  name: [required({ en: 'Name', ar: 'الاسم' })],
+  dateOfBirth: [required({ en: 'Date of birth', ar: 'تاريخ الميلاد' }), isoDate(), notFuture()],
+  levelId: [required({ en: 'Level', ar: 'المستوى' })],
+  gradeId: [required({ en: 'Grade', ar: 'الصف' })],
+  email: [email()],
+  phone: [pattern(/^[\d\s\-\+\(\)]{6,20}$/, { en: 'Invalid phone format', ar: 'صيغة الهاتف غير صحيحة' })],
+  parentEmail: [email()],
+}
+
 interface Props {
   student: Student | null; activeLevels: Level[]
   churches: ChurchItem[]; gradeOptions: GradeItem[]
@@ -32,23 +47,8 @@ export function StudentFormModal({ student, activeLevels, churches, gradeOptions
   const t = (en: string, ar: string) => lang==='ar'?ar:en
   const ic = (err?: string) => `mt-1 block w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 ${err?'border-semantic-status-inactive focus:border-semantic-status-inactive focus:ring-semantic-status-inactive':'border-gray-300 focus:border-gold-500 focus:ring-gold-500'}`
 
-  type StudentFormFields = {
-    name: string; dateOfBirth: string; levelId: string; gradeId: string
-    email: string; phone: string; parentEmail: string
-  }
-
-  const studentSchema: Schema<StudentFormFields> = {
-    name: [required({ en: 'Name', ar: 'الاسم' })],
-    dateOfBirth: [required({ en: 'Date of birth', ar: 'تاريخ الميلاد' }), isoDate(), notFuture()],
-    levelId: [required({ en: 'Level', ar: 'المستوى' })],
-    gradeId: [required({ en: 'Grade', ar: 'الصف' })],
-    email: [email()],
-    phone: [pattern(/^[\d\s\-\+\(\)]{6,20}$/, { en: 'Invalid phone format', ar: 'صيغة الهاتف غير صحيحة' })],
-    parentEmail: [email()],
-  }
-
   const { fieldErrors, handleBlur, validate } = useFormValidation({
-    values: form as unknown as StudentFormFields,
+    values: form as StudentFormFields,
     schema: studentSchema,
     lang,
   })
@@ -123,7 +123,7 @@ export function StudentFormModal({ student, activeLevels, churches, gradeOptions
             <div>
               <label htmlFor="sf-dob" className="block text-sm font-medium text-gray-700">{t('Date of Birth *','تاريخ الميلاد *')}</label>
               <div onBlur={()=>handleBlur('dateOfBirth')}><DatePicker id="sf-dob" value={form.dateOfBirth} onChange={v=>setField('dateOfBirth',v)} max={new Date().toISOString().split('T')[0]} className={ic(fieldErrors.dateOfBirth)} /></div>
-              {fieldErrors.dateOfBirth&&<p className="mt-1 text-xs text-red-500">{fieldErrors.dateOfBirth}</p>}
+              {fieldErrors.dateOfBirth&&<p role="alert" className="mt-1 text-xs text-red-500">{fieldErrors.dateOfBirth}</p>}
             </div>
             <div><label htmlFor="sf-gender" className="block text-sm font-medium text-gray-700">{t('Gender *','الجنس *')}</label><select id="sf-gender" value={form.gender} onChange={e=>setForm({...form,gender:e.target.value})} className={ic()}><option value="male">{t('Male','ذكر')}</option><option value="female">{t('Female','أنثى')}</option></select></div>
           </div>
@@ -134,7 +134,7 @@ export function StudentFormModal({ student, activeLevels, churches, gradeOptions
                 <option value="">{t('Select level','اختر المستوى')}</option>
                 {activeLevels.map(l=><option key={l.id} value={l.id}>{l.name}</option>)}
               </select>
-              {fieldErrors.levelId&&<p className="mt-1 text-xs text-red-500">{fieldErrors.levelId}</p>}
+              {fieldErrors.levelId&&<p role="alert" className="mt-1 text-xs text-red-500">{fieldErrors.levelId}</p>}
             </div>
             <div>
               <label htmlFor="sf-group" className="block text-sm font-medium text-gray-700">{t('Group','المجموعة')}</label>
@@ -145,9 +145,9 @@ export function StudentFormModal({ student, activeLevels, churches, gradeOptions
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div><label htmlFor="sf-church" className="block text-sm font-medium text-gray-700">{t('Church','الكنيسة')}</label><select id="sf-church" value={form.churchName} onChange={e=>setForm({...form,churchName:e.target.value})} className={ic()}><option value="">{t('Select church','اختر الكنيسة')}</option>{churches.map(c=><option key={c.id} value={c.name}>{c.name}{c.city?`, ${c.city}`:''}</option>)}</select></div>
-            <div><label htmlFor="sf-grade" className="block text-sm font-medium text-gray-700">{t('Grade','المرحلة الدراسية')}</label><select id="sf-grade" value={form.gradeId} onChange={e=>{const v=e.target.value;const gr=gradeOptions.find(g=>g.id===v);setForm({...form,gradeId:v,groupId:gr?.groupId||'',groupName:gr?.groupName||''})}} className={ic()}><option value="">{t('Select grade','اختر المرحلة')}</option>{gradeOptions.map(g=>(
+            <div><label htmlFor="sf-grade" className="block text-sm font-medium text-gray-700">{t('Grade','المرحلة الدراسية')}</label><select id="sf-grade" value={form.gradeId} onChange={e=>{const v=e.target.value;const gr=gradeOptions.find(g=>g.id===v);setForm({...form,gradeId:v,groupId:gr?.groupId||'',groupName:gr?.groupName||''})}} className={ic(fieldErrors.gradeId)}><option value="">{t('Select grade','اختر المرحلة')}</option>{gradeOptions.map(g=>(
               <option key={g.id} value={g.id}>{g.name}</option>
-            ))}</select><p className="mt-1 text-xs text-gray-400">{t('Group is auto-assigned from the grade','يتم تحديد المجموعة تلقائياً من المرحلة')}</p></div>
+            ))}</select>{fieldErrors.gradeId&&<p role="alert" className="mt-1 text-xs text-red-500">{fieldErrors.gradeId}</p>}<p className="mt-1 text-xs text-gray-400">{t('Group is auto-assigned from the grade','يتم تحديد المجموعة تلقائياً من المرحلة')}</p></div>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <FormField
