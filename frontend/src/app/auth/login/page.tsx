@@ -3,15 +3,18 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import { useState, useRef, useEffect, useCallback } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { useAuth } from '@/hooks/use-auth'
 import { useLanguage } from '@/lib/use-language'
+import { useFormValidation } from '@/hooks/use-form-validation'
+import { email, required, type Schema } from '@/lib/validation'
+import { FormField } from '@/components/ui/form-field'
 import ForgotPasswordPanel from '@/components/auth/forgot-password-panel'
 import {
   Eye, EyeOff, Loader2, BookOpen, Trophy, Calendar, Search,
   Users, Music, Globe, ArrowRight, Sparkles, Shield, Heart, Star,
-  AlertCircle, CheckCircle2, AlertTriangle, Cross,
+  CheckCircle2, AlertTriangle, Cross,
 } from 'lucide-react'
 
 const features = [
@@ -25,22 +28,23 @@ const features = [
 
 const INPUT_CLASS =
   "block w-full rounded-lg border border-gray-200 bg-white px-4 py-3 min-h-[48px] text-sm shadow-sm placeholder:text-gray-500 focus:border-gold-500 focus:outline-none focus:ring-2 focus:ring-gold-500/20 transition-all"
-const INPUT_ERROR_CLASS =
-  "block w-full rounded-lg border border-red-300 bg-white px-4 py-3 min-h-[48px] text-sm shadow-sm placeholder:text-gray-500 focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-500 transition-all"
 
 export default function LoginPage() {
   const { login } = useAuth()
   const router = useRouter()
   const lang = useLanguage()
   const isAr = lang === 'ar'
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
+  type LoginForm = { email: string; password: string }
+  const loginSchema: Schema<LoginForm> = {
+    email: [required({ en: 'Email', ar: 'البريد الإلكتروني' }), email()],
+    password: [required({ en: 'Password', ar: 'كلمة المرور' })],
+  }
+  const [form, setForm] = useState<LoginForm>({ email: '', password: '' })
   const [schoolId, setSchoolId] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [capsLock, setCapsLock] = useState(false)
-  const [emailError, setEmailError] = useState('')
   const [showSuccess, setShowSuccess] = useState(false)
   const [rememberMe, setRememberMe] = useState(false)
   const [showForgot, setShowForgot] = useState(false)
@@ -55,12 +59,18 @@ export default function LoginPage() {
   const schoolDebounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
 
   const emailRef = useRef<HTMLInputElement>(null)
-  const passwordHintRef = useRef<HTMLParagraphElement>(null)
+
+  const { fieldErrors, handleBlur, validate, register } = useFormValidation({
+    values: form,
+    schema: loginSchema,
+    lang: isAr ? 'ar' : 'en',
+    fieldId: (f) => `login-${f}`,
+  })
 
   useEffect(() => {
     const saved = localStorage.getItem('remembered_email')
     if (saved) {
-      setEmail(saved)
+      setForm(prev => ({ ...prev, email: saved }))
       setRememberMe(true)
     }
     const savedSchool = localStorage.getItem('remembered_school_id')
@@ -72,14 +82,6 @@ export default function LoginPage() {
       emailRef.current?.focus()
     }
   }, [error])
-
-  const validateEmail = (value: string) => {
-    if (value && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
-      setEmailError(isAr ? 'يرجى إدخال بريد إلكتروني صحيح' : 'Please enter a valid email address')
-    } else {
-      setEmailError('')
-    }
-  }
 
 
   const handleSchoolSearch = useCallback((value: string) => {
@@ -146,20 +148,20 @@ export default function LoginPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!validate()) return
     setLoading(true)
     setColdStartWarning(false)
     const coldTimer = setTimeout(() => setColdStartWarning(true), 4000)
     setError('')
-    setEmailError('')
 
     if (rememberMe) {
-      localStorage.setItem('remembered_email', email)
+      localStorage.setItem('remembered_email', form.email)
     } else {
       localStorage.removeItem('remembered_email')
     }
 
     try {
-      await login(email, password, schoolId || undefined)
+      await login(form.email, form.password, schoolId || undefined)
       clearTimeout(coldTimer)
       setColdStartWarning(false)
       // Save school identifier for next login
@@ -309,84 +311,54 @@ export default function LoginPage() {
                 </div>
               )}
 
-              <div>
-                <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1.5">
-                  {isAr ? 'البريد الإلكتروني' : 'Email address'}
-                </label>
-                <input
-                  ref={emailRef}
-                  id="email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => {
-                    setEmail(e.target.value)
-                    if (emailError) validateEmail(e.target.value)
-                  }}
-                  onBlur={(e) => validateEmail(e.target.value)}
-                  autoComplete="email"
-                  required
-                  aria-invalid={emailError ? 'true' : undefined}
-                  aria-describedby={emailError ? 'email-error' : undefined}
-                  className={emailError ? INPUT_ERROR_CLASS : INPUT_CLASS}
-                  placeholder="you@example.com"
-                />
-                {emailError && (
-                  <p id="email-error" className="mt-1.5 text-xs text-red-600 flex items-center gap-1">
-                    <AlertCircle className="h-3 w-3 shrink-0" />
-                    {emailError}
-                  </p>
-                )}
-              </div>
+              <FormField
+                label={isAr ? 'البريد الإلكتروني' : 'Email address'}
+                type="email"
+                value={form.email}
+                onChange={(e) => setForm(prev => ({ ...prev, email: e.target.value }))}
+                onBlur={() => handleBlur('email')}
+                error={fieldErrors.email}
+                required
+                inputRef={register('email')}
+                autoComplete="email"
+                placeholder="you@example.com"
+              />
 
               <div>
-                <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1.5">
-                  {isAr ? 'كلمة المرور' : 'Password'}
-                </label>
                 <div className="relative">
-                  <input
-                    id="password"
+                  <FormField
+                    label={isAr ? 'كلمة المرور' : 'Password'}
                     type={showPassword ? 'text' : 'password'}
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
+                    value={form.password}
+                    onChange={(e) => setForm(prev => ({ ...prev, password: e.target.value }))}
+                    onBlur={() => { handleBlur('password'); setCapsLock(false) }}
                     onKeyDown={(e) => setCapsLock(e.getModifierState('CapsLock'))}
                     onKeyUp={(e) => setCapsLock(e.getModifierState('CapsLock'))}
-                    onBlur={() => setCapsLock(false)}
-                    autoComplete="current-password"
+                    error={fieldErrors.password}
                     required
-                    minLength={8}
+                    inputRef={register('password')}
+                    autoComplete="current-password"
+                    placeholder={isAr ? 'أدخل كلمة المرور' : 'Enter your password'}
+                    className="pe-11"
                     aria-describedby={
                       [
                         error ? 'login-error' : '',
-                        !password ? 'password-hint' : '',
                         capsLock ? 'caps-lock-warning' : '',
                       ]
                         .filter(Boolean)
                         .join(' ') || undefined
                     }
-                    className={(password && password.length > 0 && password.length < 8 ? INPUT_ERROR_CLASS : INPUT_CLASS) + " pe-11"}
-                    placeholder={isAr ? 'أدخل كلمة المرور' : 'Enter your password'}
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
                     aria-label={showPassword ? (isAr ? 'إخفاء كلمة المرور' : 'Hide password') : (isAr ? 'إظهار كلمة المرور' : 'Show password')}
                     aria-pressed={showPassword}
-                    className="absolute end-2 top-1/2 -translate-y-1/2 flex h-11 w-11 items-center justify-center text-gray-500 hover:text-gray-700 transition-colors rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500"
+                    className="absolute end-2 top-[38px] flex h-11 w-11 items-center justify-center text-gray-500 hover:text-gray-700 transition-colors rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500"
                   >
                     {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
                 </div>
-                {!password && (
-                  <p id="password-hint" ref={passwordHintRef} className="mt-1.5 text-xs text-gray-500">
-                    {isAr ? '8 أحرف على الأقل' : 'At least 8 characters'}
-                  </p>
-                )}
-                {password && password.length < 8 && (
-                  <p id="password-error" className="mt-1.5 text-xs text-red-600 flex items-center gap-1">
-                    <AlertCircle className="h-3 w-3 shrink-0" />
-                    {isAr ? 'كلمة المرور يجب أن تكون 8 أحرف على الأقل' : 'Password must be at least 8 characters'}
-                  </p>
-                )}
                 {capsLock && (
                   <p id="caps-lock-warning" className="mt-1.5 text-xs text-amber-700 flex items-center gap-1">
                     <AlertTriangle className="h-3 w-3 shrink-0" />
@@ -485,7 +457,7 @@ export default function LoginPage() {
               </div>
 
               {showForgot && (
-                <ForgotPasswordPanel defaultEmail={email} defaultSchoolId={schoolId} />
+                <ForgotPasswordPanel defaultEmail={form.email} defaultSchoolId={schoolId} />
               )}
 
               {coldStartWarning && (
