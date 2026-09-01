@@ -4,6 +4,9 @@ import { useState, KeyboardEvent } from 'react'
 import { Loader2, AlertCircle, CheckCircle2, KeyRound } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useLanguage } from '@/lib/use-language'
+import { useFormValidation } from '@/hooks/use-form-validation'
+import { email, required, type Schema } from '@/lib/validation'
+import { FormField } from '@/components/ui/form-field'
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'
 
@@ -11,6 +14,11 @@ interface ForgotPasswordPanelProps {
   defaultEmail?: string
   defaultSchoolId?: string
   bilingual?: boolean
+}
+
+type ForgotForm = { email: string }
+const forgotSchema: Schema<ForgotForm> = {
+  email: [required({ en: 'Email', ar: 'البريد الإلكتروني' }), email()],
 }
 
 export default function ForgotPasswordPanel({
@@ -21,11 +29,18 @@ export default function ForgotPasswordPanel({
   const lang = useLanguage()
   const isAr = bilingual && lang === 'ar'
 
-  const [email, setEmail] = useState(defaultEmail)
+  const [form, setForm] = useState<ForgotForm>({ email: defaultEmail })
   const [schoolId, setSchoolId] = useState(defaultSchoolId)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [done, setDone] = useState(false)
+
+  const { fieldErrors, handleBlur, validate } = useFormValidation<ForgotForm>({
+    values: form,
+    schema: forgotSchema,
+    lang: isAr ? 'ar' : 'en',
+    fieldId: () => 'forgot-email',
+  })
 
   const t = {
     email: isAr ? 'البريد الإلكتروني' : 'Email address',
@@ -39,21 +54,16 @@ export default function ForgotPasswordPanel({
     emailRequired: isAr ? 'يرجى إدخال بريد إلكتروني صحيح' : 'Please enter a valid email address',
   }
 
-  const validEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-
   const handleSubmit = async () => {
     setError('')
     setDone(false)
-    if (!validEmail.test(email)) {
-      setError(t.emailRequired)
-      return
-    }
+    if (!validate()) return
     setLoading(true)
     try {
       const res = await fetch(`${API}/auth/forgot-password`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: email.trim(), schoolIdentifier: schoolId.trim() || undefined }),
+        body: JSON.stringify({ email: form.email.trim(), schoolIdentifier: schoolId.trim() || undefined }),
       })
       if (!res.ok) {
         const err = await res.json().catch(() => ({ message: '' }))
@@ -93,21 +103,18 @@ export default function ForgotPasswordPanel({
         </div>
       )}
 
-      <div>
-        <label htmlFor="forgot-email" className="block text-xs font-medium text-gray-700 mb-1">
-          {t.email}
-        </label>
-        <input
-          id="forgot-email"
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          autoComplete="email"
-          required
-          className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-gold-500"
-          placeholder="you@example.com"
-        />
-      </div>
+      <FormField
+        label={t.email}
+        required
+        type="email"
+        fieldId="forgot-email"
+        error={fieldErrors.email}
+        value={form.email}
+        onChange={(e) => setForm({ email: (e.target as HTMLInputElement).value })}
+        onBlur={() => handleBlur('email')}
+        autoComplete="email"
+        placeholder="you@example.com"
+      />
 
       <div>
         <label htmlFor="forgot-school" className="block text-xs font-medium text-gray-700 mb-1">

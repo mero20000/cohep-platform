@@ -9,6 +9,9 @@ import { SlideEditor } from './slide-editor'
 import { API } from './constants'
 import { request } from './hooks'
 import { http } from '@/lib/http-client'
+import { useFormValidation } from '@/hooks/use-form-validation'
+import { required, type Schema } from '@/lib/validation'
+import { FormField } from '@/components/ui/form-field'
 import type { Level, Subject, Lesson, LessonFormData, PresentationData, SubjectItem } from './types'
 
 interface LessonModalProps {
@@ -19,6 +22,11 @@ interface LessonModalProps {
   onSaveAdd?: (levelId: string, subjectId: string, data: LessonFormData) => Promise<void>
   onSaveEdit?: (data: LessonFormData & { levelId?: string }) => Promise<void>
   onClose: () => void
+}
+
+type LessonForm = Pick<LessonFormData, 'title' | 'titleAr' | 'titleCoptic' | 'description'>
+const lessonSchema: Schema<LessonForm> = {
+  title: [required({ en: 'Lesson title', ar: 'عنوان الدرس' })],
 }
 
 export function LessonModal({ mode, lesson, levels, subjects, onSaveAdd, onSaveEdit, onClose }: LessonModalProps) {
@@ -38,6 +46,13 @@ export function LessonModal({ mode, lesson, levels, subjects, onSaveAdd, onSaveE
   const [subjectItems, setSubjectItems] = useState<SubjectItem[]>([])
   const [subjectItemsLoading, setSubjectItemsLoading] = useState(false)
   const { toast } = useToast()
+
+  const { fieldErrors, handleBlur, validate } = useFormValidation<LessonForm>({
+    values: { title: form.title, titleAr: form.titleAr, titleCoptic: form.titleCoptic, description: form.description },
+    schema: lessonSchema,
+    lang: lang === 'ar' ? 'ar' : 'en',
+    fieldId: (f) => f === 'title' ? 'lm-title-en' : `lm-${String(f)}`,
+  })
 
   useEffect(() => {
     if (mode === 'edit' && lesson) {
@@ -84,6 +99,7 @@ export function LessonModal({ mode, lesson, levels, subjects, onSaveAdd, onSaveE
   }
 
   const handleSave = async () => {
+    if (!validate()) return
     setSaving(true)
     try {
       if (mode === 'add') {
@@ -192,11 +208,15 @@ export function LessonModal({ mode, lesson, levels, subjects, onSaveAdd, onSaveE
             <input id="lm-title-ar" type="text" value={form.titleAr} onChange={e => handleFieldChange('titleAr', e.target.value)} dir="rtl"
               className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-blue-500 arabic-text" />
           </div>
-          <div>
-            <label htmlFor="lm-title-en" className="block text-xs font-medium text-gray-500 mb-1">{lang === 'ar' ? 'الاسم الإنجليزي' : 'English Name'}{mode === 'add' ? (lang === 'ar' ? ' *' : ' *') : ''}</label>
-            <input id="lm-title-en" type="text" value={form.title} onChange={e => handleFieldChange('title', e.target.value)}
-              className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-blue-500" />
-          </div>
+          <FormField
+            label={lang === 'ar' ? 'الاسم الإنجليزي' : 'English Name'}
+            required
+            fieldId="lm-title-en"
+            error={fieldErrors.title}
+            value={form.title}
+            onChange={e => handleFieldChange('title', (e.target as HTMLInputElement).value)}
+            onBlur={() => handleBlur('title')}
+          />
           {mode === 'edit' && (
             <div>
               <label htmlFor="lm-status-edit" className="block text-xs font-medium text-gray-500 mb-1">{lang === 'ar' ? 'الحالة' : 'Status'}</label>
