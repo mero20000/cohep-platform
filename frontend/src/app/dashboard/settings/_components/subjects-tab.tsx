@@ -50,6 +50,13 @@ const subjectSchema: Schema<SubjectForm> = {
 }
 
 const emptySubjectForm: SubjectForm = { name: '', nameAr: '', description: '', color: '#D4AF37' }
+
+type ItemForm = { name: string; whenLabel: string; nameAr: string; nameCoptic: string; levels: number[]; descriptionAr: string; sessionsGroup1: number; sessionsGroup2: number; sessionsGroup3: number; sessionsGroup4: number; optional: boolean; hazzat: string; presentationUrl: string; educationLanguages: string[]; active: boolean }
+
+const itemFormSchema: Schema<ItemForm> = {
+  name: [required({ en: 'Hymn name', ar: 'اسم التسبيحة' })],
+}
+
 const emptyItemForm = {
   whenLabel: '', name: '', nameAr: '', nameCoptic: '', levels: [1] as number[], descriptionAr: '',
   sessionsGroup1: 0, sessionsGroup2: 0, sessionsGroup3: 0, sessionsGroup4: 0, optional: false,
@@ -101,6 +108,13 @@ export function SubjectsTab() {
 
   const [editingItem, setEditingItem] = useState<SubjectItem | null>(null)
   const [itemForm, setItemForm] = useState(emptyItemForm)
+
+  const { fieldErrors: itemFieldErrors, handleBlur: handleItemBlur, validate: validateItem } = useFormValidation({
+    values: itemForm as ItemForm,
+    schema: itemFormSchema,
+    lang,
+  })
+
   const [itemPresentation, setItemPresentation] = useState<PresentationData | undefined>(undefined)
   const [itemSaving, setItemSaving] = useState(false)
 
@@ -174,7 +188,8 @@ export function SubjectsTab() {
   const cancelItemForm = () => { setEditingItem(null); setItemForm(emptyItemForm); setItemPresentation(undefined); setShowItemForm(false) }
 
   const handleSaveItem = async () => {
-    if (!itemForm.name.trim() || !selectedSubject) return
+    if (!selectedSubject) return
+    if (!validateItem()) return
     setItemSaving(true)
     try {
       const isEdit = !!editingItem
@@ -680,6 +695,7 @@ export function SubjectsTab() {
             <div className="col-span-2">
               <label className="block text-sm font-medium text-gray-700 mb-1">{lang === 'ar' ? 'اسم التسبيحة' : 'Hymn Name'} <span className="text-red-500">*</span></label>
               <input type="text" value={itemForm.name} onChange={e => setItemForm({ ...itemForm, name: e.target.value })}
+                onBlur={() => handleItemBlur('name')}
                 onPaste={e => {
                   const pasted = e.clipboardData.getData('text')
                   if (isLikelyCsEncoded(pasted)) {
@@ -693,7 +709,8 @@ export function SubjectsTab() {
                   }
                 }}
                 placeholder="e.g. Ϣⲉⲣⲉ ⲛⲉ ⲧⲉⲙⲛⲟ"
-                className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:border-gold-500 focus:outline-none coptic-text" />
+                className={`w-full rounded-lg bg-white px-3 py-2 text-sm focus:border-gold-500 focus:outline-none coptic-text ${itemFieldErrors.name ? 'border-red-400' : 'border-gray-200'}`} />
+              {itemFieldErrors.name && <p className="text-xs text-red-500 mt-1">{itemFieldErrors.name}</p>}
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">{lang === 'ar' ? 'المستويات' : 'Levels'}</label>
@@ -855,7 +872,7 @@ export function SubjectsTab() {
         </div>
         <div className="flex items-center justify-end gap-3 border-t border-gray-100 px-6 py-4 mt-4">
           <Button variant="outline" onClick={cancelItemForm}>{lang === 'ar' ? 'إلغاء' : 'Cancel'}</Button>
-          <Button onClick={handleSaveItem} disabled={itemSaving || !itemForm.name.trim()}>
+          <Button onClick={handleSaveItem} disabled={itemSaving}>
             {itemSaving && <Loader2 className="h-4 w-4 animate-spin" />}
             {editingItem ? (lang === 'ar' ? 'حفظ التغييرات' : 'Save Changes') : (lang === 'ar' ? 'إضافة عنصر' : 'Add Item')}
           </Button>
