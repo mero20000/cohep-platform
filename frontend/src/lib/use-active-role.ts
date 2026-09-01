@@ -58,6 +58,6 @@ export function useActiveRole(): ActiveRole {
 
 export function roleCategory(role: string): 'management' | 'ministry' | 'parent' {
   if (role === 'parent') return 'parent'
-  if (['servant', 'group_leader', 'level_leader', 'assistant_servant'].includes(role)) return 'ministry'
+  if (['servant', 'group_leader', 'level_leader'].includes(role)) return 'ministry'
   return 'management'
 }

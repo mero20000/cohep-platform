@@ -5,13 +5,14 @@ import { JwtService } from '@nestjs/jwt';
 export const SKIP_PORTAL_AUTH = 'skipPortalAuth';
 
 /**
- * Guard for the student portal: endpoints were previously fully public with
- * the access key living in the URL (capability key = permanent credential in
- * browser history). Now the key is exchanged once at /login for a short-lived
- * JWT that must accompany every portal request as `Authorization: Bearer`.
+ * Guard for the student portal.
  *
- * Routes marked with @SetMetadata(SKIP_PORTAL_AUTH, true) (the login route)
- * are exempt.
+ * **Important:** Students authenticate via `portalAccessKey` — a 12-hour session JWT
+ * exchanged at `/auth/login` using the student's access key. The `student` User role
+ * is currently orphaned (no `@Roles('student')` decorator on any controller). Portal
+ * endpoints are protected by `StudentPortalAuthGuard`, not by RBAC role checks.
+ *
+ * Routes marked with `@SetMetadata(SKIP_PORTAL_AUTH, true)` (the login route) are exempt.
  */
 @Injectable()
 export class StudentPortalAuthGuard implements CanActivate {

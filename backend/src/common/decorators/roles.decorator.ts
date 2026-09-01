@@ -11,5 +11,4 @@ export const STAFF_ROLES = [
   'servant',
   'group_leader',
   'level_leader',
-  'assistant_servant',
 ] as const;

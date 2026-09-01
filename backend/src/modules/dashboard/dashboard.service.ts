@@ -260,7 +260,7 @@ export class DashboardService {
     const roles: string[] = Array.isArray(user?.roles) ? user.roles : [];
     if (viewRole && !roles.includes(viewRole)) throw new ForbiddenException('Invalid viewRole');
     const roleToUse = viewRole || roles[0] || 'guest';
-    const MINISTRY = ['servant', 'group_leader', 'level_leader', 'assistant_servant'];
+    const MINISTRY = ['servant', 'group_leader', 'level_leader'];
     const category = MINISTRY.includes(roleToUse)
       ? 'ministry'
       : roleToUse === 'parent'

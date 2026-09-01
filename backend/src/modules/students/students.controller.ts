@@ -287,4 +287,12 @@ export class StudentsController {
   async getPassHistory(@Param("id") id: string, @Req() req: any) {
     return this.studentsService.getStudentPassHistory(id, req.user);
   }
+
+  @Patch(":id/rotate-portal-key")
+  @Roles("admin", "super_admin")
+  @ApiOperation({ summary: "Rotate student portal access key (generates new UUID key)" })
+  @ApiResponse({ status: 200, description: 'New portal access key generated' })
+  async rotatePortalAccessKey(@Param("id") studentId: string) {
+    return this.studentsService.rotatePortalAccessKey(studentId);
+  }
 }

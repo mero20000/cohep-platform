@@ -213,7 +213,7 @@ export class ReportsService {
 
   async getServantContributions(schoolIdentifier: string, includeAll = false) {
     const schoolId = await this.schoolResolver.resolve(schoolIdentifier);
-    const MINISTRY_ROLES = ['servant', 'group_leader', 'level_leader', 'assistant_servant', 'curriculum_manager'];
+    const MINISTRY_ROLES = ['servant', 'group_leader', 'level_leader', 'curriculum_manager'];
 
     const roleRecords = await this.prisma.userRole.findMany({
       where: { user: { schoolId, deletedAt: null, isActive: true }, role: { name: { in: MINISTRY_ROLES } } },
@@ -330,7 +330,7 @@ export class ReportsService {
             }
             return count;
           }),
-        this.prisma.userRole.count({ where: { user: { schoolId: school.id }, role: { name: { in: ['servant', 'group_leader', 'level_leader', 'assistant_servant', 'curriculum_manager'] } } } }),
+        this.prisma.userRole.count({ where: { user: { schoolId: school.id }, role: { name: { in: ['servant', 'group_leader', 'level_leader', 'curriculum_manager'] } } } }),
         this.prisma.attendanceSession.findMany({
           where: { schoolId: school.id, scheduledDate: { gte: weekAgo }, deletedAt: null },
           include: { attendanceRecords: { select: { status: true } } },
@@ -435,7 +435,7 @@ async getDioceseReport(churchId?: string) {
             this.prisma.userRole.count({
               where: {
                 user: { schoolId: school.id },
-                role: { name: { in: ['servant', 'group_leader', 'level_leader', 'assistant_servant', 'curriculum_manager'] } },
+                role: { name: { in: ['servant', 'group_leader', 'level_leader', 'curriculum_manager'] } },
               },
             }),
 

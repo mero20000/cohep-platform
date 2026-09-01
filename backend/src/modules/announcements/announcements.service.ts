@@ -298,13 +298,17 @@ export class AnnouncementsService {
     return this.mapRow(ann);
   }
 
-  async publish(id: string) {
+  async publish(id: string, principalApproved?: boolean, principalId?: string) {
     const existing = await this.prisma.announcement.findUnique({ where: { id } });
     if (!existing || existing.deletedAt) throw new NotFoundException('Announcement not found');
 
+    const data: any = { status: 'published', publishAt: new Date() };
+    if (principalApproved !== undefined) data.metadata = { ...existing.metadata, principalApproved, principalId };
+    else if (existing.metadata) data.metadata = { ...existing.metadata };
+
     const ann = await this.prisma.announcement.update({
       where: { id },
-      data: { status: 'published', publishAt: new Date() },
+      data,
       include: this.listInclude,
     });
 

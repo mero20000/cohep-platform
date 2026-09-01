@@ -1,10 +1,9 @@
 'use client'
 
 import { useState, lazy, Suspense, ComponentType } from 'react'
-import { User, Shield, Globe, Palette, Baby, Bell } from 'lucide-react'
+import { User, Shield, Globe, Palette, Bell } from 'lucide-react'
 import { useLanguage } from '@/lib/use-language'
 import { Button } from '@/components/ui/button'
-import { ChildrenTab } from './_components/children-tab'
 import { NotificationPreferencesTab } from './_components/notification-preferences-tab'
 
 const ProfileTab = lazy(() => import('@/app/dashboard/settings/_components/profile-tab').then(m => ({ default: m.ProfileTab }))) as ComponentType
@@ -21,7 +20,6 @@ export default function PortalSettingsPage() {
     { id: 'security', label: lang === 'ar' ? 'الأمان' : 'Security', icon: Shield },
     { id: 'language', label: lang === 'ar' ? 'اللغة والمنطقة' : 'Language & Region', icon: Globe },
     { id: 'appearance', label: lang === 'ar' ? 'المظهر' : 'Appearance', icon: Palette },
-    { id: 'children', label: lang === 'ar' ? 'أبنائي' : 'My Children', icon: Baby },
     { id: 'notifications', label: lang === 'ar' ? 'الإشعارات' : 'Notifications', icon: Bell },
   ]
 
@@ -58,7 +56,6 @@ export default function PortalSettingsPage() {
               {activeTab === 'security' && <SecurityTab />}
               {activeTab === 'language' && <LanguageTab />}
               {activeTab === 'appearance' && <AppearanceTab />}
-              {activeTab === 'children' && <ChildrenTab />}
               {activeTab === 'notifications' && <NotificationPreferencesTab />}
             </Suspense>
           </div>

@@ -7,7 +7,16 @@ import { CreateStudentDto } from './dto/create-student.dto';
 import { UpdateStudentDto } from './dto/update-student.dto';
 import { QueryStudentDto } from './dto/query-student.dto';
 import { BulkImportStudentDto } from './dto/bulk-import-student.dto';
+import { v4 as uuidv4 } from 'uuid';
 
+/**
+ * NOTE: The `student` User role is currently orphaned — it exists in the role seed
+ * (11 roles) but has no `@Roles('student')` decorator on any controller. Students
+ * authenticate via `portalAccessKey` (12h session JWT) exchanged at `/auth/login`,
+ * not through RBAC role checks. This is intentional: the student portal uses a
+ * capability-based key system rather than role-based access control. The `student`
+ * role remains available for future RBAC assignment if needed.
+ */
 @Injectable()
 export class StudentsService {
   constructor(
@@ -1224,9 +1233,19 @@ async getPortalData(portalAccessKey: string) {
     });
     if (!student) throw new NotFoundException('Student not found');
 
-    return this.prisma.studentSubjectPass.findMany({
+return this.prisma.studentSubjectPass.findMany({
       where: { studentId },
       orderBy: { passedAt: 'desc' },
     });
   }
+
+  async rotatePortalAccessKey(studentId: string) {
+    const newKey = uuidv4();
+    const student = await this.prisma.student.update({
+      where: { id: studentId },
+      data: { portalAccessKey: newKey },
+    });
+    return { newKey, message: 'Portal access key rotated successfully' };
+  }
+}
 }

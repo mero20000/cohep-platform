@@ -64,7 +64,7 @@ export class GamificationService {
     });
 
     const roles: string[] = requestingUser?.roles ?? [];
-    const isStaff = ['super_admin', 'admin', 'principal', 'curriculum_manager', 'servant', 'group_leader', 'level_leader', 'assistant_servant']
+    const isStaff = ['super_admin', 'admin', 'principal', 'curriculum_manager', 'servant', 'group_leader', 'level_leader']
       .some(r => roles.includes(r));
     if (!requestingUser || isStaff || !roles.includes('parent')) {
       return leaderboard;

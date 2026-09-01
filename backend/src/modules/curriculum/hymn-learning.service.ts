@@ -61,7 +61,7 @@ export class HymnLearningService {
     private readonly studentNotifications: StudentNotificationsService,
   ) {}
 
-  private static readonly SERVANT_ROLES = ['servant', 'group_leader', 'level_leader', 'assistant_servant']
+  private static readonly SERVANT_ROLES = ['servant', 'group_leader', 'level_leader']
   private static readonly BYPASS_ROLES = ['super_admin', 'admin', 'principal']
 
   // ─── Ownership check for student-scoped writes (P-C1) ───────────────────

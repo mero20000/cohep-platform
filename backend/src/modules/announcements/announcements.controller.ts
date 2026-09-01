@@ -1,11 +1,12 @@
 import { Controller, Get, Post, Put, Patch, Delete, Body, Param, Query, UseGuards, BadRequestException } from '@nestjs/common';
-import { ApiBearerAuth, ApiTags, ApiOperation } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { Roles, STAFF_ROLES } from '../../common/decorators/roles.decorator';
 import { AnnouncementsService } from './announcements.service';
 import { Throttle } from '@nestjs/throttler';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { CreateAnnouncementDto, UpdateAnnouncementDto } from './dto/announcement.dto';
+import { PrincipalPublishDto } from './dto/principal-publish.dto';
 
 @ApiTags('announcements')
 @ApiBearerAuth()
@@ -68,8 +69,9 @@ export class AnnouncementsController {
   @Patch(':id/publish')
   @Roles(...STAFF_ROLES)
   @ApiOperation({ summary: 'Publish an announcement' })
-  async publish(@Param('id') id: string) {
-    return this.announcementsService.publish(id);
+  @ApiResponse({ status: 200, description: 'Announcement published' })
+  async publish(@Param('id') id: string, @Body() dto: PrincipalPublishDto) {
+    return this.announcementsService.publish(id, dto.principalApproved, dto.principalId);
   }
 
   @Delete(':id')

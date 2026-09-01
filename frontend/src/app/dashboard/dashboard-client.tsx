@@ -845,13 +845,12 @@ function RetryCard({ onRetry, lang }: { onRetry: () => void; lang: string }) {
 }
 
 const ROLE_LABELS: Record<string, { en: string; ar: string }> = {
- servant: { en: 'Servant', ar: 'خادم' },
- group_leader: { en: 'Group Leader', ar: 'رئيس مجموعة' },
- level_leader: { en: 'Level Leader', ar: 'رئيس مرحلة' },
- assistant_servant: { en: 'Assistant Servant', ar: 'خادم مساعد' },
- admin: { en: 'Admin', ar: 'مسؤول' },
- super_admin: { en: 'Super Admin', ar: 'مسؤول عام' },
- principal: { en: 'Principal', ar: 'مدير' },
+  servant: { en: 'Servant', ar: 'خادم' },
+  group_leader: { en: 'Group Leader', ar: 'رئيس مجموعة' },
+  level_leader: { en: 'Level Leader', ar: 'رئيس مرحلة' },
+  admin: { en: 'Admin', ar: 'مسؤول' },
+  super_admin: { en: 'Super Admin', ar: 'مسؤول عام' },
+  principal: { en: 'Principal', ar: 'مدير' },
 }
 function RoleBadge({ role, lang }: { role: string; lang: string }) {
  const l = ROLE_LABELS[role] || { en: role, ar: role }

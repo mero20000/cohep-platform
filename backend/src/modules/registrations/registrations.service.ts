@@ -294,7 +294,7 @@ export class RegistrationsService {
     const app = await this.prisma.registrationApplication.findUnique({ where: { id } });
     if (!app) throw new NotFoundException('Application not found');
     if (app.status !== 'pending') throw new BadRequestException('Already reviewed');
-    if (user?.schoolId && app.schoolId !== user.schoolId && !user.roles?.includes('super_admin')) {
+    if (user?.schoolId && app.schoolId !== user.schoolId && !user.roles?.includes('super_admin') && !user.roles?.includes('admin') && !user.roles?.includes('principal')) {
       throw new ForbiddenException('Not allowed for this school');
     }
 
@@ -398,7 +398,7 @@ export class RegistrationsService {
     const app = await this.prisma.registrationApplication.findUnique({ where: { id } });
     if (!app) throw new NotFoundException('Application not found');
     if (app.status !== 'pending') throw new BadRequestException('Already reviewed');
-    if (user?.schoolId && app.schoolId !== user.schoolId && !user.roles?.includes('super_admin')) {
+    if (user?.schoolId && app.schoolId !== user.schoolId && !user.roles?.includes('super_admin') && !user.roles?.includes('admin') && !user.roles?.includes('principal')) {
       throw new ForbiddenException('Not allowed for this school');
     }
     const updated = await this.prisma.registrationApplication.update({
