@@ -294,7 +294,7 @@ export default function RegisterPage() {
           </div>
 
           <h1 className="mt-7 text-3xl sm:text-[2.6rem] font-bold tracking-tight text-white leading-tight">
-            {t('Give your child the voice of the Church', 'امنح طفلك صوت الكنيسة')}
+            Let everything that has breath praise the Lord. <span className="text-gold-300 font-serif">Praise the Lord.</span> <span className="text-blue-300">Psalm 150:6</span>
           </h1>
           <p className="mx-auto mt-3 max-w-xl text-sm sm:text-base leading-relaxed text-white/70">
             {t('Register in 2 minutes — record a hymn, and begin a spiritual journey that lasts a lifetime.', 'سجل في دقيقتين — سجّل لحناً وابدأ رحلة روحية تدوم مدى الحياة.')}
@@ -304,9 +304,7 @@ export default function RegisterPage() {
             <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-400/10 border border-emerald-400/25 px-3 py-1 text-xs font-medium text-emerald-300">
               <ShieldCheck className="h-3.5 w-3.5" /> {t('Secure & reviewed by servants', 'آمن ويراجعه الخدام')}
             </span>
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-gold-400/10 border border-gold-400/25 px-3 py-1 text-xs font-medium text-gold-300">
-              {t('2025–2026 Intake', 'التسجيل 2025–2026')}
-            </span>
+            
           </div>
 
         </div>
