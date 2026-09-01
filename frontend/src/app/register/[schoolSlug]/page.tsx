@@ -294,7 +294,7 @@ export default function RegisterPage() {
           </div>
 
           <h1 className="mt-7 text-3xl sm:text-[2.6rem] font-bold tracking-tight text-white leading-tight">
-            Let everything that has breath praise the Lord. <span className="text-gold-300 font-serif">Praise the Lord.</span> <span className="text-blue-300">Psalm 150:6</span>
+            Let everything that has breath praise the Lord. (<span className="text-blue-300">Psalm 150:6</span>)
           </h1>
           <p className="mx-auto mt-3 max-w-xl text-sm sm:text-base leading-relaxed text-white/70">
             {t('Register in 2 minutes — record a hymn, and begin a spiritual journey that lasts a lifetime.', 'سجل في دقيقتين — سجّل لحناً وابدأ رحلة روحية تدوم مدى الحياة.')}
