@@ -99,7 +99,7 @@ export function AnnouncementFormModal({ announcement, onClose, onSuccess, lang }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
-      <div className="w-full max-w-lg rounded-2xl bg-white shadow-xl max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
+        <form className="w-full max-w-lg rounded-2xl bg-white shadow-xl max-h-[90vh] flex flex-col" noValidate onClick={e => e.stopPropagation()} onSubmit={e => e.preventDefault()}>
         <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4 flex-shrink-0">
           <h2 className="text-lg font-semibold">{announcement ? t('Edit Announcement', 'تعديل الإعلان') : t('New Announcement', 'إعلان جديد')}</h2>
           <Button variant="ghost" size="icon" type="button" onClick={onClose}><X className="h-5 w-5" /></Button>
@@ -126,7 +126,7 @@ export function AnnouncementFormModal({ announcement, onClose, onSuccess, lang }
               )}
             </div>
           )}
-          {error && <div className="rounded-lg bg-red-50 border border-red-200 p-3 text-sm text-red-700">{error}</div>}
+          {error && <div className="rounded-lg bg-red-50 border border-red-200 p-3 text-sm text-red-700" role="alert">{error}</div>}
           <FormField
             label={t('Title', 'العنوان')}
             type="text"
@@ -213,7 +213,7 @@ export function AnnouncementFormModal({ announcement, onClose, onSuccess, lang }
             <Megaphone className="h-4 w-4" />{announcement ? t('Save Changes', 'حفظ التغييرات') : t('Create', 'إنشاء')}
           </Button>
         </div>
-      </div>
+      </form>
     </div>
   )
 }
