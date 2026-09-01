@@ -2,10 +2,22 @@
 import { useState } from 'react'
 import { X, Loader2, Megaphone, Sparkles } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { FormField } from '@/components/ui/form-field'
 import { http } from '@/lib/http-client'
 import { getSchoolId } from '@/lib/school'
 import { useToast } from '@/components/ui/toast'
+import { useFormValidation } from '@/hooks/use-form-validation'
+import { maxLength, required, type Schema } from '@/lib/validation'
 import { emptyAnnouncement, ROLE_OPTIONS, type Announcement, type AnnouncementForm } from './announcement-types'
+
+type AnnouncementFormFields = {
+  title: string; body: string; titleAr: string; bodyAr: string
+}
+
+const announcementSchema: Schema<AnnouncementFormFields> = {
+  title: [required({ en: 'Title', ar: 'العنوان' }), maxLength(200)],
+  body: [required({ en: 'Body', ar: 'النص' }), maxLength(5000)],
+}
 
 interface Props {
   announcement: Announcement | null
@@ -27,6 +39,12 @@ export function AnnouncementFormModal({ announcement, onClose, onSuccess, lang }
   const [aiPrompt, setAiPrompt] = useState('')
   const [aiLoading, setAiLoading] = useState(false)
   const [showAi, setShowAi] = useState(false)
+
+  const { fieldErrors, handleBlur, validate } = useFormValidation({
+    values: form as AnnouncementFormFields,
+    schema: announcementSchema,
+    lang,
+  })
 
   const handleAiDraft = async () => {
     if (!aiPrompt.trim()) return
@@ -51,10 +69,7 @@ export function AnnouncementFormModal({ announcement, onClose, onSuccess, lang }
   }
 
   const handleSubmit = async () => {
-    if (!form.title.trim() || !form.body.trim()) {
-      setError(t('Title and body are required', 'العنوان والنص مطلوبان'))
-      return
-    }
+    if (!validate()) return
     setSaving(true)
     setError('')
     const payload = publishNow ? { ...form, publishedAt: new Date().toISOString() } : { ...form }
@@ -112,24 +127,32 @@ export function AnnouncementFormModal({ announcement, onClose, onSuccess, lang }
             </div>
           )}
           {error && <div className="rounded-lg bg-red-50 border border-red-200 p-3 text-sm text-red-700">{error}</div>}
-          <div>
-            <label className="block text-sm font-medium text-gray-700">{t('Title *', 'العنوان *')}</label>
-            <input type="text" value={form.title} onChange={e => setForm({ ...form, title: e.target.value })}
-              placeholder={t('Announcement title', 'عنوان الإعلان')}
-              className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:border-gold-500 focus:ring-1 focus:ring-blue-500" />
-          </div>
+          <FormField
+            label={t('Title', 'العنوان')}
+            type="text"
+            value={form.title}
+            onChange={e => setForm({ ...form, title: e.target.value })}
+            onBlur={() => handleBlur('title')}
+            error={fieldErrors.title}
+            required
+            placeholder={t('Announcement title', 'عنوان الإعلان')}
+          />
           <div>
             <label className="block text-sm font-medium text-gray-700">{t('Title (Arabic)', 'العنوان (عربي)')}</label>
             <input type="text" value={form.titleAr} onChange={e => setForm({ ...form, titleAr: e.target.value })}
               placeholder={t('Announcement title in Arabic', 'عنوان الإعلان بالعربية')}
               className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:border-gold-500 focus:ring-1 focus:ring-blue-500" />
           </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700">{t('Body *', 'النص *')}</label>
-            <textarea rows={4} value={form.body} onChange={e => setForm({ ...form, body: e.target.value })}
-              placeholder={t('Announcement text', 'نص الإعلان')}
-              className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:border-gold-500 focus:ring-1 focus:ring-blue-500" />
-          </div>
+          <FormField
+            label={t('Body', 'النص')}
+            as="textarea"
+            value={form.body}
+            onChange={e => setForm({ ...form, body: e.target.value })}
+            onBlur={() => handleBlur('body')}
+            error={fieldErrors.body}
+            required
+            placeholder={t('Announcement text', 'نص الإعلان')}
+          />
           <div>
             <label className="block text-sm font-medium text-gray-700">{t('Body (Arabic)', 'النص (عربي)')}</label>
             <textarea rows={4} value={form.bodyAr} onChange={e => setForm({ ...form, bodyAr: e.target.value })}
