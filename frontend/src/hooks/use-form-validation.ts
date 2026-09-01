@@ -213,6 +213,7 @@ function focusField<T>(
   // Defer past the render that paints the error, so focus is not stolen back.
   requestAnimationFrame(() => {
     el.focus()
-    el.scrollIntoView({ block: 'center', behavior: 'smooth' })
+    const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    el.scrollIntoView({ block: 'center', behavior: prefersReduced ? 'auto' : 'smooth' })
   })
 }

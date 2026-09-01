@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button'
 import { useAuth } from '@/hooks/use-auth'
 import { useLanguage } from '@/lib/use-language'
 import { useFormValidation } from '@/hooks/use-form-validation'
-import { email, required, type Schema } from '@/lib/validation'
+import { email, password, required, type Schema } from '@/lib/validation'
 import { FormField } from '@/components/ui/form-field'
 import ForgotPasswordPanel from '@/components/auth/forgot-password-panel'
 import {
@@ -37,7 +37,7 @@ export default function LoginPage() {
   type LoginForm = { email: string; password: string }
   const loginSchema: Schema<LoginForm> = {
     email: [required({ en: 'Email', ar: 'البريد الإلكتروني' }), email()],
-    password: [required({ en: 'Password', ar: 'كلمة المرور' })],
+    password: [required({ en: 'Password', ar: 'كلمة المرور' }), password()],
   }
   const [form, setForm] = useState<LoginForm>({ email: '', password: '' })
   const [schoolId, setSchoolId] = useState('')

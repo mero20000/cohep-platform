@@ -70,8 +70,6 @@ export function StudentFormModal({ student, activeLevels, churches, gradeOptions
   }
   const [formState, saveAction, isSaving] = useActionState(async (_prev: {error:string}, data: {form:StudentForm;photoFile:File|null;editing:Student|null}) => {
     if (!validate()) return { error: '' }
-    if (!data.form.name||!data.form.dateOfBirth||!data.form.levelId||!data.form.gradeId)
-      return { error: t('Please fill all required fields','يرجى ملء جميع الحقول المطلوبة') }
     const parts = data.form.name.trim().split(/\s+/)
     const firstName = parts[0]||''; const lastName = parts.slice(1).join(' ')||''
     try {
