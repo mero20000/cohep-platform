@@ -10,6 +10,8 @@ import { FormField } from '@/components/ui/form-field'
 import { getSchoolId } from '@/lib/school'
 import { http } from '@/lib/http-client'
 import { useLanguage } from '@/lib/use-language'
+import { useFormValidation } from '@/hooks/use-form-validation'
+import { minLength, required, type Schema } from '@/lib/validation'
 
 interface Level {
   id: string
@@ -20,7 +22,13 @@ interface Level {
   description?: string
 }
 
-const emptyForm = { name: '', nameAr: '', description: '' }
+type LevelForm = { name: string; nameAr: string; description: string }
+
+const levelSchema: Schema<LevelForm> = {
+  name: [required({ en: 'Level name', ar: 'اسم المستوى' }), minLength(2)],
+}
+
+const emptyForm: LevelForm = { name: '', nameAr: '', description: '' }
 
 export function LevelsTab() {
   const { toast } = useToast()
@@ -33,10 +41,16 @@ export function LevelsTab() {
   const [mode, setMode] = useState<'create' | 'edit'>('create')
   const [showForm, setShowForm] = useState(false)
   const [editingLevel, setEditingLevel] = useState<Level | null>(null)
-  const [form, setForm] = useState(emptyForm)
+  const [form, setForm] = useState<LevelForm>(emptyForm)
   const [formError, setFormError] = useState('')
   const [saving, setSaving] = useState(false)
   const [copiedId, setCopiedId] = useState<string | null>(null)
+
+  const { fieldErrors, handleBlur, validate } = useFormValidation({
+    values: form,
+    schema: levelSchema,
+    lang,
+  })
 
   const fetchLevels = () => {
     setLoading(true)
@@ -85,7 +99,7 @@ export function LevelsTab() {
 
   const handleSave = async () => {
     setFormError('')
-    if (!form.name.trim()) { setFormError(lang === 'ar' ? 'اسم المستوى مطلوب' : 'Level name is required'); return }
+    if (!validate()) return
     setSaving(true)
     try {
       const body = {
@@ -231,6 +245,8 @@ export function LevelsTab() {
           )}
           <FormField label={lang === 'ar' ? 'اسم المستوى' : 'Level Name'} required value={form.name}
             onChange={e => setForm({ ...form, name: e.target.value })}
+            onBlur={() => handleBlur('name')}
+            error={fieldErrors.name}
             placeholder={lang === 'ar' ? 'مثال: المستوى 1' : 'e.g. Level 1'} />
           <FormField label={lang === 'ar' ? 'الاسم بالعربية' : 'Arabic Name'} value={form.nameAr}
             onChange={e => setForm({ ...form, nameAr: e.target.value })}

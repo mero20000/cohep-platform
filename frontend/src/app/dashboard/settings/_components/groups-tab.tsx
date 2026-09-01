@@ -13,6 +13,8 @@ import { http } from '@/lib/http-client'
 import { getSchoolId } from '@/lib/school'
 import { useLanguage } from '@/lib/use-language'
 import { fetchGroups } from '@/lib/grades'
+import { useFormValidation } from '@/hooks/use-form-validation'
+import { minLength, required, type Schema } from '@/lib/validation'
 
 interface Group {
   id: string
@@ -23,7 +25,13 @@ interface Group {
   status: string
 }
 
-const emptyForm = { name: '', nameAr: '', description: '' }
+type GroupForm = { name: string; nameAr: string; description: string }
+
+const groupSchema: Schema<GroupForm> = {
+  name: [required({ en: 'Group name', ar: 'اسم المجموعة' }), minLength(2)],
+}
+
+const emptyForm: GroupForm = { name: '', nameAr: '', description: '' }
 
 export function GroupsTab() {
   const { toast } = useToast()
@@ -36,9 +44,15 @@ export function GroupsTab() {
   const [mode, setMode] = useState<'create' | 'edit'>('create')
   const [showForm, setShowForm] = useState(false)
   const [editingGroup, setEditingGroup] = useState<Group | null>(null)
-  const [form, setForm] = useState(emptyForm)
+  const [form, setForm] = useState<GroupForm>(emptyForm)
   const [formError, setFormError] = useState('')
   const [saving, setSaving] = useState(false)
+
+  const { fieldErrors, handleBlur, validate } = useFormValidation({
+    values: form,
+    schema: groupSchema,
+    lang,
+  })
 
   const [showDelete, setShowDelete] = useState(false)
   const [deleting, setDeleting] = useState<Group | null>(null)
@@ -95,7 +109,7 @@ export function GroupsTab() {
 
   const handleSave = async () => {
     setFormError('')
-    if (!form.name.trim()) { setFormError(lang === 'ar' ? 'اسم المجموعة مطلوب' : 'Group name is required'); return }
+    if (!validate()) return
     setSaving(true)
     try {
       const payload = {
@@ -277,6 +291,8 @@ export function GroupsTab() {
           )}
           <FormField label={lang === 'ar' ? 'اسم المجموعة' : 'Group Name'} required value={form.name}
             onChange={e => setForm({ ...form, name: e.target.value })}
+            onBlur={() => handleBlur('name')}
+            error={fieldErrors.name}
             placeholder={lang === 'ar' ? 'مثال: المجموعة أ' : 'e.g. Group A'} />
           <FormField label={lang === 'ar' ? 'الاسم بالعربية' : 'Arabic Name'} value={form.nameAr}
             onChange={e => setForm({ ...form, nameAr: e.target.value })}

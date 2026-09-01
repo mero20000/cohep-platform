@@ -20,6 +20,8 @@ import { DetailDrawer, DetailSection, DetailRow } from '@/components/ui/detail-d
 import { track } from '@/lib/analytics'
 import { assetUrl } from '@/lib/asset-url'
 import { AudioPlayer } from '@/components/audio-player'
+import { useFormValidation } from '@/hooks/use-form-validation'
+import { minLength, required, type Schema } from '@/lib/validation'
 
 interface Subject {
   id: string; name: string; nameAr?: string; description?: string; color?: string; status: string; orderIndex: number
@@ -41,7 +43,13 @@ interface Level {
   id: string; name: string; number: number; status: string
 }
 
-const emptySubjectForm = { name: '', nameAr: '', description: '', color: '#D4AF37' }
+type SubjectForm = { name: string; nameAr: string; description: string; color: string }
+
+const subjectSchema: Schema<SubjectForm> = {
+  name: [required({ en: 'Subject name', ar: 'اسم المادة' }), minLength(2)],
+}
+
+const emptySubjectForm: SubjectForm = { name: '', nameAr: '', description: '', color: '#D4AF37' }
 const emptyItemForm = {
   whenLabel: '', name: '', nameAr: '', nameCoptic: '', levels: [1] as number[], descriptionAr: '',
   sessionsGroup1: 0, sessionsGroup2: 0, sessionsGroup3: 0, sessionsGroup4: 0, optional: false,
@@ -72,9 +80,15 @@ export function SubjectsTab() {
   const [mode, setMode] = useState<'create' | 'edit'>('create')
   const [showForm, setShowForm] = useState(false)
   const [editingSubject, setEditingSubject] = useState<Subject | null>(null)
-  const [form, setForm] = useState(emptySubjectForm)
+  const [form, setForm] = useState<SubjectForm>(emptySubjectForm)
   const [formError, setFormError] = useState('')
   const [saving, setSaving] = useState(false)
+
+  const { fieldErrors, handleBlur, validate } = useFormValidation({
+    values: form,
+    schema: subjectSchema,
+    lang,
+  })
 
   const [deleteTarget, setDeleteTarget] = useState<Subject | null>(null)
   const [showDelete, setShowDelete] = useState(false)
@@ -203,7 +217,7 @@ export function SubjectsTab() {
   const openEdit = (subject: Subject) => { setMode('edit'); setEditingSubject(subject); setForm({ name: subject.name, nameAr: subject.nameAr || '', description: subject.description || '', color: subject.color || '#D4AF37' }); setFormError(''); setShowForm(true) }
 
   const handleSave = async () => {
-    if (!form.name.trim()) { setFormError(lang === 'ar' ? 'اسم المادة مطلوب' : 'Subject name is required'); return }
+    if (!validate()) return
     setSaving(true); setFormError('')
     try {
       const p = { schoolId: getSchoolId() }
@@ -851,7 +865,7 @@ export function SubjectsTab() {
       {/* Subject Create/Edit Modal */}
       <Modal open={showForm} onClose={() => setShowForm(false)} title={mode === 'create' ? (lang === 'ar' ? 'إضافة مادة' : 'Add Subject') : (lang === 'ar' ? 'تعديل المادة' : 'Edit Subject')}>
         <div className="space-y-4">
-          <FormField label={lang === 'ar' ? 'اسم المادة' : 'Subject Name'} required value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder={lang === 'ar' ? 'مثال: التسبحة القبطية' : 'e.g. Coptic Hymns'} error={formError} />
+          <FormField label={lang === 'ar' ? 'اسم المادة' : 'Subject Name'} required value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} onBlur={() => handleBlur('name')} error={fieldErrors.name} placeholder={lang === 'ar' ? 'مثال: التسبحة القبطية' : 'e.g. Coptic Hymns'} />
           <FormField label={lang === 'ar' ? 'الاسم بالعربية' : 'Arabic Name'} value={form.nameAr} onChange={e => setForm({ ...form, nameAr: e.target.value })} placeholder={lang === 'ar' ? 'مثال: التسبحة القبطية' : 'e.g. التسبحة القبطية'} />
           <FormField label={lang === 'ar' ? 'الوصف' : 'Description'} value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} placeholder={lang === 'ar' ? 'وصف مختصر' : 'Brief description'} />
           <div>
