@@ -171,11 +171,11 @@ function GrowthMirrorPanel({ entry, lang }: { entry: LeaderboardEntry; lang: str
         </div>
         <div className="grid grid-cols-2 gap-3 mb-4">
           <div className="rounded-lg bg-gray-50 p-3 text-center">
-            <div className="text-lg font-bold text-gray-900">{data.xpOneMonthAgo.toLocaleString()}</div>
+            <div className="text-lg font-bold text-gray-900">{data.xpOneMonthAgo.toLocaleString('en-GB')}</div>
             <div className="text-xs text-gray-500">{lang === 'ar' ? 'منذ شهر' : 'A month ago'}</div>
           </div>
           <div className="rounded-lg bg-gold-50 p-3 text-center border border-gold-100">
-            <div className="text-lg font-bold text-gold-700">{data.totalXp.toLocaleString()}</div>
+            <div className="text-lg font-bold text-gold-700">{data.totalXp.toLocaleString('en-GB')}</div>
             <div className="text-xs text-gold-600">{lang === 'ar' ? 'الآن' : 'Now'}</div>
           </div>
         </div>
@@ -433,7 +433,7 @@ function GroupTrophyPanel({ lang, schoolId }: { lang: string; schoolId: string }
                   {trophy.levelName && <UIBadge variant="info">Level {trophy.levelNumber}</UIBadge>}
                 </div>
                 <p className="text-xs text-gray-500 mt-0.5">
-                  {trophy.totalStudents} {lang === 'ar' ? 'طالب' : 'students'} · {trophy.totalXp.toLocaleString()} XP {lang === 'ar' ? 'مجمّعة' : 'combined'}
+                  {trophy.totalStudents} {lang === 'ar' ? 'طالب' : 'students'} · {trophy.totalXp.toLocaleString('en-GB')} XP {lang === 'ar' ? 'مجمّعة' : 'combined'}
                 </p>
               </div>
               <div className="text-right">
@@ -578,7 +578,7 @@ function ServantRecognitionPanel({ lang, schoolId }: { lang: string; schoolId: s
                   <div className={`mx-auto mb-2 flex h-9 w-9 items-center justify-center rounded-lg ${stat.color}`}>
                     <Icon className="h-4.5 w-4.5" />
                   </div>
-                  <div className="text-xl font-black text-gray-900">{stat.value.toLocaleString()}</div>
+                  <div className="text-xl font-black text-gray-900">{stat.value.toLocaleString('en-GB')}</div>
                   <div className="text-[10px] text-gray-500">{stat.label}</div>
                 </div>
               )
@@ -596,7 +596,7 @@ function ServantRecognitionPanel({ lang, schoolId }: { lang: string; schoolId: s
               {data.milestones.map(m => (
                 <div key={m.id} className={`flex items-center gap-3 rounded-xl border p-3 ${m.achieved ? 'bg-purple-50 border-purple-200' : 'bg-gray-50 border-gray-100'}`}>
                   <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-black ${m.achieved ? 'bg-purple-100 text-purple-700' : 'bg-gray-200 text-gray-500'}`}>
-                    {m.achieved ? '✓' : m.threshold.toLocaleString().slice(0, 3)}
+                    {m.achieved ? '✓' : m.threshold.toLocaleString('en-GB').slice(0, 3)}
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className={`text-xs font-semibold ${m.achieved ? 'text-purple-800' : 'text-gray-500'}`}>
@@ -930,9 +930,9 @@ export default function GamificationPage() {
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {statsLoading ? <CardSkeleton count={4} /> : (
           <>
-            <StatCard label={t('Total XP Awarded', 'إجمالي نقاط الخبرة')} value={stats?.totalXp?.toLocaleString() ?? '0'} icon={Star} iconBg="bg-blue-50" iconColor="text-blue-700" />
-            <StatCard label={t('Badges Earned', 'الشارات المكتسبة')} value={stats?.totalBadges?.toLocaleString() ?? '0'} icon={Trophy} iconBg="bg-green-50" iconColor="text-green-600" />
-            <StatCard label={t('Active Streaks', 'التتابعات النشطة')} value={stats?.totalStreaks?.toLocaleString() ?? '0'} icon={Flame} iconBg="bg-orange-50" iconColor="text-orange-600" />
+            <StatCard label={t('Total XP Awarded', 'إجمالي نقاط الخبرة')} value={stats?.totalXp?.toLocaleString('en-GB') ?? '0'} icon={Star} iconBg="bg-blue-50" iconColor="text-blue-700" />
+            <StatCard label={t('Badges Earned', 'الشارات المكتسبة')} value={stats?.totalBadges?.toLocaleString('en-GB') ?? '0'} icon={Trophy} iconBg="bg-green-50" iconColor="text-green-600" />
+            <StatCard label={t('Active Streaks', 'التتابعات النشطة')} value={stats?.totalStreaks?.toLocaleString('en-GB') ?? '0'} icon={Flame} iconBg="bg-orange-50" iconColor="text-orange-600" />
             <StatCard label={t('Active Students %', 'نسبة الطلاب النشطين')} value={`${stats?.avgEngagement ?? 0}%`} icon={Target} iconBg="bg-blue-50" iconColor="text-blue-600" />
           </>
         )}
@@ -1014,7 +1014,7 @@ export default function GamificationPage() {
                     </div>
                     <div>
                       <h3 className="font-bold text-gray-900">{growthStudent.firstName} {growthStudent.lastName}</h3>
-                      <p className="text-xs text-gray-500">{growthStudent.xp.toLocaleString()} XP · Level {growthStudent.level} · {growthStudent.badgeCount} {t('badges', 'شارات')}</p>
+                      <p className="text-xs text-gray-500">{growthStudent.xp.toLocaleString('en-GB')} XP · Level {growthStudent.level} · {growthStudent.badgeCount} {t('badges', 'شارات')}</p>
                     </div>
                     <div className="ml-auto flex gap-2">
                       <Button variant="outline" size="sm" onClick={() => openDrillDown(growthStudent)}>
@@ -1149,7 +1149,7 @@ export default function GamificationPage() {
       {/* XP drill-down */}
       <Modal open={!!drillDownStudent} onClose={() => setDrillDownStudent(null)} size="lg"
         title={drillDownStudent ? `${drillDownStudent.firstName} ${drillDownStudent.lastName}` : ''}
-        description={drillDownStudent ? `${drillDownStudent.xp.toLocaleString()} XP · Level ${drillDownStudent.level} · ${drillDownStudent.badgeCount} ${t('badges', 'شارات')}` : ''}>
+        description={drillDownStudent ? `${drillDownStudent.xp.toLocaleString('en-GB')} XP · Level ${drillDownStudent.level} · ${drillDownStudent.badgeCount} ${t('badges', 'شارات')}` : ''}>
         {transactionsLoading ? <div className="py-10"><TableSkeleton rows={5} cols={3} /></div>
           : transactions.length === 0 ? <p className="py-10 text-center text-sm text-gray-500">{t('No XP transactions found.', 'لا توجد معاملات نقاط خبرة.')}</p>
           : <div className="max-h-[55vh] overflow-y-auto divide-y divide-gray-100">
@@ -1157,7 +1157,7 @@ export default function GamificationPage() {
                 <div key={tx.id} className="flex items-center justify-between py-3">
                   <div>
                     <div className="text-sm font-medium text-gray-900">{TX_LABELS[tx.type] || tx.description || 'XP'}</div>
-                    <div className="text-xs text-gray-500">{new Date(tx.createdAt).toLocaleString()}</div>
+                    <div className="text-xs text-gray-500">{new Date(tx.createdAt).toLocaleString('en-GB')}</div>
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-semibold text-blue-700">+{tx.amount} XP</span>
@@ -1205,7 +1205,7 @@ export default function GamificationPage() {
                 <>
                   <div className="grid grid-cols-3 gap-3">
                     <div className="rounded-lg bg-blue-50 border border-blue-100 p-3 text-center">
-                      <div className="text-2xl font-black text-blue-600">{xpInfo.totalXp.toLocaleString()}</div>
+                      <div className="text-2xl font-black text-blue-600">{xpInfo.totalXp.toLocaleString('en-GB')}</div>
                       <div className="text-xs text-blue-700 font-semibold">{t('Total XP', 'إجمالي XP')}</div>
                     </div>
                     <div className="rounded-lg bg-purple-50 border border-purple-100 p-3 text-center">
@@ -1225,7 +1225,7 @@ export default function GamificationPage() {
                           <div key={tx.id} className="flex items-center justify-between rounded-lg bg-white p-2 text-xs">
                             <div className="flex-1 min-w-0">
                               <div className="font-medium text-gray-900 truncate">{TX_LABELS[tx.type] || tx.description || 'XP'}</div>
-                              <div className="text-gray-500">{new Date(tx.createdAt).toLocaleString()}</div>
+                              <div className="text-gray-500">{new Date(tx.createdAt).toLocaleString('en-GB')}</div>
                             </div>
                             <div className="text-right shrink-0 ml-2">
                               <div className={`font-semibold ${tx.amount >= 0 ? 'text-green-600' : 'text-red-600'}`}>
@@ -1391,7 +1391,7 @@ export default function GamificationPage() {
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="text-sm font-medium text-gray-900 truncate">{student.firstName} {student.lastName}</div>
-                          <div className="text-xs text-gray-500">{new Date(student.awardedAt).toLocaleDateString()}</div>
+                          <div className="text-xs text-gray-500">{new Date(student.awardedAt).toLocaleDateString('en-GB')}</div>
                         </div>
                       </div>
                       <Button variant="outline" size="sm" onClick={() => { setGrowthStudent(leaderboard.find(s => s.id === student.studentId) || null); setShowBadgeStudents(false) }} className="shrink-0">

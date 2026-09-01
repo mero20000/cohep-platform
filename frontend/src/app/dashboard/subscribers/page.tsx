@@ -103,7 +103,7 @@ export default function SubscribersPage() {
                     }
                   </td>
                   <td className="hidden md:table-cell px-4 py-3 text-sm text-gray-600">
-                    {new Date(s.createdAt).toLocaleDateString(lang === 'ar' ? 'ar-EG' : 'en-US')}
+                    {new Date(s.createdAt).toLocaleDateString(lang === 'ar' ? 'ar-EG' : 'en-GB')}
                   </td>
                   <td className="px-4 py-3 text-right">
                     <Button variant="ghost" size="icon" onClick={() => handleUnsubscribe(s.email)}

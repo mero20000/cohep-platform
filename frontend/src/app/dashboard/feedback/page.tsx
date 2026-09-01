@@ -193,7 +193,7 @@ export default function ServantFeedbackDashboard() {
                     <div className="rounded-lg bg-green-50 border border-green-200 p-3">
                       <p className="text-sm text-gray-700">{sub.servantFeedback}</p>
                       <p className="text-xs text-gray-500 mt-1">
-                        {new Date(sub.servantFeedbackAt || '').toLocaleDateString()}
+                        {new Date(sub.servantFeedbackAt || '').toLocaleDateString('en-GB')}
                       </p>
                     </div>
                   )}

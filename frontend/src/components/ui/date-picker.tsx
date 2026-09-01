@@ -101,7 +101,7 @@ export function DatePicker({
 }: DatePickerProps) {
   const lang = useLanguage()
   const isRtl = lang === 'ar'
-  const locale = isRtl ? 'ar-EG' : 'en-US'
+  const locale = isRtl ? 'ar-EG' : 'en-GB'
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)

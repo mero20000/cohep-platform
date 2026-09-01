@@ -99,7 +99,7 @@ export default function LiturgyVerificationPage() {
                   {t('Reported by', 'تم الإبلاغ بواسطة')}: {r.parent ? `${r.parent.firstName} ${r.parent.lastName}` : '-'}
                 </p>
                 <p className="text-xs text-gray-500">
-                  {new Date(r.date).toLocaleDateString()}
+                  {new Date(r.date).toLocaleDateString('en-GB')}
                   {r.notes && ` · ${r.notes}`}
                 </p>
               </div>

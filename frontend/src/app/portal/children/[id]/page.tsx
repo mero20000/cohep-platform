@@ -135,7 +135,7 @@ function LiturgySection({ childId, language }: { childId: string; language: stri
           {records.map(r => (
             <div key={r.id} className="p-2 bg-white rounded-lg border border-gray-100">
               <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-700">{new Date(r.date).toLocaleDateString()}</span>
+                <span className="text-sm text-gray-700">{new Date(r.date).toLocaleDateString('en-GB')}</span>
                 <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
                   r.status === 'verified' ? 'bg-green-100 text-green-700' :
                   r.status === 'rejected' ? 'bg-red-100 text-red-700' :
@@ -214,7 +214,7 @@ function MilestonesSection({ childId, language }: { childId: string; language: s
                 <span className="text-lg mt-0.5 shrink-0">{iconMap[m.icon] || '⭐'}</span>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm text-gray-800">{language === 'ar' ? m.label.ar : m.label.en}</p>
-                  <p className="text-xs text-gray-400 mt-0.5">{new Date(m.date).toLocaleDateString()}</p>
+                  <p className="text-xs text-gray-400 mt-0.5">{new Date(m.date).toLocaleDateString('en-GB')}</p>
                   {img && (
                     <Image
                       src={img}
@@ -799,7 +799,7 @@ export default function ChildDetailPage() {
                 <div key={x.id} className="flex items-center justify-between gap-3 px-5 py-3">
                   <div className="min-w-0">
                     <div className="truncate text-sm font-medium text-gray-900">{x.description || x.type}</div>
-                    <div className="text-xs text-gray-500">{new Date(x.createdAt).toLocaleDateString(lang === 'ar' ? 'ar' : 'en-GB', { day: 'numeric', month: 'short' })}</div>
+                    <div className="text-xs text-gray-500">{new Date(x.createdAt).toLocaleDateString(lang === 'ar' ? 'ar-EG' : 'en-GB', { day: 'numeric', month: 'short' })}</div>
                   </div>
                   <span className={`shrink-0 text-sm font-bold ${x.amount >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                     {x.amount >= 0 ? '+' : ''}{x.amount}
@@ -825,7 +825,7 @@ export default function ChildDetailPage() {
                     </div>
                     {b.badge.description && <div className="truncate text-xs text-gray-500">{b.badge.description}</div>}
                   </div>
-                  <span className="shrink-0 text-xs text-gray-500">{new Date(b.awardedAt).toLocaleDateString(lang === 'ar' ? 'ar' : 'en-GB', { day: 'numeric', month: 'short' })}</span>
+                  <span className="shrink-0 text-xs text-gray-500">{new Date(b.awardedAt).toLocaleDateString(lang === 'ar' ? 'ar-EG' : 'en-GB', { day: 'numeric', month: 'short' })}</span>
                 </div>
               ))}
             </div>

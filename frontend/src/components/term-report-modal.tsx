@@ -163,7 +163,7 @@ export function TermReportModal({ childId, language, open, onClose }: Props) {
                 )}
 
                 <div className="text-center mt-8 text-xs text-gray-400">
-                  {t('Generated on', 'تم الإنشاء في')} {new Date().toLocaleDateString()}
+                  {t('Generated on', 'تم الإنشاء في')} {new Date().toLocaleDateString('en-GB')}
                 </div>
               </div>
 

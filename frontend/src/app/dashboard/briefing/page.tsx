@@ -124,7 +124,7 @@ export default function BriefingPage() {
         return d
       })()
   const georgianLabel = nextSundayDate
-    ? nextSundayDate.toLocaleDateString(lang === 'ar' ? 'ar' : 'en-GB', {
+    ? nextSundayDate.toLocaleDateString(lang === 'ar' ? 'ar-EG' : 'en-GB', {
         weekday: 'short', day: 'numeric', month: 'long', year: 'numeric',
       })
     : ''
@@ -177,7 +177,7 @@ export default function BriefingPage() {
             <div className="text-xs font-semibold uppercase tracking-wider text-gray-400">{t('Next session', 'الجلسة القادمة')}</div>
             <div className="mt-1 text-sm text-gray-900">
               {data.nextSession.groupName} · {data.nextSession.levelName} ·{' '}
-              {new Date(data.nextSession.scheduledDate).toLocaleString(lang === 'ar' ? 'ar' : 'en-GB', {
+              {new Date(data.nextSession.scheduledDate).toLocaleString(lang === 'ar' ? 'ar-EG' : 'en-GB', {
                 weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
               })}
             </div>

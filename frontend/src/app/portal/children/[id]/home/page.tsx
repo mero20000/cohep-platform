@@ -70,7 +70,7 @@ function AnimatedNumber({ value, duration = 800 }: { value: number; duration?: n
     }
     requestAnimationFrame(step)
   }, [value, duration])
-  return <>{display.toLocaleString()}</>
+  return <>{display.toLocaleString('en-GB')}</>
 }
 
 // ── XP Bar ───────────────────────────────────────────────────────────────────
@@ -563,7 +563,7 @@ export default function StudentHomePage() {
                             {act.description || act.type.replace(/_/g, ' ')}
                           </p>
                           <p className="text-xs text-white/30">
-                            {new Date(act.date).toLocaleDateString(lang === 'ar' ? 'ar' : 'en-GB', { day: 'numeric', month: 'short' })}
+                            {new Date(act.date).toLocaleDateString(lang === 'ar' ? 'ar-EG' : 'en-GB', { day: 'numeric', month: 'short' })}
                           </p>
                         </div>
                         <div className="flex items-center gap-1 rounded-full bg-amber-400/15 border border-amber-400/20 px-2.5 py-0.5">

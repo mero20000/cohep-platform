@@ -510,7 +510,7 @@ function ChurchesPanel() {
                   <div className="mt-4 flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-gray-100">
                     <p className="text-xs text-gray-400">
                       {t('Submitted: ', 'تم التقديم: ')}
-                      {new Date(reg.createdAt).toLocaleDateString(lang === 'ar' ? 'ar-EG' : 'en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+                      {new Date(reg.createdAt).toLocaleDateString(lang === 'ar' ? 'ar-EG' : 'en-GB', { year: 'numeric', month: 'long', day: 'numeric' })}
                     </p>
                     <div className="flex items-center gap-2 flex-wrap">
                       {showReject(reg.registrationStatus) && (

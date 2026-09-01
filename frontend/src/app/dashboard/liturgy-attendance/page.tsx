@@ -118,7 +118,7 @@ export default function LiturgyAttendancePage() {
           <div>
             <h1 className="text-2xl font-bold text-gray-900">{t('Liturgy Attendance', 'حضور القداس')}</h1>
             <p className="text-sm text-gray-600 mt-1">
-              {new Date(session.date).toLocaleDateString(lang === 'ar' ? 'ar' : 'en-GB', {
+              {new Date(session.date).toLocaleDateString(lang === 'ar' ? 'ar-EG' : 'en-GB', {
                 weekday: 'long',
                 month: 'short',
                 day: 'numeric',

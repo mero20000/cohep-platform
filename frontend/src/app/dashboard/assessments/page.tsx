@@ -477,7 +477,7 @@ export default function AssessmentsPage() {
         </tr></thead>
         <tbody>${rows}</tbody>
       </table>
-      <p style="color:#888;font-size:10px">${lang === 'ar' ? 'تم الإنشاء' : 'Generated'} ${new Date().toLocaleString()}</p>
+      <p style="color:#888;font-size:10px">${lang === 'ar' ? 'تم الإنشاء' : 'Generated'} ${new Date().toLocaleString('en-GB')}</p>
       <button id="print-btn" class="no-print" style="padding:8px 16px;background:#2563eb;color:#fff;border:none;border-radius:6px;cursor:pointer">${lang === 'ar' ? 'طباعة' : 'Print'}</button>
       </body></html>
     `)
@@ -668,7 +668,7 @@ export default function AssessmentsPage() {
       render: (a: Assessment) => (
         <span className="text-sm text-gray-700">
           {a.dueDate
-            ? new Date(a.dueDate).toLocaleDateString(lang === 'ar' ? 'ar-SA' : 'en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+            ? new Date(a.dueDate).toLocaleDateString(lang === 'ar' ? 'ar-EG' : 'en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
             : '—'}
         </span>
       ),

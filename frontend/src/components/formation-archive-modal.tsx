@@ -112,7 +112,7 @@ export function FormationArchiveModal({ childId, childName, open, onClose }: Pro
                     </span>
                     <div className="min-w-0">
                       <p className="text-sm font-medium text-gray-900">{m.title}</p>
-                      <p className="text-xs text-gray-400">{new Date(m.date).toLocaleDateString()}</p>
+                      <p className="text-xs text-gray-400">{new Date(m.date).toLocaleDateString('en-GB')}</p>
                       {m.milestonePhotoUrl && (
                         <div className="relative mt-1 h-24 w-40 overflow-hidden rounded border">
                           <Image src={`${API_ORIGIN}${m.milestonePhotoUrl}`} alt="" fill sizes="160px" className="object-cover" />

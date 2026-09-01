@@ -591,7 +591,7 @@ function LeaderboardSection({ stats, loading }: { stats: DashboardData | null; l
         <div className="text-xs text-gray-500">{student.levelName || (lang === 'ar' ? `المستوى ${student.level}` : `Level ${student.level}`)} · <Star className="h-3 w-3 inline text-gold-400" /> {student.badgeCount} {lang === 'ar' ? 'شارات' : 'badges'}</div>
        </div>
        <div className="text-right">
-        <div className="text-sm font-bold text-gray-900">{student.xp.toLocaleString()}</div>
+        <div className="text-sm font-bold text-gray-900">{student.xp.toLocaleString('en-GB')}</div>
         <div className="text-[10px] text-gray-400 font-medium">{lang === 'ar' ? 'نقاط' : 'XP'}</div>
        </div>
       </div>

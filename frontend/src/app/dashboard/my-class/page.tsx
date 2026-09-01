@@ -151,7 +151,7 @@ export default function MyClassPage() {
             <p className="mt-1 flex items-center gap-1.5 text-sm text-gray-500">
               <CalendarDays className="h-4 w-4" />
               {data.nextSession.groupName} · {data.nextSession.levelName} ·{' '}
-              {new Date(data.nextSession.scheduledDate).toLocaleString(lang === 'ar' ? 'ar' : 'en-GB', {
+              {new Date(data.nextSession.scheduledDate).toLocaleString(lang === 'ar' ? 'ar-EG' : 'en-GB', {
                 weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
               })}
             </p>

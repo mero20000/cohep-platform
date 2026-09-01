@@ -48,7 +48,7 @@ export function ThisSundayPanel({ data, isLoading, hymnMap = [], onSelect, lang 
     : null
 
   // Georgian date
-  const georgianDate = sunday.toLocaleDateString(lang === 'ar' ? 'ar' : 'en-GB', {
+  const georgianDate = sunday.toLocaleDateString(lang === 'ar' ? 'ar-EG' : 'en-GB', {
     weekday: 'short', day: 'numeric', month: 'long', year: 'numeric',
   })
 

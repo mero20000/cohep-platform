@@ -99,7 +99,7 @@ export default function HymnReviewPage() {
                   {item.lesson.titleCoptic ? <span className="text-gray-400 coptic"> · {item.lesson.titleCoptic}</span> : null}
                 </div>
                 <div className="mt-0.5 text-xs text-gray-400">
-                  {t('Submitted', 'أُرسل')} {new Date(item.submittedAt).toLocaleString()}
+                  {t('Submitted', 'أُرسل')} {new Date(item.submittedAt).toLocaleString('en-GB')}
                   {item.durationSec ? ` · ${Math.round(item.durationSec)}s` : ''}
                 </div>
               </div>

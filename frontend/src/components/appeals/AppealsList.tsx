@@ -69,7 +69,7 @@ export function AppealsList({ appeals, isLoading = false }: AppealsListProps) {
                 )}
               </div>
               <span className="text-xs text-gray-500">
-                {new Date(appeal.createdAt).toLocaleDateString()}
+                {new Date(appeal.createdAt).toLocaleDateString('en-GB')}
               </span>
             </div>
 

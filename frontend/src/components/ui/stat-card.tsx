@@ -32,7 +32,7 @@ function AnimatedNumber({ value }: { value: number }) {
     raf.current = requestAnimationFrame(tick)
     return () => { if (raf.current) cancelAnimationFrame(raf.current) }
   }, [value])
-  return <>{display.toLocaleString()}</>
+  return <>{display.toLocaleString('en-GB')}</>
 }
 
 export function StatCard({ label, value, icon: Icon, iconColor = 'text-blue-700', iconBg = 'bg-blue-50', subtitle, trend, compact, onClick }: StatCardProps) {

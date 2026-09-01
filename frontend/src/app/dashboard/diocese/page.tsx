@@ -115,8 +115,8 @@ function SummaryBar({ data, lang }: { data: DioceseReport; lang: string }) {
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               {[
                 { label: t('Churches', 'كنائس'), value: s.totalChurches, icon: Church, color: 'text-indigo-600' },
-                { label: t('Students', 'طلاب'), value: s.totalStudents.toLocaleString(), icon: Users, color: 'text-blue-600' },
-                { label: t('Servants', 'خدام'), value: s.totalServants.toLocaleString(), icon: Heart, color: 'text-purple-600' },
+                { label: t('Students', 'طلاب'), value: s.totalStudents.toLocaleString('en-GB'), icon: Users, color: 'text-blue-600' },
+                { label: t('Servants', 'خدام'), value: s.totalServants.toLocaleString('en-GB'), icon: Heart, color: 'text-purple-600' },
                 { label: t('Avg Attendance', 'معدل الحضور'), value: s.avgAttendance + '%', icon: TrendingUp, color: 'text-green-600' },
                 { label: t('At Risk', 'في خطر'), value: s.totalAtRisk, icon: AlertTriangle, color: s.totalAtRisk > 0 ? 'text-red-500' : 'text-green-600' },
                 { label: t('Schools', 'مدارس'), value: s.totalSchools, icon: BookOpen, color: 'text-amber-600' },

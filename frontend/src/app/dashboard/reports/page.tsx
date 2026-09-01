@@ -145,7 +145,7 @@ function PriestPulseSection({ schoolId, lang }: { schoolId: string; lang: string
     },
     {
       label: t('XP This Week', 'نقاط هذا الأسبوع'),
-      value: pulse.xpEarnedThisWeek.toLocaleString(),
+      value: pulse.xpEarnedThisWeek.toLocaleString('en-GB'),
       sub: t('Experience earned', 'خبرة مكتسبة'),
       icon: Star,
       iconBg: 'bg-yellow-50', iconColor: 'text-yellow-600',
@@ -326,7 +326,7 @@ function LiturgicalEngagementSection({ schoolId, lang }: { schoolId: string; lan
 
                   <div className="flex items-center justify-between text-[11px] text-gray-500 mt-2">
                     <span>{t('XP Earned', 'نقاط مكتسبة')}</span>
-                    <span className="font-semibold text-amber-600">{season.xpEarned.toLocaleString()} XP</span>
+                    <span className="font-semibold text-amber-600">{season.xpEarned.toLocaleString('en-GB')} XP</span>
                   </div>
                   <MiniBar value={season.xpEarned} max={maxXp} color="bg-amber-400" />
 
@@ -399,7 +399,7 @@ function ServantContributionsSection({ schoolId, lang }: { schoolId: string; lan
             {t('Servant Contributions', 'مساهمات الخدام')}
           </h3>
           <span className="text-[11px] text-gray-500">
-            {data.summary.totalSessionsAllTime.toLocaleString()} {t('sessions total', 'جلسة إجمالاً')}
+            {data.summary.totalSessionsAllTime.toLocaleString('en-GB')} {t('sessions total', 'جلسة إجمالاً')}
           </span>
         </div>
         {data.servants.length === 0 ? (
@@ -431,7 +431,7 @@ function ServantContributionsSection({ schoolId, lang }: { schoolId: string; lan
                           </p>
                         </div>
                         <div className="text-right shrink-0">
-                          <p className="text-sm font-bold text-gray-900">{servant.totalSessions.toLocaleString()}</p>
+                          <p className="text-sm font-bold text-gray-900">{servant.totalSessions.toLocaleString('en-GB')}</p>
                           <p className="text-[10px] text-gray-500">{t('sessions', 'جلسة')}</p>
                         </div>
                       </div>

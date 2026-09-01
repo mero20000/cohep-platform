@@ -60,7 +60,7 @@ export function DisputesList({ disputes, isLoading = false, maxScore }: Disputes
               )}
             </div>
             <span className="text-xs text-gray-500">
-              {new Date(dispute.createdAt).toLocaleDateString()}
+              {new Date(dispute.createdAt).toLocaleDateString('en-GB')}
             </span>
           </div>
 
