@@ -642,6 +642,35 @@ export default function ServantsPage() {
             </div>
           </div>
           <p className="text-sm text-gray-500 mt-1">{lang === 'ar' ? 'إدارة المعلمين وقادة المجموعات وقادة المستويات' : 'Manage teachers, group leaders, and level leaders'}</p>
+          {/* collapsed hierarchy menu */}
+          <details className="mt-3" open>
+            <summary className="flex items-center gap-2 cursor-pointer text-sm font-medium text-gray-700 hover:text-gray-900 transition-colors">
+              <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <path d="M7 10l5 5 5-5M7 14l5-5 5-5" />
+              </svg>
+              <span>{lang === 'ar' ? 'الهرم التنظيمي' : 'Organization Hierarchy'}</span>
+            </summary>
+            <div className="mt-2 space-y-1">
+              <div className="flex items-center gap-2 text-xs text-gray-500">
+                <span>Level 1 {lang === 'ar' ? '(Group)' : ''}</span>
+                <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" style={{marginLeft: 4}}>
+                  <path d="M7 10l5 5 5-5M7 14l5-5 5-5" />
+                </svg>
+              </div>
+              <div className="flex items-center gap-2 text-xs text-gray-500">
+                <span>Level 2 {lang === 'ar' ? '(Level)' : ''}</span>
+                <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" style={{marginLeft: 4}}>
+                  <path d="M7 10l5 5 5-5M7 14l5-5 5-5" />
+                </svg>
+              </div>
+              <div className="flex items-center gap-2 text-xs text-gray-500">
+                <span>Level 3 {lang === 'ar' ? '(Grade)' : ''}</span>
+                <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" style={{marginLeft: 4}}>
+                  <path d="M7 10l5 5 5-5M7 14l5-5 5-5" />
+                </svg>
+              </div>
+            </div>
+          </details>
         </div>
         <div className="flex items-center gap-3">
           {canCreate && (
