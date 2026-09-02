@@ -139,6 +139,20 @@ export class UsersController {
     return this.usersService.bulkDeleteUsers(dto.ids || [], user);
   }
 
+  @Roles('super_admin', 'admin', 'principal')
+  @Post('bulk-deactivate')
+  @ApiOperation({ summary: 'Bulk deactivate users (set isActive=false)' })
+  bulkDeactivateUsers(@Body() dto: { ids: string[] }, @CurrentUser() user: any) {
+    return this.usersService.bulkDeactivateUsers(dto.ids || [], user);
+  }
+
+  @Roles('super_admin', 'admin', 'principal')
+  @Post('bulk-activate')
+  @ApiOperation({ summary: 'Bulk activate users (set isActive=true)' })
+  bulkActivateUsers(@Body() dto: { ids: string[] }, @CurrentUser() user: any) {
+    return this.usersService.bulkActivateUsers(dto.ids || [], user);
+  }
+
   @Roles('super_admin', 'admin')
   @Post(':id/roles/:roleName')
   @ApiOperation({ summary: 'Assign a role to a user' })

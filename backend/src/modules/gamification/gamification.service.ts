@@ -204,21 +204,34 @@ export class GamificationService {
     const badge = await this.prisma.badge.findUnique({ where: { id: badgeId } });
     if (!badge) throw new NotFoundException('Badge not found');
 
-    const existing = await this.prisma.studentBadge.findFirst({
-      where: { studentId, badgeId },
+    // Atomic: badge create + XP award in one transaction
+    const result = await this.prisma.$transaction(async (tx) => {
+      const existing = await tx.studentBadge.findFirst({
+        where: { studentId, badgeId },
+      });
+      if (existing) throw new BadRequestException('Badge already awarded to this student');
+
+      const sb = await tx.studentBadge.create({
+        data: { studentId, badgeId },
+        include: { badge: true, student: { select: { id: true, firstName: true, lastName: true } } },
+      });
+
+      if (badge.xpReward > 0) {
+        // Inline XP award within the same transaction
+        await tx.$executeRaw`SELECT id FROM students WHERE id = ${studentId} FOR UPDATE`;
+        const rows: any[] = await tx.$queryRaw`SELECT COALESCE(SUM(amount), 0) AS balance FROM xp_transactions WHERE student_id = ${studentId}`;
+        const currentBalance = Number(rows[0]?.balance ?? 0);
+        const balanceAfter = currentBalance + badge.xpReward;
+        await tx.xPTransaction.create({
+          data: { studentId, amount: badge.xpReward, balanceAfter, type: 'badge_award', description: `Badge: ${badge.name}` },
+        });
+        await tx.studentProgress.updateMany({ where: { studentId }, data: { totalXp: balanceAfter, currentLevel: Math.floor(balanceAfter / 100) + 1 } });
+      }
+
+      return sb;
     });
-    if (existing) throw new BadRequestException('Badge already awarded to this student');
 
-    const result = await this.prisma.studentBadge.create({
-      data: { studentId, badgeId },
-      include: { badge: true, student: { select: { id: true, firstName: true, lastName: true } } },
-    });
-
-    if (badge.xpReward > 0) {
-      await this.addXp(studentId, badge.xpReward, 'badge_award', `Badge: ${badge.name}`);
-    }
-
-    // A badge the student is never told about is barely a reward.
+    // Notification is best-effort, outside the transaction
     await this.studentNotifications.notify({
       studentId,
       type: 'badge_awarded',
@@ -229,15 +242,41 @@ export class GamificationService {
       linkPath: '?tab=progress',
       referenceType: 'badge',
       referenceId: badge.id,
-    });
+    }).catch(() => {});
 
     return result;
   }
 
   async revokeBadge(studentBadgeId: string) {
-    const studentBadge = await this.prisma.studentBadge.findUnique({ where: { id: studentBadgeId } });
+    const studentBadge = await this.prisma.studentBadge.findUnique({
+      where: { id: studentBadgeId },
+      include: { badge: true },
+    });
     if (!studentBadge) throw new NotFoundException('Student badge record not found');
-    return this.prisma.studentBadge.delete({ where: { id: studentBadgeId } });
+
+    // Atomic: remove badge + reverse XP in one transaction
+    await this.prisma.$transaction(async (tx) => {
+      await tx.studentBadge.delete({ where: { id: studentBadgeId } });
+
+      if (studentBadge.badge.xpReward > 0) {
+        await tx.$executeRaw`SELECT id FROM students WHERE id = ${studentBadge.studentId} FOR UPDATE`;
+        const rows: any[] = await tx.$queryRaw`SELECT COALESCE(SUM(amount), 0) AS balance FROM xp_transactions WHERE student_id = ${studentBadge.studentId}`;
+        const currentBalance = Number(rows[0]?.balance ?? 0);
+        const balanceAfter = Math.max(0, currentBalance - studentBadge.badge.xpReward);
+        await tx.xPTransaction.create({
+          data: {
+            studentId: studentBadge.studentId,
+            amount: -studentBadge.badge.xpReward,
+            balanceAfter,
+            type: 'badge_revoke',
+            description: `Badge revoked: ${studentBadge.badge.name}`,
+          },
+        });
+        await tx.studentProgress.updateMany({ where: { studentId: studentBadge.studentId }, data: { totalXp: balanceAfter, currentLevel: Math.floor(balanceAfter / 100) + 1 } });
+      }
+    });
+
+    return { success: true };
   }
 
   // ── Badge Computation Engine ──
@@ -264,16 +303,28 @@ export class GamificationService {
       const result = await this.checkBadgeCriterion(student, badge);
       if (result.earned) {
         try {
-          await this.prisma.studentBadge.create({
-            data: {
-              studentId,
-              badgeId: badge.id,
-              reason: result.reason || undefined,
-            },
+          await this.prisma.$transaction(async (tx) => {
+            const existing = await tx.studentBadge.findFirst({ where: { studentId, badgeId: badge.id } });
+            if (existing) return; // already awarded (idempotent)
+
+            await tx.studentBadge.create({
+              data: {
+                studentId,
+                badgeId: badge.id,
+                reason: result.reason || undefined,
+              },
+            });
+            if (badge.xpReward > 0) {
+              await tx.$executeRaw`SELECT id FROM students WHERE id = ${studentId} FOR UPDATE`;
+              const rows: any[] = await tx.$queryRaw`SELECT COALESCE(SUM(amount), 0) AS balance FROM xp_transactions WHERE student_id = ${studentId}`;
+              const currentBalance = Number(rows[0]?.balance ?? 0);
+              const balanceAfter = currentBalance + badge.xpReward;
+              await tx.xPTransaction.create({
+                data: { studentId, amount: badge.xpReward, balanceAfter, type: 'badge_award', description: `Badge: ${badge.name}` },
+              });
+              await tx.studentProgress.updateMany({ where: { studentId }, data: { totalXp: balanceAfter, currentLevel: Math.floor(balanceAfter / 100) + 1 } });
+            }
           });
-          if (badge.xpReward > 0) {
-            await this.addXp(studentId, badge.xpReward, 'badge_award', `Badge: ${badge.name}`);
-          }
           awarded++;
         } catch (error) {
           // Log error but continue: duplicate constraint or transient failure

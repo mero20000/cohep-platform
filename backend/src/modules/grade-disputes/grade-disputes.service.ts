@@ -1,9 +1,15 @@
-import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
+import { StudentNotificationsService } from '../student-notifications/student-notifications.service';
 
 @Injectable()
 export class GradeDisputesService {
-  constructor(private readonly prisma: PrismaService) {}
+  private readonly logger = new Logger(GradeDisputesService.name);
+
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly studentNotifications: StudentNotificationsService,
+  ) {}
 
   async createDispute(data: {
     schoolId: string;
@@ -13,12 +19,27 @@ export class GradeDisputesService {
   }) {
     const submission = await this.prisma.assessmentSubmission.findUnique({
       where: { id: data.submissionId },
-      include: { grades: true },
+      include: { grades: true, student: true },
     });
     if (!submission) throw new NotFoundException('Submission not found');
 
+    // Access control: students can only dispute their own submissions
+    const requester = await this.prisma.user.findUnique({ where: { id: data.requestedById }, select: { roles: true } });
+    const isStudent = requester?.roles?.includes('student');
+    if (isStudent && submission.studentId !== data.requestedById) {
+      throw new ForbiddenException('You can only dispute your own submissions');
+    }
+
     const grade = submission.grades[0];
     if (!grade) throw new BadRequestException('No grade found for this submission');
+
+    // Duplicate prevention: block if there's already a pending dispute for this submission
+    const existingDispute = await this.prisma.gradeDispute.findFirst({
+      where: { submissionId: data.submissionId, status: 'pending' },
+    });
+    if (existingDispute) {
+      throw new BadRequestException('A pending dispute already exists for this submission');
+    }
 
     return this.prisma.gradeDispute.create({
       data: {
@@ -54,23 +75,57 @@ export class GradeDisputesService {
   }
 
   async respondToDispute(id: string, data: { respondedById: string; response: string; newScore?: number }) {
-    const dispute = await this.prisma.gradeDispute.findUnique({ where: { id } });
-    if (!dispute) throw new NotFoundException('Dispute not found');
-
-    return this.prisma.gradeDispute.update({
+    const dispute = await this.prisma.gradeDispute.findUnique({
       where: { id },
-      data: {
-        status: 'responded',
-        respondedById: data.respondedById,
-        response: data.response,
-        newScore: data.newScore ? data.newScore : undefined,
-        respondedAt: new Date(),
-      },
-      include: {
-        submission: { include: { student: true } },
-        respondedBy: { select: { id: true, firstName: true, lastName: true } },
-      },
+      include: { submission: { include: { student: true, grades: true } } },
     });
+    if (!dispute) throw new NotFoundException('Dispute not found');
+    if (dispute.status === 'responded') throw new BadRequestException('Dispute already responded to');
+
+    // Atomic: update dispute + apply new grade in one transaction
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const d = await tx.gradeDispute.update({
+        where: { id },
+        data: {
+          status: 'responded',
+          respondedById: data.respondedById,
+          response: data.response,
+          newScore: data.newScore ?? undefined,
+          respondedAt: new Date(),
+        },
+        include: {
+          submission: { include: { student: true } },
+          respondedBy: { select: { id: true, firstName: true, lastName: true } },
+        },
+      });
+
+      // Apply new score to the Grade record if provided
+      if (data.newScore !== undefined && dispute.submission.grades[0]) {
+        await tx.grade.update({
+          where: { id: dispute.submission.grades[0].id },
+          data: { score: data.newScore },
+        });
+      }
+
+      return d;
+    });
+
+    // Notify the student that their dispute was responded to
+    if (dispute.submission.studentId) {
+      await this.studentNotifications.notify({
+        studentId: dispute.submission.studentId,
+        type: 'grade_dispute_responded',
+        title: 'Your grade dispute was reviewed',
+        titleAr: 'تمت مراجعة اعتراضك على الدرجة',
+        body: data.response,
+        bodyAr: data.response,
+        linkPath: '?tab=assessments',
+        referenceType: 'grade_dispute',
+        referenceId: id,
+      }).catch(() => {});
+    }
+
+    return updated;
   }
 
   async getPendingCount(schoolId: string): Promise<number> {

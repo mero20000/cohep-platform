@@ -252,6 +252,42 @@ export class UsersService {
     return { deleted: result.count };
   }
 
+  async bulkDeactivateUsers(ids: string[], requestingUser?: any): Promise<{ deactivated: number }> {
+    if (!Array.isArray(ids) || ids.length === 0) {
+      throw new BadRequestException('ids are required');
+    }
+    const uniqueIds = [...new Set(ids)];
+    const isSuperAdmin = !!requestingUser?.roles?.includes('super_admin');
+
+    // Filter out super_admin accounts (non-super-admin callers cannot deactivate them)
+    const deactivatable: string[] = [];
+    for (const id of uniqueIds) {
+      if (!isSuperAdmin && (await this.userHasRole(id, 'super_admin'))) continue;
+      deactivatable.push(id);
+    }
+    if (deactivatable.length === 0) return { deactivated: 0 };
+
+    const where: any = { id: { in: deactivatable }, deletedAt: null, isActive: true };
+    if (!isSuperAdmin) where.schoolId = requestingUser?.schoolId;
+
+    const result = await this.prisma.user.updateMany({ where, data: { isActive: false } });
+    return { deactivated: result.count };
+  }
+
+  async bulkActivateUsers(ids: string[], requestingUser?: any): Promise<{ activated: number }> {
+    if (!Array.isArray(ids) || ids.length === 0) {
+      throw new BadRequestException('ids are required');
+    }
+    const uniqueIds = [...new Set(ids)];
+    const isSuperAdmin = !!requestingUser?.roles?.includes('super_admin');
+
+    const where: any = { id: { in: uniqueIds }, deletedAt: null, isActive: false };
+    if (!isSuperAdmin) where.schoolId = requestingUser?.schoolId;
+
+    const result = await this.prisma.user.updateMany({ where, data: { isActive: true } });
+    return { activated: result.count };
+  }
+
   async assignRole(userId: string, roleName: string, requestingUser?: any) {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) throw new NotFoundException('User not found');

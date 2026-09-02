@@ -5,9 +5,10 @@ import { PrismaService } from '../../database/prisma.service';
 import { SchoolResolver } from '../../common/utils/school-resolver';
 import { MailService } from '../mail/mail.service';
 import { NewsletterModule } from '../newsletter/newsletter.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
-  imports: [NewsletterModule],
+  imports: [NewsletterModule, NotificationsModule],
   controllers: [AnnouncementsController],
   providers: [AnnouncementsService, PrismaService, SchoolResolver, MailService],
   exports: [AnnouncementsService],

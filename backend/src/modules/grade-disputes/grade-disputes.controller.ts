@@ -1,14 +1,14 @@
-import { Controller, Get, Post, Body, Param, UseGuards, Query } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Query, ForbiddenException } from '@nestjs/common';
 import { GradeDisputesService } from './grade-disputes.service';
-import { JwtAuthGuard } from '../../auth/jwt-auth.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { Roles } from '../../common/decorators/roles.decorator';
 
 @Controller('disputes')
-@UseGuards(JwtAuthGuard)
 export class GradeDisputesController {
   constructor(private readonly service: GradeDisputesService) {}
 
   @Post()
+  @Roles('student', 'servant', 'group_leader', 'level_leader', 'admin', 'principal', 'super_admin')
   async createDispute(
     @CurrentUser() user: any,
     @Body() body: { submissionId: string; reason: string }
@@ -22,6 +22,7 @@ export class GradeDisputesController {
   }
 
   @Get()
+  @Roles('servant', 'group_leader', 'level_leader', 'admin', 'principal', 'super_admin')
   async listDisputes(
     @CurrentUser() user: any,
     @Query('status') status?: string,
@@ -31,6 +32,7 @@ export class GradeDisputesController {
   }
 
   @Post(':id/respond')
+  @Roles('servant', 'group_leader', 'level_leader', 'admin', 'principal', 'super_admin')
   async respondToDispute(
     @CurrentUser() user: any,
     @Param('id') id: string,
@@ -44,6 +46,7 @@ export class GradeDisputesController {
   }
 
   @Get('pending/count')
+  @Roles('servant', 'group_leader', 'level_leader', 'admin', 'principal', 'super_admin')
   async getPendingCount(@CurrentUser() user: any) {
     const count = await this.service.getPendingCount(user.schoolId);
     return { pending: count };

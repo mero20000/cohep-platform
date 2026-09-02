@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 import { MailService } from '../mail/mail.service';
 import { NotificationsService } from '../notifications/notifications.service';
@@ -7,6 +7,8 @@ import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class RegistrationsService {
+  private readonly logger = new Logger(RegistrationsService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly mailService: MailService,
@@ -351,35 +353,53 @@ export class RegistrationsService {
     if (sd.address) metadata.address = sd.address;
     if (sd.notes) metadata.notes = sd.notes;
 
-    const student = await this.prisma.student.create({
-      data: {
-        firstName,
-        lastName,
-        firstNameAr: sd.firstNameAr || undefined,
-        lastNameAr: sd.lastNameAr || undefined,
-        dateOfBirth: sd.dateOfBirth ? new Date(sd.dateOfBirth) : new Date(),
-        gender: sd.gender || 'male',
-        churchName: sd.churchName || undefined,
-        photoUrl: sd.photoUrl || undefined,
-        levelId: resolvedLevelId,
-        groupId: resolvedGroupId,
-        gradeId: resolvedGradeId,
-        schoolId,
-        studentCode,
-        academicYearId: year.id,
-        parentEmail: sd.parentEmail || undefined,
-        metadata: Object.keys(metadata).length > 0 ? metadata : undefined,
-        status: 'active',
-        enrollmentDate: new Date(),
-      },
+    // Atomic: create student + update registration + init progress in one transaction
+    const student = await this.prisma.$transaction(async (tx) => {
+      const s = await tx.student.create({
+        data: {
+          firstName,
+          lastName,
+          firstNameAr: sd.firstNameAr || undefined,
+          lastNameAr: sd.lastNameAr || undefined,
+          dateOfBirth: sd.dateOfBirth ? new Date(sd.dateOfBirth) : new Date(),
+          gender: sd.gender || 'male',
+          churchName: sd.churchName || undefined,
+          photoUrl: sd.photoUrl || undefined,
+          levelId: resolvedLevelId,
+          groupId: resolvedGroupId,
+          gradeId: resolvedGradeId,
+          schoolId,
+          studentCode,
+          academicYearId: year.id,
+          parentEmail: sd.parentEmail || undefined,
+          metadata: Object.keys(metadata).length > 0 ? metadata : undefined,
+          status: 'active',
+          enrollmentDate: new Date(),
+        },
+      });
+
+      await tx.registrationApplication.update({
+        where: { id },
+        data: { status: 'approved', reviewedBy: user?.id || null, reviewNote: null },
+      });
+
+      // Initialize StudentProgress so gamification works from day one
+      await tx.studentProgress.create({
+        data: {
+          studentId: s.id,
+          schoolId,
+          academicYearId: year.id,
+          totalXp: 0,
+          currentLevel: 1,
+          currentStreak: 0,
+          longestStreak: 0,
+        },
+      }).catch(() => {}); // tolerate if record already exists
+
+      return s;
     });
 
-    await this.prisma.registrationApplication.update({
-      where: { id },
-      data: { status: 'approved', reviewedBy: user?.id || null, reviewNote: null },
-    });
-
-    // Confirmation email to parent (hard-coded FROM like church registration)
+    // Email is best-effort, outside the transaction
     try {
       const parentEmail = sd.parentEmail || app.submittedByEmail;
       if (parentEmail) {
@@ -389,7 +409,9 @@ export class RegistrationsService {
           `<p>Dear parent,</p><p>Your application for <strong>${firstName} ${lastName}</strong> has been <strong>approved</strong>.</p><p>Student code: <strong>${studentCode}</strong></p><p><a href="${process.env.FRONTEND_URL || 'https://cohep-platform.vercel.app'}/portal">Open Parent Portal</a></p><p>Voice hymn: ${app.hymnChoice}</p>`,
         );
       }
-    } catch {}
+    } catch (err) {
+      this.logger.warn(`Parent confirmation email failed for registration ${id}: ${err}`);
+    }
 
     return { student, application: app };
   }

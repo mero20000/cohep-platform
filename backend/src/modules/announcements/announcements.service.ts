@@ -1,15 +1,17 @@
-import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, BadRequestException, NotFoundException } from '@nestjs/common';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { PrismaService } from '../../database/prisma.service';
 import { SchoolResolver } from '../../common/utils/school-resolver';
 import { MailService } from '../mail/mail.service';
 import { NewsletterService } from '../newsletter/newsletter.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { emailTemplate, emailParagraph } from '../mail/email-template';
 import { CreateAnnouncementDto, UpdateAnnouncementDto } from './dto/announcement.dto';
 import { STAFF_ROLES } from '../../common/decorators/roles.decorator';
 
 @Injectable()
 export class AnnouncementsService {
+  private readonly logger = new Logger(AnnouncementsService.name);
   private genAI: GoogleGenerativeAI;
   private model;
 
@@ -18,6 +20,7 @@ export class AnnouncementsService {
     private readonly schoolResolver: SchoolResolver,
     private readonly mailService: MailService,
     private readonly newsletterService: NewsletterService,
+    private readonly notifications: NotificationsService,
   ) {
     const apiKey = process.env.GEMINI_API_KEY;
     const model = process.env.GEMINI_MODEL || 'gemini-2.0-flash';
@@ -153,6 +156,53 @@ export class AnnouncementsService {
     }
   }
 
+  private async createInAppNotifications(announcement: any, schoolId: string) {
+    const attachments = (announcement.attachments as any) || {};
+    const targetRoles: string[] = Array.isArray(attachments.targetRoles) ? attachments.targetRoles : [];
+
+    const title = announcement.title;
+    const titleAr = announcement.titleAr || '';
+    const body = announcement.content;
+    const bodyAr = announcement.contentAr || '';
+    const priority = announcement.priority || 'normal';
+
+    // Find targeted users
+    const where: any = { schoolId, isActive: true };
+    if (targetRoles.length > 0) {
+      where.userRoles = { some: { role: { name: { in: targetRoles } } } };
+    }
+
+    const users = await this.prisma.user.findMany({
+      where,
+      select: { id: true },
+    });
+
+    if (users.length === 0) return;
+
+    this.logger.log(`Creating in-app notifications for ${users.length} users`);
+
+    // Create notifications in batches
+    const BATCH = 50;
+    for (let i = 0; i < users.length; i += BATCH) {
+      const batch = users.slice(i, i + BATCH);
+      await Promise.allSettled(
+        batch.map(user =>
+          this.notifications.createNotification({
+            userId: user.id,
+            schoolId,
+            type: 'announcement',
+            title: `[${priority.toUpperCase()}] ${title}`,
+            titleAr: `[${priority === 'urgent' ? 'عاجل' : priority === 'important' ? 'هام' : 'عادي'}] ${titleAr || title}`,
+            body,
+            bodyAr,
+          }).catch(err => {
+            this.logger.warn(`Failed to create notification for user ${user.id}: ${err.message}`);
+          })
+        )
+      );
+    }
+  }
+
   async findAll(schoolId: string, filters: {
     page?: number; limit?: number; status?: string; priority?: string; banner?: boolean;
   }, user?: any) {
@@ -250,7 +300,10 @@ export class AnnouncementsService {
     // Send emails if publishing immediately
     if (isPublished) {
       this.sendAnnouncementEmails(ann, schoolId).catch(err => {
-        console.error('[announcements] Failed to send announcement emails', err);
+        this.logger.error('Failed to send announcement emails', err);
+      });
+      this.createInAppNotifications(ann, schoolId).catch(err => {
+        this.logger.error('Failed to create announcement in-app notifications', err);
       });
     }
 
@@ -291,7 +344,10 @@ export class AnnouncementsService {
     // Send emails if transitioning from draft to published
     if (wasDraft && ann.status === 'published') {
       this.sendAnnouncementEmails(ann, existing.schoolId).catch(err => {
-        console.error('[announcements] Failed to send announcement emails', err);
+        this.logger.error('Failed to send announcement emails', err);
+      });
+      this.createInAppNotifications(ann, existing.schoolId).catch(err => {
+        this.logger.error('Failed to create announcement in-app notifications', err);
       });
     }
 
@@ -303,8 +359,10 @@ export class AnnouncementsService {
     if (!existing || existing.deletedAt) throw new NotFoundException('Announcement not found');
 
     const data: any = { status: 'published', publishAt: new Date() };
-    if (principalApproved !== undefined) data.metadata = { ...existing.metadata, principalApproved, principalId };
-    else if (existing.metadata) data.metadata = { ...existing.metadata };
+    if (principalApproved !== undefined) {
+      const attachments = (existing.attachments as any) || {};
+      data.attachments = { ...attachments, principalApproved, principalId };
+    }
 
     const ann = await this.prisma.announcement.update({
       where: { id },
@@ -314,7 +372,10 @@ export class AnnouncementsService {
 
     // Send emails on publish
     this.sendAnnouncementEmails(ann, existing.schoolId).catch(err => {
-      console.error('[announcements] Failed to send announcement emails', err);
+      this.logger.error('Failed to send announcement emails', err);
+    });
+    this.createInAppNotifications(ann, existing.schoolId).catch(err => {
+      this.logger.error('Failed to create announcement in-app notifications', err);
     });
 
     return this.mapRow(ann);
