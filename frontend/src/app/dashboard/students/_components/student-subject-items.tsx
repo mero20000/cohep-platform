@@ -182,7 +182,7 @@ export function StudentSubjectItemsPanel({ studentId, lang }: Props) {
                     ) : (
                       <Circle className="h-3.5 w-3.5" />
                     )}
-                    {status==='passed' ? t('Passed','مجتاز') : t('Mark Passed','تحديد مجتاز')}
+                    {status==='passed' ? t('Passed ✓','مجتاز ✓') : t('Mark Passed','تحديد مجتاز')}
                   </button>
                 )}
               </div>
