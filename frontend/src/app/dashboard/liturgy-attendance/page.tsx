@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Church, Check, X, AlertCircle, Save } from 'lucide-react'
 import { http } from '@/lib/http-client'
 import { useLanguage } from '@/lib/use-language'
@@ -25,21 +25,31 @@ interface LiturgySession {
 
 export default function LiturgyAttendancePage() {
   const lang = useLanguage()
-  const t = (en: string, ar: string) => lang === 'ar' ? ar : en
+  const t = useMemo(() => (en: string, ar: string) => lang === 'ar' ? ar : en, [lang])
   const { toast } = useToast()
   const [session, setSession] = useState<LiturgySession | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const mountedRef = useRef(true)
+
+  useEffect(() => {
+    mountedRef.current = true
+    return () => { mountedRef.current = false }
+  }, [])
 
   const loadSession = useCallback(async () => {
     try {
       setLoading(true)
       const data = await http.get<LiturgySession>('/servants/liturgy-session')
-      setSession(data)
-    } catch {
-      toast('error', t('Failed to load liturgy session', 'فشل تحميل جلسة القداس'))
+      if (mountedRef.current) setSession(data)
+    } catch (err: any) {
+      console.error('Liturgy session load error:', err)
+      if (mountedRef.current) {
+        const msg = err?.message || t('Failed to load liturgy session', 'فشل تحميل جلسة القداس')
+        toast('error', msg)
+      }
     } finally {
-      setLoading(false)
+      if (mountedRef.current) setLoading(false)
     }
   }, [t, toast])
 
