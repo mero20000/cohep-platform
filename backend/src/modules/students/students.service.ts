@@ -100,7 +100,7 @@ export class StudentsService {
       group: [{ group: { name: dir } }],
       createdAt: [{ createdAt: dir }],
     };
-    const orderBy: any = (sortBy && orderMap[sortBy]) || [{ createdAt: 'desc' }];
+    const orderBy: any = (sortBy && orderMap[sortBy]) || [{ firstName: 'asc' }, { lastName: 'asc' }];
 
     const [students, total] = await Promise.all([
       this.prisma.student.findMany({
