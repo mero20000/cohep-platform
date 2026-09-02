@@ -684,27 +684,53 @@ function ActivitySection({ stats, loading }: { stats: DashboardData | null; load
  const s = stats ?? EMPTY_STATS
  const activity = s.recentActivity ?? []
  if (!activity.length) return <EmptyState icon={Clock} title={lang === 'ar' ? 'لا يوجد نشاط حديث' : 'No recent activity'} description={lang === 'ar' ? 'سيظهر النشاط هنا.' : 'Activity will appear here.'} />
+ const systemActivity = useMemo(() => activity.filter(a => !a.user), [activity])
+ const userActivity = useMemo(() => activity.filter(a => !!a.user), [activity])
+ const [activeTab, setActiveTab] = useState<'all' | 'system' | 'user'>('all')
+ const filtered = activeTab === 'system' ? systemActivity : activeTab === 'user' ? userActivity : activity
+ const tabs: Array<{ key: typeof activeTab; label: string; labelAr: string; count: number }> = [
+  { key: 'all', label: 'All', labelAr: 'الكل', count: activity.length },
+  { key: 'system', label: 'System', labelAr: 'النظام', count: systemActivity.length },
+  { key: 'user', label: 'Users', labelAr: 'المستخدمون', count: userActivity.length },
+ ]
  return (
-  <div role="region" aria-label={lang === 'ar' ? 'النشاط الحديث' : 'Recent activity'} tabIndex={0} className="divide-y divide-gray-100 max-h-80 overflow-y-auto">
-   {activity.slice(0, 8).map((a, i) => {
-    const IconComp = ACTIVITY_ICONS[a.action] || TrendingUp
-    const colorClass = ACTIVITY_COLORS[a.action] || 'bg-gradient-to-br from-gray-100 to-gray-50 text-gray-600'
-    return (
-     <motion.div key={a.id} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.03 }}
-      className="flex items-center gap-3 px-5 py-3 hover:bg-gradient-to-r hover:from-gray-50 hover:to-transparent transition-all duration-200">
-      <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${colorClass} shadow-sm`}>
-       <IconComp className="h-4 w-4" />
-      </div>
-      <div className="flex-1 min-w-0">
-       <div className="text-sm font-medium text-gray-900 truncate">
-        {a.user ? `${a.user.firstName} ${a.user.lastName}` : 'System'}
+  <div>
+   <div role="tablist" aria-label={lang === 'ar' ? 'تصفية النشاط' : 'Filter activity'} className="flex gap-1.5 px-4 pt-3 pb-2 border-b border-gray-100">
+    {tabs.map(t => (
+     <button key={t.key} role="tab" aria-selected={activeTab === t.key} onClick={() => setActiveTab(t.key)}
+      className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium border transition-colors ${activeTab === t.key ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'}`}>
+      {lang === 'ar' ? t.labelAr : t.label}
+      <span className={`rounded-full px-1.5 py-0 text-[10px] leading-none ${activeTab === t.key ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-600'}`}>{t.count}</span>
+     </button>
+    ))}
+   </div>
+   <div role="region" aria-label={lang === 'ar' ? 'النشاط الحديث' : 'Recent activity'} tabIndex={0} className="divide-y divide-gray-100 max-h-80 overflow-y-auto">
+    {filtered.length === 0 ? (
+     <div className="px-5 py-8 text-center text-sm text-gray-400">
+      {activeTab === 'system'
+       ? (lang === 'ar' ? 'لا يوجد نشاط للنظام' : 'No system activity')
+       : (lang === 'ar' ? 'لا يوجد نشاط للمستخدمين' : 'No user activity')}
+     </div>
+    ) : filtered.slice(0, 8).map((a, i) => {
+     const IconComp = ACTIVITY_ICONS[a.action] || TrendingUp
+     const colorClass = ACTIVITY_COLORS[a.action] || 'bg-gradient-to-br from-gray-100 to-gray-50 text-gray-600'
+     return (
+      <motion.div key={a.id} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.03 }}
+       className="flex items-center gap-3 px-5 py-3 hover:bg-gradient-to-r hover:from-gray-50 hover:to-transparent transition-all duration-200">
+       <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${colorClass} shadow-sm`}>
+        <IconComp className="h-4 w-4" />
        </div>
-       <div className="text-xs text-gray-500 truncate">{(lang === 'ar' ? ACTION_LABELS[a.action] : ACTION_LABELS_EN[a.action]) || a.action} — {a.entityType}</div>
-      </div>
-       <time dateTime={a.createdAt ?? undefined} className="text-[11px] text-gray-400 shrink-0 bg-gray-50 px-2 py-0.5 rounded-full">{relativeTime(a.createdAt, lang === 'ar' ? 'ar' : 'en')}</time>
-     </motion.div>
-    )
-   })}
+       <div className="flex-1 min-w-0">
+        <div className="text-sm font-medium text-gray-900 truncate">
+         {a.user ? `${a.user.firstName} ${a.user.lastName}` : 'System'}
+        </div>
+        <div className="text-xs text-gray-500 truncate">{(lang === 'ar' ? ACTION_LABELS[a.action] : ACTION_LABELS_EN[a.action]) || a.action} — {a.entityType}</div>
+       </div>
+        <time dateTime={a.createdAt ?? undefined} className="text-[11px] text-gray-400 shrink-0 bg-gray-50 px-2 py-0.5 rounded-full">{relativeTime(a.createdAt, lang === 'ar' ? 'ar' : 'en')}</time>
+      </motion.div>
+     )
+    })}
+   </div>
   </div>
  )
 }

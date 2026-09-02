@@ -165,7 +165,12 @@ export class DashboardService {
         include: { user: { select: { firstName: true, lastName: true } } },
       }),
       upcomingSessions: await this.prisma.attendanceSession.findMany({
-        where: { schoolId: resolvedId, status: 'scheduled', scheduledDate: { gte: new Date() } },
+        where: {
+          schoolId: resolvedId,
+          deletedAt: null,
+          status: 'scheduled',
+          scheduledDate: { gte: (() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d; })() },
+        },
         orderBy: { scheduledDate: 'asc' }, take: 5,
         include: { level: true, servant: { select: { firstName: true, lastName: true } } },
       }),
@@ -200,7 +205,14 @@ export class DashboardService {
         return results;
       })(),
       weeklyStats: await this.prisma.attendanceSession.findMany({
-        where: { schoolId: resolvedId, scheduledDate: { gte: new Date(new Date().setDate(new Date().getDate() - 7)) } },
+        where: {
+          schoolId: resolvedId,
+          deletedAt: null,
+          scheduledDate: {
+            gte: (() => { const d = new Date(); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() - 6); return d; })(),
+            lte: (() => { const d = new Date(); d.setHours(23, 59, 59, 999); return d; })(),
+          },
+        },
         select: { scheduledDate: true, status: true, _count: { select: { attendanceRecords: true } } },
         orderBy: { scheduledDate: 'asc' },
       }),
