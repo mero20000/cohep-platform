@@ -218,6 +218,7 @@ export class AuthService {
         avatarUrl: true,
         schoolId: true,
         isActive: true,
+        metadata: true,
         userRoles: {
           include: {
             role: true,
@@ -501,6 +502,7 @@ export class AuthService {
       firstName: user.firstName,
       lastName: user.lastName,
       schoolId: user.schoolId,
+      metadata: user.metadata ?? null,
       roles: user.userRoles.map((ur) => ur.role.name),
     };
   }

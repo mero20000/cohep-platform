@@ -102,4 +102,14 @@ export class DashboardController {
   ) {
     return this.service.getLevelReport(user, schoolId);
   }
+
+  @Get('group-report')
+  @Roles(...STAFF_ROLES)
+  @ApiOperation({ summary: 'Get group-scoped reporting for servants — attendance, assessments, mastery distribution' })
+  async getGroupReport(
+    @CurrentUser() user: any,
+    @Query('schoolId') schoolId: string = '',
+  ) {
+    return this.service.getGroupReport(user, schoolId);
+  }
 }

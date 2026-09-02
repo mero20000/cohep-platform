@@ -1520,4 +1520,100 @@ export class DashboardService {
       recentActivity: [],
     };
   }
+
+  async getGroupReport(user: any, schoolIdentifier: string) {
+    const schoolId = await this.schoolResolver.resolve(schoolIdentifier);
+    const userMeta = (user.metadata as any) || {};
+    const groupId = userMeta.groupId as string | undefined;
+
+    if (!groupId) {
+      return { error: 'No group assigned to this user' };
+    }
+
+    const group = await this.prisma.group.findUnique({
+      where: { id: groupId },
+      select: { name: true, nameAr: true },
+    });
+
+    const students = await this.prisma.student.findMany({
+      where: { groupId, deletedAt: null },
+      select: { id: true, firstName: true, lastName: true, firstNameAr: true, lastNameAr: true },
+    });
+
+    const studentIds = students.map(s => s.id);
+
+    const attendanceRecords = await this.prisma.attendanceRecord.findMany({
+      where: { attendanceSession: { schoolId, groupId } },
+      select: { status: true },
+    });
+    const attendanceRate = attendanceRecords.length > 0
+      ? Math.round((attendanceRecords.filter(r => r.status === 'present' || r.status === 'late').length / attendanceRecords.length) * 100)
+      : 0;
+
+    const assessmentSubmissions = await this.prisma.assessmentSubmission.findMany({
+      where: { studentId: { in: studentIds } },
+      select: { id: true },
+    });
+    const assessmentCompletionRate = students.length > 0
+      ? Math.round((assessmentSubmissions.length / (students.length * 5)) * 100)
+      : 0;
+
+    const grades = await this.prisma.grade.findMany({
+      where: { submission: { studentId: { in: studentIds } }, questionId: null },
+      select: { score: true, maxScore: true },
+    });
+
+    const masteryRates = grades.map(g => {
+      const maxScore = typeof g.maxScore === 'object' ? g.maxScore.toNumber() : Number(g.maxScore);
+      const score = typeof g.score === 'object' ? g.score.toNumber() : Number(g.score);
+      return maxScore > 0 ? (score / maxScore) * 100 : 0;
+    });
+    const masteryDistribution = {
+      excellent: masteryRates.filter(r => r >= 90).length,
+      good: masteryRates.filter(r => r >= 80 && r < 90).length,
+      satisfactory: masteryRates.filter(r => r >= 70 && r < 80).length,
+      needsImprovement: masteryRates.filter(r => r < 70).length,
+    };
+
+    const total = Object.values(masteryDistribution).reduce((a, b) => a + b, 0) || 1;
+    const masteryPct = {
+      excellent: total > 0 ? Math.round((masteryDistribution.excellent / total) * 100) : 0,
+      good: total > 0 ? Math.round((masteryDistribution.good / total) * 100) : 0,
+      satisfactory: total > 0 ? Math.round((masteryDistribution.satisfactory / total) * 100) : 0,
+      needsImprovement: total > 0 ? Math.round((masteryDistribution.needsImprovement / total) * 100) : 0,
+    };
+
+    const studentScores = students.map(s => {
+      const studentGrades = grades.filter(g => {
+        const maxScore = typeof g.maxScore === 'object' ? g.maxScore.toNumber() : Number(g.maxScore);
+        return maxScore > 0;
+      });
+      const avgScore = studentGrades.length > 0
+        ? Math.round(studentGrades.reduce((sum, g) => {
+          const score = typeof g.score === 'object' ? g.score.toNumber() : Number(g.score);
+          const maxScore = typeof g.maxScore === 'object' ? g.maxScore.toNumber() : Number(g.maxScore);
+          return sum + (score / maxScore);
+        }, 0) / studentGrades.length * 100)
+        : 0;
+      return {
+        name: `${s.firstName} ${s.lastName}`,
+        score: avgScore,
+      };
+    });
+
+    const topPerformers = studentScores.length > 0 ? studentScores.sort((a, b) => b.score - a.score).slice(0, 10) : [];
+    const lowPerformers = studentScores.length > 0 ? studentScores.sort((a, b) => a.score - b.score).slice(0, 10) : [];
+
+    return {
+      groupName: group?.name || 'Group',
+      groupNameAr: group?.nameAr || 'مجموعة',
+      totalStudents: students.length,
+      attendanceRate,
+      assessmentCompletionRate,
+      masteryDistribution: masteryPct || { excellent: 0, good: 0, satisfactory: 0, needsImprovement: 0 },
+      topPerformers,
+      lowPerformers,
+      recentActivity: [],
+    };
+  }
 }
