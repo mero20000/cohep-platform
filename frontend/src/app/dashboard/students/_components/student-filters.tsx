@@ -137,7 +137,7 @@ export function StudentFilters(p: Props) {
           onClick={() => p.onStatusChange('')}
           className="text-xs px-2 py-1 rounded border border-gray-200 bg-gray-50 text-gray-600 hover:bg-gray-100 transition-colors whitespace-nowrap"
         >
-          {t('All Status','جميع الحالات')}
+          {t('All','الكل')}
         </button>
       </div>
 

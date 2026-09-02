@@ -260,9 +260,9 @@ function Actions({ s, onView, onEdit, onDelete, lang }: { s: Student; onView: (s
   const { can } = usePermission()
   return (
     <div className="flex items-center justify-end gap-1">
-      <Button variant="ghost" size="icon" onClick={() => onView(s)} title={lang==='ar'?'عرض التفاصيل':'View details'} className="hover:bg-blue-50 hover:text-blue-600"><Eye className="h-4 w-4" /></Button>
-      {can('student:edit')&&<Button variant="ghost" size="icon" onClick={() => onEdit(s)} title={lang==='ar'?'تعديل البيانات':'Edit student'} className="hover:bg-amber-50 hover:text-amber-600"><Pencil className="h-4 w-4" /></Button>}
-      {can('student:delete')&&<Button variant="ghost" size="icon" onClick={() => onDelete(s)} title={lang==='ar'?'حذف الطالب':'Delete student'} className="hover:bg-red-50 hover:text-red-600"><Trash2 className="h-4 w-4" /></Button>}
+      <Button variant="ghost" size="icon" onClick={() => onView(s)} aria-label={`View ${s.firstName} ${s.lastName}`} title={lang==='ar'?'عرض التفاصيل':'View details'} className="hover:bg-blue-50 hover:text-blue-600"><Eye className="h-4 w-4" /></Button>
+      {can('student:edit')&&<Button variant="ghost" size="icon" onClick={() => onEdit(s)} aria-label={`Edit ${s.firstName} ${s.lastName}`} title={lang==='ar'?'تعديل البيانات':'Edit student'} className="hover:bg-amber-50 hover:text-amber-600"><Pencil className="h-4 w-4" /></Button>}
+      {can('student:delete')&&<Button variant="ghost" size="icon" onClick={() => onDelete(s)} aria-label={`Delete ${s.firstName} ${s.lastName}`} title={lang==='ar'?'حذف الطالب':'Delete student'} className="hover:bg-red-50 hover:text-red-600"><Trash2 className="h-4 w-4" /></Button>}
     </div>
   )
 }

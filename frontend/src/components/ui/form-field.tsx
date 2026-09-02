@@ -78,15 +78,7 @@ export function FormField({
         }
       >
         {label}
-        {required && (
-          <>
-            {' '}
-            {/* The glyph is decorative; `aria-required` carries the meaning. */}
-            <span aria-hidden="true" className="text-red-500">
-              *
-            </span>
-          </>
-        )}
+        {required ? ' *' : null}
       </label>
 
       {as === 'select' ? (
