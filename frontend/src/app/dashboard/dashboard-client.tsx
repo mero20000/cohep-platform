@@ -680,19 +680,19 @@ const ACTION_LABELS_EN: Record<string, string> = {
 
 function ActivitySection({ stats, loading }: { stats: DashboardData | null; loading: boolean }) {
  const lang = useLanguage()
- if (loading && !stats) return <SectionFallback />
+ const [activeTab, setActiveTab] = useState<'all' | 'system' | 'user'>('all')
  const s = stats ?? EMPTY_STATS
  const activity = s.recentActivity ?? []
- if (!activity.length) return <EmptyState icon={Clock} title={lang === 'ar' ? 'لا يوجد نشاط حديث' : 'No recent activity'} description={lang === 'ar' ? 'سيظهر النشاط هنا.' : 'Activity will appear here.'} />
  const systemActivity = useMemo(() => activity.filter(a => !a.user), [activity])
  const userActivity = useMemo(() => activity.filter(a => !!a.user), [activity])
- const [activeTab, setActiveTab] = useState<'all' | 'system' | 'user'>('all')
  const filtered = activeTab === 'system' ? systemActivity : activeTab === 'user' ? userActivity : activity
  const tabs: Array<{ key: typeof activeTab; label: string; labelAr: string; count: number }> = [
   { key: 'all', label: 'All', labelAr: 'الكل', count: activity.length },
   { key: 'system', label: 'System', labelAr: 'النظام', count: systemActivity.length },
   { key: 'user', label: 'Users', labelAr: 'المستخدمون', count: userActivity.length },
  ]
+ if (loading && !stats) return <SectionFallback />
+ if (!activity.length) return <EmptyState icon={Clock} title={lang === 'ar' ? 'لا يوجد نشاط حديث' : 'No recent activity'} description={lang === 'ar' ? 'سيظهر النشاط هنا.' : 'Activity will appear here.'} />
  return (
   <div>
    <div role="tablist" aria-label={lang === 'ar' ? 'تصفية النشاط' : 'Filter activity'} className="flex gap-1.5 px-4 pt-3 pb-2 border-b border-gray-100">
