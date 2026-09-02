@@ -143,6 +143,7 @@ export class ServantsController {
           firstNameAr: true,
           lastNameAr: true,
           photoUrl: true,
+          grade: { select: { name: true, nameAr: true } },
         },
         orderBy: { firstName: 'asc' },
       });
@@ -156,6 +157,8 @@ export class ServantsController {
           firstNameAr: s.firstNameAr,
           lastNameAr: s.lastNameAr,
           photoUrl: s.photoUrl,
+          gradeName: s.grade?.name ?? null,
+          gradeNameAr: s.grade?.nameAr ?? null,
           status: null,
         })),
       };

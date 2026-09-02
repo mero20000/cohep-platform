@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Church, Check, X, AlertCircle, Save } from 'lucide-react'
+import { Church, Check, X, AlertCircle, Save, Search } from 'lucide-react'
 import { http } from '@/lib/http-client'
 import { useLanguage } from '@/lib/use-language'
 import { Button } from '@/components/ui/button'
@@ -15,6 +15,8 @@ interface LiturgyStudent {
   firstNameAr?: string
   lastNameAr?: string
   photoUrl?: string
+  gradeName?: string
+  gradeNameAr?: string
   status: 'present' | 'absent' | null
 }
 
@@ -30,6 +32,7 @@ export default function LiturgyAttendancePage() {
   const [session, setSession] = useState<LiturgySession | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [search, setSearch] = useState('')
   const mountedRef = useRef(true)
 
   useEffect(() => {
@@ -56,6 +59,18 @@ export default function LiturgyAttendancePage() {
   useEffect(() => {
     loadSession()
   }, [loadSession])
+
+  const filteredStudents = useMemo(() => {
+    if (!session?.students) return []
+    const q = search.trim().toLowerCase()
+    if (!q) return session.students
+    return session.students.filter(s => {
+      const nameEn = `${s.firstName} ${s.lastName}`.toLowerCase()
+      const nameAr = `${s.firstNameAr || ''} ${s.lastNameAr || ''}`.toLowerCase()
+      const grade = lang === 'ar' ? (s.gradeNameAr || s.gradeName || '') : (s.gradeName || '')
+      return nameEn.includes(q) || nameAr.includes(q) || grade.toLowerCase().includes(q)
+    })
+  }, [session?.students, search, lang])
 
   const toggleStatus = (studentId: string, newStatus: 'present' | 'absent') => {
     setSession(prev => {
@@ -144,6 +159,18 @@ export default function LiturgyAttendancePage() {
         </div>
       </div>
 
+      {/* Search */}
+      <div className="relative mb-4">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+        <input
+          type="text"
+          placeholder={t('Search by name...', 'بحث بالاسم...')}
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          className="w-full rounded-lg border border-gray-200 bg-white py-2.5 pl-10 pr-4 text-sm text-gray-900 placeholder:text-gray-400 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500"
+        />
+      </div>
+
       {/* Summary stats */}
       <div className="grid gap-3 mb-6 md:grid-cols-2">
         <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3">
@@ -158,7 +185,7 @@ export default function LiturgyAttendancePage() {
 
       {/* Student roster */}
       <div className="space-y-2 mb-6">
-        {session.students.map(student => (
+        {filteredStudents.map(student => (
           <div
             key={student.studentId}
             className={`flex items-center gap-3 p-3 rounded-lg border transition-colors ${
@@ -169,13 +196,36 @@ export default function LiturgyAttendancePage() {
                   : 'border-gray-200 bg-white hover:border-gray-300'
             }`}
           >
+            {/* Photo */}
+            <div className="h-10 w-10 flex-shrink-0 overflow-hidden rounded-full bg-gray-100">
+              {student.photoUrl ? (
+                <img
+                  src={student.photoUrl}
+                  alt={student.firstName}
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                <div className="flex h-full w-full items-center justify-center bg-amber-100 text-sm font-bold text-amber-700">
+                  {student.firstName.charAt(0)}
+                </div>
+              )}
+            </div>
+
+            {/* Name + Grade */}
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-gray-900">
+              <p className="text-sm font-medium text-gray-900 truncate">
                 {lang === 'ar'
                   ? `${student.firstNameAr || student.firstName} ${student.lastNameAr || student.lastName}`
                   : `${student.firstName} ${student.lastName}`}
               </p>
+              {(student.gradeName || student.gradeNameAr) && (
+                <p className="text-xs text-gray-500 truncate">
+                  {lang === 'ar' ? student.gradeNameAr || student.gradeName : student.gradeName}
+                </p>
+              )}
             </div>
+
+            {/* Action buttons */}
             <div className="flex gap-2">
               <button
                 onClick={() => toggleStatus(student.studentId, 'present')}
@@ -202,6 +252,11 @@ export default function LiturgyAttendancePage() {
             </div>
           </div>
         ))}
+        {filteredStudents.length === 0 && search && (
+          <div className="rounded-xl border border-gray-200 bg-white p-6 text-center">
+            <p className="text-gray-500">{t('No students match your search', 'لا يوجد طلاب يطابقون بحثك')}</p>
+          </div>
+        )}
       </div>
 
       {/* Save button */}
