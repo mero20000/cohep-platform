@@ -157,6 +157,7 @@ async function main() {
     { name: 'group_leader', displayName: 'Group Leader', level: 5, isSystem: false },
     { name: 'level_leader', displayName: 'Level Leader', level: 6, isSystem: false },
     { name: 'assistant_servant', displayName: 'Assistant Servant', level: 7, isSystem: false },
+    { name: 'priest', displayName: 'Priest', level: 3, isSystem: false },
     { name: 'student', displayName: 'Student', level: 8, isSystem: true },
     { name: 'parent', displayName: 'Parent', level: 9, isSystem: true },
     { name: 'guest', displayName: 'Guest', level: 10, isSystem: true },

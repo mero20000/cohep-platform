@@ -59,7 +59,7 @@ const parentsNav = { name: 'My Children', nameAr: 'أولادي', href: '/dashbo
 
 const ROLE_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
   super_admin: Crown, admin: Shield, principal: GraduationCap,
-  curriculum_manager: BookOpen, level_leader: Layers, group_leader: Users,
+  curriculum_manager: BookOpen, priest: Church, level_leader: Layers, group_leader: Users,
   servant: Heart, parent: Baby,
 }
 const ROLE_SWITCH_OPTIONS = ROLES.map(r => ({ value: r.value, label: r.label, labelAr: r.labelAr, icon: ROLE_ICONS[r.value] }))

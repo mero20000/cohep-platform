@@ -179,9 +179,9 @@ model Conversation {
   archivedAt    DateTime? @map("archived_at")
   createdAt     DateTime  @default(now()) @map("created_at")
 
-  school        School    @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-  participant1  User      @relation("Conversation1", fields: [participant1Id], references: [id], onDelete: Cascade)
-  participant2  User      @relation("Conversation2", fields: [participant2Id], references: [id], onDelete: Cascade)
+  school        School    @relation(fields: [schoolId], references: [id], onDelete: Restrict)
+  participant1  User      @relation("Conversation1", fields: [participant1Id], references: [id], onDelete: Restrict)
+  participant2  User      @relation("Conversation2", fields: [participant2Id], references: [id], onDelete: Restrict)
   messages      Message[]
 
   @@unique([schoolId, participant1Id, participant2Id])
@@ -846,7 +846,7 @@ model AttendanceRecord {
   createdAt           DateTime @default(now()) @map("created_at")
   updatedAt           DateTime @updatedAt @map("updated_at")
 
-  attendanceSession AttendanceSession @relation(fields: [attendanceSessionId], references: [id], onDelete: Cascade)
+  attendanceSession AttendanceSession @relation(fields: [attendanceSessionId], references: [id], onDelete: Restrict)
   student           Student           @relation(fields: [studentId], references: [id])
   recorder          User              @relation(fields: [recordedBy], references: [id])
 
@@ -975,7 +975,7 @@ model Grade {
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
 
-  submission AssessmentSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  submission AssessmentSubmission @relation(fields: [submissionId], references: [id], onDelete: Restrict)
   question   AssessmentQuestion?  @relation(fields: [questionId], references: [id])
   grader     User?                @relation(fields: [gradedBy], references: [id])
 
@@ -1211,7 +1211,7 @@ model XPTransaction {
   createdBy     String?  @map("created_by")
   createdAt     DateTime @default(now()) @map("created_at")
 
-  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  student Student @relation(fields: [studentId], references: [id], onDelete: Restrict)
   creator User?   @relation(fields: [createdBy], references: [id])
 
   @@index([studentId, createdAt])
@@ -1388,8 +1388,8 @@ model HymnPracticeSession {
   metadata          Json?
   createdAt         DateTime  @default(now()) @map("created_at")
 
-  student  Student         @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  lesson   Lesson          @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  student Student @relation(fields: [studentId], references: [id], onDelete: Restrict)
+  lesson   Lesson          @relation(fields: [lessonId], references: [id], onDelete: Restrict)
   progress LessonProgress? @relation(fields: [progressId], references: [id], onDelete: SetNull)
   school   School          @relation(fields: [schoolId], references: [id], onDelete: Cascade)
   reviewer User?           @relation("HymnSessionReviewer", fields: [reviewedBy], references: [id], onDelete: SetNull)
@@ -1494,7 +1494,7 @@ model AuditLog {
   metadata   Json?
   createdAt  DateTime @default(now()) @map("created_at")
 
-  school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  school School @relation(fields: [schoolId], references: [id], onDelete: Restrict)
   user   User?  @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   @@index([schoolId, entityType, entityId])

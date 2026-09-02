@@ -27,7 +27,8 @@ export class RegistrationsService {
 
   private async verifyTurnstile(token?: string) {
     const secret = this.configService.get('TURNSTILE_SECRET_KEY');
-    if (!secret || !token) return true; // skip if not configured (dev) or no token
+    if (!secret) return true; // skip only if not configured at all (dev without Turnstile)
+    if (!token) return false; // secret configured but no token → reject
     try {
       const res = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
         method: 'POST',

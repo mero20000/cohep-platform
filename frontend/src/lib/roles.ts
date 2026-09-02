@@ -3,6 +3,7 @@ export const ROLES = [
   { value: 'admin',             label: 'Admin',             labelAr: 'مدير',            category: 'management' as const, level: 1 },
   { value: 'principal',         label: 'Principal',         labelAr: 'مدير المدرسة',    category: 'management' as const, level: 2 },
   { value: 'curriculum_manager', label: 'Curriculum',       labelAr: 'منسق المنهج',     category: 'management' as const, level: 3 },
+  { value: 'priest',            label: 'Priest',            labelAr: 'كاهن',            category: 'management' as const, level: 3 },
   { value: 'level_leader',      label: 'Level Leader',      labelAr: 'رئيس مرحلة',      category: 'ministry' as const,   level: 4 },
   { value: 'group_leader',      label: 'Group Leader',      labelAr: 'رئيس مجموعة',     category: 'ministry' as const,   level: 5 },
   { value: 'servant',           label: 'Servant',           labelAr: 'خادم',            category: 'ministry' as const,   level: 6 },
@@ -53,6 +54,15 @@ export const ROLE_PERMISSIONS: Record<RoleValue, { label: string; labelAr: strin
       { action: 'View curriculum progress', actionAr: 'عرض تقدم المنهج' },
     ],
   },
+  priest: {
+    label: 'Priest', labelAr: 'كاهن',
+    permissions: [
+      { action: 'Oversee spiritual guidance', actionAr: 'الإشراف على التوجيه الروحي' },
+      { action: 'View all student records', actionAr: 'عرض جميع سجلات الطلاب' },
+      { action: 'Approve liturgy attendance', actionAr: 'الموافقة على حضور القداس' },
+      { action: 'Manage announcements', actionAr: 'إدارة الإعلانات' },
+    ],
+  },
   level_leader: {
     label: 'Level Leader', labelAr: 'رئيس مرحلة',
     permissions: [
@@ -96,7 +106,7 @@ export function getRoleByValue(value: string) {
 }
 
 export function roleCategory(role: string): RoleCategory {
-  if (['super_admin', 'admin', 'principal', 'curriculum_manager'].includes(role)) return 'management'
+  if (['super_admin', 'admin', 'principal', 'curriculum_manager', 'priest'].includes(role)) return 'management'
   if (['servant', 'group_leader', 'level_leader'].includes(role)) return 'ministry'
   return 'parent'
 }

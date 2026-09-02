@@ -3,6 +3,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { Throttle } from '@nestjs/throttler';
 import { diskStorage } from 'multer';
 import { extname, join } from 'path';
 import { v4 as uuid } from 'uuid';
@@ -73,6 +74,7 @@ function uploadResult(file: Express.Multer.File, subfolder: string, filename?: s
 }
 
 @Roles(...STAFF_ROLES)
+@Throttle({ default: { limit: 20, ttl: 60000 } })
 @Controller('upload')
 export class UploadController {
   @Post('church-logo')
@@ -112,7 +114,7 @@ export class UploadController {
           console.error('Cloudinary initialization failed, using disk storage:', err);
         }
         return diskStorage({
-          destination: join(__dirname, '..', '..', '..', 'uploads', 'church-logos'),
+          destination: join(__dirname, '..', '..', '..', 'uploads', 'school-logos'),
           filename: (_req, file, cb) => { cb(null, `school-${uuid()}${extname(file.originalname).toLowerCase()}`); },
         });
       })(),
@@ -123,7 +125,7 @@ export class UploadController {
   async uploadSchoolLogo(@UploadedFile() file: Express.Multer.File) {
     if (!file) throw new BadRequestException('No file uploaded');
     if (!isCloudinaryConfigured) {
-      const fullPath = join(__dirname, '..', '..', '..', 'uploads', 'church-logos', file.filename);
+      const fullPath = join(__dirname, '..', '..', '..', 'uploads', 'school-logos', file.filename);
       await validateImageContent(fullPath, file.filename);
     }
     return uploadResult(file, 'school-logos');

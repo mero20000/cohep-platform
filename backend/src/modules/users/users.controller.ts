@@ -1,5 +1,6 @@
 import { Controller, Get, Post, Patch, Delete, Param, Query, Body, NotFoundException } from '@nestjs/common';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
 import { UsersService } from './users.service';
 import { CreateUserDto, UpdateUserDto, CreateSchoolDto, UpdateSchoolDto, SetSystemConfigDto } from './dto/users.dto';
 import { Roles } from '../../common/decorators/roles.decorator';
@@ -101,6 +102,7 @@ export class UsersController {
   }
 
   @Roles('super_admin', 'admin')
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
   @Post()
   @ApiOperation({ summary: 'Create a new user' })
   createUser(
@@ -126,6 +128,7 @@ export class UsersController {
   }
 
   @Roles('super_admin', 'admin')
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   @Delete(':id')
   @ApiOperation({ summary: 'Soft-delete a user' })
   deleteUser(@Param('id') id: string, @CurrentUser() user: any) {
@@ -133,6 +136,7 @@ export class UsersController {
   }
 
   @Roles('super_admin', 'admin')
+  @Throttle({ default: { limit: 3, ttl: 60000 } })
   @Post('bulk-delete')
   @ApiOperation({ summary: 'Bulk soft-delete users (school-scoped)' })
   bulkDeleteUsers(@Body() dto: { ids: string[] }, @CurrentUser() user: any) {
@@ -140,6 +144,7 @@ export class UsersController {
   }
 
   @Roles('super_admin', 'admin', 'principal')
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   @Post('bulk-deactivate')
   @ApiOperation({ summary: 'Bulk deactivate users (set isActive=false)' })
   bulkDeactivateUsers(@Body() dto: { ids: string[] }, @CurrentUser() user: any) {
@@ -147,6 +152,7 @@ export class UsersController {
   }
 
   @Roles('super_admin', 'admin', 'principal')
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   @Post('bulk-activate')
   @ApiOperation({ summary: 'Bulk activate users (set isActive=true)' })
   bulkActivateUsers(@Body() dto: { ids: string[] }, @CurrentUser() user: any) {

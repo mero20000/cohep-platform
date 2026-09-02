@@ -8,6 +8,7 @@ export const STAFF_ROLES = [
   'admin',
   'principal',
   'curriculum_manager',
+  'priest',
   'servant',
   'group_leader',
   'level_leader',
