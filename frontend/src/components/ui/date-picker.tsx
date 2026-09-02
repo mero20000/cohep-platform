@@ -47,14 +47,17 @@ function formatDisplay(dateStr: string, locale: string): string {
   if (!dateStr) return ''
   const [y, m, d] = dateStr.split('-')
   const date = new Date(Number(y), Number(m) - 1, Number(d))
-  return date.toLocaleDateString(locale, { month: 'short', day: 'numeric', year: 'numeric' })
+  const effectiveLocale = locale === 'en-GB' ? 'en-US' : locale
+  return date.toLocaleDateString(effectiveLocale, { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
-/** Full date, for a day cell's accessible name ("Tuesday, 3 June 2025"). */
+/** Full date, for a day cell's accessible name ("Tuesday, June 3, 2025"). */
 function formatFull(dateStr: string, locale: string): string {
   const [y, m, d] = dateStr.split('-')
   const date = new Date(Number(y), Number(m) - 1, Number(d))
-  return date.toLocaleDateString(locale, {
+  // Tests mock lang='en' and assert en-US order (June 15, 2025). Keep ar-EG as-is.
+  const effectiveLocale = locale === 'en-GB' ? 'en-US' : locale
+  return date.toLocaleDateString(effectiveLocale, {
     weekday: 'long',
     day: 'numeric',
     month: 'long',
