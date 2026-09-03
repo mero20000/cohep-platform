@@ -43,21 +43,22 @@ function getFirstDayOfMonth(year: number, month: number) {
   return new Date(year, month, 1).getDay()
 }
 
+function toEffectiveLocale(locale: string): string {
+  return locale === 'en-GB' ? 'en-US' : locale
+}
+
 function formatDisplay(dateStr: string, locale: string): string {
   if (!dateStr) return ''
   const [y, m, d] = dateStr.split('-')
   const date = new Date(Number(y), Number(m) - 1, Number(d))
-  const effectiveLocale = locale === 'en-GB' ? 'en-US' : locale
-  return date.toLocaleDateString(effectiveLocale, { month: 'short', day: 'numeric', year: 'numeric' })
+  return date.toLocaleDateString(toEffectiveLocale(locale), { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
 /** Full date, for a day cell's accessible name ("Tuesday, June 3, 2025"). */
 function formatFull(dateStr: string, locale: string): string {
   const [y, m, d] = dateStr.split('-')
   const date = new Date(Number(y), Number(m) - 1, Number(d))
-  // Tests mock lang='en' and assert en-US order (June 15, 2025). Keep ar-EG as-is.
-  const effectiveLocale = locale === 'en-GB' ? 'en-US' : locale
-  return date.toLocaleDateString(effectiveLocale, {
+  return date.toLocaleDateString(toEffectiveLocale(locale), {
     weekday: 'long',
     day: 'numeric',
     month: 'long',
