@@ -208,6 +208,42 @@ export class AssessmentsService {
     });
   }
 
+  async publishAssessment(assessmentId: string) {
+    const assessment = await this.prisma.assessment.findUnique({ where: { id: assessmentId } });
+    if (!assessment || assessment.deletedAt) {
+      throw new NotFoundException('Assessment not found');
+    }
+    if (assessment.status === 'published') {
+      return assessment;
+    }
+    if (assessment.status !== 'draft') {
+      throw new BadRequestException('Only draft assessments can be published');
+    }
+    const questions = await this.prisma.assessmentQuestion.findMany({ where: { assessmentId }, select: { id: true } });
+    if (questions.length === 0) {
+      throw new BadRequestException('Cannot publish assessment without questions');
+    }
+    if (Number(assessment.totalPoints) <= 0) {
+      throw new BadRequestException('Cannot publish assessment with zero total points');
+    }
+    const updated = await this.prisma.assessment.update({
+      where: { id: assessmentId },
+      data: { status: 'published' },
+    });
+    let assigned = 0;
+    if ((assessment as any).groupId) {
+      const students = await this.prisma.student.findMany({
+        where: { groupId: (assessment as any).groupId, deletedAt: null, status: 'active' },
+        select: { id: true },
+      });
+      if (students.length > 0) {
+        const res = await this.assignStudents(assessmentId, students.map(s => s.id));
+        assigned = res.assigned;
+      }
+    }
+    return { ...updated, assigned };
+  }
+
   async delete(id: string) {
     const existing = await this.prisma.assessment.findUnique({ where: { id } });
     if (!existing || existing.deletedAt) {

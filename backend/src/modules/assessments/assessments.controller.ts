@@ -125,6 +125,12 @@ export class AssessmentsController {
     return this.assessmentsService.assignStudents(id, dto.studentIds);
   }
 
+  @Post(':id/publish')
+  @Roles('admin', 'super_admin', 'principal', 'curriculum_manager', 'level_leader')
+  async publish(@Param('id') id: string) {
+    return this.assessmentsService.publishAssessment(id);
+  }
+
   @Delete(':id/students/:studentId')
   @ApiOperation({ summary: 'Unassign a student from an assessment' })
   async unassignStudent(

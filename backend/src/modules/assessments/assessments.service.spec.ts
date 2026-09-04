@@ -38,6 +38,7 @@ describe('AssessmentsService', () => {
       deleteMany: jest.fn(),
     },
     assessmentQuestion: {
+      findMany: jest.fn(),
       deleteMany: jest.fn(),
       update: jest.fn(),
       create: jest.fn(),
@@ -54,6 +55,9 @@ describe('AssessmentsService', () => {
     },
     user: {
       findFirst: jest.fn(),
+    },
+    student: {
+      findMany: jest.fn(),
     },
     grade: {
       createMany: jest.fn(),
@@ -612,6 +616,25 @@ describe('AssessmentsService', () => {
       const res: any = await service.getSubmissionReview('sub1', 'stu-1', 'a1');
 
       expect(res.grade.percentage).toBe(100);
+    });
+  });
+
+  describe('publishAssessment', () => {
+    it('rejects publish when assessment has no questions', async () => {
+      prisma.assessment.findUnique.mockResolvedValue({ id: 'a1', status: 'draft', deletedAt: null, totalPoints: 0 });
+      prisma.assessmentQuestion.findMany.mockResolvedValue([]);
+      await expect(service.publishAssessment('a1')).rejects.toThrow('Cannot publish assessment without questions');
+    });
+
+    it('publishes and auto-assigns group students', async () => {
+      prisma.assessment.findUnique.mockResolvedValue({ id: 'a1', status: 'draft', deletedAt: null, totalPoints: 10, levelId: 'l1', groupId: 'g1', schoolId: 's1' });
+      prisma.assessmentQuestion.findMany.mockResolvedValue([{ id: 'q1' }]);
+      prisma.student.findMany.mockResolvedValue([{ id: 'stu-1' }, { id: 'stu-2' }]);
+      prisma.assessmentSubmission.findMany.mockResolvedValue([]);
+      prisma.assessment.update.mockResolvedValue({ id: 'a1', status: 'published' });
+      const res = await service.publishAssessment('a1');
+      expect(res.status).toBe('published');
+      expect(prisma.assessmentSubmission.createMany).toHaveBeenCalled();
     });
   });
 });
