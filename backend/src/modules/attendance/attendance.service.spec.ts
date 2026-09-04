@@ -55,6 +55,10 @@ describe('AttendanceService', () => {
     assessment: {
       findFirst: jest.fn(),
     },
+    assessmentQuestion: {
+      findMany: jest.fn(),
+      count: jest.fn(),
+    },
     schoolGrade: {
       findMany: jest.fn(),
     },
@@ -328,6 +332,9 @@ describe('AttendanceService', () => {
       prisma.curriculumAllocation.findFirst.mockResolvedValue({ groupNumber: 1, lesson: { subjectItemId: 'si-1' } });
       prisma.attendanceSession.count.mockResolvedValue(1);
       prisma.assessment.findFirst.mockResolvedValue(null);
+      prisma.assessmentQuestion.findMany.mockResolvedValue([]);
+      prisma.assessmentQuestion.count.mockResolvedValue(0);
+      assessmentsMock.create.mockResolvedValue({ id: 'ass-1', title: 'Assessment: The Trinity', status: 'draft' });
     });
 
     it('marks the linked subject item in_progress without creating an assessment', async () => {
@@ -371,6 +378,14 @@ describe('AttendanceService', () => {
       await service.markSubjectItemStatus('sess-1', 'completed');
       await service.markSubjectItemStatus('sess-1', 'completed');
       expect(assessmentsMock.create).toHaveBeenCalledTimes(1);
+    });
+
+    it('completed response flags actionRequired when draft has no questions', async () => {
+      prisma.assessmentQuestion.findMany.mockResolvedValue([]);
+      prisma.assessmentQuestion.count.mockResolvedValue(0);
+      const result = await service.markSubjectItemStatus('sess-1', 'completed');
+      expect(result.assessment.actionRequired).toBe('add-questions-then-publish');
+      expect(result.assessment.publishUrl).toBe('/dashboard/assessments/ass-1');
     });
 
     it('rejects an unknown subject item link', async () => {

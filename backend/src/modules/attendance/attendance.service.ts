@@ -310,6 +310,9 @@ export class AttendanceService {
         },
         session.schoolId,
       );
+      const qCount = await this.prisma.assessmentQuestion.count({ where: { assessmentId: (assessment as any).id } });
+      (assessment as any).actionRequired = qCount === 0 ? 'add-questions-then-publish' : null;
+      (assessment as any).publishUrl = `/dashboard/assessments/${(assessment as any).id}`;
 
       sessionsUsed = used + 1; // include the session just completed
       plannedSessions = planned;
