@@ -284,7 +284,19 @@ export class AttendanceService {
         where: { subjectItemId: effectiveSubjectItemId, status: 'completed' },
       });
 
-      assessment = await this.assessments.create(
+      const existingDraft = await this.prisma.assessment.findFirst({
+        where: {
+          schoolId: session.schoolId,
+          levelId: session.levelId,
+          groupId: session.groupId,
+          subjectId: si!.subjectId,
+          title: `Assessment: ${si!.name}`,
+          status: 'draft',
+          deletedAt: null,
+        },
+        select: { id: true, title: true, status: true },
+      });
+      assessment = existingDraft ?? await this.assessments.create(
         {
           schoolId: session.schoolId,
           levelId: session.levelId,

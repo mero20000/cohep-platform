@@ -52,6 +52,9 @@ describe('AttendanceService', () => {
     curriculumAllocation: {
       findFirst: jest.fn(),
     },
+    assessment: {
+      findFirst: jest.fn(),
+    },
     schoolGrade: {
       findMany: jest.fn(),
     },
@@ -324,6 +327,7 @@ describe('AttendanceService', () => {
       prisma.group.findUnique.mockResolvedValue({ id: 'group-1' });
       prisma.curriculumAllocation.findFirst.mockResolvedValue({ groupNumber: 1, lesson: { subjectItemId: 'si-1' } });
       prisma.attendanceSession.count.mockResolvedValue(1);
+      prisma.assessment.findFirst.mockResolvedValue(null);
     });
 
     it('marks the linked subject item in_progress without creating an assessment', async () => {
@@ -360,6 +364,13 @@ describe('AttendanceService', () => {
         }),
         schoolId,
       );
+    });
+
+    it('on completed twice reuses the same draft instead of creating duplicates', async () => {
+      prisma.assessment.findFirst.mockResolvedValueOnce(null).mockResolvedValueOnce({ id: 'ass-1', title: 'Assessment: The Trinity', status: 'draft' });
+      await service.markSubjectItemStatus('sess-1', 'completed');
+      await service.markSubjectItemStatus('sess-1', 'completed');
+      expect(assessmentsMock.create).toHaveBeenCalledTimes(1);
     });
 
     it('rejects an unknown subject item link', async () => {
