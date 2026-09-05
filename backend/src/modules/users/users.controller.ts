@@ -114,7 +114,7 @@ export class UsersController {
   }
 
   @Roles('super_admin', 'admin', 'principal')
-  @Throttle({ default: { limit: 3, ttl: 300000 } })
+  @Throttle({ default: { limit: 100, ttl: 60000 } })
   @Post('bulk-import')
   @ApiOperation({ summary: 'Bulk import users from CSV data' })
   bulkImportUsers(
