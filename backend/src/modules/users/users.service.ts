@@ -391,8 +391,21 @@ export class UsersService {
               where: { email: data.email, schoolId, deletedAt: null },
             });
             if (existing) {
-              results.failed++;
-              results.errors.push({ index: idx, email: data.email, reason: 'Duplicate email' });
+              // User already exists — assign role if missing
+              if (data.roleName) {
+                const role = await this.prisma.role.findFirst({ where: { name: data.roleName } });
+                if (role) {
+                  const hasRole = await this.prisma.userRole.findUnique({
+                    where: { userId_roleId: { userId: existing.id, roleId: role.id } },
+                  });
+                  if (!hasRole) {
+                    await this.prisma.userRole.create({
+                      data: { userId: existing.id, roleId: role.id, assignedBy: requestingUser.id },
+                    });
+                  }
+                }
+              }
+              results.created++;
               return;
             }
 
