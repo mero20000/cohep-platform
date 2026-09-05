@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from 'react'
 import {
-  ChevronRight, Loader2, Trash2, GripVertical, X, CalendarDays, Grid3x3, RotateCcw,
+  ChevronRight, Loader2, Trash2, GripVertical, X, CalendarDays, Grid3x3, RotateCcw, ClipboardCheck,
 } from 'lucide-react'
 import { DatePicker } from '@/components/ui/date-picker'
 import { Modal } from '@/components/ui/modal'
@@ -61,6 +61,7 @@ export function CalendarView({
   const [draggedSubjectItem, setDraggedSubjectItem] = useState<SubjectItem | null>(null)
   const [draggedAllocation, setDraggedAllocation] = useState<Allocation | null>(null)
   const [draggedReview, setDraggedReview] = useState<boolean>(false)
+  const [draggedAssessment, setDraggedAssessment] = useState<boolean>(false)
   const [creatingAllocation, setCreatingAllocation] = useState(false)
   const [moveModal, setMoveModal] = useState<{ allocation: Allocation; date: string } | null>(null)
   const [moveDate, setMoveDate] = useState('')
@@ -239,6 +240,57 @@ export function CalendarView({
       return
     }
 
+    // ── Finalize Term Assessment drop ────────────────────────────────
+    if (draggedAssessment) {
+      setCreatingAllocation(true)
+      try {
+        const levelNum = getLevelNumber()
+        const level = levelNum ? levels.find(l => l.number === levelNum) : levels[0]
+        if (!level) { toast('error', lang === 'ar' ? 'اختر مستوى أولاً' : 'Select a level first'); return }
+
+        const assessTitle = `Finalize Assessment — ${subjectName}`
+        const assessTitleAr = `تقييم نهائي — ${matchingSubject.nameAr || subjectName}`
+        let assessLesson = lessons.find(l =>
+          l.title === assessTitle && l.level.number === level.number && l.subject.name === subjectName
+        )
+        if (!assessLesson) {
+          const created = await onCreateLesson({
+            title: assessTitle, titleAr: assessTitleAr, titleCoptic: '',
+            levelId: level.id, subjectId: matchingSubject.id,
+            sessionsCount: 1, orderIndex: 9998, status: 'published',
+          }) as { id?: string; _id?: string }
+          const lessonId = created?.id || created?._id || ''
+          if (!lessonId) throw new Error('Could not create assessment lesson')
+          assessLesson = {
+            id: lessonId, title: assessTitle, titleAr: assessTitleAr,
+            sessionsCount: 1, orderIndex: 9998, status: 'published',
+            level: { number: level.number, name: level.name },
+            subject: { name: subjectName },
+            sessions: [],
+          } as Lesson
+        }
+
+        const dateStr = week.startDate
+        const existingAllocs = weekAllocations.get(`W${weekNumber}`)?.get(subjectName) || []
+        const nextOrder = existingAllocs.length + 1
+        await onCreateAllocation({
+          academicYearId: selectedYear, levelId: level.id,
+          subjectId: matchingSubject.id, lessonId: assessLesson.id,
+          groupNumber: selectedGroup,
+          term: selectedTerm, weekNumber,
+          orderIndex: nextOrder, scheduledDate: dateStr, status: 'assessment',
+        })
+        await onRefresh()
+        toast('success', lang === 'ar' ? 'تمت إضافة التقييم النهائي' : 'Finalize assessment added')
+      } catch (e: any) {
+        toast('error', e?.message || (lang === 'ar' ? 'تعذر إضافة التقييم النهائي' : 'Could not add finalize assessment'))
+      } finally {
+        setCreatingAllocation(false)
+        setDraggedAssessment(false)
+      }
+      return
+    }
+
     const createAllocsForWeeks = async (
       lessonId: string,
       levelId: string,
@@ -359,13 +411,18 @@ export function CalendarView({
       .filter(a => a.scheduledDate)
       .map(a => {
         const isReview = a.status === 'review'
+        const isAssessment = a.status === 'assessment'
         const style = isReview
           ? { bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-300', dot: 'bg-amber-400' }
+          : isAssessment
+          ? { bg: 'bg-violet-50', text: 'text-violet-700', border: 'border-violet-300', dot: 'bg-violet-400' }
           : getSubjectStyle(a.subject.name)
         return {
           id: a.id,
           title: isReview
             ? `L${a.level.number} · ${lang === 'ar' ? 'مراجعة' : 'Review'}`
+            : isAssessment
+            ? `L${a.level.number} · ${lang === 'ar' ? 'تقييم نهائي' : 'Assessment'}`
             : `L${a.level.number} · ${a.lesson.title}`,
           start: (a.scheduledDate as string).slice(0, 10),
           classNames: ['cohep-event', style.bg, style.text, style.border, style.dot ? '' : ''].filter(Boolean),
@@ -559,8 +616,11 @@ export function CalendarView({
                         >
                           {allocs.length > 0 ? allocs.sort((a, b) => a.orderIndex - b.orderIndex).map(a => {
                             const isReview = a.status === 'review'
+                            const isAssessment = a.status === 'assessment'
                             const style = isReview
                               ? { bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200', dot: 'bg-amber-400' }
+                              : isAssessment
+                              ? { bg: 'bg-violet-50', text: 'text-violet-700', border: 'border-violet-200', dot: 'bg-violet-400' }
                               : getSubjectStyle(a.subject.name)
                             const spanWeeks = lessonSessionsForGroup.get(a.lesson.id) || a.lesson.sessionsCount || 1
                             return (
@@ -572,13 +632,16 @@ export function CalendarView({
                                   draggedAllocation?.id === a.id ? 'opacity-50 ring-2 ring-gold-400' : ''
                                 } ${spanWeeks > 1 ? 'shadow-sm' : ''}`}
                                 style={spanWeeks > 1 ? { borderLeftWidth: '3px' } : {}}
-                                title={`${isReview ? 'Review' : a.lesson.title} - L${a.level.number}`}>
+                                title={`${isReview ? 'Review' : isAssessment ? 'Finalize Assessment' : a.lesson.title} - L${a.level.number}`}>
                                 <div className="flex items-center gap-1.5">
                                   {isReview && <RotateCcw className="h-3 w-3 flex-shrink-0" />}
-                                  {!isReview && <span className={`w-1.5 h-1.5 rounded-full ${style.dot} flex-shrink-0`} />}
+                                  {isAssessment && <ClipboardCheck className="h-3 w-3 flex-shrink-0" />}
+                                  {!isReview && !isAssessment && <span className={`w-1.5 h-1.5 rounded-full ${style.dot} flex-shrink-0`} />}
                                   <span className="font-medium">L{a.level.number}</span>
                                   <span className="truncate flex-1 min-w-0">
-                                    {isReview ? (lang === 'ar' ? 'مراجعة' : 'Review') : a.lesson.title}
+                                    {isReview ? (lang === 'ar' ? 'مراجعة' : 'Review')
+                                      : isAssessment ? (lang === 'ar' ? 'تقييم نهائي' : 'Assessment')
+                                      : a.lesson.title}
                                   </span>
                                   {spanWeeks > 1 && (
                                     <span className="text-[11px] opacity-60 flex-shrink-0">{spanWeeks}{lang === 'ar' ? 'ج' : 'w'}</span>
@@ -666,6 +729,7 @@ export function CalendarView({
                 <div key={item.id} draggable
                   onDragStart={() => {
                     setDraggedReview(false)
+                    setDraggedAssessment(false)
                     if (relatedLesson) setDraggedLesson(relatedLesson)
                     else setDraggedSubjectItem(item)
                   }}
@@ -707,12 +771,12 @@ export function CalendarView({
           {unallocatedItems.length} {lang === 'ar' ? 'عنصر متاح' : 'item(s) available'}
         </div>
 
-          {/* Review Session draggable */}
-          <div className="px-3 pb-3">
-            <div
-              draggable
-              onDragStart={() => { setDraggedLesson(null); setDraggedSubjectItem(null); setDraggedReview(true) }}
-              onDragEnd={() => setDraggedReview(false)}
+        {/* Review Session draggable */}
+        <div className="px-3 pb-3">
+          <div
+            draggable
+            onDragStart={() => { setDraggedLesson(null); setDraggedSubjectItem(null); setDraggedAssessment(false); setDraggedReview(true) }}
+            onDragEnd={() => setDraggedReview(false)}
             className={`group flex items-center gap-2 px-3 py-2.5 rounded-lg border-2 border-dashed cursor-grab active:cursor-grabbing text-xs transition-all ${
               draggedReview
                 ? 'bg-amber-50 border-amber-400 shadow-md opacity-80'
@@ -724,6 +788,28 @@ export function CalendarView({
               <div className="font-semibold text-amber-700">{lang === 'ar' ? 'جلسة مراجعة' : 'Review Session'}</div>
               <div className="text-[11px] text-amber-500 mt-0.5">{lang === 'ar' ? 'راجع ما تم تسديده في الأسبوع' : 'Review past delivered content'}</div>
             </div>
+          </div>
+        </div>
+
+        {/* Finalize Term Assessment draggable */}
+        <div className="px-3 pb-3">
+          <div
+            draggable
+            onDragStart={() => { setDraggedLesson(null); setDraggedSubjectItem(null); setDraggedReview(false); setDraggedAssessment(true) }}
+            onDragEnd={() => setDraggedAssessment(false)}
+            className={`group flex items-center gap-2 px-3 py-2.5 rounded-lg border-2 border-dashed cursor-grab active:cursor-grabbing text-xs transition-all ${
+              draggedAssessment
+                ? 'bg-violet-50 border-violet-400 shadow-md opacity-80'
+                : 'bg-violet-50/50 border-violet-200 hover:border-violet-400 hover:bg-violet-50'
+            }`}
+            title={lang === 'ar' ? 'اسحب إلى أسبوع في التقويم' : 'Drag to a week on the calendar'}>
+            <ClipboardCheck className="h-3.5 w-3.5 text-violet-500 flex-shrink-0" />
+            <div className="min-w-0 flex-1">
+              <div className="font-semibold text-violet-700">{lang === 'ar' ? 'تقييم نهائي الفصل' : 'Finalize Term Assessment'}</div>
+              <div className="text-[11px] text-violet-500 mt-0.5">{lang === 'ar' ? 'أضف تقييماً نهائياً للأسبوع' : 'Add a term-end assessment'}</div>
+            </div>
+          </div>
+        </div>
           </div>
         </div>
       </div>
