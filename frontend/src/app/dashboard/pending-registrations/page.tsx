@@ -217,24 +217,24 @@ function StudentsPanel() {
                     ) : null
                   })()}
                    <div className="mt-3 text-xs text-gray-600 line-clamp-2">{sd.notes || sd.address || ''} · {sd.parentEmail}</div>
-                   <div className="mt-3 flex items-center gap-2 flex-wrap">
-                     <Button size="sm" variant="outline" onClick={() => { setSelected(app); setEditData(app.studentData) }}>
-                       <Eye className="h-3.5 w-3.5" />{t('View/Edit', 'عرض/تعديل')}
-                     </Button>
-                     {app.status === 'pending' && (
-                       <>
-                         <Button size="sm" onClick={() => { setSelected(app); setLevelId(''); setGroupId(''); setGradeId(sd.gradeId || '') }} className="bg-gold-500 hover:bg-gold-600 text-white">
-                           <CheckCircle2 className="h-3.5 w-3.5" />{t('Approve', 'موافقة')}
-                         </Button>
-                         <Button size="sm" variant="outline" onClick={() => { setSelected(app); handleReject() }} className="text-red-600 border-red-200 hover:bg-red-50">
-                           <XCircle className="h-3.5 w-3.5" />{t('Reject', 'رفض')}
-                         </Button>
-                         <Button size="sm" variant="outline" onClick={() => { setSelected(app); handleDelete() }} className="text-red-600 border-red-200 hover:bg-red-50">
-                           <Trash2 className="h-3.5 w-3.5" />{t('Delete', 'حذف')}
-                         </Button>
-                       </>
-                     )}
-                   </div>
+                    <div className="mt-3 flex items-center gap-2 flex-wrap">
+                      <Button size="sm" variant="outline" onClick={() => { setSelected(app); setEditData(app.studentData) }}>
+                        <Eye className="h-3.5 w-3.5" />{t('View/Edit', 'عرض/تعديل')}
+                      </Button>
+                      {app.status === 'pending' && (
+                        <>
+                          <Button size="sm" onClick={() => { setSelected(app); setLevelId(''); setGroupId(''); setGradeId(sd.gradeId || '') }} className="bg-gold-500 hover:bg-gold-600 text-white">
+                            <CheckCircle2 className="h-3.5 w-3.5" />{t('Approve', 'موافقة')}
+                          </Button>
+                          <Button size="sm" variant="outline" onClick={() => { setSelected(app); handleReject() }} className="text-red-600 border-red-200 hover:bg-red-50">
+                            <XCircle className="h-3.5 w-3.5" />{t('Reject', 'رفض')}
+                          </Button>
+                        </>
+                      )}
+                      <Button size="sm" variant="outline" onClick={() => { setSelected(app); handleDelete() }} className="text-red-600 border-red-200 hover:bg-red-50">
+                        <Trash2 className="h-3.5 w-3.5" />{t('Delete', 'حذف')}
+                      </Button>
+                    </div>
                 </div>
               )
             })}
@@ -243,17 +243,20 @@ function StudentsPanel() {
 
       {/* Student detail / edit modal */}
       <Modal open={!!selected} onClose={() => setSelected(null)} title={selected ? ((selected.studentData || {}).name || t('Application', 'طلب')) : ''} size="lg"
-        footer={selected?.status === 'pending' ? (
+        footer={
           <>
             <Button variant="outline" onClick={() => setSelected(null)}>{t('Close', 'إغلاق')}</Button>
             <Button variant="outline" onClick={handleDelete} className="text-red-600 border-red-200 hover:bg-red-50"><Trash2 className="h-4 w-4" />{t('Delete', 'حذف')}</Button>
-            <Button variant="outline" onClick={handleUpdate}><Pencil className="h-4 w-4" />{t('Save Edits', 'حفظ التعديلات')}</Button>
-            <Button onClick={handleApprove} disabled={approving} className="bg-emerald-600 hover:bg-emerald-700 text-white">
-              {approving && <Loader2 className="h-4 w-4 animate-spin" />}{t('Approve & Create Student', 'موافقة وإنشاء طالب')}
-            </Button>
-            <Button variant="outline" onClick={handleReject} disabled={rejecting} className="text-red-600 border-red-200 hover:bg-red-50">{t('Reject', 'رفض')}</Button>
+            {selected?.status === 'pending' && (
+              <>
+                <Button variant="outline" onClick={handleUpdate}><Pencil className="h-4 w-4" />{t('Save Edits', 'حفظ التعديلات')}</Button>
+                <Button onClick={handleApprove} disabled={approving} className="bg-emerald-600 hover:bg-emerald-700 text-white">
+                  {approving && <Loader2 className="h-4 w-4 animate-spin" />}{t('Approve & Create Student', 'موافقة وإنشاء طالب')}
+                </Button>
+                <Button variant="outline" onClick={handleReject} disabled={rejecting} className="text-red-600 border-red-200 hover:bg-red-50">{t('Reject', 'رفض')}</Button>
+              </>
+            )}
           </>
-        ) : <Button variant="outline" onClick={() => setSelected(null)}>{t('Close', 'إغلاق')}</Button>
         }>
         {selected && (
           <div className="space-y-4 max-h-[60vh] overflow-y-auto">
