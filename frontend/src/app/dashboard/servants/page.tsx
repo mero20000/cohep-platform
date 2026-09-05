@@ -536,7 +536,7 @@ export default function ServantsPage() {
     setImportFileError('')
     const reader = new FileReader()
     reader.onload = () => {
-      const text = String(reader.result || '')
+      const text = String(reader.result || '').replace(/^\uFEFF/, '')
       const parsed = parseCSV(text)
       if (parsed.length === 0) { setImportFileError(lang === 'ar' ? 'ملف فارغ' : 'Empty file'); return }
       const header = parsed[0].map((h) => h.trim())
@@ -549,7 +549,7 @@ export default function ServantsPage() {
         const gender = get('Gender').toLowerCase()
         const levelName = get('Level')
         const groupName = get('Group')
-        const roleName = get('Role') || 'servant'
+        const roleName = (get('Role') || 'servant').toLowerCase()
         let _error = ''
         const rawTeaching = get('TeachingSubjects').split(';').map((s) => s.trim()).filter(Boolean)
         const teaching = [...new Set(rawTeaching.map(normalizeTeachingSubject).filter(v => VALID_TEACHING_SET.has(v)))]
