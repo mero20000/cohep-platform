@@ -15,11 +15,11 @@ export function useIdleTimeout({ onLogout, enabled = true }: IdleTimeoutOptions)
   const [remainingMs, setRemainingMs] = useState<number | null>(null)
   const [isCountingDown, setIsCountingDown] = useState(false)
   const expiryRef = useRef<number>(0)
-  const warningTimerRef = useRef<NodeJS.Timeout | null>(null)
-  const countdownRef = useRef<NodeJS.Timeout | null>(null)
+  const warningTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const onLogoutRef = useRef(onLogout)
+  const isCountingDownRef = useRef(false)
 
-  // Keep ref fresh without re-registering listeners
   useEffect(() => {
     onLogoutRef.current = onLogout
   }, [onLogout])
@@ -35,16 +35,17 @@ export function useIdleTimeout({ onLogout, enabled = true }: IdleTimeoutOptions)
     }
     setRemainingMs(null)
     setIsCountingDown(false)
+    isCountingDownRef.current = false
   }, [])
 
   const startWarningCountdown = useCallback(() => {
     setIsCountingDown(true)
+    isCountingDownRef.current = true
     setRemainingMs(WARNING_BEFORE_MS)
 
     countdownRef.current = setInterval(() => {
       setRemainingMs(prev => {
         if (prev === null || prev <= 1000) {
-          // Time's up — logout
           if (countdownRef.current) clearInterval(countdownRef.current)
           countdownRef.current = null
           onLogoutRef.current()
@@ -61,22 +62,20 @@ export function useIdleTimeout({ onLogout, enabled = true }: IdleTimeoutOptions)
 
     expiryRef.current = Date.now() + IDLE_TIMEOUT_MS
 
-    // Schedule the warning countdown
     const timeUntilWarning = IDLE_TIMEOUT_MS - WARNING_BEFORE_MS
     warningTimerRef.current = setTimeout(() => {
       startWarningCountdown()
     }, timeUntilWarning)
   }, [enabled, clearTimers, startWarningCountdown])
 
-  // Reset on any activity
+  // Reset on any activity — use ref for isCountingDown to avoid re-registering listeners
   useEffect(() => {
     if (!enabled) return
 
     resetTimer()
 
     const handleActivity = () => {
-      if (isCountingDown) {
-        // User came back during countdown — cancel and reset
+      if (isCountingDownRef.current) {
         clearTimers()
       }
       resetTimer()
@@ -92,9 +91,8 @@ export function useIdleTimeout({ onLogout, enabled = true }: IdleTimeoutOptions)
       })
       clearTimers()
     }
-  }, [enabled, resetTimer, isCountingDown, clearTimers])
+  }, [enabled, resetTimer, clearTimers])
 
-  // Stay signed in: reset timer and dismiss countdown
   const extendSession = useCallback(() => {
     clearTimers()
     resetTimer()
