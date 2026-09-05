@@ -22,7 +22,7 @@ function buildCsp(nonce: string): string {
     `img-src 'self' data: blob: https:`,
     `media-src 'self' https: blob:`,
     `font-src 'self' data: https://fonts.gstatic.com`,
-    `connect-src 'self' https://niangelos-backend.onrender.com https://*.r2.dev https://fonts.googleapis.com${dev ? ' http://localhost:3001' : ''}`,
+    `connect-src 'self' https://niangelos-backend.onrender.com https://*.r2.dev https://fonts.googleapis.com https://res.cloudinary.com${dev ? ' http://localhost:3001' : ''}`,
     `worker-src 'self' blob:`,
     `object-src 'none'`,
     `base-uri 'self'`,
