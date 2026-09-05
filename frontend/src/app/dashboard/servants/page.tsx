@@ -573,31 +573,31 @@ export default function ServantsPage() {
     const valid = importRows.filter((r) => r._valid)
     if (valid.length === 0) return
     setImporting(true)
-    let created = 0, failed = 0
-    for (const r of valid) {
-      try {
-        await http.post('/users', {
-          firstName: r.firstName, lastName: r.lastName,
-          firstNameAr: r.firstNameAr || undefined, lastNameAr: r.lastNameAr || undefined,
-          email: r.email || `${r.firstName.toLowerCase()}.${r.lastName.toLowerCase()}@servant.example.com`,
-          phone: r.phone || undefined, gender: r.gender || 'male', roleName: r.roleName || 'servant',
-          schoolId,
-          password: 'Password123!',
-          metadata: {
-            teachingSubjects: r.teachingSubjects,
-            levelId: r.levelId || undefined,
-            groupId: r.groupId || undefined,
-          },
-        })
-        created++
-      } catch { failed++ }
+    try {
+      const payload = valid.map(r => ({
+        firstName: r.firstName, lastName: r.lastName,
+        firstNameAr: r.firstNameAr || undefined, lastNameAr: r.lastNameAr || undefined,
+        email: r.email || `${r.firstName.toLowerCase()}.${r.lastName.toLowerCase()}@servant.example.com`,
+        phone: r.phone || undefined, gender: r.gender || 'male', roleName: r.roleName || 'servant',
+        password: 'Password123!',
+        metadata: {
+          teachingSubjects: r.teachingSubjects,
+          levelId: r.levelId || undefined,
+          groupId: r.groupId || undefined,
+        },
+      }))
+      const res: any = await http.post('/users/bulk-import', { users: payload }, { schoolId })
+      const created = res?.created ?? valid.length
+      const failed = res?.failed ?? 0
+      toast(created > 0 ? 'success' : 'error',
+        lang === 'ar' ? `تم إنشاء ${created} خادم، فشل ${failed}` : `Created ${created} servants, ${failed} failed`)
+    } catch (err: any) {
+      toast('error', err?.message || (lang === 'ar' ? 'فشل الاستيراد' : 'Import failed'))
     }
     setImporting(false)
     setShowImport(false)
     setImportRows([])
     fetchServants()
-    toast(created > 0 ? 'success' : 'error',
-      lang === 'ar' ? `تم إنشاء ${created} خادم، فشل ${failed}` : `Created ${created} servants, ${failed} failed`)
   }
 
   const toggleSubject = (sub: string) => {

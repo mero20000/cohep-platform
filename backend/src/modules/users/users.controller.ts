@@ -2,7 +2,7 @@ import { Controller, Get, Post, Patch, Delete, Param, Query, Body, NotFoundExcep
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { UsersService } from './users.service';
-import { CreateUserDto, UpdateUserDto, CreateSchoolDto, UpdateSchoolDto, SetSystemConfigDto } from './dto/users.dto';
+import { CreateUserDto, UpdateUserDto, CreateSchoolDto, UpdateSchoolDto, SetSystemConfigDto, BulkImportUsersDto } from './dto/users.dto';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 
@@ -111,6 +111,18 @@ export class UsersController {
     @Query('schoolId') schoolId?: string,
   ) {
     return this.usersService.createUser(user, schoolId, dto);
+  }
+
+  @Roles('super_admin', 'admin', 'principal')
+  @Throttle({ default: { limit: 3, ttl: 300000 } })
+  @Post('bulk-import')
+  @ApiOperation({ summary: 'Bulk import users from CSV data' })
+  bulkImportUsers(
+    @CurrentUser() user: any,
+    @Body() dto: BulkImportUsersDto,
+    @Query('schoolId') schoolId?: string,
+  ) {
+    return this.usersService.bulkImportUsers(user, schoolId, dto.users);
   }
 
   @Roles('super_admin', 'admin', 'principal')

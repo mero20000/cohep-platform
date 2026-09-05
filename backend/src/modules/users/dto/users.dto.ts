@@ -1,5 +1,6 @@
-import { IsEmail, IsString, IsOptional, IsBoolean, MinLength, IsIn, Matches } from 'class-validator';
+import { IsEmail, IsString, IsOptional, IsBoolean, MinLength, IsIn, Matches, IsArray, ValidateNested } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { Type } from 'class-transformer';
 
 export class CreateUserDto {
   @ApiProperty({ example: 'user@example.com' })
@@ -303,4 +304,12 @@ export class SetSystemConfigDto {
   @IsOptional()
   @IsString()
   description?: string;
+}
+
+export class BulkImportUsersDto {
+  @ApiProperty({ type: [CreateUserDto] })
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => CreateUserDto)
+  users: CreateUserDto[];
 }

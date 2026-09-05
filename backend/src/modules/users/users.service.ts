@@ -357,6 +357,85 @@ export class UsersService {
     return user;
   }
 
+  async bulkImportUsers(requestingUser: any, schoolIdentifier: string | undefined, users: any[]) {
+    if (!Array.isArray(users) || users.length === 0) {
+      throw new BadRequestException('Users array is required');
+    }
+    if (users.length > 100) {
+      throw new BadRequestException('Maximum 100 users per import');
+    }
+
+    const isSuperAdmin = requestingUser?.roles?.includes('super_admin');
+    let schoolId: string;
+    if (isSuperAdmin && schoolIdentifier) {
+      schoolId = await this.resolveSchoolId(schoolIdentifier);
+    } else if (!isSuperAdmin) {
+      schoolId = requestingUser?.schoolId;
+    } else {
+      throw new BadRequestException('schoolId is required');
+    }
+    if (!schoolId) throw new BadRequestException('Unable to determine school');
+
+    const results: { created: number; failed: number; errors: { index: number; email: string; reason: string }[] } = {
+      created: 0, failed: 0, errors: [],
+    };
+
+    // Process in batches of 10 for performance
+    for (let i = 0; i < users.length; i += 10) {
+      const batch = users.slice(i, i + 10);
+      await Promise.allSettled(
+        batch.map(async (data, batchIdx) => {
+          const idx = i + batchIdx;
+          try {
+            const existing = await this.prisma.user.findFirst({
+              where: { email: data.email, schoolId, deletedAt: null },
+            });
+            if (existing) {
+              results.failed++;
+              results.errors.push({ index: idx, email: data.email, reason: 'Duplicate email' });
+              return;
+            }
+
+            const passwordHash = await bcrypt.hash(data.password || 'Password123!', 12);
+            let validatedMetadata = data.metadata;
+            if (validatedMetadata !== undefined) {
+              validatedMetadata = await this.validateMetadata(validatedMetadata, schoolId);
+            }
+
+            const user = await this.prisma.user.create({
+              data: {
+                email: data.email, passwordHash,
+                firstName: data.firstName, lastName: data.lastName,
+                gender: data.gender || 'male',
+                firstNameAr: data.firstNameAr, lastNameAr: data.lastNameAr,
+                phone: data.phone, schoolId, locale: 'en', timezone: 'UTC',
+                ...(validatedMetadata !== undefined && { metadata: validatedMetadata }),
+              },
+              select: { id: true },
+            });
+
+            if (data.roleName) {
+              if (!isSuperAdmin && (data.roleName === 'super_admin' || data.roleName === 'admin')) {
+                results.failed++;
+                results.errors.push({ index: idx, email: data.email, reason: 'Insufficient permissions for role' });
+                return;
+              }
+              const role = await this.prisma.role.findFirst({ where: { name: data.roleName } });
+              if (role) await this.prisma.userRole.create({ data: { userId: user.id, roleId: role.id } });
+            }
+
+            results.created++;
+          } catch (err: any) {
+            results.failed++;
+            results.errors.push({ index: idx, email: data.email, reason: err?.message || 'Unknown error' });
+          }
+        })
+      );
+    }
+
+    return results;
+  }
+
   async listRoles() {
     return this.prisma.role.findMany({ orderBy: { level: 'asc' } });
   }
