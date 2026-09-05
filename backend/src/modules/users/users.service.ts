@@ -157,6 +157,24 @@ export class UsersService {
     return { ...user, roles: user.userRoles.map(ur => ur.role) };
   }
 
+  async assignRole(userId: string, roleName: string, requestingUser?: any) {
+    if (!requestingUser?.roles?.includes('super_admin') && !requestingUser?.roles?.includes('admin')) {
+      throw new BadRequestException('Only admin or super admin can assign roles');
+    }
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new NotFoundException('User not found');
+    const role = await this.prisma.role.findFirst({ where: { name: roleName } });
+    if (!role) throw new NotFoundException(`Role "${roleName}" not found`);
+    const existing = await this.prisma.userRole.findUnique({
+      where: { userId_roleId: { userId, roleId: role.id } },
+    });
+    if (existing) return { assigned: true, already: true };
+    await this.prisma.userRole.create({
+      data: { userId, roleId: role.id, assignedBy: requestingUser.id },
+    });
+    return { assigned: true };
+  }
+
   async updateUser(id: string, data: any, requestingUser?: any) {
     const user = await this.prisma.user.findUnique({ where: { id } });
     if (!user) throw new NotFoundException('User not found');

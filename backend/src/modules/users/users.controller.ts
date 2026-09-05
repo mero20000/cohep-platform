@@ -140,6 +140,13 @@ export class UsersController {
   }
 
   @Roles('super_admin', 'admin')
+  @Post(':id/assign-role')
+  @ApiOperation({ summary: 'Assign a role to a user' })
+  assignRole(@Param('id') id: string, @Body() dto: { roleName: string }, @CurrentUser() user: any) {
+    return this.usersService.assignRole(id, dto.roleName, user);
+  }
+
+  @Roles('super_admin', 'admin')
   @Throttle({ default: { limit: 5, ttl: 60000 } })
   @Delete(':id')
   @ApiOperation({ summary: 'Soft-delete a user' })
