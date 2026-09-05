@@ -193,10 +193,12 @@ function GrowthMirrorPanel({ entry, lang }: { entry: LeaderboardEntry; lang: str
                   />
                   <span className="absolute right-1.5 top-0.5 text-[10px] font-semibold text-gray-600">{m.xp}</span>
                 </div>
-            </div>
-          )}
-      </AnimatedTabPanel>
-      </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        </div>
 
       {/* Attendance & Assessments */}
       <div className="grid grid-cols-2 gap-3">
@@ -1098,8 +1100,7 @@ export default function GamificationPage() {
               })}
             </div>
           )}
-        </div>
-      )}
+      </AnimatedTabPanel>
 
       {/* ── Badge Modals ── */}
       <Modal open={showBadgeForm} onClose={() => setShowBadgeForm(false)} title={t('Create New Badge', 'إنشاء شارة جديدة')}
