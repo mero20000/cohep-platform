@@ -68,7 +68,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   return (
     <ToastContext value={{ toast: addToast }}>
       {children}
-      <div aria-live="polite" className="fixed top-4 right-4 z-[100] flex flex-col gap-2 max-w-sm w-full pointer-events-none" style={{ top: 'max(1rem, env(safe-area-inset-top))', right: 'max(1rem, env(safe-area-inset-right))' }}>
+      <div aria-live="polite" className="fixed top-4 right-4 z-[100] flex flex-col gap-2 max-w-[calc(100vw-2rem)] sm:max-w-sm w-full pointer-events-none" style={{ top: 'max(1rem, env(safe-area-inset-top))', right: 'max(1rem, env(safe-area-inset-right))', left: 'max(1rem, env(safe-area-inset-left))' }}>
         {toasts.map(t => {
           const Icon = icons[t.type]
           const c = colors[t.type]

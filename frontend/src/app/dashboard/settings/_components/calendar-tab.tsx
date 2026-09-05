@@ -444,7 +444,7 @@ export function CalendarTab() {
       <Modal open={showYearForm} onClose={() => setShowYearForm(false)} title={editingYear ? 'Edit Academic Year' : 'Add Academic Year'}>
         <div className="space-y-4">
           <FormField label="Year Name" required value={yearForm.name} onChange={e => setYearForm({ ...yearForm, name: e.target.value })} placeholder="e.g. 2026-2027" />
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700">Start Date *</label>
               <DatePicker value={yearForm.startDate} onChange={v => setYearForm({ ...yearForm, startDate: v })} className="mt-1.5" />
@@ -489,7 +489,7 @@ export function CalendarTab() {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {WEEK_STATUS_OPTIONS.map(opt => (
                   <button key={opt.value} type="button"
                     onClick={() => {
@@ -579,7 +579,7 @@ export function CalendarTab() {
           <FormField label="Label" required value={eventForm.label} onChange={e => setEventForm({ ...eventForm, label: e.target.value })} placeholder="e.g. Church Convention, Extra Session" />
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1.5">Type</label>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
               {EVENT_TYPE_OPTIONS.map(opt => (
                 <button key={opt.value} type="button"
                   onClick={() => setEventForm({ ...eventForm, type: opt.value })}

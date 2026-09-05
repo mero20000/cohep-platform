@@ -940,7 +940,7 @@ export default function AssessmentsPage() {
 
           <FormField label={lang === 'ar' ? 'الوصف' : 'Description'} as="textarea" value={form.description} onChange={e => updateForm({ description: e.target.value })} placeholder={lang === 'ar' ? 'وصف اختياري' : 'Optional description'} />
 
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <FormField label={lang === 'ar' ? 'المستوى' : 'Level'} required as="select" value={form.levelId} onChange={e => updateForm({ levelId: e.target.value, groupId: '' })}>
               <option value="">{lang === 'ar' ? 'اختر المستوى' : 'Select level'}</option>
               {levels.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
@@ -980,7 +980,7 @@ export default function AssessmentsPage() {
             {form.referenceRecordingUrl && <AudioPlayer src={assetUrl(form.referenceRecordingUrl)} />}
           </div>
 
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <FormField label={lang === 'ar' ? 'الدرجة القصوى' : 'Total Points'} required type="number" min="1" value={form.totalPoints} onChange={e => updateForm({ totalPoints: e.target.value })} placeholder="100" />
             <FormField label={lang === 'ar' ? 'درجة النجاح' : 'Passing Points'} required type="number" min="1" value={form.passingPoints} onChange={e => updateForm({ passingPoints: e.target.value })} placeholder="60" />
             <div>
@@ -989,7 +989,7 @@ export default function AssessmentsPage() {
             </div>
           </div>
 
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <FormField label={lang === 'ar' ? 'الفصل' : 'Term'} as="select" value={form.term} onChange={e => updateForm({ term: e.target.value })}>
               <option value="">{lang === 'ar' ? 'اختر الفصل' : 'Select term'}</option>
               <option value="1">{lang === 'ar' ? 'الفصل الأول (سبتمبر-ديسمبر)' : 'Term 1 (Sep-Dec)'}</option>
@@ -1179,7 +1179,7 @@ export default function AssessmentsPage() {
               ) : (
                 <div className="max-h-[50vh] overflow-y-auto divide-y divide-gray-100">
                   {visibleStudents.map(r => (
-                    <div key={r.id} className="flex items-center gap-3 py-3">
+                    <div key={r.id} className="flex flex-wrap items-center gap-3 py-3">
                       <div className="flex-1 min-w-0">
                         <div className="text-sm font-medium text-gray-900 truncate">
                           {r.firstName} {r.lastName}

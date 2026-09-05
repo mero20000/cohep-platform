@@ -23,7 +23,7 @@ export function HelpButton() {
       <button
         id="help-button"
         onClick={() => setOpen(true)}
-        className="fixed bottom-6 right-6 z-40 lg:bottom-6 bottom-20 flex h-12 w-12 items-center justify-center rounded-full bg-gray-800 text-white shadow-lg shadow-gray-400/30 hover:bg-gray-700 hover:scale-105 active:scale-95 transition-transform"
+        className="fixed bottom-20 lg:bottom-6 right-6 z-40 flex h-12 w-12 items-center justify-center rounded-full bg-gray-800 text-white shadow-lg shadow-gray-400/30 hover:bg-gray-700 hover:scale-105 active:scale-95 transition-transform"
         aria-label={lang === 'ar' ? 'مساعدة' : 'Help'}
         title={lang === 'ar' ? 'مساعدة' : 'Help'}
       >

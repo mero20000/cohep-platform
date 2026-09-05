@@ -140,7 +140,7 @@ export function Modal({ open, onClose, title, description, children, footer, siz
               </div>
             )}
             <div className="flex-1 overflow-y-auto px-6 py-5">{children}</div>
-            {footer && <div className="flex items-center justify-end gap-3 border-t border-gray-100 px-6 py-4">{footer}</div>}
+            {footer && <div className="flex flex-wrap items-center justify-end gap-3 border-t border-gray-100 px-6 py-4 pb-[max(1rem,env(safe-area-inset-bottom))]">{footer}</div>}
           </motion.div>
         </motion.div>
       )}

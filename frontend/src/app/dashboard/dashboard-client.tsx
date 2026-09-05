@@ -412,7 +412,7 @@ function ServantSection({ counts, loading }: { counts: ServantCounts | null; loa
      {lang === 'ar' ? 'إدارة' : 'Manage'} <ChevronRight className="h-3 w-3 group-hover:translate-x-0.5 transition-transform" />
     </Link>
    </div>
-   <div className="grid grid-cols-3 divide-x divide-gray-100">
+   <div className="grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-gray-100">
     {items.map((r, i) => (
      <motion.div key={i} whileHover={{ y: -2 }} whileTap={{ y: -1 }} className="px-5 py-4 text-center group">
       <div className={`inline-flex items-center justify-center h-11 w-11 rounded-xl bg-gradient-to-br ${r.bg} ${r.color} mb-2 shadow-sm group-hover:shadow-md group-hover:scale-110 group-active:shadow-md group-active:scale-110 transition-transform duration-300`}>
@@ -695,10 +695,10 @@ function ActivitySection({ stats, loading }: { stats: DashboardData | null; load
  if (!activity.length) return <EmptyState icon={Clock} title={lang === 'ar' ? 'لا يوجد نشاط حديث' : 'No recent activity'} description={lang === 'ar' ? 'سيظهر النشاط هنا.' : 'Activity will appear here.'} />
  return (
   <div>
-   <div role="tablist" aria-label={lang === 'ar' ? 'تصفية النشاط' : 'Filter activity'} className="flex gap-1.5 px-4 pt-3 pb-2 border-b border-gray-100">
+   <div role="tablist" aria-label={lang === 'ar' ? 'تصفية النشاط' : 'Filter activity'} className="flex flex-wrap gap-1.5 px-4 pt-3 pb-2 border-b border-gray-100">
     {tabs.map(t => (
      <button key={t.key} role="tab" aria-selected={activeTab === t.key} onClick={() => setActiveTab(t.key)}
-      className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium border transition-colors ${activeTab === t.key ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'}`}>
+      className={`inline-flex min-h-[44px] items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium border transition-colors ${activeTab === t.key ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'}`}>
       {lang === 'ar' ? t.labelAr : t.label}
       <span className={`rounded-full px-1.5 py-0 text-[10px] leading-none ${activeTab === t.key ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-600'}`}>{t.count}</span>
      </button>
@@ -1078,15 +1078,15 @@ export function TodaysSessionCard({ lang }: { lang: string }) {
             </span>
             <div className="flex gap-1">
               <button onClick={() => updateAttendance(record.studentId, 'present')}
-                className={`px-2 py-1 rounded text-xs font-medium transition-colors ${record.status === 'present' ? 'bg-emerald-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-emerald-100'}`}>
+                className={`min-h-[44px] min-w-[44px] px-2 py-1 rounded text-xs font-medium transition-colors ${record.status === 'present' ? 'bg-emerald-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-emerald-100'}`}>
                 P
               </button>
               <button onClick={() => updateAttendance(record.studentId, 'absent')}
-                className={`px-2 py-1 rounded text-xs font-medium transition-colors ${record.status === 'absent' ? 'bg-red-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-red-100'}`}>
+                className={`min-h-[44px] min-w-[44px] px-2 py-1 rounded text-xs font-medium transition-colors ${record.status === 'absent' ? 'bg-red-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-red-100'}`}>
                 A
               </button>
               <button onClick={() => updateAttendance(record.studentId, 'late')}
-                className={`px-2 py-1 rounded text-xs font-medium transition-colors ${record.status === 'late' ? 'bg-amber-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-amber-100'}`}>
+                className={`min-h-[44px] min-w-[44px] px-2 py-1 rounded text-xs font-medium transition-colors ${record.status === 'late' ? 'bg-amber-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-amber-100'}`}>
                 L
               </button>
             </div>
@@ -1144,8 +1144,8 @@ function WeekScheduleCard({ lang }: { lang: string }) {
           {lang === 'ar' ? 'الحضور' : 'Attendance'} <ChevronRight className="h-3 w-3" />
         </Link>
       </div>
-      <div className="p-4">
-        <div className="grid grid-cols-7 gap-2">
+      <div className="p-4 overflow-x-auto">
+        <div className="grid grid-cols-7 gap-2 min-w-[520px]">
           {dayNames.map((day, i) => {
             const daySessions = sessions.filter(s => {
               const sessionDate = new Date(s.scheduledDate)

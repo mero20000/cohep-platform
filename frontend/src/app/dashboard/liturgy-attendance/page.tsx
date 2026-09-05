@@ -260,7 +260,7 @@ export default function LiturgyAttendancePage() {
       </div>
 
       {/* Save button */}
-      <div className="sticky bottom-0 bg-white border-t border-gray-200 p-4 -mx-4 sm:-mx-6 lg:-mx-8 mt-6">
+      <div className="sticky bottom-16 lg:bottom-0 bg-white/95 backdrop-blur border-t border-gray-200 p-4 -mx-4 sm:-mx-6 lg:-mx-8 mt-6 pb-[max(1rem,env(safe-area-inset-bottom))]">
         <div className="mx-4 sm:mx-6 lg:mx-8 flex gap-2">
           <Button
             onClick={loadSession}

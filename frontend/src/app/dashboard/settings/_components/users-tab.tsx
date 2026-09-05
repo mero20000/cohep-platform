@@ -242,18 +242,18 @@ export function UsersTab() {
       {/* Create/Edit Modal */}
       <Modal open={showForm} onClose={() => setShowForm(false)} title={editing ? (lang === 'ar' ? 'تعديل المستخدم' : 'Edit User') : (lang === 'ar' ? 'إضافة مستخدم جديد' : 'Add New User')} size="lg">
         <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <FormField label={lang === 'ar' ? 'الاسم الأول' : 'First Name'} required value={form.firstName} onChange={e => setForm({ ...form, firstName: e.target.value })} />
             <FormField label={lang === 'ar' ? 'الاسم الأخير' : 'Last Name'} required value={form.lastName} onChange={e => setForm({ ...form, lastName: e.target.value })} />
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <FormField label={lang === 'ar' ? 'الاسم الأول (بالعربية)' : 'First Name (Arabic)'} value={form.firstNameAr} onChange={e => setForm({ ...form, firstNameAr: e.target.value })} dir="rtl" className="arabic-text" />
             <FormField label={lang === 'ar' ? 'الاسم الأخير (بالعربية)' : 'Last Name (Arabic)'} value={form.lastNameAr} onChange={e => setForm({ ...form, lastNameAr: e.target.value })} dir="rtl" className="arabic-text" />
           </div>
           <FormField label={lang === 'ar' ? 'البريد الإلكتروني' : 'Email'} required type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} disabled={!!editing} />
           <FormField label={lang === 'ar' ? 'الهاتف' : 'Phone'} type="tel" value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} />
           {isSuperAdmin && (!editing || editing.userRoles?.every(ur => ur.role.name !== 'super_admin')) && (
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <FormField label={lang === 'ar' ? 'الكنيسة' : 'Church'} as="select" value={form.churchId} onChange={e => setForm({ ...form, churchId: e.target.value, schoolId: '' })}>
                 <option value="">{lang === 'ar' ? 'اختر كنيسة...' : 'Select church...'}</option>
                 {churches.map((c: Church) => <option key={c.id} value={c.id}>{c.name}</option>)}
@@ -264,7 +264,7 @@ export function UsersTab() {
               </FormField>
             </div>
           )}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <FormField label={lang === 'ar' ? 'الدور' : 'Role'} as="select" value={form.roleName} onChange={e => setForm({ ...form, roleName: e.target.value })}>
             {roles.filter(r => isSuperAdmin || (r.name !== 'super_admin' && r.name !== 'admin')).map((r: Role) => <option key={r.id} value={r.name}>{r.displayName}</option>)}
             </FormField>

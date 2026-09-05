@@ -125,7 +125,7 @@ export default function LiturgyVerificationDashboard() {
               <div key={v.id} className="rounded-lg border border-gray-200 bg-white overflow-hidden">
                 {/* Header */}
                 <div className="px-4 py-3 bg-gray-50 border-b border-gray-200">
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between gap-3">
                     <div className="flex-1">
                       <h3 className="font-medium text-gray-900">{v.studentName}</h3>
                       <p className="text-sm text-gray-600 mt-1">{v.lessonTitle}</p>
@@ -149,7 +149,7 @@ export default function LiturgyVerificationDashboard() {
                 {/* Body */}
                 <div className="px-4 py-4 space-y-3">
                   {/* Performance summary */}
-                  <div className="grid grid-cols-3 gap-3 text-sm">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
                     <div>
                       <p className="text-gray-600">{t('Self-rating', 'تقييم ذاتي')}</p>
                       <p className="font-medium text-gray-900">{v.selfRating ?? '—'}★</p>

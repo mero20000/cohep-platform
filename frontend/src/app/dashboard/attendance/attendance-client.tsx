@@ -1224,7 +1224,7 @@ export function AttendanceClient() {
           {stats && (
             <div className="rounded-xl border border-gray-200 bg-white p-6">
               <h3 className="font-semibold text-gray-900 mb-4">{lang === 'ar' ? 'التوزيع العام' : 'Overall Distribution'}</h3>
-              <div className="grid grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                 {[
                   { label: lang === 'ar' ? 'حاضر' : 'Present', count: stats.presentCount, color: 'bg-green-500', pct: stats.totalRecords > 0 ? Math.round((stats.presentCount / stats.totalRecords) * 100) : 0 },
                   { label: lang === 'ar' ? 'متأخر' : 'Late', count: stats.lateCount, color: 'bg-amber-500', pct: stats.totalRecords > 0 ? Math.round((stats.lateCount / stats.totalRecords) * 100) : 0 },

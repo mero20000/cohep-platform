@@ -25,7 +25,7 @@ export function MobileBottomNav({ items, lang }: MobileBottomNavProps) {
       className="fixed bottom-0 inset-x-0 z-40 lg:hidden bg-white border-t border-gray-200 shadow-[0_-1px_12px_rgba(0,0,0,0.06)]"
       aria-label={lang === 'ar' ? 'التنقل السفلي' : 'Bottom navigation'}
     >
-      <div className="flex h-16 items-stretch">
+      <div className="flex h-16 items-stretch" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
         {visible.map(item => {
           const isActive = pathname === item.href ||
             (item.href !== '/dashboard' && pathname.startsWith(item.href))
@@ -55,7 +55,7 @@ export function MobileBottomNav({ items, lang }: MobileBottomNavProps) {
         })}
       </div>
       {/* Safe area padding for notched phones */}
-      <div className="h-safe-area-inset-bottom bg-white" />
+      <div className="bg-white pb-[env(safe-area-inset-bottom)]" />
     </nav>
   )
 }

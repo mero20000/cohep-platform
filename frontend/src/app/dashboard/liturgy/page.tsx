@@ -90,8 +90,8 @@ export default function LiturgyVerificationPage() {
       ) : (
         <div className="space-y-3">
           {records.map(r => (
-            <div key={r.id} className="flex items-center justify-between p-4 bg-white rounded-xl border border-gray-200">
-              <div>
+            <div key={r.id} className="flex items-center justify-between gap-3 p-4 bg-white rounded-xl border border-gray-200">
+              <div className="min-w-0 flex-1">
                 <p className="font-medium text-gray-900">
                   {language === 'ar' ? `${r.student.firstNameAr} ${r.student.lastNameAr}` : `${r.student.firstName} ${r.student.lastName}`}
                 </p>
@@ -103,11 +103,11 @@ export default function LiturgyVerificationPage() {
                   {r.notes && ` · ${r.notes}`}
                 </p>
               </div>
-              <div className="flex gap-2">
-                <button onClick={() => handleVerify(r.id)} className="p-2 rounded-lg bg-green-50 text-green-600 hover:bg-green-100 transition-colors" title={t('Verify', 'تحقق')}>
+              <div className="flex shrink-0 gap-2">
+                <button onClick={() => handleVerify(r.id)} className="min-h-[44px] min-w-[44px] p-2 rounded-lg bg-green-50 text-green-600 hover:bg-green-100 transition-colors" title={t('Verify', 'تحقق')}>
                   <CheckCircle className="w-5 h-5" />
                 </button>
-                <button onClick={() => handleReject(r.id)} className="p-2 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-colors" title={t('Reject', 'رفض')}>
+                <button onClick={() => handleReject(r.id)} className="min-h-[44px] min-w-[44px] p-2 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-colors" title={t('Reject', 'رفض')}>
                   <XCircle className="w-5 h-5" />
                 </button>
               </div>

@@ -677,7 +677,7 @@ export function SubjectsTab() {
       {/* Item Add/Edit Modal */}
       <Modal open={showItemForm} onClose={cancelItemForm} title={editingItem ? (lang === 'ar' ? 'تعديل العنصر' : 'Edit Item') : (lang === 'ar' ? 'إضافة عنصر جديد' : 'Add New Item')}>
         <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="col-span-2">
               <label className="block text-sm font-medium text-gray-700 mb-1">{lang === 'ar' ? 'الوقت' : 'When'}</label>
               <select value={itemForm.whenLabel} onChange={e => setItemForm({ ...itemForm, whenLabel: e.target.value })}

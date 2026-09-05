@@ -233,7 +233,7 @@ export default function StudentsClient() {
           <h1 className="text-2xl font-bold text-gray-900">{t('Students','الطلاب')}</h1>
           <p className="text-sm text-gray-500">{pagination.total} {t('students enrolled','طالب مسجل')}</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           {can('student:edit')&&<Button variant="outline" size="sm" onClick={()=>setShowDuplicates(true)} title={t('Find duplicate students','البحث عن طلاب مكررين')}><Copy className="h-4 w-4"/><span className="hidden sm:inline">{t('Duplicates','مكررون')}</span></Button>}
           {can('student:export')&&<Button variant="outline" size="sm" onClick={handleExport}><Download className="h-4 w-4"/>{t('Export','تصدير')}</Button>}
           {can('student:import')&&<Button variant="outline" size="sm" onClick={()=>setShowImport(true)}><Upload className="h-4 w-4"/>{t('Import','استيراد')}</Button>}

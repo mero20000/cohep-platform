@@ -228,7 +228,7 @@ export default function RegisterPage() {
           <a
             href={`https://wa.me/?text=${encodeURIComponent(`I just registered ${form.name} to COHEP Hymn School — register here: ${window.location.href}`)}`}
             target="_blank" rel="noopener noreferrer"
-            className="mt-6 inline-flex items-center gap-2 rounded-full bg-[#25D366] px-6 py-2.5 text-sm font-bold text-white hover:bg-[#128C7E]"
+            className="mt-6 inline-flex items-center gap-2 rounded-full bg-[#25D366] px-6 py-2.5 text-base sm:text-sm font-bold text-white hover:bg-[#128C7E]"
           >
             {t('Share with another parent', 'شارك مع ولي أمر آخر')}
           </a>
@@ -408,7 +408,7 @@ export default function RegisterPage() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700">{t('Full name (English) *', 'الاسم الكامل (إنجليزي) *')}</label>
-                  <input value={form.name} onChange={e => update('name', e.target.value)} placeholder="e.g. Mina George" className="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2.5 text-sm focus:border-gold-400 focus:ring-2 focus:ring-gold-100 outline-none" />
+                  <input value={form.name} onChange={e => update('name', e.target.value)} placeholder="e.g. Mina George" className="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2.5 text-base sm:text-sm focus:border-gold-400 focus:ring-2 focus:ring-gold-100 outline-none" />
                   <p className="mt-1 text-xs text-gray-500">{t('First and last name as it appears in records', 'الاسم الأول والأخير كما يظهر في السجلات')}</p>
                 </div>
 
@@ -421,19 +421,19 @@ export default function RegisterPage() {
                 </button>
 
                 {showArabicNames && (
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
                       <label className="block text-sm font-medium text-gray-700">{t('First name (Arabic)', 'الاسم الأول (عربي)')}</label>
-                      <input value={form.firstNameAr} onChange={e => update('firstNameAr', e.target.value)} placeholder={t('e.g. مينا', 'e.g. مينا')} className="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2.5 text-sm focus:border-gold-400 focus:ring-2 focus:ring-gold-100 outline-none" dir="rtl" />
+                      <input value={form.firstNameAr} onChange={e => update('firstNameAr', e.target.value)} placeholder={t('e.g. مينا', 'e.g. مينا')} className="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2.5 text-base sm:text-sm focus:border-gold-400 focus:ring-2 focus:ring-gold-100 outline-none" dir="rtl" />
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700">{t('Last name (Arabic)', 'الاسم الأخير (عربي)')}</label>
-                      <input value={form.lastNameAr} onChange={e => update('lastNameAr', e.target.value)} placeholder={t('e.g. جرجس', 'e.g. جرجس')} className="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2.5 text-sm focus:border-gold-400 focus:ring-2 focus:ring-gold-100 outline-none" dir="rtl" />
+                      <input value={form.lastNameAr} onChange={e => update('lastNameAr', e.target.value)} placeholder={t('e.g. جرجس', 'e.g. جرجس')} className="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2.5 text-base sm:text-sm focus:border-gold-400 focus:ring-2 focus:ring-gold-100 outline-none" dir="rtl" />
                     </div>
                   </div>
                 )}
 
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="block text-sm font-medium text-gray-700">{t('Date of birth *', 'تاريخ الميلاد *')}</label>
                     <DatePicker value={form.dateOfBirth} onChange={v => update('dateOfBirth', v)} className="mt-1" />
@@ -446,7 +446,7 @@ export default function RegisterPage() {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700">{t('Gender *', 'الجنس *')}</label>
-                    <select value={form.gender} onChange={e => update('gender', e.target.value)} className="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2.5 text-sm bg-white focus:border-gold-400 focus:outline-none">
+                    <select value={form.gender} onChange={e => update('gender', e.target.value)} className="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2.5 text-base sm:text-sm bg-white focus:border-gold-400 focus:outline-none">
                       <option value="male">{t('Male', 'ذكر')}</option>
                       <option value="female">{t('Female', 'أنثى')}</option>
                     </select>
@@ -456,12 +456,12 @@ export default function RegisterPage() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="block text-sm font-medium text-gray-700">{t('Church', 'الكنيسة')}</label>
-                    <input value={form.churchName} readOnly aria-readonly="true" className="mt-1 w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm text-gray-600 cursor-default focus:outline-none" />
+                    <input value={form.churchName} readOnly aria-readonly="true" className="mt-1 w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-base sm:text-sm text-gray-600 cursor-default focus:outline-none" />
                     <p className="mt-1 text-xs text-gray-500">{t('Auto-set by your school', 'محدد تلقائياً من مدرستك')}</p>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700">{t('Grade & Weekday (A = Saturday, B = Sunday)', 'المرحلة واليوم (أ = السبت، ب = الأحد)')}</label>
-                    <select value={form.gradeId} onChange={e => update('gradeId', e.target.value)} className="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2.5 text-sm bg-white focus:border-gold-400 focus:outline-none">
+                    <select value={form.gradeId} onChange={e => update('gradeId', e.target.value)} className="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2.5 text-base sm:text-sm bg-white focus:border-gold-400 focus:outline-none">
                       <option value="">{t('Select a grade...', 'اختر المرحلة...')}</option>
                       {Object.entries(getGroupedGrades()).map(([group, grades]) => (
                         <optgroup key={group} label={t(group === 'Primary' ? 'Primary (Grades 4-6)' : group === 'Secondary' ? 'Secondary (Grades 7-9)' : group === 'Preparatory' ? 'Preparatory (Grades 10-13)' : 'Other', group === 'Primary' ? 'الابتدائي (المراحل 4-6)' : group === 'Secondary' ? 'الإعدادي (المراحل 7-9)' : group === 'Preparatory' ? 'الثانوي (المراحل 10-13)' : 'أخرى')}>
@@ -486,14 +486,14 @@ export default function RegisterPage() {
                   <p className="text-xs text-blue-700 mt-1">{t('We will send updates and results to this email and phone number.', 'سنرسل التحديثات والنتائج إلى هذا البريد ورقم الهاتف.')}</p>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="col-span-2">
                     <label className="block text-sm font-medium text-gray-700">{t('Parent / Guardian full name *', 'اسم ولي الأمر *')}</label>
-                    <input value={form.parentName} onChange={e => update('parentName', e.target.value)} placeholder="e.g. John Smith" className="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2.5 text-sm focus:border-gold-400 focus:ring-2 focus:ring-gold-100 outline-none" />
+                    <input value={form.parentName} onChange={e => update('parentName', e.target.value)} placeholder="e.g. John Smith" className="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2.5 text-base sm:text-sm focus:border-gold-400 focus:ring-2 focus:ring-gold-100 outline-none" />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700">{t('Relationship *', 'صلة القرابة *')}</label>
-                    <select value={form.relationship} onChange={e => update('relationship', e.target.value)} className="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2.5 text-sm bg-white focus:border-gold-400 focus:outline-none">
+                    <select value={form.relationship} onChange={e => update('relationship', e.target.value)} className="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2.5 text-base sm:text-sm bg-white focus:border-gold-400 focus:outline-none">
                       <option value="father">{t('Father', 'أب')}</option>
                       <option value="mother">{t('Mother', 'أم')}</option>
                       <option value="guardian">{t('Guardian', 'ولي أمر')}</option>
@@ -501,35 +501,35 @@ export default function RegisterPage() {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700">{t('Phone *', 'الهاتف *')}</label>
-                    <input value={form.phone} onChange={e => update('phone', e.target.value)} placeholder="+971 5••••••••" className="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2.5 text-sm focus:border-gold-400 focus:ring-2 focus:ring-gold-100 outline-none" />
+                    <input value={form.phone} onChange={e => update('phone', e.target.value)} placeholder="+971 5••••••••" className="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2.5 text-base sm:text-sm focus:border-gold-400 focus:ring-2 focus:ring-gold-100 outline-none" />
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="block text-sm font-medium text-gray-700">{t('Email (for updates) *', 'البريد الإلكتروني *')}</label>
-                    <input type="email" value={form.parentEmail} onChange={e => update('parentEmail', e.target.value)} placeholder="parent@email.com" className="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2.5 text-sm focus:border-gold-400 focus:ring-2 focus:ring-gold-100 outline-none" />
+                    <input type="email" value={form.parentEmail} onChange={e => update('parentEmail', e.target.value)} placeholder="parent@email.com" className="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2.5 text-base sm:text-sm focus:border-gold-400 focus:ring-2 focus:ring-gold-100 outline-none" />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700">{t('Student email (optional)', 'بريد الطالب (اختياري)')}</label>
-                    <input type="email" value={form.email} onChange={e => update('email', e.target.value)} placeholder="student@email.com" className="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2.5 text-sm focus:border-gold-400 focus:ring-2 focus:ring-gold-100 outline-none" />
+                    <input type="email" value={form.email} onChange={e => update('email', e.target.value)} placeholder="student@email.com" className="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2.5 text-base sm:text-sm focus:border-gold-400 focus:ring-2 focus:ring-gold-100 outline-none" />
                   </div>
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700">{t('Address', 'العنوان')}</label>
-                  <input value={form.address} onChange={e => update('address', e.target.value)} placeholder="Street, City, Country" className="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2.5 text-sm focus:border-gold-400 focus:ring-2 focus:ring-gold-100 outline-none" />
+                  <input value={form.address} onChange={e => update('address', e.target.value)} placeholder="Street, City, Country" className="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2.5 text-base sm:text-sm focus:border-gold-400 focus:ring-2 focus:ring-gold-100 outline-none" />
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700">{t('Notes (allergies, medical, special needs)', 'ملاحظات (حساسية، طبية، احتياجات)')}</label>
-                  <textarea value={form.notes} onChange={e => update('notes', e.target.value)} rows={2} placeholder="Let us know about any special considerations..." className="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2.5 text-sm focus:border-gold-400 focus:ring-2 focus:ring-gold-100 outline-none" />
+                  <textarea value={form.notes} onChange={e => update('notes', e.target.value)} rows={2} placeholder="Let us know about any special considerations..." className="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2.5 text-base sm:text-sm focus:border-gold-400 focus:ring-2 focus:ring-gold-100 outline-none" />
                   <p className="mt-1 text-xs text-gray-500">{t('Optional but helpful for our servants', 'اختياري لكن مفيد للخدام')}</p>
                 </div>
 
                 <div className="rounded-xl bg-amber-50 border border-amber-200 p-3">
                   <p className="text-xs font-semibold text-amber-800">{t('Emergency contact', 'جهة اتصال للطوارئ')}</p>
-                  <div className="grid grid-cols-3 gap-2 mt-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mt-2">
                     <input value={form.emergencyContactName} onChange={e => update('emergencyContactName', e.target.value)} placeholder={t('Name', 'الاسم')} className="rounded-lg border border-amber-200 px-2 py-2 text-sm" />
                     <input value={form.emergencyContactPhone} onChange={e => update('emergencyContactPhone', e.target.value)} placeholder="+971 5••••••••" className="rounded-lg border border-amber-200 px-2 py-2 text-sm" />
                     <select value={form.emergencyContactRelation} onChange={e => update('emergencyContactRelation', e.target.value)} className="rounded-lg border border-amber-200 px-2 py-2 text-sm bg-white">
@@ -613,7 +613,7 @@ export default function RegisterPage() {
                     ) : (
                       <div className="h-14 w-14 rounded-full bg-gray-200 flex items-center justify-center"><User className="h-6 w-6 text-gray-400" /></div>
                     )}
-                    <dl className="flex-1 grid grid-cols-2 gap-x-4 gap-y-1.5 text-sm">
+                    <dl className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1.5 text-sm">
                       <ReviewItem label={t('Name', 'الاسم')} value={form.name} />
                       {(form.firstNameAr || form.lastNameAr) && <ReviewItem label={t('Arabic name', 'الاسم بالعربية')} value={`${form.firstNameAr} ${form.lastNameAr}`.trim()} />}
                       <ReviewItem label={t('Date of birth', 'تاريخ الميلاد')} value={form.dateOfBirth} />
@@ -626,7 +626,7 @@ export default function RegisterPage() {
 
                 <div className="rounded-2xl border border-gray-200 overflow-hidden">
                   <div className="px-4 py-2.5 bg-gray-50 border-b border-gray-100 text-xs font-bold uppercase tracking-wider text-gray-500">{t('Family & Contact', 'العائلة والتواصل')}</div>
-                  <dl className="p-4 grid grid-cols-2 gap-x-4 gap-y-1.5 text-sm">
+                  <dl className="p-4 grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1.5 text-sm">
                     <ReviewItem label={t('Parent', 'ولي الأمر')} value={`${form.parentName} (${form.relationship})`} />
                     <ReviewItem label={t('Phone', 'الهاتف')} value={form.phone} />
                     <ReviewItem label={t('Email', 'البريد')} value={form.parentEmail} />

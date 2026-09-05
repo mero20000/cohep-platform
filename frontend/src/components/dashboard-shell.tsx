@@ -539,7 +539,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
         lang={language as 'en' | 'ar'}
       />
       {/* Bottom padding so content isn't hidden behind mobile bottom nav */}
-      <div className="h-16 lg:hidden" aria-hidden="true" />
+      <div className="h-16 lg:hidden pb-[env(safe-area-inset-bottom)]" aria-hidden="true" />
 
       <HelpButton />
     </div>

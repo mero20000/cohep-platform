@@ -27,7 +27,7 @@ const features = [
 ]
 
 const INPUT_CLASS =
-  "block w-full rounded-lg border border-gray-200 bg-white px-4 py-3 min-h-[48px] text-sm shadow-sm placeholder:text-gray-500 focus:border-gold-500 focus:outline-none focus:ring-2 focus:ring-gold-500/20 transition-all"
+  "block w-full rounded-lg border border-gray-200 bg-white px-4 py-3 min-h-[48px] text-base sm:text-sm shadow-sm placeholder:text-gray-500 focus:border-gold-500 focus:outline-none focus:ring-2 focus:ring-gold-500/20 transition-all"
 
 export default function LoginPage() {
   const { login } = useAuth()

@@ -43,7 +43,7 @@ export function DashboardMainContent({
             variant="ghost"
             size="icon"
             onClick={onRefresh}
-            className="h-7 w-7 hover:bg-gray-100 hover:text-blue-700"
+            className="h-7 w-7 min-h-[44px] min-w-[44px] hover:bg-gray-100 hover:text-blue-700"
             title={language === 'ar' ? 'تحديث' : 'Refresh'}
           >
             <RefreshCw className={`h-3 w-3 ${isRefreshing ? 'animate-spin' : ''}`} />

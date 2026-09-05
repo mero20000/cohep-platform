@@ -190,7 +190,7 @@ export default function BriefingPage() {
           </div>
           <Link
             href={`/dashboard/attendance?sessionId=${data.nextSession.id}&prefill=present${data.nextLesson?.subjectItemId ? `&subjectItemId=${data.nextLesson.subjectItemId}` : ''}`}
-            className="rounded-lg bg-gold-500 px-4 py-2 text-sm font-semibold text-gray-950 hover:bg-gold-600"
+            className="rounded-lg bg-gold-500 px-4 py-2 min-h-[44px] inline-flex items-center justify-center text-sm font-semibold text-gray-950 hover:bg-gold-600 w-full sm:w-auto text-center"
           >
             {t('Start Class', 'ابدأ الفصل')}
           </Link>

@@ -49,7 +49,7 @@ export function FormField({
   const describedBy = [hint ? hintId : null, error ? errorId : null].filter(Boolean).join(' ')
 
   const baseClass = [
-    'mt-1.5 block w-full rounded-lg border px-3.5 py-2.5 text-sm bg-white',
+    'mt-1.5 block w-full rounded-lg border px-3.5 py-2.5 text-base sm:text-sm bg-white',
     ds.focusRing,
     ds.motionSafeTransition,
     error ? 'border-red-400' : 'border-gray-300',

@@ -623,7 +623,7 @@ export default function ServantsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-3 mb-1">
             {schoolIdentity?.churchLogoUrl && (
@@ -643,7 +643,7 @@ export default function ServantsPage() {
           </div>
           <p className="text-sm text-gray-500 mt-1">{lang === 'ar' ? 'إدارة المعلمين وقادة المجموعات وقادة المستويات' : 'Manage teachers, group leaders, and level leaders'}</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           {canCreate && (
             <Button onClick={openCreate}
               >
@@ -657,12 +657,12 @@ export default function ServantsPage() {
           )}
           <div className="flex items-center rounded-lg border border-gray-200 bg-white p-0.5">
             <button type="button" onClick={() => toggleView('cards')}
-              className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${view === 'cards' ? 'bg-gold-500 text-gray-950' : 'text-gray-600 hover:text-gray-900'}`}>
+              className={`flex min-h-[44px] items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${view === 'cards' ? 'bg-gold-500 text-gray-950' : 'text-gray-600 hover:text-gray-900'}`}>
               <LayoutGrid className="h-3.5 w-3.5" />
               {lang === 'ar' ? 'بطاقات' : 'Cards'}
             </button>
             <button type="button" onClick={() => toggleView('table')}
-              className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${view === 'table' ? 'bg-gold-500 text-gray-950' : 'text-gray-600 hover:text-gray-900'}`}>
+              className={`flex min-h-[44px] items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${view === 'table' ? 'bg-gold-500 text-gray-950' : 'text-gray-600 hover:text-gray-900'}`}>
               <Rows3 className="h-3.5 w-3.5" />
               {lang === 'ar' ? 'جدول' : 'Table'}
             </button>
@@ -688,42 +688,42 @@ export default function ServantsPage() {
               className="w-full rounded-lg border border-gray-300 ps-9 pe-3 py-2 text-sm focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-blue-500" />
           </div>
           <select aria-label={lang === 'ar' ? 'تصفية حسب الدور' : 'Filter by role'} value={filterRole} onChange={e => setFilterRole(e.target.value)}
-            className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
+            className="rounded-lg border border-gray-300 px-3 py-2 text-base sm:text-sm focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
             <option value="">{lang === 'ar' ? 'جميع الأدوار' : 'All Roles'}</option>
             {roleOptions.map(r => (
               <option key={r.name} value={r.name}>{r.displayName}</option>
             ))}
           </select>
           <select aria-label={lang === 'ar' ? 'تصفية حسب المستوى' : 'Filter by level'} value={filterLevel} onChange={e => { setFilterLevel(e.target.value); setFilterGroup('') }}
-            className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
+            className="rounded-lg border border-gray-300 px-3 py-2 text-base sm:text-sm focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
             <option value="">{lang === 'ar' ? 'جميع المستويات' : 'All Levels'}</option>
             {levels.filter(l => l.status !== 'inactive').map(l => (
               <option key={l.id} value={l.id}>{l.name}</option>
             ))}
           </select>
           <select aria-label={lang === 'ar' ? 'تصفية حسب المجموعة' : 'Filter by group'} value={filterGroup} onChange={e => setFilterGroup(e.target.value)}
-            className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
+            className="rounded-lg border border-gray-300 px-3 py-2 text-base sm:text-sm focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
             <option value="">{lang === 'ar' ? 'جميع المجموعات' : 'All Groups'}</option>
             {formGroups.map(g => (
               <option key={g.id} value={g.id}>{g.name}</option>
             ))}
           </select>
           <select aria-label={lang === 'ar' ? 'تصفية حسب المادة' : 'Filter by subject'} value={filterSubject} onChange={e => setFilterSubject(e.target.value)}
-            className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
+            className="rounded-lg border border-gray-300 px-3 py-2 text-base sm:text-sm focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
             <option value="">{lang === 'ar' ? 'جميع المواد' : 'All Subjects'}</option>
             {TEACHING_SUBJECTS.map(s => (
               <option key={s.value} value={s.value}>{lang === 'ar' ? s.arabicLabel : s.label}</option>
             ))}
           </select>
           <select aria-label={lang === 'ar' ? 'تصفية حسب المرحلة' : 'Filter by grade'} value={filterGrade} onChange={e => setFilterGrade(e.target.value)}
-            className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
+            className="rounded-lg border border-gray-300 px-3 py-2 text-base sm:text-sm focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
             <option value="">{lang === 'ar' ? 'جميع المراحل' : 'All Grades'}</option>
             {gradeOptions.map(g => (
               <option key={g} value={g}>{g}</option>
             ))}
           </select>
           <select aria-label={lang === 'ar' ? 'تصفية حسب الجنس' : 'Filter by gender'} value={filterGender} onChange={e => setFilterGender(e.target.value)}
-            className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
+            className="rounded-lg border border-gray-300 px-3 py-2 text-base sm:text-sm focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
             <option value="">{lang === 'ar' ? 'كل الجنس' : 'All genders'}</option>
             <option value="female">{lang === 'ar' ? 'أنثى' : 'Female'}</option>
             <option value="male">{lang === 'ar' ? 'ذكر' : 'Male'}</option>

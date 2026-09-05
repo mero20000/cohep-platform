@@ -203,16 +203,16 @@ export function ChurchesTab() {
           {error && <div className="rounded-lg bg-red-50 border border-red-200 p-3 text-sm text-red-700" role="alert">{error}</div>}
           <FormField label={lang === 'ar' ? 'اسم الكنيسة' : 'Church Name'} required value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder={lang === 'ar' ? 'مثال: كنيسة القديس مارمرقس' : 'e.g. St. Mark Coptic Orthodox Church'} />
           <FormField label={lang === 'ar' ? 'اسم الكنيسة (بالعربية)' : 'Church Name (Arabic)'} value={form.nameAr} onChange={e => setForm({ ...form, nameAr: e.target.value })} placeholder={lang === 'ar' ? 'كنيسة القديس مارمرقس' : 'كنيسة الشريعة القبطية الأرثوذكسية'} />
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <FormField label={lang === 'ar' ? 'الدولة' : 'Country'} value={form.country} onChange={e => setForm({ ...form, country: e.target.value })} placeholder={lang === 'ar' ? 'مثال: الولايات المتحدة' : 'e.g. United States'} />
             <FormField label={lang === 'ar' ? 'المدينة' : 'City'} value={form.city} onChange={e => setForm({ ...form, city: e.target.value })} placeholder={lang === 'ar' ? 'مثال: لوس أنجلوس' : 'e.g. Los Angeles'} />
           </div>
           <FormField label={lang === 'ar' ? 'العنوان' : 'Address'} value={form.address} onChange={e => setForm({ ...form, address: e.target.value })} placeholder={lang === 'ar' ? 'مثال: 123 الشارع الرئيسي' : 'e.g. 123 Main St, Los Angeles, CA 90001'} />
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <FormField label={lang === 'ar' ? 'الكاهن المسؤول' : 'Responsible Priest'} value={form.responsiblePriest} onChange={e => setForm({ ...form, responsiblePriest: e.target.value })} placeholder={lang === 'ar' ? 'مثال: الأب أثناسيوس' : 'e.g. Fr. Athanasius'} />
             <FormField label={lang === 'ar' ? 'هاتف الكاهن' : 'Priest Phone'} type="tel" value={form.priestPhone} onChange={e => setForm({ ...form, priestPhone: e.target.value })} placeholder="+1234567890" />
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <FormField label={lang === 'ar' ? 'اللغة الافتراضية' : 'Default Language'} as="select" value={form.defaultLanguage} onChange={e => setForm({ ...form, defaultLanguage: e.target.value })}>
               <option value="en">{lang === 'ar' ? 'الإنجليزية' : 'English'}</option><option value="ar">{lang === 'ar' ? 'العربية' : 'Arabic'}</option><option value="coptic">{lang === 'ar' ? 'القبطية' : 'Coptic'}</option>
             </FormField>
@@ -224,7 +224,7 @@ export function ChurchesTab() {
           </div>
 
           {/* Logo Uploads */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">{lang === 'ar' ? 'شعار الكنيسة' : 'Church Logo'}</label>
               <div className="flex items-center gap-3">

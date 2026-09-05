@@ -61,7 +61,7 @@ export function AppearanceTab() {
       <div className="mt-6 space-y-6 max-w-lg">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-3">Theme</label>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             {(['light', 'dark', 'system'] as const).map(t => (
               <Button key={t} variant="ghost" onClick={() => setTheme(t)} aria-label={`Select ${t} theme`}
                 className={`rounded-lg border-2 p-4 text-center transition-colors capitalize h-auto ${theme === t ? 'border-gold-500 bg-gold-50' : 'border-gray-200 hover:border-gray-300'}`}>
@@ -89,7 +89,7 @@ export function AppearanceTab() {
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-3">Sidebar Style</label>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Button variant="ghost" onClick={() => setSidebarStyle('compact')} aria-label="Compact sidebar"
               className={`rounded-lg border-2 p-4 text-center transition-colors h-auto ${sidebarStyle === 'compact' ? 'border-gold-500 bg-gold-50' : 'border-gray-200 hover:border-gray-300'}`}>
               <div className="mx-auto h-20 w-full rounded bg-white border border-gray-200 flex items-center justify-center text-xs text-gray-400">Compact</div>
