@@ -23,6 +23,9 @@ import { DashboardSidebar } from './dashboard/sidebar'
 import { DashboardHeader } from './dashboard/header'
 import { DashboardBanners } from './dashboard/banners'
 import { DashboardMainContent } from './dashboard/main-content'
+import { useIdleTimeout } from '@/hooks/use-idle-timeout'
+import { SessionExpiryModal } from './session-expiry-modal'
+import { LastLoginNotification } from './last-login-notification'
 import { MobileBottomNav } from './dashboard/mobile-bottom-nav'
 
 interface NotificationItem {
@@ -373,6 +376,11 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
     router.push('/auth/login')
   }
 
+  const { isCountingDown, remainingMs, extendSession } = useIdleTimeout({
+    onLogout: handleSignOut,
+    enabled: !!user,
+  })
+
   const initials = user ? `${user.firstName?.[0] || ''}${user.lastName?.[0] || ''}` : 'AU'
   const displayName = user ? `${user.firstName || ''} ${user.lastName || ''}` : 'Admin User'
   const unreadCount = notifications.filter(n => !n.isRead).length
@@ -423,6 +431,16 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
       <a href="#main-content" className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[100] focus:rounded-lg focus:bg-gold-500 focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-white focus:outline-none focus:ring-2 focus:ring-gold-300">
         {language === 'ar' ? 'انتقل إلى المحتوى' : 'Skip to content'}
       </a>
+
+      <LastLoginNotification lastLoginAt={(user as any)?.lastLoginAt ?? null} />
+
+      {isCountingDown && remainingMs !== null && (
+        <SessionExpiryModal
+          remainingMs={remainingMs}
+          onExtend={extendSession}
+          onLogout={handleSignOut}
+        />
+      )}
       {sidebarOpen && (
         <div className="fixed inset-0 z-40 bg-black/50 lg:hidden" onClick={() => setSidebarOpen(false)} />
       )}

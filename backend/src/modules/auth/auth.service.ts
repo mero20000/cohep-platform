@@ -202,6 +202,7 @@ export class AuthService {
         roles,
         schoolId: user.schoolId,
         metadata: user.metadata ?? null,
+        lastLoginAt: user.lastLoginAt ?? null,
       },
       ...tokens,
     };
