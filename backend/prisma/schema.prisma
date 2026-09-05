@@ -1535,6 +1535,7 @@ model CurriculumAllocation {
   status         String    @default("draft")
   notes          String?
   metadata       Json?
+  updatedBy      String?   @map("updated_by")
   createdAt      DateTime  @default(now()) @map("created_at")
   updatedAt      DateTime  @updatedAt @map("updated_at")
 
@@ -1627,7 +1628,7 @@ model AppSession {
   userAgent    String?   @map("user_agent")
   actionCount  Int       @default(0) @map("action_count")
 
-  school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  school School @relation(fields: [schoolId], references: [id], onDelete: Restrict)
 
   @@index([schoolId, startedAt])
   @@index([userId, startedAt])
@@ -1645,7 +1646,7 @@ model AnalyticsEvent {
   properties Json?
   createdAt  DateTime @default(now()) @map("created_at")
 
-  school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  school School @relation(fields: [schoolId], references: [id], onDelete: Restrict)
 
   @@index([schoolId, name, createdAt])
   @@index([name, createdAt])

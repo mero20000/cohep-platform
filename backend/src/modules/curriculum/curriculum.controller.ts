@@ -180,8 +180,8 @@ export class CurriculumController {
 
     @Put('allocations/:id')
   @ApiOperation({ summary: 'Update a curriculum allocation' })
-  updateAllocation(@Param('id') id: string, @Body() dto: UpdateAllocationDto) {
-    return this.curriculumService.updateAllocation(id, dto);
+  updateAllocation(@Param('id') id: string, @Body() dto: UpdateAllocationDto, @Req() req: any) {
+    return this.curriculumService.updateAllocation(id, dto, req.user?.id);
   }
 
     @Delete('allocations/:id')

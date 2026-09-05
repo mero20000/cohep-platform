@@ -318,6 +318,7 @@ export class CurriculumService {
       sessions: a.lesson.sessionsCount,
       status: a.status,
       groupNumber: a.groupNumber,
+      updatedBy: a.updatedBy,
     }));
   }
 
@@ -348,7 +349,7 @@ export class CurriculumService {
     return alloc;
   }
 
-  async updateAllocation(id: string, dto: UpdateAllocationDto) {
+  async updateAllocation(id: string, dto: UpdateAllocationDto, userId?: string) {
     const old = await this.prisma.curriculumAllocation.findUnique({
       where: { id },
       select: { lessonId: true, term: true, weekNumber: true, status: true, level: { select: { schoolId: true } } }
@@ -364,6 +365,7 @@ export class CurriculumService {
         ...(dto.scheduledDate !== undefined && { scheduledDate: dto.scheduledDate ? new Date(dto.scheduledDate) : null }),
         ...(dto.status !== undefined && { status: dto.status }),
         ...(dto.notes !== undefined && { notes: dto.notes }),
+        ...(userId && { updatedBy: userId }),
       },
     });
     await this.audit.log({
