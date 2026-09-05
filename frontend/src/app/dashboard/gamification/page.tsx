@@ -8,6 +8,7 @@ import {
   Users, Heart, ChevronRight, CheckCircle2, TrendingDown, BarChart3, UserCheck,
   ArrowUp, ArrowDown, Minus,
 } from 'lucide-react'
+import { AnimatedTabPanel } from '@/components/ui/animated-tab-panel'
 import type { LucideIcon } from 'lucide-react'
 import { useToast } from '@/components/ui/toast'
 import { Button } from '@/components/ui/button'
@@ -192,10 +193,9 @@ function GrowthMirrorPanel({ entry, lang }: { entry: LeaderboardEntry; lang: str
                   />
                   <span className="absolute right-1.5 top-0.5 text-[10px] font-semibold text-gray-600">{m.xp}</span>
                 </div>
-              </div>
-            ))}
-          </div>
-        )}
+            </div>
+          )}
+      </AnimatedTabPanel>
       </div>
 
       {/* Attendance & Assessments */}
@@ -951,9 +951,7 @@ export default function GamificationPage() {
         onChange={setActiveTab}
       />
 
-      {/* ── Growth Mirror Tab ── */}
-      {activeTab === 'growth' && (
-        <div id="panel-growth" role="tabpanel" aria-labelledby="tab-growth" className="space-y-4">
+      <AnimatedTabPanel tabId="growth" activeTab={activeTab} className="space-y-4">
           <div className="rounded-xl border border-blue-100 bg-blue-50 p-4 flex items-start gap-3">
             <Info className="h-4 w-4 text-blue-600 mt-0.5 shrink-0" />
             <p className="text-sm text-blue-800">
@@ -1037,21 +1035,21 @@ export default function GamificationPage() {
               )}
             </div>
           </div>
-        </div>
-      )}
+      </AnimatedTabPanel>
 
-      {/* ── Group Trophy Tab ── */}
-      {activeTab === 'group' && <div id="panel-group" role="tabpanel" aria-labelledby="tab-group"><GroupTrophyPanel lang={lang} schoolId={schoolId} /></div>}
+      <AnimatedTabPanel tabId="group" activeTab={activeTab}>
+        <GroupTrophyPanel lang={lang} schoolId={schoolId} />
+      </AnimatedTabPanel>
 
-      {/* ── Seasonal Badges Tab ── */}
-      {activeTab === 'seasonal' && <div id="panel-seasonal" role="tabpanel" aria-labelledby="tab-seasonal"><SeasonalBadgePanel lang={lang} schoolId={schoolId} onToast={(t, m) => toast(t, m)} /></div>}
+      <AnimatedTabPanel tabId="seasonal" activeTab={activeTab}>
+        <SeasonalBadgePanel lang={lang} schoolId={schoolId} onToast={(t, m) => toast(t, m)} />
+      </AnimatedTabPanel>
 
-      {/* ── Servant Awards Tab ── */}
-      {activeTab === 'servants' && <div id="panel-servants" role="tabpanel" aria-labelledby="tab-servants"><ServantRecognitionPanel lang={lang} schoolId={schoolId} /></div>}
+      <AnimatedTabPanel tabId="servants" activeTab={activeTab}>
+        <ServantRecognitionPanel lang={lang} schoolId={schoolId} />
+      </AnimatedTabPanel>
 
-      {/* ── Badges Tab ── */}
-      {activeTab === 'badges' && (
-        <div id="panel-badges" role="tabpanel" aria-labelledby="tab-badges">
+      <AnimatedTabPanel tabId="badges" activeTab={activeTab}>
           <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
             <div className="relative flex-1 max-w-xs min-w-[180px]">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500" />

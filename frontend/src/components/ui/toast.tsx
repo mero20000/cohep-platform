@@ -1,6 +1,7 @@
 'use client'
 
 import { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react'
+import { AnimatePresence, motion } from 'motion/react'
 import { X, CheckCircle2, AlertTriangle, AlertCircle, Info } from 'lucide-react'
 
 type ToastType = 'success' | 'error' | 'warning' | 'info'
@@ -49,7 +50,6 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
 
   const addToast = useCallback((type: ToastType, title: string, description?: string, duration?: number) => {
     const id = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
-    // Scale duration with content length — Arabic reads slower
     const text = title + (description || '')
     const hasArabic = /[\u0600-\u06FF]/.test(text)
     const auto = Math.min(8000, Math.max(hasArabic ? 5000 : 4000, Math.ceil(text.length * (hasArabic ? 80 : 50))))
@@ -69,25 +69,34 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     <ToastContext value={{ toast: addToast }}>
       {children}
       <div aria-live="polite" className="fixed top-4 right-4 z-[100] flex flex-col gap-2 max-w-[calc(100vw-2rem)] sm:max-w-sm w-full pointer-events-none" style={{ top: 'max(1rem, env(safe-area-inset-top))', right: 'max(1rem, env(safe-area-inset-right))', left: 'max(1rem, env(safe-area-inset-left))' }}>
-        {toasts.map(t => {
-          const Icon = icons[t.type]
-          const c = colors[t.type]
-          return (
-            <div key={t.id} role="alert"
-              className={`pointer-events-auto ${c.bg} ${c.border} border rounded-xl p-4 shadow-lg animate-[slideIn_0.3s_ease-out]`}>
-              <div className="flex items-start gap-3">
-                <Icon className={`h-5 w-5 flex-shrink-0 mt-0.5 ${c.icon}`} />
-                <div className="flex-1 min-w-0">
-                  <p className={`text-sm font-medium ${c.text}`}>{t.title}</p>
-                  {t.description && <p className="mt-1 text-sm opacity-80">{t.description}</p>}
+        <AnimatePresence mode="popLayout">
+          {toasts.map(t => {
+            const Icon = icons[t.type]
+            const c = colors[t.type]
+            return (
+              <motion.div
+                key={t.id}
+                role="alert"
+                layout
+                initial={{ opacity: 0, y: -16, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, x: 80, scale: 0.95, transition: { duration: 0.2 } }}
+                transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+                className={`pointer-events-auto ${c.bg} ${c.border} border rounded-xl p-4 shadow-lg`}>
+                <div className="flex items-start gap-3">
+                  <Icon className={`h-5 w-5 flex-shrink-0 mt-0.5 ${c.icon}`} />
+                  <div className="flex-1 min-w-0">
+                    <p className={`text-sm font-medium ${c.text}`}>{t.title}</p>
+                    {t.description && <p className="mt-1 text-sm opacity-80">{t.description}</p>}
+                  </div>
+                  <button onClick={() => removeToast(t.id)} aria-label="Dismiss" className="flex-shrink-0 p-0.5 rounded hover:bg-black/5 transition-colors">
+                    <X className="h-4 w-4 opacity-50" />
+                  </button>
                 </div>
-                <button onClick={() => removeToast(t.id)} aria-label="Dismiss" className="flex-shrink-0 p-0.5 rounded hover:bg-black/5 transition-colors">
-                  <X className="h-4 w-4 opacity-50" />
-                </button>
-              </div>
-            </div>
-          )
-        })}
+              </motion.div>
+            )
+          })}
+        </AnimatePresence>
       </div>
     </ToastContext>
   )

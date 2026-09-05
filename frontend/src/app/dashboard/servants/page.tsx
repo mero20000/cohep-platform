@@ -672,10 +672,10 @@ export default function ServantsPage() {
 
       {/* KPI Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <StatCard label={lang === 'ar' ? 'إجمالي الخدام' : 'Total Servants'} value={stats.total} icon={UserCheck} iconBg="bg-blue-50" iconColor="text-blue-700" />
-        <StatCard label={lang === 'ar' ? 'خدام' : 'Servants'} value={stats.byRole['servant'] || 0} icon={User} iconBg="bg-blue-50" iconColor="text-blue-600" />
-        <StatCard label={lang === 'ar' ? 'قادة مجموعات' : 'Group Leaders'} value={stats.byRole['group_leader'] || 0} icon={Shield} iconBg="bg-amber-50" iconColor="text-amber-600" />
-        <StatCard label={lang === 'ar' ? 'قادة مستويات' : 'Level Leaders'} value={stats.byRole['level_leader'] || 0} icon={GraduationCap} iconBg="bg-purple-50" iconColor="text-purple-600" />
+        <StatCard delay={0} label={lang === 'ar' ? 'إجمالي الخدام' : 'Total Servants'} value={stats.total} icon={UserCheck} iconBg="bg-blue-50" iconColor="text-blue-700" />
+        <StatCard delay={0.05} label={lang === 'ar' ? 'خدام' : 'Servants'} value={stats.byRole['servant'] || 0} icon={User} iconBg="bg-blue-50" iconColor="text-blue-600" />
+        <StatCard delay={0.1} label={lang === 'ar' ? 'قادة مجموعات' : 'Group Leaders'} value={stats.byRole['group_leader'] || 0} icon={Shield} iconBg="bg-amber-50" iconColor="text-amber-600" />
+        <StatCard delay={0.15} label={lang === 'ar' ? 'قادة مستويات' : 'Level Leaders'} value={stats.byRole['level_leader'] || 0} icon={GraduationCap} iconBg="bg-purple-50" iconColor="text-purple-600" />
       </div>
 
       {/* Filters */}

@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useCallback } from 'react'
+import { motion } from 'motion/react'
 import {
   ChevronRight, Loader2, Trash2, GripVertical, X, CalendarDays, Grid3x3, RotateCcw, ClipboardCheck,
 } from 'lucide-react'
@@ -62,6 +63,27 @@ export function CalendarView({
   const [draggedAllocation, setDraggedAllocation] = useState<Allocation | null>(null)
   const [draggedReview, setDraggedReview] = useState<boolean>(false)
   const [draggedAssessment, setDraggedAssessment] = useState<boolean>(false)
+  const [recentlyDropped, setRecentlyDropped] = useState<Set<string>>(new Set())
+
+  const refreshAndTrackNew = useCallback(async (prevAllocIds: Set<string>) => {
+    await onRefresh()
+    // After refresh, allocations will re-render with new IDs
+    // We mark them as recently dropped in the next tick
+    setTimeout(() => {
+      const currentIds = new Set(allocations.map(a => a.id))
+      const newIds = [...currentIds].filter(id => !prevAllocIds.has(id))
+      if (newIds.length > 0) {
+        setRecentlyDropped(prev => {
+          const next = new Set(prev)
+          newIds.forEach(id => next.add(id))
+          return next
+        })
+        newIds.forEach(id => {
+          setTimeout(() => setRecentlyDropped(prev => { const next = new Set(prev); next.delete(id); return next }), 600)
+        })
+      }
+    }, 50)
+  }, [onRefresh, allocations])
   const [creatingAllocation, setCreatingAllocation] = useState(false)
   const [moveModal, setMoveModal] = useState<{ allocation: Allocation; date: string } | null>(null)
   const [moveDate, setMoveDate] = useState('')
@@ -229,7 +251,8 @@ export function CalendarView({
           term: selectedTerm, weekNumber,
           orderIndex: nextOrder, scheduledDate: dateStr, status: 'review',
         })
-        await onRefresh()
+        const prevIds = new Set(allocations.map(a => a.id))
+        await refreshAndTrackNew(prevIds)
         toast('success', lang === 'ar' ? 'تمت إضافة جلسة المراجعة' : 'Review session added')
       } catch (e: any) {
         toast('error', e?.message || (lang === 'ar' ? 'تعذر إنشاء جلسة المراجعة' : 'Could not create review session'))
@@ -280,7 +303,8 @@ export function CalendarView({
           term: selectedTerm, weekNumber,
           orderIndex: nextOrder, scheduledDate: dateStr, status: 'assessment',
         })
-        await onRefresh()
+        const prevIds = new Set(allocations.map(a => a.id))
+        await refreshAndTrackNew(prevIds)
         toast('success', lang === 'ar' ? 'تمت إضافة التقييم النهائي' : 'Finalize assessment added')
       } catch (e: any) {
         toast('error', e?.message || (lang === 'ar' ? 'تعذر إضافة التقييم النهائي' : 'Could not add finalize assessment'))
@@ -319,7 +343,8 @@ export function CalendarView({
         })
         created = true
       }
-      await onRefresh()
+      const prevIds = new Set(allocations.map(a => a.id))
+      await refreshAndTrackNew(prevIds)
       if (subjectItemId && created) {
         try {
           await fetch(`${API}/curriculum/items/${subjectItemId}/status`, {
@@ -624,7 +649,10 @@ export function CalendarView({
                               : getSubjectStyle(a.subject.name)
                             const spanWeeks = lessonSessionsForGroup.get(a.lesson.id) || a.lesson.sessionsCount || 1
                             return (
-                              <div key={a.id} draggable
+                              <motion.div key={a.id} draggable
+                                initial={recentlyDropped.has(a.id) ? { scale: 0.7, opacity: 0 } : false}
+                                animate={{ scale: 1, opacity: 1 }}
+                                transition={{ type: 'spring', stiffness: 500, damping: 25 }}
                                 onDragStart={() => setDraggedAllocation(a)}
                                 onDragEnd={() => setDraggedAllocation(null)}
                                 className={`group text-[11px] px-2 py-1.5 rounded-lg mb-1 cursor-grab active:cursor-grabbing border transition-all ${
@@ -659,7 +687,7 @@ export function CalendarView({
                                     <X className="h-3 w-3" />
                                   </button>
                                 </div>
-                              </div>
+                              </motion.div>
                             )
                           }) : (
                             <div className={`min-h-[32px] rounded border-2 border-dashed transition-colors ${

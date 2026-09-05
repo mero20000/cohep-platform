@@ -1,5 +1,6 @@
 'use client'
 import { useState, useEffect, useRef } from 'react'
+import { motion } from 'motion/react'
 import { LucideIcon } from 'lucide-react'
 
 interface StatCardProps {
@@ -12,6 +13,7 @@ interface StatCardProps {
   trend?: { value: number; positive: boolean }
   compact?: boolean
   onClick?: () => void
+  delay?: number
 }
 
 function AnimatedNumber({ value }: { value: number }) {
@@ -35,10 +37,16 @@ function AnimatedNumber({ value }: { value: number }) {
   return <>{display.toLocaleString('en-GB')}</>
 }
 
-export function StatCard({ label, value, icon: Icon, iconColor = 'text-blue-700', iconBg = 'bg-blue-50', subtitle, trend, compact, onClick }: StatCardProps) {
+export function StatCard({ label, value, icon: Icon, iconColor = 'text-blue-700', iconBg = 'bg-blue-50', subtitle, trend, compact, onClick, delay = 0 }: StatCardProps) {
   const isNumeric = typeof value === 'number'
   return (
-    <div onClick={onClick} className={`rounded-xl border border-gray-200 bg-white ${compact ? 'p-3' : 'p-5'} hover-lift ${onClick ? 'cursor-pointer hover:border-gold-200 hover:shadow-md active:scale-[0.98] transition-all' : ''}`}>
+    <motion.div
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.35, delay, ease: [0.23, 1, 0.32, 1] }}
+      onClick={onClick}
+      className={`rounded-xl border border-gray-200 bg-white ${compact ? 'p-3' : 'p-5'} hover-lift ${onClick ? 'cursor-pointer hover:border-gold-200 hover:shadow-md active:scale-[0.98] transition-all' : ''}`}
+    >
       <div className="flex items-center justify-between">
         <div>
           <p className={compact ? 'text-xs text-gray-500' : 'text-sm text-gray-500'}>{label}</p>
@@ -56,6 +64,6 @@ export function StatCard({ label, value, icon: Icon, iconColor = 'text-blue-700'
           <Icon className={`${compact ? 'h-4 w-4' : 'h-5 w-5'} ${iconColor}`} />
         </div>
       </div>
-    </div>
+    </motion.div>
   )
 }
