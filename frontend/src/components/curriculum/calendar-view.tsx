@@ -766,51 +766,49 @@ export function CalendarView({
               )
             })
           )}
+
+          {/* Review Session draggable */}
+          <div className="px-1 pb-2 mt-2">
+            <div
+              draggable
+              onDragStart={() => { setDraggedLesson(null); setDraggedSubjectItem(null); setDraggedAssessment(false); setDraggedReview(true) }}
+              onDragEnd={() => setDraggedReview(false)}
+              className={`group flex items-center gap-2 px-3 py-2.5 rounded-lg border-2 border-dashed cursor-grab active:cursor-grabbing text-xs transition-all ${
+                draggedReview
+                  ? 'bg-amber-50 border-amber-400 shadow-md opacity-80'
+                  : 'bg-amber-50/50 border-amber-200 hover:border-amber-400 hover:bg-amber-50'
+              }`}
+              title={lang === 'ar' ? 'اسحب إلى أسبوع في التقويم' : 'Drag to a week on the calendar'}>
+              <RotateCcw className="h-3.5 w-3.5 text-amber-500 flex-shrink-0" />
+              <div className="min-w-0 flex-1">
+                <div className="font-semibold text-amber-700">{lang === 'ar' ? 'جلسة مراجعة' : 'Review Session'}</div>
+                <div className="text-[11px] text-amber-500 mt-0.5">{lang === 'ar' ? 'راجع ما تم تسديده في الأسبوع' : 'Review past delivered content'}</div>
+              </div>
+            </div>
+          </div>
+
+          {/* Finalize Term Assessment draggable */}
+          <div className="px-1 pb-2">
+            <div
+              draggable
+              onDragStart={() => { setDraggedLesson(null); setDraggedSubjectItem(null); setDraggedReview(false); setDraggedAssessment(true) }}
+              onDragEnd={() => setDraggedAssessment(false)}
+              className={`group flex items-center gap-2 px-3 py-2.5 rounded-lg border-2 border-dashed cursor-grab active:cursor-grabbing text-xs transition-all ${
+                draggedAssessment
+                  ? 'bg-violet-50 border-violet-400 shadow-md opacity-80'
+                  : 'bg-violet-50/50 border-violet-200 hover:border-violet-400 hover:bg-violet-50'
+              }`}
+              title={lang === 'ar' ? 'اسحب إلى أسبوع في التقويم' : 'Drag to a week on the calendar'}>
+              <ClipboardCheck className="h-3.5 w-3.5 text-violet-500 flex-shrink-0" />
+              <div className="min-w-0 flex-1">
+                <div className="font-semibold text-violet-700">{lang === 'ar' ? 'تقييم نهائي الفصل' : 'Finalize Term Assessment'}</div>
+                <div className="text-[11px] text-violet-500 mt-0.5">{lang === 'ar' ? 'أضف تقييماً نهائياً للأسبوع' : 'Add a term-end assessment'}</div>
+              </div>
+            </div>
+          </div>
         </div>
         <div className="px-4 py-2 border-t border-gray-100 text-[11px] text-gray-500">
           {unallocatedItems.length} {lang === 'ar' ? 'عنصر متاح' : 'item(s) available'}
-        </div>
-
-        {/* Review Session draggable */}
-        <div className="px-3 pb-3">
-          <div
-            draggable
-            onDragStart={() => { setDraggedLesson(null); setDraggedSubjectItem(null); setDraggedAssessment(false); setDraggedReview(true) }}
-            onDragEnd={() => setDraggedReview(false)}
-            className={`group flex items-center gap-2 px-3 py-2.5 rounded-lg border-2 border-dashed cursor-grab active:cursor-grabbing text-xs transition-all ${
-              draggedReview
-                ? 'bg-amber-50 border-amber-400 shadow-md opacity-80'
-                : 'bg-amber-50/50 border-amber-200 hover:border-amber-400 hover:bg-amber-50'
-            }`}
-            title={lang === 'ar' ? 'اسحب إلى أسبوع في التقويم' : 'Drag to a week on the calendar'}>
-            <RotateCcw className="h-3.5 w-3.5 text-amber-500 flex-shrink-0" />
-            <div className="min-w-0 flex-1">
-              <div className="font-semibold text-amber-700">{lang === 'ar' ? 'جلسة مراجعة' : 'Review Session'}</div>
-              <div className="text-[11px] text-amber-500 mt-0.5">{lang === 'ar' ? 'راجع ما تم تسديده في الأسبوع' : 'Review past delivered content'}</div>
-            </div>
-          </div>
-        </div>
-
-        {/* Finalize Term Assessment draggable */}
-        <div className="px-3 pb-3">
-          <div
-            draggable
-            onDragStart={() => { setDraggedLesson(null); setDraggedSubjectItem(null); setDraggedReview(false); setDraggedAssessment(true) }}
-            onDragEnd={() => setDraggedAssessment(false)}
-            className={`group flex items-center gap-2 px-3 py-2.5 rounded-lg border-2 border-dashed cursor-grab active:cursor-grabbing text-xs transition-all ${
-              draggedAssessment
-                ? 'bg-violet-50 border-violet-400 shadow-md opacity-80'
-                : 'bg-violet-50/50 border-violet-200 hover:border-violet-400 hover:bg-violet-50'
-            }`}
-            title={lang === 'ar' ? 'اسحب إلى أسبوع في التقويم' : 'Drag to a week on the calendar'}>
-            <ClipboardCheck className="h-3.5 w-3.5 text-violet-500 flex-shrink-0" />
-            <div className="min-w-0 flex-1">
-              <div className="font-semibold text-violet-700">{lang === 'ar' ? 'تقييم نهائي الفصل' : 'Finalize Term Assessment'}</div>
-              <div className="text-[11px] text-violet-500 mt-0.5">{lang === 'ar' ? 'أضف تقييماً نهائياً للأسبوع' : 'Add a term-end assessment'}</div>
-            </div>
-          </div>
-        </div>
-          </div>
         </div>
       </div>
 
