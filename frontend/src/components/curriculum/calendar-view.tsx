@@ -722,9 +722,13 @@ export function CalendarView({
                                 </div>
                               </motion.div>
                             )
-                          }) : (
-                            <div className={`min-h-[32px] rounded border-2 border-dashed transition-colors ${
-                              isInactive ? 'border-gray-100' : 'border-gray-200 hover:border-blue-300 hover:bg-blue-50/30'
+                          }                          ) : (
+                            <div className={`min-h-[32px] rounded border-2 transition-all animate-breathing ${
+                              dragOverCell === `${week.weekNumber}-${subj.name}`
+                                ? 'border-solid border-gold-400 bg-gold-50/30 animate-none'
+                                : isInactive
+                                  ? 'border-gray-100'
+                                  : 'border-dashed border-gray-200 hover:border-blue-300 hover:bg-blue-50/30'
                             }`}
                               onDragOver={e => { if (!isInactive) { e.preventDefault(); setDragOverCell(`${week.weekNumber}-${subj.name}`) } }}
                               onDragLeave={() => setDragOverCell(null)}

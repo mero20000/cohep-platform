@@ -288,6 +288,23 @@
   }
 }
 
+/* Calendar empty cell breathing */
+@keyframes breathing {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 0.6; }
+}
+
+.animate-breathing {
+  animation: breathing 3s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-breathing {
+    animation: none;
+    opacity: 0.4;
+  }
+}
+
 /* Progress ring animation */
 @keyframes progress-ring {
   from {
