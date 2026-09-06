@@ -5,7 +5,7 @@ import { useLanguage } from '@/lib/use-language'
 import Image from 'next/image'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { motion, useReducedMotion } from 'motion/react'
+import { motion, AnimatePresence, useReducedMotion } from 'motion/react'
 import {
   Users, BookOpen, Calendar, Trophy, Layers, ClipboardCheck,
   TrendingUp, Clock, Loader2, UserCheck,
@@ -137,6 +137,36 @@ function AnimatedCounter({ value, suffix = '' }: { value: number; suffix?: strin
   return () => { if (raf.current) cancelAnimationFrame(raf.current) }
  }, [value])
  return <>{display}{suffix}</>
+}
+
+interface TooltipProps {
+  active?: boolean
+  payload?: Array<{ value: number; name: string; color: string }>
+  label?: string
+  formatter?: (value: number) => string
+}
+
+function AnimatedChartTooltip({ active, payload, label, formatter }: TooltipProps) {
+  return (
+    <AnimatePresence>
+      {active && payload && payload.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95, y: 4 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          exit={{ opacity: 0, scale: 0.95, y: 4 }}
+          transition={{ duration: 0.15, ease: 'easeOut' }}
+          className="rounded-lg border border-gray-200 bg-white px-3 py-2 shadow-lg"
+        >
+          {label && <p className="text-xs font-medium text-gray-500 mb-1">{label}</p>}
+          {payload.map((entry, i) => (
+            <p key={i} className="text-sm font-semibold" style={{ color: entry.color }}>
+              {formatter ? formatter(entry.value) : entry.value.toLocaleString('en-GB')}
+            </p>
+          ))}
+        </motion.div>
+      )}
+    </AnimatePresence>
+  )
 }
 
 const QUICK_ACTIONS = [
@@ -457,6 +487,8 @@ function StatsSection({ stats, loading }: { stats: DashboardData | null; loading
 
 function AttendanceChartSection({ stats, loading }: { stats: DashboardData | null; loading: boolean }) {
   const lang = useLanguage()
+  const reduce = useReducedMotion()
+  const [hoveredBar, setHoveredBar] = useState<number | null>(null)
   if (loading && !stats) return <SectionFallback />
   const s = stats ?? EMPTY_STATS
   if (!s.weeklyStats?.length) return null
@@ -484,11 +516,22 @@ const dayLocale = lang === 'ar' ? 'ar-EG' : 'en-GB'
             <YAxis tick={{ fontSize: 12, fill: '#6b7280' }} axisLine={false} tickLine={false} allowDecimals={false} />
             <Tooltip
               cursor={{ fill: 'rgba(59,130,246,0.08)' }}
-              contentStyle={{ borderRadius: 12, border: '1px solid #e5e7eb', fontSize: 12 }}
+              content={<AnimatedChartTooltip />}
             />
-            <Bar dataKey="count" name={lang === 'ar' ? 'السجلات' : 'records'} radius={[8, 8, 0, 0]}>
+            <Bar
+              dataKey="count"
+              name={lang === 'ar' ? 'السجلات' : 'records'}
+              radius={[8, 8, 0, 0]}
+              onMouseEnter={reduce ? undefined : (_: any, index: number) => setHoveredBar(index)}
+              onMouseLeave={reduce ? undefined : () => setHoveredBar(null)}
+            >
               {data.map((_, i) => (
-                <Cell key={i} fill={i % 2 === 0 ? GOLD : BLUE} />
+                <Cell
+                  key={i}
+                  fill={i % 2 === 0 ? GOLD : BLUE}
+                  opacity={hoveredBar === null || hoveredBar === i ? 1 : 0.5}
+                  style={{ transition: 'opacity 0.2s ease' }}
+                />
               ))}
             </Bar>
           </BarChart>
@@ -504,6 +547,8 @@ const dayLocale = lang === 'ar' ? 'ar-EG' : 'en-GB'
 
 function AnalyticsSection({ stats, loading }: { stats: DashboardData | null; loading: boolean }) {
   const lang = useLanguage()
+  const reduce = useReducedMotion()
+  const [hoveredBar, setHoveredBar] = useState<number | null>(null)
   if (loading && !stats) return <SectionFallback />
   const s = stats ?? EMPTY_STATS
   const perLevel = (s.studentsPerLevel ?? []).map(p => ({ name: p.levelName, count: p.count }))
@@ -525,8 +570,26 @@ function AnalyticsSection({ stats, loading }: { stats: DashboardData | null; loa
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
                 <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#6b7280' }} axisLine={false} tickLine={false} interval={0} angle={-15} textAnchor="end" height={50} />
                 <YAxis tick={{ fontSize: 12, fill: '#6b7280' }} axisLine={false} tickLine={false} allowDecimals={false} />
-                <Tooltip cursor={{ fill: 'rgba(59,130,246,0.08)' }} contentStyle={{ borderRadius: 12, border: '1px solid #e5e7eb', fontSize: 12 }} />
-                <Bar dataKey="count" name={lang === 'ar' ? 'الطلاب' : 'students'} radius={[8, 8, 0, 0]} fill="#3b82f6" />
+                <Tooltip
+                  cursor={{ fill: 'rgba(59,130,246,0.08)' }}
+                  content={<AnimatedChartTooltip />}
+                />
+                <Bar
+                  dataKey="count"
+                  name={lang === 'ar' ? 'الطلاب' : 'students'}
+                  radius={[8, 8, 0, 0]}
+                  onMouseEnter={reduce ? undefined : (_: any, index: number) => setHoveredBar(index)}
+                  onMouseLeave={reduce ? undefined : () => setHoveredBar(null)}
+                >
+                  {perLevel.map((_, i) => (
+                    <Cell
+                      key={i}
+                      fill={PALETTE[i % PALETTE.length]}
+                      opacity={hoveredBar === null || hoveredBar === i ? 1 : 0.5}
+                      style={{ transition: 'opacity 0.2s ease' }}
+                    />
+                  ))}
+                </Bar>
               </BarChart>
             </ResponsiveContainer>
           </div>
