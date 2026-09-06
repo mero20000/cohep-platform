@@ -507,6 +507,7 @@ function AttendanceChartSection({ stats, loading }: { stats: DashboardData | nul
   const [hoveredBar, setHoveredBar] = useState<number | null>(null)
   if (loading && !stats) return <SectionFallback />
   const s = stats ?? EMPTY_STATS
+  const weeklyStatsKey = JSON.stringify(s.weeklyStats)
   if (!s.weeklyStats?.length) return null
 
 const dayLocale = lang === 'ar' ? 'ar-EG' : 'en-GB'
@@ -525,33 +526,44 @@ const dayLocale = lang === 'ar' ? 'ar-EG' : 'en-GB'
   return (
     <div className="p-5">
       <div className="h-64">
-        <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={data} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
-            <XAxis dataKey="day" tick={{ fontSize: 12, fill: '#6b7280' }} axisLine={false} tickLine={false} />
-            <YAxis tick={{ fontSize: 12, fill: '#6b7280' }} axisLine={false} tickLine={false} allowDecimals={false} />
-            <Tooltip
-              cursor={{ fill: 'rgba(59,130,246,0.08)' }}
-              content={<AnimatedChartTooltip />}
-            />
-            <Bar
-              dataKey="count"
-              name={lang === 'ar' ? 'السجلات' : 'records'}
-              radius={[8, 8, 0, 0]}
-              onMouseEnter={reduce ? undefined : (_: any, index: number) => setHoveredBar(index)}
-              onMouseLeave={reduce ? undefined : () => setHoveredBar(null)}
-            >
-              {data.map((_, i) => (
-                <Cell
-                  key={i}
-                  fill={i % 2 === 0 ? GOLD : BLUE}
-                  opacity={hoveredBar === null || hoveredBar === i ? 1 : 0.5}
-                  style={{ transition: 'opacity 0.2s ease-out' }}
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={weeklyStatsKey}
+            initial={reduce ? false : { opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={reduce ? undefined : { opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="h-full"
+          >
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart key={`attendance-${weeklyStatsKey}`} data={data} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
+                <XAxis dataKey="day" tick={{ fontSize: 12, fill: '#6b7280' }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 12, fill: '#6b7280' }} axisLine={false} tickLine={false} allowDecimals={false} />
+                <Tooltip
+                  cursor={{ fill: 'rgba(59,130,246,0.08)' }}
+                  content={<AnimatedChartTooltip />}
                 />
-              ))}
-            </Bar>
-          </BarChart>
-        </ResponsiveContainer>
+                <Bar
+                  dataKey="count"
+                  name={lang === 'ar' ? 'السجلات' : 'records'}
+                  radius={[8, 8, 0, 0]}
+                  onMouseEnter={reduce ? undefined : (_: any, index: number) => setHoveredBar(index)}
+                  onMouseLeave={reduce ? undefined : () => setHoveredBar(null)}
+                >
+                  {data.map((_, i) => (
+                    <Cell
+                      key={i}
+                      fill={i % 2 === 0 ? GOLD : BLUE}
+                      opacity={hoveredBar === null || hoveredBar === i ? 1 : 0.5}
+                      style={{ transition: 'opacity 0.2s ease-out' }}
+                    />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </motion.div>
+        </AnimatePresence>
       </div>
       <div className="mt-4 flex items-center justify-between text-xs text-gray-500 border-t border-gray-100 pt-3">
         <span className="flex items-center gap-1"><Zap className="h-3 w-3 text-gold-400" />{lang === 'ar' ? 'إجمالي السجلات:' : 'Total records:'} {total}</span>
@@ -570,6 +582,8 @@ function AnalyticsSection({ stats, loading }: { stats: DashboardData | null; loa
   const s = stats ?? EMPTY_STATS
   const perLevel = (s.studentsPerLevel ?? []).map(p => ({ name: p.levelName, count: p.count }))
   const gradeDist = (s.gradeDistribution ?? []).map(g => ({ name: g.grade, value: g.count }))
+  const perLevelKey = JSON.stringify(perLevel)
+  const gradeDistKey = JSON.stringify(gradeDist)
   if (!perLevel.length && !gradeDist.length) return null
 
   const PALETTE = ['#3b82f6', '#c9a030', '#10b981', '#8b5cf6', '#ef4444', '#f59e0b', '#06b6d4', '#ec4899']
@@ -605,33 +619,44 @@ function AnalyticsSection({ stats, loading }: { stats: DashboardData | null; loa
             <h3 className="font-semibold text-gray-900">{lang === 'ar' ? 'الطلاب حسب المستوى' : 'Students per Level'}</h3>
           </div>
           <div className="p-5 h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={perLevel} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
-                <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#6b7280' }} axisLine={false} tickLine={false} interval={0} angle={-15} textAnchor="end" height={50} />
-                <YAxis tick={{ fontSize: 12, fill: '#6b7280' }} axisLine={false} tickLine={false} allowDecimals={false} />
-                <Tooltip
-                  cursor={{ fill: 'rgba(59,130,246,0.08)' }}
-                  content={<AnimatedChartTooltip />}
-                />
-                <Bar
-                  dataKey="count"
-                  name={lang === 'ar' ? 'الطلاب' : 'students'}
-                  radius={[8, 8, 0, 0]}
-                  onMouseEnter={reduce ? undefined : (_: any, index: number) => setHoveredBar(index)}
-                  onMouseLeave={reduce ? undefined : () => setHoveredBar(null)}
-                >
-                  {perLevel.map((_, i) => (
-                    <Cell
-                      key={i}
-                      fill={PALETTE[i % PALETTE.length]}
-                      opacity={hoveredBar === null || hoveredBar === i ? 1 : 0.5}
-                      style={{ transition: 'opacity 0.2s ease' }}
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={perLevelKey}
+                initial={reduce ? false : { opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={reduce ? undefined : { opacity: 0 }}
+                transition={{ duration: 0.2 }}
+                className="h-full"
+              >
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart key={`perLevel-${perLevelKey}`} data={perLevel} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
+                    <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#6b7280' }} axisLine={false} tickLine={false} interval={0} angle={-15} textAnchor="end" height={50} />
+                    <YAxis tick={{ fontSize: 12, fill: '#6b7280' }} axisLine={false} tickLine={false} allowDecimals={false} />
+                    <Tooltip
+                      cursor={{ fill: 'rgba(59,130,246,0.08)' }}
+                      content={<AnimatedChartTooltip />}
                     />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
+                    <Bar
+                      dataKey="count"
+                      name={lang === 'ar' ? 'الطلاب' : 'students'}
+                      radius={[8, 8, 0, 0]}
+                      onMouseEnter={reduce ? undefined : (_: any, index: number) => setHoveredBar(index)}
+                      onMouseLeave={reduce ? undefined : () => setHoveredBar(null)}
+                    >
+                      {perLevel.map((_, i) => (
+                        <Cell
+                          key={i}
+                          fill={PALETTE[i % PALETTE.length]}
+                          opacity={hoveredBar === null || hoveredBar === i ? 1 : 0.5}
+                          style={{ transition: 'opacity 0.2s ease' }}
+                        />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </motion.div>
+            </AnimatePresence>
           </div>
         </div>
       )}
@@ -641,32 +666,44 @@ function AnalyticsSection({ stats, loading }: { stats: DashboardData | null; loa
             <h3 className="font-semibold text-gray-900">{lang === 'ar' ? 'توزيع الدرجات' : 'Grade Distribution'}</h3>
           </div>
           <div className="p-5 h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={gradeDist}
-                  dataKey="value"
-                  nameKey="name"
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={50}
-                  outerRadius={80}
-                  paddingAngle={2}
-                  isAnimationActive={!reduce}
-                  animationBegin={reduce ? 0 : 200}
-                  animationDuration={reduce ? 0 : 800}
-                  animationEasing="ease-out"
-                  shape={renderActiveShape}
-                  onMouseEnter={reduce ? undefined : (_: any, index: number) => setHoveredPie(index)}
-                  onMouseLeave={reduce ? undefined : () => setHoveredPie(null)}
-                >
-                  {gradeDist.map((_, i) => (
-                    <Cell key={i} fill={PALETTE[i % PALETTE.length]} />
-                  ))}
-                </Pie>
-                <Tooltip contentStyle={{ borderRadius: 12, border: '1px solid #e5e7eb', fontSize: 12 }} />
-              </PieChart>
-            </ResponsiveContainer>
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={gradeDistKey}
+                initial={reduce ? false : { opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={reduce ? undefined : { opacity: 0 }}
+                transition={{ duration: 0.2 }}
+                className="h-full"
+              >
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      key={`gradeDist-${gradeDistKey}`}
+                      data={gradeDist}
+                      dataKey="value"
+                      nameKey="name"
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={50}
+                      outerRadius={80}
+                      paddingAngle={2}
+                      isAnimationActive={!reduce}
+                      animationBegin={reduce ? 0 : 200}
+                      animationDuration={reduce ? 0 : 800}
+                      animationEasing="ease-out"
+                      shape={renderActiveShape}
+                      onMouseEnter={reduce ? undefined : (_: any, index: number) => setHoveredPie(index)}
+                      onMouseLeave={reduce ? undefined : () => setHoveredPie(null)}
+                    >
+                      {gradeDist.map((_, i) => (
+                        <Cell key={i} fill={PALETTE[i % PALETTE.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip contentStyle={{ borderRadius: 12, border: '1px solid #e5e7eb', fontSize: 12 }} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </motion.div>
+            </AnimatePresence>
             <div className="flex flex-wrap justify-center gap-x-3 gap-y-1 mt-1">
               {gradeDist.map((g, i) => (
                 <motion.div
