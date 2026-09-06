@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useMemo, useCallback } from 'react'
-import { motion } from 'motion/react'
+import { motion, AnimatePresence, useReducedMotion } from 'motion/react'
 import {
   ChevronRight, Loader2, Trash2, GripVertical, X, CalendarDays, Grid3x3, RotateCcw, ClipboardCheck,
 } from 'lucide-react'
@@ -55,6 +55,7 @@ export function CalendarView({
 }: CalendarViewProps) {
   const lang = useLanguage()
   const { toast } = useToast()
+  const prefersReducedMotion = useReducedMotion()
   const [viewMode, setViewMode] = useState<'grid' | 'month'>('grid')
   const [calendarMonth, setCalendarMonth] = useState(new Date())
   const [calendarSidebarLevel, setCalendarSidebarLevel] = useState('')
@@ -749,50 +750,59 @@ export function CalendarView({
           {unallocatedItems.length === 0 ? (
             <div className="text-center text-xs text-gray-500 py-8">{lang === 'ar' ? 'جميع العناصر موزعة' : 'All items are allocated'}</div>
           ) : (
-            unallocatedItems.map(item => {
-              const relatedLesson = lessons.find(l => l.subjectItemId === item.id)
-              const subjName = item.subject?.name || ''
-              const style = subjName ? getSubjectStyle(subjName) : { bg: 'bg-gray-100', text: 'text-gray-700', border: 'border-gray-200', dot: 'bg-gray-400', label: 'Item' }
-              return (
-                <div key={item.id} draggable
-                  onDragStart={() => {
-                    setDraggedReview(false)
-                    setDraggedAssessment(false)
-                    if (relatedLesson) setDraggedLesson(relatedLesson)
-                    else setDraggedSubjectItem(item)
-                  }}
-                  onDragEnd={() => { setDraggedLesson(null); setDraggedSubjectItem(null) }}
-                  className={`group flex items-start gap-2 px-3 py-2 rounded-lg border cursor-grab active:cursor-grabbing text-xs transition-all ${
-                    !relatedLesson ? 'opacity-60' :
-                    draggedLesson?.id === relatedLesson.id
-                      ? 'bg-blue-50 border-blue-300 shadow-md opacity-70'
-                      : 'bg-gray-50 border-gray-100 hover:border-blue-200 hover:bg-blue-50/30'
-                  }`}
-                  title={`${item.name} - ${lang === 'ar' ? 'اسحب إلى التقويم' : 'drag to calendar'}`}>
-                  <GripVertical className={`h-3.5 w-3.5 mt-0.5 flex-shrink-0 ${relatedLesson ? 'text-gray-300 group-hover:text-gold-400' : 'text-gray-200'}`} />
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                        <span className={`inline-flex items-center rounded px-1.5 py-0.5 font-medium text-[11px] ${style.bg} ${style.text} border ${style.border}`}>
-                        <span className={`w-1.5 h-1.5 rounded-full ${style.dot} ms-0.5`} />
-                        {subjName || 'Item'}
-                      </span>
-                      {item.levels?.map(l => (
-                        <span key={l.levelNumber} className="inline-flex items-center rounded bg-blue-100 px-1.5 py-0.5 font-medium text-blue-700 text-[11px]">L{l.levelNumber}</span>
-                      ))}
-                      <span className="truncate font-medium text-gray-800 text-[11px]">{item.name}</span>
+            <AnimatePresence mode="popLayout">
+              {unallocatedItems.map((item, i) => {
+                const relatedLesson = lessons.find(l => l.subjectItemId === item.id)
+                const subjName = item.subject?.name || ''
+                const style = subjName ? getSubjectStyle(subjName) : { bg: 'bg-gray-100', text: 'text-gray-700', border: 'border-gray-200', dot: 'bg-gray-400', label: 'Item' }
+                return (
+                  <motion.div
+                    key={item.id}
+                    layout
+                    initial={prefersReducedMotion ? false : { opacity: 0, x: -12 }}
+                    animate={prefersReducedMotion ? undefined : { opacity: 1, x: 0 }}
+                    exit={prefersReducedMotion ? undefined : { opacity: 0, scale: 0.9, x: -20 }}
+                    transition={{ type: 'spring', stiffness: 400, damping: 28, delay: prefersReducedMotion ? 0 : i * 0.04 }}
+                    draggable
+                    onDragStart={() => {
+                      setDraggedReview(false)
+                      setDraggedAssessment(false)
+                      if (relatedLesson) setDraggedLesson(relatedLesson)
+                      else setDraggedSubjectItem(item)
+                    }}
+                    onDragEnd={() => { setDraggedLesson(null); setDraggedSubjectItem(null) }}
+                    className={`group flex items-start gap-2 px-3 py-2 rounded-lg border cursor-grab active:cursor-grabbing text-xs transition-all ${
+                      !relatedLesson ? 'opacity-60' :
+                      draggedLesson?.id === relatedLesson.id
+                        ? 'bg-blue-50 border-blue-300 shadow-md opacity-70'
+                        : 'bg-gray-50 border-gray-100 hover:border-blue-200 hover:bg-blue-50/30'
+                    }`}
+                    title={`${item.name} - ${lang === 'ar' ? 'اسحب إلى التقويم' : 'drag to calendar'}`}>
+                    <GripVertical className={`h-3.5 w-3.5 mt-0.5 flex-shrink-0 ${relatedLesson ? 'text-gray-300 group-hover:text-gold-400' : 'text-gray-200'}`} />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className={`inline-flex items-center rounded px-1.5 py-0.5 font-medium text-[11px] ${style.bg} ${style.text} border ${style.border}`}>
+                          <span className={`w-1.5 h-1.5 rounded-full ${style.dot} ms-0.5`} />
+                          {subjName || 'Item'}
+                        </span>
+                        {item.levels?.map(l => (
+                          <span key={l.levelNumber} className="inline-flex items-center rounded bg-blue-100 px-1.5 py-0.5 font-medium text-blue-700 text-[11px]">L{l.levelNumber}</span>
+                        ))}
+                        <span className="truncate font-medium text-gray-800 text-[11px]">{item.name}</span>
+                      </div>
+                      <div className="flex items-center gap-2 mt-0.5 text-[11px] text-gray-500">
+                        {item.whenLabel && <span>{item.whenLabel}</span>}
+                        {(() => {
+                          const sessions = selectedGroup === 1 ? item.sessionsGroup1 : selectedGroup === 2 ? item.sessionsGroup2 : selectedGroup === 3 ? item.sessionsGroup3 : item.sessionsGroup4
+                          return sessions ? <span className="bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded">{sessions} {lang === 'ar' ? 'ج' : 'sessions'}</span> : null
+                        })()}
+                        {!relatedLesson && <span className="text-amber-600">{lang === 'ar' ? 'بدون درس' : 'no lesson'}</span>}
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2 mt-0.5 text-[11px] text-gray-500">
-                      {item.whenLabel && <span>{item.whenLabel}</span>}
-                      {(() => {
-                        const sessions = selectedGroup === 1 ? item.sessionsGroup1 : selectedGroup === 2 ? item.sessionsGroup2 : selectedGroup === 3 ? item.sessionsGroup3 : item.sessionsGroup4
-                        return sessions ? <span className="bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded">{sessions} {lang === 'ar' ? 'ج' : 'sessions'}</span> : null
-                      })()}
-                      {!relatedLesson && <span className="text-amber-600">{lang === 'ar' ? 'بدون درس' : 'no lesson'}</span>}
-                    </div>
-                  </div>
-                </div>
-              )
-            })
+                  </motion.div>
+                )
+              })}
+            </AnimatePresence>
           )}
 
           {/* Review Session draggable */}
