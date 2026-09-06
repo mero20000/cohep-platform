@@ -845,9 +845,9 @@ export function CalendarView({
             </div>
           </div>
         </div>
-        <div className="px-4 py-2 border-t border-gray-100 text-[11px] text-gray-500">
+        <motion.div layout className="px-4 py-2 border-t border-gray-100 text-[11px] text-gray-500">
           {unallocatedItems.length} {lang === 'ar' ? 'عنصر متاح' : 'item(s) available'}
-        </div>
+        </motion.div>
       </div>
 
       {termWeeks.length === 0 ? (
