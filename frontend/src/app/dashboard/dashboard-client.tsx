@@ -565,6 +565,7 @@ function AnalyticsSection({ stats, loading }: { stats: DashboardData | null; loa
   const lang = useLanguage()
   const reduce = useReducedMotion()
   const [hoveredBar, setHoveredBar] = useState<number | null>(null)
+  const [hoveredPie, setHoveredPie] = useState<number | null>(null)
   if (loading && !stats) return <SectionFallback />
   const s = stats ?? EMPTY_STATS
   const perLevel = (s.studentsPerLevel ?? []).map(p => ({ name: p.levelName, count: p.count }))
@@ -574,7 +575,8 @@ function AnalyticsSection({ stats, loading }: { stats: DashboardData | null; loa
   const PALETTE = ['#3b82f6', '#c9a030', '#10b981', '#8b5cf6', '#ef4444', '#f59e0b', '#06b6d4', '#ec4899']
 
   const renderActiveShape = (props: any) => {
-    const { cx, cy, innerRadius, outerRadius, startAngle, endAngle, fill, payload, percent, value, isActive } = props
+    const { cx, cy, innerRadius, outerRadius, startAngle, endAngle, fill, payload, percent, value, index } = props
+    const isActive = hoveredPie === index
     const radius = isActive ? outerRadius + 4 : outerRadius
     return (
       <g>
@@ -655,6 +657,8 @@ function AnalyticsSection({ stats, loading }: { stats: DashboardData | null; loa
                   animationDuration={reduce ? 0 : 800}
                   animationEasing="ease-out"
                   shape={renderActiveShape}
+                  onMouseEnter={reduce ? undefined : (_: any, index: number) => setHoveredPie(index)}
+                  onMouseLeave={reduce ? undefined : () => setHoveredPie(null)}
                 >
                   {gradeDist.map((_, i) => (
                     <Cell key={i} fill={PALETTE[i % PALETTE.length]} />
