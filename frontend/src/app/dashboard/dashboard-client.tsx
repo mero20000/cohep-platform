@@ -433,22 +433,22 @@ function StatsSection({ stats, loading }: { stats: DashboardData | null; loading
  const s = stats ?? EMPTY_STATS
  return (
   <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4" role="region" aria-label="Dashboard statistics">
-   <motion.div whileHover={{ y: -4, transition: { duration: 0.2 } }} whileTap={{ y: -2 }}>
-    <StatCard label={lang === 'ar' ? 'إجمالي الطلاب' : 'Total Students'} value={s.totalStudents ?? 0} icon={Users} iconBg="bg-gradient-to-br from-blue-50 to-blue-100" iconColor="text-blue-600"
-     subtitle={lang === 'ar' ? `${s.activeStudents ?? 0} نشط · ${s.studentsByStatus?.find(x => x.status === 'inactive')?.count ?? 0} غير نشط` : `${s.activeStudents ?? 0} active · ${s.studentsByStatus?.find(x => x.status === 'inactive')?.count ?? 0} inactive`} />
-   </motion.div>
-   <motion.div whileHover={{ y: -4, transition: { duration: 0.2 } }} whileTap={{ y: -2 }}>
-    <StatCard label={lang === 'ar' ? 'الحضور' : 'Attendance'} value={`${s.attendanceRate ?? 0}%`} icon={UserCheck} iconBg="bg-gradient-to-br from-emerald-50 to-emerald-100" iconColor="text-emerald-600"
-     subtitle={lang === 'ar' ? `${s.completedSessions ?? 0} جلسة مكتملة` : `${s.completedSessions ?? 0} sessions completed`} />
-   </motion.div>
-   <motion.div whileHover={{ y: -4, transition: { duration: 0.2 } }} whileTap={{ y: -2 }}>
-    <StatCard label={lang === 'ar' ? 'نسبة النجاح' : 'Pass Rate'} value={`${s.assessmentStats?.passRate ?? 0}%`} icon={TrendingUp} iconBg="bg-gradient-to-br from-purple-50 to-purple-100" iconColor="text-purple-600"
-     subtitle={lang === 'ar' ? `${s.assessmentStats?.gradedCount ?? 0} مصحح` : `${s.assessmentStats?.gradedCount ?? 0} graded`} />
-   </motion.div>
-   <motion.div whileHover={{ y: -4, transition: { duration: 0.2 } }} whileTap={{ y: -2 }}>
-    <StatCard label={lang === 'ar' ? 'الشارات المكتسبة' : 'Badges Earned'} value={s.totalBadges ?? 0} icon={Award} iconBg="bg-gradient-to-br from-amber-50 to-amber-100" iconColor="text-amber-600"
-     subtitle={lang === 'ar' ? `عبر ${s.totalLevels ?? 0} مستوى` : `Across ${s.totalLevels ?? 0} levels`} />
-   </motion.div>
+    <motion.div whileHover={{ y: -4, transition: { duration: 0.2 } }} whileTap={{ y: -2 }}>
+     <StatCard delay={0} label={lang === 'ar' ? 'إجمالي الطلاب' : 'Total Students'} value={s.totalStudents ?? 0} icon={Users} iconBg="bg-gradient-to-br from-blue-50 to-blue-100" iconColor="text-blue-600"
+      subtitle={lang === 'ar' ? `${s.activeStudents ?? 0} نشط · ${s.studentsByStatus?.find(x => x.status === 'inactive')?.count ?? 0} غير نشط` : `${s.activeStudents ?? 0} active · ${s.studentsByStatus?.find(x => x.status === 'inactive')?.count ?? 0} inactive`} />
+    </motion.div>
+    <motion.div whileHover={{ y: -4, transition: { duration: 0.2 } }} whileTap={{ y: -2 }}>
+     <StatCard delay={0.05} label={lang === 'ar' ? 'الحضور' : 'Attendance'} value={`${s.attendanceRate ?? 0}%`} icon={UserCheck} iconBg="bg-gradient-to-br from-emerald-50 to-emerald-100" iconColor="text-emerald-600"
+      subtitle={lang === 'ar' ? `${s.completedSessions ?? 0} جلسة مكتملة` : `${s.completedSessions ?? 0} sessions completed`} />
+    </motion.div>
+    <motion.div whileHover={{ y: -4, transition: { duration: 0.2 } }} whileTap={{ y: -2 }}>
+     <StatCard delay={0.1} label={lang === 'ar' ? 'نسبة النجاح' : 'Pass Rate'} value={`${s.assessmentStats?.passRate ?? 0}%`} icon={TrendingUp} iconBg="bg-gradient-to-br from-purple-50 to-purple-100" iconColor="text-purple-600"
+      subtitle={lang === 'ar' ? `${s.assessmentStats?.gradedCount ?? 0} مصحح` : `${s.assessmentStats?.gradedCount ?? 0} graded`} />
+    </motion.div>
+    <motion.div whileHover={{ y: -4, transition: { duration: 0.2 } }} whileTap={{ y: -2 }}>
+     <StatCard delay={0.15} label={lang === 'ar' ? 'الشارات المكتسبة' : 'Badges Earned'} value={s.totalBadges ?? 0} icon={Award} iconBg="bg-gradient-to-br from-amber-50 to-amber-100" iconColor="text-amber-600"
+      subtitle={lang === 'ar' ? `عبر ${s.totalLevels ?? 0} مستوى` : `Across ${s.totalLevels ?? 0} levels`} />
+    </motion.div>
   </div>
  )
 }
@@ -513,7 +513,12 @@ function AnalyticsSection({ stats, loading }: { stats: DashboardData | null; loa
   return (
     <div className="grid gap-4 sm:grid-cols-2">
       {perLevel.length > 0 && (
-        <div className="rounded-xl border border-gray-200/60 bg-white overflow-hidden">
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ type: 'spring', stiffness: 300, damping: 24, delay: 0.08 }}
+          className="rounded-xl border border-gray-200/60 bg-white overflow-hidden"
+        >
           <div className="px-5 py-4 border-b border-[var(--hymn-border)] bg-[var(--hymn-surface-header)]">
             <h3 className="font-semibold text-gray-900">{lang === 'ar' ? 'الطلاب حسب المستوى' : 'Students per Level'}</h3>
           </div>
@@ -528,10 +533,15 @@ function AnalyticsSection({ stats, loading }: { stats: DashboardData | null; loa
               </BarChart>
             </ResponsiveContainer>
           </div>
-        </div>
+        </motion.div>
       )}
       {gradeDist.length > 0 && (
-        <div className="rounded-xl border border-gray-200/60 bg-white overflow-hidden">
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ type: 'spring', stiffness: 300, damping: 24, delay: 0.16 }}
+          className="rounded-xl border border-gray-200/60 bg-white overflow-hidden"
+        >
           <div className="px-5 py-4 border-b border-[var(--hymn-border)] bg-[var(--hymn-surface-header)]">
             <h3 className="font-semibold text-gray-900">{lang === 'ar' ? 'توزيع الدرجات' : 'Grade Distribution'}</h3>
           </div>
@@ -555,7 +565,7 @@ function AnalyticsSection({ stats, loading }: { stats: DashboardData | null; loa
               ))}
             </div>
           </div>
-        </div>
+        </motion.div>
       )}
     </div>
   )
@@ -3010,20 +3020,25 @@ export default function DashboardPage() {
     {/* Main Grid: Charts + Leaderboard */}
     <motion.div variants={fadeUp} className="grid gap-6 lg:grid-cols-3">
      {/* Weekly Attendance Chart */}
-      <div className="lg:col-span-2 rounded-xl border border-gray-200/60 bg-white overflow-hidden">
-      <div className="flex items-center justify-between border-b border-[var(--hymn-border)] px-5 py-4 bg-[var(--hymn-surface-header)]">
-       <div className="flex items-center gap-2">
-        <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[var(--hymn-surface-header)] text-blue-700 ring-1 ring-gold-200/50">
-         <BarChart3 className="h-4 w-4" />
+      <motion.div
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ type: 'spring', stiffness: 300, damping: 24, delay: 0 }}
+        className="lg:col-span-2 rounded-xl border border-gray-200/60 bg-white overflow-hidden"
+      >
+       <div className="flex items-center justify-between border-b border-[var(--hymn-border)] px-5 py-4 bg-[var(--hymn-surface-header)]">
+        <div className="flex items-center gap-2">
+         <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[var(--hymn-surface-header)] text-blue-700 ring-1 ring-gold-200/50">
+          <BarChart3 className="h-4 w-4" />
+         </div>
+         <h2 className="font-semibold text-gray-900">{lang === 'ar' ? 'الحضور هذا الأسبوع' : 'Weekly Attendance'}</h2>
         </div>
-        <h2 className="font-semibold text-gray-900">{lang === 'ar' ? 'الحضور هذا الأسبوع' : 'Weekly Attendance'}</h2>
+        <span className="text-xs text-gray-500 bg-gray-50 px-2 py-1 rounded-full">{lang === 'ar' ? 'نظرة عامة على 7 أيام' : '7-day overview'}</span>
        </div>
-       <span className="text-xs text-gray-500 bg-gray-50 px-2 py-1 rounded-full">{lang === 'ar' ? 'نظرة عامة على 7 أيام' : '7-day overview'}</span>
-      </div>
-      <ErrorBoundary onRetry={handleRetry}>
-       <AttendanceChartSection stats={primary.data?.stats ?? null} loading={primary.loading} />
-      </ErrorBoundary>
-     </div>
+       <ErrorBoundary onRetry={handleRetry}>
+        <AttendanceChartSection stats={primary.data?.stats ?? null} loading={primary.loading} />
+       </ErrorBoundary>
+      </motion.div>
 
      {/* Top Students Leaderboard */}
       <div className="rounded-xl border border-gray-200/60 bg-white overflow-hidden">
