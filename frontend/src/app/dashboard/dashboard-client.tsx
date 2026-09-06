@@ -34,7 +34,7 @@ import { useAcademicYearsQuery, useAllAllocationsQuery, useLessonsQuery, useLeve
 import type { Allocation, Level } from '@/components/curriculum/types'
 import { parseISO, isSameDay, startOfDay, startOfWeek, addDays, format } from 'date-fns'
 import { enGB, ar } from 'date-fns/locale'
-import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, Cell, PieChart, Pie } from 'recharts'
+import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, Cell, PieChart, Pie, Sector } from 'recharts'
 
 interface GradeDistItem { grade: string; count: number }
 interface StudentsPerLevel { levelName: string; count: number }
@@ -573,6 +573,28 @@ function AnalyticsSection({ stats, loading }: { stats: DashboardData | null; loa
 
   const PALETTE = ['#3b82f6', '#c9a030', '#10b981', '#8b5cf6', '#ef4444', '#f59e0b', '#06b6d4', '#ec4899']
 
+  const renderActiveShape = (props: any) => {
+    const { cx, cy, innerRadius, outerRadius, startAngle, endAngle, fill, payload, percent, value, isActive } = props
+    const radius = isActive ? outerRadius + 4 : outerRadius
+    return (
+      <g>
+        <Sector
+          cx={cx} cy={cy}
+          innerRadius={innerRadius}
+          outerRadius={radius}
+          startAngle={startAngle}
+          endAngle={endAngle}
+          fill={fill}
+        />
+        {isActive && (
+          <text x={cx} y={cy} textAnchor="middle" dominantBaseline="central" className="text-lg font-bold fill-gray-900">
+            {value}
+          </text>
+        )}
+      </g>
+    )
+  }
+
   return (
     <div className="grid gap-4 sm:grid-cols-2">
       {perLevel.length > 0 && (
@@ -619,7 +641,21 @@ function AnalyticsSection({ stats, loading }: { stats: DashboardData | null; loa
           <div className="p-5 h-64">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
-                <Pie data={gradeDist} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={50} outerRadius={80} paddingAngle={2}>
+                <Pie
+                  data={gradeDist}
+                  dataKey="value"
+                  nameKey="name"
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={50}
+                  outerRadius={80}
+                  paddingAngle={2}
+                  isAnimationActive={!reduce}
+                  animationBegin={reduce ? 0 : 200}
+                  animationDuration={reduce ? 0 : 800}
+                  animationEasing="ease-out"
+                  shape={renderActiveShape}
+                >
                   {gradeDist.map((_, i) => (
                     <Cell key={i} fill={PALETTE[i % PALETTE.length]} />
                   ))}
@@ -629,10 +665,16 @@ function AnalyticsSection({ stats, loading }: { stats: DashboardData | null; loa
             </ResponsiveContainer>
             <div className="flex flex-wrap justify-center gap-x-3 gap-y-1 mt-1">
               {gradeDist.map((g, i) => (
-                <span key={g.name} className="inline-flex items-center gap-1 text-[11px] text-gray-500">
+                <motion.div
+                  key={g.name}
+                  initial={reduce ? false : { opacity: 0, y: 8 }}
+                  animate={reduce ? undefined : { opacity: 1, y: 0 }}
+                  transition={reduce ? undefined : { delay: 0.4 + i * 0.04, duration: 0.3 }}
+                  className="flex items-center gap-1.5 text-[11px] text-gray-500"
+                >
                   <span className="h-2 w-2 rounded-full" style={{ backgroundColor: PALETTE[i % PALETTE.length] }} />
                   {g.name} ({g.value})
-                </span>
+                </motion.div>
               ))}
             </div>
           </div>
