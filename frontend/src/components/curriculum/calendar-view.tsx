@@ -65,6 +65,7 @@ export function CalendarView({
   const [draggedReview, setDraggedReview] = useState<boolean>(false)
   const [draggedAssessment, setDraggedAssessment] = useState<boolean>(false)
   const [recentlyDropped, setRecentlyDropped] = useState<Set<string>>(new Set())
+  const [dragOverCell, setDragOverCell] = useState<string | null>(null)
 
   const refreshAndTrackNew = useCallback(async (prevAllocIds: Set<string>) => {
     await onRefresh()
@@ -635,9 +636,14 @@ export function CalendarView({
                       const allocs = subjectAllocs?.get(subj.name) || []
                       return (
                         <td key={`${week.id}-${subj.id}`}
-                           className={`px-2 py-1.5 border-e border-gray-100 align-top ${isInactive ? '' : ''}`}
-                          onDragOver={e => { if (!isInactive) { e.preventDefault() } }}
-                          onDrop={e => { e.preventDefault(); if (!isInactive) handleCalendarDrop(week.weekNumber, subj.name) }}
+                           className={`px-2 py-1.5 border-e border-gray-100 align-top ${
+                             !isInactive && dragOverCell === `${week.weekNumber}-${subj.name}`
+                               ? 'ring-2 ring-gold-400 bg-gold-50/30'
+                               : ''
+                           }`}
+                          onDragOver={e => { if (!isInactive) { e.preventDefault(); setDragOverCell(`${week.weekNumber}-${subj.name}`) } }}
+                          onDragLeave={() => setDragOverCell(null)}
+                          onDrop={e => { e.preventDefault(); setDragOverCell(null); if (!isInactive) handleCalendarDrop(week.weekNumber, subj.name) }}
                           style={isInactive ? { background: 'repeating-linear-gradient(45deg, transparent, transparent 4px, rgba(0,0,0,0.02) 4px, rgba(0,0,0,0.02) 8px)' } : {}}
                         >
                           {allocs.length > 0 ? allocs.sort((a, b) => a.orderIndex - b.orderIndex).map(a => {
@@ -694,8 +700,9 @@ export function CalendarView({
                             <div className={`min-h-[32px] rounded border-2 border-dashed transition-colors ${
                               isInactive ? 'border-gray-100' : 'border-gray-200 hover:border-blue-300 hover:bg-blue-50/30'
                             }`}
-                              onDragOver={e => { if (!isInactive) { e.preventDefault() } }}
-                              onDrop={e => { e.preventDefault(); if (!isInactive) handleCalendarDrop(week.weekNumber, subj.name) }}
+                              onDragOver={e => { if (!isInactive) { e.preventDefault(); setDragOverCell(`${week.weekNumber}-${subj.name}`) } }}
+                              onDragLeave={() => setDragOverCell(null)}
+                              onDrop={e => { e.preventDefault(); setDragOverCell(null); if (!isInactive) handleCalendarDrop(week.weekNumber, subj.name) }}
                             />
                           )}
                         </td>
@@ -760,7 +767,13 @@ export function CalendarView({
                     key={item.id}
                     layout
                     initial={prefersReducedMotion ? false : { opacity: 0, x: -12 }}
-                    animate={prefersReducedMotion ? undefined : { opacity: 1, x: 0 }}
+                    animate={prefersReducedMotion ? undefined : {
+                      opacity: relatedLesson
+                        ? draggedLesson?.id === relatedLesson.id ? 0.4 : 1
+                        : draggedSubjectItem?.id === item.id ? 0.4 : 1,
+                      scale: (draggedLesson?.id === relatedLesson?.id || draggedSubjectItem?.id === item.id) ? 0.98 : 1,
+                      x: 0,
+                    }}
                     exit={prefersReducedMotion ? undefined : { opacity: 0, scale: 0.9, x: -20 }}
                     transition={{ type: 'spring', stiffness: 400, damping: 28, delay: prefersReducedMotion ? 0 : i * 0.04 }}
                     draggable
@@ -771,11 +784,9 @@ export function CalendarView({
                       else setDraggedSubjectItem(item)
                     }}
                     onDragEnd={() => { setDraggedLesson(null); setDraggedSubjectItem(null) }}
-                    className={`group flex items-start gap-2 px-3 py-2 rounded-lg border cursor-grab active:cursor-grabbing text-xs transition-all ${
+                    className={`group flex items-start gap-2 px-3 py-2 rounded-lg border cursor-grab active:cursor-grabbing text-xs ${
                       !relatedLesson ? 'opacity-60' :
-                      draggedLesson?.id === relatedLesson.id
-                        ? 'bg-blue-50 border-blue-300 shadow-md opacity-70'
-                        : 'bg-gray-50 border-gray-100 hover:border-blue-200 hover:bg-blue-50/30'
+                      'bg-gray-50 border-gray-100 hover:border-blue-200 hover:bg-blue-50/30'
                     }`}
                     title={`${item.name} - ${lang === 'ar' ? 'اسحب إلى التقويم' : 'drag to calendar'}`}>
                     <GripVertical className={`h-3.5 w-3.5 mt-0.5 flex-shrink-0 ${relatedLesson ? 'text-gray-300 group-hover:text-gold-400' : 'text-gray-200'}`} />
@@ -807,13 +818,14 @@ export function CalendarView({
 
           {/* Review Session draggable */}
           <div className="px-1 pb-2 mt-2">
-            <div
+            <motion.div
               draggable
               onDragStart={() => { setDraggedLesson(null); setDraggedSubjectItem(null); setDraggedAssessment(false); setDraggedReview(true) }}
               onDragEnd={() => setDraggedReview(false)}
+              animate={prefersReducedMotion ? undefined : { opacity: draggedReview ? 0.4 : 1, scale: draggedReview ? 0.98 : 1 }}
               className={`group flex items-center gap-2 px-3 py-2.5 rounded-lg border-2 border-dashed cursor-grab active:cursor-grabbing text-xs transition-all ${
                 draggedReview
-                  ? 'bg-amber-50 border-amber-400 shadow-md opacity-80'
+                  ? 'bg-amber-50 border-amber-400 shadow-md'
                   : 'bg-amber-50/50 border-amber-200 hover:border-amber-400 hover:bg-amber-50'
               }`}
               title={lang === 'ar' ? 'اسحب إلى أسبوع في التقويم' : 'Drag to a week on the calendar'}>
@@ -822,18 +834,19 @@ export function CalendarView({
                 <div className="font-semibold text-amber-700">{lang === 'ar' ? 'جلسة مراجعة' : 'Review Session'}</div>
                 <div className="text-[11px] text-amber-500 mt-0.5">{lang === 'ar' ? 'راجع ما تم تسديده في الأسبوع' : 'Review past delivered content'}</div>
               </div>
-            </div>
+            </motion.div>
           </div>
 
           {/* Finalize Term Assessment draggable */}
           <div className="px-1 pb-2">
-            <div
+            <motion.div
               draggable
               onDragStart={() => { setDraggedLesson(null); setDraggedSubjectItem(null); setDraggedReview(false); setDraggedAssessment(true) }}
               onDragEnd={() => setDraggedAssessment(false)}
+              animate={prefersReducedMotion ? undefined : { opacity: draggedAssessment ? 0.4 : 1, scale: draggedAssessment ? 0.98 : 1 }}
               className={`group flex items-center gap-2 px-3 py-2.5 rounded-lg border-2 border-dashed cursor-grab active:cursor-grabbing text-xs transition-all ${
                 draggedAssessment
-                  ? 'bg-violet-50 border-violet-400 shadow-md opacity-80'
+                  ? 'bg-violet-50 border-violet-400 shadow-md'
                   : 'bg-violet-50/50 border-violet-200 hover:border-violet-400 hover:bg-violet-50'
               }`}
               title={lang === 'ar' ? 'اسحب إلى أسبوع في التقويم' : 'Drag to a week on the calendar'}>
@@ -842,7 +855,7 @@ export function CalendarView({
                 <div className="font-semibold text-violet-700">{lang === 'ar' ? 'تقييم نهائي الفصل' : 'Finalize Term Assessment'}</div>
                 <div className="text-[11px] text-violet-500 mt-0.5">{lang === 'ar' ? 'أضف تقييماً نهائياً للأسبوع' : 'Add a term-end assessment'}</div>
               </div>
-            </div>
+            </motion.div>
           </div>
         </div>
         <motion.div layout className="px-4 py-2 border-t border-gray-100 text-[11px] text-gray-500">
