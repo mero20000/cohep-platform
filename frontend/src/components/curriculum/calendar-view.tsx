@@ -66,6 +66,7 @@ export function CalendarView({
   const [draggedAssessment, setDraggedAssessment] = useState<boolean>(false)
   const [recentlyDropped, setRecentlyDropped] = useState<Set<string>>(new Set())
   const [dragOverCell, setDragOverCell] = useState<string | null>(null)
+  const [dropRipple, setDropRipple] = useState<{ week: number; subject: string } | null>(null)
 
   const refreshAndTrackNew = useCallback(async (prevAllocIds: Set<string>) => {
     await onRefresh()
@@ -205,6 +206,8 @@ export function CalendarView({
       await onMoveAllocation(draggedAllocation.id, {
         weekNumber, orderIndex: nextOrder, scheduledDate: dateStr,
       })
+      setDropRipple({ week: weekNumber, subject: subjectName })
+      setTimeout(() => setDropRipple(null), 600)
       setDraggedAllocation(null)
       return
     }
@@ -255,6 +258,8 @@ export function CalendarView({
         })
         const prevIds = new Set(allocations.map(a => a.id))
         await refreshAndTrackNew(prevIds)
+        setDropRipple({ week: weekNumber, subject: subjectName })
+        setTimeout(() => setDropRipple(null), 600)
         toast('success', lang === 'ar' ? 'تمت إضافة جلسة المراجعة' : 'Review session added')
       } catch (e: any) {
         toast('error', e?.message || (lang === 'ar' ? 'تعذر إنشاء جلسة المراجعة' : 'Could not create review session'))
@@ -307,6 +312,8 @@ export function CalendarView({
         })
         const prevIds = new Set(allocations.map(a => a.id))
         await refreshAndTrackNew(prevIds)
+        setDropRipple({ week: weekNumber, subject: subjectName })
+        setTimeout(() => setDropRipple(null), 600)
         toast('success', lang === 'ar' ? 'تمت إضافة التقييم النهائي' : 'Finalize assessment added')
       } catch (e: any) {
         toast('error', e?.message || (lang === 'ar' ? 'تعذر إضافة التقييم النهائي' : 'Could not add finalize assessment'))
@@ -385,6 +392,8 @@ export function CalendarView({
         }
 
         await createAllocsForWeeks(lessonId, levelId, sessions || 1, item.id)
+        setDropRipple({ week: weekNumber, subject: subjectName })
+        setTimeout(() => setDropRipple(null), 600)
       } catch (e: any) {
         toast('error', e?.message || (lang === 'ar' ? 'تعذر إنشاء التوزيع' : 'Could not create allocation'))
       } finally {
@@ -410,6 +419,8 @@ export function CalendarView({
         : draggedLesson.sessionsCount
       const totalWeeks = sessions || 1
       await createAllocsForWeeks(draggedLesson.id, levelId, totalWeeks, draggedLesson.subjectItemId)
+      setDropRipple({ week: weekNumber, subject: subjectName })
+      setTimeout(() => setDropRipple(null), 600)
     } catch { /* ignore */ }
     setCreatingAllocation(false)
     setDraggedLesson(null)
@@ -636,7 +647,7 @@ export function CalendarView({
                       const allocs = subjectAllocs?.get(subj.name) || []
                       return (
                         <td key={`${week.id}-${subj.id}`}
-                           className={`px-2 py-1.5 border-e border-gray-100 align-top ${
+                           className={`px-2 py-1.5 border-e border-gray-100 align-top relative overflow-hidden ${
                              !isInactive && dragOverCell === `${week.weekNumber}-${subj.name}`
                                ? 'ring-2 ring-gold-400 bg-gold-50/30'
                                : ''
@@ -646,6 +657,14 @@ export function CalendarView({
                           onDrop={e => { e.preventDefault(); setDragOverCell(null); if (!isInactive) handleCalendarDrop(week.weekNumber, subj.name) }}
                           style={isInactive ? { background: 'repeating-linear-gradient(45deg, transparent, transparent 4px, rgba(0,0,0,0.02) 4px, rgba(0,0,0,0.02) 8px)' } : {}}
                         >
+                          {dropRipple?.week === week.weekNumber && dropRipple?.subject === subj.name && (
+                            <motion.div
+                              initial={{ scale: 0, opacity: 0.6 }}
+                              animate={{ scale: 2.5, opacity: 0 }}
+                              transition={{ duration: 0.6, ease: 'easeOut' }}
+                              className="absolute inset-0 rounded-lg bg-gold-400 pointer-events-none"
+                            />
+                          )}
                           {allocs.length > 0 ? allocs.sort((a, b) => a.orderIndex - b.orderIndex).map(a => {
                             const isReview = a.status === 'review'
                             const isAssessment = a.status === 'assessment'
