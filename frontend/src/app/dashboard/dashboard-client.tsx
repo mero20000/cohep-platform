@@ -5,7 +5,7 @@ import { useLanguage } from '@/lib/use-language'
 import Image from 'next/image'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { motion } from 'motion/react'
+import { motion, useReducedMotion } from 'motion/react'
 import {
   Users, BookOpen, Calendar, Trophy, Layers, ClipboardCheck,
   TrendingUp, Clock, Loader2, UserCheck,
@@ -392,6 +392,7 @@ function HeroSection({ stats, churchLogo, churchName, loading }: { stats: Dashbo
 
 function ServantSection({ counts, loading }: { counts: ServantCounts | null; loading: boolean }) {
  const lang = useLanguage()
+ const reduce = useReducedMotion()
  if (loading && !counts) return <ServantSectionFallback />
  if (!counts || !counts.total) return null
  const items = [
@@ -413,8 +414,8 @@ function ServantSection({ counts, loading }: { counts: ServantCounts | null; loa
     </Link>
    </div>
    <div className="grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-gray-100">
-    {items.map((r, i) => (
-     <motion.div key={i} whileHover={{ y: -2 }} whileTap={{ y: -1 }} className="px-5 py-4 text-center group">
+     {items.map((r, i) => (
+      <motion.div key={i} whileHover={reduce ? undefined : { y: -2 }} whileTap={reduce ? undefined : { y: -1 }} className="px-5 py-4 text-center group">
       <div className={`inline-flex items-center justify-center h-11 w-11 rounded-xl bg-gradient-to-br ${r.bg} ${r.color} mb-2 shadow-sm group-hover:shadow-md group-hover:scale-110 group-active:shadow-md group-active:scale-110 transition-transform duration-300`}>
        <r.icon className="h-5 w-5" />
       </div>
@@ -429,24 +430,25 @@ function ServantSection({ counts, loading }: { counts: ServantCounts | null; loa
 
 function StatsSection({ stats, loading }: { stats: DashboardData | null; loading: boolean }) {
  const lang = useLanguage()
+ const reduce = useReducedMotion()
  if (loading && !stats) return <CardSkeleton count={4} />
  const s = stats ?? EMPTY_STATS
  return (
   <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4" role="region" aria-label="Dashboard statistics">
-    <motion.div whileHover={{ y: -4, transition: { duration: 0.2 } }} whileTap={{ y: -2 }}>
-     <StatCard delay={0} label={lang === 'ar' ? 'إجمالي الطلاب' : 'Total Students'} value={s.totalStudents ?? 0} icon={Users} iconBg="bg-gradient-to-br from-blue-50 to-blue-100" iconColor="text-blue-600"
+    <motion.div whileHover={reduce ? undefined : { y: -4, transition: { duration: 0.2 } }} whileTap={reduce ? undefined : { y: -2 }}>
+     <StatCard delay={reduce ? 0 : 0} label={lang === 'ar' ? 'إجمالي الطلاب' : 'Total Students'} value={s.totalStudents ?? 0} icon={Users} iconBg="bg-gradient-to-br from-blue-50 to-blue-100" iconColor="text-blue-600"
       subtitle={lang === 'ar' ? `${s.activeStudents ?? 0} نشط · ${s.studentsByStatus?.find(x => x.status === 'inactive')?.count ?? 0} غير نشط` : `${s.activeStudents ?? 0} active · ${s.studentsByStatus?.find(x => x.status === 'inactive')?.count ?? 0} inactive`} />
     </motion.div>
-    <motion.div whileHover={{ y: -4, transition: { duration: 0.2 } }} whileTap={{ y: -2 }}>
-     <StatCard delay={0.05} label={lang === 'ar' ? 'الحضور' : 'Attendance'} value={`${s.attendanceRate ?? 0}%`} icon={UserCheck} iconBg="bg-gradient-to-br from-emerald-50 to-emerald-100" iconColor="text-emerald-600"
+    <motion.div whileHover={reduce ? undefined : { y: -4, transition: { duration: 0.2 } }} whileTap={reduce ? undefined : { y: -2 }}>
+     <StatCard delay={reduce ? 0 : 0.05} label={lang === 'ar' ? 'الحضور' : 'Attendance'} value={`${s.attendanceRate ?? 0}%`} icon={UserCheck} iconBg="bg-gradient-to-br from-emerald-50 to-emerald-100" iconColor="text-emerald-600"
       subtitle={lang === 'ar' ? `${s.completedSessions ?? 0} جلسة مكتملة` : `${s.completedSessions ?? 0} sessions completed`} />
     </motion.div>
-    <motion.div whileHover={{ y: -4, transition: { duration: 0.2 } }} whileTap={{ y: -2 }}>
-     <StatCard delay={0.1} label={lang === 'ar' ? 'نسبة النجاح' : 'Pass Rate'} value={`${s.assessmentStats?.passRate ?? 0}%`} icon={TrendingUp} iconBg="bg-gradient-to-br from-purple-50 to-purple-100" iconColor="text-purple-600"
+    <motion.div whileHover={reduce ? undefined : { y: -4, transition: { duration: 0.2 } }} whileTap={reduce ? undefined : { y: -2 }}>
+     <StatCard delay={reduce ? 0 : 0.1} label={lang === 'ar' ? 'نسبة النجاح' : 'Pass Rate'} value={`${s.assessmentStats?.passRate ?? 0}%`} icon={TrendingUp} iconBg="bg-gradient-to-br from-purple-50 to-purple-100" iconColor="text-purple-600"
       subtitle={lang === 'ar' ? `${s.assessmentStats?.gradedCount ?? 0} مصحح` : `${s.assessmentStats?.gradedCount ?? 0} graded`} />
     </motion.div>
-    <motion.div whileHover={{ y: -4, transition: { duration: 0.2 } }} whileTap={{ y: -2 }}>
-     <StatCard delay={0.15} label={lang === 'ar' ? 'الشارات المكتسبة' : 'Badges Earned'} value={s.totalBadges ?? 0} icon={Award} iconBg="bg-gradient-to-br from-amber-50 to-amber-100" iconColor="text-amber-600"
+    <motion.div whileHover={reduce ? undefined : { y: -4, transition: { duration: 0.2 } }} whileTap={reduce ? undefined : { y: -2 }}>
+     <StatCard delay={reduce ? 0 : 0.15} label={lang === 'ar' ? 'الشارات المكتسبة' : 'Badges Earned'} value={s.totalBadges ?? 0} icon={Award} iconBg="bg-gradient-to-br from-amber-50 to-amber-100" iconColor="text-amber-600"
       subtitle={lang === 'ar' ? `عبر ${s.totalLevels ?? 0} مستوى` : `Across ${s.totalLevels ?? 0} levels`} />
     </motion.div>
   </div>
@@ -513,12 +515,7 @@ function AnalyticsSection({ stats, loading }: { stats: DashboardData | null; loa
   return (
     <div className="grid gap-4 sm:grid-cols-2">
       {perLevel.length > 0 && (
-        <motion.div
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ type: 'spring', stiffness: 300, damping: 24, delay: 0.08 }}
-          className="rounded-xl border border-gray-200/60 bg-white overflow-hidden"
-        >
+        <div className="rounded-xl border border-gray-200/60 bg-white overflow-hidden">
           <div className="px-5 py-4 border-b border-[var(--hymn-border)] bg-[var(--hymn-surface-header)]">
             <h3 className="font-semibold text-gray-900">{lang === 'ar' ? 'الطلاب حسب المستوى' : 'Students per Level'}</h3>
           </div>
@@ -533,15 +530,10 @@ function AnalyticsSection({ stats, loading }: { stats: DashboardData | null; loa
               </BarChart>
             </ResponsiveContainer>
           </div>
-        </motion.div>
+        </div>
       )}
       {gradeDist.length > 0 && (
-        <motion.div
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ type: 'spring', stiffness: 300, damping: 24, delay: 0.16 }}
-          className="rounded-xl border border-gray-200/60 bg-white overflow-hidden"
-        >
+        <div className="rounded-xl border border-gray-200/60 bg-white overflow-hidden">
           <div className="px-5 py-4 border-b border-[var(--hymn-border)] bg-[var(--hymn-surface-header)]">
             <h3 className="font-semibold text-gray-900">{lang === 'ar' ? 'توزيع الدرجات' : 'Grade Distribution'}</h3>
           </div>
@@ -565,7 +557,7 @@ function AnalyticsSection({ stats, loading }: { stats: DashboardData | null; loa
               ))}
             </div>
           </div>
-        </motion.div>
+        </div>
       )}
     </div>
   )
@@ -573,6 +565,7 @@ function AnalyticsSection({ stats, loading }: { stats: DashboardData | null; loa
 
 function LeaderboardSection({ stats, loading }: { stats: DashboardData | null; loading: boolean }) {
  const lang = useLanguage()
+ const reduce = useReducedMotion()
  if (loading && !stats) return <SectionFallback />
  const s = stats ?? EMPTY_STATS
  const topStudents = s.topStudents ?? []
@@ -584,9 +577,9 @@ function LeaderboardSection({ stats, loading }: { stats: DashboardData | null; l
   <div className="divide-y divide-gray-100">
    {topStudents.slice(0, 5).map((student, i) => {
     const pct = (student.xp / maxXp) * 100
-    return (
-     <motion.div key={student.id || i} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.05 }}
-      className="px-5 py-3.5 hover:bg-gradient-to-r hover:from-blue-50/30 hover:to-transparent transition-all duration-300 group">
+     return (
+      <motion.div key={student.id || i} initial={reduce ? false : { opacity: 0, x: -10 }} animate={reduce ? undefined : { opacity: 1, x: 0 }} transition={reduce ? undefined : { delay: i * 0.05 }}
+       className="px-5 py-3.5 hover:bg-gradient-to-r hover:from-blue-50/30 hover:to-transparent transition-all duration-300 group">
       <div className="flex items-center gap-3">
        <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-bold transition-transform duration-300 group-hover:scale-110 ${
         i === 0 ? 'bg-gradient-to-br from-gold-400 via-gold-500 to-gold-600 text-gray-950 shadow-lg shadow-blue-200' :
@@ -607,9 +600,9 @@ function LeaderboardSection({ stats, loading }: { stats: DashboardData | null; l
       </div>
       <div className="mt-2 h-1.5 w-full rounded-full bg-gray-100 overflow-hidden">
        <motion.div
-        initial={{ width: 0 }}
+        initial={reduce ? { width: `${pct}%` } : { width: 0 }}
         animate={{ width: `${pct}%` }}
-        transition={{ delay: 0.2 + i * 0.05, duration: 0.8, ease: 'easeOut' }}
+        transition={reduce ? undefined : { delay: 0.2 + i * 0.05, duration: 0.8, ease: 'easeOut' }}
         className="h-full rounded-full bg-gradient-to-r from-gold-400 to-gold-600"
         style={{ boxShadow: '0 0 6px rgba(201,160,48,0.4)' }} />
       </div>
@@ -622,20 +615,21 @@ function LeaderboardSection({ stats, loading }: { stats: DashboardData | null; l
 
 function AssessmentSection({ stats, loading }: { stats: DashboardData | null; loading: boolean }) {
  const lang = useLanguage()
+ const reduce = useReducedMotion()
  if (loading && !stats) return <SectionFallback />
  const s = stats ?? EMPTY_STATS
  return (
   <div className="p-5 space-y-4">
-   <div className="flex items-center justify-center gap-8">
-    <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ delay: 0.2, type: 'spring', stiffness: 200 }}
-     className="relative flex items-center justify-center">
+     <div className="flex items-center justify-center gap-8">
+     <motion.div initial={reduce ? false : { scale: 0 }} animate={reduce ? undefined : { scale: 1 }} transition={reduce ? undefined : { delay: 0.2, type: 'spring', stiffness: 200 }}
+      className="relative flex items-center justify-center">
      <svg width="120" height="120" viewBox="0 0 110 110" className="-rotate-90">
       <circle cx="55" cy="55" r="45" fill="none" stroke="#f3f4f6" strokeWidth="10" />
-      {s.assessmentStats && s.assessmentStats.gradedCount > 0 && (
+       {s.assessmentStats && s.assessmentStats.gradedCount > 0 && (
        <motion.circle
-        initial={{ strokeDasharray: '0 282.7' }}
+        initial={reduce ? { strokeDasharray: `${(s.assessmentStats.passRate / 100) * 282.7} 282.7` } : { strokeDasharray: '0 282.7' }}
         animate={{ strokeDasharray: `${(s.assessmentStats.passRate / 100) * 282.7} 282.7` }}
-        transition={{ delay: 0.4, duration: 1, ease: 'easeOut' }}
+        transition={reduce ? undefined : { delay: 0.4, duration: 1, ease: 'easeOut' }}
         cx="55" cy="55" r="45" fill="none" stroke="url(#goldGradient)" strokeWidth="10"
         strokeLinecap="round" className="drop-shadow-lg" />
       )}
@@ -646,9 +640,9 @@ function AssessmentSection({ stats, loading }: { stats: DashboardData | null; lo
        </linearGradient>
       </defs>
      </svg>
-     <div className="absolute text-center">
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.6 }}
-       className="text-2xl font-bold text-gray-900">{s.assessmentStats?.passRate ?? 0}%</motion.div>
+      <div className="absolute text-center">
+       <motion.div initial={reduce ? false : { opacity: 0 }} animate={reduce ? undefined : { opacity: 1 }} transition={reduce ? undefined : { delay: 0.6 }}
+        className="text-2xl font-bold text-gray-900">{s.assessmentStats?.passRate ?? 0}%</motion.div>
       <div className="text-xs text-gray-500">{lang === 'ar' ? 'ناجح' : 'Pass'}</div>
      </div>
     </motion.div>
@@ -690,6 +684,7 @@ const ACTION_LABELS_EN: Record<string, string> = {
 
 function ActivitySection({ stats, loading }: { stats: DashboardData | null; loading: boolean }) {
  const lang = useLanguage()
+ const reduce = useReducedMotion()
  const [activeTab, setActiveTab] = useState<'all' | 'system' | 'user'>('all')
  const s = stats ?? EMPTY_STATS
  const activity = s.recentActivity ?? []
@@ -724,9 +719,9 @@ function ActivitySection({ stats, loading }: { stats: DashboardData | null; load
     ) : filtered.slice(0, 8).map((a, i) => {
      const IconComp = ACTIVITY_ICONS[a.action] || TrendingUp
      const colorClass = ACTIVITY_COLORS[a.action] || 'bg-gradient-to-br from-gray-100 to-gray-50 text-gray-600'
-     return (
-      <motion.div key={a.id} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.03 }}
-       className="flex items-center gap-3 px-5 py-3 hover:bg-gradient-to-r hover:from-gray-50 hover:to-transparent transition-all duration-200">
+      return (
+       <motion.div key={a.id} initial={reduce ? false : { opacity: 0, x: -10 }} animate={reduce ? undefined : { opacity: 1, x: 0 }} transition={reduce ? undefined : { delay: i * 0.03 }}
+        className="flex items-center gap-3 px-5 py-3 hover:bg-gradient-to-r hover:from-gray-50 hover:to-transparent transition-all duration-200">
        <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${colorClass} shadow-sm`}>
         <IconComp className="h-4 w-4" />
        </div>
@@ -747,15 +742,16 @@ function ActivitySection({ stats, loading }: { stats: DashboardData | null; load
 
 function UpcomingSection({ stats, loading }: { stats: DashboardData | null; loading: boolean }) {
  const lang = useLanguage()
+ const reduce = useReducedMotion()
  if (loading && !stats) return <SectionFallback />
  const s = stats ?? EMPTY_STATS
  const sessions = s.upcomingSessions ?? []
  if (!sessions.length) return <EmptyState icon={Calendar} title={lang === 'ar' ? 'لا توجد جلسات قادمة' : 'No upcoming sessions'} description={lang === 'ar' ? 'قم بجدولة الفصول من المنهج.' : 'Schedule classes from Curriculum.'} />
  return (
   <div className="divide-y divide-gray-100">
-   {sessions.slice(0, 5).map((sess, i) => (
-    <motion.div key={sess.id} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.05 }}
-     className="flex items-center gap-3 px-5 py-3.5 hover:bg-gradient-to-r hover:from-blue-50/30 hover:to-transparent transition-all duration-200 group">
+    {sessions.slice(0, 5).map((sess, i) => (
+     <motion.div key={sess.id} initial={reduce ? false : { opacity: 0, x: -10 }} animate={reduce ? undefined : { opacity: 1, x: 0 }} transition={reduce ? undefined : { delay: i * 0.05 }}
+      className="flex items-center gap-3 px-5 py-3.5 hover:bg-gradient-to-r hover:from-blue-50/30 hover:to-transparent transition-all duration-200 group">
      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-blue-50 to-blue-100 text-blue-700 shadow-sm group-hover:shadow-md group-hover:scale-110 group-active:shadow-md group-active:scale-110 transition-transform duration-300">
       <Calendar className="h-5 w-5" />
      </div>
@@ -777,6 +773,7 @@ function UpcomingSection({ stats, loading }: { stats: DashboardData | null; load
 
 function RecentGradesSection({ stats, loading }: { stats: DashboardData | null; loading: boolean }) {
  const lang = useLanguage()
+ const reduce = useReducedMotion()
  if (loading && !stats) return <SectionFallback />
  const s = stats ?? EMPTY_STATS
  const grades = s.recentGrades ?? []
@@ -796,7 +793,7 @@ function RecentGradesSection({ stats, loading }: { stats: DashboardData | null; 
      </thead>
      <tbody className="divide-y divide-gray-100">
       {grades.slice(0, 5).map((g, i) => (
-       <motion.tr key={g.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: i * 0.05 }}
+       <motion.tr key={g.id} initial={reduce ? false : { opacity: 0 }} animate={reduce ? undefined : { opacity: 1 }} transition={reduce ? undefined : { delay: i * 0.05 }}
         className="hover:bg-gradient-to-r hover:from-blue-50/20 hover:to-transparent transition-all duration-200">
         <td className="px-5 py-3">
          <div className="flex items-center gap-2.5">
@@ -2083,6 +2080,7 @@ function ServantWellbeingPanel({ lang, schoolId }: { lang: string; schoolId: str
 
 export function MinistryDashboard({ data, loading, error, onRetry }: { data: any; loading: boolean; error: boolean; onRetry: () => void }) {
  const lang = useLanguage()
+ const reduce = useReducedMotion()
  const [groupMates, setGroupMates] = useState<GroupMate[] | null>(null)
 
  useEffect(() => {
@@ -2165,7 +2163,7 @@ export function MinistryDashboard({ data, loading, error, onRetry }: { data: any
   <>
 <title>{lang === 'ar' ? 'خدمتي' : 'My Ministry'} — Coptic Orthodox Hymn Education Platform (COHEP)</title>
     <meta name="description" content="Coptic Orthodox Hymn Education Platform (COHEP) ministry dashboard" />
-   <motion.div className="space-y-6" initial="initial" animate="animate" variants={stagger}>
+   <motion.div className="space-y-6" initial={reduce ? false : "initial"} animate="animate" variants={stagger}>
      <DashboardHero
       bg="var(--hymn-green)"
       title={
@@ -2733,6 +2731,7 @@ function ChildCard({ child, lang }: { child: any; lang: string }) {
 
 function ParentDashboard({ data, loading, error, onRetry }: { data: any; loading: boolean; error: boolean; onRetry: () => void }) {
  const lang = useLanguage()
+ const reduce = useReducedMotion()
  const schoolId = getSchoolId()
  const [leaderboard, setLeaderboard] = useState<any[]>([])
  const [lbLoading, setLbLoading] = useState(false)
@@ -2780,10 +2779,10 @@ function ParentDashboard({ data, loading, error, onRetry }: { data: any; loading
   <>
 <title>{lang === 'ar' ? 'أولادي' : 'My Children'} — Coptic Orthodox Hymn Education Platform (COHEP)</title>
     <meta name="description" content="Coptic Orthodox Hymn Education Platform (COHEP) parent dashboard" />
-   <motion.div className="space-y-6" initial="initial" animate="animate" variants={stagger}>
+   <motion.div className="space-y-6" initial={reduce ? false : "initial"} animate="animate" variants={stagger}>
     {/* Hero */}
     <DashboardHero
-      bg="var(--hymn-indigo)"
+     bg="var(--hymn-indigo)"
       title={lang === 'ar' ? 'أولادي' : 'My Children'}
       greeting={parentGreeting}
       badges={parentBadges}
@@ -2913,6 +2912,7 @@ export default function DashboardPage() {
  const { toast } = useToast()
  const [refreshKey, setRefreshKey] = useState(0)
  const lang = useLanguage()
+ const reduce = useReducedMotion()
 
  const { effectiveRole, ready } = useActiveRole()
  const category = roleCategory(effectiveRole)
@@ -2965,7 +2965,7 @@ export default function DashboardPage() {
 <title>Dashboard — Coptic Orthodox Hymn Education Platform (COHEP)</title>
     <meta name="description" content="Coptic Orthodox Hymn Education Platform (COHEP) management dashboard — students, servants, attendance, assessments, and more." />
 
-   <motion.div className="space-y-6" initial="initial" animate="animate" variants={stagger}>
+   <motion.div className="space-y-6" initial={reduce ? false : "initial"} animate="animate" variants={stagger}>
     {/* Hero */}
     <ErrorBoundary onRetry={handleRetry}>
      <HeroSection stats={primary.data?.stats ?? null} churchLogo={primary.data?.churchLogo ?? null} churchName={primary.data?.churchName ?? ''} loading={primary.loading} />
@@ -3020,12 +3020,7 @@ export default function DashboardPage() {
     {/* Main Grid: Charts + Leaderboard */}
     <motion.div variants={fadeUp} className="grid gap-6 lg:grid-cols-3">
      {/* Weekly Attendance Chart */}
-      <motion.div
-        initial={{ opacity: 0, y: 16 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ type: 'spring', stiffness: 300, damping: 24, delay: 0 }}
-        className="lg:col-span-2 rounded-xl border border-gray-200/60 bg-white overflow-hidden"
-      >
+       <div className="lg:col-span-2 rounded-xl border border-gray-200/60 bg-white overflow-hidden">
        <div className="flex items-center justify-between border-b border-[var(--hymn-border)] px-5 py-4 bg-[var(--hymn-surface-header)]">
         <div className="flex items-center gap-2">
          <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[var(--hymn-surface-header)] text-blue-700 ring-1 ring-gold-200/50">
@@ -3037,8 +3032,8 @@ export default function DashboardPage() {
        </div>
        <ErrorBoundary onRetry={handleRetry}>
         <AttendanceChartSection stats={primary.data?.stats ?? null} loading={primary.loading} />
-       </ErrorBoundary>
-      </motion.div>
+        </ErrorBoundary>
+       </div>
 
      {/* Top Students Leaderboard */}
       <div className="rounded-xl border border-gray-200/60 bg-white overflow-hidden">

@@ -1,6 +1,6 @@
 'use client'
 import { useState, useEffect, useRef } from 'react'
-import { motion } from 'motion/react'
+import { motion, useReducedMotion } from 'motion/react'
 import { LucideIcon } from 'lucide-react'
 
 interface StatCardProps {
@@ -38,12 +38,13 @@ function AnimatedNumber({ value }: { value: number }) {
 }
 
 export function StatCard({ label, value, icon: Icon, iconColor = 'text-blue-700', iconBg = 'bg-blue-50', subtitle, trend, compact, onClick, delay = 0 }: StatCardProps) {
+  const reduce = useReducedMotion()
   const isNumeric = typeof value === 'number'
   return (
     <motion.div
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.35, delay, ease: [0.23, 1, 0.32, 1] }}
+      initial={reduce ? false : { opacity: 0, y: 12 }}
+      animate={reduce ? { opacity: 1, y: 0 } : { opacity: 1, y: 0 }}
+      transition={reduce ? undefined : { duration: 0.35, delay, ease: [0.23, 1, 0.32, 1] }}
       onClick={onClick}
       className={`rounded-xl border border-gray-200 bg-white ${compact ? 'p-3' : 'p-5'} hover-lift ${onClick ? 'cursor-pointer hover:border-gold-200 hover:shadow-md active:scale-[0.98] transition-all' : ''}`}
     >
