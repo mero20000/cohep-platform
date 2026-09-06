@@ -618,7 +618,14 @@ export function CalendarView({
                 })}
               </tr>
             </thead>
-            <tbody>
+            <AnimatePresence mode="wait">
+              <motion.tbody
+                key={`term-${selectedTerm}`}
+                initial={prefersReducedMotion ? false : { opacity: 0, y: 8 }}
+                animate={prefersReducedMotion ? undefined : { opacity: 1, y: 0 }}
+                exit={prefersReducedMotion ? undefined : { opacity: 0, y: -8 }}
+                transition={{ duration: 0.2 }}
+              >
               {termWeeks.map(week => {
                 const isInactive = !week.isAvailable
                 const satDate = new Date(week.startDate)
@@ -730,7 +737,8 @@ export function CalendarView({
                   </tr>
                 )
               })}
-            </tbody>
+              </motion.tbody>
+            </AnimatePresence>
           </table>
         </div>
       </div>
