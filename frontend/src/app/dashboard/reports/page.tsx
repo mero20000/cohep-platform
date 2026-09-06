@@ -8,6 +8,9 @@ import {
   ArrowUp, ArrowDown, Minus, RefreshCw, ChevronRight,
   Church, Shield, Zap, Crown, Cross, Music,
 } from 'lucide-react'
+import { motion } from 'motion/react'
+import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Cell } from 'recharts'
+import { AnimatedChartTooltip } from '@/components/ui/animated-chart-tooltip'
 import { http } from '@/lib/http-client'
 import { useLanguage } from '@/lib/use-language'
 import { getSchoolId } from '@/lib/school'
@@ -167,7 +170,12 @@ function PriestPulseSection({ schoolId, lang }: { schoolId: string; lang: string
   ]
 
   return (
-    <div className="space-y-4">
+    <motion.div
+      initial={{ opacity: 0, y: 16 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ type: 'spring', stiffness: 300, damping: 24 }}
+      className="space-y-4"
+    >
       {/* Health score hero */}
       <div className={`rounded-2xl border bg-gradient-to-br ${healthBg} p-5`}>
         <div className="flex items-start justify-between gap-4">
@@ -240,7 +248,7 @@ function PriestPulseSection({ schoolId, lang }: { schoolId: string; lang: string
           )
         })}
       </div>
-    </div>
+    </motion.div>
   )
 }
 
@@ -259,36 +267,57 @@ function LiturgicalEngagementSection({ schoolId, lang }: { schoolId: string; lan
 
   const maxRate = Math.max(...data.seasons.map(s => s.attendanceRate), 1)
   const maxXp = Math.max(...data.seasons.map(s => s.xpEarned), 1)
-  const maxMonthly = Math.max(...data.monthly.map(m => m.rate), 1)
+  const monthlyData = data.monthly.map(m => ({ name: m.month, rate: m.rate, sessions: m.sessions }))
 
   return (
     <div className="space-y-6">
       {/* Monthly attendance trend */}
-      <div className="rounded-2xl border border-gray-200 bg-white p-5">
+      <motion.div
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ type: 'spring', stiffness: 300, damping: 24 }}
+        className="rounded-2xl border border-gray-200 bg-white p-5"
+      >
         <h3 className="text-sm font-bold text-gray-900 mb-4 flex items-center gap-2">
           <TrendingUp className="h-4 w-4 text-blue-500" />
           {t('12-Month Attendance Trend', 'اتجاه الحضور خلال 12 شهراً')}
         </h3>
-        <div className="flex items-end gap-1.5 h-24">
-          {data.monthly.map((m, i) => (
-            <div key={i} className="flex flex-col items-center gap-1 flex-1">
-              <div
-                className="w-full rounded-t-md bg-blue-400 transition-all duration-500 hover:bg-blue-500 min-h-[2px]"
-                style={{ height: `${Math.max(4, (m.rate / maxMonthly) * 80)}px` }}
-                title={`${m.rate}%`}
+        <div className="h-64">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={monthlyData} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
+              <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#6b7280' }} axisLine={false} tickLine={false} interval={0} angle={-45} textAnchor="end" height={50} />
+              <YAxis tick={{ fontSize: 11, fill: '#6b7280' }} axisLine={false} tickLine={false} domain={[0, 100]} />
+              <Tooltip
+                cursor={{ fill: 'rgba(59,130,246,0.08)' }}
+                content={<AnimatedChartTooltip />}
               />
-              <span className="text-[9px] text-gray-500 truncate w-full text-center">{m.month}</span>
-            </div>
-          ))}
+              <Bar
+                dataKey="rate"
+                name={t('Attendance Rate', 'نسبة الحضور')}
+                radius={[4, 4, 0, 0]}
+                isAnimationActive={true}
+                animationDuration={800}
+                animationEasing="ease-out"
+              >
+                {monthlyData.map((_, i) => (
+                  <Cell key={i} fill={i % 2 === 0 ? '#3b82f6' : '#60a5fa'} />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
         </div>
         <div className="mt-2 flex items-center gap-4 text-[11px] text-gray-500">
           <span>{t('Hover bars for rate', 'مرر على الأعمدة للنسبة')}</span>
           <span className="ml-auto">{t('Sessions: ' + data.monthly.reduce((s, m) => s + m.sessions, 0), 'الجلسات: ' + data.monthly.reduce((s, m) => s + m.sessions, 0))}</span>
         </div>
-      </div>
+      </motion.div>
 
       {/* Season cards */}
-      <div>
+      <motion.div
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ type: 'spring', stiffness: 300, damping: 24, delay: 0.1 }}
+      >
         <h3 className="text-sm font-bold text-gray-900 mb-3 flex items-center gap-2">
           <Calendar className="h-4 w-4 text-indigo-500" />
           {t('Engagement by Liturgical Season', 'المشاركة حسب الموسم الليتورجي')}
@@ -345,7 +374,7 @@ function LiturgicalEngagementSection({ schoolId, lang }: { schoolId: string; lan
             </div>
           ))}
         </div>
-      </div>
+      </motion.div>
     </div>
   )
 }
@@ -370,7 +399,12 @@ function ServantContributionsSection({ schoolId, lang }: { schoolId: string; lan
   const maxSessions = Math.max(...data.servants.map(s => s.totalSessions), 1)
 
   return (
-    <div className="space-y-4">
+    <motion.div
+      initial={{ opacity: 0, y: 16 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ type: 'spring', stiffness: 300, damping: 24 }}
+      className="space-y-4"
+    >
       {/* Summary */}
       {data.summary.mostActiveThisMonth && (
         <div className="rounded-xl border border-purple-100 bg-gradient-to-r from-purple-50 to-indigo-50 p-4">
@@ -460,7 +494,7 @@ function ServantContributionsSection({ schoolId, lang }: { schoolId: string; lan
       <p className="text-[11px] text-gray-500 text-center italic">
         {t('This report is for appreciation, not performance review. Every session taught is a gift to the Church.', 'هذا التقرير للتقدير، ليس لتقييم الأداء. كل جلسة علّمتها هي هدية للكنيسة.')}
       </p>
-    </div>
+    </motion.div>
   )
 }
 
