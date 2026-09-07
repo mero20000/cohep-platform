@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Patch, Delete, Param, Query, Req, Body, UseGuards, NotFoundException } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Delete, Param, Query, Req, Body, UseGuards, NotFoundException, BadRequestException } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { ServantsService } from './servants.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -117,12 +117,19 @@ export class ServantsController {
 
   @Get('liturgy-session')
   @Roles('servant', 'group_leader', 'level_leader')
-  @ApiOperation({ summary: 'Get current liturgy session with students for quick attendance marking' })
-  async getLiturgySession(@CurrentUser() user: any) {
+  @ApiOperation({ summary: 'Get liturgy roster for any date with prefilled statuses' })
+  async getLiturgySession(@CurrentUser() user: any, @Query('date') dateStr?: string) {
     try {
       const userMeta = (user.metadata as any) || {};
       const groupId = userMeta.groupId as string | undefined;
       const levelId = userMeta.levelId as string | undefined;
+
+      const day = dateStr ? new Date(dateStr + 'T00:00:00') : new Date();
+      if (isNaN(day.getTime())) throw new BadRequestException('Invalid date, expected YYYY-MM-DD');
+      const start = new Date(day); start.setHours(0, 0, 0, 0);
+      const end = new Date(start); end.setDate(end.getDate() + 1);
+      const today = new Date(); today.setHours(0, 0, 0, 0);
+      if (start.getTime() > today.getTime()) throw new BadRequestException('Cannot report liturgy for a future date');
 
       // Build where clause
       const where: any = { deletedAt: null };
@@ -131,7 +138,7 @@ export class ServantsController {
       } else if (levelId) {
         where.levelId = levelId;
       } else {
-        return { date: new Date().toISOString(), students: [] };
+        return { date: start.toISOString(), students: [] };
       }
 
       const students = await this.prisma.student.findMany({
@@ -148,8 +155,25 @@ export class ServantsController {
         orderBy: { firstName: 'asc' },
       });
 
+      const sessionWhere: any = {
+        groupId: groupId ?? undefined,
+        levelId: levelId ?? undefined,
+        status: 'recorded',
+        scheduledDate: { gte: start, lt: end },
+        notes: 'liturgy',
+      };
+      const session = await this.prisma.attendanceSession.findFirst({ where: sessionWhere });
+      const statusByStudent = new Map<string, string>();
+      if (session) {
+        const records = await this.prisma.attendanceRecord.findMany({
+          where: { attendanceSessionId: session.id },
+          select: { studentId: true, status: true },
+        });
+        for (const r of records) statusByStudent.set(r.studentId, r.status);
+      }
+
       return {
-        date: new Date().toISOString(),
+        date: start.toISOString(),
         students: students.map(s => ({
           studentId: s.id,
           firstName: s.firstName,
@@ -159,12 +183,12 @@ export class ServantsController {
           photoUrl: s.photoUrl,
           gradeName: s.grade?.name ?? null,
           gradeNameAr: s.grade?.nameAr ?? null,
-          status: null,
+          status: statusByStudent.get(s.id) ?? null,
         })),
       };
     } catch (error) {
       console.error('Error loading liturgy session:', error);
-      return { date: new Date().toISOString(), students: [], error: 'Failed to load students' };
+      throw error;
     }
   }
 
