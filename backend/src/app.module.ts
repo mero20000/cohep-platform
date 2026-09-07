@@ -28,6 +28,7 @@ import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { HealthModule } from './modules/health/health.module';
 import { RegistrationsModule } from './modules/registrations/registrations.module';
 import { GradeDisputesModule } from './modules/grade-disputes/grade-disputes.module';
+import { DemoModule } from './modules/demo/demo.module';
 import { JwtAuthGuard } from './modules/auth/guards/jwt-auth.guard';
 import { RolesGuard } from './modules/auth/guards/roles.guard';
 import { TenantScopeGuard } from './common/guards/tenant-scope.guard';
@@ -76,6 +77,7 @@ import { TenantScopeGuard } from './common/guards/tenant-scope.guard';
     HealthModule,
     RegistrationsModule,
     GradeDisputesModule,
+    DemoModule,
   ],
   providers: [
     {
