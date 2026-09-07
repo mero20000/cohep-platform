@@ -176,7 +176,9 @@ export default function MyClassPage() {
             <BookOpen className="h-4 w-4" />
             {t("Today's lesson", 'درس اليوم')}
           </div>
-          <h2 className="mt-2 text-lg font-bold text-gray-900">{lang === 'ar' ? data.todayLesson.titleAr || data.todayLesson.title : data.todayLesson.title}</h2>
+          <Link href={`/dashboard/curriculum/lesson/${data.todayLesson.lessonId}`} className="mt-2 block text-lg font-bold text-gray-900 hover:text-blue-700 hover:underline underline-offset-2">
+            {lang === 'ar' ? data.todayLesson.titleAr || data.todayLesson.title : data.todayLesson.title}
+          </Link>
           <p className="mt-1 text-sm text-gray-600">
             {data.todayLesson.titleCoptic && <span className="coptic-text">{data.todayLesson.titleCoptic} · </span>}
             {data.todayLesson.subjectName} · {data.todayLesson.levelName}

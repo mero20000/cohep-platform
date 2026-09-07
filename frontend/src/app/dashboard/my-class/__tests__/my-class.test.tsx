@@ -103,4 +103,18 @@ describe('MyClassPage', () => {
     const cta = await screen.findByRole('link', { name: /take attendance|تسجيل الحضور/i })
     expect(cta.getAttribute('href')).toContain('/dashboard/attendance?sessionId=')
   })
+
+  it('links today lesson title to the curriculum lesson page', async () => {
+    mockGet.mockResolvedValue({
+      servant: { id: 'u1', firstName: 'S', lastName: 'T' },
+      nextSession: null,
+      todayLesson: { lessonId: 'l1', title: 'Kyrie Eleison', titleCoptic: 'ⲕⲩⲣⲓⲉ', levelName: 'Level 3', subjectName: 'Tasbeha', scheduledDate: new Date().toISOString() },
+      roster: [
+        { studentId: 's1', firstName: 'Mina', lastName: 'A', attendanceRate: 80, lastAttendanceStatus: 'present', likelyAbsent: false, needsFollowUp: false, followUpReasons: [], notes: [] },
+      ],
+    })
+    render(<MyClassPage />)
+    const link = await screen.findByRole('link', { name: /Kyrie Eleison/i })
+    expect(link.getAttribute('href')).toContain('/dashboard/curriculum/lesson/l1')
+  })
 })
