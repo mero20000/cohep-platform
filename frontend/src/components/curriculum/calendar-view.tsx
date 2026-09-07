@@ -66,6 +66,7 @@ export function CalendarView({
   const [draggedAssessment, setDraggedAssessment] = useState<boolean>(false)
   const [recentlyDropped, setRecentlyDropped] = useState<Set<string>>(new Set())
   const [dragOverCell, setDragOverCell] = useState<string | null>(null)
+  const [invalidDragOver, setInvalidDragOver] = useState<string | null>(null)
   const [dropRipple, setDropRipple] = useState<{ week: number; subject: string } | null>(null)
   const [shakingAlloc, setShakingAlloc] = useState<string | null>(null)
 
@@ -177,9 +178,11 @@ export function CalendarView({
   }, [termWeeks, allocations, selectedTerm, subjectColumns, levelNumber, selectedSubject, selectedGroup])
 
   const handleDeleteAlloc = async (a: Allocation) => {
-    setShakingAlloc(a.id)
-    await new Promise(resolve => setTimeout(resolve, 400))
-    setShakingAlloc(null)
+    if (!prefersReducedMotion) {
+      setShakingAlloc(a.id)
+      await new Promise(resolve => setTimeout(resolve, 400))
+      setShakingAlloc(null)
+    }
     try {
       await onDeleteAllocation(a.id)
       const lesson = lessons.find(l => l.id === a.lesson.id)
@@ -661,12 +664,14 @@ export function CalendarView({
                            className={`px-2 py-1.5 border-e border-gray-100 align-top relative overflow-hidden ${
                              !isInactive && dragOverCell === `${week.weekNumber}-${subj.name}`
                                ? 'ring-2 ring-gold-400 bg-gold-50/30'
+                               : isInactive && invalidDragOver === `${week.weekNumber}-${subj.name}`
+                               ? 'bg-red-50/40'
                                : ''
                            }`}
-                          onDragOver={e => { if (!isInactive) { e.preventDefault(); setDragOverCell(`${week.weekNumber}-${subj.name}`) } }}
-                          onDragLeave={() => setDragOverCell(null)}
-                          onDrop={e => { e.preventDefault(); setDragOverCell(null); if (!isInactive) handleCalendarDrop(week.weekNumber, subj.name) }}
-                          style={isInactive ? { background: 'repeating-linear-gradient(45deg, transparent, transparent 4px, rgba(0,0,0,0.02) 4px, rgba(0,0,0,0.02) 8px)' } : {}}
+                          onDragOver={e => { if (!isInactive) { e.preventDefault(); setDragOverCell(`${week.weekNumber}-${subj.name}`) } else if (!prefersReducedMotion && (draggedLesson || draggedSubjectItem || draggedAllocation || draggedReview || draggedAssessment)) { e.preventDefault(); setInvalidDragOver(`${week.weekNumber}-${subj.name}`) } }}
+                          onDragLeave={() => { setDragOverCell(null); setInvalidDragOver(null) }}
+                          onDrop={e => { e.preventDefault(); setDragOverCell(null); setInvalidDragOver(null); if (!isInactive) handleCalendarDrop(week.weekNumber, subj.name) }}
+                          style={(isInactive && invalidDragOver !== `${week.weekNumber}-${subj.name}`) ? { background: 'repeating-linear-gradient(45deg, transparent, transparent 4px, rgba(0,0,0,0.02) 4px, rgba(0,0,0,0.02) 8px)' } : {}}
                         >
                           {dropRipple?.week === week.weekNumber && dropRipple?.subject === subj.name && (
                             <motion.div
@@ -731,13 +736,15 @@ export function CalendarView({
                             <div className={`min-h-[32px] rounded border-2 transition-all animate-breathing ${
                               dragOverCell === `${week.weekNumber}-${subj.name}`
                                 ? 'border-solid border-gold-400 bg-gold-50/30 animate-none'
+                                : invalidDragOver === `${week.weekNumber}-${subj.name}`
+                                ? 'border-solid border-red-300 bg-red-50/40 animate-none'
                                 : isInactive
                                   ? 'border-gray-100'
                                   : 'border-dashed border-gray-200 hover:border-blue-300 hover:bg-blue-50/30'
                             }`}
-                              onDragOver={e => { if (!isInactive) { e.preventDefault(); setDragOverCell(`${week.weekNumber}-${subj.name}`) } }}
-                              onDragLeave={() => setDragOverCell(null)}
-                              onDrop={e => { e.preventDefault(); setDragOverCell(null); if (!isInactive) handleCalendarDrop(week.weekNumber, subj.name) }}
+                              onDragOver={e => { if (!isInactive) { e.preventDefault(); setDragOverCell(`${week.weekNumber}-${subj.name}`) } else if (!prefersReducedMotion && (draggedLesson || draggedSubjectItem || draggedAllocation || draggedReview || draggedAssessment)) { e.preventDefault(); setInvalidDragOver(`${week.weekNumber}-${subj.name}`) } }}
+                              onDragLeave={() => { setDragOverCell(null); setInvalidDragOver(null) }}
+                              onDrop={e => { e.preventDefault(); setDragOverCell(null); setInvalidDragOver(null); if (!isInactive) handleCalendarDrop(week.weekNumber, subj.name) }}
                             />
                           )}
                         </td>

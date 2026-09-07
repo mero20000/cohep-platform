@@ -35,6 +35,7 @@ import type { Allocation, Level } from '@/components/curriculum/types'
 import { parseISO, isSameDay, startOfDay, startOfWeek, addDays, format } from 'date-fns'
 import { enGB, ar } from 'date-fns/locale'
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, Cell, PieChart, Pie, Sector } from 'recharts'
+import { AnimatedChartTooltip } from '@/components/ui/animated-chart-tooltip'
 
 interface GradeDistItem { grade: string; count: number }
 interface StudentsPerLevel { levelName: string; count: number }
@@ -137,52 +138,6 @@ function AnimatedCounter({ value, suffix = '' }: { value: number; suffix?: strin
   return () => { if (raf.current) cancelAnimationFrame(raf.current) }
  }, [value])
  return <>{display}{suffix}</>
-}
-
-interface TooltipProps {
-  active?: boolean
-  payload?: Array<{ value: number; name: string; color: string }>
-  label?: string
-}
-
-function AnimatedChartTooltip({ active, payload, label }: TooltipProps) {
-  const reduce = useReducedMotion()
-  const isVisible = active && payload && payload.length > 0
-
-  if (reduce) {
-    if (!isVisible) return null
-    return (
-      <div className="rounded-lg border border-gray-200 bg-white px-3 py-2 shadow-lg">
-        {label && <p className="text-xs font-medium text-gray-500 mb-1">{label}</p>}
-        {payload.map((entry, i) => (
-          <p key={i} className="text-sm font-semibold" style={{ color: entry.color }}>
-            {entry.value.toLocaleString('en-GB')}
-          </p>
-        ))}
-      </div>
-    )
-  }
-
-  return (
-    <AnimatePresence>
-      {isVisible && (
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95, y: 4 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.95, y: 4 }}
-          transition={{ type: 'spring', duration: 0.4, bounce: 0.15 }}
-          className="rounded-lg border border-gray-200 bg-white px-3 py-2 shadow-lg"
-        >
-          {label && <p className="text-xs font-medium text-gray-500 mb-1">{label}</p>}
-          {payload.map((entry, i) => (
-            <p key={i} className="text-sm font-semibold" style={{ color: entry.color }}>
-              {entry.value.toLocaleString('en-GB')}
-            </p>
-          ))}
-        </motion.div>
-      )}
-    </AnimatePresence>
-  )
 }
 
 const QUICK_ACTIONS = [
@@ -548,6 +503,9 @@ const dayLocale = lang === 'ar' ? 'ar-EG' : 'en-GB'
                   dataKey="count"
                   name={lang === 'ar' ? 'السجلات' : 'records'}
                   radius={[8, 8, 0, 0]}
+                  isAnimationActive={!reduce}
+                  animationDuration={800}
+                  animationEasing="ease-out"
                   onMouseEnter={reduce ? undefined : (_: any, index: number) => setHoveredBar(index)}
                   onMouseLeave={reduce ? undefined : () => setHoveredBar(null)}
                 >
@@ -641,6 +599,9 @@ function AnalyticsSection({ stats, loading }: { stats: DashboardData | null; loa
                       dataKey="count"
                       name={lang === 'ar' ? 'الطلاب' : 'students'}
                       radius={[8, 8, 0, 0]}
+                      isAnimationActive={!reduce}
+                      animationDuration={800}
+                      animationEasing="ease-out"
                       onMouseEnter={reduce ? undefined : (_: any, index: number) => setHoveredBar(index)}
                       onMouseLeave={reduce ? undefined : () => setHoveredBar(null)}
                     >
@@ -788,12 +749,13 @@ function AssessmentSection({ stats, loading }: { stats: DashboardData | null; lo
      <svg width="120" height="120" viewBox="0 0 110 110" className="-rotate-90">
       <circle cx="55" cy="55" r="45" fill="none" stroke="#f3f4f6" strokeWidth="10" />
        {s.assessmentStats && s.assessmentStats.gradedCount > 0 && (
-       <motion.circle
-        initial={reduce ? { strokeDasharray: `${(s.assessmentStats.passRate / 100) * 282.7} 282.7` } : { strokeDasharray: '0 282.7' }}
-        animate={{ strokeDasharray: `${(s.assessmentStats.passRate / 100) * 282.7} 282.7` }}
-        transition={reduce ? undefined : { delay: 0.4, duration: 1, ease: 'easeOut' }}
-        cx="55" cy="55" r="45" fill="none" stroke="url(#goldGradient)" strokeWidth="10"
-        strokeLinecap="round" className="drop-shadow-lg" />
+        <motion.circle
+         initial={reduce ? { strokeDasharray: `${(s.assessmentStats.passRate / 100) * 282.7} 282.7` } : { strokeDasharray: '0 282.7' }}
+         animate={{ strokeDasharray: `${(s.assessmentStats.passRate / 100) * 282.7} 282.7` }}
+         whileHover={reduce ? undefined : { strokeWidth: 10, transition: { type: 'spring', stiffness: 300, damping: 20 } }}
+         transition={reduce ? undefined : { delay: 0.4, duration: 1, ease: 'easeOut' }}
+         cx="55" cy="55" r="45" fill="none" stroke="url(#goldGradient)" strokeWidth={8}
+         strokeLinecap="round" className="drop-shadow-lg" />
       )}
       <defs>
        <linearGradient id="goldGradient" x1="0%" y1="0%" x2="100%" y2="0%">
