@@ -262,7 +262,13 @@ export default function MyClassPage() {
           </div>
           <div className="min-w-0 flex-1">
             <div className="text-sm font-semibold text-gray-900">
-              {lang === 'ar' ? `${s.firstNameAr || s.firstName} ${s.lastNameAr || s.lastName}` : `${s.firstName} ${s.lastName}`}
+              <Link
+                href={`/dashboard/students?search=${s.studentId}`}
+                onClick={(e) => e.stopPropagation()}
+                className="hover:text-blue-700 hover:underline underline-offset-2"
+              >
+                {lang === 'ar' ? `${s.firstNameAr || s.firstName} ${s.lastNameAr || s.lastName}` : `${s.firstName} ${s.lastName}`}
+              </Link>
             </div>
             <div className="mt-1 h-1.5 w-32 rounded-full bg-gray-200 overflow-hidden">
               <div className="h-full rounded-full bg-emerald-500" style={{ width: `${s.attendanceRate}%` }} />

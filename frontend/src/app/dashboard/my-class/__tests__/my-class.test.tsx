@@ -86,7 +86,7 @@ describe('MyClassPage', () => {
     })
     render(<MyClassPage />)
     const row = await screen.findByText('John B')
-    fireEvent.click(row)
+    fireEvent.click(row.closest('button') ?? row)
     expect(screen.getByText('Seems tired')).toBeInTheDocument()
   })
 
@@ -133,5 +133,20 @@ describe('MyClassPage', () => {
     await user.click(rows[0])
     const pill = await screen.findByRole('link', { name: /to grade|بانتظار التقييم/i })
     expect(pill.getAttribute('href')).toBe('/dashboard/assessments')
+  })
+
+  it('links roster names to the students page', async () => {
+    mockGet.mockResolvedValue({
+      servant: { id: 'u1', firstName: 'S', lastName: 'T' },
+      nextSession: null,
+      todayLesson: null,
+      roster: [
+        { studentId: 's1', firstName: 'Mina', lastName: 'A', attendanceRate: 80, lastAttendanceStatus: 'present', likelyAbsent: false, needsFollowUp: false, followUpReasons: [], notes: [] },
+      ],
+    })
+    render(<MyClassPage />)
+    const link = await screen.findByRole('link', { name: /Mina A/i })
+    expect(link.getAttribute('href')).toContain('/dashboard/students')
+    expect(link.getAttribute('href')).toContain('search=s1')
   })
 })
