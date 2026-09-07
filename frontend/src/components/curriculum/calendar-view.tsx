@@ -67,6 +67,7 @@ export function CalendarView({
   const [recentlyDropped, setRecentlyDropped] = useState<Set<string>>(new Set())
   const [dragOverCell, setDragOverCell] = useState<string | null>(null)
   const [dropRipple, setDropRipple] = useState<{ week: number; subject: string } | null>(null)
+  const [shakingAlloc, setShakingAlloc] = useState<string | null>(null)
 
   const refreshAndTrackNew = useCallback(async (prevAllocIds: Set<string>) => {
     await onRefresh()
@@ -176,6 +177,9 @@ export function CalendarView({
   }, [termWeeks, allocations, selectedTerm, subjectColumns, levelNumber, selectedSubject, selectedGroup])
 
   const handleDeleteAlloc = async (a: Allocation) => {
+    setShakingAlloc(a.id)
+    await new Promise(resolve => setTimeout(resolve, 400))
+    setShakingAlloc(null)
     try {
       await onDeleteAllocation(a.id)
       const lesson = lessons.find(l => l.id === a.lesson.id)
@@ -684,8 +688,9 @@ export function CalendarView({
                             return (
                               <motion.div key={a.id} draggable
                                 initial={recentlyDropped.has(a.id) ? { scale: 0.7, opacity: 0 } : false}
-                                animate={{ scale: 1, opacity: 1 }}
-                                transition={{ type: 'spring', stiffness: 500, damping: 25 }}
+                                animate={shakingAlloc === a.id ? { x: [-2, 2, -2, 0] } : { scale: 1, opacity: 1 }}
+                                whileHover={prefersReducedMotion ? undefined : { y: -2, boxShadow: '0 4px 12px rgba(0,0,0,0.08)' }}
+                                transition={shakingAlloc === a.id ? { duration: 0.3 } : { type: 'spring', stiffness: 500, damping: 25 }}
                                 onDragStart={() => setDraggedAllocation(a)}
                                 onDragEnd={() => setDraggedAllocation(null)}
                                 className={`group text-[11px] px-2 py-1.5 rounded-lg mb-1 cursor-grab active:cursor-grabbing border transition-all ${
