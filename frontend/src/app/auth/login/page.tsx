@@ -115,19 +115,17 @@ export default function LoginPage() {
 
   const handleDemo = async () => {
     setIsDemoLoading(true)
-    setError('')
     try {
       const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'
-      const res = await fetch(API + '/auth/demo', { method: 'POST', headers: { 'Content-Type': 'application/json' } })
+      const res = await fetch(API + '/demo/session', { method: 'POST', headers: { 'Content-Type': 'application/json' } })
+      if (!res.ok) throw new Error('Demo unavailable')
       const data = await res.json()
-      if (!res.ok) throw new Error(data?.message || 'Demo login failed')
+      localStorage.setItem('token', data.accessToken)
+      localStorage.setItem('demo', '1')
       localStorage.setItem('niangelos_token', data.accessToken)
-      if (data.refreshToken) localStorage.setItem('niangelos_refresh_token', data.refreshToken)
-      router.replace('/dashboard')
-    } catch (e: any) {
-      setError(e.message || 'Demo unavailable — please try registering')
-    }
-    setIsDemoLoading(false)
+      router.push('/dashboard')
+    } catch (e) { setError('Demo unavailable — please try again') }
+    finally { setIsDemoLoading(false) }
   }
 
 

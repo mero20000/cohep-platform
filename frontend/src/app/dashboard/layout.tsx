@@ -1,5 +1,6 @@
 import { DashboardShell } from '@/components/dashboard-shell'
 import { ErrorBoundary } from '@/components/ui/error-boundary'
+import { DemoBannerHost } from '@/components/demo/demo-banner-host'
 
 export const metadata = {
   title: 'Dashboard - Coptic Orthodox Hymn Education Platform (COHEP)',
@@ -8,8 +9,11 @@ export const metadata = {
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   return (
-    <DashboardShell>
-      <ErrorBoundary>{children}</ErrorBoundary>
-    </DashboardShell>
+    <>
+      <DemoBannerHost />
+      <DashboardShell>
+        <ErrorBoundary>{children}</ErrorBoundary>
+      </DashboardShell>
+    </>
   )
 }
