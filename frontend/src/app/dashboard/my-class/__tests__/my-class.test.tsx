@@ -89,4 +89,18 @@ describe('MyClassPage', () => {
     fireEvent.click(row)
     expect(screen.getByText('Seems tired')).toBeInTheDocument()
   })
+
+  it('links the next session to attendance with sessionId', async () => {
+    mockGet.mockResolvedValue({
+      servant: { id: 'u1', firstName: 'S', lastName: 'T' },
+      nextSession: { id: 'sess-1', scheduledDate: new Date().toISOString(), levelName: 'Level 1', groupName: 'Group A' },
+      todayLesson: null,
+      roster: [
+        { studentId: 's1', firstName: 'Mina', lastName: 'A', attendanceRate: 80, lastAttendanceStatus: 'present', likelyAbsent: false, needsFollowUp: false, followUpReasons: [], notes: [] },
+      ],
+    })
+    render(<MyClassPage />)
+    const cta = await screen.findByRole('link', { name: /take attendance|تسجيل الحضور/i })
+    expect(cta.getAttribute('href')).toContain('/dashboard/attendance?sessionId=')
+  })
 })

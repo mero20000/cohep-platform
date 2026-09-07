@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
+import Link from 'next/link'
 import { ChevronDown, AlertTriangle, BookOpen, User, CalendarDays, Send, X } from 'lucide-react'
 import { http } from '@/lib/http-client'
 import { useLanguage } from '@/lib/use-language'
@@ -155,6 +156,15 @@ export default function MyClassPage() {
                 weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
               })}
             </p>
+          )}
+          {data.nextSession && (
+            <Link
+              href={`/dashboard/attendance?sessionId=${data.nextSession.id}&prefill=present`}
+              className="mt-2 inline-flex min-h-[44px] items-center gap-1.5 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 transition-colors"
+            >
+              <CalendarDays className="h-4 w-4" />
+              {t('Take attendance', 'تسجيل الحضور')}
+            </Link>
           )}
         </div>
         <span className="text-xs text-gray-400">{data.roster.length} {t('students', 'طالب')}</span>
