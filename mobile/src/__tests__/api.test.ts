@@ -8,7 +8,7 @@ vi.mock('expo-secure-store', () => ({
 }))
 
 import { saveSession, clearSession } from '../lib/session'
-import { apiFetch, loginRequest, UnauthorizedError, setUnauthorizedHandler } from '../lib/api'
+import { apiFetch, demoLoginRequest, loginRequest, UnauthorizedError, setUnauthorizedHandler } from '../lib/api'
 
 const fetchMock = vi.fn()
 vi.stubGlobal('fetch', fetchMock)
@@ -40,6 +40,13 @@ describe('loginRequest', () => {
   it('maps network failure to friendly ApiError', async () => {
     fetchMock.mockRejectedValueOnce(new TypeError('Network request failed'))
     await expect(loginRequest('KEY')).rejects.toThrow(/connection/)
+  })
+})
+
+describe('demoLoginRequest', () => {
+  it('demoLoginRequest posts to /demo/session', async () => {
+    fetchMock.mockResolvedValueOnce(jsonRes(201, { accessToken: 'demo-jwt' }))
+    await expect(demoLoginRequest()).resolves.toEqual({ accessToken: 'demo-jwt' })
   })
 })
 

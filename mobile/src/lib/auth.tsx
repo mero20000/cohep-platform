@@ -12,7 +12,7 @@ import {
   saveSession,
   type Session,
 } from './session'
-import { ApiError, loginRequest, setUnauthorizedHandler } from './api'
+import { ApiError, demoLoginRequest, loginRequest, setUnauthorizedHandler } from './api'
 
 interface AuthContextValue {
   session: Session | null
@@ -20,6 +20,7 @@ interface AuthContextValue {
   loggingIn: boolean
   loginError: string | null
   login(accessKey: string): Promise<boolean>
+  demoLogin(): Promise<boolean>
   logout(): Promise<void>
 }
 
@@ -60,14 +61,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [])
 
+  const demoLogin = useCallback(async (): Promise<boolean> => {
+    setLoggingIn(true)
+    setLoginError(null)
+    try {
+      const { accessToken } = await demoLoginRequest()
+      const next: Session = { token: accessToken, studentCode: 'demo-guest', isDemo: true }
+      await saveSession(next)
+      setSession(next)
+      return true
+    } catch (e) {
+      setLoginError(e instanceof ApiError ? e.message : 'Something went wrong. Try again.')
+      return false
+    } finally {
+      setLoggingIn(false)
+    }
+  }, [])
+
   const logout = useCallback(async (): Promise<void> => {
     await clearSession()
     setSession(null)
   }, [])
 
   const value = useMemo(
-    () => ({ session, ready, loggingIn, loginError, login, logout }),
-    [session, ready, loggingIn, loginError, login, logout],
+    () => ({ session, ready, loggingIn, loginError, login, demoLogin, logout }),
+    [session, ready, loggingIn, loginError, login, demoLogin, logout],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

@@ -61,6 +61,15 @@ export async function apiFetch<T>(path: string): Promise<T> {
   return parseJson<T>(res)
 }
 
+export async function demoLoginRequest(): Promise<{ accessToken: string }> {
+  let res: Response;
+  try {
+    res = await fetch(`${API_URL}/demo/session`, { method: 'POST', headers: { 'Content-Type': 'application/json' } });
+  } catch { throw new ApiError(0, 'No connection'); }
+  if (!res.ok) throw new ApiError(res.status, 'Demo unavailable');
+  return parseJson<{ accessToken: string }>(res);
+}
+
 async function portalPath(suffix = ''): Promise<string> {
   const session = await requireSession()
   return `/student-portal/${session.studentCode}${suffix}`

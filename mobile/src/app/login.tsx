@@ -14,12 +14,16 @@ import { Cross } from 'lucide-react-native'
 import { useAuth } from '@/lib/auth'
 
 export default function Login() {
-  const { login, loggingIn, loginError } = useAuth()
+  const { login, demoLogin, loggingIn, loginError } = useAuth()
   const router = useRouter()
   const [key, setKey] = useState('')
 
   const submit = async () => {
-    if (await login(key)) router.replace('/(tabs)')
+    if (await login(key)) router.replace('/(tabs)' as any)
+  }
+
+  const handleDemo = async () => {
+    if (await demoLogin()) router.replace('/(tabs)' as any)
   }
 
   return (
@@ -65,6 +69,14 @@ export default function Login() {
           ) : (
             <Text className="font-bold text-[#0f172a]">Sign in</Text>
           )}
+        </Pressable>
+
+        <Pressable
+          onPress={handleDemo}
+          disabled={loggingIn}
+          className="mt-3 flex-row items-center justify-center rounded-xl border border-white/20 py-3.5"
+        >
+          <Text className="font-semibold text-white">Try Demo</Text>
         </Pressable>
       </KeyboardAvoidingView>
     </SafeAreaView>

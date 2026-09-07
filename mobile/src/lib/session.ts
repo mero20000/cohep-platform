@@ -3,6 +3,7 @@ import * as SecureStore from 'expo-secure-store'
 export interface Session {
   token: string
   studentCode: string
+  isDemo?: boolean
 }
 
 const KEY = 'cohep.portal.session'
