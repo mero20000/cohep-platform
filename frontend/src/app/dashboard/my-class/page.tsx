@@ -286,11 +286,24 @@ export default function MyClassPage() {
         {open && (
           <div className="border-t border-gray-100 px-3 py-3">
             <div className="flex flex-wrap gap-1.5">
-              {s.followUpReasons.map(r => (
-                <span key={r} className="rounded-md bg-gray-100 px-2 py-0.5 text-[11px] text-gray-600">
-                  {REASON_LABEL[r] ? (lang === 'ar' ? REASON_LABEL[r].ar : REASON_LABEL[r].en) : r}
-                </span>
-              ))}
+              {s.followUpReasons.map(r => {
+                const label = REASON_LABEL[r] ? (lang === 'ar' ? REASON_LABEL[r].ar : REASON_LABEL[r].en) : r
+                const cls = "rounded-md bg-gray-100 px-2 py-0.5 text-[11px] text-gray-600 hover:bg-gray-200 transition-colors min-h-[28px] inline-flex items-center"
+                if (r === 'ungraded_assessment') {
+                  return <Link key={r} href="/dashboard/assessments" className={cls}>{label}</Link>
+                }
+                if (r === 'absent_3plus' && data?.nextSession) {
+                  return <Link key={r} href={`/dashboard/attendance?sessionId=${data.nextSession.id}`} className={cls}>{label}</Link>
+                }
+                if ((r === 'low_mastery' || r === 'overdue_review') && data?.todayLesson) {
+                  return <Link key={r} href={`/dashboard/curriculum/lesson/${data.todayLesson.lessonId}`} className={cls}>{label}</Link>
+                }
+                return (
+                  <span key={r} className="rounded-md bg-gray-100 px-2 py-0.5 text-[11px] text-gray-600">
+                    {label}
+                  </span>
+                )
+              })}
             </div>
             {s.notes.length > 0 ? (
               <ul className="mt-3 space-y-2">

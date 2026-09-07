@@ -117,4 +117,21 @@ describe('MyClassPage', () => {
     const link = await screen.findByRole('link', { name: /Kyrie Eleison/i })
     expect(link.getAttribute('href')).toContain('/dashboard/curriculum/lesson/l1')
   })
+
+  it('links the To grade pill to assessments', async () => {
+    mockGet.mockResolvedValue({
+      servant: { id: 'u1', firstName: 'S', lastName: 'T' },
+      nextSession: { id: 'n1', scheduledDate: new Date().toISOString(), levelName: 'Level 3', groupName: 'Group A' },
+      todayLesson: { lessonId: 'l1', title: 'Kyrie Eleison', titleCoptic: 'ⲕⲩⲣⲓⲉ', levelName: 'Level 3', subjectName: 'Tasbeha', scheduledDate: new Date().toISOString() },
+      roster: [
+        { studentId: 's1', firstName: 'Mina', lastName: 'A', attendanceRate: 80, lastAttendanceStatus: 'present', likelyAbsent: false, needsFollowUp: true, followUpReasons: ['ungraded_assessment'], notes: [] },
+      ],
+    })
+    render(<MyClassPage />)
+    const user = (await import('@testing-library/user-event')).default.setup()
+    const rows = await screen.findAllByRole('button')
+    await user.click(rows[0])
+    const pill = await screen.findByRole('link', { name: /to grade|بانتظار التقييم/i })
+    expect(pill.getAttribute('href')).toBe('/dashboard/assessments')
+  })
 })
