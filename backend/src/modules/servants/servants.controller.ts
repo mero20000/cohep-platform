@@ -197,7 +197,7 @@ export class ServantsController {
   @ApiOperation({ summary: 'Record liturgy attendance for multiple students' })
   async recordLiturgyAttendance(
     @CurrentUser() user: any,
-    @Body() body: { records: Array<{ studentId: string; status: 'present' | 'absent' }> },
+    @Body() body: { date?: string; records: Array<{ studentId: string; status: 'present' | 'absent' }> },
   ) {
     const userMeta = (user.metadata as any) || {};
     const groupId = userMeta.groupId as string | undefined;
@@ -220,18 +220,19 @@ export class ServantsController {
       return { success: false, error: 'Cannot determine level' };
     }
 
-    // Get or create a liturgy session for today in this group
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
+    const day = body.date ? new Date(body.date + 'T00:00:00') : new Date();
+    if (isNaN(day.getTime())) throw new BadRequestException('Invalid date, expected YYYY-MM-DD');
+    const target = new Date(day); target.setHours(0, 0, 0, 0);
+    const targetEnd = new Date(target); targetEnd.setDate(targetEnd.getDate() + 1);
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    if (target.getTime() > today.getTime()) throw new BadRequestException('Cannot report liturgy for a future date');
 
     let session = await this.prisma.attendanceSession.findFirst({
       where: {
         groupId,
         levelId,
         status: 'recorded',
-        scheduledDate: { gte: today, lt: tomorrow },
+        scheduledDate: { gte: target, lt: targetEnd },
         notes: 'liturgy',
       },
     });
@@ -244,28 +245,46 @@ export class ServantsController {
           schoolId: user.schoolId,
           servantId: user.id,
           status: 'recorded',
-          scheduledDate: new Date(),
+          scheduledDate: target,
           notes: 'liturgy',
         },
       });
     }
 
+    const existing = await this.prisma.attendanceRecord.findMany({
+      where: { attendanceSessionId: session.id },
+      select: { id: true, studentId: true },
+    });
+    const existingByStudent = new Map(existing.map(r => [r.studentId, r.id]));
+
     const results: any[] = [];
     for (const record of body.records) {
-      const attendanceRecord = await this.prisma.attendanceRecord.create({
-        data: {
-          attendanceSessionId: session.id,
-          studentId: record.studentId,
-          status: record.status,
-          recordedAt: new Date(),
-          recordedBy: user.id,
-          noteCategory: 'liturgy',
-          note: null,
-          isPrivateNote: false,
-          attendedLiturgy: record.status === 'present',
-        },
-      });
-      results.push(attendanceRecord);
+      const existingId = existingByStudent.get(record.studentId);
+      if (existingId) {
+        results.push(await this.prisma.attendanceRecord.update({
+          where: { id: existingId },
+          data: {
+            status: record.status,
+            recordedAt: new Date(),
+            recordedBy: user.id,
+            attendedLiturgy: record.status === 'present',
+          },
+        }));
+      } else {
+        results.push(await this.prisma.attendanceRecord.create({
+          data: {
+            attendanceSessionId: session.id,
+            studentId: record.studentId,
+            status: record.status,
+            recordedAt: new Date(),
+            recordedBy: user.id,
+            noteCategory: 'liturgy',
+            note: null,
+            isPrivateNote: false,
+            attendedLiturgy: record.status === 'present',
+          },
+        }));
+      }
     }
 
     return { success: true, recorded: results.length };
