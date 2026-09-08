@@ -227,7 +227,10 @@ export class ServantsService {
     if (!servant) throw new NotFoundException('User not found');
 
     const records = await this.prisma.familyLiturgy.findMany({
-      where: { status: 'pending', student: { schoolId: servant.schoolId } },
+      // A claim this servant logged themselves (e.g. an admin who also has parent
+      // access) is excluded here rather than just blocked on verify/reject — otherwise
+      // it shows up as an actionable row that always 403s when clicked.
+      where: { status: 'pending', notedBy: { not: userId }, student: { schoolId: servant.schoolId } },
       include: {
         student: {
           select: { id: true, firstName: true, lastName: true, firstNameAr: true, lastNameAr: true },
@@ -268,6 +271,9 @@ export class ServantsService {
     if (record.student.schoolId !== servant?.schoolId) {
       throw new ForbiddenException('Cannot verify liturgy from another school');
     }
+    if (record.notedBy === userId) {
+      throw new ForbiddenException('Cannot verify a liturgy claim you logged yourself');
+    }
 
     const updated = await this.prisma.familyLiturgy.update({
       where: { id },
@@ -304,32 +310,13 @@ export class ServantsService {
       // XP is best-effort
     }
 
-    let badgeAwarded = false;
-    const thresholdCfg = await this.prisma.systemConfig.findUnique({
-      where: { schoolId_key: { schoolId: record.student.schoolId, key: 'liturgy_badge_threshold' } },
-    });
-    const threshold = (thresholdCfg?.value as number) ?? 10;
-
-    const verifiedCount = await this.prisma.familyLiturgy.count({
-      where: { studentId: record.studentId, status: 'verified' },
-    });
-
-    if (verifiedCount >= threshold) {
-      const badge = await this.prisma.badge.findFirst({
-        where: {
-          schoolId: record.student.schoolId,
-          criteria: { path: ['rule'], equals: 'liturgy_total' },
-        },
-      });
-      if (badge) {
-        try {
-          await this.gamification.awardBadge(record.studentId, badge.id);
-          badgeAwarded = true;
-        } catch {
-          // Badge may already be awarded
-        }
-      }
-    }
+    // Route through the standard badge-computation engine rather than re-deriving a
+    // separate threshold here — that engine is the single source of truth for every
+    // badge's own configured criteria.count, and it already counts this verification
+    // (see GamificationService.checkLiturgyTotal, which combines verified FamilyLiturgy
+    // claims with servant roll-call attendance into one canonical total).
+    const { awarded } = await this.gamification.computeBadgesForStudent(record.studentId);
+    const badgeAwarded = awarded > 0;
 
     return { id: updated.id, status: updated.status, badgeAwarded };
   }
@@ -356,6 +343,9 @@ export class ServantsService {
     });
     if (record.student.schoolId !== servant?.schoolId) {
       throw new ForbiddenException('Cannot reject liturgy from another school');
+    }
+    if (record.notedBy === userId) {
+      throw new ForbiddenException('Cannot reject a liturgy claim you logged yourself');
     }
 
     const trimmed = reason?.trim() || null;

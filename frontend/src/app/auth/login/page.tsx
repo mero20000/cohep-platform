@@ -50,6 +50,7 @@ export default function LoginPage() {
   const [showForgot, setShowForgot] = useState(false)
   const [coldStartWarning, setColdStartWarning] = useState(false)
   const [isDemoLoading, setIsDemoLoading] = useState(false)
+  const [demoExpiredNotice, setDemoExpiredNotice] = useState(false)
   const [schoolSuggestions, setSchoolSuggestions] = useState<Array<{slug:string;name:string;nameAr?:string;churchName?:string;churchNameAr?:string;city?:string;label:string}>>([])
   const [schoolSearchLoading, setSchoolSearchLoading] = useState(false)
   const [showSuggestions, setShowSuggestions] = useState(false)
@@ -120,7 +121,21 @@ export default function LoginPage() {
       const res = await fetch(API + '/demo/session', { method: 'POST', headers: { 'Content-Type': 'application/json' } })
       if (!res.ok) throw new Error('Demo unavailable')
       const data = await res.json()
+      // A real staff session may still be sitting in localStorage (e.g. someone
+      // navigates back to /auth/login and clicks Try Demo). Clearing it fully —
+      // not just overwriting the access token — matters because a stale real
+      // niangelos_refresh_token would otherwise still be there when the short-lived
+      // demo token expires, and http-client's 401 handler would refresh straight
+      // back into the real account instead of ending the demo session.
+      localStorage.removeItem('niangelos_refresh_token')
+      localStorage.removeItem('niangelos_active_school')
+      localStorage.removeItem('user')
+      localStorage.removeItem('token')
       localStorage.setItem('demo', '1')
+      // Mirrors the 30-minute lifetime the backend signs into the guest JWT
+      // (DemoService.mintGuestToken) so the banner can count down to it without
+      // decoding the token.
+      localStorage.setItem('demo_expires_at', String(Date.now() + 30 * 60 * 1000))
       localStorage.setItem('niangelos_token', data.accessToken)
       router.push('/dashboard')
     } catch (e) { setError('Demo unavailable — please try again') }
@@ -136,6 +151,12 @@ export default function LoginPage() {
     if (params.get('demo') === '1') {
       autoDemoRef.current = true
       handleDemo()
+    }
+    // http-client sends a guest back here with this flag once their 30-minute demo
+    // token expires, so the visitor lands on an explained state rather than a bare
+    // login page with no idea what just happened.
+    if (params.get('demoExpired') === '1') {
+      setDemoExpiredNotice(true)
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -290,6 +311,21 @@ export default function LoginPage() {
 
           <div className="rounded-2xl border border-gray-200 bg-white p-6 sm:p-8 shadow-sm">
             <form onSubmit={handleSubmit} noValidate className="space-y-5">
+              {demoExpiredNotice && (
+                <div
+                  role="status"
+                  className="rounded-xl bg-blue-50 border border-blue-200 px-4 py-3 text-sm text-blue-700 flex items-start gap-3"
+                >
+                  <div className="flex h-5 w-5 items-center justify-center rounded-full bg-blue-100 flex-shrink-0 mt-0.5">
+                    <span className="text-xs font-bold text-blue-600">i</span>
+                  </div>
+                  <span>
+                    {isAr
+                      ? 'انتهت جلسة التجربة بعد ٣٠ دقيقة. يمكنك بدء تجربة جديدة في أي وقت.'
+                      : 'Your 30-minute demo session ended. You can start a new demo anytime.'}
+                  </span>
+                </div>
+              )}
               {error && (
                 <div
                   ref={errorRef}

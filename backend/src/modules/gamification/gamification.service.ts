@@ -481,9 +481,19 @@ export class GamificationService {
   }
 
   private async checkLiturgyTotal(student: { id: string }, count: number): Promise<BadgeCheckResult> {
-    const total = await this.prisma.attendanceRecord.count({
-      where: { studentId: student.id, attendedLiturgy: true },
-    });
+    // Liturgy attendance has two legitimate sources that both count toward the same
+    // total: a servant's own roll-call at a liturgy session (attendedLiturgy on
+    // AttendanceRecord), and a parent-logged claim once a servant has verified it
+    // (FamilyLiturgy.status === 'verified'). Unverified family claims do not count.
+    const [attended, verifiedFamily] = await Promise.all([
+      this.prisma.attendanceRecord.count({
+        where: { studentId: student.id, attendedLiturgy: true },
+      }),
+      this.prisma.familyLiturgy.count({
+        where: { studentId: student.id, status: 'verified' },
+      }),
+    ]);
+    const total = attended + verifiedFamily;
     return {
       badgeId: '',
       earned: total >= count,
