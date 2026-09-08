@@ -37,6 +37,119 @@ async function main() {
   });
   console.log('School ready:', school.name);
 
+  // ── Demo school fixture (niangelos-demo, 8-hymn / 10-badge slice) ──────
+  // Always seeded and idempotent: ephemeral demo guests are stateless (no
+  // user row), so the demo school + curated fixture must exist independent
+  // of SEED_DEMO_USERS. Guests read via hymn-map code; writes stay 403
+  // because `demo_viewer` is in no @Roles(...) set (see RolesGuard).
+  const demoSchool = await prisma.school.upsert({
+    where: { slug: 'niangelos-demo' },
+    update: {},
+    create: {
+      churchId: church.id,
+      name: 'COHEP Demo School',
+      nameAr: 'مدرسة كوهيب التجريبية',
+      slug: 'niangelos-demo',
+      timezone: 'America/New_York',
+      locale: 'en',
+    },
+  });
+  console.log('Demo school ready:', demoSchool.name);
+
+  let demoSubject = await prisma.subject.findFirst({
+    where: { schoolId: demoSchool.id, name: 'Coptic Hymns' },
+  });
+  if (!demoSubject) {
+    demoSubject = await prisma.subject.create({
+      data: {
+        schoolId: demoSchool.id,
+        name: 'Coptic Hymns',
+        nameAr: 'التراتيل القبطية',
+        nameCoptic: 'ⲛⲓϩⲱⲥ',
+        description: 'Demo curriculum slice (Levels 1-2)',
+        orderIndex: 1,
+      },
+    });
+  }
+
+  // 8-hymn slice: Levels 1-2 only (L1 x5, L2 x3), per demo spec.
+  const demoHymnCount = await prisma.subjectItem.count({
+    where: { subject: { schoolId: demoSchool.id } },
+  });
+  if (demoHymnCount === 0) {
+    const demoHymns: { name: string; nameAr: string; nameCoptic: string; levelNumber: number; orderIndex: number }[] = [
+      { name: 'Welcome Hymn', nameAr: 'ترنيمة الترحيب', nameCoptic: 'Ⲡⲓϩⲱⲥ ⲛ̀ϯϣⲟⲣⲡ̀', levelNumber: 1, orderIndex: 1 },
+      { name: 'Psalm 150', nameAr: 'المزمور 150', nameCoptic: 'Ⲫⲁⲗⲙⲟⲥ ⲣ̅ⲛ̅', levelNumber: 1, orderIndex: 2 },
+      { name: 'Kyrie Eleison', nameAr: 'كيرياليسون', nameCoptic: 'Ⲕⲩⲣⲓⲉ ⲉ̀ⲗⲉⲏⲥⲟⲛ', levelNumber: 1, orderIndex: 3 },
+      { name: 'Shere Ne Maria', nameAr: 'شيري ني ماريا', nameCoptic: 'Ϣⲏⲣⲉ ⲛⲉ Ⲙⲁⲣⲓⲁ', levelNumber: 1, orderIndex: 4 },
+      { name: 'Credo', nameAr: 'قانون الإيمان', nameCoptic: 'Ⲡⲓⲥ̀ⲧⲉⲩⲙⲁ', levelNumber: 1, orderIndex: 5 },
+      { name: 'Doxology of the Apostles', nameAr: 'ذكصولوجية الرسل', nameCoptic: 'Ⲇⲟⲝⲟⲗⲟⲅⲓⲁ ⲛ̀ⲧⲉ ⲛⲓⲁ̀ⲡⲟⲥⲧⲟⲗⲟⲥ', levelNumber: 2, orderIndex: 6 },
+      { name: 'Trisagion', nameAr: 'الثلاثة تقديسات', nameCoptic: 'Ⲁ̀ⲅⲓⲟⲥ', levelNumber: 2, orderIndex: 7 },
+      { name: 'Intercessions', nameAr: 'الشفاعات', nameCoptic: 'Ⲛⲓϣ̀ⲫⲁⲩⲓⲁ', levelNumber: 2, orderIndex: 8 },
+    ];
+    for (const h of demoHymns) {
+      const created = await prisma.subjectItem.create({
+        data: {
+          subjectId: demoSubject.id,
+          name: h.name,
+          nameAr: h.nameAr,
+          nameCoptic: h.nameCoptic,
+          orderIndex: h.orderIndex,
+          metadata: { demo: true },
+          active: true,
+          status: 'published',
+          educationLanguages: ['coptic', 'arabic', 'english'],
+          whenLabel: `Year ${h.levelNumber}`,
+        },
+      });
+      await prisma.subjectItemLevel.create({
+        data: { subjectItemId: created.id, levelNumber: h.levelNumber },
+      });
+    }
+    console.log('Created demo 8-hymn slice');
+  } else {
+    console.log('Demo hymns already exist:', demoHymnCount);
+  }
+
+  // 10-badge slice. Nothing is awarded: guests have no user/student row,
+  // so every badge starts locked. Criteria rules match the engine's known
+  // rule names (see GamificationService.computeBadgesForStudent).
+  const demoBadgeCount = await prisma.badge.count({
+    where: { schoolId: demoSchool.id },
+  });
+  if (demoBadgeCount === 0) {
+    const demoBadges: { name: string; description: string; category: string; iconUrl: string; xpReward: number; criteria: Record<string, string | number> }[] = [
+      { name: 'First Steps', description: 'Log your first practice session', category: 'practice', iconUrl: 'footprints', xpReward: 20, criteria: { rule: 'practice_total', count: 1 } },
+      { name: 'Faithful Beginner', description: 'Attend your first liturgy', category: 'worship', iconUrl: 'church', xpReward: 30, criteria: { rule: 'liturgy_total', count: 1 } },
+      { name: 'Steady Learner', description: 'Log 5 practice sessions', category: 'practice', iconUrl: 'repeat', xpReward: 60, criteria: { rule: 'practice_total', count: 5 } },
+      { name: 'Rising Voice', description: 'Submit 3 practice recordings', category: 'learning', iconUrl: 'mic', xpReward: 50, criteria: { rule: 'recordings_submitted', count: 3 } },
+      { name: 'Hymn Keeper', description: 'Pass 5 hymns', category: 'learning', iconUrl: 'music', xpReward: 80, criteria: { rule: 'subject_items_passed', count: 5 } },
+      { name: 'Week Warrior', description: '2-week attendance streak', category: 'attendance', iconUrl: 'flame', xpReward: 60, criteria: { rule: 'attendance_streak', weeks: 2 } },
+      { name: 'Worship Regular', description: 'Attend 10 sessions', category: 'attendance', iconUrl: 'calendar-check', xpReward: 100, criteria: { rule: 'attendance_total', count: 10 } },
+      { name: 'Quiz Star', description: '3 assessments in a row', category: 'assessment', iconUrl: 'star', xpReward: 70, criteria: { rule: 'assessment_streak', count: 3 } },
+      { name: 'XP Collector', description: 'Earn 340 XP', category: 'milestone', iconUrl: 'trophy', xpReward: 40, criteria: { rule: 'xp_total', xp: 340 } },
+      { name: 'Level 2 Ready', description: 'Reach 500 points', category: 'milestone', iconUrl: 'award', xpReward: 100, criteria: { rule: 'points_total', points: 500 } },
+    ];
+    for (const b of demoBadges) {
+      await prisma.badge.create({
+        data: {
+          schoolId: demoSchool.id,
+          name: b.name,
+          description: b.description,
+          category: b.category,
+          iconUrl: b.iconUrl,
+          xpReward: b.xpReward,
+          criteria: b.criteria,
+          isActive: true,
+          metadata: { demo: true },
+        },
+      });
+    }
+    console.log('Created demo 10-badge slice');
+  } else {
+    console.log('Demo badges already exist:', demoBadgeCount);
+  }
+
   // ── Academic year ──────────────────────────────────────────────────────
   let academicYear = await prisma.academicYear.findFirst({
     where: { schoolId: school.id, name: '2026-2027' },
