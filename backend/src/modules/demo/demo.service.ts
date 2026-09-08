@@ -25,7 +25,7 @@ export class DemoService {
 
   async mintGuestToken(_ip: string): Promise<{ accessToken: string }> {
     const schoolId = await this.ensureDemoSchool();
-    const payload = { sub: 'demo-guest', role: 'demo_viewer', schoolId, demo: true };
+    const payload = { sub: 'demo-guest', role: 'demo_viewer', schoolId, demo: true, code: 'demo-guest' };
     const accessToken = await this.jwt.signAsync(payload, { expiresIn: '30m' });
     return { accessToken };
   }

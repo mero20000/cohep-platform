@@ -79,4 +79,23 @@ describe('Demo guest (e2e)', () => {
       .send({})
       .expect(403);
   });
+
+  it('guest reads the demo student portal fixture', async () => {
+    const demoRes = await request(app.getHttpServer())
+      .post('/api/demo/session')
+      .expect(201);
+    const token = demoRes.body.accessToken;
+
+    // Guest JWT carries code:'demo-guest', matching the route param, so the
+    // untouched StudentPortalAuthGuard lets it through to the seeded demo
+    // student (Level 2, Group 1A).
+    const res = await request(app.getHttpServer())
+      .get('/api/student-portal/demo-guest')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200);
+    expect(res.body.student.firstName).toBe('Demo');
+    expect(res.body.student.lastName).toBe('Student');
+    expect(res.body.student.level.number).toBe(2);
+    expect(res.body.student.group.name).toBe('1A');
+  });
 });

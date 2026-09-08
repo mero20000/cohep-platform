@@ -150,6 +150,85 @@ async function main() {
     console.log('Demo badges already exist:', demoBadgeCount);
   }
 
+  // ── Demo student (portal code 'demo-guest', Level 2, Group 1A) ─────────
+  // The guest JWT minted by DemoService carries `code: 'demo-guest'`, and
+  // StudentPortalAuthGuard requires payload.code === route param (guard
+  // untouched), so the demo student must own portalAccessKey 'demo-guest'
+  // for GET /api/student-portal/demo-guest to return 200. Idempotent:
+  // findFirst-then-create for every row (academic year, Level 2, Group 1A,
+  // student).
+  let demoAcademicYear = await prisma.academicYear.findFirst({
+    where: { schoolId: demoSchool.id },
+  });
+  if (!demoAcademicYear) {
+    demoAcademicYear = await prisma.academicYear.create({
+      data: {
+        schoolId: demoSchool.id,
+        name: '2026-2027',
+        startDate: new Date('2026-09-01'),
+        endDate: new Date('2027-06-30'),
+        isCurrent: true,
+      },
+    });
+    console.log('Created demo academic year');
+  }
+  let demoLevel2 = await prisma.level.findFirst({
+    where: { schoolId: demoSchool.id, number: 2 },
+  });
+  if (!demoLevel2) {
+    demoLevel2 = await prisma.level.create({
+      data: {
+        schoolId: demoSchool.id,
+        number: 2,
+        name: 'Level 2',
+        nameAr: 'المستوى 2',
+        description: 'Demo level 2',
+        orderIndex: 2,
+      },
+    });
+    console.log('Created demo Level 2');
+  }
+  let demoGroup = await prisma.group.findFirst({
+    where: { schoolId: demoSchool.id, name: '1A' },
+  });
+  if (!demoGroup) {
+    demoGroup = await prisma.group.create({
+      data: {
+        schoolId: demoSchool.id,
+        name: '1A',
+        nameAr: 'المجموعة 1A',
+        capacity: 30,
+        orderIndex: 1,
+      },
+    });
+    console.log('Created demo Group 1A');
+  }
+  const demoStudentExisting = await prisma.student.findFirst({
+    where: { schoolId: demoSchool.id, portalAccessKey: 'demo-guest' },
+  });
+  if (!demoStudentExisting) {
+    await prisma.student.create({
+      data: {
+        schoolId: demoSchool.id,
+        academicYearId: demoAcademicYear.id,
+        studentCode: 'DEMO-0001',
+        portalAccessKey: 'demo-guest',
+        firstName: 'Demo',
+        lastName: 'Student',
+        dateOfBirth: new Date(2014, 0, 15),
+        gender: 'male',
+        churchName: 'St. Mark Coptic Orthodox Church',
+        levelId: demoLevel2.id,
+        groupId: demoGroup.id,
+        status: 'active',
+        enrollmentDate: new Date('2026-09-01'),
+      },
+    });
+    console.log('Created demo student (portalAccessKey demo-guest)');
+  } else {
+    console.log('Demo student already exists:', demoStudentExisting.studentCode);
+  }
+
   // ── Academic year ──────────────────────────────────────────────────────
   let academicYear = await prisma.academicYear.findFirst({
     where: { schoolId: school.id, name: '2026-2027' },
