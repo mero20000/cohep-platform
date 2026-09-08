@@ -47,6 +47,10 @@ describe('demoLoginRequest', () => {
   it('demoLoginRequest posts to /demo/session', async () => {
     fetchMock.mockResolvedValueOnce(jsonRes(201, { accessToken: 'demo-jwt' }))
     await expect(demoLoginRequest()).resolves.toEqual({ accessToken: 'demo-jwt' })
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining('/demo/session'),
+      expect.objectContaining({ method: 'POST' }),
+    )
   })
 })
 
