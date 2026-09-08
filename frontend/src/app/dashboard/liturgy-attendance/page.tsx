@@ -1,8 +1,10 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import Image from 'next/image'
 import { Church, Check, X, AlertCircle, Save, Search } from 'lucide-react'
 import { http } from '@/lib/http-client'
+import { photoSrc } from '@/app/dashboard/students/_components/student-types'
 import { useLanguage } from '@/lib/use-language'
 import { Button } from '@/components/ui/button'
 import { DatePicker } from '@/components/ui/date-picker'
@@ -265,9 +267,11 @@ export default function LiturgyAttendancePage() {
             {/* Photo */}
             <div className="h-10 w-10 flex-shrink-0 overflow-hidden rounded-full bg-gray-100">
               {student.photoUrl ? (
-                <img
-                  src={student.photoUrl}
+                <Image
+                  src={photoSrc(student.photoUrl)}
                   alt={student.firstName}
+                  width={40}
+                  height={40}
                   className="h-full w-full object-cover"
                 />
               ) : (

@@ -14,6 +14,7 @@ vi.mock('next/link', () => ({
 }))
 
 vi.mock('next/image', () => ({
+  // eslint-disable-next-line @next/next/no-img-element -- test stub for next/image, not real markup
   default: (props: any) => <img {...props} alt={props.alt || ''} />,
 }))
 

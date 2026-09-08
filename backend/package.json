@@ -100,6 +100,14 @@
     ],
     "rootDir": "src",
     "testRegex": ".*\\.spec\\.ts$",
+    "transformIgnorePatterns": [
+      "/node_modules/(?!(@nestjs|uuid)/)"
+    ],
+    "moduleNameMapper": {
+      "utils/load-package\\.util(\\.js)?$": "<rootDir>/../test/nest-load-package-util.shim.cjs",
+      "type-helpers\\.utils(\\.js)?$": "<rootDir>/../test/nest-mapped-types-utils.shim.cjs",
+      "swagger-module(\\.js)?$": "<rootDir>/../test/nest-swagger-module.shim.cjs"
+    },
     "transform": {
       "^.+\\.(t|j)s$": [
         "ts-jest",
