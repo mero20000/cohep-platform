@@ -269,11 +269,13 @@ it('imports valid rows sending the default password', async () => {
   await userEvent.upload(screen.getByLabelText('CSV file'), file)
   await waitFor(() => expect(screen.getByText('Mina Gad')).toBeInTheDocument())
   await userEvent.click(within(screen.getByRole('dialog')).getByText('Import'))
-  await waitFor(() => expect(mockPost).toHaveBeenCalledWith('/users', expect.objectContaining({
-    password: 'Password123!',
-    email: 'mina@x.com',
-    metadata: expect.objectContaining({ levelId: 'level-1', groupId: 'group-1', teachingSubjects: ['coptic_hymns'] }),
-  })))
+  await waitFor(() => expect(mockPost).toHaveBeenCalledWith('/users/bulk-import', expect.objectContaining({
+    users: expect.arrayContaining([expect.objectContaining({
+      password: 'Password123!',
+      email: 'mina@x.com',
+      metadata: expect.objectContaining({ levelId: 'level-1', groupId: 'group-1', teachingSubjects: ['coptic_hymns'] }),
+    })]),
+  }), expect.anything()))
 })
 
 it('uses a valid fallback email for CSV rows without an email', async () => {
@@ -284,9 +286,11 @@ it('uses a valid fallback email for CSV rows without an email', async () => {
   await userEvent.upload(screen.getByLabelText('CSV file'), file)
   await waitFor(() => expect(screen.getByText('Mina Gad')).toBeInTheDocument())
   await userEvent.click(within(screen.getByRole('dialog')).getByText('Import'))
-  await waitFor(() => expect(mockPost).toHaveBeenCalledWith('/users', expect.objectContaining({
-    email: 'mina.gad@servant.example.com',
-  })))
+  await waitFor(() => expect(mockPost).toHaveBeenCalledWith('/users/bulk-import', expect.objectContaining({
+    users: expect.arrayContaining([expect.objectContaining({
+      email: 'mina.gad@servant.example.com',
+    })]),
+  }), expect.anything()))
 })
 
 it('filters servants by gender', async () => {

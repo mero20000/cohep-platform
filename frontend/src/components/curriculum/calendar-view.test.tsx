@@ -4,7 +4,7 @@ import { CalendarView } from './calendar-view'
 import type { SubjectItem, Level, Subject, AcademicWeek } from './types'
 
 vi.mock('lucide-react', () => {
-  const names = ['Music2', 'Cross', 'Church', 'BookOpen', 'Star', 'ChevronRight', 'Loader2', 'Trash2', 'GripVertical', 'X', 'CalendarDays', 'Grid3x3', 'Calendar', 'GraduationCap', 'Search', 'Plus', 'Pencil', 'Presentation', 'Clock', 'CheckCircle2', 'Circle', 'Eye', 'EyeOff', 'Languages', 'CalendarCheck', 'BarChart3', 'Filter']
+  const names = ['Music2', 'Cross', 'Church', 'BookOpen', 'Star', 'ChevronRight', 'Loader2', 'Trash2', 'GripVertical', 'X', 'CalendarDays', 'Grid3x3', 'Calendar', 'GraduationCap', 'Search', 'Plus', 'Pencil', 'Presentation', 'Clock', 'CheckCircle2', 'Circle', 'Eye', 'EyeOff', 'Languages', 'CalendarCheck', 'BarChart3', 'Filter', 'RotateCcw', 'ClipboardCheck']
   const icons: Record<string, any> = {}
   for (const n of names) icons[n] = (props: any) => <span data-testid={`icon-${n}`} {...props} />
   return icons
@@ -68,7 +68,11 @@ describe('CalendarView', () => {
     const itemEl = screen.getByText('Tenħo').closest('[draggable]') as HTMLElement
     const dt = { setData: () => {}, getData: () => '', dropEffect: '', effectAllowed: '' }
     fireEvent.dragStart(itemEl, { dataTransfer: dt })
-    const dropCell = container.querySelector('.border-dashed') as HTMLElement
+    // Scoped to the calendar table itself: the sidebar's "Review Session" and
+    // "Finalize Term Assessment" drag sources (rendered before the grid) use the
+    // same border-dashed styling for their own empty-state look, so an unscoped
+    // '.border-dashed' query grabs one of those instead of an actual drop cell.
+    const dropCell = container.querySelector('table .border-dashed') as HTMLElement
     expect(dropCell).toBeTruthy()
     fireEvent.dragOver(dropCell, { dataTransfer: dt })
     fireEvent.drop(dropCell, { dataTransfer: dt })
