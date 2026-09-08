@@ -5,6 +5,7 @@ import { Church, Check, X, AlertCircle, Save, Search } from 'lucide-react'
 import { http } from '@/lib/http-client'
 import { useLanguage } from '@/lib/use-language'
 import { Button } from '@/components/ui/button'
+import { DatePicker } from '@/components/ui/date-picker'
 import { useToast } from '@/components/ui/toast'
 import { TableSkeleton } from '@/components/ui/skeleton'
 
@@ -33,6 +34,7 @@ export default function LiturgyAttendancePage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [search, setSearch] = useState('')
+  const [date, setDate] = useState(() => new Date().toISOString().split('T')[0])
   const mountedRef = useRef(true)
 
   useEffect(() => {
@@ -40,10 +42,10 @@ export default function LiturgyAttendancePage() {
     return () => { mountedRef.current = false }
   }, [])
 
-  const loadSession = useCallback(async () => {
+  const loadSession = useCallback(async (day: string) => {
     try {
       setLoading(true)
-      const data = await http.get<LiturgySession>('/servants/liturgy-session')
+      const data = await http.get<LiturgySession>('/servants/liturgy-session', { date: day })
       if (mountedRef.current) setSession(data)
     } catch (err: any) {
       console.error('Liturgy session load error:', err)
@@ -57,8 +59,8 @@ export default function LiturgyAttendancePage() {
   }, [t, toast])
 
   useEffect(() => {
-    loadSession()
-  }, [loadSession])
+    loadSession(date)
+  }, [loadSession, date])
 
   const filteredStudents = useMemo(() => {
     if (!session?.students) return []
@@ -97,9 +99,9 @@ export default function LiturgyAttendancePage() {
           status: s.status,
         }))
 
-      await http.post('/servants/liturgy-attendance', { records })
+      await http.post('/servants/liturgy-attendance', { date, records })
       toast('success', t('Liturgy attendance saved', 'تم حفظ حضور القداس'))
-      loadSession()
+      loadSession(date)
     } catch {
       toast('error', t('Failed to save attendance', 'فشل حفظ الحضور'))
     } finally {
@@ -156,6 +158,14 @@ export default function LiturgyAttendancePage() {
           <div className="text-2xl font-bold text-gray-900">
             {recordedCount}/{session.students.length}
           </div>
+        </div>
+      </div>
+
+      {/* Date */}
+      <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-end">
+        <div className="sm:max-w-xs sm:flex-1">
+          <label className="mb-1.5 block text-sm font-medium text-gray-700">{t('Date', 'التاريخ')}</label>
+          <DatePicker value={date} onChange={setDate} max={new Date().toISOString().split('T')[0]} />
         </div>
       </div>
 
@@ -263,7 +273,7 @@ export default function LiturgyAttendancePage() {
       <div className="sticky bottom-16 lg:bottom-0 bg-white/95 backdrop-blur border-t border-gray-200 p-4 -mx-4 sm:-mx-6 lg:-mx-8 mt-6 pb-[max(1rem,env(safe-area-inset-bottom))]">
         <div className="mx-4 sm:mx-6 lg:mx-8 flex gap-2">
           <Button
-            onClick={loadSession}
+            onClick={() => loadSession(date)}
             variant="outline"
             disabled={saving}
           >
