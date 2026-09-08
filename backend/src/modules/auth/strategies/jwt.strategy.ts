@@ -32,6 +32,11 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
 
   async validate(payload: any) {
     if (payload?.demo === true && payload?.role === 'demo_viewer') {
+      // TenantScopeGuard skips checks when schoolId is falsy — a demo token
+      // without a school would silently escape tenant scoping. Reject it.
+      if (!payload.schoolId) {
+        throw new UnauthorizedException('Demo token missing school scope');
+      }
       return {
         id: 'demo-guest',
         email: 'guest@demo',

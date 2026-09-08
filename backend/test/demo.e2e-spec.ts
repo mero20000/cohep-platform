@@ -98,4 +98,59 @@ describe('Demo guest (e2e)', () => {
     expect(res.body.student.level.number).toBe(2);
     expect(res.body.student.group.name).toBe('1A');
   });
+
+  it('guest writes are denied as demo_read_only (portal + hymn-learning)', async () => {
+    const demoRes = await request(app.getHttpServer())
+      .post('/api/demo/session')
+      .expect(201);
+    const token = demoRes.body.accessToken;
+
+    // Portal mutating routes pass the code check for the guest, so the
+    // demo-aware guard must deny them explicitly.
+    await request(app.getHttpServer())
+      .post('/api/student-portal/demo-guest/practice')
+      .set('Authorization', `Bearer ${token}`)
+      .send({})
+      .expect(403);
+
+    // Hymn-learning mutating routes are STAFF-only, so demo_viewer is denied.
+    await request(app.getHttpServer())
+      .post('/api/hymn-learning/practice')
+      .set('Authorization', `Bearer ${token}`)
+      .send({})
+      .expect(403);
+  });
+
+  it('guest reads scoped to the demo school reject foreign studentId', async () => {
+    const demoRes = await request(app.getHttpServer())
+      .post('/api/demo/session')
+      .expect(201);
+    const token = demoRes.body.accessToken;
+
+    // A studentId that does not belong to the demo school is rejected.
+    await request(app.getHttpServer())
+      .get('/api/hymn-learning/map?studentId=00000000-0000-0000-0000-000000000000')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(403);
+  });
+
+  it('demo session minting is throttled (6th rapid POST -> 429)', async () => {
+    // Fresh app instance so the throttle counter starts at zero.
+    const throttledFixture: TestingModule = await Test.createTestingModule({
+      imports: [AppModule],
+    }).compile();
+    const throttledApp = throttledFixture.createNestApplication();
+    throttledApp.setGlobalPrefix('api');
+    await throttledApp.init();
+    try {
+      let lastStatus = 0;
+      for (let i = 0; i < 6; i++) {
+        const res = await request(throttledApp.getHttpServer()).post('/api/demo/session');
+        lastStatus = res.status;
+      }
+      expect(lastStatus).toBe(429);
+    } finally {
+      await throttledApp.close();
+    }
+  });
 });

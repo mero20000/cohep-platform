@@ -1,6 +1,7 @@
-import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common';
+import { CanActivate, ExecutionContext, ForbiddenException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { JwtService } from '@nestjs/jwt';
+import { ConfigService } from '@nestjs/config';
 
 export const SKIP_PORTAL_AUTH = 'skipPortalAuth';
 
@@ -19,6 +20,7 @@ export class StudentPortalAuthGuard implements CanActivate {
   constructor(
     private readonly jwt: JwtService,
     private readonly reflector: Reflector,
+    private readonly configService: ConfigService,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -33,21 +35,35 @@ export class StudentPortalAuthGuard implements CanActivate {
     if (!header?.startsWith('Bearer ')) {
       throw new UnauthorizedException('Missing portal session token');
     }
+    const secret = this.configService?.get<string>('JWT_SECRET') ?? process.env.JWT_SECRET;
+    let payload: any;
     try {
-      const payload = await this.jwt.verifyAsync(header.slice(7), {
-        secret: process.env.JWT_SECRET,
-      });
-      // Only portal-session tokens qualify: they carry the portal code, and it
-      // must match the code/portalAccessKey param on the route (the main data
-      // route names its param :portalAccessKey while sub-routes use :code).
-      const routeCode: string | undefined = request.params?.code ?? request.params?.portalAccessKey;
-      if (!payload.code || !routeCode || payload.code !== routeCode) {
-        throw new UnauthorizedException('Token does not match this portal');
-      }
-      request.portalStudent = { id: payload.sub, code: payload.code };
-      return true;
+      payload = await this.jwt.verifyAsync(header.slice(7), { secret });
     } catch {
       throw new UnauthorizedException('Invalid or expired portal session');
     }
+    // Only portal-session tokens qualify: they carry the portal code, and it
+    // must match the code/portalAccessKey param on the route (the main data
+    // route names its param :portalAccessKey while sub-routes use :code).
+    const routeCode: string | undefined = request.params?.code ?? request.params?.portalAccessKey;
+    if (!payload.code || !routeCode || payload.code !== routeCode) {
+      throw new UnauthorizedException('Token does not match this portal');
+    }
+    // Demo guest is read-only: the guest JWT (code 'demo-guest') may read the
+    // demo fixture but must never mutate through portal routes.
+    const roles: string[] = Array.isArray(payload.roles)
+      ? payload.roles
+      : typeof payload.role === 'string'
+        ? [payload.role]
+        : [];
+    const isDemo = payload.demo === true || roles.includes('demo_viewer');
+    if (isDemo) {
+      const method = (request.method ?? 'GET').toUpperCase();
+      if (method !== 'GET' && method !== 'HEAD' && method !== 'OPTIONS') {
+        throw new ForbiddenException('demo_read_only');
+      }
+    }
+    request.portalStudent = { id: payload.sub, code: payload.code };
+    return true;
   }
 }

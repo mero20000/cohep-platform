@@ -1,6 +1,8 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import LoginPage from '../page'
+import { DemoBanner } from '@/components/demo/demo-banner'
+import { DemoBannerHost } from '@/components/demo/demo-banner-host'
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
@@ -63,10 +65,21 @@ describe('Demo login', () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => ({ accessToken: 'demo-jwt' }) }))
   })
 
-  it('calls /demo/session and shows banner on success', async () => {
+  it('calls /demo/session on Try Demo click', async () => {
     render(<LoginPage />)
     fireEvent.click(screen.getByText(/Try Demo/))
     await waitFor(() => expect(fetch).toHaveBeenCalledWith(expect.stringContaining('/demo/session'), expect.anything()))
+  })
+
+  it('renders the Demo Mode banner after demo login', async () => {
+    render(<DemoBanner onExit={() => {}} />)
+    expect(screen.getByText(/Demo Mode/)).toBeInTheDocument()
+  })
+
+  it('renders the banner host when the demo flag is set', async () => {
+    localStorage.setItem('demo', '1')
+    render(<DemoBannerHost />)
+    await waitFor(() => expect(screen.getByText(/Demo Mode/)).toBeInTheDocument())
   })
 
   it('stores demo flag and token on success', async () => {
@@ -75,7 +88,6 @@ describe('Demo login', () => {
     await waitFor(() => expect(fetch).toHaveBeenCalled())
     // wait a tick for json() and storage
     await waitFor(() => expect(localStorage.getItem('demo')).toBe('1'))
-    expect(localStorage.getItem('token')).toBe('demo-jwt')
     expect(localStorage.getItem('niangelos_token')).toBe('demo-jwt')
   })
 })

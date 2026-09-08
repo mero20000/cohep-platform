@@ -11,7 +11,7 @@ describe('DemoService', () => {
       providers: [DemoService, { provide: JwtService, useValue: jwt }, { provide: PrismaService, useValue: prisma }],
     }).compile();
     const svc = mod.get(DemoService);
-    const res = await svc.mintGuestToken('1.2.3.4');
+    const res = await svc.mintGuestToken();
     expect(res.accessToken).toBe('jwt-token');
     expect(jwt.signAsync).toHaveBeenCalledWith(
       expect.objectContaining({ sub: 'demo-guest', role: 'demo_viewer', demo: true }),

@@ -1,4 +1,4 @@
-import { Controller, Post, Req } from '@nestjs/common';
+import { Controller, Post } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { Public } from '../../common/decorators/public.decorator';
 import { DemoService } from './demo.service';
@@ -10,8 +10,8 @@ export class DemoController {
   @Public()
   @Throttle({ default: { limit: 5, ttl: 3600000 } })
   @Post('session')
-  async create(@Req() req: any) {
-    const ip = req.ip || req.headers['x-forwarded-for'] || 'unknown';
-    return this.demo.mintGuestToken(Array.isArray(ip) ? ip[0] : ip);
+  async create() {
+    // Rate-limited by the @Throttle guard above (5/hour); no per-IP keying.
+    return this.demo.mintGuestToken();
   }
 }

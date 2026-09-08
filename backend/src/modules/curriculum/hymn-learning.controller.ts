@@ -1,6 +1,8 @@
-import { Controller, Get, Post, Patch, Param, Body, Query, Req, UseGuards } from '@nestjs/common'
+import { Controller, Get, Post, Patch, Param, Body, Query, Req, UseGuards, ForbiddenException } from '@nestjs/common'
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger'
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard'
+import { Roles, STAFF_ROLES } from '../../common/decorators/roles.decorator'
+import { PrismaService } from '../../database/prisma.service'
 import { HymnLearningService } from './hymn-learning.service'
 
 @ApiTags('hymn-learning')
@@ -8,9 +10,28 @@ import { HymnLearningService } from './hymn-learning.service'
 @UseGuards(JwtAuthGuard)
 @Controller('hymn-learning')
 export class HymnLearningController {
-  constructor(private readonly svc: HymnLearningService) {}
+  constructor(private readonly svc: HymnLearningService, private readonly prisma: PrismaService) {}
+
+  /**
+   * Demo guest reads are scoped to the demo school: an explicit ?studentId
+   * that resolves outside the caller's school is rejected. Non-demo callers
+   * and reads without an explicit studentId are unchanged.
+   */
+  private async assertDemoStudentScope(req: any, explicitStudentId?: string): Promise<void> {
+    const roles: string[] = Array.isArray(req.user?.roles) ? req.user.roles : [];
+    if (!roles.includes('demo_viewer')) return;
+    if (!explicitStudentId) return;
+    const student = await this.prisma.student.findUnique({
+      where: { id: explicitStudentId },
+      select: { schoolId: true },
+    });
+    if (!student || student.schoolId !== req.user?.schoolId) {
+      throw new ForbiddenException('Access to the requested student is not permitted');
+    }
+  }
 
   @Post('practice')
+  @Roles(...STAFF_ROLES)
   @ApiOperation({ summary: 'Log a practice session for a hymn (runs SM-2)' })
   async logPractice(@Req() req: any, @Body() body: {
     lessonId: string
@@ -27,6 +48,7 @@ export class HymnLearningController {
   @Get('map')
   @ApiOperation({ summary: 'Get hymn progress map for a student' })
   async getMap(@Req() req: any, @Query('studentId') studentId?: string) {
+    await this.assertDemoStudentScope(req, studentId);
     const sid = studentId ?? req.user.id
     const schoolId = req.user.schoolId ?? req.user.currentSchoolId
     return this.svc.getStudentHymnMap(sid, schoolId)
@@ -35,6 +57,7 @@ export class HymnLearningController {
   @Get('due-review')
   @ApiOperation({ summary: 'Get hymns due for spaced repetition review today' })
   async getDueReview(@Req() req: any, @Query('studentId') studentId?: string) {
+    await this.assertDemoStudentScope(req, studentId);
     const sid = studentId ?? req.user.id
     const schoolId = req.user.schoolId ?? req.user.currentSchoolId
     return this.svc.getDueForReview(sid, schoolId)
@@ -50,6 +73,7 @@ export class HymnLearningController {
   @Get('stats')
   @ApiOperation({ summary: 'Get overall learning stats for a student' })
   async getStats(@Req() req: any, @Query('studentId') studentId?: string) {
+    await this.assertDemoStudentScope(req, studentId);
     const sid = studentId ?? req.user.id
     const schoolId = req.user.schoolId ?? req.user.currentSchoolId
     return this.svc.getStudentStats(sid, schoolId)
@@ -58,6 +82,7 @@ export class HymnLearningController {
   @Get('history/:lessonId')
   @ApiOperation({ summary: 'Get practice history for a hymn' })
   async getHistory(@Req() req: any, @Param('lessonId') lessonId: string, @Query('studentId') studentId?: string) {
+    await this.assertDemoStudentScope(req, studentId);
     const sid = studentId ?? req.user.id
     return this.svc.getHymnHistory(sid, lessonId)
   }
@@ -70,6 +95,7 @@ export class HymnLearningController {
   }
 
   @Patch('sessions/:id/review')
+  @Roles(...STAFF_ROLES)
   @ApiOperation({ summary: 'Servant: submit review for a practice session' })
   async reviewSession(@Req() req: any, @Param('id') id: string,
     @Body() body: { servantRating: number; servantNote?: string }) {
@@ -85,6 +111,7 @@ export class HymnLearningController {
   }
 
   @Post('lessons/:lessonId/submissions/:submissionId/feedback')
+  @Roles(...STAFF_ROLES)
   @ApiOperation({ summary: 'Servant: add feedback to a lesson progress' })
   async addFeedback(@Req() req: any, @Param('lessonId') lessonId: string, @Param('submissionId') submissionId: string,
     @Body() body: { feedbackText: string }) {
@@ -101,6 +128,7 @@ export class HymnLearningController {
   }
 
   @Post('liturgy/verify/:progressId')
+  @Roles(...STAFF_ROLES)
   @ApiOperation({ summary: 'Clergy: mark a student ready for liturgy' })
   async markReadyForLiturgy(@Req() req: any, @Param('progressId') progressId: string,
     @Body() body: { notes?: string }) {

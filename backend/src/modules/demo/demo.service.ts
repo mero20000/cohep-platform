@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../../database/prisma.service';
 
@@ -7,6 +7,10 @@ export class DemoService {
   constructor(private readonly jwt: JwtService, private readonly prisma: PrismaService) {}
 
   async ensureDemoSchool(): Promise<string> {
+    const church = await this.prisma.church.findFirst({ select: { id: true } });
+    if (!church) {
+      throw new NotFoundException('No church available for demo school');
+    }
     const school = await this.prisma.school.upsert({
       where: { slug: 'niangelos-demo' },
       update: {},
@@ -14,7 +18,7 @@ export class DemoService {
         slug: 'niangelos-demo',
         name: 'COHEP Demo School',
         nameAr: 'مدرسة كوهيب التجريبية',
-        churchId: (await this.prisma.church.findFirst({ select: { id: true } }))!.id,
+        churchId: church.id,
         timezone: 'America/New_York',
         locale: 'en',
         isActive: true,
@@ -23,7 +27,7 @@ export class DemoService {
     return school.id;
   }
 
-  async mintGuestToken(_ip: string): Promise<{ accessToken: string }> {
+  async mintGuestToken(): Promise<{ accessToken: string }> {
     const schoolId = await this.ensureDemoSchool();
     const payload = { sub: 'demo-guest', role: 'demo_viewer', schoolId, demo: true, code: 'demo-guest' };
     const accessToken = await this.jwt.signAsync(payload, { expiresIn: '30m' });

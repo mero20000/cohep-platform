@@ -120,7 +120,6 @@ export default function LoginPage() {
       const res = await fetch(API + '/demo/session', { method: 'POST', headers: { 'Content-Type': 'application/json' } })
       if (!res.ok) throw new Error('Demo unavailable')
       const data = await res.json()
-      localStorage.setItem('token', data.accessToken)
       localStorage.setItem('demo', '1')
       localStorage.setItem('niangelos_token', data.accessToken)
       router.push('/dashboard')
@@ -130,9 +129,6 @@ export default function LoginPage() {
 
 
   // Auto-trigger demo if ?demo=1 is in URL (from landing page "Try Demo" button)
-  const searchParamsLP = typeof window !== 'undefined'
-    ? new URLSearchParams(window.location.search)
-    : null
   const autoDemoRef = useRef(false)
   useEffect(() => {
     if (autoDemoRef.current) return

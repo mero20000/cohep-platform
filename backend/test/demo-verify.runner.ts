@@ -119,6 +119,60 @@ async function main() {
         .set('Authorization', `Bearer ${token}`)
         .send({});
       check('POST /api/attendance/sessions -> 403', writeRes.status === 403, { status: writeRes.status });
+
+      const portalWriteRes = await request(app.getHttpServer())
+        .post('/api/student-portal/demo-guest/practice')
+        .set('Authorization', `Bearer ${token}`)
+        .send({});
+      check('POST /api/student-portal/demo-guest/practice (guest) -> 403 demo_read_only', portalWriteRes.status === 403, {
+        status: portalWriteRes.status,
+        message: (portalWriteRes.body as any)?.message,
+      });
+
+      const hymnWriteRes = await request(app.getHttpServer())
+        .post('/api/hymn-learning/practice')
+        .set('Authorization', `Bearer ${token}`)
+        .send({});
+      check('POST /api/hymn-learning/practice (guest) -> 403', hymnWriteRes.status === 403, { status: hymnWriteRes.status });
+
+      const foreignRes = await request(app.getHttpServer())
+        .get('/api/hymn-learning/map?studentId=00000000-0000-0000-0000-000000000000')
+        .set('Authorization', `Bearer ${token}`);
+      check('GET /api/hymn-learning/map?studentId=<foreign> (guest) -> 403', foreignRes.status === 403, {
+        status: foreignRes.status,
+      });
+
+      if (school) {
+        const demoStudent = await prisma.student.findFirst({
+          where: { schoolId: school.id, portalAccessKey: 'demo-guest' },
+          select: { id: true },
+        });
+        if (demoStudent) {
+          const ownRes = await request(app.getHttpServer())
+            .get(`/api/hymn-learning/map?studentId=${demoStudent.id}`)
+            .set('Authorization', `Bearer ${token}`);
+          check('GET /api/hymn-learning/map?studentId=<demo student> -> 200', ownRes.status === 200, {
+            status: ownRes.status,
+          });
+        } else {
+          check('GET /api/hymn-learning/map?studentId=<demo student> -> 200', false);
+        }
+      }
+
+      // Demo token without schoolId must be rejected (TenantScopeGuard skips
+      // falsy schools, so JwtStrategy refuses to mint the synthetic user).
+      const { JwtService } = await import('@nestjs/jwt');
+      const jwt: InstanceType<typeof JwtService> = app.get(JwtService as any);
+      const badToken = await jwt.signAsync(
+        { sub: 'demo-guest', role: 'demo_viewer', demo: true, code: 'demo-guest' },
+        { expiresIn: '30m' },
+      );
+      const badRes = await request(app.getHttpServer())
+        .get('/api/hymn-learning/map')
+        .set('Authorization', `Bearer ${badToken}`);
+      check('GET /api/hymn-learning/map with school-less demo token -> 401', badRes.status === 401, {
+        status: badRes.status,
+      });
     } else {
       check('GET /api/student-portal/demo-guest -> 200 fixture shape', false);
       check('GET /api/hymn-learning/map -> 200', false);
@@ -127,6 +181,25 @@ async function main() {
 
     const anonRes = await request(app.getHttpServer()).get('/api/hymn-learning/map');
     check('GET map without token -> 401', anonRes.status === 401, { status: anonRes.status });
+
+    // Throttle: fresh app instance so the counter starts at zero; the 6th
+    // rapid POST /api/demo/session must be 429 (limit 5/hour).
+    const throttleFixture: TestingModule = await Test.createTestingModule({
+      imports: [AppModule],
+    }).compile();
+    const throttleApp: INestApplication = throttleFixture.createNestApplication();
+    throttleApp.setGlobalPrefix('api');
+    await throttleApp.init();
+    try {
+      let lastStatus = 0;
+      for (let i = 0; i < 6; i++) {
+        const res = await request(throttleApp.getHttpServer()).post('/api/demo/session');
+        lastStatus = res.status;
+      }
+      check('6th rapid POST /api/demo/session -> 429', lastStatus === 429, { status: lastStatus });
+    } finally {
+      await throttleApp.close();
+    }
 
     // eslint-disable-next-line no-console
     console.log(failures === 0 ? 'ALL GREEN' : `${failures} FAILURES`);
