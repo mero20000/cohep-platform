@@ -10,6 +10,7 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { FormField } from '@/components/ui/form-field'
 import { http } from '@/lib/http-client'
 import { useLanguage } from '@/lib/use-language'
+import { PhoneLink } from '@/app/dashboard/students/_components/phone-link'
 
 const API_ORIGIN = process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'http://localhost:3001'
 
@@ -169,7 +170,7 @@ export function SchoolTab() {
                       </div>
                     </td>
                     <td className="px-6 py-3.5" data-label="Contact">
-                      <div className="text-sm text-gray-900">{s.phone || '—'}</div>
+                      <div className="text-sm text-gray-900">{s.phone ? <PhoneLink phone={s.phone} lang={lang} /> : '—'}</div>
                       <div className="text-xs text-gray-400">{s.email || ''}</div>
                     </td>
                     <td className="px-6 py-3.5 text-sm text-gray-600 uppercase" data-label="Language">{s.locale}</td>

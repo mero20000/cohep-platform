@@ -12,6 +12,7 @@ import {
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { TableSkeleton } from '@/components/ui/skeleton'
+import { PhoneLink } from '@/app/dashboard/students/_components/phone-link'
 import Link from 'next/link'
 import { Modal } from '@/components/ui/modal'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
@@ -504,8 +505,8 @@ function ChurchesPanel() {
                     )}
                     {reg.users[0]?.phone && (
                       <div className="flex items-center gap-2 text-sm text-gray-600">
-                        <Phone className="h-4 w-4 text-gray-400" />
-                        <span>{reg.users[0].phone}</span>
+                        <Phone className="h-4 w-4 shrink-0 text-gray-400" />
+                        <PhoneLink phone={reg.users[0].phone} lang={lang} />
                       </div>
                     )}
                   </div>

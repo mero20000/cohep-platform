@@ -1,7 +1,7 @@
 'use client'
 import Image from 'next/image'
 import { useState, useEffect, useRef } from 'react'
-import { X, Loader2, Pencil, Calendar, User, MapPin, Phone, Layers, Users, Church, GraduationCap, Mail, UserCheck, Copy, Check, QrCode, MessageSquare, Award, Plus, Trash2, Zap, History, Key } from 'lucide-react'
+import { X, Loader2, Pencil, Calendar, User, MapPin, Phone, Layers, Users, Church, GraduationCap, Mail, UserCheck, Copy, Check, QrCode, MessageSquare, MessageCircle, Award, Plus, Trash2, Zap, History, Key } from 'lucide-react'
 import { Badge as UIBadge } from '@/components/ui/badge'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -311,8 +311,13 @@ export function StudentDetailModal({ student:s, onClose, onEdit, onPreviewPhoto,
                     </div>
                     <div className="flex gap-2">
                       {parent.phone && (
-                        <a href={`tel:${parent.phone}`} className="p-2 rounded-lg bg-emerald-100 text-emerald-600 hover:bg-emerald-200 transition-colors">
+                        <a href={`tel:${parent.phone}`} aria-label="Call" title={t('Call','اتصال')} className="min-h-[44px] min-w-[44px] flex items-center justify-center p-2 rounded-lg bg-emerald-100 text-emerald-600 hover:bg-emerald-200 transition-colors">
                           <Phone className="h-4 w-4" />
+                        </a>
+                      )}
+                      {parent.phone && (
+                        <a href={`https://wa.me/${parent.phone.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer" aria-label="WhatsApp" title={t('WhatsApp','واتساب')} className="min-h-[44px] min-w-[44px] flex items-center justify-center p-2 rounded-lg bg-green-100 text-green-600 hover:bg-green-200 transition-colors">
+                          <MessageCircle className="h-4 w-4" />
                         </a>
                       )}
                       {parent.email && (

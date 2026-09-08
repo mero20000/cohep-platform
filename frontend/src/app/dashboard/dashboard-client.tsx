@@ -1721,15 +1721,26 @@ function ContactParentButton({ student, lang }: { student: any; lang: string }) 
                 </div>
               </div>
               {parent.phone && (
-                <a href={`tel:${parent.phone}`} className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors">
-                  <div className="h-10 w-10 rounded-full bg-emerald-100 flex items-center justify-center">
-                    <span className="text-emerald-600">📞</span>
-                  </div>
-                  <div>
-                    <div className="font-medium text-gray-900">{parent.phone}</div>
-                    <div className="text-sm text-gray-500">{lang === 'ar' ? 'اتصال' : 'Call'}</div>
-                  </div>
-                </a>
+                <>
+                  <a href={`tel:${parent.phone}`} className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors">
+                    <div className="h-10 w-10 rounded-full bg-emerald-100 flex items-center justify-center">
+                      <span className="text-emerald-600">📞</span>
+                    </div>
+                    <div>
+                      <div className="font-medium text-gray-900">{parent.phone}</div>
+                      <div className="text-sm text-gray-500">{lang === 'ar' ? 'اتصال' : 'Call'}</div>
+                    </div>
+                  </a>
+                  <a href={`https://wa.me/${parent.phone.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors">
+                    <div className="h-10 w-10 rounded-full bg-green-100 flex items-center justify-center">
+                      <span className="text-green-600">💬</span>
+                    </div>
+                    <div>
+                      <div className="font-medium text-gray-900">{parent.phone}</div>
+                      <div className="text-sm text-gray-500">{lang === 'ar' ? 'واتساب' : 'WhatsApp'}</div>
+                    </div>
+                  </a>
+                </>
               )}
               {parent.email && (
                 <a href={`mailto:${parent.email}`} className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors">

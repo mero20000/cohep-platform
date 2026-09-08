@@ -8,6 +8,7 @@ import { getSchoolId } from '@/lib/school'
 import { assetUrl } from '@/lib/asset-url'
 import { EmptyState } from '@/components/ui/empty-state'
 import { Button } from '@/components/ui/button'
+import { PhoneLink } from '@/app/dashboard/students/_components/phone-link'
 
 interface ServantStats {
   id: string
@@ -191,10 +192,8 @@ export default function MyServantsPage() {
 
                   {servant.phone && (
                     <div className="flex items-center gap-2 text-xs text-gray-600">
-                      <Phone className="h-3.5 w-3.5 text-gray-400" />
-                      <a href={`tel:${servant.phone}`} className="text-blue-600 hover:underline">
-                        {servant.phone}
-                      </a>
+                      <Phone className="h-3.5 w-3.5 shrink-0 text-gray-400" />
+                      <PhoneLink phone={servant.phone} lang={lang} />
                     </div>
                   )}
 
