@@ -35,6 +35,7 @@ export default function LiturgyAttendancePage() {
   const [saving, setSaving] = useState(false)
   const [search, setSearch] = useState('')
   const [date, setDate] = useState(() => new Date().toISOString().split('T')[0])
+  const [filterStatus, setFilterStatus] = useState<'all' | 'present' | 'absent' | 'unrecorded'>('all')
   const mountedRef = useRef(true)
 
   useEffect(() => {
@@ -62,17 +63,28 @@ export default function LiturgyAttendancePage() {
     loadSession(date)
   }, [loadSession, date])
 
+  const counts = useMemo(() => ({
+    all: session?.students.length ?? 0,
+    present: session?.students.filter(s => s.status === 'present').length ?? 0,
+    absent: session?.students.filter(s => s.status === 'absent').length ?? 0,
+    unrecorded: session?.students.filter(s => s.status === null).length ?? 0,
+  }), [session?.students])
+
   const filteredStudents = useMemo(() => {
     if (!session?.students) return []
+    let list = session.students
+    if (filterStatus !== 'all') {
+      list = list.filter(s => filterStatus === 'unrecorded' ? s.status === null : s.status === filterStatus)
+    }
     const q = search.trim().toLowerCase()
-    if (!q) return session.students
-    return session.students.filter(s => {
+    if (!q) return list
+    return list.filter(s => {
       const nameEn = `${s.firstName} ${s.lastName}`.toLowerCase()
       const nameAr = `${s.firstNameAr || ''} ${s.lastNameAr || ''}`.toLowerCase()
       const grade = lang === 'ar' ? (s.gradeNameAr || s.gradeName || '') : (s.gradeName || '')
       return nameEn.includes(q) || nameAr.includes(q) || grade.toLowerCase().includes(q)
     })
-  }, [session?.students, search, lang])
+  }, [session?.students, search, filterStatus, lang])
 
   const toggleStatus = (studentId: string, newStatus: 'present' | 'absent') => {
     setSession(prev => {
@@ -86,6 +98,21 @@ export default function LiturgyAttendancePage() {
         ),
       }
     })
+  }
+
+  const markAll = (newStatus: 'present' | 'absent') => {
+    setSession(prev => {
+      if (!prev) return prev
+      return { ...prev, students: prev.students.map(s => ({ ...s, status: newStatus })) }
+    })
+  }
+
+  const clearAll = () => {
+    setSession(prev => {
+      if (!prev) return prev
+      return { ...prev, students: prev.students.map(s => ({ ...s, status: null })) }
+    })
+    setFilterStatus('all')
   }
 
   const save = async () => {
@@ -127,7 +154,8 @@ export default function LiturgyAttendancePage() {
         </div>
         <div className="rounded-xl border border-gray-200 bg-white p-8 text-center">
           <AlertCircle className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-          <p className="text-gray-600">{t('No liturgy session scheduled for today', 'لا توجد جلسة قداس مجدولة لهذا اليوم')}</p>
+          <p className="text-gray-600">{t('No students assigned to you yet', 'لا يوجد طلاب مسندون إليك بعد')}</p>
+          <p className="mt-1 text-sm text-gray-400">{t('Ask your admin to assign a group or level.', 'اطلب من المسؤول إسناد مجموعة أو مرحلة.')}</p>
         </div>
       </div>
     )
@@ -179,6 +207,34 @@ export default function LiturgyAttendancePage() {
           onChange={e => setSearch(e.target.value)}
           className="w-full rounded-lg border border-gray-200 bg-white py-2.5 pl-10 pr-4 text-sm text-gray-900 placeholder:text-gray-400 focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500"
         />
+      </div>
+
+      <div className="mb-4 flex flex-wrap gap-1.5" role="group" aria-label={t('Filter by status', 'تصفية حسب الحالة')}>
+        {([
+          { key: 'all', label: t('All', 'الكل') },
+          { key: 'present', label: t('Present', 'حاضر') },
+          { key: 'absent', label: t('Absent', 'غائب') },
+          { key: 'unrecorded', label: t('Not recorded', 'غير مسجل') },
+        ] as const).map(f => (
+          <button
+            key={f.key}
+            type="button"
+            onClick={() => setFilterStatus(f.key)}
+            aria-pressed={filterStatus === f.key}
+            className={`inline-flex min-h-[44px] items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium border transition-colors ${filterStatus === f.key ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'}`}
+          >
+            {f.label}
+            <span className="rounded-full bg-gray-100 px-1.5 text-[10px] text-gray-600">{counts[f.key]}</span>
+          </button>
+        ))}
+      </div>
+      <div className="mb-4 flex flex-wrap gap-2">
+        <Button variant="outline" size="sm" onClick={() => markAll('present')}>
+          {t('Mark all present', 'تحديد الكل حاضر')}
+        </Button>
+        <Button variant="ghost" size="sm" onClick={clearAll}>
+          {t('Clear', 'مسح')}
+        </Button>
       </div>
 
       {/* Summary stats */}
@@ -239,7 +295,7 @@ export default function LiturgyAttendancePage() {
             <div className="flex gap-2">
               <button
                 onClick={() => toggleStatus(student.studentId, 'present')}
-                className={`p-2 rounded-lg transition-colors ${
+                className={`min-h-[44px] min-w-[44px] p-2 rounded-lg transition-colors ${
                   student.status === 'present'
                     ? 'bg-emerald-500 text-white'
                     : 'bg-gray-100 text-gray-700 hover:bg-emerald-100 hover:text-emerald-700'
@@ -250,7 +306,7 @@ export default function LiturgyAttendancePage() {
               </button>
               <button
                 onClick={() => toggleStatus(student.studentId, 'absent')}
-                className={`p-2 rounded-lg transition-colors ${
+                className={`min-h-[44px] min-w-[44px] p-2 rounded-lg transition-colors ${
                   student.status === 'absent'
                     ? 'bg-red-500 text-white'
                     : 'bg-gray-100 text-gray-700 hover:bg-red-100 hover:text-red-700'

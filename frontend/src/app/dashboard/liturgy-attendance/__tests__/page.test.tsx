@@ -45,4 +45,38 @@ describe('LiturgyAttendancePage', () => {
     const [, body] = mockPost.mock.calls[0]
     expect(body).toMatchObject({ date: expect.any(String) })
   })
+
+  it('filters the roster by recorded status', async () => {
+    const user = (await import('@testing-library/user-event')).default.setup()
+    mockGet.mockResolvedValue({
+      date: new Date().toISOString(),
+      students: [
+        { studentId: 's1', firstName: 'Mina', lastName: 'A', status: 'present' },
+        { studentId: 's2', firstName: 'John', lastName: 'B', status: null },
+      ],
+    })
+    render(<LiturgyAttendancePage />)
+    expect(await screen.findByText('Mina A')).toBeInTheDocument()
+    await user.click(await screen.findByRole('button', { name: /not recorded|غير مسجل/i }))
+    expect(screen.queryByText('Mina A')).not.toBeInTheDocument()
+    expect(screen.getByText('John B')).toBeInTheDocument()
+  })
+
+  it('marks all present with one tap', async () => {
+    const user = (await import('@testing-library/user-event')).default.setup()
+    mockGet.mockResolvedValue({
+      date: new Date().toISOString(),
+      students: [
+        { studentId: 's1', firstName: 'Mina', lastName: 'A', status: null },
+        { studentId: 's2', firstName: 'John', lastName: 'B', status: null },
+      ],
+    })
+    mockPost.mockResolvedValue({ success: true, recorded: 2 })
+    render(<LiturgyAttendancePage />)
+    await user.click(await screen.findByRole('button', { name: /mark all present|تحديد الكل حاضر/i }))
+    await user.click(await screen.findByText('Save Attendance'))
+    const [, body] = mockPost.mock.calls[0] as any
+    expect(body.records).toHaveLength(2)
+    expect(body.records.every((r: any) => r.status === 'present')).toBe(true)
+  })
 })
