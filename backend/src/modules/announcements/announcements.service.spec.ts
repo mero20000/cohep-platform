@@ -5,6 +5,7 @@ import { PrismaService } from '../../database/prisma.service';
 import { SchoolResolver } from '../../common/utils/school-resolver';
 import { MailService } from '../mail/mail.service';
 import { NewsletterService } from '../newsletter/newsletter.service';
+import { NotificationsService } from '../notifications/notifications.service';
 
 describe('AnnouncementsService', () => {
   let service: AnnouncementsService;
@@ -58,6 +59,7 @@ describe('AnnouncementsService', () => {
         { provide: SchoolResolver, useValue: { resolve: jest.fn().mockResolvedValue(schoolId) } },
         { provide: MailService, useValue: { sendAnnouncementEmail: jest.fn() } },
         { provide: NewsletterService, useValue: { broadcast: jest.fn() } },
+        { provide: NotificationsService, useValue: { createNotification: jest.fn() } },
       ],
     }).compile();
 

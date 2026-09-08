@@ -15,6 +15,10 @@ describe('AnalyticsService', () => {
       create: jest.fn(),
       createMany: jest.fn(),
     },
+    // Both record() and recordBatch() derive schoolId from userId when it
+    // isn't passed explicitly, and skip entirely (no writes at all) if no
+    // schoolId can be resolved — a multi-tenancy safety guard.
+    user: { findUnique: jest.fn() },
     $queryRaw: jest.fn(),
   };
 
@@ -26,6 +30,7 @@ describe('AnalyticsService', () => {
 
     service = module.get<AnalyticsService>(AnalyticsService);
     prisma = module.get(PrismaService);
+    prisma.user.findUnique.mockResolvedValue({ schoolId: 'school-1' });
   });
 
   describe('record', () => {
@@ -81,7 +86,7 @@ describe('AnalyticsService', () => {
 
       // ending 10s later
       jest.useFakeTimers().setSystemTime(new Date('2026-01-01T00:00:10Z'));
-      await service.recordBatch({ sessionId: 's1', end: true, events: [{ name: 'session.end', category: 'session' }] });
+      await service.recordBatch({ sessionId: 's1', schoolId: 'school-1', end: true, events: [{ name: 'session.end', category: 'session' }] });
       jest.useRealTimers();
 
       expect(prisma.appSession.update).toHaveBeenCalledWith({

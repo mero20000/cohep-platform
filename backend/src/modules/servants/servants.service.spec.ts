@@ -17,7 +17,13 @@ describe('ServantsService.listServants', () => {
     ...over,
   });
 
-  const prismaMock = { user: { findMany: jest.fn() } };
+  const prismaMock = {
+    user: { findMany: jest.fn() },
+    // listServants enriches the filtered results with group/level display
+    // names.
+    group: { findMany: jest.fn() },
+    level: { findMany: jest.fn() },
+  };
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -31,6 +37,8 @@ describe('ServantsService.listServants', () => {
     service = module.get<ServantsService>(ServantsService);
     prisma = module.get(PrismaService);
     jest.clearAllMocks();
+    prisma.group.findMany.mockResolvedValue([]);
+    prisma.level.findMany.mockResolvedValue([]);
   });
 
   const staff = { id: 'staff-1', schoolId: 'school-1', roles: ['admin'] };
