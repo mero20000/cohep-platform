@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { http } from '@/lib/http-client'
 import { useToast } from '@/components/ui/toast'
 import { getSchoolId } from '@/lib/school'
+import { toTelHref, toWhatsAppDigits } from '@/lib/phone'
 import { StudentQrCard } from '@/components/qr/qr-code-card'
 import { STATUS_STYLE, photoSrc, calcAge, type Student } from './student-types'
 import { PhoneLink } from './phone-link'
@@ -311,14 +312,20 @@ export function StudentDetailModal({ student:s, onClose, onEdit, onPreviewPhoto,
                     </div>
                     <div className="flex gap-2">
                       {parent.phone && (
-                        <a href={`tel:${parent.phone}`} aria-label="Call" title={t('Call','اتصال')} className="min-h-[44px] min-w-[44px] flex items-center justify-center p-2 rounded-lg bg-emerald-100 text-emerald-600 hover:bg-emerald-200 transition-colors">
+                        <a href={toTelHref(parent.phone)} aria-label="Call" title={t('Call','اتصال')} className="min-h-[44px] min-w-[44px] flex items-center justify-center p-2 rounded-lg bg-emerald-100 text-emerald-600 hover:bg-emerald-200 transition-colors">
                           <Phone className="h-4 w-4" />
                         </a>
                       )}
                       {parent.phone && (
-                        <a href={`https://wa.me/${parent.phone.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer" aria-label="WhatsApp" title={t('WhatsApp','واتساب')} className="min-h-[44px] min-w-[44px] flex items-center justify-center p-2 rounded-lg bg-green-100 text-green-600 hover:bg-green-200 transition-colors">
-                          <MessageCircle className="h-4 w-4" />
-                        </a>
+                        toWhatsAppDigits(parent.phone) ? (
+                          <a href={`https://wa.me/${toWhatsAppDigits(parent.phone)}`} target="_blank" rel="noopener noreferrer" aria-label="WhatsApp" title={t('WhatsApp','واتساب')} className="min-h-[44px] min-w-[44px] flex items-center justify-center p-2 rounded-lg bg-green-100 text-green-600 hover:bg-green-200 transition-colors">
+                            <MessageCircle className="h-4 w-4" />
+                          </a>
+                        ) : (
+                          <span aria-label="WhatsApp unavailable" title={t('Add a country code (e.g. +20) to enable WhatsApp', 'أضف رمز الدولة (مثل ٢٠+) لتفعيل واتساب')} className="min-h-[44px] min-w-[44px] flex items-center justify-center p-2 rounded-lg bg-gray-100 text-gray-400 cursor-not-allowed">
+                            <MessageCircle className="h-4 w-4" />
+                          </span>
+                        )
                       )}
                       {parent.email && (
                         <a href={`mailto:${parent.email}`} className="p-2 rounded-lg bg-purple-100 text-purple-600 hover:bg-purple-200 transition-colors">

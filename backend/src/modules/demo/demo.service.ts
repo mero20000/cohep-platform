@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../../database/prisma.service';
 
@@ -7,13 +7,25 @@ export class DemoService {
   constructor(private readonly jwt: JwtService, private readonly prisma: PrismaService) {}
 
   async ensureDemoSchool(): Promise<string> {
-    const church = await this.prisma.church.findFirst({ select: { id: true } });
-    if (!church) {
-      throw new NotFoundException('No church available for demo school');
-    }
+    // The demo school must never attach to a real church — church.findFirst() would
+    // grab whatever real church happens to exist first, mixing demo data into that
+    // church's aggregates/listings. It gets its own dedicated church instead.
+    const church = await this.prisma.church.upsert({
+      where: { slug: 'niangelos-demo-church' },
+      update: {},
+      create: {
+        slug: 'niangelos-demo-church',
+        name: 'COHEP Demo Church',
+        nameAr: 'كنيسة كوهيب التجريبية',
+        timezone: 'America/New_York',
+        locale: 'en',
+      },
+    });
     const school = await this.prisma.school.upsert({
       where: { slug: 'niangelos-demo' },
-      update: {},
+      // Self-heals a demo school created before this fix, which would have been
+      // attached to whatever real church happened to exist first.
+      update: { churchId: church.id },
       create: {
         slug: 'niangelos-demo',
         name: 'COHEP Demo School',

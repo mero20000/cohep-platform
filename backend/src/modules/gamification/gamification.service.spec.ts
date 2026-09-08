@@ -14,7 +14,7 @@ describe('GamificationService - getLeaderboard parent scoping', () => {
       aggregate: jest.fn(),
     },
     student: { findUnique: jest.fn(), findMany: jest.fn() },
-    studentBadge: { count: jest.fn() },
+    studentBadge: { count: jest.fn(), groupBy: jest.fn() },
     studentParent: { findMany: jest.fn() },
     user: { findUnique: jest.fn() },
   };
@@ -23,7 +23,16 @@ describe('GamificationService - getLeaderboard parent scoping', () => {
     id, firstName, lastName, xp, level: Math.floor(xp / 100) + 1, streak: 0, rank, badgeCount: 0,
   });
 
+  // getLeaderboard calls student.findMany twice with different `where` shapes
+  // in the parent-scoped path — once to batch-fetch names for the ids already
+  // on the leaderboard (`where.id.in`), once to find email-linked children
+  // (`where.parentEmail`). Both go through this same mock function, so it has
+  // to branch on shape rather than let a test blanket-override it, or setting
+  // up the second call silently breaks the first.
+  let emailLinkedStudents: any[] = []
+
   const seedLeaderboard = () => {
+    emailLinkedStudents = []
     prisma.xPTransaction.groupBy.mockResolvedValue([
       { studentId: 's1', _sum: { amount: 500 } },
       { studentId: 's2', _sum: { amount: 400 } },
@@ -32,7 +41,14 @@ describe('GamificationService - getLeaderboard parent scoping', () => {
     ]);
     prisma.student.findUnique.mockImplementation(({ where }) =>
       Promise.resolve({ id: where.id, firstName: 'First' + where.id.slice(1), lastName: 'Sur' }));
+    prisma.student.findMany.mockImplementation(({ where }: any) => {
+      if (where?.id?.in) {
+        return Promise.resolve((where.id.in as string[]).map((id: string) => ({ id, firstName: 'First' + id.slice(1), lastName: 'Sur' })));
+      }
+      return Promise.resolve(emailLinkedStudents);
+    });
     prisma.studentBadge.count.mockResolvedValue(0);
+    prisma.studentBadge.groupBy.mockResolvedValue([]);
   };
 
   beforeEach(async () => {
@@ -60,7 +76,7 @@ describe('GamificationService - getLeaderboard parent scoping', () => {
   it('returns top3 minimal + own children for parent-only callers', async () => {
     prisma.user.findUnique.mockResolvedValue({ email: 'p@x.com' });
     prisma.studentParent.findMany.mockResolvedValue([{ studentId: 's3' }]);
-    prisma.student.findMany.mockResolvedValue([]);
+    emailLinkedStudents = [];
 
     const res: any = await svc.getLeaderboard('sch1', 20, { id: 'par1', roles: ['parent'] });
 
@@ -75,7 +91,7 @@ describe('GamificationService - getLeaderboard parent scoping', () => {
   it('includes email-linked children too', async () => {
     prisma.user.findUnique.mockResolvedValue({ email: 'p@x.com' });
     prisma.studentParent.findMany.mockResolvedValue([]);
-    prisma.student.findMany.mockResolvedValue([{ id: 's2' }, { id: 's4' }]);
+    emailLinkedStudents = [{ id: 's2' }, { id: 's4' }];
 
     const res: any = await svc.getLeaderboard('sch1', 20, { id: 'par1', roles: ['parent'] });
     expect(res.children.map((c: any) => c.id)).toEqual(['s2', 's4']);

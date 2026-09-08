@@ -29,6 +29,7 @@ vi.mock('lucide-react', async (importOriginal) => {
 
 vi.mock('motion/react', () => ({
   motion: { div: ({ children }: any) => <div>{children}</div> },
+  useReducedMotion: () => true,
 }))
 
 vi.mock('@/components/ui/toast', () => ({

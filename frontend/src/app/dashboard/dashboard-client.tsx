@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useLanguage } from '@/lib/use-language'
+import { toTelHref, toWhatsAppDigits } from '@/lib/phone'
 import Image from 'next/image'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -1722,7 +1723,7 @@ function ContactParentButton({ student, lang }: { student: any; lang: string }) 
               </div>
               {parent.phone && (
                 <>
-                  <a href={`tel:${parent.phone}`} className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors">
+                  <a href={toTelHref(parent.phone)} className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors">
                     <div className="h-10 w-10 rounded-full bg-emerald-100 flex items-center justify-center">
                       <span className="text-emerald-600">📞</span>
                     </div>
@@ -1731,15 +1732,29 @@ function ContactParentButton({ student, lang }: { student: any; lang: string }) 
                       <div className="text-sm text-gray-500">{lang === 'ar' ? 'اتصال' : 'Call'}</div>
                     </div>
                   </a>
-                  <a href={`https://wa.me/${parent.phone.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors">
-                    <div className="h-10 w-10 rounded-full bg-green-100 flex items-center justify-center">
-                      <span className="text-green-600">💬</span>
+                  {toWhatsAppDigits(parent.phone) ? (
+                    <a href={`https://wa.me/${toWhatsAppDigits(parent.phone)}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors">
+                      <div className="h-10 w-10 rounded-full bg-green-100 flex items-center justify-center">
+                        <span className="text-green-600">💬</span>
+                      </div>
+                      <div>
+                        <div className="font-medium text-gray-900">{parent.phone}</div>
+                        <div className="text-sm text-gray-500">{lang === 'ar' ? 'واتساب' : 'WhatsApp'}</div>
+                      </div>
+                    </a>
+                  ) : (
+                    <div
+                      title={lang === 'ar' ? 'أضف رمز الدولة (مثل ٢٠+) لهذا الرقم لتفعيل واتساب' : 'Add a country code (e.g. +20) to this number to enable WhatsApp'}
+                      className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl opacity-60 cursor-not-allowed">
+                      <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center">
+                        <span className="text-gray-500">💬</span>
+                      </div>
+                      <div>
+                        <div className="font-medium text-gray-500">{parent.phone}</div>
+                        <div className="text-sm text-gray-400">{lang === 'ar' ? 'واتساب' : 'WhatsApp'}</div>
+                      </div>
                     </div>
-                    <div>
-                      <div className="font-medium text-gray-900">{parent.phone}</div>
-                      <div className="text-sm text-gray-500">{lang === 'ar' ? 'واتساب' : 'WhatsApp'}</div>
-                    </div>
-                  </a>
+                  )}
                 </>
               )}
               {parent.email && (

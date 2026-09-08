@@ -103,7 +103,7 @@ describe('ParentsService.logLiturgy re-filing after a rejection', () => {
 
   const prismaMock = {
     user: { findUnique: jest.fn() },
-    student: { findFirst: jest.fn() },
+    student: { findFirst: jest.fn(), findUnique: jest.fn() },
     studentParent: { findUnique: jest.fn() },
     familyLiturgy: { findUnique: jest.fn(), create: jest.fn(), update: jest.fn() },
   };
@@ -121,6 +121,9 @@ describe('ParentsService.logLiturgy re-filing after a rejection', () => {
     jest.clearAllMocks();
     // Parent link verified.
     prisma.studentParent.findUnique.mockResolvedValue({ id: 'link1' });
+    // logLiturgy looks up the student's schoolId directly (separately from
+    // the parent-link check above) to stamp onto the FamilyLiturgy row.
+    prisma.student.findUnique.mockResolvedValue({ schoolId: 'school-1' });
     prisma.familyLiturgy.update.mockImplementation(({ data }: any) =>
       Promise.resolve({ id: 'fl1', date: new Date('2026-08-23'), ...data }),
     );

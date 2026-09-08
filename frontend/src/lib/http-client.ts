@@ -35,12 +35,29 @@ class HttpClient {
     localStorage.removeItem('niangelos_refresh_token')
   }
 
+  /**
+   * Ends the session and returns to login. A demo guest token carries no refresh
+   * token, so it always lands here once its 30-minute lifetime is up — previously
+   * this dropped the visitor on a bare login page with no explanation of what just
+   * happened. Demo state is cleared too, and the login page is told why via a query
+   * param so it can show a message instead of looking like a silent failure.
+   */
+  private redirectToLogin() {
+    if (typeof window === 'undefined') return
+    const wasDemo = localStorage.getItem('demo') === '1'
+    this.clearAuth()
+    if (wasDemo) {
+      localStorage.removeItem('demo')
+      localStorage.removeItem('demo_expires_at')
+    }
+    window.location.href = wasDemo ? '/auth/login?demoExpired=1' : '/auth/login'
+  }
+
   private async refreshAuth(): Promise<boolean> {
     try {
       const refreshToken = typeof window !== 'undefined' ? localStorage.getItem('niangelos_refresh_token') : null
       if (!refreshToken) {
-        this.clearAuth()
-        if (typeof window !== 'undefined') window.location.href = '/auth/login'
+        this.redirectToLogin()
         return false
       }
       const res = await fetch(`${this.baseUrl}/auth/refresh`, {
@@ -50,8 +67,7 @@ class HttpClient {
         body: JSON.stringify({ refreshToken }),
       })
       if (!res.ok) {
-        this.clearAuth()
-        if (typeof window !== 'undefined') window.location.href = '/auth/login'
+        this.redirectToLogin()
         return false
       }
       const data = await res.json()
@@ -146,8 +162,7 @@ class HttpClient {
 
     if (!res.ok) {
       if (res.status === 401) {
-        this.clearAuth()
-        if (typeof window !== 'undefined') window.location.href = '/auth/login'
+        this.redirectToLogin()
       }
       const error = await res.json().catch<ApiError>(() => ({
         statusCode: res.status,

@@ -42,11 +42,29 @@ async function main() {
   // user row), so the demo school + curated fixture must exist independent
   // of SEED_DEMO_USERS. Guests read via hymn-map code; writes stay 403
   // because `demo_viewer` is in no @Roles(...) set (see RolesGuard).
-  const demoSchool = await prisma.school.upsert({
-    where: { slug: 'niangelos-demo' },
+  //
+  // It gets its own dedicated church rather than St. Mark's — attaching demo
+  // data to a real church would mix it into that church's aggregates/listings
+  // (see DemoService.ensureDemoSchool, which follows the same pattern for
+  // environments where this seed hasn't run).
+  const demoChurch = await prisma.church.upsert({
+    where: { slug: 'niangelos-demo-church' },
     update: {},
     create: {
-      churchId: church.id,
+      name: 'COHEP Demo Church',
+      nameAr: 'كنيسة كوهيب التجريبية',
+      slug: 'niangelos-demo-church',
+      timezone: 'America/New_York',
+      locale: 'en',
+    },
+  });
+  const demoSchool = await prisma.school.upsert({
+    where: { slug: 'niangelos-demo' },
+    // Re-running this seed against a database seeded before this fix corrects the
+    // church association rather than leaving the old, wrongly-shared churchId in place.
+    update: { churchId: demoChurch.id },
+    create: {
+      churchId: demoChurch.id,
       name: 'COHEP Demo School',
       nameAr: 'مدرسة كوهيب التجريبية',
       slug: 'niangelos-demo',
