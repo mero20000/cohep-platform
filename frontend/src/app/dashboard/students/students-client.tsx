@@ -1,5 +1,6 @@
 'use client'
 import { useState, useEffect, useCallback, useRef, useMemo, useOptimistic, startTransition } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { Download, Upload, Plus, X, AlertCircle, RefreshCw, Star, Search, Copy } from 'lucide-react'
 import { ErrorBoundary } from '@/components/ui/error-boundary'
 import { Button } from '@/components/ui/button'
@@ -180,6 +181,19 @@ export default function StudentsClient() {
   const openEdit   = (s:Student)=>{setSelectedStudent(s);setShowForm(true)}
   const openDetail = (s:Student)=>{setSelectedStudent(s);setShowDetail(true)}
   const openDelete = (s:Student)=>{setSelectedStudent(s);setShowDelete(true)}
+  // Deep link: ?studentId=<id> (e.g. from attendance) opens the student record directly
+  const deepStudentId = useSearchParams()?.get('studentId') ?? null
+  const deepOpenedRef = useRef<string|null>(null)
+  useEffect(()=>{
+    if(!deepStudentId||deepOpenedRef.current===deepStudentId)return
+    const found = students.find(s=>s.id===deepStudentId)
+    if(found){deepOpenedRef.current=deepStudentId;openDetail(found);return}
+    if(loading)return
+    http.get<Student>(`/students/${deepStudentId}`,{schoolId:getSchoolId()})
+      .then(s=>{if(s?.id){deepOpenedRef.current=deepStudentId;openDetail(s)}})
+      .catch(()=>{})
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  },[deepStudentId,students,loading])
   const handleDelete = async()=>{
     if(!selectedStudent)return
     startTransition(()=>addOptimisticStudent({type:'remove',id:selectedStudent.id})); setShowDelete(false)

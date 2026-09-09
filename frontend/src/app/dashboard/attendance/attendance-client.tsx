@@ -975,10 +975,10 @@ export function AttendanceClient() {
                              <User className="h-4 w-4" />
                            </div>
                          )}
-                         <div className="min-w-0 flex-1">
-                          <div className="text-sm font-medium text-gray-900 truncate">{record.student.firstName} {record.student.lastName}</div>
-                          <div className="text-xs text-gray-500">{record.student.studentCode}</div>
-                        </div>
+                          <div className="min-w-0 flex-1">
+                           <Link href={`/dashboard/students?studentId=${record.student.id}`} className="block truncate text-sm font-medium text-gray-900 hover:text-blue-700 hover:underline" title={lang === 'ar' ? 'فتح سجل الطالب' : 'Open student record'}>{record.student.firstName} {record.student.lastName}</Link>
+                           <div className="text-xs text-gray-500">{record.student.studentCode}</div>
+                         </div>
                         <div className="flex items-center gap-1">
                           {(['present', 'late', 'absent', 'excused'] as const).map(s => {
                             const Icon = STATUS_ICONS[s]
@@ -1277,7 +1277,9 @@ export function AttendanceClient() {
               {studentResults.map(({ student, records }) => (
                 <div key={student.id} className="px-5 py-3">
                   <div className="text-sm font-medium text-gray-900 mb-2">
-                    {student.firstName} {student.lastName}
+                    <Link href={`/dashboard/students?studentId=${student.id}`} className="hover:text-blue-700 hover:underline" title={lang === 'ar' ? 'فتح سجل الطالب' : 'Open student record'}>
+                      {student.firstName} {student.lastName}
+                    </Link>
                     {student.firstNameAr && <span className="text-gray-500 ms-2">{student.firstNameAr} {student.lastNameAr}</span>}
                     <span className="text-gray-500 ms-2 text-xs">({student.studentCode})</span>
                   </div>
