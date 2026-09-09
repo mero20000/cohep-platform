@@ -4,7 +4,7 @@ import Image from 'next/image'
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import {
   Search, Plus, Pencil, Trash2, X, Loader2, Upload, UserCheck,
-  User, Shield, GraduationCap, LayoutGrid, Rows3,
+  User, Shield, GraduationCap, LayoutGrid, Rows3, Activity,
 } from 'lucide-react'
 import { StatCard } from '@/components/ui/stat-card'
 import { EmptyState } from '@/components/ui/empty-state'
@@ -288,18 +288,20 @@ export default function ServantsPage() {
   }
 
   const stats = useMemo(() => {
-    const total = servants.length
+    const total = filteredServants.length
+    const active = filteredServants.filter(s => s.isActive).length
+    const inactive = filteredServants.filter(s => !s.isActive).length
     const byRole: Record<string, number> = {}
     const bySubject: Record<string, number> = {}
-    servants.forEach(s => {
+    filteredServants.forEach(s => {
       const role = servantRole(s)
       const rn = role?.name || 'unknown'
       byRole[rn] = (byRole[rn] || 0) + 1
       const subjects = s.metadata?.teachingSubjects || []
       subjects.forEach(sub => { bySubject[sub] = (bySubject[sub] || 0) + 1 })
     })
-    return { total, byRole, bySubject }
-  }, [servants])
+    return { total, active, inactive, byRole, bySubject }
+  }, [filteredServants])
 
   const validateEmail = (email: string): string => {
     if (!email.trim()) return lang === 'ar' ? 'البريد الإلكتروني مطلوب' : 'Email is required'
@@ -453,6 +455,16 @@ export default function ServantsPage() {
         : filteredServants.filter(s => prev.includes(s.id)).length === prev.length
           ? filteredServants.map(s => s.id)
           : [...new Set([...prev, ...filteredServants.map(s => s.id)])])
+
+  const toggleActive = async (s: ServantUser) => {
+    try {
+      await http.patch(`/servants/${s.id}/toggle-active`, {})
+      setServants(prev => prev.map(x => x.id === s.id ? { ...x, isActive: !x.isActive } : x))
+      toast('success', lang === 'ar' ? `${s.isActive ? 'تم إيقاف' : 'تم تفعيل'} ${s.firstName}` : (s.isActive ? 'Deactivated' : 'Activated') + ` ${s.firstName}`)
+    } catch (e: any) {
+      toast('error', e?.message || (lang === 'ar' ? 'فشل تغيير الحالة' : 'Failed to toggle status'))
+    }
+  }
 
   const handleBulkDelete = async () => {
     if (selectedIds.length === 0) return
@@ -672,10 +684,10 @@ export default function ServantsPage() {
 
       {/* KPI Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <StatCard delay={0} label={lang === 'ar' ? 'إجمالي الخدام' : 'Total Servants'} value={stats.total} icon={UserCheck} iconBg="bg-blue-50" iconColor="text-blue-700" />
-        <StatCard delay={0.05} label={lang === 'ar' ? 'خدام' : 'Servants'} value={stats.byRole['servant'] || 0} icon={User} iconBg="bg-blue-50" iconColor="text-blue-600" />
-        <StatCard delay={0.1} label={lang === 'ar' ? 'قادة مجموعات' : 'Group Leaders'} value={stats.byRole['group_leader'] || 0} icon={Shield} iconBg="bg-amber-50" iconColor="text-amber-600" />
-        <StatCard delay={0.15} label={lang === 'ar' ? 'قادة مستويات' : 'Level Leaders'} value={stats.byRole['level_leader'] || 0} icon={GraduationCap} iconBg="bg-purple-50" iconColor="text-purple-600" />
+        <StatCard delay={0} label={lang === 'ar' ? 'الإجمالي' : 'Total'} value={stats.total} icon={UserCheck} iconBg="bg-blue-50" iconColor="text-blue-700" />
+        <StatCard delay={0.05} label={lang === 'ar' ? 'نشط' : 'Active'} value={stats.active} icon={User} iconBg="bg-green-50" iconColor="text-green-700" />
+        <StatCard delay={0.1} label={lang === 'ar' ? 'غير نشط' : 'Inactive'} value={stats.inactive} icon={User} iconBg="bg-gray-100" iconColor="text-gray-600" />
+        <StatCard delay={0.15} label={lang === 'ar' ? 'قادة' : 'Leaders'} value={(stats.byRole['group_leader'] || 0) + (stats.byRole['level_leader'] || 0)} icon={Shield} iconBg="bg-amber-50" iconColor="text-amber-600" />
       </div>
 
       {/* Filters */}
@@ -833,10 +845,13 @@ export default function ServantsPage() {
                             )}
                           </div>
                           <div>
-                            <div className="flex items-center gap-2 text-sm font-medium text-gray-900">
-                              <span>{s.firstName} {s.lastName}</span>
-                              <span title={s.isActive ? (lang === 'ar' ? 'نشط' : 'Active') : (lang === 'ar' ? 'غير نشط' : 'Inactive')} className={`inline-block h-2 w-2 rounded-full flex-shrink-0 ${s.isActive ? 'bg-green-500' : 'bg-gray-300'}`} />
-                            </div>
+                             <div className="flex items-center gap-2 text-sm font-medium text-gray-900">
+                               <span>{s.firstName} {s.lastName}</span>
+                               <button type="button" onClick={() => toggleActive(s)} aria-label={lang === 'ar' ? (s.isActive ? 'إيقاف' : 'تفعيل') : (s.isActive ? 'Deactivate' : 'Activate')} title={s.isActive ? (lang === 'ar' ? 'نشط — انقر لإيقاف' : 'Active — click to deactivate') : (lang === 'ar' ? 'غير نشط — انقر لتفعيل' : 'Inactive — click to activate')}
+                                 className={`inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 ${s.isActive ? 'bg-green-500' : 'bg-gray-300'}`}>
+                                 <span className={`inline-block h-4 w-4 translate-x-0.5 rounded-full bg-white shadow ${s.isActive ? 'translate-x-6' : 'translate-x-0.5'}`} />
+                               </button>
+                             </div>
                             <div className="text-xs text-gray-500">{s.email}</div>
                           </div>
                         </div>
@@ -926,13 +941,16 @@ export default function ServantsPage() {
                         )}
                       </div>
                       <div>
-                        <div className="flex items-center gap-2 text-sm font-medium text-gray-900">
-                          <span>{s.firstName} {s.lastName}</span>
-                          <span title={s.isActive ? (lang === 'ar' ? 'نشط' : 'Active') : (lang === 'ar' ? 'غير نشط' : 'Inactive')} className={`inline-block h-2 w-2 rounded-full ${s.isActive ? 'bg-green-500' : 'bg-gray-300'}`} />
+                         <div className="flex items-center gap-2 text-sm font-medium text-gray-900">
+                           <span>{s.firstName} {s.lastName}</span>
+                           <button type="button" onClick={() => toggleActive(s)} aria-label={lang === 'ar' ? (s.isActive ? 'إيقاف' : 'تفعيل') : (s.isActive ? 'Deactivate' : 'Activate')} title={s.isActive ? (lang === 'ar' ? 'نشط — انقر لإيقاف' : 'Active — click to deactivate') : (lang === 'ar' ? 'غير نشط — انقر لتفعيل' : 'Inactive — click to activate')}
+                             className={`inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 ${s.isActive ? 'bg-green-500' : 'bg-gray-300'}`}>
+                             <span className={`inline-block h-4 w-4 translate-x-0.5 rounded-full bg-white shadow ${s.isActive ? 'translate-x-6' : 'translate-x-0.5'}`} />
+                           </button>
+                          </div>
+                          <div className="text-xs text-gray-500 truncate">{s.email}</div>
                         </div>
-                        <div className="text-xs text-gray-500 truncate">{s.email}</div>
                       </div>
-                    </div>
                     {(canEdit || canDelete) && (
                       <div className="flex items-center gap-1">
                         {canDelete && (

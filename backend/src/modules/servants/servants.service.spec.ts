@@ -552,3 +552,51 @@ describe('ServantsService.rejectLiturgy', () => {
     await expect(service.rejectLiturgy('nope', 'staff-1', 'x')).rejects.toMatchObject({ status: 404 });
   });
 });
+
+describe('toggleActive', () => {
+  let service: ServantsService;
+  let prisma: any;
+
+  beforeEach(async () => {
+    const prismaMock = {
+      user: { findUnique: jest.fn(), update: jest.fn() },
+    };
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        ServantsService,
+        { provide: StudentNotificationsService, useValue: { notify: jest.fn() } },
+        { provide: PrismaService, useValue: prismaMock },
+        { provide: GamificationService, useValue: { addXp: jest.fn(), awardBadge: jest.fn() } },
+      ],
+    }).compile();
+    service = module.get<ServantsService>(ServantsService);
+    prisma = module.get(PrismaService);
+    jest.clearAllMocks();
+  });
+
+  it('toggles active to inactive', async () => {
+    prisma.user.findUnique.mockResolvedValue({ id: 'u1', isActive: true, deletedAt: null });
+    prisma.user.update.mockResolvedValue({ id: 'u1', isActive: false });
+    const res: any = await service.toggleActive('u1');
+    expect(res.isActive).toBe(false);
+    expect(prisma.user.update).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: 'u1' }, data: { isActive: false } }),
+    );
+  });
+
+  it('toggles inactive to active', async () => {
+    prisma.user.findUnique.mockResolvedValue({ id: 'u1', isActive: false, deletedAt: null });
+    prisma.user.update.mockResolvedValue({ id: 'u1', isActive: true });
+    const res: any = await service.toggleActive('u1');
+    expect(res.isActive).toBe(true);
+    expect(prisma.user.update).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: 'u1' }, data: { isActive: true } }),
+    );
+  });
+
+  it('404s on deleted or unknown servant', async () => {
+    prisma.user.findUnique.mockResolvedValue(null);
+    await expect(service.toggleActive('nope')).rejects.toMatchObject({ status: 404 });
+    expect(prisma.user.update).not.toHaveBeenCalled();
+  });
+});

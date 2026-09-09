@@ -115,6 +115,13 @@ export class ServantsController {
     return this.servantsService.getSchoolServantSummary(user.schoolId);
   }
 
+  @Patch(':id/toggle-active')
+  @Roles('super_admin', 'admin', 'principal')
+  @ApiOperation({ summary: 'Toggle servant active/inactive status' })
+  async toggleActive(@Param('id') id: string, @CurrentUser() user: any) {
+    return this.servantsService.toggleActive(id);
+  }
+
   @Get('liturgy-session')
   @Roles('servant', 'group_leader', 'level_leader')
   @ApiOperation({ summary: 'Get liturgy roster for any date with prefilled statuses' })

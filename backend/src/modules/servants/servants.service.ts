@@ -591,6 +591,20 @@ export class ServantsService {
     }
   }
 
+  async toggleActive(userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, isActive: true, firstName: true, lastName: true, deletedAt: true },
+    });
+    if (!user || user.deletedAt) throw new NotFoundException('Servant not found');
+    const updated = await this.prisma.user.update({
+      where: { id: userId },
+      data: { isActive: !user.isActive },
+      select: { id: true, isActive: true, firstName: true, lastName: true },
+    });
+    return updated;
+  }
+
   @Cron('0 3 * * *')
   async updateServantProfiles() {
     const servants = await this.prisma.user.findMany({
