@@ -41,7 +41,7 @@ const navigation = [
   { name: 'Level Report', nameAr: 'تقرير المستوى', href: '/dashboard/level-report', icon: BarChart3, roles: ['level_leader'] as const },
   { name: 'Group Report', nameAr: 'تقرير المجموعة', href: '/dashboard/group-report', icon: BarChart3, roles: ['servant', 'group_leader'] as const },
   { name: 'Curriculum', nameAr: 'المنهج', href: '/dashboard/curriculum', icon: BookOpen, perm: 'curriculum:view' as const },
-  { name: 'Attendance', nameAr: 'الحضور', href: '/dashboard/attendance', icon: Calendar, perm: 'attendance:view' as const },
+  { name: 'Attendance', nameAr: 'الحضور', href: '/dashboard/attendance/mark', icon: Calendar, perm: 'attendance:view' as const },
   { name: 'Assessments', nameAr: 'التقييمات', href: '/dashboard/assessments', icon: ClipboardCheck, perm: 'assessment:view' as const },
   { name: 'Hymn Review', nameAr: 'مراجعة التسابيح', href: '/dashboard/hymn-review', icon: Headphones, perm: 'practice:view' as const },
   { name: 'My Class', nameAr: 'صفي', href: '/dashboard/my-class', icon: School, perm: 'attendance:record' as const },
