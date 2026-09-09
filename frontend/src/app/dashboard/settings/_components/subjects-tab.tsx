@@ -75,6 +75,9 @@ const WHEN_COLORS: Record<string, { bg: string; text: string }> = {
   'Holy Week & Holy 50 days': { bg: 'bg-rose-100', text: 'text-rose-800' },
   'Glorifications': { bg: 'bg-purple-100', text: 'text-purple-800' },
   'Deacon Responses': { bg: 'bg-gray-100', text: 'text-gray-700' },
+  'Assessment': { bg: 'bg-indigo-100', text: 'text-indigo-800' },
+  'Quiz': { bg: 'bg-indigo-100', text: 'text-indigo-800' },
+  'Review': { bg: 'bg-teal-100', text: 'text-teal-800' },
 }
 
 export function SubjectsTab() {

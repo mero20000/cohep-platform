@@ -37,7 +37,7 @@ interface AcademicWeek {
 const WEEK_STATUS_OPTIONS = [
   { value: 'available', label: 'Available for Allocation', color: 'bg-green-100 text-green-700 border-green-200' },
   { value: 'feast_off', label: 'Feast (Off)', color: 'bg-amber-100 text-amber-700 border-amber-200' },
-  { value: 'revision', label: 'Revision', color: 'bg-blue-100 text-blue-700 border-blue-200' },
+  { value: 'revision', label: 'Revision', color: 'bg-teal-100 text-teal-700 border-teal-200' },
   { value: 'event', label: 'Event/Convention', color: 'bg-purple-100 text-purple-700 border-purple-200' },
   { value: 'cancelled', label: 'Cancelled', color: 'bg-red-100 text-red-700 border-red-200' },
 ]
@@ -52,6 +52,7 @@ const EVENT_TYPE_OPTIONS = [
   { value: 'holiday', label: 'Holiday', color: 'bg-red-100 text-red-700 border-red-200' },
   { value: 'trip', label: 'Trip', color: 'bg-emerald-100 text-emerald-700 border-emerald-200' },
   { value: 'exam', label: 'Exam', color: 'bg-amber-100 text-amber-700 border-amber-200' },
+  { value: 'assessment', label: 'Assessment/Quiz', color: 'bg-indigo-100 text-indigo-700 border-indigo-200' },
   { value: 'other', label: 'Other', color: 'bg-gray-100 text-gray-700 border-gray-200' },
 ]
 
@@ -537,7 +538,7 @@ export function CalendarTab() {
           ) : (
             <div className="divide-y divide-gray-100">
               {events.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()).map(ev => {
-                const typeOption = EVENT_TYPE_OPTIONS.find(t => t.value === ev.type) || EVENT_TYPE_OPTIONS[5]
+                const typeOption = EVENT_TYPE_OPTIONS.find(t => t.value === ev.type) || EVENT_TYPE_OPTIONS.find(t => t.value === 'other')!
                 return (
                   <div key={ev.id} className="px-6 py-3 flex items-center gap-4 hover:bg-gray-50 active:bg-gray-100">
                     <div className="flex-shrink-0 w-16 text-center">
