@@ -37,8 +37,7 @@ export function MarkClient() {
     setLoadError('')
     try {
       let sid = id || params?.get('sessionId') || ''
-      const sij = params?.get('subjectItemId')
-      if (sij) setSubjectItemId(sij)
+      setSubjectItemId(params?.get('subjectItemId') ?? null)
       if (!sid) {
         const started = await http.post<any>('/attendance/start-class')
         sid = (started as any).session?.id || ''
@@ -47,7 +46,9 @@ export function MarkClient() {
       const detail = await http.get<any>(`/attendance/sessions/${sid}`)
       setSession(detail)
       marking.initFromRecords(detail.attendanceRecords || [])
-      if (params?.get('prefill') === 'present') {
+      // Prefill only on explicit (non-quiet) loads: the quiet reload after
+      // save must preserve server truth, not force all-present again.
+      if (!quiet && params?.get('prefill') === 'present') {
         marking.markAll('present', (detail.attendanceRecords || []).map((r: any) => r.student?.id).filter(Boolean))
       }
     } catch (e: any) { setLoadError(e?.message || 'Failed to load') }
@@ -79,7 +80,7 @@ export function MarkClient() {
 
   // Ctrl/Cmd+S saves without leaving the keyboard flow.
   const saveRef = useRef(save)
-  saveRef.current = save
+  useEffect(() => { saveRef.current = save })
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
@@ -161,7 +162,7 @@ export function MarkClient() {
           />
         </div>
       ))}
-      <p className="text-xs text-gray-500">P/L/A/E status · 1-5 behavior · ↑↓ move · Ctrl+S save</p>
+      <p className="text-xs text-gray-500">{lang === 'ar' ? 'P/L/A/E للحالة · 1-5 للسلوك · ↑↓ للتنقل · Ctrl+S للحفظ' : 'P/L/A/E status · 1-5 behavior · ↑↓ move · Ctrl+S save'}</p>
       <div className="sticky bottom-0 flex gap-2 bg-white p-3">
         <Button onClick={() => save(false)} disabled={saving} className="min-h-[44px] flex-1">{lang === 'ar' ? 'حفظ' : 'Save'}</Button>
         <Button onClick={() => save(true)} disabled={saving} variant="outline" className="min-h-[44px] flex-1">{lang === 'ar' ? 'حفظ وإنهاء' : 'Save & Finalize'}</Button>
