@@ -27,8 +27,9 @@ export class ServantsController {
     @Query('levelId') levelId?: string,
     @Query('groupId') groupId?: string,
     @Query('teachingSubject') teachingSubject?: string,
+    @Query('excludeSelf') excludeSelf?: string,
   ) {
-    return this.servantsService.listServants(req.user, { search, role, levelId, groupId, teachingSubject });
+    return this.servantsService.listServants(req.user, { search, role, levelId, groupId, teachingSubject, excludeSelf: excludeSelf === 'true' });
   }
 
   @Get('liturgy-pending')

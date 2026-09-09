@@ -59,7 +59,7 @@ export class ServantsService {
 
   async listServants(
     user: { id: string; schoolId?: string; roles: string[]; metadata?: any },
-    query: { search?: string; role?: string; levelId?: string; groupId?: string; teachingSubject?: string } = {},
+    query: { search?: string; role?: string; levelId?: string; groupId?: string; teachingSubject?: string; excludeSelf?: boolean } = {},
   ) {
     const isSuperAdmin = user.roles?.includes('super_admin');
     const isAdmin = user.roles?.includes('admin') || user.roles?.includes('principal');
@@ -116,6 +116,7 @@ export class ServantsService {
 
     const filtered = users
       .filter((u: any) => !u.deletedAt)
+      .filter((u: any) => !query.excludeSelf || u.id !== user.id)
       .filter((u: any) => {
         const uMeta = (u.metadata as any) || {};
 

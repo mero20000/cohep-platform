@@ -64,6 +64,19 @@ describe('ServantsService.listServants', () => {
     );
   });
 
+  it('excludes the caller only when excludeSelf is set', async () => {
+    prisma.user.findMany.mockResolvedValue([
+      S({ id: 'staff-1' }),
+      S({ id: 'u2' }),
+    ]);
+
+    const withSelf = await service.listServants(staff, {});
+    expect(withSelf.map(r => r.id)).toEqual(['staff-1', 'u2']);
+
+    const withoutSelf = await service.listServants(staff, { excludeSelf: true });
+    expect(withoutSelf.map(r => r.id)).toEqual(['u2']);
+  });
+
   it('super_admin is not school-scoped', async () => {
     prisma.user.findMany.mockResolvedValue([S()]);
     await service.listServants(superAdmin, {});
