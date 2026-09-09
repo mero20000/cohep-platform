@@ -431,6 +431,10 @@ export default function SessionsPage() {
               {lang === 'ar' ? 'تسجيل الحضور' : 'Mark attendance'}
             </Link>
             {' · '}
+            <Link href="/dashboard/attendance/insights" className="text-blue-700 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500 rounded">
+              {lang === 'ar' ? 'الإحصائيات' : 'Insights'}
+            </Link>
+            {' · '}
             {lang === 'ar' ? 'إنشاء الجلسات وتعديلها وحذفها' : 'Create, edit, and delete sessions'}
           </p>
         </div>

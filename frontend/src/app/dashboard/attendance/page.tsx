@@ -1,16 +1,31 @@
-import { Suspense } from 'react'
-
-import { AttendanceClient } from './attendance-client'
+import { redirect } from 'next/navigation'
 
 export const metadata = {
   title: 'Attendance - Coptic Orthodox Hymn Education Platform (COHEP)',
   description: 'Mark and manage session attendance for students and servants',
 }
 
-export default function AttendancePage() {
-  return (
-    <Suspense fallback={<div className="p-12 text-center text-gray-400">Loading attendance…</div>}>
-      <AttendanceClient />
-    </Suspense>
-  )
+export function buildMarkRedirect(
+  searchParams?: Record<string, string | string[] | undefined>,
+): string {
+  const q = new URLSearchParams()
+  for (const [k, v] of Object.entries(searchParams || {})) {
+    if (Array.isArray(v)) {
+      for (const item of v) {
+        if (item !== undefined) q.append(k, item)
+      }
+    } else if (v !== undefined) {
+      q.append(k, v)
+    }
+  }
+  const qs = q.toString()
+  return `/dashboard/attendance/mark${qs ? `?${qs}` : ''}`
+}
+
+type SearchParamsInput =
+  | Promise<Record<string, string | string[] | undefined>>
+  | Record<string, string | string[] | undefined>
+
+export default async function AttendancePage({ searchParams }: { searchParams?: SearchParamsInput }) {
+  redirect(buildMarkRedirect((await searchParams) || {}))
 }

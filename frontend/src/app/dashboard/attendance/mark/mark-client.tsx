@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
+import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { useLanguage } from '@/lib/use-language'
 import { useToast } from '@/components/ui/toast'
@@ -13,10 +14,11 @@ import { DetailExpander } from '../components/detail-expander'
 
 const FALLBACK_USER_ID = '00000000-0000-0000-0000-000000000000'
 
-function formatSessionDate(iso?: string) {
+function formatSessionDate(iso?: string, lang: 'en' | 'ar' = 'en') {
   if (!iso) return ''
   const d = new Date(`${iso}T00:00:00`)
   if (Number.isNaN(d.getTime())) return iso
+  if (lang === 'ar') return d.toLocaleDateString('ar-EG', { day: 'numeric', month: 'short', year: 'numeric' })
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
@@ -134,8 +136,17 @@ export function MarkClient() {
     <div className="space-y-4 p-4">
       <div>
         <h1 className="text-lg font-semibold text-gray-900">{lang === 'ar' ? 'تسجيل الحضور' : 'Mark Attendance'}</h1>
-        <p className="text-sm text-gray-500">{[scopeName, formatSessionDate(session.scheduledDate), session.status].filter(Boolean).join(' · ')}</p>
+        <p className="text-sm text-gray-500">{[scopeName, formatSessionDate(session.scheduledDate, lang), session.status].filter(Boolean).join(' · ')}</p>
         {subjectItemId && <p className="text-xs text-gray-400">{lang === 'ar' ? 'عنصر المنهج مرتبط' : 'Lesson item linked'}</p>}
+        <p className="mt-1 text-sm text-gray-500">
+          <Link href="/dashboard/attendance/sessions" className="rounded text-blue-700 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500">
+            {lang === 'ar' ? 'إدارة الجلسات' : 'Manage sessions'}
+          </Link>
+          {' · '}
+          <Link href="/dashboard/attendance/insights" className="rounded text-blue-700 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500">
+            {lang === 'ar' ? 'الإحصائيات' : 'Insights'}
+          </Link>
+        </p>
       </div>
       <MarkSummaryBar {...counts} dirty={marking.dirty} error={saveError} onRetry={() => save(false)} lang={lang} />
       {recs.map((r: any, i: number) => (

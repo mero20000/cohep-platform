@@ -31,7 +31,8 @@ const mockPost = vi.fn(async (url: string, body?: any) => {
   }
   return { session: { id: 'sess-1' } }
 })
-vi.mock('@/lib/http-client', () => ({ http: { get: (...a: any[]) => mockGet(...a), post: (...a: any[]) => mockPost(...a), put: vi.fn() } }))
+const mockPut = vi.fn(async () => ({ ok: true }))
+vi.mock('@/lib/http-client', () => ({ http: { get: (...a: any[]) => mockGet(...a), post: (...a: any[]) => mockPost(...a), put: (...a: any[]) => mockPut(...a) } }))
 vi.mock('@/lib/school', () => ({ getSchoolId: () => 'school-1' }))
 vi.mock('@/lib/use-language', () => ({ useLanguage: () => 'en' }))
 vi.mock('@/components/ui/toast', () => ({ useToast: () => ({ toast: vi.fn() }) }))
@@ -43,6 +44,7 @@ beforeEach(() => {
   state.saved = null
   mockGet.mockClear()
   mockPost.mockClear()
+  mockPut.mockClear()
 })
 
 describe('MarkClient', () => {
@@ -76,5 +78,20 @@ describe('MarkClient', () => {
     const payload = mockPost.mock.calls.find((c) => String(c[0]).endsWith('/mark'))?.[1]
     const statuses = Object.fromEntries(payload.records.map((r: any) => [r.studentId, r.status]))
     expect(statuses).toEqual({ s1: 'absent', s2: 'present' })
+  })
+
+  it('Save & Finalize persists marks, locks the session, and preserves marks on reload', async () => {
+    state.twoStudents = true
+    render(<MarkClient />)
+    await waitFor(() => expect(screen.getByRole('group', { name: /Status - Mina G/i })).toBeInTheDocument())
+    fireEvent.click(screen.getByRole('button', { name: /Present - Mina G/i }))
+    fireEvent.click(screen.getByRole('button', { name: /Present - John D/i }))
+    fireEvent.click(screen.getByRole('button', { name: /Save & Finalize/i }))
+    await waitFor(() => expect(mockPost).toHaveBeenCalledWith(expect.stringContaining('/mark'), expect.anything()))
+    await waitFor(() => expect(mockPut).toHaveBeenCalledWith('/attendance/sessions/sess-1', { status: 'completed' }))
+    // Quiet reload after finalize must preserve server truth.
+    await waitFor(() => expect(mockGet.mock.calls.length).toBeGreaterThanOrEqual(2))
+    await waitFor(() => expect(screen.getByRole('button', { name: /Present - Mina G/i }).getAttribute('aria-pressed')).toBe('true'))
+    expect(screen.getByRole('button', { name: /Present - John D/i }).getAttribute('aria-pressed')).toBe('true')
   })
 })

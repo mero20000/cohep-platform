@@ -102,7 +102,7 @@ export function InsightsClient() {
           <EmptyState
             title={lang === 'ar' ? 'فشل تحميل الإحصائيات' : 'Failed to load statistics'}
             description={loadError}
-            action={<Button onClick={fetchStats}>{lang === 'ar' ? 'إعادة المحاولة' : 'Retry'}</Button>}
+            action={<Button onClick={fetchStats} className="min-h-[44px]">{lang === 'ar' ? 'إعادة المحاولة' : 'Retry'}</Button>}
           />
         </div>
       </div>
@@ -270,10 +270,10 @@ export function InsightsClient() {
                           L{r.attendanceSession?.level?.number} &bull; {new Date(r.recordedAt).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })}
                         </span>
                         {r.behavior != null && r.behavior > 0 && (
-                          <span className="text-xs text-emerald-600">Beh:{r.behavior}/5</span>
+                          <span className="text-xs text-emerald-600">{lang === 'ar' ? `سلوك:${r.behavior}/5` : `Beh:${r.behavior}/5`}</span>
                         )}
                         {r.participation != null && r.participation > 0 && (
-                          <span className="text-xs text-blue-600">Part:{r.participation}/5</span>
+                          <span className="text-xs text-blue-600">{lang === 'ar' ? `مشاركة:${r.participation}/5` : `Part:${r.participation}/5`}</span>
                         )}
                         {r.attendedLiturgy && (
                           <span className="text-xs text-blue-700">{lang === 'ar' ? 'قداس' : 'Liturgy'}</span>
