@@ -448,4 +448,68 @@ describe('AttendanceService', () => {
       expect(where.groupId).toEqual({ in: ['G2', 'G3'] });
     });
   });
+
+  describe('findSuspectAutoSeeds', () => {
+    const seedTime = new Date('2026-09-01T10:00:00.000Z');
+    const autoRec = (over = {}) => ({
+      status: 'present',
+      behavior: null,
+      participation: null,
+      note: null,
+      attendedLiturgy: false,
+      recordedAt: new Date(seedTime.getTime() + 60 * 1000),
+      ...over,
+    });
+    const sess = (over = {}) => ({
+      id: 'sess-1',
+      scheduledDate: seedTime,
+      createdAt: seedTime,
+      status: 'completed',
+      level: { name: 'Level 1' },
+      group: { name: 'Group A' },
+      servant: { id: 'u1', firstName: 'George', lastName: 'R' },
+      attendanceRecords: [autoRec(), autoRec()],
+      ...over,
+    });
+
+    it('flags all-present unenriched sessions with seed-time match', async () => {
+      prisma.attendanceSession.findMany.mockResolvedValue([sess()]);
+
+      const result = await service.findSuspectAutoSeeds(schoolId, {});
+
+      expect(result).toHaveLength(1);
+      expect(result[0]).toMatchObject({
+        id: 'sess-1',
+        totalRecords: 2,
+        presentRecords: 2,
+        unenrichedPresents: 2,
+        seedTimeMatch: true,
+        suspect: true,
+      });
+    });
+
+    it('ignores sessions with mixed statuses or enriched records', async () => {
+      prisma.attendanceSession.findMany.mockResolvedValue([
+        sess({ id: 'mixed', attendanceRecords: [autoRec(), autoRec({ status: 'absent' })] }),
+        sess({ id: 'enriched', attendanceRecords: [autoRec(), autoRec({ behavior: 4, note: 'late bus' })] }),
+        sess({ id: 'empty', attendanceRecords: [] }),
+      ]);
+
+      const result = await service.findSuspectAutoSeeds(schoolId, {});
+
+      expect(result).toHaveLength(0);
+    });
+
+    it('scopes by school and caps the scan window', async () => {
+      prisma.attendanceSession.findMany.mockResolvedValue([]);
+
+      await service.findSuspectAutoSeeds(schoolId, { from: '2026-08-01', to: '2026-09-01', limit: 50 });
+
+      const where = prisma.attendanceSession.findMany.mock.calls[0][0].where;
+      expect(where.schoolId).toBe(schoolId);
+      expect(where.scheduledDate.gte).toEqual(new Date('2026-08-01'));
+      expect(where.scheduledDate.lte).toEqual(new Date('2026-09-01'));
+      expect(prisma.attendanceSession.findMany.mock.calls[0][0].take).toBe(50);
+    });
+  });
 });

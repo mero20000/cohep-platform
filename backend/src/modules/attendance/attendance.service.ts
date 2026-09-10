@@ -464,6 +464,72 @@ export class AttendanceService {
     }
   }
 
+  /**
+   * Diagnostic (read-only): list sessions whose records look auto-seeded
+   * rather than manually reported — every record is `present` with no
+   * enrichment (no behavior score, no note, no liturgy flag). A
+   * `seedTimeMatch` flag marks rows recorded within 15 minutes of the
+   * session creation (the legacy Start-Class pre-mark signature).
+   * Heuristic, not proof: a servant using Mark-All right after Start Class
+   * produces the same shape. An admin reviews before any cleanup.
+   */
+  async findSuspectAutoSeeds(schoolId: string, opts: { from?: string; to?: string; limit?: number }) {
+    const limit = Math.min(Math.max(opts.limit ?? 100, 1), 500);
+    const where: any = { schoolId, deletedAt: null };
+    if (opts.from || opts.to) {
+      where.scheduledDate = {};
+      if (opts.from) where.scheduledDate.gte = new Date(opts.from);
+      if (opts.to) where.scheduledDate.lte = new Date(opts.to);
+    }
+    const sessions = await this.prisma.attendanceSession.findMany({
+      where,
+      orderBy: { scheduledDate: 'desc' },
+      take: limit,
+      include: {
+        level: { select: { name: true } },
+        group: { select: { name: true } },
+        servant: { select: { id: true, firstName: true, lastName: true } },
+        attendanceRecords: {
+          select: { status: true, behavior: true, participation: true, note: true, attendedLiturgy: true, recordedAt: true },
+        },
+      },
+    });
+    return sessions
+      .map((s: any) => {
+        const recs = s.attendanceRecords || [];
+        const unenriched = recs.filter(
+          (r: any) =>
+            r.status === 'present' &&
+            (r.behavior == null || r.behavior === 0) &&
+            (r.participation == null || r.participation === 0) &&
+            !r.note &&
+            !r.attendedLiturgy,
+        );
+        const createdAt = new Date(s.createdAt).getTime();
+        const seedTimeMatch =
+          recs.length > 0 &&
+          !isNaN(createdAt) &&
+          recs.every((r: any) => {
+            const t = new Date(r.recordedAt).getTime();
+            return !isNaN(t) && Math.abs(t - createdAt) <= 15 * 60 * 1000;
+          });
+        return {
+          id: s.id,
+          scheduledDate: s.scheduledDate,
+          status: s.status,
+          levelName: s.level?.name ?? null,
+          groupName: s.group?.name ?? null,
+          servant: s.servant ? { id: s.servant.id, name: `${s.servant.firstName} ${s.servant.lastName}`.trim() } : null,
+          totalRecords: recs.length,
+          presentRecords: recs.filter((r: any) => r.status === 'present').length,
+          unenrichedPresents: unenriched.length,
+          seedTimeMatch,
+          suspect: recs.length > 0 && unenriched.length === recs.length,
+        };
+      })
+      .filter((s: any) => s.suspect);
+  }
+
   async markAttendance(sessionId: string, dto: MarkAttendanceDto) {
     const session = await this.prisma.attendanceSession.findUnique({ where: { id: sessionId } });
     if (!session) throw new NotFoundException('Attendance session not found');
