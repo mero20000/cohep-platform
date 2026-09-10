@@ -281,7 +281,7 @@ export class AttendanceService {
       const gn = alloc?.groupNumber ?? 1;
       const planned = (si as any)[`sessionsGroup${gn}`] ?? 0;
       const used = await this.prisma.attendanceSession.count({
-        where: { subjectItemId: effectiveSubjectItemId, status: 'completed' },
+        where: { subjectItemId: effectiveSubjectItemId, status: 'completed', deletedAt: null },
       });
 
       const existingDraft = await this.prisma.assessment.findFirst({
@@ -475,7 +475,10 @@ export class AttendanceService {
    */
   async findSuspectAutoSeeds(schoolId: string, opts: { from?: string; to?: string; limit?: number }) {
     const limit = Math.min(Math.max(opts.limit ?? 100, 1), 500);
-    const where: any = { schoolId, deletedAt: null };
+    // Intentionally scans soft-deleted sessions too: deleting a session
+    // leaves its records behind, and several readers historically counted
+    // them. The `deletedAt` field in each row tells that story.
+    const where: any = { schoolId };
     if (opts.from || opts.to) {
       where.scheduledDate = {};
       if (opts.from) where.scheduledDate.gte = new Date(opts.from);
@@ -517,6 +520,7 @@ export class AttendanceService {
           id: s.id,
           scheduledDate: s.scheduledDate,
           status: s.status,
+          deletedAt: s.deletedAt ?? null,
           levelName: s.level?.name ?? null,
           groupName: s.group?.name ?? null,
           servant: s.servant ? { id: s.servant.id, name: `${s.servant.firstName} ${s.servant.lastName}`.trim() } : null,
@@ -647,7 +651,7 @@ export class AttendanceService {
     const studentNameAr = student.firstNameAr && student.lastNameAr ? `${student.firstNameAr} ${student.lastNameAr}` : studentName;
 
     const group = await this.prisma.attendanceSession.findFirst({
-      where: { attendanceRecords: { some: { studentId } } },
+      where: { attendanceRecords: { some: { studentId } }, deletedAt: null },
       include: { group: { select: { name: true } } },
       orderBy: { scheduledDate: 'desc' },
     });
@@ -1044,7 +1048,7 @@ export class AttendanceService {
     });
     if (!students.length) return [];
     const records = await this.prisma.attendanceRecord.findMany({
-      where: { studentId: { in: students.map(s => s.id) } },
+      where: { studentId: { in: students.map(s => s.id) }, attendanceSession: { deletedAt: null } },
       include: {
         attendanceSession: {
           include: {

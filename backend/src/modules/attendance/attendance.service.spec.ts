@@ -489,6 +489,22 @@ describe('AttendanceService', () => {
       });
     });
 
+    it('flags auto-seed-like records under soft-deleted sessions too', async () => {
+      const seedTime = new Date('2026-09-01T10:00:00.000Z');
+      prisma.attendanceSession.findMany.mockResolvedValue([
+        sess({
+          id: 'ghost',
+          deletedAt: seedTime,
+          attendanceRecords: [autoRec(), autoRec()],
+        }),
+      ]);
+
+      const result = await service.findSuspectAutoSeeds(schoolId, {});
+
+      expect(result).toHaveLength(1);
+      expect(result[0]).toMatchObject({ id: 'ghost', deletedAt: seedTime, suspect: true });
+    });
+
     it('ignores sessions with mixed statuses or enriched records', async () => {
       prisma.attendanceSession.findMany.mockResolvedValue([
         sess({ id: 'mixed', attendanceRecords: [autoRec(), autoRec({ status: 'absent' })] }),

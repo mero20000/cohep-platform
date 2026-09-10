@@ -397,6 +397,7 @@ export class GamificationService {
         groupId: student.groupId ?? undefined,
         scheduledDate: { gte: startOfWeek, lt: now },
         status: 'completed',
+        deletedAt: null,
       },
       select: { id: true },
     });
@@ -427,6 +428,7 @@ export class GamificationService {
         groupId: student.groupId ?? undefined,
         scheduledDate: { gte: startOfMonth, lt: now },
         status: 'completed',
+        deletedAt: null,
       },
       select: { id: true },
     });
@@ -447,7 +449,7 @@ export class GamificationService {
 
   private async checkBehaviorStreak(student: { id: string }, consecutive: number): Promise<BadgeCheckResult> {
     const records = await this.prisma.attendanceRecord.findMany({
-      where: { studentId: student.id, behavior: { not: null } },
+      where: { studentId: student.id, behavior: { not: null }, attendanceSession: { deletedAt: null } },
       orderBy: { attendanceSession: { scheduledDate: 'desc' } },
       select: { behavior: true, attendanceSession: { select: { scheduledDate: true } } },
       take: 50,
@@ -529,6 +531,7 @@ export class GamificationService {
           groupId: student.groupId ?? undefined,
           scheduledDate: { gte: week.start, lt: week.end },
           status: 'completed',
+          deletedAt: null,
         },
         select: { id: true },
       });
@@ -585,6 +588,7 @@ export class GamificationService {
           groupId: student.groupId ?? undefined,
           scheduledDate: { gte: from, lte: to },
           status: 'completed',
+          deletedAt: null,
         },
         select: { id: true },
       });
@@ -957,11 +961,11 @@ export class GamificationService {
     const endLastMonth = new Date(today.getFullYear(), today.getMonth(), 0);
 
     const thisMonthAtt = await this.prisma.attendanceRecord.findMany({
-      where: { studentId, attendanceSession: { scheduledDate: { gte: startThisMonth } } },
+      where: { studentId, attendanceSession: { scheduledDate: { gte: startThisMonth }, deletedAt: null } },
       select: { status: true },
     });
     const lastMonthAtt = await this.prisma.attendanceRecord.findMany({
-      where: { studentId, attendanceSession: { scheduledDate: { gte: startLastMonth, lte: endLastMonth } } },
+      where: { studentId, attendanceSession: { scheduledDate: { gte: startLastMonth, lte: endLastMonth }, deletedAt: null } },
       select: { status: true },
     });
 
@@ -1063,7 +1067,7 @@ export class GamificationService {
       where: {
         studentId: { in: studentIds },
         status: { in: ['present', 'late'] },
-        attendanceSession: { scheduledDate: { gte: startMonth } },
+        attendanceSession: { scheduledDate: { gte: startMonth }, deletedAt: null },
       },
     });
     const attendedIds = new Set(attendedThisMonth.map(r => r.studentId));
@@ -1404,12 +1408,12 @@ export class GamificationService {
 
     // Sessions taught: attendance sessions where this servant was involved
     const sessionsTaught = await this.prisma.attendanceSession.count({
-      where: { schoolId },
+      where: { schoolId, deletedAt: null },
     });
 
     // Students assessed: unique students who attended sessions run by this servant
     const servedSessions = await this.prisma.attendanceSession.findMany({
-      where: { schoolId, servantId: userId },
+      where: { schoolId, servantId: userId, deletedAt: null },
       select: { id: true },
     });
     const servedSessionIds = servedSessions.map(s => s.id);

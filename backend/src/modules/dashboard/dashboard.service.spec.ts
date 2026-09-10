@@ -157,6 +157,21 @@ describe('DashboardService', () => {
       expect(result.thisWeek).toMatchObject({ present: 1, total: 1 });
     });
 
+    it('excludes soft-deleted sessions and records from ministry numbers', async () => {
+      mockMinistryBaseline();
+      prisma.attendanceSession.findMany.mockResolvedValue([]);
+
+      await service.getMine(user, schoolId, 'servant');
+
+      const sessionWhere = prisma.attendanceSession.findMany.mock.calls[0][0].where;
+      expect(sessionWhere.deletedAt).toBeNull();
+      expect(sessionWhere.status).toBe('scheduled');
+      const allTimeCall = prisma.attendanceRecord.findMany.mock.calls[0][0];
+      expect(allTimeCall.where.attendanceSession.deletedAt).toBeNull();
+      const weekCall = prisma.attendanceRecord.findMany.mock.calls[1][0];
+      expect(weekCall.where.attendanceSession.deletedAt).toBeNull();
+    });
+
     it('lists upcoming sessions only, each with its curriculum subject item', async () => {
       mockMinistryBaseline();
       const future = new Date(Date.now() + 86400000);
