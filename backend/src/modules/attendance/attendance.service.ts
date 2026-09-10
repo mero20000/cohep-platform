@@ -740,7 +740,8 @@ export class AttendanceService {
       },
     });
 
-    // Pre-mark all students as present
+    // Seed the roster as unmarked — the servant marks each student explicitly.
+    // Defaulting to present caused false presents and rework on absences.
     const students = await this.prisma.student.findMany({
       where: { groupId, levelId, schoolId: servant.schoolId, deletedAt: null, status: 'active' },
       select: { id: true },
@@ -750,7 +751,7 @@ export class AttendanceService {
         data: students.map(s => ({
           attendanceSessionId: session.id,
           studentId: s.id,
-          status: 'present',
+          status: 'unmarked',
           recordedBy: servantId,
           recordedAt: new Date(),
         })),

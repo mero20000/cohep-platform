@@ -184,6 +184,20 @@ describe('AttendanceService', () => {
       expect(data.status).toBe('in_progress');
       expect(data.actualStartTime).toBeInstanceOf(Date);
     });
+
+    it('seeds the roster as unmarked (never pre-marks present)', async () => {
+      prisma.student.findMany.mockResolvedValue([{ id: 'stu-1' }]);
+
+      await service.startClass('u1');
+
+      expect(prisma.attendanceRecord.createMany).toHaveBeenCalledWith({
+        data: expect.arrayContaining([
+          expect.objectContaining({ studentId: 'stu-1', status: 'unmarked' }),
+        ]),
+      });
+      const statuses = prisma.attendanceRecord.createMany.mock.calls[0][0].data.map((r: any) => r.status);
+      expect(statuses).not.toContain('present');
+    });
   });
 
   describe('createSession', () => {

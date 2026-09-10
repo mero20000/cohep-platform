@@ -2013,8 +2013,9 @@ function ServantWellbeingPanel({ lang, schoolId }: { lang: string; schoolId: str
   const handleStartClass = async () => {
     if (!digest?.nextSession) return
     setStartingClass(true)
-    // Navigate to attendance for this session with pre-fill param
-    router.push(`/dashboard/attendance?sessionId=${digest.nextSession.id}&prefill=present`)
+    // Navigate to attendance for this session — roster starts unmarked so the
+    // servant marks each student explicitly (no all-present default).
+    router.push(`/dashboard/attendance?sessionId=${digest.nextSession.id}`)
     setStartingClass(false)
   }
 
