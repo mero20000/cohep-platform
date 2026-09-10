@@ -1,10 +1,5 @@
 import { redirect } from 'next/navigation'
 
-export const metadata = {
-  title: 'Attendance - Coptic Orthodox Hymn Education Platform (COHEP)',
-  description: 'Mark and manage session attendance for students and servants',
-}
-
 export function buildMarkRedirect(
   searchParams?: Record<string, string | string[] | undefined>,
 ): string {

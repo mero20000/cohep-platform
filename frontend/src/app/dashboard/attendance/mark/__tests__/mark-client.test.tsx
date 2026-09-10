@@ -6,6 +6,7 @@ const state = vi.hoisted(() => ({
   params: { sessionId: 'sess-1' as string | null, prefill: null as string | null, subjectItemId: null as string | null },
   twoStudents: false,
   saved: null as any[] | null,
+  status: 'in_progress' as string,
 }))
 
 const TWO = [
@@ -16,8 +17,8 @@ const ONE = [TWO[0]]
 
 const mockGet = vi.fn(async (url: string) => {
   if (url.startsWith('/attendance/sessions/')) {
-    if (state.saved) return { id: 'sess-1', status: 'in_progress', attendanceRecords: state.saved }
-    return { id: 'sess-1', status: 'in_progress', attendanceRecords: state.twoStudents ? TWO : ONE }
+    if (state.saved) return { id: 'sess-1', status: state.status, attendanceRecords: state.saved }
+    return { id: 'sess-1', status: state.status, attendanceRecords: state.twoStudents ? TWO : ONE }
   }
   return []
 })
@@ -42,6 +43,7 @@ beforeEach(() => {
   state.params = { sessionId: 'sess-1', prefill: null, subjectItemId: null }
   state.twoStudents = false
   state.saved = null
+  state.status = 'in_progress'
   mockGet.mockClear()
   mockPost.mockClear()
   mockPut.mockClear()
@@ -91,6 +93,39 @@ describe('MarkClient', () => {
     await waitFor(() => expect(mockPut).toHaveBeenCalledWith('/attendance/sessions/sess-1', { status: 'completed' }))
     // Quiet reload after finalize must preserve server truth.
     await waitFor(() => expect(mockGet.mock.calls.length).toBeGreaterThanOrEqual(2))
+    await waitFor(() => expect(screen.getByRole('button', { name: /Present - Mina G/i }).getAttribute('aria-pressed')).toBe('true'))
+    expect(screen.getByRole('button', { name: /Present - John D/i }).getAttribute('aria-pressed')).toBe('true')
+  })
+
+  it('completed session renders read-only with Re-open and finalize lock copy', async () => {
+    state.status = 'completed'
+    render(<MarkClient />)
+    await waitFor(() => expect(screen.getByRole('button', { name: /Re-open/i })).toBeInTheDocument())
+    expect(screen.getByText(/finalized|locked|read-only/i)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /^Save$/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Save & Finalize/i })).not.toBeInTheDocument()
+    // No interactive status buttons in read-only mode.
+    expect(screen.queryByRole('button', { name: /Present - Mina G/i })).not.toBeInTheDocument()
+  })
+
+  it('Re-open issues PUT in_progress and reloads the session', async () => {
+    state.status = 'completed'
+    render(<MarkClient />)
+    await waitFor(() => expect(screen.getByRole('button', { name: /Re-open/i })).toBeInTheDocument())
+    fireEvent.click(screen.getByRole('button', { name: /Re-open/i }))
+    await waitFor(() => expect(mockPut).toHaveBeenCalledWith('/attendance/sessions/sess-1', { status: 'in_progress' }))
+    await waitFor(() => expect(mockGet.mock.calls.length).toBeGreaterThanOrEqual(2))
+  })
+
+  it('mark-all confirm dialog marks all visible students', async () => {
+    state.twoStudents = true
+    render(<MarkClient />)
+    await waitFor(() => expect(screen.getByRole('group', { name: /Status - Mina G/i })).toBeInTheDocument())
+    fireEvent.click(screen.getByRole('button', { name: /All Present/i }))
+    // Confirm modal scopes to all visible students in this session.
+    await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument())
+    expect(screen.getByText(/all 2 students in this session/i)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /^Confirm/i }))
     await waitFor(() => expect(screen.getByRole('button', { name: /Present - Mina G/i }).getAttribute('aria-pressed')).toBe('true'))
     expect(screen.getByRole('button', { name: /Present - John D/i }).getAttribute('aria-pressed')).toBe('true')
   })

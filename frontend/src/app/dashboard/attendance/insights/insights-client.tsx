@@ -240,14 +240,16 @@ export function InsightsClient() {
           <div className="flex items-center gap-2">
             <input type="text" value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter') runStudentSearch(searchQuery) }}
-              placeholder={lang === 'ar' ? 'بحث بالاسم أو الكود...' : 'Search by name, code...'} className="rounded-lg border border-gray-300 px-3 py-2 text-sm flex-1 focus:border-gold-500 focus:outline-none" />
+              placeholder={lang === 'ar' ? 'بحث بالاسم أو الكود...' : 'Search by name, code...'}
+              aria-label={lang === 'ar' ? 'بحث عن طالب' : 'Search student'}
+              className="rounded-lg border border-gray-300 px-3 py-2 text-sm flex-1 focus:border-gold-500 focus:outline-none" />
             <Button id="search-student-btn" onClick={() => runStudentSearch(searchQuery)} aria-label={lang === 'ar' ? 'بحث عن طالب' : 'Search student'} className="px-4" disabled={searching || !searchQuery.trim()}>
               {searching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
             </Button>
           </div>
         </div>
         {studentResults.length > 0 && (
-          <div className="max-h-[500px] overflow-y-auto divide-y divide-gray-100">
+          <div className="max-h-[60vh] overflow-y-auto divide-y divide-gray-100">
             {studentResults.map(({ student, records }) => (
               <div key={student.id} className="px-5 py-3">
                 <div className="text-sm font-medium text-gray-900 mb-2">

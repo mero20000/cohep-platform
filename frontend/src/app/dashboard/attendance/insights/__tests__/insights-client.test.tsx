@@ -7,4 +7,8 @@ vi.mock('@/lib/use-language', () => ({ useLanguage: () => 'en' }))
 vi.mock('@/components/ui/toast', () => ({ useToast: () => ({ toast: vi.fn() }) }))
 describe('Insights', () => {
   it('shows average rate', async () => { render(<InsightsClient />); await waitFor(()=>expect(screen.getByText(/90/)).toBeInTheDocument()) })
+  it('student search input has an accessible name', async () => {
+    render(<InsightsClient />)
+    await waitFor(() => expect(screen.getByRole('textbox', { name: /search student/i })).toBeInTheDocument())
+  })
 })
