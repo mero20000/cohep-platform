@@ -141,6 +141,15 @@ describe('MarkClient', () => {
     expect(screen.getByRole('group', { name: /Status - John D/i })).toBeInTheDocument()
   })
 
+  it('sorts the roster alphabetically by student name', async () => {
+    state.twoStudents = true
+    render(<MarkClient />)
+    await waitFor(() => expect(screen.getByRole('group', { name: /Status - Mina G/i })).toBeInTheDocument())
+    // DOM order follows the alphabetical roster (John D before Mina G).
+    const cards = Array.from(document.querySelectorAll('[data-student-id]'))
+    expect(cards.map((c) => c.getAttribute('data-student-id'))).toEqual(['s2', 's1'])
+  })
+
   it('status controls render in compact 4-column layout', async () => {
     render(<MarkClient />)
     const group = await waitFor(() => screen.getByRole('group', { name: /Status - Mina G/i }))

@@ -160,7 +160,14 @@ export function MarkClient() {
     const s = r.student || {}
     return [s.firstName, s.lastName, s.firstNameAr, s.lastNameAr].some(v => (v || '').toLowerCase().includes(q))
   }
-  const visibleRecs = recs.filter((r: any) => matchesQuery(r) && (!unmarkedOnly || isUnmarked(r)))
+  const studentSortName = (r: any) => {
+    const s = r.student || {}
+    return `${s.firstName || ''} ${s.lastName || ''}`.trim() || `${s.firstNameAr || ''} ${s.lastNameAr || ''}`.trim()
+  }
+  const visibleRecs = recs
+    .filter((r: any) => matchesQuery(r) && (!unmarkedOnly || isUnmarked(r)))
+    // Alphabetical roster so the servant scans in a predictable order.
+    .sort((a: any, b: any) => studentSortName(a).localeCompare(studentSortName(b), lang === 'ar' ? 'ar' : 'en'))
   const unmarkedCount = recs.filter(isUnmarked).length
   const isFiltering = query.trim() !== '' || unmarkedOnly
   const counts = {
