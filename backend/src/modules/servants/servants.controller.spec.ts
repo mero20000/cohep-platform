@@ -1,4 +1,5 @@
 import { ServantsController } from './servants.controller';
+import { ServantsService } from './servants.service';
 
 const prismaMock = {
   student: { findMany: jest.fn(), findFirst: jest.fn() },
@@ -68,7 +69,10 @@ describe('recordLiturgyAttendance', () => {
 });
 
 describe('toggleActive', () => {
-  const controller = new ServantsController({} as any, prismaMock as any);
+  const controller = new ServantsController(
+    new ServantsService(prismaMock as any, {} as any, {} as any),
+    prismaMock as any,
+  );
   const admin = { id: 'a1', schoolId: 's1', roles: ['admin'] };
 
   beforeEach(() => jest.clearAllMocks());
@@ -76,7 +80,7 @@ describe('toggleActive', () => {
   it('toggles inactive to active', async () => {
     prismaMock.user.findUnique.mockResolvedValue({ id: 'u1', isActive: false, firstName: 'John', lastName: 'Doe', deletedAt: null });
     prismaMock.user.update.mockResolvedValue({ id: 'u1', isActive: true, firstName: 'John', lastName: 'Doe' });
-    const res: any = await controller.toggleActive('u1');
+    const res: any = await controller.toggleActive('u1', admin);
     expect(res.isActive).toBe(true);
     expect(prismaMock.user.update).toHaveBeenCalledWith(
       expect.objectContaining({ where: { id: 'u1' }, data: { isActive: true } }),
@@ -86,7 +90,7 @@ describe('toggleActive', () => {
   it('toggles active to inactive', async () => {
     prismaMock.user.findUnique.mockResolvedValue({ id: 'u1', isActive: true, firstName: 'John', lastName: 'Doe', deletedAt: null });
     prismaMock.user.update.mockResolvedValue({ id: 'u1', isActive: false, firstName: 'John', lastName: 'Doe' });
-    const res: any = await controller.toggleActive('u1');
+    const res: any = await controller.toggleActive('u1', admin);
     expect(res.isActive).toBe(false);
     expect(prismaMock.user.update).toHaveBeenCalledWith(
       expect.objectContaining({ where: { id: 'u1' }, data: { isActive: false } }),
@@ -95,6 +99,6 @@ describe('toggleActive', () => {
 
   it('rejects missing servant', async () => {
     prismaMock.user.findUnique.mockResolvedValue(null);
-    await expect(controller.toggleActive('nope')).rejects.toThrow();
+    await expect(controller.toggleActive('nope', admin)).rejects.toThrow();
   });
 });
