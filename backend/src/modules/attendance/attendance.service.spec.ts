@@ -30,6 +30,7 @@ describe('AttendanceService', () => {
       findMany: jest.fn(),
       createMany: jest.fn(),
       deleteMany: jest.fn(),
+      updateMany: jest.fn(),
       upsert: jest.fn(),
     },
     student: {
@@ -510,6 +511,58 @@ describe('AttendanceService', () => {
       expect(where.scheduledDate.gte).toEqual(new Date('2026-08-01'));
       expect(where.scheduledDate.lte).toEqual(new Date('2026-09-01'));
       expect(prisma.attendanceSession.findMany.mock.calls[0][0].take).toBe(50);
+    });
+
+    it('dry-runs by default: reports suspects without writing', async () => {
+      const seedTime = new Date('2026-09-01T10:00:00.000Z');
+      prisma.attendanceSession.findMany.mockResolvedValue([
+        {
+          id: 'sess-1', scheduledDate: seedTime, createdAt: seedTime, status: 'completed',
+          level: { name: 'L' }, group: { name: 'G' }, servant: { id: 'u1', firstName: 'A', lastName: 'B' },
+          attendanceRecords: [
+            { status: 'present', behavior: null, participation: null, note: null, attendedLiturgy: false, recordedAt: seedTime },
+          ],
+        },
+      ]);
+
+      const result = await service.resetSuspectAutoSeeds(schoolId, {});
+
+      expect(result.dryRun).toBe(true);
+      expect(result.sessionCount).toBe(1);
+      expect(result.recordsReset).toBe(0);
+      expect(prisma.attendanceRecord.updateMany).not.toHaveBeenCalled();
+    });
+
+    it('resets only unenriched presents on flagged sessions when confirmed', async () => {
+      const seedTime = new Date('2026-09-01T10:00:00.000Z');
+      prisma.attendanceSession.findMany.mockResolvedValue([
+        {
+          id: 'sess-1', scheduledDate: seedTime, createdAt: seedTime, status: 'completed',
+          level: { name: 'L' }, group: { name: 'G' }, servant: { id: 'u1', firstName: 'A', lastName: 'B' },
+          attendanceRecords: [
+            { status: 'present', behavior: null, participation: null, note: null, attendedLiturgy: false, recordedAt: seedTime },
+          ],
+        },
+      ]);
+      prisma.attendanceRecord.updateMany.mockResolvedValue({ count: 1 });
+
+      const result = await service.resetSuspectAutoSeeds(schoolId, { dryRun: false, confirm: true });
+
+      expect(result.dryRun).toBe(false);
+      expect(result.recordsReset).toBe(1);
+      const args = prisma.attendanceRecord.updateMany.mock.calls[0][0];
+      expect(args.where.attendanceSessionId).toEqual({ in: ['sess-1'] });
+      expect(args.where.status).toBe('present');
+      expect(args.data).toEqual({ status: 'unmarked' });
+    });
+
+    it('requires both flags: confirm alone still dry-runs', async () => {
+      prisma.attendanceSession.findMany.mockResolvedValue([]);
+
+      const result = await service.resetSuspectAutoSeeds(schoolId, { confirm: true } as any);
+
+      expect(result.dryRun).toBe(true);
+      expect(prisma.attendanceRecord.updateMany).not.toHaveBeenCalled();
     });
   });
 });

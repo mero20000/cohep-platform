@@ -530,6 +530,51 @@ export class AttendanceService {
       .filter((s: any) => s.suspect);
   }
 
+  /**
+   * Cleanup (write): reset auto-seed-like records to `unmarked` on exactly
+   * the sessions flagged by findSuspectAutoSeeds. Safe by default: runs as
+   * a dry run unless `{ dryRun: false, confirm: true }` is passed.
+   * Only the status flips — recordedBy/recordedAt history is preserved.
+   */
+  async resetSuspectAutoSeeds(
+    schoolId: string,
+    opts: { from?: string; to?: string; limit?: number; dryRun?: boolean; confirm?: boolean },
+  ) {
+    const suspects = await this.findSuspectAutoSeeds(schoolId, opts);
+    const sessionIds = suspects.map((s: any) => s.id);
+    const dryRun = opts.dryRun !== false || opts.confirm !== true;
+    let recordsReset = 0;
+    if (!dryRun && sessionIds.length) {
+      const res = await this.prisma.attendanceRecord.updateMany({
+        where: {
+          attendanceSessionId: { in: sessionIds },
+          status: 'present',
+          OR: [{ behavior: null }, { behavior: 0 }],
+          AND: [
+            { OR: [{ participation: null }, { participation: 0 }] },
+            { note: null },
+            { OR: [{ attendedLiturgy: null }, { attendedLiturgy: false }] },
+          ],
+        },
+        data: { status: 'unmarked' },
+      });
+      recordsReset = res.count;
+    }
+    return {
+      dryRun,
+      sessions: suspects.map((s: any) => ({
+        id: s.id,
+        scheduledDate: s.scheduledDate,
+        groupName: s.groupName,
+        servant: s.servant,
+        totalRecords: s.totalRecords,
+        seedTimeMatch: s.seedTimeMatch,
+      })),
+      sessionCount: suspects.length,
+      recordsReset,
+    };
+  }
+
   async markAttendance(sessionId: string, dto: MarkAttendanceDto) {
     const session = await this.prisma.attendanceSession.findUnique({ where: { id: sessionId } });
     if (!session) throw new NotFoundException('Attendance session not found');
