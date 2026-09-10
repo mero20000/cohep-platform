@@ -117,6 +117,36 @@ describe('MarkClient', () => {
     await waitFor(() => expect(mockGet.mock.calls.length).toBeGreaterThanOrEqual(2))
   })
 
+  it('search filters students by name', async () => {
+    state.twoStudents = true
+    render(<MarkClient />)
+    await waitFor(() => expect(screen.getByRole('group', { name: /Status - Mina G/i })).toBeInTheDocument())
+    expect(screen.getByRole('group', { name: /Status - John D/i })).toBeInTheDocument()
+    fireEvent.change(screen.getByRole('searchbox', { name: /Search student name/i }), { target: { value: 'john' } })
+    expect(screen.queryByRole('group', { name: /Status - Mina G/i })).not.toBeInTheDocument()
+    expect(screen.getByRole('group', { name: /Status - John D/i })).toBeInTheDocument()
+    expect(screen.getByText(/Showing 1 of 2/i)).toBeInTheDocument()
+    // Clearing restores the full list.
+    fireEvent.click(screen.getByRole('button', { name: /Clear search/i }))
+    expect(screen.getByRole('group', { name: /Status - Mina G/i })).toBeInTheDocument()
+  })
+
+  it('unmarked-only toggle hides marked students', async () => {
+    state.twoStudents = true
+    render(<MarkClient />)
+    await waitFor(() => expect(screen.getByRole('group', { name: /Status - Mina G/i })).toBeInTheDocument())
+    fireEvent.click(screen.getByRole('button', { name: /Present - Mina G/i }))
+    fireEvent.click(screen.getByRole('button', { name: /Unmarked \(1\)/i }))
+    expect(screen.queryByRole('group', { name: /Status - Mina G/i })).not.toBeInTheDocument()
+    expect(screen.getByRole('group', { name: /Status - John D/i })).toBeInTheDocument()
+  })
+
+  it('status controls render in compact 4-column layout', async () => {
+    render(<MarkClient />)
+    const group = await waitFor(() => screen.getByRole('group', { name: /Status - Mina G/i }))
+    expect(group.className).toMatch(/grid-cols-4/)
+  })
+
   it('mark-all confirm dialog marks all visible students', async () => {
     state.twoStudents = true
     render(<MarkClient />)

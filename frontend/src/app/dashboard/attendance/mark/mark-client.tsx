@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
-import { CheckCircle2, Clock, XCircle, AlertCircle } from 'lucide-react'
+import { CheckCircle2, Clock, XCircle, AlertCircle, Search, X } from 'lucide-react'
 import { useLanguage } from '@/lib/use-language'
 import { useToast } from '@/components/ui/toast'
 import { Button } from '@/components/ui/button'
@@ -44,6 +44,8 @@ export function MarkClient() {
   const [saving, setSaving] = useState(false)
   const [reopening, setReopening] = useState(false)
   const [markAllTarget, setMarkAllTarget] = useState<string | null>(null)
+  const [query, setQuery] = useState('')
+  const [unmarkedOnly, setUnmarkedOnly] = useState(false)
   const marking = useMarkingState([])
 
   const load = async (id?: string, quiet = false) => {
@@ -120,7 +122,7 @@ export function MarkClient() {
     return () => window.removeEventListener('keydown', onKey)
   }, [])
 
-  const handleRecordKeyDown = (e: React.KeyboardEvent, recordIndex: number, record: any) => {
+  const handleRecordKeyDown = (e: React.KeyboardEvent, record: any) => {
     const id = record.student?.id
     if (!id) return
     // Completed sessions are read-only — never mutate marks via keyboard.
@@ -128,20 +130,21 @@ export function MarkClient() {
     // Never hijack typing inside the note field.
     const t = e.target as HTMLElement
     if (t instanceof HTMLInputElement || t instanceof HTMLTextAreaElement) return
-    const recs = session?.attendanceRecords || []
+    // Arrow navigation follows DOM order so it keeps working when the list
+    // is filtered by search or the unmarked-only toggle.
+    const order = Array.from(document.querySelectorAll('[data-student-id]'))
+    const at = order.indexOf(e.target as Element)
     if (e.key === 'p' || e.key === 'P') { e.preventDefault(); marking.setStatus(id, 'present') }
     else if (e.key === 'l' || e.key === 'L') { e.preventDefault(); marking.setStatus(id, 'late') }
     else if (e.key === 'a' || e.key === 'A') { e.preventDefault(); marking.setStatus(id, 'absent') }
     else if (e.key === 'e' || e.key === 'E') { e.preventDefault(); marking.setStatus(id, 'excused') }
     else if (e.key >= '1' && e.key <= '5') { e.preventDefault(); marking.setBehavior(id, parseInt(e.key, 10)) }
-    else if (e.key === 'ArrowUp' && recordIndex > 0) {
+    else if (e.key === 'ArrowUp' && at > 0) {
       e.preventDefault()
-      const prev = recs[recordIndex - 1]
-      if (prev?.student) (document.querySelector(`[data-student-id="${prev.student.id}"]`) as HTMLElement)?.focus()
-    } else if (e.key === 'ArrowDown' && recordIndex < recs.length - 1) {
+      ;(order[at - 1] as HTMLElement)?.focus()
+    } else if (e.key === 'ArrowDown' && at >= 0 && at < order.length - 1) {
       e.preventDefault()
-      const next = recs[recordIndex + 1]
-      if (next?.student) (document.querySelector(`[data-student-id="${next.student.id}"]`) as HTMLElement)?.focus()
+      ;(order[at + 1] as HTMLElement)?.focus()
     }
   }
 
@@ -150,6 +153,16 @@ export function MarkClient() {
   if (!session) return <EmptyState title={lang === 'ar' ? 'لا توجد جلسة اليوم' : 'No session today'} description={lang === 'ar' ? 'ابدأ الحصة لفتح التحضير' : 'Start class to open marking'} action={<Button onClick={() => { void load() }} className="min-h-[44px]">{lang === 'ar' ? 'بدء الحصة' : 'Start class'}</Button>} />
 
   const recs = session.attendanceRecords || []
+  const isUnmarked = (r: any) => { const s = marking.marks[r.student?.id]; return !s || s === 'unmarked' }
+  const matchesQuery = (r: any) => {
+    const q = query.trim().toLowerCase()
+    if (!q) return true
+    const s = r.student || {}
+    return [s.firstName, s.lastName, s.firstNameAr, s.lastNameAr].some(v => (v || '').toLowerCase().includes(q))
+  }
+  const visibleRecs = recs.filter((r: any) => matchesQuery(r) && (!unmarkedOnly || isUnmarked(r)))
+  const unmarkedCount = recs.filter(isUnmarked).length
+  const isFiltering = query.trim() !== '' || unmarkedOnly
   const counts = {
     present: recs.filter((r: any) => marking.marks[r.student?.id] === 'present').length,
     late: recs.filter((r: any) => marking.marks[r.student?.id] === 'late').length,
@@ -196,7 +209,42 @@ export function MarkClient() {
           </Link>
         </p>
       </div>
-      <MarkSummaryBar {...counts} dirty={marking.dirty} error={saveError} onRetry={() => save(false)} lang={lang} />
+      <div className="sticky top-0 z-10 space-y-2 bg-white/95 py-2 backdrop-blur">
+        <MarkSummaryBar {...counts} dirty={marking.dirty} error={saveError} onRetry={() => save(false)} lang={lang} />
+        {!isCompleted && (
+          <div className="flex items-center gap-2">
+            <div className="relative flex-1">
+              <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" aria-hidden="true" />
+              <input
+                type="search"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder={lang === 'ar' ? 'بحث باسم الطالب…' : 'Search student name…'}
+                aria-label={lang === 'ar' ? 'بحث باسم الطالب' : 'Search student name'}
+                className="min-h-[44px] w-full rounded-lg border border-gray-300 py-2 pe-9 ps-9 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500"
+              />
+              {query && (
+                <button
+                  type="button"
+                  onClick={() => setQuery('')}
+                  aria-label={lang === 'ar' ? 'مسح البحث' : 'Clear search'}
+                  className="absolute end-1 top-1/2 flex min-h-[44px] min-w-[44px] -translate-y-1/2 items-center justify-center rounded-lg text-gray-400 hover:text-gray-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500"
+                >
+                  <X className="h-4 w-4" aria-hidden="true" />
+                </button>
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={() => setUnmarkedOnly(v => !v)}
+              aria-pressed={unmarkedOnly}
+              className={`min-h-[44px] shrink-0 rounded-lg px-3 text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500 ${unmarkedOnly ? 'bg-gold-100 text-gold-800' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+            >
+              {lang === 'ar' ? `غير المسجل (${unmarkedCount})` : `Unmarked (${unmarkedCount})`}
+            </button>
+          </div>
+        )}
+      </div>
       {/* Mark-all row (hidden once finalized) — mirrors the legacy confirm pattern. */}
       {!isCompleted && (
         <div className="flex flex-wrap items-center gap-2 rounded-xl border border-gray-200 bg-gray-50 px-3 py-2">
@@ -206,7 +254,19 @@ export function MarkClient() {
           <Button type="button" variant="ghost" size="sm" onClick={() => setMarkAllTarget('absent')} className="min-h-[44px] bg-red-100 text-red-700 hover:bg-red-200">{lang === 'ar' ? 'الكل غائب' : 'All Absent'}</Button>
         </div>
       )}
-      {recs.map((r: any, i: number) => {
+      {isFiltering && (
+        <p className="text-xs text-gray-500" aria-live="polite">
+          {lang === 'ar'
+            ? `عرض ${visibleRecs.length} من ${recs.length}`
+            : `Showing ${visibleRecs.length} of ${recs.length}`}
+        </p>
+      )}
+      {visibleRecs.length === 0 && (
+        <p className="rounded-xl border border-dashed border-gray-300 bg-white p-6 text-center text-sm text-gray-500">
+          {lang === 'ar' ? 'لا يوجد طلاب مطابقون للبحث' : 'No students match the search'}
+        </p>
+      )}
+      {visibleRecs.map((r: any) => {
         const studentName = `${r.student?.firstName} ${r.student?.lastName}`
         const current = marking.marks[r.student?.id] || 'unmarked'
         return (
@@ -214,10 +274,10 @@ export function MarkClient() {
           key={r.student?.id}
           data-student-id={r.student?.id}
           tabIndex={0}
-          onKeyDown={(e) => handleRecordKeyDown(e, i, r)}
-          className="rounded-xl border border-gray-200 bg-white p-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500"
+          onKeyDown={(e) => handleRecordKeyDown(e, r)}
+          className="rounded-xl border border-gray-200 bg-white p-2.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500"
         >
-          <div className="mb-2 font-medium">{r.student?.firstName} {r.student?.lastName}</div>
+          <div className="mb-1.5 truncate text-[15px] font-medium">{r.student?.firstName} {r.student?.lastName}</div>
           {isCompleted ? (
             <div role="group" aria-label={lang === 'ar' ? `الحالة - ${studentName} (نهائية)` : `Status - ${studentName} (finalized)`} className="grid grid-cols-2 gap-2">
               {READONLY_STATUSES.map(({ key, en, ar, Icon, active }) => {
@@ -233,7 +293,7 @@ export function MarkClient() {
               })}
             </div>
           ) : (
-            <StatusSegment value={current} onChange={(s) => marking.setStatus(r.student.id, s)} lang={lang} studentName={studentName} />
+            <StatusSegment compact value={current} onChange={(s) => marking.setStatus(r.student.id, s)} lang={lang} studentName={studentName} />
           )}
           {isCompleted ? (
             <div className="mt-2 text-xs text-gray-500">
