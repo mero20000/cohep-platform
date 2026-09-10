@@ -304,6 +304,55 @@ describe('getServantProfile', () => {
   });
 });
 
+describe('computeServantStats totalHymns', () => {
+  let service: ServantsService;
+  let prisma: any;
+
+  beforeEach(async () => {
+    const prismaMock = {
+      user: { findUnique: jest.fn() },
+      attendanceSession: { count: jest.fn(), findMany: jest.fn() },
+      attendanceRecord: { groupBy: jest.fn() },
+      hymnPracticeSession: { count: jest.fn() },
+      level: { findUnique: jest.fn() },
+      group: { findUnique: jest.fn() },
+    };
+    const module = await Test.createTestingModule({
+      providers: [
+        ServantsService,
+        { provide: StudentNotificationsService, useValue: { notify: jest.fn(), notifyOrRefresh: jest.fn() } },
+        { provide: PrismaService, useValue: prismaMock },
+        { provide: GamificationService, useValue: { addXp: jest.fn(), awardBadge: jest.fn() } },
+      ],
+    }).compile();
+    service = module.get<ServantsService>(ServantsService);
+    prisma = module.get(PrismaService);
+    jest.clearAllMocks();
+  });
+
+  it('counts distinct curriculum items from the servant sessions, not the catalog', async () => {
+    prisma.user.findUnique.mockResolvedValue({
+      id: 's1', schoolId: 'school-1', createdAt: new Date('2020-01-01T00:00:00.000Z'), metadata: {},
+    });
+    prisma.attendanceSession.count.mockResolvedValue(10);
+    prisma.attendanceRecord.groupBy.mockResolvedValue([]);
+    prisma.attendanceSession.findMany.mockResolvedValue([
+      { subjectItemId: 'h1' },
+      { subjectItemId: 'h1' },
+      { subjectItemId: 'h2' },
+      { subjectItemId: null },
+    ]);
+    prisma.hymnPracticeSession.count.mockResolvedValue(3);
+
+    const stats = await (service as any).computeServantStats('s1', 'school-1');
+
+    expect(prisma.attendanceSession.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: expect.objectContaining({ servantId: 's1' }) }),
+    );
+    expect(stats.totalHymns).toBe(2);
+  });
+});
+
 describe('getServantTimeline', () => {
   let service: ServantsService;
   let prisma: any;

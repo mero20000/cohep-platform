@@ -347,13 +347,26 @@ export class DashboardService {
     }
 
     const now = new Date();
+    const todayStart = new Date(now);
+    todayStart.setHours(0, 0, 0, 0);
+    const todayEnd = new Date(now);
+    todayEnd.setHours(23, 59, 59, 999);
+    // "Sessions to Run" = upcoming scheduled sessions only.
+    sessionWhere.scheduledDate = { gte: todayStart };
     const daysSinceSat = (now.getDay() + 1) % 7;
     const saturday = new Date(now);
     saturday.setDate(now.getDate() - daysSinceSat);
     saturday.setHours(0, 0, 0, 0);
-    const sunday = new Date(saturday);
-    sunday.setDate(saturday.getDate() + 1);
-    sunday.setHours(23, 59, 59, 999);
+    // "This Week" follows the Active Days configured on the current academic
+    // year (admin-driven). Defaults to Sat+Sun when unset.
+    const year = await this.prisma.academicYear.findFirst({
+      where: { schoolId, isCurrent: true, deletedAt: null },
+      select: { activeDays: true },
+    });
+    const activeDays: number[] =
+      Array.isArray(year?.activeDays) && (year?.activeDays as number[]).length
+        ? (year?.activeDays as number[])
+        : [6, 0];
 
     const [sessions, groups, studentsCount, completedSessions, totalSessions, attendanceRecords, recentGrades, weekRecords] = await Promise.all([
       this.prisma.attendanceSession.findMany({
@@ -408,11 +421,11 @@ export class DashboardService {
           attendanceSession: {
             schoolId,
             groupId: { in: groupIds },
-            scheduledDate: { gte: saturday, lte: sunday },
+            scheduledDate: { gte: saturday, lte: todayEnd },
           },
           student: { deletedAt: null },
         },
-        select: { status: true },
+        select: { status: true, attendanceSession: { select: { scheduledDate: true } } },
       }),
     ]);
 
@@ -433,17 +446,26 @@ export class DashboardService {
       assignedGradeName = gr?.name || null;
     }
 
+    // Unmarked rows (not yet taken) are excluded from rate denominators —
+    // they represent pending work, not absence.
+    const DECIDED_STATUSES = ['present', 'late', 'absent', 'excused'];
+    const decidedRecords = attendanceRecords.filter((r: any) => DECIDED_STATUSES.includes(r.status));
     let attendanceRate = 0;
-    if (attendanceRecords.length > 0) {
-      const present = attendanceRecords.filter(r => r.status === 'present' || r.status === 'late').length;
-      attendanceRate = Math.round((present / attendanceRecords.length) * 100);
+    if (decidedRecords.length > 0) {
+      const present = decidedRecords.filter(r => r.status === 'present' || r.status === 'late').length;
+      attendanceRate = Math.round((present / decidedRecords.length) * 100);
     }
 
-    const weekPresent = weekRecords.filter((r: any) => r.status === 'present').length;
-    const weekLate = weekRecords.filter((r: any) => r.status === 'late').length;
-    const weekAbsent = weekRecords.filter((r: any) => r.status === 'absent').length;
-    const weekExcused = weekRecords.filter((r: any) => r.status === 'excused').length;
-    const weekTotal = weekRecords.length;
+    const weekInScope = weekRecords.filter((r: any) => {
+      const d = new Date(r.attendanceSession?.scheduledDate);
+      return !isNaN(d.getTime()) && activeDays.includes(d.getDay());
+    });
+    const weekDecided = weekInScope.filter((r: any) => DECIDED_STATUSES.includes(r.status));
+    const weekPresent = weekDecided.filter((r: any) => r.status === 'present').length;
+    const weekLate = weekDecided.filter((r: any) => r.status === 'late').length;
+    const weekAbsent = weekDecided.filter((r: any) => r.status === 'absent').length;
+    const weekExcused = weekDecided.filter((r: any) => r.status === 'excused').length;
+    const weekTotal = weekDecided.length;
     const thisWeek = {
       present: weekPresent,
       late: weekLate,
@@ -466,7 +488,7 @@ export class DashboardService {
         gradeId: assignedGradeId || null,
         gradeName: assignedGradeName,
       },
-      sessions: sessions.map((s: any) => ({
+      sessions: (await this.attachSessionSubjectItems(sessions)).map((s: any) => ({
         id: s.id,
         scheduledDate: s.scheduledDate,
         status: s.status,
@@ -475,6 +497,8 @@ export class DashboardService {
         groupName: s.group?.name,
         groupId: s.groupId,
         levelId: s.levelId,
+        subjectItemId: s.subjectItemId || null,
+        subjectItem: s.subjectItem || null,
       })),
       groups: groups.map((g: any) => ({
         id: g.id,
@@ -498,6 +522,61 @@ export class DashboardService {
       })),
       thisWeek,
     };
+  }
+
+  /**
+   * Attach the curriculum subject item to each session, mirroring the
+   * attendance module's resolver: prefer the session's own subjectItemId,
+   * else the curriculum allocation in the session week's window.
+   */
+  private async attachSessionSubjectItems(sessions: any[]) {
+    if (!sessions.length) return sessions;
+    const byId = new Map<string, any>();
+    const loadItems = async (ids: string[]) => {
+      if (!ids.length) return;
+      const items = await this.prisma.subjectItem.findMany({
+        where: { id: { in: ids } },
+        select: { id: true, name: true, nameAr: true },
+      });
+      items.forEach((i: any) => byId.set(i.id, i));
+    };
+    await loadItems([...new Set(sessions.map((s: any) => s.subjectItemId).filter(Boolean))]);
+
+    const missing = sessions.filter((s: any) => !s.subjectItemId || !byId.has(s.subjectItemId));
+    if (missing.length) {
+      const levelIds = [...new Set(missing.map((s: any) => s.levelId).filter(Boolean))];
+      const times = missing.map((s: any) => new Date(s.scheduledDate).getTime()).filter((n: number) => !isNaN(n));
+      if (levelIds.length && times.length) {
+        const min = new Date(Math.min(...times));
+        min.setHours(0, 0, 0, 0);
+        const max = new Date(Math.max(...times) + 7 * 86400000);
+        const allocs = await this.prisma.curriculumAllocation.findMany({
+          where: { levelId: { in: levelIds }, scheduledDate: { gte: min, lt: max } },
+          orderBy: { scheduledDate: 'asc' },
+          include: { lesson: { select: { subjectItemId: true } } },
+        });
+        await loadItems(
+          [...new Set(allocs.map((a: any) => a.lesson?.subjectItemId).filter(Boolean))].filter((id: string) => !byId.has(id)),
+        );
+        for (const s of missing) {
+          const sched = new Date(s.scheduledDate);
+          if (isNaN(sched.getTime())) continue;
+          const weekEnd = new Date(sched.getTime() + 7 * 86400000);
+          const alloc = allocs.find(
+            (a: any) =>
+              a.levelId === s.levelId &&
+              new Date(a.scheduledDate) >= sched &&
+              new Date(a.scheduledDate) < weekEnd &&
+              a.lesson?.subjectItemId,
+          );
+          if (alloc) s.subjectItemId = alloc.lesson.subjectItemId;
+        }
+      }
+    }
+    return sessions.map((s: any) => ({
+      ...s,
+      subjectItem: s.subjectItemId ? byId.get(s.subjectItemId) || null : null,
+    }));
   }
 
   private async getParentView(user: any, schoolId: string, roleToUse: string, school: any) {

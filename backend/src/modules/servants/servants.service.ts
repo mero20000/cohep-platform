@@ -524,11 +524,15 @@ export class ServantsService {
       }).then(records => records.length)
     }
 
-    const totalHymns = await this.prisma.subjectItem.count({
-      where: {
-        lessons: { some: { schoolId: user.schoolId } },
-      },
-    })
+    // Hymns the servant actually taught: distinct curriculum subject items
+    // linked to their own sessions (never the global catalog count).
+    const taughtItems = await this.prisma.attendanceSession.findMany({
+      where: { servantId: userId, deletedAt: null, subjectItemId: { not: null } },
+      select: { subjectItemId: true },
+    });
+    const totalHymns = new Set(
+      taughtItems.map((s: any) => s.subjectItemId).filter((id: any) => id != null),
+    ).size;
 
     const totalReviews = await this.prisma.hymnPracticeSession.count({
       where: { reviewedBy: userId },
@@ -681,5 +685,6 @@ export class ServantsService {
     }
 
     this.logger.log(`Updated ${servants.length} servant profiles`)
+    return { updated: servants.length }
   }
 }

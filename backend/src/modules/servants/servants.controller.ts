@@ -123,6 +123,13 @@ export class ServantsController {
     return this.servantsService.toggleActive(id);
   }
 
+  @Post('profiles/recompute')
+  @Roles('super_admin', 'admin', 'principal')
+  @ApiOperation({ summary: 'Recompute all servant profiles now (same job as the nightly cron)' })
+  async recomputeProfiles() {
+    return this.servantsService.updateServantProfiles();
+  }
+
   @Get('liturgy-session')
   @Roles('servant', 'group_leader', 'level_leader')
   @ApiOperation({ summary: 'Get liturgy roster for any date with prefilled statuses' })

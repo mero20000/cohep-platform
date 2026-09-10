@@ -48,15 +48,23 @@ const lessons = [
   { id: 'les2', title: 'Item Two', subject: { name: 'Hymns' } },
 ]
 
+const hookMocks = vi.hoisted(() => ({
+  allocations: vi.fn(),
+  lessons: vi.fn(),
+}))
+hookMocks.allocations.mockReturnValue({ data: allocations, isLoading: false })
+hookMocks.lessons.mockReturnValue({ data: lessons, isLoading: false })
 vi.mock('@/components/curriculum/hooks', () => ({
   useAcademicYearsQuery: () => ({ data: [{ id: 'ay1', isCurrent: true }], isLoading: false }),
-  useAllAllocationsQuery: () => ({ data: allocations, isLoading: false }),
-  useLessonsQuery: () => ({ data: lessons, isLoading: false }),
+  useAllAllocationsQuery: (...a: any[]) => hookMocks.allocations(...a),
+  useLessonsQuery: (...a: any[]) => hookMocks.lessons(...a),
   useLevelsQuery: () => ({ data: levels, isLoading: false }),
 }))
 
 beforeEach(() => {
   mockGet.mockReset()
+  hookMocks.allocations.mockReturnValue({ data: allocations, isLoading: false })
+  hookMocks.lessons.mockReturnValue({ data: lessons, isLoading: false })
 })
 
 it('shows an All tab plus a tab per configured level in admin mode', () => {
@@ -67,6 +75,30 @@ it('shows an All tab plus a tab per configured level in admin mode', () => {
   expect(screen.getByRole('button', { name: 'Level 2' })).toBeTruthy()
   // First level auto-selected: shows Level 1 items only.
   expect(screen.getByText('Item One')).toBeTruthy()
+})
+
+it('prefers the attendance session curriculum item over the allocation item', () => {
+  hookMocks.allocations.mockReturnValue({
+    data: [
+      { id: 'a1', scheduledDate: new Date().toISOString(), level: { number: 1, name: 'Level 1' }, lesson: { id: 'les1' } },
+    ],
+    isLoading: false,
+  })
+  hookMocks.lessons.mockReturnValue({
+    data: [{ id: 'les1', title: 'Lesson Title', subjectItem: { name: 'Alloc Hymn' }, subject: { name: 'Hymns' } }],
+    isLoading: false,
+  })
+  render(
+    <NextSessionCard
+      lang="en"
+      assigned={{ levelId: 'l1' }}
+      sessions={[
+        { id: 's1', levelNumber: 1, scheduledDate: new Date().toISOString(), subjectItem: { id: 'si-9', name: 'Session Hymn' } },
+      ]}
+    />,
+  )
+  expect(screen.getByText('Session Hymn')).toBeTruthy()
+  expect(screen.queryByText('Alloc Hymn')).toBeNull()
 })
 
 it('filters items to the selected level tab', () => {

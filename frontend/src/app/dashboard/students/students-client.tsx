@@ -129,7 +129,14 @@ export default function StudentsClient() {
   useEffect(()=>{fetchStudents(1)},[fetchStudents])
   useEffect(()=>{fetchStats()},[fetchStats])
   useEffect(()=>{setSelectedIds(new Set())},[search,filterLevel,filterGroup,filterStatus,filterChurch,filterGrade,filterGender])
-  useEffect(()=>{setFilterGroup('')},[filterLevel])
+  // Deep link: ?groupId=<id> (e.g. from the servant dashboard My Groups)
+  // wins once on init; later level changes reset the group as before.
+  const urlGroupId = useSearchParams()?.get('groupId') ?? null
+  const urlGroupConsumed = useRef(false)
+  useEffect(()=>{
+    if(urlGroupId && !urlGroupConsumed.current){urlGroupConsumed.current=true;return}
+    setFilterGroup('')
+  },[filterLevel])
   useEffect(()=>{
     http.get<LevelOption[]>('/curriculum/levels',{schoolId:getSchoolId()}).then(d=>setLevels(d)).catch(console.error)
     http.get<Group[]>('/students/groups/all',{schoolId:getSchoolId()}).then(d=>setAllGroups(d.filter(g=>g.status!=='inactive'))).catch(console.error)
@@ -146,7 +153,8 @@ export default function StudentsClient() {
         const u=JSON.parse(stored)
         setCurrentUserId(u.id)
         const isServant=u.roles?.some((r:string)=>SERVANT_ROLES.includes(r))
-        if(isServant&&u.metadata){
+        if(urlGroupId){setFilterGroup(urlGroupId)}
+        else if(isServant&&u.metadata){
           if(u.metadata.levelId)setFilterLevel(u.metadata.levelId)
           if(u.metadata.groupId)setFilterGroup(u.metadata.groupId)
         }
