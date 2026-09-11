@@ -126,3 +126,40 @@ describe('CurriculumService - subject item recording', () => {
     expect(res.recordingUrl).toBe('u');
   });
 });
+
+describe('CurriculumService.getLessons - subject color', () => {
+  let svc: CurriculumService;
+  let prisma: any;
+
+  beforeEach(async () => {
+    const prismaMock = {
+      lesson: { findMany: jest.fn() },
+    };
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        CurriculumService,
+        { provide: PrismaService, useValue: prismaMock },
+        { provide: SchoolResolver, useValue: { resolve: jest.fn().mockResolvedValue('school-1') } },
+        { provide: AuditService, useValue: { log: jest.fn().mockResolvedValue(undefined) } },
+      ],
+    }).compile();
+
+    svc = module.get<CurriculumService>(CurriculumService);
+    prisma = module.get(PrismaService);
+    jest.clearAllMocks();
+  });
+
+  it('selects the admin-configured subject color for dashboard theming', async () => {
+    prisma.lesson.findMany.mockResolvedValue([]);
+
+    await svc.getLessons('school-1');
+
+    expect(prisma.lesson.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        include: expect.objectContaining({
+          subject: expect.objectContaining({ select: expect.objectContaining({ color: true }) }),
+        }),
+      }),
+    );
+  });
+});
