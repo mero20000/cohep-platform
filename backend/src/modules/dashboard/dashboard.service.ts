@@ -1258,9 +1258,18 @@ export class DashboardService {
 
   private async findNextUpcomingLesson(levelIds: string[], schoolId: string, nextSessionDate: Date | null) {
     if (levelIds.length === 0) return null;
-    // Only surface a lesson that belongs to the upcoming session's week
-    if (!nextSessionDate) return null;
-    const weekStart = new Date(nextSessionDate);
+    // Anchor on the upcoming session's week; without a session (nothing
+    // scheduled yet) anchor on the coming Sunday so allocated lessons still
+    // surface instead of a false "no lesson scheduled" state.
+    let anchor: Date;
+    if (nextSessionDate) {
+      anchor = new Date(nextSessionDate);
+    } else {
+      anchor = new Date();
+      anchor.setHours(0, 0, 0, 0);
+      anchor.setDate(anchor.getDate() + ((7 - anchor.getDay()) % 7));
+    }
+    const weekStart = new Date(anchor);
     const weekEnd = new Date(weekStart);
     weekEnd.setDate(weekEnd.getDate() + 7);
     const alloc = await this.prisma.curriculumAllocation.findFirst({

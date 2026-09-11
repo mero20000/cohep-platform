@@ -280,10 +280,19 @@ describe('DashboardService', () => {
       expect(call.where.scheduledDate.lt).toEqual(new Date('2026-08-30T00:00:00Z'));
     });
 
-    it('returns null when there is no upcoming session to prepare for', async () => {
-      const result = await (service as any).findNextUpcomingLesson(['l1'], schoolId, null);
-      expect(result).toBeNull();
-      expect(prisma.curriculumAllocation.findFirst).not.toHaveBeenCalled();
+    it('anchors on the coming Sunday when there is no upcoming session', async () => {
+      (prisma.curriculumAllocation.findFirst as jest.Mock).mockResolvedValue(null);
+      const before = new Date();
+      await (service as any).findNextUpcomingLesson(['l1'], schoolId, null);
+      const call = (prisma.curriculumAllocation.findFirst as jest.Mock).mock.calls[0][0];
+      const expectedSunday = new Date(before);
+      expectedSunday.setHours(0, 0, 0, 0);
+      expectedSunday.setDate(expectedSunday.getDate() + ((7 - expectedSunday.getDay()) % 7));
+      expect(call.where.levelId).toEqual({ in: ['l1'] });
+      expect(call.where.scheduledDate.gte).toEqual(expectedSunday);
+      expect(call.where.scheduledDate.lt).toEqual(
+        new Date(expectedSunday.getTime() + 7 * 86400000),
+      );
     });
 
     it('returns null when the servant has no levels', async () => {
