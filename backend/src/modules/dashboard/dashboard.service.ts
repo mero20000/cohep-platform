@@ -24,7 +24,7 @@ export class DashboardService {
       this.prisma.level.count({ where: { schoolId: resolvedId, ...where } }),
       this.prisma.lesson.count({ where: { schoolId: resolvedId, ...where } }),
       this.prisma.curriculumAllocation.count({ where: { academicYear: { schoolId: resolvedId } } }),
-      this.prisma.church.count({ where: { deletedAt: null } }),
+      this.prisma.church.count({ where: { deletedAt: null, isActive: true } }),
       this.prisma.user.count({ where: { schoolId: resolvedId, ...where } }),
       this.prisma.studentBadge.count({ where: { student: { schoolId: resolvedId, deletedAt: null } } }),
       this.prisma.attendanceSession.count({ where: { schoolId: resolvedId, status: 'completed', deletedAt: null } }),

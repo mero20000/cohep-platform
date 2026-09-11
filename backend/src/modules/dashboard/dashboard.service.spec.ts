@@ -63,6 +63,34 @@ describe('DashboardService', () => {
     return d;
   }
 
+  describe('getStats — church count', () => {
+    it('counts only active, non-deleted churches', async () => {
+      prisma.student.count.mockResolvedValue(0);
+      prisma.attendanceSession.count.mockResolvedValue(0);
+      prisma.attendanceRecord.findMany.mockResolvedValue([]);
+      (prisma as any).level = { count: jest.fn().mockResolvedValue(0), findMany: jest.fn().mockResolvedValue([]) };
+      (prisma as any).lesson = { count: jest.fn().mockResolvedValue(0) };
+      (prisma as any).church = { count: jest.fn().mockResolvedValue(3) };
+      (prisma as any).user = { count: jest.fn().mockResolvedValue(0), findUnique: jest.fn().mockResolvedValue(null) };
+      (prisma as any).studentBadge = { count: jest.fn().mockResolvedValue(0) };
+      (prisma as any).assessment = { count: jest.fn().mockResolvedValue(0), groupBy: jest.fn().mockResolvedValue([]) };
+      (prisma as any).schoolGrade = { findMany: jest.fn().mockResolvedValue([]) };
+      prisma.student.groupBy = jest.fn().mockResolvedValue([]);
+      (prisma as any).assessmentSubmission = { findMany: jest.fn().mockResolvedValue([]) };
+      prisma.curriculumAllocation.count = jest.fn().mockResolvedValue(0);
+      (prisma as any).grade = { findMany: jest.fn().mockResolvedValue([]) };
+      (prisma as any).auditLog = { findMany: jest.fn().mockResolvedValue([]) };
+      (prisma as any).xPTransaction = { groupBy: jest.fn().mockResolvedValue([]) };
+
+      const result: any = await (service as any).getStats(schoolId);
+
+      expect((prisma as any).church.count).toHaveBeenCalledWith(
+        expect.objectContaining({ where: expect.objectContaining({ deletedAt: null, isActive: true }) }),
+      );
+      expect(result.totalChurches).toBe(3);
+    });
+  });
+
   describe('getMine ministry view — thisWeek', () => {
     it('returns status counts for records on active days of the current week', async () => {
       mockMinistryBaseline();
