@@ -299,6 +299,39 @@ describe('DashboardService', () => {
       const result = await (service as any).findNextUpcomingLesson([], schoolId, new Date());
       expect(result).toBeNull();
     });
+
+    it('falls back to the nearest future allocation when the anchor week is empty', async () => {
+      const futureAlloc = {
+        lessonId: 'les-f', scheduledDate: new Date('2026-09-26T00:00:00Z'), levelId: 'l1',
+        lesson: { id: 'les-f', title: 'Future Hymn', titleAr: null, titleCoptic: null, audioUrl: null, subjectItemId: null, subjectItem: null },
+        level: { id: 'l1', name: 'Level 1', number: 1 },
+        subject: { name: 'Hymns', color: '#D4AF37' },
+      };
+      (prisma.curriculumAllocation.findFirst as jest.Mock)
+        .mockResolvedValueOnce(null) // anchor week empty
+        .mockResolvedValueOnce(futureAlloc); // nearest future
+      const result = await (service as any).findNextUpcomingLesson(['l1'], schoolId, new Date('2026-09-10T00:00:00Z'));
+      expect(result).toMatchObject({ lessonId: 'les-f', title: 'Future Hymn' });
+      const secondCall = (prisma.curriculumAllocation.findFirst as jest.Mock).mock.calls[1][0];
+      expect(secondCall.orderBy).toEqual({ scheduledDate: 'asc' });
+    });
+
+    it('falls back to the most recent past allocation when nothing is upcoming', async () => {
+      const pastAlloc = {
+        lessonId: 'les-p', scheduledDate: new Date('2026-09-05T00:00:00Z'), levelId: 'l1',
+        lesson: { id: 'les-p', title: 'Past Hymn', titleAr: null, titleCoptic: null, audioUrl: null, subjectItemId: null, subjectItem: null },
+        level: { id: 'l1', name: 'Level 1', number: 1 },
+        subject: { name: 'Hymns', color: '#D4AF37' },
+      };
+      (prisma.curriculumAllocation.findFirst as jest.Mock)
+        .mockResolvedValueOnce(null) // anchor week empty
+        .mockResolvedValueOnce(null) // nothing future
+        .mockResolvedValueOnce(pastAlloc); // most recent past
+      const result = await (service as any).findNextUpcomingLesson(['l1'], schoolId, new Date('2026-09-10T00:00:00Z'));
+      expect(result).toMatchObject({ lessonId: 'les-p', title: 'Past Hymn' });
+      const thirdCall = (prisma.curriculumAllocation.findFirst as jest.Mock).mock.calls[2][0];
+      expect(thirdCall.orderBy).toEqual({ scheduledDate: 'desc' });
+    });
   });
 
   describe('getClassOverview', () => {

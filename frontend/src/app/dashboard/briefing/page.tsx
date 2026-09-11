@@ -219,6 +219,16 @@ export default function BriefingPage() {
                     </span>
                   )}
                   {nl.levelName && <span>· {nl.levelName}</span>}
+                  {nl.scheduledDate && (
+                    <span>
+                      ·{' '}
+                      {new Date(nl.scheduledDate).toLocaleDateString(lang === 'ar' ? 'ar-EG' : 'en-US', {
+                        day: 'numeric',
+                        month: 'short',
+                        year: 'numeric',
+                      })}
+                    </span>
+                  )}
                 </p>
 
                 {(nl.audioUrl || nl.hazzat || nl.presentationUrl) && (

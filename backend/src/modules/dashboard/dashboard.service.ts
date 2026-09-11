@@ -1272,13 +1272,13 @@ export class DashboardService {
     const weekStart = new Date(anchor);
     const weekEnd = new Date(weekStart);
     weekEnd.setDate(weekEnd.getDate() + 7);
-    const alloc = await this.prisma.curriculumAllocation.findFirst({
+    const allocArgs = (dateFilter: any, order: 'asc' | 'desc') => ({
       where: {
         academicYear: { schoolId },
         levelId: { in: levelIds },
-        scheduledDate: { gte: weekStart, lt: weekEnd },
+        scheduledDate: dateFilter,
       },
-      orderBy: { scheduledDate: 'asc' },
+      orderBy: { scheduledDate: order },
       include: {
         lesson: {
           select: {
@@ -1292,6 +1292,21 @@ export class DashboardService {
         subject: { select: { name: true, color: true } },
       },
     });
+    // 1. The anchor week (session week, else the coming Sunday's week).
+    let alloc = await this.prisma.curriculumAllocation.findFirst(
+      allocArgs({ gte: weekStart, lt: weekEnd }, 'asc'),
+    );
+    if (!alloc) {
+      // 2. Nearest allocation on/after today — what the servant teaches next.
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      alloc = await this.prisma.curriculumAllocation.findFirst(allocArgs({ gte: today }, 'asc'));
+    }
+    if (!alloc) {
+      // 3. Most recently taught — last resort so the card never lies empty
+      // while a curriculum exists (e.g. a gap week with nothing allocated).
+      alloc = await this.prisma.curriculumAllocation.findFirst(allocArgs({ lt: weekStart }, 'desc'));
+    }
     if (!alloc) return null;
     return {
       lessonId: alloc.lessonId,
