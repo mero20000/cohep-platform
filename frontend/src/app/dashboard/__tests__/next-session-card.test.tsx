@@ -101,6 +101,27 @@ it('prefers the attendance session curriculum item over the allocation item', ()
   expect(screen.queryByText('Alloc Hymn')).toBeNull()
 })
 
+it('themes rows with the admin-configured subject color', () => {
+  hookMocks.lessons.mockReturnValue({
+    data: [{ id: 'les1', title: 'Item One', subjectItem: { name: 'Hymn' }, subject: { name: 'Hymns', color: '#D4AF37' } }],
+    isLoading: false,
+  })
+  const { container } = render(<NextSessionCard lang="en" />)
+  expect(screen.getByText('Hymn')).toBeTruthy()
+  const dot = container.querySelector('span span[style]') as HTMLElement
+  expect(dot.style.backgroundColor).toBe('rgb(212, 175, 55)')
+})
+
+it('falls back to blue for missing or invalid subject colors', () => {
+  hookMocks.lessons.mockReturnValue({
+    data: [{ id: 'les1', title: 'Item One', subjectItem: { name: 'Hymn' }, subject: { name: 'Hymns', color: 'not-a-color' } }],
+    isLoading: false,
+  })
+  const { container } = render(<NextSessionCard lang="en" />)
+  const dot = container.querySelector('span span[style]') as HTMLElement
+  expect(dot.style.backgroundColor).toBe('rgb(59, 130, 246)')
+})
+
 it('filters items to the selected level tab', () => {
   render(<NextSessionCard lang="en" />)
   fireEvent.click(screen.getByRole('button', { name: 'Level 1' }))

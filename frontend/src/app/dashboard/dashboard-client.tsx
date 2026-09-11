@@ -1449,6 +1449,10 @@ export function NextSessionCard({ lang, assigned, groups, sessions }: { lang: st
         <div className="divide-y divide-gray-100">
         {items.map((a) => {
           const lesson = lessonMap.get(a.lesson?.id || '')
+          // Row theme comes from the admin-configured subject color, so each
+          // subject item renders in its own subject's color.
+          const rawColor = lesson?.subject?.color
+          const theme = /^#[0-9a-fA-F]{6}$/.test(rawColor || '') ? rawColor : '#3b82f6'
           // Prefer the attendance session's own curriculum item when a session
           // falls in this allocation's week — unifies with the attendance
           // module's resolver instead of showing a possibly different item.
@@ -1475,7 +1479,10 @@ export function NextSessionCard({ lang, assigned, groups, sessions }: { lang: st
             : ''
           return (
             <div key={a.id} className="flex items-start gap-3 px-5 py-3.5 hover:bg-gray-50 transition-colors">
-              <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
+              <div
+                className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl"
+                style={{ backgroundColor: `${theme}14`, color: theme }}
+              >
                 <BookOpen className="h-4 w-4" />
               </div>
               <div className="min-w-0 flex-1">
@@ -1485,10 +1492,13 @@ export function NextSessionCard({ lang, assigned, groups, sessions }: { lang: st
                 )}
                 <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
                   {lesson?.subject?.name && (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-medium text-blue-700">
+                    <span
+                      className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium"
+                      style={{ backgroundColor: `${theme}14`, color: theme }}
+                    >
                       <span
                         className="h-1.5 w-1.5 rounded-full"
-                        style={{ backgroundColor: lesson.subject.color || '#3b82f6' }}
+                        style={{ backgroundColor: theme }}
                       />
                       {lesson.subject.name}
                     </span>
