@@ -1271,6 +1271,7 @@ export class DashboardService {
       subjectItemId: alloc.lesson.subjectItemId,
       hazzat: alloc.lesson.subjectItem?.hazzat ?? null,
       presentationUrl: alloc.lesson.subjectItem?.presentationUrl ?? null,
+      recordingUrl: alloc.lesson.subjectItem?.recordingUrl ?? null,
       scheduledDate: alloc.scheduledDate,
     };
   }
@@ -1328,7 +1329,7 @@ export class DashboardService {
             id: true, title: true, titleAr: true, titleCoptic: true,
             audioUrl: true,
             subjectItemId: true,
-            subjectItem: { select: { hazzat: true, presentationUrl: true } },
+            subjectItem: { select: { hazzat: true, presentationUrl: true, recordingUrl: true } },
           },
         },
         level: { select: { id: true, name: true, number: true } },

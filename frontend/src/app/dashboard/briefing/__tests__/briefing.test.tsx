@@ -82,6 +82,26 @@ describe('BriefingPage', () => {
     expect(screen.queryByText('No lesson scheduled yet.')).not.toBeInTheDocument()
   })
 
+  it('shows the subject item reference recording when attached', async () => {
+    mockGet.mockResolvedValue({
+      generatedAt: new Date().toISOString(),
+      coptic: {
+        coptic: { month: 4, day: 5, year: 1742, monthName: 'Kiahk', monthNameAr: 'كيهك' },
+        season: 'kiahk', seasonLabel: { en: 'Month of Kiahk', ar: 'شهر كيهك' }, feastFast: null,
+      },
+      nextSession: null,
+      nextLesson: null,
+      nextLessons: [
+        { lessonId: 'l1', title: 'Ⲱⲥⲡⲉⲣⲏⲛ', levelName: 'Level 1', subjectName: 'Coptic Hymns', recordingUrl: '/uploads/ref.mp3' },
+      ],
+      roster: [],
+    })
+    render(<BriefingPage />)
+
+    expect(await screen.findByText('Reference recording')).toBeInTheDocument()
+    expect(screen.getByText('Ⲱⲥⲡⲉⲣⲏⲛ')).toBeInTheDocument()
+  })
+
   it('shows all-caught-up when nothing is flagged', async () => {
     mockGet.mockResolvedValue({
       generatedAt: new Date().toISOString(),

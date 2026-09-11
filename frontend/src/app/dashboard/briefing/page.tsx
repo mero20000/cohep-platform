@@ -35,6 +35,7 @@ interface WeeklyBriefing {
     audioUrl?: string | null
     hazzat?: string | null
     presentationUrl?: string | null
+    recordingUrl?: string | null
   } | null
   nextLessons?: {
     lessonId: string; title: string; titleAr?: string; titleCoptic?: string
@@ -44,6 +45,7 @@ interface WeeklyBriefing {
     audioUrl?: string | null
     hazzat?: string | null
     presentationUrl?: string | null
+    recordingUrl?: string | null
   }[]
   roster: RosterStudent[]
 }
@@ -252,9 +254,17 @@ export default function BriefingPage() {
                     )}
                   </p>
 
-                  {(nl.audioUrl || nl.hazzat || nl.presentationUrl) && (
+                  {(nl.audioUrl || nl.hazzat || nl.presentationUrl || nl.recordingUrl) && (
                     <div className="mt-3 flex flex-wrap items-center gap-3">
                       {nl.audioUrl && <AudioPlayer src={assetUrl(nl.audioUrl)} compact />}
+                      {nl.recordingUrl && (
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-medium text-gray-500">
+                            {t('Reference recording', 'التسجيل المرجعي')}
+                          </span>
+                          <AudioPlayer src={assetUrl(nl.recordingUrl)} compact />
+                        </div>
+                      )}
                       {nl.hazzat && (
                         <a
                           href={assetUrl(nl.hazzat)}

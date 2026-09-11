@@ -331,6 +331,22 @@ describe('DashboardService', () => {
       expect(result).toEqual([]);
     });
 
+    it('maps the subject item reference files (recording, hazzat, presentation)', async () => {
+      const alloc: any = mkAlloc('les-r', 'Ref Hymn', '2026-08-23T00:00:00Z');
+      alloc.lesson.subjectItem = {
+        hazzat: '/uploads/h.pdf',
+        presentationUrl: '/uploads/p.pptx',
+        recordingUrl: '/uploads/r.mp3',
+      };
+      (prisma.curriculumAllocation.findMany as jest.Mock).mockResolvedValue([alloc]);
+      const result = await (service as any).findUpcomingLessons(['l1'], schoolId, new Date('2026-08-23T00:00:00Z'));
+      expect(result[0]).toMatchObject({
+        hazzat: '/uploads/h.pdf',
+        presentationUrl: '/uploads/p.pptx',
+        recordingUrl: '/uploads/r.mp3',
+      });
+    });
+
     it('findNextUpcomingLesson returns the first of the list', async () => {
       (prisma.curriculumAllocation.findMany as jest.Mock).mockResolvedValue([
         mkAlloc('les-a', 'Hymn A', '2026-08-23T00:00:00Z'),
