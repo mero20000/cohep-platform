@@ -270,22 +270,34 @@ describe('DashboardService', () => {
     });
   });
 
-  describe('findNextUpcomingLesson', () => {
-    it('queries the allocation within the next session week window', async () => {
-      (prisma.curriculumAllocation.findFirst as jest.Mock).mockResolvedValue(null);
-      await (service as any).findNextUpcomingLesson(['l1'], schoolId, new Date('2026-08-23T00:00:00Z'));
-      const call = (prisma.curriculumAllocation.findFirst as jest.Mock).mock.calls[0][0];
+  describe('findUpcomingLessons', () => {
+    const mkAlloc = (id: string, title: string, date: string) => ({
+      lessonId: id, scheduledDate: new Date(date), levelId: 'l1',
+      lesson: { id, title, titleAr: null, titleCoptic: null, audioUrl: null, subjectItemId: null, subjectItem: null },
+      level: { id: 'l1', name: 'Level 1', number: 1 },
+      subject: { name: 'Hymns', color: '#D4AF37' },
+    });
+
+    it('returns every allocation in the next session week window', async () => {
+      (prisma.curriculumAllocation.findMany as jest.Mock).mockResolvedValue([
+        mkAlloc('les-a', 'Hymn A', '2026-08-23T00:00:00Z'),
+        mkAlloc('les-b', 'Hymn B', '2026-08-24T00:00:00Z'),
+      ]);
+      const result = await (service as any).findUpcomingLessons(['l1'], schoolId, new Date('2026-08-23T00:00:00Z'));
+      const call = (prisma.curriculumAllocation.findMany as jest.Mock).mock.calls[0][0];
       expect(call.where.levelId).toEqual({ in: ['l1'] });
       expect(call.where.scheduledDate.gte).toEqual(new Date('2026-08-23T00:00:00Z'));
       expect(call.where.scheduledDate.lt).toEqual(new Date('2026-08-30T00:00:00Z'));
+      expect(result.map((r: any) => r.lessonId)).toEqual(['les-a', 'les-b']);
     });
 
     it('anchors on the next active class day when there is no upcoming session', async () => {
       prisma.academicYear.findFirst.mockResolvedValue({ activeDays: [6, 0] });
+      (prisma.curriculumAllocation.findMany as jest.Mock).mockResolvedValue([]);
       (prisma.curriculumAllocation.findFirst as jest.Mock).mockResolvedValue(null);
       const before = new Date();
-      await (service as any).findNextUpcomingLesson(['l1'], schoolId, null);
-      const call = (prisma.curriculumAllocation.findFirst as jest.Mock).mock.calls[0][0];
+      await (service as any).findUpcomingLessons(['l1'], schoolId, null);
+      const call = (prisma.curriculumAllocation.findMany as jest.Mock).mock.calls[0][0];
       // Next Saturday or Sunday from "now", at local midnight.
       const expected = new Date(before);
       expected.setHours(0, 0, 0, 0);
@@ -301,10 +313,11 @@ describe('DashboardService', () => {
 
     it('follows custom active days from the academic year', async () => {
       prisma.academicYear.findFirst.mockResolvedValue({ activeDays: [5] }); // Fridays
+      (prisma.curriculumAllocation.findMany as jest.Mock).mockResolvedValue([]);
       (prisma.curriculumAllocation.findFirst as jest.Mock).mockResolvedValue(null);
       const before = new Date();
-      await (service as any).findNextUpcomingLesson(['l1'], schoolId, null);
-      const call = (prisma.curriculumAllocation.findFirst as jest.Mock).mock.calls[0][0];
+      await (service as any).findUpcomingLessons(['l1'], schoolId, null);
+      const call = (prisma.curriculumAllocation.findMany as jest.Mock).mock.calls[0][0];
       const expected = new Date(before);
       expected.setHours(0, 0, 0, 0);
       for (let i = 0; i < 7 && expected.getDay() !== 5; i++) {
@@ -313,42 +326,53 @@ describe('DashboardService', () => {
       expect(call.where.scheduledDate.gte).toEqual(expected);
     });
 
-    it('returns null when the servant has no levels', async () => {
-      const result = await (service as any).findNextUpcomingLesson([], schoolId, new Date());
+    it('returns [] when the servant has no levels', async () => {
+      const result = await (service as any).findUpcomingLessons([], schoolId, new Date());
+      expect(result).toEqual([]);
+    });
+
+    it('findNextUpcomingLesson returns the first of the list', async () => {
+      (prisma.curriculumAllocation.findMany as jest.Mock).mockResolvedValue([
+        mkAlloc('les-a', 'Hymn A', '2026-08-23T00:00:00Z'),
+        mkAlloc('les-b', 'Hymn B', '2026-08-24T00:00:00Z'),
+      ]);
+      const result = await (service as any).findNextUpcomingLesson(['l1'], schoolId, new Date('2026-08-23T00:00:00Z'));
+      expect(result).toMatchObject({ lessonId: 'les-a', title: 'Hymn A' });
+    });
+
+    it('returns null when no allocation exists anywhere', async () => {
+      (prisma.curriculumAllocation.findMany as jest.Mock).mockResolvedValue([]);
+      (prisma.curriculumAllocation.findFirst as jest.Mock).mockResolvedValue(null);
+      const result = await (service as any).findNextUpcomingLesson(['l1'], schoolId, new Date('2026-09-10T00:00:00Z'));
       expect(result).toBeNull();
     });
 
-    it('falls back to the nearest future allocation when the anchor week is empty', async () => {
-      const futureAlloc = {
-        lessonId: 'les-f', scheduledDate: new Date('2026-09-26T00:00:00Z'), levelId: 'l1',
-        lesson: { id: 'les-f', title: 'Future Hymn', titleAr: null, titleCoptic: null, audioUrl: null, subjectItemId: null, subjectItem: null },
-        level: { id: 'l1', name: 'Level 1', number: 1 },
-        subject: { name: 'Hymns', color: '#D4AF37' },
-      };
-      (prisma.curriculumAllocation.findFirst as jest.Mock)
-        .mockResolvedValueOnce(null) // anchor week empty
-        .mockResolvedValueOnce(futureAlloc); // nearest future
-      const result = await (service as any).findNextUpcomingLesson(['l1'], schoolId, new Date('2026-09-10T00:00:00Z'));
-      expect(result).toMatchObject({ lessonId: 'les-f', title: 'Future Hymn' });
-      const secondCall = (prisma.curriculumAllocation.findFirst as jest.Mock).mock.calls[1][0];
-      expect(secondCall.orderBy).toEqual({ scheduledDate: 'asc' });
+    it('falls back to every allocation sharing the nearest future date', async () => {
+      const futureAlloc = mkAlloc('les-f', 'Future Hymn', '2026-09-26T00:00:00Z');
+      (prisma.curriculumAllocation.findMany as jest.Mock)
+        .mockResolvedValueOnce([]) // anchor week empty
+        .mockResolvedValueOnce([futureAlloc, mkAlloc('les-f2', 'Future Rite', '2026-09-26T00:00:00Z')]); // same-day group
+      (prisma.curriculumAllocation.findFirst as jest.Mock).mockResolvedValueOnce(futureAlloc); // nearest future
+      const result = await (service as any).findUpcomingLessons(['l1'], schoolId, new Date('2026-09-10T00:00:00Z'));
+      expect(result.map((r: any) => r.lessonId)).toEqual(['les-f', 'les-f2']);
+      const dayCall = (prisma.curriculumAllocation.findMany as jest.Mock).mock.calls[1][0];
+      // Same local-day grouping the implementation uses (TZ-robust).
+      const expectedDay = new Date(new Date('2026-09-26T00:00:00Z'));
+      expectedDay.setHours(0, 0, 0, 0);
+      expect(dayCall.where.scheduledDate.gte).toEqual(expectedDay);
     });
 
-    it('falls back to the most recent past allocation when nothing is upcoming', async () => {
-      const pastAlloc = {
-        lessonId: 'les-p', scheduledDate: new Date('2026-09-05T00:00:00Z'), levelId: 'l1',
-        lesson: { id: 'les-p', title: 'Past Hymn', titleAr: null, titleCoptic: null, audioUrl: null, subjectItemId: null, subjectItem: null },
-        level: { id: 'l1', name: 'Level 1', number: 1 },
-        subject: { name: 'Hymns', color: '#D4AF37' },
-      };
+    it('falls back to every allocation sharing the most recent past date', async () => {
+      const pastAlloc = mkAlloc('les-p', 'Past Hymn', '2026-09-05T00:00:00Z');
+      (prisma.curriculumAllocation.findMany as jest.Mock)
+        .mockResolvedValueOnce([]) // anchor week empty
+        .mockResolvedValueOnce([pastAlloc]); // same-day group
       (prisma.curriculumAllocation.findFirst as jest.Mock)
-        .mockResolvedValueOnce(null) // anchor week empty
         .mockResolvedValueOnce(null) // nothing future
         .mockResolvedValueOnce(pastAlloc); // most recent past
-      const result = await (service as any).findNextUpcomingLesson(['l1'], schoolId, new Date('2026-09-10T00:00:00Z'));
-      expect(result).toMatchObject({ lessonId: 'les-p', title: 'Past Hymn' });
-      const thirdCall = (prisma.curriculumAllocation.findFirst as jest.Mock).mock.calls[2][0];
-      expect(thirdCall.orderBy).toEqual({ scheduledDate: 'desc' });
+      const result = await (service as any).findUpcomingLessons(['l1'], schoolId, new Date('2026-09-10T00:00:00Z'));
+      expect(result).toHaveLength(1);
+      expect(result[0]).toMatchObject({ lessonId: 'les-p', title: 'Past Hymn' });
     });
   });
 
@@ -451,6 +475,7 @@ describe('DashboardService', () => {
       (prisma.student.findMany as jest.Mock).mockResolvedValue([]);
       (prisma.attendanceSession.findFirst as jest.Mock).mockResolvedValue(null);
       (prisma.curriculumAllocation.findFirst as jest.Mock).mockResolvedValue(null);
+      (prisma.curriculumAllocation.findMany as jest.Mock).mockResolvedValue([]);
     }
 
     it('returns coptic context, null lesson, null session, and empty roster', async () => {
@@ -470,12 +495,12 @@ describe('DashboardService', () => {
         id: 'n1', scheduledDate: new Date('2026-08-23T00:00:00Z'), levelId: 'l1',
         level: { id: 'l1', name: 'Level 3', number: 3 }, group: { id: 'g1', name: 'Group A' },
       });
-      (prisma.curriculumAllocation.findFirst as jest.Mock).mockResolvedValue({
+      (prisma.curriculumAllocation.findMany as jest.Mock).mockResolvedValue([{
         lessonId: 'les1', scheduledDate: new Date('2026-08-23T00:00:00Z'),
         lesson: { id: 'les1', title: 'Kyrie', titleAr: null, titleCoptic: 'ⲕⲩⲣⲓⲉ' },
         level: { id: 'l1', name: 'Level 3', number: 3 },
         subject: { name: 'Tasbeha' },
-      });
+      }]);
       (prisma.student.findMany as jest.Mock).mockResolvedValue([]);
       const result = await service.getWeeklyBriefing(user, schoolId);
       expect(result.nextSession.groupName).toBe('Group A');
@@ -499,7 +524,7 @@ describe('DashboardService', () => {
         id: 'n1', scheduledDate: new Date('2026-08-23T00:00:00Z'), levelId: 'l1',
         level: { id: 'l1', name: 'Level 3', number: 3 }, group: { id: 'g1', name: 'Group A' },
       });
-      (prisma.curriculumAllocation.findFirst as jest.Mock).mockResolvedValue({
+      (prisma.curriculumAllocation.findMany as jest.Mock).mockResolvedValue([{
         lessonId: 'les1', scheduledDate: new Date('2026-08-23T00:00:00Z'),
         lesson: {
           id: 'les1', title: 'Kyrie', titleAr: null, titleCoptic: 'ⲕⲩⲣⲓⲉ',
@@ -508,7 +533,7 @@ describe('DashboardService', () => {
         },
         level: { id: 'l1', name: 'Level 3', number: 3 },
         subject: { name: 'Tasbeha', color: '#D4A843' },
-      });
+      }]);
       const result = await service.getWeeklyBriefing(user, schoolId);
       expect(result.nextLesson.subjectColor).toBe('#D4A843');
       expect(result.nextLesson.audioUrl).toBe('/uploads/kyrie.mp3');
@@ -522,12 +547,12 @@ describe('DashboardService', () => {
         id: 'n1', scheduledDate: new Date('2026-08-23T00:00:00Z'), levelId: 'l1',
         level: { id: 'l1', name: 'Level 3', number: 3 }, group: { id: 'g1', name: 'Group A' },
       });
-      (prisma.curriculumAllocation.findFirst as jest.Mock).mockResolvedValue({
+      (prisma.curriculumAllocation.findMany as jest.Mock).mockResolvedValue([{
         lessonId: 'les1', scheduledDate: new Date('2026-08-23T00:00:00Z'),
         lesson: { id: 'les1', title: 'Kyrie', titleAr: null, titleCoptic: null, subjectItem: null },
         level: { id: 'l1', name: 'Level 3', number: 3 },
         subject: { name: 'Tasbeha', color: null },
-      });
+      }]);
       const result = await service.getWeeklyBriefing(user, schoolId);
       expect(result.nextLesson.subjectColor).toBeNull();
       expect(result.nextLesson.audioUrl).toBeUndefined();

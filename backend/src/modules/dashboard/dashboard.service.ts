@@ -1256,8 +1256,39 @@ export class DashboardService {
     return roster;
   }
 
+  private mapAllocToLesson(alloc: any) {
+    return {
+      lessonId: alloc.lessonId,
+      title: alloc.lesson.title,
+      titleAr: alloc.lesson.titleAr,
+      titleCoptic: alloc.lesson.titleCoptic,
+      levelId: alloc.levelId,
+      levelName: alloc.level.name,
+      levelNumber: alloc.level.number,
+      subjectName: alloc.subject.name,
+      subjectColor: alloc.subject.color,
+      audioUrl: alloc.lesson.audioUrl,
+      subjectItemId: alloc.lesson.subjectItemId,
+      hazzat: alloc.lesson.subjectItem?.hazzat ?? null,
+      presentationUrl: alloc.lesson.subjectItem?.presentationUrl ?? null,
+      scheduledDate: alloc.scheduledDate,
+    };
+  }
+
   private async findNextUpcomingLesson(levelIds: string[], schoolId: string, nextSessionDate: Date | null) {
-    if (levelIds.length === 0) return null;
+    const lessons = await this.findUpcomingLessons(levelIds, schoolId, nextSessionDate);
+    return lessons[0] || null;
+  }
+
+  /**
+   * All allocated lessons for the coming class (plural): the anchor week
+   * (session week, else the next active class day's week), else every
+   * allocation sharing the nearest future date, else every allocation
+   * sharing the most recent past date. A day can carry several subjects,
+   * so callers must render the whole list, not just the first row.
+   */
+  private async findUpcomingLessons(levelIds: string[], schoolId: string, nextSessionDate: Date | null): Promise<any[]> {
+    if (levelIds.length === 0) return [];
     // Anchor on the upcoming session's week; without a session (nothing
     // scheduled yet) anchor on the next active class day from the academic
     // calendar (admins allocate around active days, e.g. Saturdays) so the
@@ -1304,38 +1335,46 @@ export class DashboardService {
         subject: { select: { name: true, color: true } },
       },
     });
-    // 1. The anchor week (session week, else the next active class day's week).
-    let alloc = await this.prisma.curriculumAllocation.findFirst(
-      allocArgs({ gte: weekStart, lt: weekEnd }, 'asc'),
-    );
-    if (!alloc) {
-      // 2. Nearest allocation on/after today — what the servant teaches next.
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      alloc = await this.prisma.curriculumAllocation.findFirst(allocArgs({ gte: today }, 'asc'));
-    }
-    if (!alloc) {
-      // 3. Most recently taught — last resort so the card never lies empty
-      // while a curriculum exists (e.g. a gap week with nothing allocated).
-      alloc = await this.prisma.curriculumAllocation.findFirst(allocArgs({ lt: weekStart }, 'desc'));
-    }
-    if (!alloc) return null;
-    return {
-      lessonId: alloc.lessonId,
-      title: alloc.lesson.title,
-      titleAr: alloc.lesson.titleAr,
-      titleCoptic: alloc.lesson.titleCoptic,
-      levelId: alloc.levelId,
-      levelName: alloc.level.name,
-      levelNumber: alloc.level.number,
-      subjectName: alloc.subject.name,
-      subjectColor: alloc.subject.color,
-      audioUrl: alloc.lesson.audioUrl,
-      subjectItemId: alloc.lesson.subjectItemId,
-      hazzat: alloc.lesson.subjectItem?.hazzat ?? null,
-      presentationUrl: alloc.lesson.subjectItem?.presentationUrl ?? null,
-      scheduledDate: alloc.scheduledDate,
+    const startOfDay = (d: Date) => {
+      const c = new Date(d);
+      c.setHours(0, 0, 0, 0);
+      return c;
     };
+    // 1. The anchor week (session week, else the next active class day's week).
+    let allocs = (await this.prisma.curriculumAllocation.findMany(
+      allocArgs({ gte: weekStart, lt: weekEnd }, 'asc'),
+    )) || [];
+    if (!allocs.length) {
+      // 2. Every allocation sharing the nearest future date — what the
+      // servant teaches next.
+      const nearest = await this.prisma.curriculumAllocation.findFirst(
+        allocArgs({ gte: startOfDay(new Date()) }, 'asc'),
+      );
+      if (nearest?.scheduledDate) {
+        const day = startOfDay(new Date(nearest.scheduledDate));
+        const next = new Date(day.getTime() + 86400000);
+        allocs =
+          (await this.prisma.curriculumAllocation.findMany(
+            allocArgs({ gte: day, lt: next }, 'asc'),
+          )) || [];
+      }
+    }
+    if (!allocs.length) {
+      // 3. Every allocation sharing the most recent past date — last resort
+      // so the card never lies empty while a curriculum exists.
+      const latest = await this.prisma.curriculumAllocation.findFirst(
+        allocArgs({ lt: weekStart }, 'desc'),
+      );
+      if (latest?.scheduledDate) {
+        const day = startOfDay(new Date(latest.scheduledDate));
+        const next = new Date(day.getTime() + 86400000);
+        allocs =
+          (await this.prisma.curriculumAllocation.findMany(
+            allocArgs({ gte: day, lt: next }, 'asc'),
+          )) || [];
+      }
+    }
+    return allocs.map((a: any) => this.mapAllocToLesson(a));
   }
 
   async getWeeklyBriefing(user: any, schoolIdentifier: string): Promise<any> {
@@ -1360,7 +1399,8 @@ export class DashboardService {
 
     const teachingDate = nextSession ? new Date(nextSession.scheduledDate) : new Date();
     const coptic = getCopticContext(teachingDate);
-    const nextLesson = await this.findNextUpcomingLesson(levelIds, schoolId, nextSession ? new Date(nextSession.scheduledDate) : null);
+    const upcomingLessons = await this.findUpcomingLessons(levelIds, schoolId, nextSession ? new Date(nextSession.scheduledDate) : null);
+    const nextLesson = upcomingLessons[0] || null;
     const nextSessionWeekday = nextSession ? new Date(nextSession.scheduledDate).getDay() : null;
     const roster = await this.buildClassRoster(studentIds, nextLesson ? nextLesson.lessonId : null, nextSessionWeekday);
 
@@ -1377,6 +1417,7 @@ export class DashboardService {
         groupName: nextSession.group?.name,
       } : null,
       nextLesson,
+      nextLessons: upcomingLessons,
       roster,
     };
   }

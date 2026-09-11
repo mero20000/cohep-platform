@@ -56,6 +56,32 @@ describe('BriefingPage', () => {
     expect(screen.getByText('Missed 3+')).toBeInTheDocument()
   })
 
+  it('renders every allocated lesson of the coming class, not just the first', async () => {
+    mockGet.mockResolvedValue({
+      generatedAt: new Date().toISOString(),
+      coptic: {
+        coptic: { month: 4, day: 5, year: 1742, monthName: 'Kiahk', monthNameAr: 'كيهك' },
+        season: 'kiahk', seasonLabel: { en: 'Month of Kiahk', ar: 'شهر كيهك' }, feastFast: null,
+      },
+      nextSession: null,
+      nextLesson: {
+        lessonId: 'l1', title: 'Ⲱⲥⲡⲉⲣⲏⲛ', levelName: 'Level 1', subjectName: 'Coptic Hymns',
+      },
+      nextLessons: [
+        { lessonId: 'l1', title: 'Ⲱⲥⲡⲉⲣⲏⲛ', levelName: 'Level 1', subjectName: 'Coptic Hymns' },
+        { lessonId: 'l2', title: 'Coptic letter that doesn’t exist in English', levelName: 'Level 1', subjectName: 'Coptic Language' },
+        { lessonId: 'l3', title: 'Coptic Rites (8)', levelName: 'Level 1', subjectName: 'Coptic Rites' },
+      ],
+      roster: [],
+    })
+    render(<BriefingPage />)
+
+    expect(await screen.findByText('Ⲱⲥⲡⲉⲣⲏⲛ')).toBeInTheDocument()
+    expect(screen.getByText('Coptic letter that doesn’t exist in English')).toBeInTheDocument()
+    expect(screen.getByText('Coptic Rites (8)')).toBeInTheDocument()
+    expect(screen.queryByText('No lesson scheduled yet.')).not.toBeInTheDocument()
+  })
+
   it('shows all-caught-up when nothing is flagged', async () => {
     mockGet.mockResolvedValue({
       generatedAt: new Date().toISOString(),
