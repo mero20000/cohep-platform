@@ -280,19 +280,37 @@ describe('DashboardService', () => {
       expect(call.where.scheduledDate.lt).toEqual(new Date('2026-08-30T00:00:00Z'));
     });
 
-    it('anchors on the coming Sunday when there is no upcoming session', async () => {
+    it('anchors on the next active class day when there is no upcoming session', async () => {
+      prisma.academicYear.findFirst.mockResolvedValue({ activeDays: [6, 0] });
       (prisma.curriculumAllocation.findFirst as jest.Mock).mockResolvedValue(null);
       const before = new Date();
       await (service as any).findNextUpcomingLesson(['l1'], schoolId, null);
       const call = (prisma.curriculumAllocation.findFirst as jest.Mock).mock.calls[0][0];
-      const expectedSunday = new Date(before);
-      expectedSunday.setHours(0, 0, 0, 0);
-      expectedSunday.setDate(expectedSunday.getDate() + ((7 - expectedSunday.getDay()) % 7));
+      // Next Saturday or Sunday from "now", at local midnight.
+      const expected = new Date(before);
+      expected.setHours(0, 0, 0, 0);
+      for (let i = 0; i < 7 && ![6, 0].includes(expected.getDay()); i++) {
+        expected.setDate(expected.getDate() + 1);
+      }
       expect(call.where.levelId).toEqual({ in: ['l1'] });
-      expect(call.where.scheduledDate.gte).toEqual(expectedSunday);
+      expect(call.where.scheduledDate.gte).toEqual(expected);
       expect(call.where.scheduledDate.lt).toEqual(
-        new Date(expectedSunday.getTime() + 7 * 86400000),
+        new Date(expected.getTime() + 7 * 86400000),
       );
+    });
+
+    it('follows custom active days from the academic year', async () => {
+      prisma.academicYear.findFirst.mockResolvedValue({ activeDays: [5] }); // Fridays
+      (prisma.curriculumAllocation.findFirst as jest.Mock).mockResolvedValue(null);
+      const before = new Date();
+      await (service as any).findNextUpcomingLesson(['l1'], schoolId, null);
+      const call = (prisma.curriculumAllocation.findFirst as jest.Mock).mock.calls[0][0];
+      const expected = new Date(before);
+      expected.setHours(0, 0, 0, 0);
+      for (let i = 0; i < 7 && expected.getDay() !== 5; i++) {
+        expected.setDate(expected.getDate() + 1);
+      }
+      expect(call.where.scheduledDate.gte).toEqual(expected);
     });
 
     it('returns null when the servant has no levels', async () => {

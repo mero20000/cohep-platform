@@ -1259,15 +1259,27 @@ export class DashboardService {
   private async findNextUpcomingLesson(levelIds: string[], schoolId: string, nextSessionDate: Date | null) {
     if (levelIds.length === 0) return null;
     // Anchor on the upcoming session's week; without a session (nothing
-    // scheduled yet) anchor on the coming Sunday so allocated lessons still
-    // surface instead of a false "no lesson scheduled" state.
+    // scheduled yet) anchor on the next active class day from the academic
+    // calendar (admins allocate around active days, e.g. Saturdays) so the
+    // allocated lesson for the coming class surfaces instead of a false
+    // "no lesson scheduled" state.
     let anchor: Date;
     if (nextSessionDate) {
       anchor = new Date(nextSessionDate);
     } else {
+      const year = await this.prisma.academicYear.findFirst({
+        where: { schoolId, isCurrent: true, deletedAt: null },
+        select: { activeDays: true },
+      });
+      const activeDays: number[] =
+        Array.isArray(year?.activeDays) && (year?.activeDays as number[]).length
+          ? (year?.activeDays as number[])
+          : [6, 0];
       anchor = new Date();
       anchor.setHours(0, 0, 0, 0);
-      anchor.setDate(anchor.getDate() + ((7 - anchor.getDay()) % 7));
+      for (let i = 0; i < 7 && !activeDays.includes(anchor.getDay()); i++) {
+        anchor.setDate(anchor.getDate() + 1);
+      }
     }
     const weekStart = new Date(anchor);
     const weekEnd = new Date(weekStart);
@@ -1292,7 +1304,7 @@ export class DashboardService {
         subject: { select: { name: true, color: true } },
       },
     });
-    // 1. The anchor week (session week, else the coming Sunday's week).
+    // 1. The anchor week (session week, else the next active class day's week).
     let alloc = await this.prisma.curriculumAllocation.findFirst(
       allocArgs({ gte: weekStart, lt: weekEnd }, 'asc'),
     );
