@@ -28,6 +28,10 @@ interface Session {
 }
 interface Level { id: string; name: string; number: number; status?: string }
 interface Group { id: string; name: string; levelId?: string; status?: string }
+interface StudentHit {
+  student: { id: string; studentCode: string; firstName: string; lastName: string; firstNameAr?: string | null; lastNameAr?: string | null };
+  records: { status: string; recordedAt: string; attendanceSession?: { id: string; scheduledDate: string; status: string } }[];
+}
 
 interface SessionForm {
   levelId: string; groupId: string; servantId: string;
@@ -213,6 +217,11 @@ export default function SessionsPage() {
   const [filterDateFrom, setFilterDateFrom] = useState('')
   const [filterDateTo, setFilterDateTo] = useState('')
   const [search, setSearch] = useState('')
+  const [studentQuery, setStudentQuery] = useState('')
+  const [studentResults, setStudentResults] = useState<StudentHit[]>([])
+  const [studentSearching, setStudentSearching] = useState(false)
+  const [studentSearched, setStudentSearched] = useState(false)
+  const studentTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [editSession, setEditSession] = useState<Session | null>(null)
@@ -294,6 +303,37 @@ export default function SessionsPage() {
     }
     setSaving(false)
   }
+
+  const runStudentSearch = useCallback(async (query: string) => {
+    const q = query.trim()
+    if (!q) { setStudentResults([]); setStudentSearched(false); setStudentSearching(false); return }
+    setStudentSearching(true)
+    try {
+      const data = await http.get<StudentHit[] | { data: StudentHit[] }>('/attendance/student-search', { q, schoolId })
+      const list = Array.isArray(data) ? data : data?.data ?? []
+      setStudentResults(list)
+      setStudentSearched(true)
+    } catch {
+      setStudentResults([])
+      setStudentSearched(true)
+    }
+    setStudentSearching(false)
+  }, [schoolId])
+
+  useEffect(() => {
+    if (studentTimer.current) clearTimeout(studentTimer.current)
+    if (!studentQuery.trim()) {
+      setStudentResults([])
+      setStudentSearched(false)
+      setStudentSearching(false)
+      return
+    }
+    setStudentSearching(true)
+    studentTimer.current = setTimeout(() => { void runStudentSearch(studentQuery) }, 300)
+    return () => { if (studentTimer.current) clearTimeout(studentTimer.current) }
+  }, [studentQuery, runStudentSearch])
+
+  useEffect(() => () => { if (studentTimer.current) clearTimeout(studentTimer.current) }, [])
 
   const openEditSession = (session: Session) => {
     setEditSession(session)
@@ -456,6 +496,65 @@ export default function SessionsPage() {
           <QrScanner onCheckIn={handleQrCheckIn} onClose={() => setShowQrScanner(false)} />
         </div>
       )}
+
+      <div className="rounded-xl border border-gray-200 bg-white px-5 py-3">
+        <div className="relative">
+          <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" aria-hidden="true" />
+          <input
+            type="search"
+            value={studentQuery}
+            onChange={e => setStudentQuery(e.target.value)}
+            placeholder={lang === 'ar' ? 'بحث عن طالب بالاسم أو الكود…' : 'Find a student by name or code…'}
+            aria-label={lang === 'ar' ? 'بحث عن طالب' : 'Find a student'}
+            className="min-h-[44px] w-full rounded-lg border border-gray-300 py-2 pe-3 ps-9 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500"
+          />
+        </div>
+        {studentSearching && (
+          <p className="mt-2 flex items-center gap-2 text-xs text-gray-500">
+            <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+            {lang === 'ar' ? 'جاري البحث…' : 'Searching…'}
+          </p>
+        )}
+        {!studentSearching && studentSearched && studentResults.length === 0 && (
+          <p className="mt-2 text-sm text-gray-500">{lang === 'ar' ? 'لا يوجد طلاب مطابقون' : 'No matching students'}</p>
+        )}
+        {!studentSearching && studentResults.length > 0 && (
+          <ul className="mt-2 divide-y divide-gray-100" aria-live="polite">
+            {studentResults.map(hit => {
+              const latest = hit.records?.[0]
+              const sess = latest?.attendanceSession
+              const name = `${hit.student.firstName} ${hit.student.lastName}`
+              return (
+                <li key={hit.student.id} className="flex flex-wrap items-center gap-2 py-2.5">
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-sm font-medium text-gray-900">{name}</div>
+                    <div className="text-xs text-gray-500">
+                      {hit.student.studentCode}
+                      {sess?.scheduledDate && (
+                        <> · {new Date(sess.scheduledDate).toLocaleDateString(lang === 'ar' ? 'ar-EG' : 'en-US', { day: 'numeric', month: 'short' })} · {sess.status}</>
+                      )}
+                    </div>
+                  </div>
+                  {sess?.id && (
+                    <Link
+                      href={`/dashboard/attendance/mark?sessionId=${sess.id}`}
+                      className="inline-flex min-h-[44px] items-center rounded-lg bg-emerald-600 px-3 text-sm font-medium text-white hover:bg-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500"
+                    >
+                      {lang === 'ar' ? 'تسجيل' : 'Mark'}
+                    </Link>
+                  )}
+                  <Link
+                    href={`/dashboard/students?studentId=${hit.student.id}`}
+                    className="inline-flex min-h-[44px] items-center rounded-lg border border-gray-300 px-3 text-sm font-medium text-gray-700 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500"
+                  >
+                    {lang === 'ar' ? 'الملف' : 'File'}
+                  </Link>
+                </li>
+              )
+            })}
+          </ul>
+        )}
+      </div>
 
       <div className="rounded-xl border border-gray-200 bg-white transition-all">
         <div className="flex items-center justify-between border-b border-gray-100 px-5 py-3">
