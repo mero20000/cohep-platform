@@ -403,6 +403,16 @@ describe('AttendanceService', () => {
       expect(result.assessment.publishUrl).toBe('/dashboard/assessments/ass-1');
     });
 
+    it('on completed skips the draft assessment for non-assessment items', async () => {
+      prisma.subjectItem.findUnique.mockResolvedValue({ ...subjectItem, isAssessmentItem: false });
+      const result = await service.markSubjectItemStatus('sess-1', 'completed');
+      expect(result.status).toBe('completed');
+      expect(result.assessment).toBeUndefined();
+      expect(assessmentsMock.create).not.toHaveBeenCalled();
+      expect(result.sessionsUsed).toBe(2);
+      expect(result.plannedSessions).toBe(3);
+    });
+
     it('rejects an unknown subject item link', async () => {
       prisma.subjectItem.findUnique.mockImplementation(({ where }: any) =>
         where.id === 'si-bad' ? Promise.resolve(null) : Promise.resolve(subjectItem),

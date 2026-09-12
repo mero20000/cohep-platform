@@ -176,11 +176,11 @@ export class AttendanceService {
    * Prefers an explicitly linked subjectItemId, otherwise derives it from the
    * curriculum allocation for the session's level/week (lesson -> subjectItem).
    */
-  private async resolveSessionSubjectItem(session: { id: string; levelId: string; groupId: string; scheduledDate: Date; subjectItemId?: string | null }): Promise<{ id: string; name: string; nameAr?: string | null; status: string } | null> {
+  private async resolveSessionSubjectItem(session: { id: string; levelId: string; groupId: string; scheduledDate: Date; subjectItemId?: string | null }): Promise<{ id: string; name: string; nameAr?: string | null; status: string; isAssessmentItem?: boolean | null; passRequired?: boolean | null } | null> {
     const load = (id: string) =>
       this.prisma.subjectItem.findUnique({
         where: { id },
-        select: { id: true, name: true, nameAr: true, status: true },
+        select: { id: true, name: true, nameAr: true, status: true, isAssessmentItem: true, passRequired: true },
       });
 
     if (session.subjectItemId) {
@@ -264,7 +264,7 @@ export class AttendanceService {
     if (status === 'completed') {
       const si = await this.prisma.subjectItem.findUnique({
         where: { id: effectiveSubjectItemId },
-        select: { name: true, subjectId: true },
+        select: { name: true, subjectId: true, isAssessmentItem: true },
       });
       const weekStart = new Date(session.scheduledDate);
       weekStart.setHours(0, 0, 0, 0);
@@ -284,35 +284,39 @@ export class AttendanceService {
         where: { subjectItemId: effectiveSubjectItemId, status: 'completed', deletedAt: null },
       });
 
-      const existingDraft = await this.prisma.assessment.findFirst({
-        where: {
-          schoolId: session.schoolId,
-          levelId: session.levelId,
-          groupId: session.groupId,
-          subjectId: si!.subjectId,
-          title: `Assessment: ${si!.name}`,
-          status: 'draft',
-          deletedAt: null,
-        },
-        select: { id: true, title: true, status: true },
-      });
-      assessment = existingDraft ?? await this.assessments.create(
-        {
-          schoolId: session.schoolId,
-          levelId: session.levelId,
-          groupId: session.groupId,
-          subjectId: si!.subjectId,
-          title: `Assessment: ${si!.name}`,
-          totalPoints: 0,
-          passingPoints: 0,
-          type: 'quiz',
-          status: 'draft',
-        },
-        session.schoolId,
-      );
-      const qCount = await this.prisma.assessmentQuestion.count({ where: { assessmentId: (assessment as any).id } });
-      (assessment as any).actionRequired = qCount === 0 ? 'add-questions-then-publish' : null;
-      (assessment as any).publishUrl = `/dashboard/assessments/${(assessment as any).id}`;
+      // Only assessment items draft a formal assessment on completion.
+      // Plain items complete with just the status flip + sessions report.
+      if ((si as any)?.isAssessmentItem !== false) {
+        const existingDraft = await this.prisma.assessment.findFirst({
+          where: {
+            schoolId: session.schoolId,
+            levelId: session.levelId,
+            groupId: session.groupId,
+            subjectId: si!.subjectId,
+            title: `Assessment: ${si!.name}`,
+            status: 'draft',
+            deletedAt: null,
+          },
+          select: { id: true, title: true, status: true },
+        });
+        assessment = existingDraft ?? await this.assessments.create(
+          {
+            schoolId: session.schoolId,
+            levelId: session.levelId,
+            groupId: session.groupId,
+            subjectId: si!.subjectId,
+            title: `Assessment: ${si!.name}`,
+            totalPoints: 0,
+            passingPoints: 0,
+            type: 'quiz',
+            status: 'draft',
+          },
+          session.schoolId,
+        );
+        const qCount = await this.prisma.assessmentQuestion.count({ where: { assessmentId: (assessment as any).id } });
+        (assessment as any).actionRequired = qCount === 0 ? 'add-questions-then-publish' : null;
+        (assessment as any).publishUrl = `/dashboard/assessments/${(assessment as any).id}`;
+      }
 
       sessionsUsed = used + 1; // include the session just completed
       plannedSessions = planned;

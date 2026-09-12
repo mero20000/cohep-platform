@@ -172,6 +172,8 @@ export class CurriculumService {
         presentationData: data.presentationData || null,
         hazzat: data.hazzat || null,
         active: data.active ?? true,
+        isAssessmentItem: data.isAssessmentItem ?? true,
+        passRequired: data.passRequired ?? false,
         educationLanguages: data.educationLanguages || null,
         levels: {
           create: levelNumbers.map((n: number) => ({ levelNumber: n })),

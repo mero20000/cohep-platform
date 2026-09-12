@@ -32,6 +32,7 @@ interface SubjectItem {
   descriptionAr?: string; sessionsGroup1: number; sessionsGroup2: number;
   sessionsGroup3: number; sessionsGroup4: number; optional: boolean; orderIndex: number;
   presentationUrl?: string; presentationData?: PresentationData; hazzat?: string; educationLanguages?: string[];
+  isAssessmentItem?: boolean; passRequired?: boolean;
   _count?: { lessons: number };
   levels?: Array<{ levelNumber: number }>;
   active?: boolean;
@@ -51,7 +52,7 @@ const subjectSchema: Schema<SubjectForm> = {
 
 const emptySubjectForm: SubjectForm = { name: '', nameAr: '', description: '', color: '#D4AF37' }
 
-type ItemForm = { name: string; whenLabel: string; nameAr: string; nameCoptic: string; levels: number[]; descriptionAr: string; sessionsGroup1: number; sessionsGroup2: number; sessionsGroup3: number; sessionsGroup4: number; optional: boolean; hazzat: string; presentationUrl: string; educationLanguages: string[]; active: boolean }
+type ItemForm = { name: string; whenLabel: string; nameAr: string; nameCoptic: string; levels: number[]; descriptionAr: string; sessionsGroup1: number; sessionsGroup2: number; sessionsGroup3: number; sessionsGroup4: number; optional: boolean; hazzat: string; presentationUrl: string; educationLanguages: string[]; active: boolean; isAssessmentItem: boolean; passRequired: boolean }
 
 const itemFormSchema: Schema<ItemForm> = {
   name: [required({ en: 'Hymn name', ar: 'اسم التسبيحة' })],
@@ -63,6 +64,7 @@ const emptyItemForm = {
   hazzat: '', presentationUrl: '',
   educationLanguages: [] as string[],
   active: true,
+  isAssessmentItem: true, passRequired: false,
 }
 
 const COLOR_OPTIONS = ['#D4AF37', '#2563EB', '#059669', '#DC2626', '#7C3AED', '#DB2777', '#EA580C', '#0891B2', '#4F46E5', '#16A34A']
@@ -183,6 +185,7 @@ export function SubjectsTab() {
       sessionsGroup3: item.sessionsGroup3, sessionsGroup4: item.sessionsGroup4, optional: item.optional || false,
       hazzat: item.hazzat || '', presentationUrl: item.presentationUrl || '', educationLanguages: item.educationLanguages || [],
       active: item.active ?? true,
+      isAssessmentItem: item.isAssessmentItem ?? true, passRequired: item.passRequired ?? false,
     })
     setItemPresentation(item.presentationData || undefined)
     setShowItemForm(true)
@@ -204,6 +207,7 @@ export function SubjectsTab() {
         optional: itemForm.optional, hazzat: itemForm.hazzat || null,
         presentationUrl: itemForm.presentationUrl || null, educationLanguages: itemForm.educationLanguages,
         active: itemForm.active,
+        isAssessmentItem: itemForm.isAssessmentItem, passRequired: itemForm.passRequired,
       }
       if (itemPresentation) {
         body.presentationData = itemPresentation
@@ -740,6 +744,16 @@ export function SubjectsTab() {
                 className="h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-green-500" />
               <label className="text-sm font-medium text-gray-700">{lang === 'ar' ? 'نشط' : 'Active'}</label>
             </div>
+            <div className="flex items-center gap-2 pt-2">
+              <input type="checkbox" checked={itemForm.isAssessmentItem} onChange={e => setItemForm({ ...itemForm, isAssessmentItem: e.target.checked })}
+                className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
+              <label className="text-sm font-medium text-gray-700">{lang === 'ar' ? 'عنصر تقييم (ينشئ اختباراً عند الإكمال)' : 'Assessment item (drafts a test on completion)'}</label>
+            </div>
+            <div className="flex items-center gap-2 pt-2">
+              <input type="checkbox" checked={itemForm.passRequired} onChange={e => setItemForm({ ...itemForm, passRequired: e.target.checked })}
+                className="h-4 w-4 rounded border-gray-300 text-amber-600 focus:ring-amber-500" />
+              <label className="text-sm font-medium text-gray-700">{lang === 'ar' ? 'النجاح مطلوب لإتمامه' : 'Pass required to complete'}</label>
+            </div>
             <div className="col-span-2">
               <label className="block text-sm font-medium text-gray-700 mb-2">{lang === 'ar' ? 'لغة التعليم' : 'Education Language'}</label>
               <div className="flex flex-wrap gap-4">
@@ -947,6 +961,8 @@ export function SubjectsTab() {
               <DetailRow label={lang === 'ar' ? 'الاسم القبطي' : 'Coptic Name'} value={<span className="coptic-text">{drawerItem.nameCoptic || '—'}</span>} />
               <DetailRow label={lang === 'ar' ? 'الاسم بالعربية' : 'Arabic Name'} value={<span dir="rtl">{drawerItem.nameAr || '—'}</span>} />
               <DetailRow label={lang === 'ar' ? 'اختياري' : 'Optional'} value={drawerItem.optional ? (lang === 'ar' ? 'نعم' : 'Yes') : (lang === 'ar' ? 'لا' : 'No')} />
+              <DetailRow label={lang === 'ar' ? 'عنصر تقييم' : 'Assessment item'} value={(drawerItem.isAssessmentItem ?? true) ? (lang === 'ar' ? 'نعم' : 'Yes') : (lang === 'ar' ? 'لا' : 'No')} />
+              <DetailRow label={lang === 'ar' ? 'النجاح مطلوب' : 'Pass required'} value={(drawerItem.passRequired ?? false) ? (lang === 'ar' ? 'نعم' : 'Yes') : (lang === 'ar' ? 'لا' : 'No')} />
               <DetailRow label={lang === 'ar' ? 'لغة التعليم' : 'Education Lang'} value={
                 drawerItem.educationLanguages?.length
                   ? <span className="flex gap-1.5 flex-wrap">{drawerItem.educationLanguages.map(l => (

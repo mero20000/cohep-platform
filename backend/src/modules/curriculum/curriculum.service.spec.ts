@@ -163,3 +163,42 @@ describe('CurriculumService.getLessons - subject color', () => {
     );
   });
 });
+
+describe('CurriculumService.createSubjectItem - item flags', () => {
+  let svc: CurriculumService;
+  let prisma: any;
+
+  beforeEach(async () => {
+    const prismaMock = {
+      subjectItem: { count: jest.fn().mockResolvedValue(0), create: jest.fn().mockImplementation(({ data }: any) => Promise.resolve({ id: 'si-1', ...data })) },
+    };
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        CurriculumService,
+        { provide: PrismaService, useValue: prismaMock },
+        { provide: SchoolResolver, useValue: { resolve: jest.fn().mockResolvedValue('school-1') } },
+        { provide: AuditService, useValue: { log: jest.fn().mockResolvedValue(undefined) } },
+      ],
+    }).compile();
+
+    svc = module.get<CurriculumService>(CurriculumService);
+    prisma = module.get(PrismaService);
+    jest.clearAllMocks();
+  });
+
+  it('persists explicit flag values', async () => {
+    const res = await svc.createSubjectItem('school-1', 'subj-1', { name: 'H', isAssessmentItem: false, passRequired: true });
+    expect(prisma.subjectItem.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ isAssessmentItem: false, passRequired: true }) }),
+    );
+    expect(res).toMatchObject({ isAssessmentItem: false, passRequired: true });
+  });
+
+  it('defaults to assessment item without pass requirement', async () => {
+    const res = await svc.createSubjectItem('school-1', 'subj-1', { name: 'H' });
+    expect(prisma.subjectItem.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ isAssessmentItem: true, passRequired: false }) }),
+    );
+    expect(res).toMatchObject({ isAssessmentItem: true, passRequired: false });
+  });
+});
