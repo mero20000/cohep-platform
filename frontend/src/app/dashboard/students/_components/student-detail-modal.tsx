@@ -53,6 +53,7 @@ export function StudentDetailModal({ student:s, onClose, onEdit, onPreviewPhoto,
   const [activityDisplayCount, setActivityDisplayCount] = useState(10)
   const [tags, setTags] = useState<string[]>(s.metadata?.tags || [])
   const [photoLoading, setPhotoLoading] = useState(true)
+  const [photoBroken, setPhotoBroken] = useState(false)
 
   useEffect(() => {
     dialogRef.current?.focus()
@@ -107,7 +108,7 @@ export function StudentDetailModal({ student:s, onClose, onEdit, onPreviewPhoto,
         <div className="px-6 py-5 overflow-y-auto flex-1 space-y-2">
           {/* Header: Photo, Name, Code */}
           <div className="flex items-center gap-4 mb-6">
-            {s.photoUrl?<Button type="button" variant="ghost" size="icon" onClick={()=>onPreviewPhoto(photoSrc(s.photoUrl))} className="flex-shrink-0 relative"><div className={`absolute inset-0 rounded-full bg-gray-200 animate-pulse flex items-center justify-center ${photoLoading?'':'hidden'}`}><Loader2 className="h-4 w-4 text-gray-400 animate-spin" /></div><Image src={photoSrc(s.photoUrl)} alt={`${s.firstName} ${s.lastName} profile photo`} width={64} height={64} onLoadingComplete={()=>setPhotoLoading(false)} className="h-16 w-16 rounded-full object-cover border border-gray-200 cursor-pointer hover:ring-2 hover:ring-gold-400" priority /></Button>
+            {s.photoUrl && !photoBroken?<Button type="button" variant="ghost" size="icon" onClick={()=>onPreviewPhoto(photoSrc(s.photoUrl))} className="flex-shrink-0 relative"><div className={`absolute inset-0 rounded-full bg-gray-200 animate-pulse flex items-center justify-center ${photoLoading?'':'hidden'}`}><Loader2 className="h-4 w-4 text-gray-400 animate-spin" /></div><Image src={photoSrc(s.photoUrl)} alt={`${s.firstName} ${s.lastName} profile photo`} width={64} height={64} onLoadingComplete={()=>setPhotoLoading(false)} onError={()=>{setPhotoBroken(true);setPhotoLoading(false)}} className="h-16 w-16 rounded-full object-cover border border-gray-200 cursor-pointer hover:ring-2 hover:ring-gold-400" priority /></Button>
             :<div className={`flex h-16 w-16 items-center justify-center rounded-full text-xl font-bold flex-shrink-0 ${s.gender==='female'?'bg-semantic-gender-female-bg text-semantic-gender-female':'bg-semantic-gender-male-bg text-semantic-gender-male'}`}>{s.firstName[0]}{s.lastName[0]}</div>}
             <div className="flex-1">
               <h3 className="text-xl font-bold text-gray-900">{s.firstName} {s.lastName}</h3>

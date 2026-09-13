@@ -262,6 +262,32 @@ function StudentsPanel() {
         }>
         {selected && (
           <div className="space-y-4 max-h-[60vh] overflow-y-auto">
+            {/* Applicant photo */}
+            {(() => {
+              const sd: any = selected.studentData || {}
+              const initial = ((sd.name || sd.firstName || '?') as string).trim()?.[0] || '?'
+              return (
+                <div className="flex items-center gap-3">
+                  <div className="relative h-20 w-20 rounded-full bg-gray-100 overflow-hidden flex-shrink-0">
+                    <div className="absolute inset-0 flex items-center justify-center text-xl font-bold text-gray-400">{initial}</div>
+                    {sd.photoUrl ? (
+                      <Image
+                        src={assetUrl(sd.photoUrl)}
+                        alt={t('Applicant photo', 'صورة المتقدم')}
+                        width={80}
+                        height={80}
+                        className="absolute inset-0 h-full w-full object-cover"
+                        onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none' }}
+                      />
+                    ) : null}
+                  </div>
+                  <div className="min-w-0">
+                    <div className="font-bold text-gray-900 truncate">{sd.name || `${sd.firstName || ''} ${sd.lastName || ''}`.trim() || t('Application', 'طلب')}</div>
+                    <div className="text-xs text-gray-500">{sd.dateOfBirth} · {sd.gender} · {sd.churchName || ''}</div>
+                  </div>
+                </div>
+              )
+            })()}
             {/* Recordings — one player per hymn */}
             {(() => {
               const sd: any = selected.studentData || {}
