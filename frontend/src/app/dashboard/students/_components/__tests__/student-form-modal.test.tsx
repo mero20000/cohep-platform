@@ -229,10 +229,26 @@ describe('StudentFormModal', () => {
 
   it('defaults the church from the servant school profile on create', async () => {
     const churches = [{ id: 'c1', name: 'St. Mary', city: 'Cairo' }]
-    render(<StudentFormModal {...baseProps} churches={churches} defaultChurchName="St. Mary" />)
+    render(<StudentFormModal {...baseProps} churches={churches} defaultChurch={{ id: 'c1', name: 'St. Mary' }} />)
 
     await screen.findByText('Add New Student')
     expect((screen.getByLabelText('Church') as HTMLSelectElement).value).toBe('St. Mary')
+  })
+
+  it('matches the default by name when the school church id is absent from the list', async () => {
+    const churches = [{ id: 'other-id', name: 'St. Mary', city: 'Cairo' }]
+    render(<StudentFormModal {...baseProps} churches={churches} defaultChurch={{ id: 'c1', name: 'St. Mary' }} />)
+
+    await screen.findByText('Add New Student')
+    expect((screen.getByLabelText('Church') as HTMLSelectElement).value).toBe('St. Mary')
+  })
+
+  it('falls back to the sole active church when the school has none linked', async () => {
+    const churches = [{ id: 'c9', name: 'Only Church', city: 'Cairo' }]
+    render(<StudentFormModal {...baseProps} churches={churches} defaultChurch={null} />)
+
+    await screen.findByText('Add New Student')
+    expect((screen.getByLabelText('Church') as HTMLSelectElement).value).toBe('Only Church')
   })
 
   it('never overwrites an explicitly chosen church with the default', async () => {
@@ -241,7 +257,7 @@ describe('StudentFormModal', () => {
       { id: 'c1', name: 'St. Mary', city: 'Cairo' },
       { id: 'c2', name: 'St. Mark', city: 'Alexandria' },
     ]
-    render(<StudentFormModal {...baseProps} churches={churches} defaultChurchName="St. Mary" />)
+    render(<StudentFormModal {...baseProps} churches={churches} defaultChurch={{ id: 'c1', name: 'St. Mary' }} />)
 
     await screen.findByText('Add New Student')
     await user.selectOptions(screen.getByLabelText('Church'), 'St. Mark')

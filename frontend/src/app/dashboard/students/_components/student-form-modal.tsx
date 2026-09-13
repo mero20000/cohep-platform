@@ -34,7 +34,7 @@ interface Props {
   churches: ChurchItem[]; gradeOptions: GradeItem[]
   onClose: () => void; onSuccess: (page: number) => void
   currentPage: number; onOptimisticAdd: (s: Student) => void; lang: 'en'|'ar'
-  defaultChurchName?: string
+  defaultChurch?: { id?: string; name: string } | null
 }
 
 const MAX_PHOTO_BYTES = 5 * 1024 * 1024
@@ -79,7 +79,7 @@ async function preparePhotoFile(file: File): Promise<File> {
     bitmap.close()
   }
 }
-export function StudentFormModal({ student, activeLevels, churches, gradeOptions, onClose, onSuccess, currentPage, onOptimisticAdd, lang, defaultChurchName }: Props) {
+export function StudentFormModal({ student, activeLevels, churches, gradeOptions, onClose, onSuccess, currentPage, onOptimisticAdd, lang, defaultChurch }: Props) {
   const { toast } = useToast()
   const { can } = usePermission()
   const dialogRef = useRef<HTMLFormElement>(null)
@@ -108,12 +108,21 @@ export function StudentFormModal({ student, activeLevels, churches, gradeOptions
     } else { setForm(emptyForm) }
   }, [student?.id])
   // Default the church from the servant's own school profile (create mode only,
-  // never overwriting an explicit choice).
+  // never overwriting an explicit choice). Matches against the loaded church
+  // list by id (falling back to name) so the value always equals a real
+  // dropdown option; with a single active church, that church is the default.
   useEffect(() => {
-    if (!student && defaultChurchName) {
-      setForm(prev => (prev.churchName ? prev : { ...prev, churchName: defaultChurchName }))
+    if (student) return
+    const match = defaultChurch
+      ? (churches.find(c => defaultChurch.id != null && c.id === defaultChurch.id)
+        ?? churches.find(c => c.name === defaultChurch.name))
+      : undefined
+    const fallback = !match && churches.length === 1 ? churches[0] : undefined
+    const name = match?.name ?? fallback?.name
+    if (name) {
+      setForm(prev => (prev.churchName ? prev : { ...prev, churchName: name }))
     }
-  }, [student?.id, defaultChurchName])
+  }, [student?.id, defaultChurch, churches])
   useEffect(() => () => revoke(), [])
 
   const setField = (f: string, v: string) => {
