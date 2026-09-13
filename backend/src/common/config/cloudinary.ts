@@ -24,8 +24,12 @@ export function createCloudinaryStorage(folder: string) {
 
   try {
     const CloudinaryStorage = require('multer-storage-cloudinary');
+    // multer-storage-cloudinary calls `this.cloudinary.v2.uploader...`, so it
+    // needs the object that HAS `.v2` — our `cloudinary` import already IS v2
+    // (passing it bare made `.v2` undefined and crashed the whole process on
+    // the first upload with "Cannot read properties of undefined").
     return new CloudinaryStorage({
-      cloudinary,
+      cloudinary: { v2: cloudinary },
       // NOTE: multer-storage-cloudinary resolves params via run-parallel with
       // Node-style (req, file, cb) callbacks. An async function NEVER calls
       // back, so every upload hung forever with no error. Keep this callback

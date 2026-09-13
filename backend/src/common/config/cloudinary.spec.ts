@@ -41,6 +41,15 @@ describe('createCloudinaryStorage params callback', () => {
     expect((params as any).public_id).toMatch(/^student-photos-/);
   });
 
+  it('passes an object with .v2.uploader (bare v2 crashes the process on upload)', () => {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { createCloudinaryStorage } = require('./cloudinary');
+    const storage = createCloudinaryStorage('student-photos');
+    expect(storage).not.toBeNull();
+    expect((storage as any).cloudinary?.v2).toBeDefined();
+    expect(typeof (storage as any).cloudinary?.v2?.uploader?.upload_stream).toBe('function');
+  });
+
   it('returns null when Cloudinary is not configured (disk fallback)', () => {
     delete process.env.CLOUDINARY_CLOUD_NAME;
     delete process.env.CLOUDINARY_API_KEY;
