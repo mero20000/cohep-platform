@@ -36,6 +36,10 @@ const nextConfig = {
       { protocol: 'https', hostname: '*.onrender.com' },
       // Cloudinary
       { protocol: 'https', hostname: 'res.cloudinary.com' },
+      // Cloudflare R2 public bucket (registration photos, recordings
+      // thumbs). Without this, next/image answers 400 and every R2-hosted
+      // picture renders as a broken spinner.
+      { protocol: 'https', hostname: '*.r2.dev' },
       ...(uploadsUrl ? [{
         protocol: uploadsUrl.protocol.replace(':', ''),
         hostname: uploadsUrl.hostname,
