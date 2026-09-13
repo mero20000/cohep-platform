@@ -41,15 +41,37 @@ interface Props {
 const MAX_PHOTO_BYTES = 5 * 1024 * 1024
 const ACCEPTED_PHOTO_EXTS = ['.jpg', '.jpeg', '.png', '.webp', '.gif']
 
+export type HeicLoader = () => Promise<any>
+
+/**
+ * Convert an iPhone HEIC/HEIF photo to JPEG. Loaded lazily so the decoder
+ * (~100KB wasm) only downloads when an HEIC file is actually picked.
+ */
+async function convertHeicToJpeg(file: File, loadHeic2Any: HeicLoader = () => import('heic2any')): Promise<File> {
+  const mod = await loadHeic2Any()
+  const out = await mod.default({ blob: file, toType: 'image/jpeg', quality: 0.85 })
+  const blob = (Array.isArray(out) ? out[0] : out) as Blob
+  const base = file.name.replace(/\.[^.]+$/, '') || 'photo'
+  return new File([blob], `${base}.jpg`, { type: 'image/jpeg' })
+}
+
 /**
  * Prepare a camera/gallery photo for upload. Phone photos are often HEIC or
  * larger than the 5MB server limit — both used to fail server-side with an
- * English-only error. Anything decodable is downscaled to ≤1600px JPEG;
- * undecodable files (e.g. HEIC on browsers without support) are rejected
- * here with a message the save handler turns into a bilingual toast.
+ * English-only error. HEIC files are converted to JPEG first; anything else
+ * decodable is downscaled to ≤1600px JPEG. Truly undecodable files are
+ * rejected here with a message the save handler turns into a bilingual toast.
  */
-async function preparePhotoFile(file: File): Promise<File> {
-  const ext = '.' + (file.name.split('.').pop() || '').toLowerCase()
+export async function preparePhotoFile(file: File, loadHeic2Any?: HeicLoader): Promise<File> {
+  const extOf = (f: File) => '.' + (f.name.split('.').pop() || '').toLowerCase()
+  if (file.type === 'image/heic' || file.type === 'image/heif' || extOf(file) === '.heic' || extOf(file) === '.heif') {
+    try {
+      file = await convertHeicToJpeg(file, loadHeic2Any)
+    } catch {
+      throw new Error('unsupported')
+    }
+  }
+  const ext = extOf(file)
   if (typeof createImageBitmap === 'undefined') {
     if (!ACCEPTED_PHOTO_EXTS.includes(ext)) throw new Error('unsupported')
     if (file.size > MAX_PHOTO_BYTES) throw new Error('too-large')

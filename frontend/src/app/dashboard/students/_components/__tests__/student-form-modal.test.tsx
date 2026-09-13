@@ -299,11 +299,31 @@ describe('StudentFormModal', () => {
     render(<StudentFormModal {...baseProps} />)
     await screen.findByText('Add New Student')
 
-    const heic = new File(['not-a-real-image'], 'photo.heic', { type: 'image/heic' })
+    const bmp = new File(['not-a-real-image'], 'photo.bmp', { type: 'image/bmp' })
     const input = document.querySelector('input[type="file"]') as HTMLInputElement
-    fireEvent.change(input, { target: { files: [heic] } })
+    fireEvent.change(input, { target: { files: [bmp] } })
 
     await waitFor(() => expect(mockToast).toHaveBeenCalledWith('error', expect.stringContaining('JPG')))
     expect(mocks.upload).not.toHaveBeenCalled()
+  })
+
+  it('converts an HEIC photo to JPEG and accepts it', async () => {
+    const { preparePhotoFile } = await import('../student-form-modal')
+    const converted = await preparePhotoFile(
+      new File(['fake-heic-bytes'], 'photo.heic', { type: 'image/heic' }),
+      async () => ({ default: async () => new Blob(['jpeg-bytes'], { type: 'image/jpeg' }) }),
+    )
+    expect(converted.name).toBe('photo.jpg')
+    expect(converted.type).toBe('image/jpeg')
+  })
+
+  it('rejects HEIC photos when conversion fails', async () => {
+    const { preparePhotoFile } = await import('../student-form-modal')
+    await expect(
+      preparePhotoFile(
+        new File(['fake-heic-bytes'], 'photo.heic', { type: 'image/heic' }),
+        async () => { throw new Error('no decoder') },
+      ),
+    ).rejects.toThrow('unsupported')
   })
 })
