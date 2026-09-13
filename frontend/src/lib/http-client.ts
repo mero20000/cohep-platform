@@ -131,7 +131,9 @@ class HttpClient {
     // Bounded requests: uploads (e.g. student photos on slow mobile links)
     // used to hang the form indefinitely with no feedback. Anything slower
     // than the budget now fails fast with an actionable message instead.
-    const timeoutMs = opts?.timeoutMs ?? (opts?.formData ? 120000 : 30000)
+    // The default covers Render free-tier cold starts (≈30–60s); uploads get
+    // longer for large photos on mobile links.
+    const timeoutMs = opts?.timeoutMs ?? (opts?.formData ? 120000 : 60000)
     const doFetch = (hdrs: Record<string, string>) => {
       const controller = new AbortController()
       const timer = setTimeout(() => controller.abort(), timeoutMs)

@@ -157,13 +157,18 @@ export function StudentFormModal({ student, activeLevels, churches, gradeOptions
   const setField = (f: string, v: string) => {
     setForm(prev => ({ ...prev, [f]: v }))
   }
+  const [savePhase, setSavePhase] = useState<'idle' | 'uploading' | 'saving'>('idle')
   const [formState, saveAction, isSaving] = useActionState(async (_prev: {error:string}, data: {form:StudentForm;photoFile:File|null;editing:Student|null}) => {
     if (!validate()) return { error: t('Please fill all required fields','يرجى ملء جميع الحقول المطلوبة') }
     const parts = data.form.name.trim().split(/\s+/)
     const firstName = parts[0]||''; const lastName = parts.slice(1).join(' ')||''
     try {
       let photoUrl = data.form.photoUrl
-      if (data.photoFile) { const fd=new FormData(); fd.append('file',data.photoFile); photoUrl=(await http.upload<{url:string}>('/upload/student-photo',fd)).url }
+      if (data.photoFile) {
+        setSavePhase('uploading')
+        const fd=new FormData(); fd.append('file',data.photoFile); photoUrl=(await http.upload<{url:string}>('/upload/student-photo',fd)).url
+      }
+      setSavePhase('saving')
       const { name:_n, groupId:_g, groupName:_gn, ...rest } = data.form
       const ctid = data.form.churchToolId
       const body: Record<string,unknown> = { ...rest, firstName, lastName, photoUrl, firstNameAr:data.form.firstNameAr||undefined, lastNameAr:data.form.lastNameAr||undefined, churchName:data.form.churchName||undefined, gradeId:data.form.gradeId||undefined, churchToolId:ctid }
@@ -175,10 +180,10 @@ export function StudentFormModal({ student, activeLevels, churches, gradeOptions
       } else { await http.put(`/students/${data.editing.id}`,body,{schoolId:getSchoolId()}) }
       toast('success',!data.editing?t('Student created','تم إنشاء الطالب'):t('Student updated','تم تحديث الطالب'))
       // M11: a newly created student sorts to page 1, so jump back there
-      onClose(); onSuccess(data.editing ? currentPage : 1); return {error:''}
+      setSavePhase('idle'); onClose(); onSuccess(data.editing ? currentPage : 1); return {error:''}
     } catch (err:unknown) {
       const msg = err instanceof Error?err.message:t('Connection error','خطأ في الاتصال')
-      toast('error',msg); onSuccess(currentPage); return {error:msg}
+      setSavePhase('idle'); toast('error',msg); onSuccess(currentPage); return {error:msg}
     }
   },{error:''})
 
@@ -317,7 +322,11 @@ export function StudentFormModal({ student, activeLevels, churches, gradeOptions
           <Button type="button" variant="outline" onClick={onClose}>{t('Cancel','إلغاء')}</Button>
           <Button type="submit" disabled={isSaving} className="inline-flex items-center gap-2">
             {isSaving&&<Loader2 className="h-4 w-4 animate-spin" />}
-            {student?t('Save Changes','حفظ التغييرات'):t('Add Student','إضافة طالب')}
+            {isSaving && savePhase === 'uploading'
+              ? t('Uploading photo…','جاري رفع الصورة…')
+              : isSaving
+                ? t('Saving…','جاري الحفظ…')
+                : (student?t('Save Changes','حفظ التغييرات'):t('Add Student','إضافة طالب'))}
           </Button>
         </div>
       </form>
