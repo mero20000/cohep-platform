@@ -65,9 +65,15 @@ function imageStorage(subfolder: string) {
   });
 }
 
-function uploadResult(file: Express.Multer.File, subfolder: string, filename?: string): { url: string } {
-  if (isCloudinaryConfigured && file.path) {
-    return { url: file.path };
+export function uploadResult(file: Express.Multer.File, subfolder: string, filename?: string): { url: string } {
+  // multer-storage-cloudinary spreads Cloudinary's upload response into the
+  // file object: it carries secure_url/url but NO path/filename. Reading
+  // file.path here saved `/uploads/<subfolder>/undefined` for every
+  // Cloudinary upload (broken images that spin forever in the UI).
+  if (isCloudinaryConfigured) {
+    const cf = file as unknown as Record<string, unknown>;
+    const url = cf.secure_url || cf.url || file.path;
+    if (typeof url === 'string' && url) return { url };
   }
   const fname = filename || file.filename;
   return { url: `/uploads/${subfolder}/${fname}` };
