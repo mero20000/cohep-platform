@@ -251,6 +251,25 @@ describe('StudentFormModal', () => {
     expect((screen.getByLabelText('Church') as HTMLSelectElement).value).toBe('Only Church')
   })
 
+  it('seeds the dropdown from the school church when servants cannot list churches', async () => {
+    render(
+      <StudentFormModal
+        {...baseProps}
+        churches={[]}
+        defaultChurch={{ id: 'c1', name: 'Saint Mina Coptic Orthodox Church - Dubai' }}
+        schoolChurch={{ id: 'c1', name: 'Saint Mina Coptic Orthodox Church - Dubai' }}
+      />,
+    )
+
+    await screen.findByText('Add New Student')
+    expect(
+      screen.getByRole('option', { name: 'Saint Mina Coptic Orthodox Church - Dubai' }),
+    ).toBeInTheDocument()
+    expect((screen.getByLabelText('Church') as HTMLSelectElement).value).toBe(
+      'Saint Mina Coptic Orthodox Church - Dubai',
+    )
+  })
+
   it('never overwrites an explicitly chosen church with the default', async () => {
     const user = userEvent.setup()
     const churches = [

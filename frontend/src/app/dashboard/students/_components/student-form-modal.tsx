@@ -35,6 +35,7 @@ interface Props {
   onClose: () => void; onSuccess: (page: number) => void
   currentPage: number; onOptimisticAdd: (s: Student) => void; lang: 'en'|'ar'
   defaultChurch?: { id?: string; name: string } | null
+  schoolChurch?: { id: string; name: string } | null
 }
 
 const MAX_PHOTO_BYTES = 5 * 1024 * 1024
@@ -79,7 +80,7 @@ async function preparePhotoFile(file: File): Promise<File> {
     bitmap.close()
   }
 }
-export function StudentFormModal({ student, activeLevels, churches, gradeOptions, onClose, onSuccess, currentPage, onOptimisticAdd, lang, defaultChurch }: Props) {
+export function StudentFormModal({ student, activeLevels, churches, gradeOptions, onClose, onSuccess, currentPage, onOptimisticAdd, lang, defaultChurch, schoolChurch }: Props) {
   const { toast } = useToast()
   const { can } = usePermission()
   const dialogRef = useRef<HTMLFormElement>(null)
@@ -107,22 +108,28 @@ export function StudentFormModal({ student, activeLevels, churches, gradeOptions
       setForm({ name:`${student.firstName} ${student.lastName}`.trim(), firstNameAr:student.firstNameAr||'', lastNameAr:student.lastNameAr||'', dateOfBirth:student.dateOfBirth.split('T')[0], gender:student.gender, churchName:student.churchName||'', gradeId:student.gradeId||'', levelId:student.levelId, groupId:student.groupId, groupName:student.group?.name||'', photoUrl:student.photoUrl||'', status:student.status, phone:student.metadata?.phone||'', email:student.metadata?.email||'', address:student.metadata?.address||'', notes:student.metadata?.notes||'', churchToolId:student.metadata?.churchToolId||'', parentEmail:student.parentEmail||'' })
     } else { setForm(emptyForm) }
   }, [student?.id])
+  // Servants cannot list churches (admin-only endpoint), so the dropdown would
+  // be empty for them. Seed it from their own school profile instead — it is
+  // the only valid choice for students they create.
+  const effectiveChurches = churches.length > 0
+    ? churches
+    : (schoolChurch ? [{ ...schoolChurch } as ChurchItem] : churches)
   // Default the church from the servant's own school profile (create mode only,
-  // never overwriting an explicit choice). Matches against the loaded church
+  // never overwriting an explicit choice). Matches against the effective church
   // list by id (falling back to name) so the value always equals a real
   // dropdown option; with a single active church, that church is the default.
   useEffect(() => {
     if (student) return
     const match = defaultChurch
-      ? (churches.find(c => defaultChurch.id != null && c.id === defaultChurch.id)
-        ?? churches.find(c => c.name === defaultChurch.name))
+      ? (effectiveChurches.find(c => defaultChurch.id != null && c.id === defaultChurch.id)
+        ?? effectiveChurches.find(c => c.name === defaultChurch.name))
       : undefined
-    const fallback = !match && churches.length === 1 ? churches[0] : undefined
+    const fallback = !match && effectiveChurches.length === 1 ? effectiveChurches[0] : undefined
     const name = match?.name ?? fallback?.name
     if (name) {
       setForm(prev => (prev.churchName ? prev : { ...prev, churchName: name }))
     }
-  }, [student?.id, defaultChurch, churches])
+  }, [student?.id, defaultChurch, schoolChurch, churches])
   useEffect(() => () => revoke(), [])
 
   const setField = (f: string, v: string) => {
@@ -202,7 +209,7 @@ export function StudentFormModal({ student, activeLevels, churches, gradeOptions
             </div>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div><label htmlFor="sf-church" className="block text-sm font-medium text-gray-700">{t('Church','الكنيسة')}</label><select id="sf-church" value={form.churchName} onChange={e=>setForm({...form,churchName:e.target.value})} className={ic()}><option value="">{t('Select church','اختر الكنيسة')}</option>{churches.map(c=><option key={c.id} value={c.name}>{c.name}{c.city?`, ${c.city}`:''}</option>)}</select></div>
+            <div><label htmlFor="sf-church" className="block text-sm font-medium text-gray-700">{t('Church','الكنيسة')}</label><select id="sf-church" value={form.churchName} onChange={e=>setForm({...form,churchName:e.target.value})} className={ic()}><option value="">{t('Select church','اختر الكنيسة')}</option>{effectiveChurches.map(c=><option key={c.id} value={c.name}>{c.name}{c.city?`, ${c.city}`:''}</option>)}</select></div>
             <div><label htmlFor="sf-grade" className="block text-sm font-medium text-gray-700">{t('Grade','المرحلة الدراسية')}</label><select id="sf-grade" value={form.gradeId} onChange={e=>{const v=e.target.value;const gr=gradeOptions.find(g=>g.id===v);setForm({...form,gradeId:v,groupId:gr?.groupId||'',groupName:gr?.groupName||''})}} className={ic(fieldErrors.gradeId)}><option value="">{t('Select grade','اختر المرحلة')}</option>{gradeOptions.map(g=>(
               <option key={g.id} value={g.id}>{g.name}</option>
             ))}</select>{fieldErrors.gradeId&&<p role="alert" className="mt-1 text-xs text-red-500">{fieldErrors.gradeId}</p>}<p className="mt-1 text-xs text-gray-400">{t('Group is auto-assigned from the grade','يتم تحديد المجموعة تلقائياً من المرحلة')}</p></div>

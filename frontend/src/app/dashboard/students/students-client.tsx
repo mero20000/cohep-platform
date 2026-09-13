@@ -63,6 +63,7 @@ export default function StudentsClient() {
   const [allGroups, setAllGroups]       = useState<Group[]>([])
   const [churches, setChurches]         = useState<ChurchItem[]>([])
   const [defaultChurch, setDefaultChurch] = useState<{ id?: string; name: string } | null>(null)
+  const [schoolChurch, setSchoolChurch] = useState<{ id: string; name: string } | null>(null)
   const [gradeOptions, setGradeOptions] = useState<GradeItem[]>([])
   const [studentStats, setStudentStats] = useState<StatsType|null>(null)
   const [statsLoading, setStatsLoading] = useState(true)
@@ -142,7 +143,7 @@ export default function StudentsClient() {
     http.get<LevelOption[]>('/curriculum/levels',{schoolId:getSchoolId()}).then(d=>setLevels(d)).catch(console.error)
     http.get<Group[]>('/students/groups/all',{schoolId:getSchoolId()}).then(d=>setAllGroups(d.filter(g=>g.status!=='inactive'))).catch(console.error)
     http.get<ChurchItem[]>('/churches').then(d=>setChurches(d.filter(c=>c.isActive!==false))).catch(console.error)
-    http.get<{church?:{id:string;name:string}}>('/users/schools/me').then(s=>{if(s.church?.name){setFilterChurch(s.church.name);setDefaultChurch({id:s.church.id,name:s.church.name})}}).catch(console.error)
+    http.get<{church?:{id:string;name:string}}>('/users/schools/me').then(s=>{if(s.church?.name){setFilterChurch(s.church.name);setDefaultChurch({id:s.church.id,name:s.church.name});setSchoolChurch({id:s.church.id,name:s.church.name})}}).catch(console.error)
     fetchActiveGrades().then(setGradeOptions).catch(console.error)
     fetchStats()
   },[])
@@ -333,7 +334,7 @@ export default function StudentsClient() {
       {showForm&&<StudentFormModal student={selectedStudent} activeLevels={activeLevels} churches={churches} gradeOptions={gradeOptions}
         onClose={()=>setShowForm(false)}
         onSuccess={(page:number)=>{fetchStudents(page);fetchStats()}} currentPage={pagination.page}
-        onOptimisticAdd={s=>startTransition(()=>addOptimisticStudent({type:'add',student:s}))} lang={lang} defaultChurch={defaultChurch}/>}
+        onOptimisticAdd={s=>startTransition(()=>addOptimisticStudent({type:'add',student:s}))} lang={lang} defaultChurch={defaultChurch} schoolChurch={schoolChurch}/>}
 
       {showDetail&&selectedStudent&&<StudentDetailModal student={selectedStudent} onClose={()=>setShowDetail(false)} onEdit={()=>{setShowDetail(false);openEdit(selectedStudent)}} onPreviewPhoto={setPreviewPhotoUrl} lang={lang}/>}
 
