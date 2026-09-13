@@ -142,7 +142,9 @@ export default function StudentsClient() {
   useEffect(()=>{
     http.get<LevelOption[]>('/curriculum/levels',{schoolId:getSchoolId()}).then(d=>setLevels(d)).catch(console.error)
     http.get<Group[]>('/students/groups/all',{schoolId:getSchoolId()}).then(d=>setAllGroups(d.filter(g=>g.status!=='inactive'))).catch(console.error)
-    http.get<ChurchItem[]>('/churches').then(d=>setChurches(d.filter(c=>c.isActive!==false))).catch(console.error)
+    // Servants get 403 here (admin-only endpoint) — expected. The school-church
+    // seeding in the form covers them, so stay silent instead of log-spamming.
+    http.get<ChurchItem[]>('/churches').then(d=>setChurches(d.filter(c=>c.isActive!==false))).catch(()=>setChurches([]))
     http.get<{church?:{id:string;name:string}}>('/users/schools/me').then(s=>{if(s.church?.name){setFilterChurch(s.church.name);setDefaultChurch({id:s.church.id,name:s.church.name});setSchoolChurch({id:s.church.id,name:s.church.name})}}).catch(console.error)
     fetchActiveGrades().then(setGradeOptions).catch(console.error)
     fetchStats()
