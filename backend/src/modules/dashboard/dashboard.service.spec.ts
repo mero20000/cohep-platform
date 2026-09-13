@@ -91,6 +91,21 @@ describe('DashboardService', () => {
     });
   });
 
+  describe('getMine ministry view — student scope', () => {
+    it('counts only active students (excludes inactive and graduated)', async () => {
+      mockMinistryBaseline();
+      prisma.attendanceRecord.findMany.mockResolvedValue([]);
+
+      await service.getMine(user, schoolId, 'servant');
+
+      expect(prisma.student.count).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ status: 'active', deletedAt: null }),
+        }),
+      );
+    });
+  });
+
   describe('getMine ministry view — thisWeek', () => {
     it('returns status counts for records on active days of the current week', async () => {
       mockMinistryBaseline();

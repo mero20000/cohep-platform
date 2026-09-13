@@ -184,8 +184,9 @@ function StudentsPanel() {
               return (
                 <div key={app.id} className={`rounded-2xl border bg-white p-5 hover:shadow-md transition-shadow ${app.status === 'approved' ? 'border-green-200' : app.status === 'rejected' ? 'border-red-200' : 'border-gray-200'}`}>
                   <div className="flex items-start gap-4">
-                    <div className="h-14 w-14 rounded-full bg-gray-100 overflow-hidden flex-shrink-0">
-                      {sd.photoUrl ? <Image src={assetUrl(sd.photoUrl)} alt="" width={56} height={56} className="h-full w-full object-cover" priority /> : <div className="h-full w-full flex items-center justify-center text-gray-400 font-bold">{(sd.name || '?')[0]}</div>}
+                    <div className="relative h-14 w-14 rounded-full bg-gray-100 overflow-hidden flex-shrink-0">
+                      <div className="absolute inset-0 flex items-center justify-center text-gray-400 font-bold">{(sd.name || '?')[0]}</div>
+                      {sd.photoUrl ? <Image src={assetUrl(sd.photoUrl)} alt="" width={56} height={56} className="absolute inset-0 h-full w-full object-cover" priority onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none' }} /> : null}
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="font-bold text-gray-900 truncate">{sd.name || sd.firstName}</div>

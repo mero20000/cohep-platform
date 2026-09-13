@@ -330,7 +330,9 @@ export class DashboardService {
     // Build filter conditions based on assignments
     // (deleted sessions are never live data — every reader must exclude them)
     const sessionWhere: any = { schoolId, groupId: { in: groupIds }, status: 'scheduled', deletedAt: null };
-    const studentWhere: any = { schoolId, groupId: { in: groupIds }, deletedAt: null };
+    // Active students only — inactive/graduated records must not inflate
+    // "My Students" or dilute attendance denominators.
+    const studentWhere: any = { schoolId, groupId: { in: groupIds }, deletedAt: null, status: 'active' };
     const gradeWhereBase: any = { submission: { assessment: { schoolId }, student: { groupId: { in: groupIds } } } };
 
     // If levelId is assigned, further restrict sessions to that level
@@ -386,7 +388,9 @@ export class DashboardService {
           name: true,
           nameAr: true,
           students: {
-            where: assignedGradeId ? { gradeId: assignedGradeId, deletedAt: null } : { deletedAt: null },
+            where: assignedGradeId
+              ? { gradeId: assignedGradeId, deletedAt: null, status: 'active' }
+              : { deletedAt: null, status: 'active' },
             select: { id: true },
           },
         },
