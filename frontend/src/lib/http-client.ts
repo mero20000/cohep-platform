@@ -113,7 +113,7 @@ class HttpClient {
     return url
   }
 
-  private async request<T>(method: string, path: string, body?: unknown, opts?: { formData?: boolean; params?: Record<string, string> }): Promise<T> {
+  private async request<T>(method: string, path: string, body?: unknown, opts?: { formData?: boolean; params?: Record<string, string>; timeoutMs?: number }): Promise<T> {
     const isPortal = path.startsWith('/student-portal/')
     const headers: Record<string, string> = {
       ...(isPortal ? this.portalAuthHeaders : this.authHeaders),
@@ -128,12 +128,36 @@ class HttpClient {
 
     const url = this.buildUrl(path, params)
 
-    let res = await fetch(url, {
-      method,
-      headers,
-      credentials: 'include',
-      body: opts?.formData ? (body as FormData) : body ? JSON.stringify(body) : undefined,
-    })
+    // Bounded requests: uploads (e.g. student photos on slow mobile links)
+    // used to hang the form indefinitely with no feedback. Anything slower
+    // than the budget now fails fast with an actionable message instead.
+    const timeoutMs = opts?.timeoutMs ?? (opts?.formData ? 120000 : 30000)
+    const doFetch = (hdrs: Record<string, string>) => {
+      const controller = new AbortController()
+      const timer = setTimeout(() => controller.abort(), timeoutMs)
+      return fetch(url, {
+        method,
+        headers: hdrs,
+        credentials: 'include',
+        signal: controller.signal,
+        body: opts?.formData ? (body as FormData) : body ? JSON.stringify(body) : undefined,
+      }).finally(() => clearTimeout(timer))
+    }
+    const timedOut = (e: unknown) => {
+      // NOTE: DOMException is not an instanceof Error — match on name.
+      if ((e as { name?: string })?.name === 'AbortError') {
+        throw new Error('Request timed out. Please check your connection and retry.')
+      }
+      throw e
+    }
+
+    let res: Response
+    try {
+      res = await doFetch(headers)
+    } catch (e) {
+      timedOut(e)
+      throw e
+    }
 
     // Portal requests must never touch the staff refresh/redirect path. This interceptor
     // used to fire first on every portal 401: it found no staff refresh token, cleared
@@ -151,12 +175,12 @@ class HttpClient {
         // the new access token in localStorage, so authHeaders picks it up.
         const retryHeaders: Record<string, string> = { ...this.authHeaders }
         if (!opts?.formData) retryHeaders['Content-Type'] = 'application/json'
-        res = await fetch(url, {
-          method,
-          headers: retryHeaders,
-          credentials: 'include',
-          body: opts?.formData ? (body as FormData) : body ? JSON.stringify(body) : undefined,
-        })
+        try {
+          res = await doFetch(retryHeaders)
+        } catch (e) {
+          timedOut(e)
+          throw e
+        }
       }
     }
 
