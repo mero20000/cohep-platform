@@ -1,5 +1,5 @@
 import React from 'react'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { StudentFormModal } from '../student-form-modal'
@@ -225,5 +225,50 @@ describe('StudentFormModal', () => {
 
     expect(await screen.findByText('Please fill all required fields')).toBeInTheDocument()
     expect(mocks.post).not.toHaveBeenCalled()
+  })
+
+  it('defaults the church from the servant school profile on create', async () => {
+    const churches = [{ id: 'c1', name: 'St. Mary', city: 'Cairo' }]
+    render(<StudentFormModal {...baseProps} churches={churches} defaultChurchName="St. Mary" />)
+
+    await screen.findByText('Add New Student')
+    expect((screen.getByLabelText('Church') as HTMLSelectElement).value).toBe('St. Mary')
+  })
+
+  it('never overwrites an explicitly chosen church with the default', async () => {
+    const user = userEvent.setup()
+    const churches = [
+      { id: 'c1', name: 'St. Mary', city: 'Cairo' },
+      { id: 'c2', name: 'St. Mark', city: 'Alexandria' },
+    ]
+    render(<StudentFormModal {...baseProps} churches={churches} defaultChurchName="St. Mary" />)
+
+    await screen.findByText('Add New Student')
+    await user.selectOptions(screen.getByLabelText('Church'), 'St. Mark')
+    expect((screen.getByLabelText('Church') as HTMLSelectElement).value).toBe('St. Mark')
+  })
+
+  it('rejects oversized photos with a bilingual error before upload', async () => {
+    render(<StudentFormModal {...baseProps} />)
+    await screen.findByText('Add New Student')
+
+    const big = new File([new ArrayBuffer(6 * 1024 * 1024)], 'big.jpg', { type: 'image/jpeg' })
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement
+    fireEvent.change(input, { target: { files: [big] } })
+
+    await waitFor(() => expect(mockToast).toHaveBeenCalledWith('error', expect.stringContaining('5MB')))
+    expect(mocks.upload).not.toHaveBeenCalled()
+  })
+
+  it('rejects unsupported photo formats with a bilingual error before upload', async () => {
+    render(<StudentFormModal {...baseProps} />)
+    await screen.findByText('Add New Student')
+
+    const heic = new File(['not-a-real-image'], 'photo.heic', { type: 'image/heic' })
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement
+    fireEvent.change(input, { target: { files: [heic] } })
+
+    await waitFor(() => expect(mockToast).toHaveBeenCalledWith('error', expect.stringContaining('JPG')))
+    expect(mocks.upload).not.toHaveBeenCalled()
   })
 })

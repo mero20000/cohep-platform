@@ -34,8 +34,52 @@ interface Props {
   churches: ChurchItem[]; gradeOptions: GradeItem[]
   onClose: () => void; onSuccess: (page: number) => void
   currentPage: number; onOptimisticAdd: (s: Student) => void; lang: 'en'|'ar'
+  defaultChurchName?: string
 }
-export function StudentFormModal({ student, activeLevels, churches, gradeOptions, onClose, onSuccess, currentPage, onOptimisticAdd, lang }: Props) {
+
+const MAX_PHOTO_BYTES = 5 * 1024 * 1024
+const ACCEPTED_PHOTO_EXTS = ['.jpg', '.jpeg', '.png', '.webp', '.gif']
+
+/**
+ * Prepare a camera/gallery photo for upload. Phone photos are often HEIC or
+ * larger than the 5MB server limit — both used to fail server-side with an
+ * English-only error. Anything decodable is downscaled to ≤1600px JPEG;
+ * undecodable files (e.g. HEIC on browsers without support) are rejected
+ * here with a message the save handler turns into a bilingual toast.
+ */
+async function preparePhotoFile(file: File): Promise<File> {
+  const ext = '.' + (file.name.split('.').pop() || '').toLowerCase()
+  if (typeof createImageBitmap === 'undefined') {
+    if (!ACCEPTED_PHOTO_EXTS.includes(ext)) throw new Error('unsupported')
+    if (file.size > MAX_PHOTO_BYTES) throw new Error('too-large')
+    return file
+  }
+  let bitmap: ImageBitmap | null = null
+  try {
+    bitmap = await createImageBitmap(file)
+  } catch {
+    bitmap = null
+  }
+  if (!bitmap) throw new Error('unsupported')
+  try {
+    const needsShrink = file.size > MAX_PHOTO_BYTES || !ACCEPTED_PHOTO_EXTS.includes(ext)
+    if (!needsShrink) return file
+    const scale = Math.min(1, 1600 / Math.max(bitmap.width, bitmap.height))
+    const canvas = document.createElement('canvas')
+    canvas.width = Math.max(1, Math.round(bitmap.width * scale))
+    canvas.height = Math.max(1, Math.round(bitmap.height * scale))
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return file.size <= MAX_PHOTO_BYTES && ACCEPTED_PHOTO_EXTS.includes(ext) ? file : (() => { throw new Error('too-large') })()
+    ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height)
+    const blob: Blob | null = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.85))
+    if (!blob || blob.size > MAX_PHOTO_BYTES) throw new Error('too-large')
+    const base = file.name.replace(/\.[^.]+$/, '') || 'photo'
+    return new File([blob], `${base}.jpg`, { type: 'image/jpeg' })
+  } finally {
+    bitmap.close()
+  }
+}
+export function StudentFormModal({ student, activeLevels, churches, gradeOptions, onClose, onSuccess, currentPage, onOptimisticAdd, lang, defaultChurchName }: Props) {
   const { toast } = useToast()
   const { can } = usePermission()
   const dialogRef = useRef<HTMLFormElement>(null)
@@ -63,6 +107,13 @@ export function StudentFormModal({ student, activeLevels, churches, gradeOptions
       setForm({ name:`${student.firstName} ${student.lastName}`.trim(), firstNameAr:student.firstNameAr||'', lastNameAr:student.lastNameAr||'', dateOfBirth:student.dateOfBirth.split('T')[0], gender:student.gender, churchName:student.churchName||'', gradeId:student.gradeId||'', levelId:student.levelId, groupId:student.groupId, groupName:student.group?.name||'', photoUrl:student.photoUrl||'', status:student.status, phone:student.metadata?.phone||'', email:student.metadata?.email||'', address:student.metadata?.address||'', notes:student.metadata?.notes||'', churchToolId:student.metadata?.churchToolId||'', parentEmail:student.parentEmail||'' })
     } else { setForm(emptyForm) }
   }, [student?.id])
+  // Default the church from the servant's own school profile (create mode only,
+  // never overwriting an explicit choice).
+  useEffect(() => {
+    if (!student && defaultChurchName) {
+      setForm(prev => (prev.churchName ? prev : { ...prev, churchName: defaultChurchName }))
+    }
+  }, [student?.id, defaultChurchName])
   useEffect(() => () => revoke(), [])
 
   const setField = (f: string, v: string) => {
@@ -186,7 +237,26 @@ export function StudentFormModal({ student, activeLevels, churches, gradeOptions
                 {form.photoUrl?<Image src={photoSrc(form.photoUrl)} alt="Preview" width={64} height={64} className="h-16 w-16 rounded-full object-cover border border-gray-200" />:<div className="h-16 w-16 rounded-full bg-gray-100 flex items-center justify-center border border-gray-200"><User className="h-6 w-6 text-gray-400" /></div>}
               </div>
               <div className="flex-1">
-                <input ref={photoRef} type="file" accept="image/*" className="hidden" onChange={e=>{const f=e.target.files?.[0];if(f){revoke();const u=URL.createObjectURL(f);blobRef.current=u;setPhotoFile(f);setForm({...form,photoUrl:u})}}} />
+                <input ref={photoRef} type="file" accept="image/*" className="hidden" onChange={e=>{
+                  const f=e.target.files?.[0]
+                  if (!f) return
+                  e.target.value = ''
+                  void (async () => {
+                    try {
+                      const ready = await preparePhotoFile(f)
+                      revoke()
+                      const u=URL.createObjectURL(ready)
+                      blobRef.current=u
+                      setPhotoFile(ready)
+                      setForm(prev=>({...prev,photoUrl:u}))
+                    } catch (err) {
+                      const kind = err instanceof Error ? err.message : ''
+                      toast('error', kind === 'too-large'
+                        ? t('Photo is too large (max 5MB after compression)', 'الصورة كبيرة جداً (الحد الأقصى 5 ميجابايت بعد الضغط)')
+                        : t('Photo format not supported. Please use JPG or PNG.', 'صيغة الصورة غير مدعومة. يرجى استخدام JPG أو PNG.'))
+                    }
+                  })()
+                }} />
                 <Button type="button" variant="outline" onClick={()=>photoRef.current?.click()} className="inline-flex items-center gap-1.5">
                   <Camera className="h-4 w-4" />{photoFile||form.photoUrl?t('Change Photo','تغيير الصورة'):t('Upload Photo','رفع صورة')}
                 </Button>
