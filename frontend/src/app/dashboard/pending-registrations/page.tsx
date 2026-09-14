@@ -220,7 +220,7 @@ function StudentsPanel() {
                   })()}
                    <div className="mt-3 text-xs text-gray-600 line-clamp-2">{sd.notes || sd.address || ''} · {sd.parentEmail}</div>
                     <div className="mt-3 flex items-center gap-2 flex-wrap">
-                      <Button size="sm" variant="outline" onClick={() => { setSelected(app); setEditData(app.studentData) }}>
+                      <Button size="sm" variant="outline" onClick={() => { setSelected(app); setEditData(app.studentData); setGradeId(app.studentData?.gradeId || ''); setLevelId(''); setGroupId('') }}>
                         <Eye className="h-3.5 w-3.5" />{t('View/Edit', 'عرض/تعديل')}
                       </Button>
                       {app.status === 'pending' && (
@@ -322,9 +322,12 @@ function StudentsPanel() {
                     <option value="male">{t('Male', 'ذكر')}</option>
                     <option value="female">{t('Female', 'أنثى')}</option>
                   </FormField>
-                  <FormField label={t('Grade (for group)', 'المرحلة (للمجموعة)')} as="select" value={gradeId} onChange={e => setGradeId(e.target.value)}>
+                  <FormField label={t('Grade (for group)', 'المرحلة (للمجموعة)')} as="select" value={gradeId || editData?.gradeId || ''} onChange={e => { setGradeId(e.target.value); setEditData({ ...editData, gradeId: e.target.value || undefined }) }}>
                     <option value="">{t('Select grade', 'اختر المرحلة')}</option>
                     {grades.map((g: any) => <option key={g.id} value={g.id}>{g.name}{g.nameAr ? ` – ${g.nameAr}` : ''}</option>)}
+                    {((gradeId || editData?.gradeId) && !grades.some((g: any) => g.id === (gradeId || editData?.gradeId))) && (
+                      <option value={gradeId || editData?.gradeId}>{t('Submitted grade (inactive)', 'المرحلة المُرسلة (غير نشطة)')} — {(gradeId || editData?.gradeId) as string}</option>
+                    )}
                   </FormField>
                   <FormField label={t('Church', 'الكنيسة')} value={editData?.churchName || ''} onChange={e => setEditData({ ...editData, churchName: e.target.value })} />
                   <FormField label={t('Parent / Guardian Name', 'اسم ولي الأمر')} value={editData?.parentName || ''} onChange={e => setEditData({ ...editData, parentName: e.target.value })} />
