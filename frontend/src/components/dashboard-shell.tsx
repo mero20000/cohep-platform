@@ -270,8 +270,13 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
   }, [canSwitchSchool])
 
   useEffect(() => {
-    if (allSchools.length === 0) return
-    const s = (activeSchoolId && allSchools.find(x => x.id === activeSchoolId)) || allSchools[0]
+    // Only re-brand when the user has explicitly switched to a school via the
+    // "View as" picker. When no activeSchoolId ("My School" scope), the identity
+    // from /users/schools/me (own school) must win — otherwise a super admin's
+    // header gets hijacked by allSchools[0] (alphabetically first, e.g. the
+    // "COHEP Demo School" seeded by the Try Demo flow).
+    if (!activeSchoolId || allSchools.length === 0) return
+    const s = allSchools.find(x => x.id === activeSchoolId)
     if (!s) return
     if (s.name) setSchoolName(s.name)
     if (s.nameAr) setSchoolNameAr(s.nameAr)
