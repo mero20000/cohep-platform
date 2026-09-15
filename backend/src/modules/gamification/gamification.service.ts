@@ -560,10 +560,16 @@ export class GamificationService {
     ]);
     const rules: any = (pointConfig?.value as any) || {};
     const presentPoints = rules.presentPoints ?? GAMIFICATION_CONSTANTS.PRESENT_POINTS_DEFAULT;
+    const latePoints = rules.latePoints ?? GAMIFICATION_CONSTANTS.LATE_POINTS_DEFAULT;
+    const absentPoints = rules.absentPoints ?? GAMIFICATION_CONSTANTS.ABSENT_POINTS_DEFAULT;
+    const excusedPoints = rules.excusedPoints ?? GAMIFICATION_CONSTANTS.EXCUSED_POINTS_DEFAULT;
     const liturgyPoints = rules.liturgyPoints ?? GAMIFICATION_CONSTANTS.LITURGY_POINTS_DEFAULT;
     const totalPoints = attRecords.reduce((sum: number, r: any) => {
       let s = 0;
       if (r.status === 'present') s += presentPoints;
+      else if (r.status === 'late') s += latePoints;
+      else if (r.status === 'absent') s += absentPoints;
+      else if (r.status === 'excused') s += excusedPoints;
       if (r.behavior) s += r.behavior;
       if (r.participation) s += r.participation;
       if (r.attendedLiturgy) s += liturgyPoints;

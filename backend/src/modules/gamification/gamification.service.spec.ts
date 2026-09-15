@@ -102,3 +102,54 @@ describe('GamificationService - getLeaderboard parent scoping', () => {
     expect(Array.isArray(res)).toBe(true);
   });
 });
+
+describe('GamificationService - points_total late/absent/excused config', () => {
+  let svc: GamificationService;
+  let prisma: any;
+
+  const pointsBadge = {
+    id: 'badge-points', schoolId: 'sch1', isActive: true,
+    criteria: { rule: 'points_total', points: 10 }, xpReward: 0,
+  };
+  const mixedRecords = [
+    { status: 'present' },
+    { status: 'late' },
+    { status: 'absent' },
+    { status: 'excused' },
+  ];
+
+  beforeEach(async () => {
+    const prismaMock: any = {
+      student: { findUnique: jest.fn().mockResolvedValue({ id: 's1', schoolId: 'sch1', groupId: null }) },
+      badge: { findMany: jest.fn().mockResolvedValue([pointsBadge]) },
+      studentBadge: { findFirst: jest.fn().mockResolvedValue(null), create: jest.fn().mockResolvedValue({}) },
+      attendanceRecord: { findMany: jest.fn().mockResolvedValue(mixedRecords) },
+      systemConfig: { findUnique: jest.fn() },
+      $transaction: jest.fn((fn: any) => fn(prismaMock)),
+    };
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        GamificationService,
+        { provide: StudentNotificationsService, useValue: { notify: jest.fn(), notifyOrRefresh: jest.fn() } },
+        { provide: PrismaService, useValue: prismaMock },
+        { provide: SchoolResolver, useValue: { resolve: jest.fn().mockResolvedValue('sch1') } },
+      ],
+    }).compile();
+    svc = module.get<GamificationService>(GamificationService);
+    prisma = module.get(PrismaService);
+  });
+
+  it('counts configured late/absent/excused points toward the badge', async () => {
+    prisma.systemConfig.findUnique.mockResolvedValue({ value: { latePoints: 3, absentPoints: 1, excusedPoints: 2 } });
+    // 5 (present) + 3 + 1 + 2 = 11 >= 10
+    const result = await svc.computeBadgesForStudent('s1');
+    expect(result.awarded).toBe(1);
+  });
+
+  it('defaults late/absent/excused to zero without config', async () => {
+    prisma.systemConfig.findUnique.mockResolvedValue(null);
+    // 5 (present only) < 10
+    const result = await svc.computeBadgesForStudent('s1');
+    expect(result.awarded).toBe(0);
+  });
+});

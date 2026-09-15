@@ -29,8 +29,11 @@ export const GAMIFICATION_CONSTANTS = {
   // Group Trophy Milestones
   GROUP_ATTENDANCE_GOAL_PERCENT: 80,
 
-  // Point Calculation Rules
+  // Point Calculation Rules (overridable per school via systemConfig 'point_rules')
   PRESENT_POINTS_DEFAULT: 5,
+  LATE_POINTS_DEFAULT: 0,
+  ABSENT_POINTS_DEFAULT: 0,
+  EXCUSED_POINTS_DEFAULT: 0,
   LITURGY_POINTS_DEFAULT: 3,
 
   // Query Limits
