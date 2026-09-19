@@ -6,7 +6,7 @@ import {
   Search, Eye, Info, CheckCheck, Mic, Church, Calendar, Zap, Gem, Crown, BookOpen,
   Music, Shield, Bell, Cross, Feather, Sparkles, CircleDollarSign, Dumbbell, Baby,
   Users, Heart, ChevronRight, CheckCircle2, TrendingDown, BarChart3, UserCheck,
-  ArrowUp, ArrowDown, Minus,
+  ArrowUp, ArrowDown, Minus, RotateCcw, AlertTriangle,
 } from 'lucide-react'
 import { AnimatedTabPanel } from '@/components/ui/animated-tab-panel'
 import type { LucideIcon } from 'lucide-react'
@@ -23,6 +23,7 @@ import { EmptyState } from '@/components/ui/empty-state'
 import { CardSkeleton, TableSkeleton, Skeleton } from '@/components/ui/skeleton'
 import { getSchoolId } from '@/lib/school'
 import { http } from '@/lib/http-client'
+import { usePermission } from '@/lib/use-permission'
 
 // ── Types ───────────────────────────────────────────────────────────────────
 
@@ -647,6 +648,8 @@ function ServantRecognitionPanel({ lang, schoolId }: { lang: string; schoolId: s
 export default function GamificationPage() {
   const { toast } = useToast()
   const lang = useLanguage()
+  const { can } = usePermission()
+  const isSuperAdmin = can('gamification:reset')
   const t = (en: string, ar: string) => lang === 'ar' ? ar : en
 
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([])
@@ -715,6 +718,14 @@ export default function GamificationPage() {
   const [showBadgeStudents, setShowBadgeStudents] = useState(false)
   const [badgeStudentsData, setBadgeStudentsData] = useState<any>(null)
   const [badgeStudentsLoading, setBadgeStudentsLoading] = useState(false)
+
+  // Super admin reset
+  const [showResetModal, setShowResetModal] = useState(false)
+  const [resetType, setResetType] = useState<'student' | 'group' | 'school'>('student')
+  const [resetSelectedId, setResetSelectedId] = useState('')
+  const [resetReason, setResetReason] = useState('')
+  const [resetError, setResetError] = useState('')
+  const [resettingGamification, setResettingGamification] = useState(false)
 
   const schoolId = getSchoolId()
 
@@ -917,6 +928,26 @@ export default function GamificationPage() {
     ? ({ attendance:'حضور',assessment:'تقييم',participation:'مشاركة',streak:'تتابع',mastery:'إتقان',behavior:'سلوك',liturgy:'قداس',points:'نقاط',xp:'خبرة',improvement:'تحسن',academic:'أكاديمي',other:'أخرى' } as Record<string,string>)[cat] || cat
     : cat
 
+  const handleResetGamification = async () => {
+    setResetError('')
+    if (!resetSelectedId.trim()) { setResetError(t('Please select an item to reset', 'يرجى تحديد عنصر للإعادة')); return }
+    if (!resetReason.trim()) { setResetError(t('Reason is required', 'السبب مطلوب')); return }
+    setResettingGamification(true)
+    try {
+      const endpoint = resetType === 'student' ? `/gamification/reset/student/${resetSelectedId}`
+        : resetType === 'group' ? `/gamification/reset/group/${resetSelectedId}`
+        : `/gamification/reset/school?schoolId=${schoolId}`
+      await http.delete(endpoint, { reason: resetReason })
+      toast('success', t('Gamification reset successfully', 'تم إعادة تعيين التلعيب بنجاح'))
+      setShowResetModal(false)
+      setResetSelectedId('')
+      setResetReason('')
+      fetchLeaderboard()
+      fetchStats()
+    } catch (e: any) { setResetError(friendlyError(e, lang)) }
+    setResettingGamification(false)
+  }
+
   return (
     <div className="space-y-6">
       <title>{t('Gamification — COHEP', 'التلعيب — كوهيب')}</title>
@@ -948,6 +979,7 @@ export default function GamificationPage() {
           { id: 'seasonal',  label: t('Seasonal Badges', 'الشارات الموسمية'), icon: Star },
           { id: 'servants',  label: t('Servant Awards', 'جوائز الخدام'),    icon: Medal },
           { id: 'badges',    label: t('Badges', 'الشارات'),                icon: Award,       count: badges.length },
+          ...(isSuperAdmin ? [{ id: 'reset', label: t('Reset', 'إعادة تعيين'), icon: RotateCcw }] : []),
         ]}
         activeTab={activeTab}
         onChange={setActiveTab}
