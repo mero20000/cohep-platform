@@ -82,9 +82,15 @@ export function DetailExpander({
       <summary className="min-h-[44px] cursor-pointer text-sm text-gray-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500">
         {lang === 'ar' ? 'التفاصيل' : 'Details'}
       </summary>
-      <div className="mt-2 space-y-2">
-        <StarRow label={t.behavior} value={behavior} onChange={onBehaviorChange} lang={lang} />
-        <StarRow label={t.participation} value={participation} onChange={onParticipationChange} lang={lang} />
+      <div className="mt-2 space-y-3">
+        <div>
+          <label className="block text-xs font-medium text-gray-700 mb-1">{t.behavior}</label>
+          <StarRow label={t.behavior} value={behavior} onChange={onBehaviorChange} lang={lang} />
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-gray-700 mb-1">{t.participation}</label>
+          <StarRow label={t.participation} value={participation} onChange={onParticipationChange} lang={lang} />
+        </div>
         <label className="flex min-h-[44px] items-center gap-2 text-sm">
           <input
             type="checkbox"
