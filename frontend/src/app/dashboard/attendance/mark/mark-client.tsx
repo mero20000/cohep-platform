@@ -46,16 +46,29 @@ export function MarkClient() {
   const [markAllTarget, setMarkAllTarget] = useState<string | null>(null)
   const [query, setQuery] = useState('')
   const [unmarkedOnly, setUnmarkedOnly] = useState(false)
+  const [groupPickerOpen, setGroupPickerOpen] = useState(false)
+  const [availableGroups, setAvailableGroups] = useState<Array<{ id: string; name: string }>>([])
   const marking = useMarkingState([])
 
-  const load = async (id?: string, quiet = false) => {
+  const load = async (id?: string, quiet = false, groupId?: string) => {
     if (!quiet) setLoading(true)
     setLoadError('')
     try {
       let sid = id || params?.get('sessionId') || ''
       setSubjectItemId(params?.get('subjectItemId') ?? null)
       if (!sid) {
-        const started = await http.post<any>('/attendance/start-class')
+        const url = groupId ? `/attendance/start-class?groupId=${encodeURIComponent(groupId)}` : '/attendance/start-class'
+        const started = await http.post<any>(url)
+
+        // Check if group picker is needed
+        if ((started as any)?.requiresGroupPick && (started as any)?.groups) {
+          setAvailableGroups((started as any).groups);
+          setGroupPickerOpen(true);
+          setSession(null);
+          setLoading(false);
+          return;
+        }
+
         sid = (started as any)?.session?.id || ''
         // If start-class didn't return a session and also no error was thrown,
         // it means the servant doesn't have a group/level assigned
@@ -369,6 +382,31 @@ export function MarkClient() {
                 {lang === 'ar' ? 'تأكيد' : 'Confirm'}
               </Button>
             </div>
+          </div>
+        </div>
+      )}
+      {/* Group picker — shown when user has no assigned group */}
+      {groupPickerOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setGroupPickerOpen(false)}>
+          <div role="dialog" aria-modal="true" aria-labelledby="group-picker-title" className="mx-4 w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl" onClick={e => e.stopPropagation()}>
+            <h3 id="group-picker-title" className="mb-4 font-semibold text-gray-900">
+              {lang === 'ar' ? 'اختر المجموعة' : 'Select a Class'}
+            </h3>
+            <div className="mb-4 space-y-2 max-h-96 overflow-y-auto">
+              {availableGroups.map(group => (
+                <button
+                  key={group.id}
+                  type="button"
+                  onClick={() => { setGroupPickerOpen(false); void load(undefined, false, group.id); }}
+                  className="w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-start font-medium text-gray-900 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500"
+                >
+                  {group.name}
+                </button>
+              ))}
+            </div>
+            <Button variant="outline" onClick={() => setGroupPickerOpen(false)} className="min-h-[44px] w-full">
+              {lang === 'ar' ? 'إلغاء' : 'Cancel'}
+            </Button>
           </div>
         </div>
       )}
