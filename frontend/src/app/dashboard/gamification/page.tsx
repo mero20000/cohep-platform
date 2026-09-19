@@ -1134,6 +1134,106 @@ export default function GamificationPage() {
           )}
       </AnimatedTabPanel>
 
+      {/* ── Reset Tab ── */}
+      {isSuperAdmin && (
+        <AnimatedTabPanel tabId="reset" isActive={activeTab === 'reset'}>
+          <div className="space-y-6">
+            {/* Warning banner */}
+            <div className="rounded-xl border-2 border-red-200 bg-red-50 p-4 flex gap-3">
+              <AlertTriangle className="h-5 w-5 text-red-600 shrink-0 mt-0.5" />
+              <div>
+                <p className="font-semibold text-red-900">{t('Destructive Action', 'إجراء مدمر')}</p>
+                <p className="text-sm text-red-800 mt-1">{t('Resetting gamification will permanently delete all XP and badges for the selected scope. This action cannot be undone.', 'سيؤدي إعادة تعيين التلعيب إلى حذف جميع نقاط الخبرة والشارات بشكل دائم للنطاق المحدد. لا يمكن التراجع عن هذا الإجراء.')}</p>
+              </div>
+            </div>
+
+            {/* Reset type selection */}
+            <div className="rounded-xl border border-gray-200 bg-white p-6">
+              <h3 className="font-semibold text-gray-900 mb-4">{t('Reset Type', 'نوع الإعادة')}</h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                {[
+                  { id: 'student', label: t('Single Student', 'طالب واحد'), desc: t('Reset gamification for one student', 'إعادة تعيين التلعيب لطالب واحد') },
+                  { id: 'group', label: t('Group', 'مجموعة'), desc: t('Reset all students in a group', 'إعادة تعيين جميع الطلاب في مجموعة') },
+                  { id: 'school', label: t('Entire School', 'المدرسة بأكملها'), desc: t('Reset all students schoolwide', 'إعادة تعيين جميع الطلاب على مستوى المدرسة') },
+                ].map(opt => (
+                  <button
+                    key={opt.id}
+                    onClick={() => { setResetType(opt.id as 'student' | 'group' | 'school'); setResetSelectedId(''); setGamificationResetError('') }}
+                    className={`rounded-lg border-2 p-4 text-left transition-all ${resetType === opt.id ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300'}`}
+                  >
+                    <p className="font-semibold text-gray-900">{opt.label}</p>
+                    <p className="text-xs text-gray-500 mt-1">{opt.desc}</p>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Selection fields */}
+            {(resetType === 'student' || resetType === 'group') && (
+              <div className="rounded-xl border border-gray-200 bg-white p-6">
+                <h3 className="font-semibold text-gray-900 mb-4">
+                  {resetType === 'student' ? t('Select Student', 'اختر الطالب') : t('Select Group', 'اختر المجموعة')}
+                </h3>
+                <select
+                  value={resetSelectedId}
+                  onChange={(e) => setResetSelectedId(e.target.value)}
+                  className="w-full px-4 py-2 rounded-lg border border-gray-300 bg-white text-gray-900 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                >
+                  <option value="">
+                    {resetType === 'student'
+                      ? t('-- Select a student --', '-- اختر طالباً --')
+                      : t('-- Select a group --', '-- اختر مجموعة --')}
+                  </option>
+                  {resetType === 'student' ? (
+                    leaderboard.map(entry => (
+                      <option key={entry.id} value={entry.id}>
+                        {entry.firstName} {entry.lastName}
+                      </option>
+                    ))
+                  ) : (
+                    /* Groups would need to be fetched - for now show placeholder */
+                    <option value="group1">{t('Sample Group', 'مجموعة عينة')}</option>
+                  )}
+                </select>
+              </div>
+            )}
+
+            {/* Reason field */}
+            <div className="rounded-xl border border-gray-200 bg-white p-6">
+              <h3 className="font-semibold text-gray-900 mb-4">{t('Reason for Reset', 'السبب في الإعادة')}</h3>
+              <p className="text-xs text-gray-500 mb-3">{t('Required for audit trail', 'مطلوب للمراجعة')}</p>
+              <textarea
+                value={gamificationResetReason}
+                onChange={(e) => setGamificationResetReason(e.target.value)}
+                placeholder={t('e.g., Data migration, system test, administrative correction...', 'مثال: ترحيل البيانات، اختبار النظام، تصحيح إداري...')}
+                className="w-full px-4 py-3 rounded-lg border border-gray-300 bg-white text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 resize-none"
+                rows={4}
+              />
+            </div>
+
+            {/* Error display */}
+            {gamificationResetError && (
+              <div className="rounded-lg bg-red-50 border border-red-200 p-3 text-sm text-red-700">
+                {gamificationResetError}
+              </div>
+            )}
+
+            {/* Action buttons */}
+            <div className="flex gap-3 pt-4">
+              <Button
+                onClick={handleResetGamification}
+                disabled={resettingGamification || !gamificationResetReason.trim() || (resetType !== 'school' && !resetSelectedId)}
+                variant="destructive"
+                className="flex-1"
+              >
+                {resettingGamification && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+                {t('Reset Gamification', 'إعادة تعيين التلعيب')}
+              </Button>
+            </div>
+          </div>
+        </AnimatedTabPanel>
+      )}
+
       {/* ── Badge Modals ── */}
       <Modal open={showBadgeForm} onClose={() => setShowBadgeForm(false)} title={t('Create New Badge', 'إنشاء شارة جديدة')}
         footer={<><Button variant="outline" onClick={() => setShowBadgeForm(false)}>{t('Cancel', 'إلغاء')}</Button><Button onClick={handleCreateBadge} disabled={savingBadge}>{savingBadge && <Loader2 className="h-4 w-4 animate-spin" />}{t('Create Badge', 'إنشاء')}</Button></>}>
