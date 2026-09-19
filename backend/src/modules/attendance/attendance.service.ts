@@ -471,9 +471,10 @@ export class AttendanceService {
     });
     const activeIds = new Set(activeStudents.map(s => s.id));
 
-    // Remove records for students no longer in this group
+    // Remove unmarked records for students no longer matching (group/level/grade/gender filter).
+    // Preserve records already marked (present/absent/late) to avoid losing real attendance data.
     await this.prisma.attendanceRecord.deleteMany({
-      where: { attendanceSessionId: sessionId, studentId: { notIn: Array.from(activeIds) } },
+      where: { attendanceSessionId: sessionId, studentId: { notIn: Array.from(activeIds) }, status: 'unmarked' },
     });
 
     // Create records for new students who joined the group
@@ -815,7 +816,22 @@ export class AttendanceService {
         attendanceRecords: { include: { student: { select: { id: true, firstName: true, lastName: true, firstNameAr: true, lastNameAr: true } } } },
       },
     });
-    if (existing) return { session: existing, created: false };
+    if (existing) {
+      if (existing.status === 'in_progress') {
+        await this.syncSessionStudents(existing.id, servantId);
+        const refreshed = await this.prisma.attendanceSession.findUnique({
+          where: { id: existing.id },
+          include: {
+            group: { select: { id: true, name: true } },
+            level: { select: { id: true, name: true } },
+            grade: { select: { id: true, name: true } },
+            attendanceRecords: { include: { student: { select: { id: true, firstName: true, lastName: true, firstNameAr: true, lastNameAr: true } } } },
+          },
+        });
+        return { session: refreshed, created: false };
+      }
+      return { session: existing, created: false };
+    }
 
     // Check user metadata for assigned group/level
     const meta = (servant.metadata as any) || {};
