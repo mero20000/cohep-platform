@@ -11,12 +11,7 @@ vi.mock('next/image', () => ({
   },
 }))
 
-vi.mock('lucide-react', () => {
-  const icons: Record<string, any> = {}
-  const iconNames = ['AlertTriangle', 'CalendarDays', 'Check', 'Copy', 'GraduationCap', 'LayoutGrid', 'Loader2', 'Pencil', 'Phone', 'Plus', 'Rows3', 'Search', 'Shield', 'Trash2', 'Upload', 'User', 'UserCheck', 'X']
-  for (const name of iconNames) icons[name] = (props: any) => <span data-testid={`icon-${name}`} {...props} />
-  return icons
-})
+vi.mock('lucide-react', async () => (await import('@/test/lucide-mock')).lucideMock())
 
 const mockToast = vi.fn()
 vi.mock('@/components/ui/toast', () => ({
@@ -244,7 +239,8 @@ it('exports selected servants to CSV', async () => {
   await userEvent.click(screen.getByRole('button', { name: 'Table' }))
   await screen.findByRole('table')
   await userEvent.click(screen.getAllByRole('checkbox', { name: 'Select' })[0])
-  await userEvent.click(screen.getByText('Export'))
+  const exportBtns = screen.getAllByText('Export')
+  await userEvent.click(exportBtns[exportBtns.length - 1])
 
   expect(createURL).toHaveBeenCalled()
   expect(clickSpy).toHaveBeenCalled()
