@@ -4,7 +4,7 @@ import Image from 'next/image'
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import {
   Search, Plus, Pencil, Trash2, X, Loader2, Upload, UserCheck,
-  User, Shield, GraduationCap, LayoutGrid, Rows3, Activity,
+  User, Shield, GraduationCap, LayoutGrid, Rows3, Activity, Copy,
 } from 'lucide-react'
 import { StatCard } from '@/components/ui/stat-card'
 import { EmptyState } from '@/components/ui/empty-state'
@@ -140,6 +140,7 @@ export default function ServantsPage() {
   const [importFileError, setImportFileError] = useState('')
   const [importing, setImporting] = useState(false)
   const [editing, setEditing] = useState<ServantUser | null>(null)
+  const [copyingFrom, setCopyingFrom] = useState<string | null>(null)
   const [form, setForm] = useState({
     firstName: '', lastName: '', firstNameAr: '', lastNameAr: '',
     email: '', phone: '', password: '',
@@ -357,7 +358,33 @@ export default function ServantsPage() {
     setShowForm(true)
   }
 
+  // Prefills the form with a servant's role/assignment/data but clears
+  // unique credentials and name so a new servant can be created quickly.
+  const openCopy = (s: ServantUser) => {
+    const meta = s.metadata || {}
+    setEditing(null)
+    setCopyingFrom(s.id)
+    setForm({
+      firstName: '', lastName: '', firstNameAr: '', lastNameAr: '',
+      email: '', phone: '', password: '',
+      roleName: servantRole(s)?.name || 'servant',
+      levelId: meta.levelId || '',
+      groupId: meta.groupId || '',
+      teachingSubjects: meta.teachingSubjects || [],
+      grade: meta.grade || '',
+      gender: (s as any).gender || '',
+      dateJoined: '',
+      dateOfBirth: meta.dateOfBirth || '',
+    })
+    revokePhoto()
+    setFormError('')
+    setEmailError('')
+    setDirty(false)
+    setShowForm(true)
+  }
+
   const handleCloseForm = () => {
+    setCopyingFrom(null)
     if (dirty) {
       setShowDiscardConfirm(true)
     } else {
@@ -899,15 +926,21 @@ export default function ServantsPage() {
                           {s.phone ? <PhoneLink phone={s.phone} lang={lang} /> : <span className="text-sm text-gray-400">&mdash;</span>}
                         </div>
                       </td>
-                      {(canEdit || canDelete) && (
-                        <td data-label="Actions" className="px-6 py-3.5 text-end">
-                          <div className="flex items-center justify-end gap-1">
-                            {canEdit && (
-                              <Button variant="ghost" size="icon" onClick={() => openEdit(s)} aria-label={lang === 'ar' ? `تعديل ${s.firstName}` : `Edit ${s.firstName}`} title={lang === 'ar' ? 'تعديل' : 'Edit'}
-                                >
-                                <Pencil className="h-4 w-4" />
-                              </Button>
-                            )}
+                       {(canEdit || canDelete || canCreate) && (
+                         <td data-label="Actions" className="px-6 py-3.5 text-end">
+                           <div className="flex items-center justify-end gap-1">
+                              {canEdit && (
+                               <Button variant="ghost" size="icon" onClick={() => openEdit(s)} aria-label={lang === 'ar' ? `تعديل ${s.firstName}` : `Edit ${s.firstName}`} title={lang === 'ar' ? 'تعديل' : 'Edit'}
+                                 >
+                                 <Pencil className="h-4 w-4" />
+                               </Button>
+                             )}
+                             {canCreate && (
+                               <Button variant="ghost" size="icon" onClick={() => openCopy(s)} aria-label={lang === 'ar' ? `نسخ ${s.firstName}` : `Copy ${s.firstName}`} title={lang === 'ar' ? 'نسخ' : 'Copy'}
+                                 >
+                                 <Copy className="h-4 w-4" />
+                               </Button>
+                             )}
                             {canDelete && (
                               <Button variant="ghost" size="icon" onClick={() => { setDeleting(s); setShowDelete(true) }} aria-label={lang === 'ar' ? `حذف ${s.firstName}` : `Delete ${s.firstName}`} title={lang === 'ar' ? 'حذف' : 'Delete'}
                                 >
@@ -951,26 +984,31 @@ export default function ServantsPage() {
                           <div className="text-xs text-gray-500 truncate">{s.email}</div>
                         </div>
                       </div>
-                    {(canEdit || canDelete) && (
-                      <div className="flex items-center gap-1">
-                        {canDelete && (
-                          <input type="checkbox" aria-label={lang === 'ar' ? 'تحديد' : 'Select'}
-                            checked={selectedIds.includes(s.id)}
-                            onChange={() => toggleSelect(s.id)}
-                            className="h-4 w-4 rounded border-gray-300 text-red-600 focus:ring-red-500" />
-                        )}
-                        {canEdit && (
-                          <Button variant="ghost" size="icon" onClick={() => openEdit(s)} aria-label={lang === 'ar' ? `تعديل ${s.firstName}` : `Edit ${s.firstName}`} title={lang === 'ar' ? 'تعديل' : 'Edit'}>
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                        )}
-                        {canDelete && (
-                          <Button variant="ghost" size="icon" onClick={() => { setDeleting(s); setShowDelete(true) }} aria-label={lang === 'ar' ? `حذف ${s.firstName}` : `Delete ${s.firstName}`} title={lang === 'ar' ? 'حذف' : 'Delete'}>
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        )}
-                      </div>
-                    )}
+                     {(canEdit || canDelete || canCreate) && (
+                       <div className="flex items-center gap-1">
+                         {canDelete && (
+                           <input type="checkbox" aria-label={lang === 'ar' ? 'تحديد' : 'Select'}
+                             checked={selectedIds.includes(s.id)}
+                             onChange={() => toggleSelect(s.id)}
+                             className="h-4 w-4 rounded border-gray-300 text-red-600 focus:ring-red-500" />
+                         )}
+                         {canEdit && (
+                           <Button variant="ghost" size="icon" onClick={() => openEdit(s)} aria-label={lang === 'ar' ? `تعديل ${s.firstName}` : `Edit ${s.firstName}`} title={lang === 'ar' ? 'تعديل' : 'Edit'}>
+                             <Pencil className="h-4 w-4" />
+                           </Button>
+                         )}
+                         {canCreate && (
+                           <Button variant="ghost" size="icon" onClick={() => openCopy(s)} aria-label={lang === 'ar' ? `نسخ ${s.firstName}` : `Copy ${s.firstName}`} title={lang === 'ar' ? 'نسخ' : 'Copy'}>
+                             <Copy className="h-4 w-4" />
+                           </Button>
+                         )}
+                         {canDelete && (
+                           <Button variant="ghost" size="icon" onClick={() => { setDeleting(s); setShowDelete(true) }} aria-label={lang === 'ar' ? `حذف ${s.firstName}` : `Delete ${s.firstName}`} title={lang === 'ar' ? 'حذف' : 'Delete'}>
+                             <Trash2 className="h-4 w-4" />
+                           </Button>
+                         )}
+                       </div>
+                     )}
                   </div>
 
                   <div className="mt-3">
@@ -1021,7 +1059,11 @@ export default function ServantsPage() {
       </div>
 
       {/* Create/Edit Modal */}
-      <Modal open={showForm} onClose={handleCloseForm} title={editing ? (lang === 'ar' ? 'تعديل الخادم' : 'Edit Servant') : (lang === 'ar' ? 'إضافة خادم جديد' : 'Add New Servant')} size="lg"
+      <Modal open={showForm} onClose={handleCloseForm} title={
+        editing ? (lang === 'ar' ? 'تعديل الخادم' : 'Edit Servant')
+          : copyingFrom ? (lang === 'ar' ? 'نسخ من خادم' : 'Copy Servant')
+          : (lang === 'ar' ? 'إضافة خادم جديد' : 'Add New Servant')
+      } size="lg"
         footer={
           <div className="flex items-center justify-end gap-3">
             <Button variant="outline" onClick={handleCloseForm}
