@@ -132,7 +132,7 @@ it('sends grade + group in create metadata and renders grade badge on cards', as
   fireEvent.change(screen.getByLabelText('Last Name *'), { target: { value: 'Ahmed' } })
   fireEvent.change(screen.getByLabelText('Email *'), { target: { value: 'malak@x.com' } })
   await userEvent.selectOptions(screen.getByLabelText('Grade'), 'Grade 4')
-  await userEvent.click(screen.getByRole('button', { name: 'Female' }))
+  await userEvent.click(within(screen.getByRole('group', { name: 'Gender' })).getByRole('button', { name: 'Female' }))
   await userEvent.click(within(screen.getByRole('dialog')).getByText('Add Servant'))
   await waitFor(() => expect(mockPost).toHaveBeenCalledWith('/users', expect.objectContaining({ metadata: expect.objectContaining({ grade: 'Grade 4' }) })))
   expect(await screen.findByText('Grade 4', { selector: 'span' })).toBeInTheDocument()
@@ -146,7 +146,7 @@ it('requires gender and sends it in create body', async () => {
   fireEvent.change(screen.getByLabelText('Email *'), { target: { value: 'malak@x.com' } })
   await userEvent.click(within(screen.getByRole('dialog')).getByText('Add Servant'))
   expect(screen.getByText('Gender is required')).toBeInTheDocument()
-  await userEvent.click(screen.getByRole('button', { name: 'Female' }))
+  await userEvent.click(within(screen.getByRole('group', { name: 'Gender' })).getByRole('button', { name: 'Female' }))
   await userEvent.click(within(screen.getByRole('dialog')).getByText('Add Servant'))
   await waitFor(() => expect(mockPost).toHaveBeenCalledWith('/users', expect.objectContaining({ gender: 'female' })))
 })
@@ -167,10 +167,11 @@ it('preserves gender on open-edit and sends it on PATCH', async () => {
 
   await userEvent.click(screen.getByRole('button', { name: 'Edit Malak' }))
 
-  const maleButton = screen.getByRole('button', { name: 'Male' })
+  const genderGroup = screen.getByRole('group', { name: 'Gender' })
+  const maleButton = within(genderGroup).getByRole('button', { name: 'Male' })
   expect(maleButton).toHaveClass('bg-blue-600')
 
-  await userEvent.click(screen.getByRole('button', { name: 'Female' }))
+  await userEvent.click(within(genderGroup).getByRole('button', { name: 'Female' }))
   await userEvent.click(within(screen.getByRole('dialog')).getByText('Save Changes'))
   await waitFor(() => expect(mockPatch).toHaveBeenCalledWith('/users/u1', expect.objectContaining({ gender: 'female' })))
 })
