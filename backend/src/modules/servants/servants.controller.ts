@@ -6,6 +6,7 @@ import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles, STAFF_ROLES } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { RejectLiturgyDto } from './dto/reject-liturgy.dto';
+import { CreateLiturgySessionDto } from './dto/create-liturgy-session.dto';
 import { PrismaService } from '../../database/prisma.service';
 
 @ApiTags('servants')
@@ -303,5 +304,113 @@ export class ServantsController {
     }
 
     return { success: true, recorded: results.length };
+  }
+
+  @Post('liturgy-session/create')
+  @Roles('super_admin')
+  @ApiOperation({ summary: 'Create a new liturgy session for any date (Super Admin only)' })
+  async createLiturgySession(
+    @CurrentUser() user: any,
+    @Body() dto: CreateLiturgySessionDto,
+  ) {
+    const day = new Date(dto.date + 'T00:00:00');
+    if (isNaN(day.getTime())) throw new BadRequestException('Invalid date, expected YYYY-MM-DD');
+    const target = new Date(day); target.setHours(0, 0, 0, 0);
+    const targetEnd = new Date(target); targetEnd.setDate(targetEnd.getDate() + 1);
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    if (target.getTime() > today.getTime()) throw new BadRequestException('Cannot create liturgy session for a future date');
+
+    // Build where clause for students
+    const where: any = { deletedAt: null };
+    let levelId: string | undefined;
+    let groupId: string | undefined;
+
+    if (dto.groupId) {
+      where.groupId = dto.groupId;
+      groupId = dto.groupId;
+      // Get levelId from a student in this group
+      const student = await this.prisma.student.findFirst({
+        where: { groupId: dto.groupId, deletedAt: null },
+        select: { levelId: true },
+      });
+      if (student) levelId = student.levelId;
+    } else if (dto.levelId) {
+      where.levelId = dto.levelId;
+      levelId = dto.levelId;
+    } else if (dto.gradeId) {
+      where.gradeId = dto.gradeId;
+      // Get levelId from a student in this grade
+      const student = await this.prisma.student.findFirst({
+        where: { gradeId: dto.gradeId, deletedAt: null },
+        select: { levelId: true },
+      });
+      if (student) levelId = student.levelId;
+    }
+
+    if (!levelId) throw new BadRequestException('Cannot determine level from specified group/level/grade');
+
+    const students = await this.prisma.student.findMany({
+      where,
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        firstNameAr: true,
+        lastNameAr: true,
+        photoUrl: true,
+        grade: { select: { name: true, nameAr: true } },
+      },
+      orderBy: { firstName: 'asc' },
+    });
+
+    // Check if session already exists
+    const sessionWhere: any = {
+      levelId,
+      status: 'recorded',
+      scheduledDate: { gte: target, lt: targetEnd },
+      notes: 'liturgy',
+    };
+    if (groupId) sessionWhere.groupId = groupId;
+
+    let session = await this.prisma.attendanceSession.findFirst({ where: sessionWhere });
+
+    if (!session) {
+      session = await this.prisma.attendanceSession.create({
+        data: {
+          levelId,
+          groupId: groupId || '',
+          schoolId: user.schoolId,
+          servantId: user.id,
+          status: 'recorded',
+          scheduledDate: target,
+          notes: 'liturgy',
+        },
+      });
+    }
+
+    const statusByStudent = new Map<string, string>();
+    const records = await this.prisma.attendanceRecord.findMany({
+      where: { attendanceSessionId: session.id },
+      select: { studentId: true, status: true },
+    });
+    for (const r of records) statusByStudent.set(r.studentId, r.status);
+
+    return {
+      date: target.toISOString(),
+      sessionId: session.id,
+      groupId: groupId || null,
+      levelId,
+      students: students.map(s => ({
+        studentId: s.id,
+        firstName: s.firstName,
+        lastName: s.lastName,
+        firstNameAr: s.firstNameAr,
+        lastNameAr: s.lastNameAr,
+        photoUrl: s.photoUrl,
+        gradeName: s.grade?.name ?? null,
+        gradeNameAr: s.grade?.nameAr ?? null,
+        status: statusByStudent.get(s.id) ?? null,
+      })),
+    };
   }
 }
