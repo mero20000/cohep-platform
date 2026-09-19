@@ -1136,7 +1136,7 @@ export default function GamificationPage() {
 
       {/* ── Reset Tab ── */}
       {isSuperAdmin && (
-        <AnimatedTabPanel tabId="reset" isActive={activeTab === 'reset'}>
+        <AnimatedTabPanel tabId="reset" activeTab={activeTab}>
           <div className="space-y-6">
             {/* Warning banner */}
             <div className="rounded-xl border-2 border-red-200 bg-red-50 p-4 flex gap-3">
