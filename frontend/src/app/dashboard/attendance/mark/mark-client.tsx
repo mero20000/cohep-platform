@@ -56,9 +56,17 @@ export function MarkClient() {
       setSubjectItemId(params?.get('subjectItemId') ?? null)
       if (!sid) {
         const started = await http.post<any>('/attendance/start-class')
-        sid = (started as any).session?.id || ''
+        sid = (started as any)?.session?.id || ''
+        // If start-class didn't return a session and also no error was thrown,
+        // it means the servant doesn't have a group/level assigned
+        if (!sid) {
+          setLoadError(lang === 'ar'
+            ? 'لم يتم إسناد مجموعة أو مرحلة لك بعد. الرجاء التواصل مع المسؤول.'
+            : 'No group or level assigned to you yet. Please contact your admin.');
+          setSession(null);
+          return;
+        }
       }
-      if (!sid) { setSession(null); return }
       const detail = await http.get<any>(`/attendance/sessions/${sid}`)
       setSession(detail)
       marking.initFromRecords(detail.attendanceRecords || [])
@@ -67,7 +75,10 @@ export function MarkClient() {
       if (!quiet && params?.get('prefill') === 'present') {
         marking.markAll('present', (detail.attendanceRecords || []).map((r: any) => r.student?.id).filter(Boolean))
       }
-    } catch (e: any) { setLoadError(e?.message || 'Failed to load') }
+    } catch (e: any) {
+      const errorMsg = e?.message || (lang === 'ar' ? 'فشل تحميل الجلسة' : 'Failed to load session');
+      setLoadError(errorMsg);
+    }
     finally { setLoading(false) }
   }
   // Initial mount only — later session changes reload via load(), which
