@@ -692,6 +692,11 @@ export default function SessionsPage() {
                           <RotateCcw className="h-3.5 w-3.5" />
                         </Button>
                       )}
+                      <Link href={`/dashboard/attendance/mark?sessionId=${s.id}`}
+                        className="inline-flex items-center justify-center rounded-lg px-3 py-1.5 text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500 min-h-[36px]"
+                        title={lang === 'ar' ? `تسجيل الحضور` : `Record Attendance`}>
+                        {lang === 'ar' ? 'تسجيل' : 'Record'}
+                      </Link>
                       <Button variant="ghost" size="sm" onClick={() => openEditSession(s)}
                         aria-label={lang === 'ar' ? `تعديل جلسة ${s.group?.name}` : `Edit session ${s.group?.name}`}
                         className="text-gray-500 hover:text-gray-700">
