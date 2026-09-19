@@ -24,8 +24,11 @@ export class GradeDisputesService {
     if (!submission) throw new NotFoundException('Submission not found');
 
     // Access control: students can only dispute their own submissions
-    const requester = await this.prisma.user.findUnique({ where: { id: data.requestedById }, select: { roles: true } });
-    const isStudent = requester?.roles?.includes('student');
+    const requester = await this.prisma.user.findUnique({
+      where: { id: data.requestedById },
+      include: { userRoles: { select: { role: { select: { name: true } } } } },
+    });
+    const isStudent = requester?.userRoles?.some((ur: any) => ur.role?.name === 'student');
     if (isStudent && submission.studentId !== data.requestedById) {
       throw new ForbiddenException('You can only dispute your own submissions');
     }

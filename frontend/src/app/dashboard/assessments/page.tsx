@@ -6,6 +6,7 @@ import { validateQuestions } from './validation'
 import {
   ClipboardCheck, Plus, Pencil, Trash2, Loader2, ChevronRight, Zap,
   Calendar, FileText, Clock, Eye, Users, Check, Download, Printer, X, UserX, CheckCircle, XCircle,
+  FileSpreadsheet, ChevronDown,
 } from 'lucide-react'
 import { useToast } from '@/components/ui/toast'
 import { Button } from '@/components/ui/button'
@@ -25,6 +26,7 @@ import { AudioPlayer } from '@/components/audio-player'
 import { getSchoolId } from '@/lib/school'
 import { fetchActiveGrades, type GradeItem } from '@/lib/grades'
 import { http } from '@/lib/http-client'
+import { exportAssessmentsXlsx, exportAssessmentsPdf, type AssessmentRow } from '@/lib/export-assessments'
 
 interface Level { id: string; name: string; number: number; status?: string }
 interface Group { id: string; name: string; levelId?: string; status?: string }
@@ -173,6 +175,8 @@ export default function AssessmentsPage() {
   const [showReport, setShowReport] = useState(false)
   const reportRef = useRef<HTMLDivElement>(null)
   const [markValues, setMarkValues] = useState<Record<string, string>>({})
+  const [exportMenuOpen, setExportMenuOpen] = useState(false)
+  const exportMenuRef = useRef<HTMLDivElement>(null)
 
   const deassignStudent = async (studentId: string) => {
     if (!selectedAssessment) return
@@ -276,6 +280,36 @@ export default function AssessmentsPage() {
         .map(i => ({ url: i.recordingUrl, name: i.name + (i.recordingMeta?.originalName ? ` (${i.recordingMeta.originalName})` : '') }))))
       .catch(console.error)
   }, [form.subjectId, schoolId])
+
+  useEffect(() => {
+    const h = (e: MouseEvent) => { if (exportMenuRef.current && !exportMenuRef.current.contains(e.target as Node)) setExportMenuOpen(false) }
+    document.addEventListener('mousedown', h)
+    return () => document.removeEventListener('mousedown', h)
+  }, [])
+
+  const handleExport = async (format: 'xlsx' | 'pdf') => {
+    setExportMenuOpen(false)
+    try {
+      const rows: AssessmentRow[] = assessments.map(a => ({
+        studentCode: '',
+        studentName: '',
+        assessmentTitle: a.title,
+        assessmentTitleAr: '',
+        score: null,
+        maxScore: Number(a.totalPoints) || 0,
+        status: a.status,
+        submittedAt: a.dueDate,
+        groupName: a.group?.name || '',
+        levelName: a.level?.name || '',
+      }))
+      if (format === 'xlsx') await exportAssessmentsXlsx(rows, lang)
+      else await exportAssessmentsPdf(rows, lang)
+      toast('success', lang === 'ar' ? 'تم التصدير بنجاح' : 'Export completed')
+    } catch (err) {
+      console.error('Export failed', err)
+      toast('error', lang === 'ar' ? 'فشل التصدير' : 'Export failed')
+    }
+  }
 
   const openCreate = () => {
     setForm(emptyForm)
@@ -816,9 +850,20 @@ export default function AssessmentsPage() {
           <h1 className="text-2xl font-bold text-gray-900">{lang === 'ar' ? 'التقييمات' : 'Assessments'}</h1>
           <p className="text-sm text-gray-500">{pagination.total} {lang === 'ar' ? 'تقييم إجمالاً' : 'assessments total'}</p>
         </div>
-        <Button onClick={openCreate}>
-          <Plus className="h-4 w-4" /> {lang === 'ar' ? 'تقييم جديد' : 'New Assessment'}
-        </Button>
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="relative" ref={exportMenuRef}>
+            <Button variant="outline" size="sm" onClick={() => setExportMenuOpen(!exportMenuOpen)}>
+              <Download className="h-4 w-4" />{lang === 'ar' ? 'تصدير' : 'Export'}<ChevronDown className="h-3 w-3 ml-1" />
+            </Button>
+            {exportMenuOpen && <div className="absolute right-0 top-full mt-1 w-44 rounded-md border bg-white shadow-lg z-50">
+              <button className="flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-gray-100" onClick={() => handleExport('xlsx')}><FileSpreadsheet className="h-4 w-4 text-green-600" />{lang === 'ar' ? 'تصدير XLSX' : 'Export XLSX'}</button>
+              <button className="flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-gray-100" onClick={() => handleExport('pdf')}><FileText className="h-4 w-4 text-red-600" />{lang === 'ar' ? 'تصدير PDF' : 'Export PDF'}</button>
+            </div>}
+          </div>
+          <Button onClick={openCreate}>
+            <Plus className="h-4 w-4" /> {lang === 'ar' ? 'تقييم جديد' : 'New Assessment'}
+          </Button>
+        </div>
       </div>
 
       {/* Stats */}
