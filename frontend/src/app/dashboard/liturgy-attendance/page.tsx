@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Image from 'next/image'
-import { Church, Check, X, AlertCircle, Save, Search } from 'lucide-react'
+import { Church, Check, X, AlertCircle, Save, Search, ChevronRight } from 'lucide-react'
 import { http } from '@/lib/http-client'
 import { photoSrc } from '@/app/dashboard/students/_components/student-types'
 import { useLanguage } from '@/lib/use-language'
@@ -26,6 +26,9 @@ interface LiturgyStudent {
 interface LiturgySession {
   date: string
   students: LiturgyStudent[]
+  requiresGroupPick?: boolean
+  groups?: Array<{ id: string; name: string }>
+  levels?: Array<{ id: string; name: string; number?: number }>
 }
 
 export default function LiturgyAttendancePage() {
@@ -40,16 +43,37 @@ export default function LiturgyAttendancePage() {
   const [filterStatus, setFilterStatus] = useState<'all' | 'present' | 'absent' | 'unrecorded'>('all')
   const mountedRef = useRef(true)
 
+  const [groupPickerOpen, setGroupPickerOpen] = useState(false)
+  const [availableGroups, setAvailableGroups] = useState<Array<{ id: string; name: string }>>([])
+  const [availableLevels, setAvailableLevels] = useState<Array<{ id: string; name: string; number?: number }>>([])
+  const [pickedGroupId, setPickedGroupId] = useState<string | null>(null)
+  const [pickedLevelId, setPickedLevelId] = useState<string | null>(null)
+  const [pickerStep, setPickerStep] = useState<'group' | 'level'>('group')
+
   useEffect(() => {
     mountedRef.current = true
     return () => { mountedRef.current = false }
   }, [])
 
-  const loadSession = useCallback(async (day: string) => {
+  const loadSession = useCallback(async (day: string, groupId?: string, levelId?: string) => {
     try {
       setLoading(true)
-      const data = await http.get<LiturgySession>('/servants/liturgy-session', { date: day })
-      if (mountedRef.current) setSession(data)
+      const params: Record<string, string> = { date: day }
+      if (groupId) params.groupId = groupId
+      if (levelId) params.levelId = levelId
+      const data = await http.get<LiturgySession>('/servants/liturgy-session', params)
+      if (!mountedRef.current) return
+
+      if (data.requiresGroupPick) {
+        setAvailableGroups(data.groups || [])
+        setAvailableLevels(data.levels || [])
+        setGroupPickerOpen(true)
+        setPickerStep('group')
+        setSession(null)
+      } else {
+        setSession(data)
+        setGroupPickerOpen(false)
+      }
     } catch (err: any) {
       console.error('Liturgy session load error:', err)
       if (mountedRef.current) {
@@ -62,8 +86,35 @@ export default function LiturgyAttendancePage() {
   }, [t, toast])
 
   useEffect(() => {
-    loadSession(date)
-  }, [loadSession, date])
+    loadSession(date, pickedGroupId || undefined, pickedLevelId || undefined)
+  }, [loadSession, date, pickedGroupId, pickedLevelId])
+
+  const handleGroupPick = (gId: string) => {
+    if (availableLevels.length <= 1) {
+      setPickedGroupId(gId)
+      setGroupPickerOpen(false)
+    } else {
+      setPickedGroupId(gId)
+      setPickerStep('level')
+    }
+  }
+
+  const handleLevelPick = (lId: string) => {
+    setPickedLevelId(lId)
+    setGroupPickerOpen(false)
+  }
+
+  const handleSkipLevel = () => {
+    setGroupPickerOpen(false)
+  }
+
+  const handleChangePick = () => {
+    setPickedGroupId(null)
+    setPickedLevelId(null)
+    setSession(null)
+    setGroupPickerOpen(true)
+    setPickerStep('group')
+  }
 
   const counts = useMemo(() => ({
     all: session?.students.length ?? 0,
@@ -128,9 +179,13 @@ export default function LiturgyAttendancePage() {
           status: s.status,
         }))
 
-      await http.post('/servants/liturgy-attendance', { date, records })
+      const payload: any = { date, records }
+      if (pickedGroupId) payload.groupId = pickedGroupId
+      if (pickedLevelId) payload.levelId = pickedLevelId
+
+      await http.post('/servants/liturgy-attendance', payload)
       toast('success', t('Liturgy attendance saved', 'تم حفظ حضور القداس'))
-      loadSession(date)
+      loadSession(date, pickedGroupId || undefined, pickedLevelId || undefined)
     } catch {
       toast('error', t('Failed to save attendance', 'فشل حفظ الحضور'))
     } finally {
@@ -143,6 +198,79 @@ export default function LiturgyAttendancePage() {
       <div className="mx-auto max-w-4xl px-4 py-8">
         <div className="mb-6 h-8 w-48 bg-gray-200 rounded animate-pulse" />
         <TableSkeleton rows={8} cols={2} />
+      </div>
+    )
+  }
+
+  if (!session && groupPickerOpen) {
+    return (
+      <div className="mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:px-8">
+        <div className="flex items-center gap-2 mb-6">
+          <Church className="h-6 w-6 text-amber-700" />
+          <h1 className="text-2xl font-bold text-gray-900">{t('Liturgy Attendance', 'حضور القداس')}</h1>
+        </div>
+
+        <div className="mb-4 sm:max-w-xs">
+          <label className="mb-1.5 block text-sm font-medium text-gray-700">{t('Date', 'التاريخ')}</label>
+          <DatePicker value={date} onChange={setDate} max={new Date().toISOString().split('T')[0]} />
+        </div>
+
+        <div className="rounded-xl border border-gray-200 bg-white p-6">
+          {pickerStep === 'group' ? (
+            <>
+              <h2 className="text-lg font-semibold text-gray-900 mb-1">
+                {t('Select a Group', 'اختر مجموعة')}
+              </h2>
+              <p className="text-sm text-gray-500 mb-4">
+                {t('Choose which group to record liturgy attendance for.', 'اختر المجموعة لتسجيل حضور القداس.')}
+              </p>
+              <div className="space-y-2">
+                {availableGroups.map(g => (
+                  <button
+                    key={g.id}
+                    onClick={() => handleGroupPick(g.id)}
+                    className="w-full flex items-center justify-between rounded-lg border border-gray-200 bg-white p-4 text-left hover:border-amber-400 hover:bg-amber-50 transition-colors"
+                  >
+                    <span className="font-medium text-gray-900">{g.name}</span>
+                    <ChevronRight className="h-4 w-4 text-gray-400" />
+                  </button>
+                ))}
+              </div>
+              {availableGroups.length === 0 && (
+                <p className="text-center text-gray-500 py-4">{t('No groups found', 'لم يتم العثور على مجموعات')}</p>
+              )}
+            </>
+          ) : (
+            <>
+              <h2 className="text-lg font-semibold text-gray-900 mb-1">
+                {t('Select a Level (optional)', 'اختر مرحلة (اختياري)')}
+              </h2>
+              <p className="text-sm text-gray-500 mb-4">
+                {t('Optionally narrow by level, or skip to load all students in the group.', 'اختياريًا حدد المرحلة، أو تخطَّ لتحميل جميع طلاب المجموعة.')}
+              </p>
+              <div className="space-y-2">
+                {availableLevels.map(l => (
+                  <button
+                    key={l.id}
+                    onClick={() => handleLevelPick(l.id)}
+                    className="w-full flex items-center justify-between rounded-lg border border-gray-200 bg-white p-4 text-left hover:border-amber-400 hover:bg-amber-50 transition-colors"
+                  >
+                    <span className="font-medium text-gray-900">{l.name}</span>
+                    <ChevronRight className="h-4 w-4 text-gray-400" />
+                  </button>
+                ))}
+              </div>
+              <div className="mt-4 flex gap-2">
+                <Button variant="outline" size="sm" onClick={() => setPickerStep('group')}>
+                  {t('Back', 'رجوع')}
+                </Button>
+                <Button variant="ghost" size="sm" onClick={handleSkipLevel}>
+                  {t('Skip (all students)', 'تخطي (جميع الطلاب)')}
+                </Button>
+              </div>
+            </>
+          )}
+        </div>
       </div>
     )
   }
@@ -191,12 +319,17 @@ export default function LiturgyAttendancePage() {
         </div>
       </div>
 
-      {/* Date */}
+      {/* Date + Change Group */}
       <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-end">
         <div className="sm:max-w-xs sm:flex-1">
           <label className="mb-1.5 block text-sm font-medium text-gray-700">{t('Date', 'التاريخ')}</label>
           <DatePicker value={date} onChange={setDate} max={new Date().toISOString().split('T')[0]} />
         </div>
+        {pickedGroupId && (
+          <Button variant="outline" size="sm" onClick={handleChangePick}>
+            {t('Change Group', 'تغيير المجموعة')}
+          </Button>
+        )}
       </div>
 
       {/* Search */}
@@ -333,7 +466,7 @@ export default function LiturgyAttendancePage() {
       <div className="sticky bottom-16 lg:bottom-0 bg-white/95 backdrop-blur border-t border-gray-200 p-4 -mx-4 sm:-mx-6 lg:-mx-8 mt-6 pb-[max(1rem,env(safe-area-inset-bottom))]">
         <div className="mx-4 sm:mx-6 lg:mx-8 flex gap-2">
           <Button
-            onClick={() => loadSession(date)}
+            onClick={() => loadSession(date, pickedGroupId || undefined, pickedLevelId || undefined)}
             variant="outline"
             disabled={saving}
           >
