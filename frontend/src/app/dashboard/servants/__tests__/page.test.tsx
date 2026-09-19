@@ -13,7 +13,7 @@ vi.mock('next/image', () => ({
 
 vi.mock('lucide-react', () => {
   const icons: Record<string, any> = {}
-  const iconNames = ['AlertTriangle', 'CalendarDays', 'Check', 'GraduationCap', 'LayoutGrid', 'Loader2', 'Pencil', 'Phone', 'Plus', 'Rows3', 'Search', 'Shield', 'Trash2', 'Upload', 'User', 'UserCheck', 'X']
+  const iconNames = ['AlertTriangle', 'CalendarDays', 'Check', 'Copy', 'GraduationCap', 'LayoutGrid', 'Loader2', 'Pencil', 'Phone', 'Plus', 'Rows3', 'Search', 'Shield', 'Trash2', 'Upload', 'User', 'UserCheck', 'X']
   for (const name of iconNames) icons[name] = (props: any) => <span data-testid={`icon-${name}`} {...props} />
   return icons
 })
@@ -44,6 +44,16 @@ vi.mock('@/lib/grades', () => ({
     { id: 'g1', name: 'Grade 4', status: 'active', groupId: 'group-1', groupName: 'Group A' },
     { id: 'g2', name: 'Grade 5', status: 'active', groupId: 'group-2', groupName: 'Group B' },
   ]),
+}))
+
+vi.mock('@/lib/use-permission', () => ({
+  usePermission: () => ({
+    can: (permission: string) => true,
+  }),
+}))
+
+vi.mock('@/lib/use-language', () => ({
+  useLanguage: () => 'en',
 }))
 
 const levels = [
