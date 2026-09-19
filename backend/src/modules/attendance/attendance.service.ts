@@ -767,7 +767,7 @@ export class AttendanceService {
     return { record, message: `${record.student.firstName} ${record.student.lastName} checked in!` };
   }
 
-  async startClass(servantId: string, selectedGroupId?: string) {
+  async startClass(servantId: string, selectedGroupId?: string, selectedLevelId?: string) {
     const servant = await this.prisma.user.findUnique({ where: { id: servantId }, select: { schoolId: true, metadata: true } });
     if (!servant) throw new NotFoundException('Servant not found');
 
@@ -805,7 +805,7 @@ export class AttendanceService {
     });
 
     let groupId: string | undefined = selectedGroupId || metaGroupId;
-    let levelId: string | undefined = metaLevelId;
+    let levelId: string | undefined = selectedLevelId || metaLevelId;
 
     // If no metadata assignment, try to get from recent sessions
     if (!groupId && recentSessions.length > 0) {
@@ -814,14 +814,24 @@ export class AttendanceService {
     }
 
     if (!groupId) {
-      // No assignment found — return all school groups for the client to pick
-      const groups = await this.prisma.group.findMany({
-        where: { schoolId: servant.schoolId, deletedAt: null, status: { not: 'inactive' } },
-      });
+      // No assignment found — return all school groups and levels for the client to pick
+      const [groups, levels] = await Promise.all([
+        this.prisma.group.findMany({
+          where: { schoolId: servant.schoolId, deletedAt: null, status: { not: 'inactive' } },
+        }),
+        this.prisma.level.findMany({
+          where: { schoolId: servant.schoolId, deletedAt: null, status: { not: 'inactive' } },
+          orderBy: { number: 'asc' },
+        }),
+      ]);
       if (groups.length === 0) {
         throw new BadRequestException('No groups found in this school.');
       }
-      return { groups: groups.map(g => ({ id: g.id, name: g.name })), requiresGroupPick: true };
+      return {
+        groups: groups.map(g => ({ id: g.id, name: g.name })),
+        levels: levels.map(l => ({ id: l.id, name: l.name, number: l.number })),
+        requiresGroupPick: true,
+      };
     }
 
     if (!levelId) {
