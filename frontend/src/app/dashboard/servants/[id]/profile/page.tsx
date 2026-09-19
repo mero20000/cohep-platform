@@ -5,7 +5,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { useServantProfile, useServantTimeline } from '@/components/servants/hooks'
 import { MinistryTimeline } from '@/components/servants/ministry-timeline'
-import { ArrowLeft, Cross, Loader2 } from 'lucide-react'
+import { ArrowLeft, Cross, Loader2, LayoutGrid, Users, Calendar, Church, Sun } from 'lucide-react'
 
 const API_ORIGIN = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api').replace('/api', '')
 
@@ -80,8 +80,25 @@ export default function ServantProfilePage() {
                 </p>
               )}
             </div>
-          </div>
         </div>
+      </div>
+
+      {/* Quick Access */}
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-6">
+        {[
+          { href: '/dashboard', label: 'Dashboard', labelAr: 'لوحة التحكم', icon: LayoutGrid },
+          { href: '/dashboard/students', label: 'Students', labelAr: 'الطلاب', icon: Users },
+          { href: '/dashboard/attendance/mark', label: 'Attendance', labelAr: 'الحضور', icon: Calendar },
+          { href: '/dashboard/liturgy-attendance', label: 'Liturgy', labelAr: 'حضور القداس', icon: Church },
+          { href: '/dashboard/briefing', label: 'This Sunday', labelAr: 'أحد الأسبوع', icon: Sun },
+        ].map(({ href, label, labelAr, icon: Icon }) => (
+          <Link key={href} href={href} title={labelAr}
+            className="flex flex-col items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white p-3 text-center hover:shadow-md hover:border-gold-300 hover:text-gold-700 transition-all min-h-[72px]">
+            <Icon className="h-5 w-5 text-gray-600" />
+            <span className="text-xs font-medium text-gray-700">{label}</span>
+          </Link>
+        ))}
+      </div>
 
         {/* Stats */}
         <div className="grid grid-cols-4 gap-4 mb-6">
