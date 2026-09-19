@@ -1433,6 +1433,120 @@ export class GamificationService {
     };
   }
 
+  // ── Reset Gamification Data ────────────────────────────────────────────
+
+  async resetStudentGamification(studentId: string, reason: string) {
+    const student = await this.prisma.student.findUnique({ where: { id: studentId } });
+    if (!student) throw new NotFoundException('Student not found');
+
+    return this.prisma.$transaction(async tx => {
+      const xpCount = await tx.xPTransaction.count({ where: { studentId } });
+      const badgeCount = await tx.studentBadge.count({ where: { studentId } });
+
+      await Promise.all([
+        tx.xPTransaction.deleteMany({ where: { studentId } }),
+        tx.studentBadge.deleteMany({ where: { studentId } }),
+        tx.studentProgress.updateMany({
+          where: { studentId },
+          data: { totalXp: 0, currentLevel: 1 },
+        }).catch(() => {}),
+      ]);
+
+      return {
+        message: `Gamification reset for student ${student.firstName} ${student.lastName}`,
+        studentId,
+        deletedTransactions: xpCount,
+        deletedBadges: badgeCount,
+        reason,
+      };
+    });
+  }
+
+  async resetGroupGamification(groupId: string, reason: string) {
+    const students = await this.prisma.student.findMany({
+      where: { groupId, deletedAt: null },
+      select: { id: true, firstName: true, lastName: true },
+    });
+
+    if (students.length === 0) throw new NotFoundException('No students found in this group');
+
+    const studentIds = students.map(s => s.id);
+
+    return this.prisma.$transaction(async tx => {
+      const xpCount = await tx.xPTransaction.count({
+        where: { studentId: { in: studentIds } },
+      });
+      const badgeCount = await tx.studentBadge.count({
+        where: { studentId: { in: studentIds } },
+      });
+
+      await Promise.all([
+        tx.xPTransaction.deleteMany({
+          where: { studentId: { in: studentIds } },
+        }),
+        tx.studentBadge.deleteMany({
+          where: { studentId: { in: studentIds } },
+        }),
+        tx.studentProgress.updateMany({
+          where: { studentId: { in: studentIds } },
+          data: { totalXp: 0, currentLevel: 1 },
+        }).catch(() => {}),
+      ]);
+
+      return {
+        message: `Gamification reset for ${students.length} students in group`,
+        groupId,
+        affectedStudents: students.length,
+        deletedTransactions: xpCount,
+        deletedBadges: badgeCount,
+        reason,
+      };
+    });
+  }
+
+  async resetSchoolGamification(schoolIdentifier: string, reason: string) {
+    const schoolId = await this.schoolResolver.resolve(schoolIdentifier);
+    const students = await this.prisma.student.findMany({
+      where: { schoolId, deletedAt: null },
+      select: { id: true },
+    });
+
+    if (students.length === 0) throw new NotFoundException('No students found in this school');
+
+    const studentIds = students.map(s => s.id);
+
+    return this.prisma.$transaction(async tx => {
+      const xpCount = await tx.xPTransaction.count({
+        where: { studentId: { in: studentIds } },
+      });
+      const badgeCount = await tx.studentBadge.count({
+        where: { studentId: { in: studentIds } },
+      });
+
+      await Promise.all([
+        tx.xPTransaction.deleteMany({
+          where: { studentId: { in: studentIds } },
+        }),
+        tx.studentBadge.deleteMany({
+          where: { studentId: { in: studentIds } },
+        }),
+        tx.studentProgress.updateMany({
+          where: { studentId: { in: studentIds } },
+          data: { totalXp: 0, currentLevel: 1 },
+        }).catch(() => {}),
+      ]);
+
+      return {
+        message: `Gamification reset for all students in school`,
+        schoolId,
+        affectedStudents: students.length,
+        deletedTransactions: xpCount,
+        deletedBadges: badgeCount,
+        reason,
+      };
+    });
+  }
+
   async getServantMilestones(userId: string, schoolIdentifier: string) {
     const schoolId = await this.schoolResolver.resolve(schoolIdentifier);
 
