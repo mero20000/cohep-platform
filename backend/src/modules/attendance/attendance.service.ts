@@ -1306,8 +1306,15 @@ export class AttendanceService {
   }
 
   async deleteSession(id: string) {
-    const session = await this.prisma.attendanceSession.findUnique({ where: { id } });
+    const session = await this.prisma.attendanceSession.findUnique({
+      where: { id },
+      select: { id: true, schoolId: true, status: true, levelId: true, groupId: true, attendanceRecords: { select: { studentId: true } } },
+    });
     if (!session) throw new NotFoundException('Attendance session not found');
+    // Collect affected student IDs BEFORE soft-deleting the session — after
+    // deletion the records are filtered out by attendanceSession.deletedAt: null
+    // so we wouldn't be able to recover them.
+    const affectedStudentIds = [...new Set(session.attendanceRecords.map(r => r.studentId))];
     await this.prisma.attendanceSession.update({
       where: { id },
       data: { deletedAt: new Date() },
@@ -1319,6 +1326,12 @@ export class AttendanceService {
       entityId: id,
       oldValues: { status: session.status, levelId: session.levelId, groupId: session.groupId },
     });
+    // Recompute badges for affected students: badges tied to deleted
+    // attendance are revoked and their XP reversed; anything still
+    // qualifying is awarded fresh.
+    for (const sid of affectedStudentIds) {
+      this.gamification.computeBadgesForStudent(sid, undefined, true).catch(() => {});
+    }
     return { deleted: true };
   }
 

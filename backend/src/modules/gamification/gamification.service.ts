@@ -281,7 +281,7 @@ export class GamificationService {
 
   // ── Badge Computation Engine ──
 
-  async computeBadgesForStudent(studentId: string, badgeId?: string): Promise<{ awarded: number; total: number }> {
+  async computeBadgesForStudent(studentId: string, badgeId?: string, forceRecheck = false): Promise<{ awarded: number; total: number }> {
     const student = await this.prisma.student.findUnique({
       where: { id: studentId },
       select: { id: true, schoolId: true, groupId: true },
@@ -293,6 +293,30 @@ export class GamificationService {
       : await this.prisma.badge.findMany({ where: { schoolId: student.schoolId, isActive: true } });
 
     let awarded = 0;
+    // When forceRecheck is true (called after attendance deletion), first revoke
+    // any badge the student currently owns that no longer qualifies, then award
+    // freshly-qualifying ones. This keeps gamification in sync with reality.
+    if (forceRecheck) {
+      const owned = await this.prisma.studentBadge.findMany({ where: { studentId } });
+      for (const sb of owned) {
+        const badge = await this.prisma.badge.findUnique({ where: { id: sb.badgeId } });
+        if (!badge) continue;
+        const result = await this.checkBadgeCriterion(student, badge);
+        if (!result.earned) {
+          await this.prisma.$transaction(async (tx) => {
+            await tx.studentBadge.deleteMany({ where: { studentId, badgeId: sb.badgeId } });
+            if (badge.xpReward > 0) {
+              const agg = await tx.xPTransaction.aggregate({ where: { studentId }, _sum: { amount: true } });
+              const current = Number(agg._sum.amount || 0);
+              const newBalance = Math.max(0, current - badge.xpReward);
+              await tx.xPTransaction.create({ data: { studentId, amount: -badge.xpReward, balanceAfter: newBalance, type: 'badge_revoke', description: `Badge revoked: ${badge.name}` } });
+              await tx.studentProgress.updateMany({ where: { studentId }, data: { totalXp: newBalance, currentLevel: Math.floor(newBalance / 100) + 1 } });
+            }
+          }).catch(() => {});
+        }
+      }
+    }
+
     for (const badge of badges) {
       if (!badge) continue;
       const alreadyOwned = await this.prisma.studentBadge.findFirst({
@@ -320,7 +344,7 @@ export class GamificationService {
               const currentBalance = Number(rows[0]?.balance ?? 0);
               const balanceAfter = currentBalance + badge.xpReward;
               await tx.xPTransaction.create({
-                data: { studentId, amount: badge.xpReward, balanceAfter, type: 'badge_award', description: `Badge: ${badge.name}` },
+                data: { studentId, amount: badge.xpReward, balanceAfter, type: 'badge_award', description: `Badge: ${badge.name} — ${result.reason || ''}`.replace(/\s+/g, ' ').trim() },
               });
               await tx.studentProgress.updateMany({ where: { studentId }, data: { totalXp: balanceAfter, currentLevel: Math.floor(balanceAfter / 100) + 1 } });
             }
@@ -1030,6 +1054,7 @@ export class GamificationService {
         category: b.badge.category,
         icon: b.badge.iconUrl,
         earnedAt: b.awardedAt,
+        reason: b.reason || undefined,
       })),
       totalBadges: badgeTimeline.length,
     };
