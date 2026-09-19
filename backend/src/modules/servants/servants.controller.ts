@@ -132,13 +132,18 @@ export class ServantsController {
   }
 
   @Get('liturgy-session')
-  @Roles('servant', 'group_leader', 'level_leader')
+  @Roles('super_admin', 'admin', 'principal', 'servant', 'group_leader', 'level_leader')
   @ApiOperation({ summary: 'Get liturgy roster for any date with prefilled statuses' })
-  async getLiturgySession(@CurrentUser() user: any, @Query('date') dateStr?: string) {
+  async getLiturgySession(
+    @CurrentUser() user: any,
+    @Query('date') dateStr?: string,
+    @Query('groupId') queryGroupId?: string,
+    @Query('levelId') queryLevelId?: string,
+  ) {
     try {
       const userMeta = (user.metadata as any) || {};
-      const groupId = userMeta.groupId as string | undefined;
-      const levelId = userMeta.levelId as string | undefined;
+      const groupId = queryGroupId || (userMeta.groupId as string | undefined);
+      const levelId = queryLevelId || (userMeta.levelId as string | undefined);
 
       const day = dateStr ? new Date(dateStr + 'T00:00:00') : new Date();
       if (isNaN(day.getTime())) throw new BadRequestException('Invalid date, expected YYYY-MM-DD');
@@ -154,6 +159,22 @@ export class ServantsController {
       } else if (levelId) {
         where.levelId = levelId;
       } else {
+        const isAdmin = ['super_admin', 'admin', 'principal'].includes(user.role);
+        if (isAdmin) {
+          const schoolFilter: any = { deletedAt: null, status: { not: 'inactive' } };
+          if (user.schoolId) schoolFilter.schoolId = user.schoolId;
+          const [groups, levels] = await Promise.all([
+            this.prisma.group.findMany({ where: schoolFilter, orderBy: { name: 'asc' } }),
+            this.prisma.level.findMany({ where: schoolFilter, orderBy: { number: 'asc' } }),
+          ]);
+          return {
+            date: start.toISOString(),
+            students: [],
+            requiresGroupPick: true,
+            groups: groups.map(g => ({ id: g.id, name: g.name })),
+            levels: levels.map(l => ({ id: l.id, name: l.name, number: l.number })),
+          };
+        }
         return { date: start.toISOString(), students: [] };
       }
 
@@ -209,15 +230,15 @@ export class ServantsController {
   }
 
   @Post('liturgy-attendance')
-  @Roles('servant', 'group_leader', 'level_leader')
+  @Roles('super_admin', 'admin', 'principal', 'servant', 'group_leader', 'level_leader')
   @ApiOperation({ summary: 'Record liturgy attendance for multiple students' })
   async recordLiturgyAttendance(
     @CurrentUser() user: any,
-    @Body() body: { date?: string; records: Array<{ studentId: string; status: 'present' | 'absent' }> },
+    @Body() body: { date?: string; groupId?: string; levelId?: string; records: Array<{ studentId: string; status: 'present' | 'absent' }> },
   ) {
     const userMeta = (user.metadata as any) || {};
-    const groupId = userMeta.groupId as string | undefined;
-    let levelId = userMeta.levelId as string | undefined;
+    const groupId = body.groupId || (userMeta.groupId as string | undefined);
+    let levelId = body.levelId || (userMeta.levelId as string | undefined);
 
     if (!groupId) {
       return { success: false, error: 'No group assigned' };
