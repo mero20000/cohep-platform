@@ -723,8 +723,8 @@ export default function GamificationPage() {
   const [showResetModal, setShowResetModal] = useState(false)
   const [resetType, setResetType] = useState<'student' | 'group' | 'school'>('student')
   const [resetSelectedId, setResetSelectedId] = useState('')
-  const [resetReason, setResetReason] = useState('')
-  const [resetError, setResetError] = useState('')
+  const [gamificationResetReason, setGamificationResetReason] = useState('')
+  const [gamificationResetError, setGamificationResetError] = useState('')
   const [resettingGamification, setResettingGamification] = useState(false)
 
   const schoolId = getSchoolId()
@@ -929,22 +929,22 @@ export default function GamificationPage() {
     : cat
 
   const handleResetGamification = async () => {
-    setResetError('')
-    if (!resetSelectedId.trim()) { setResetError(t('Please select an item to reset', 'يرجى تحديد عنصر للإعادة')); return }
-    if (!resetReason.trim()) { setResetError(t('Reason is required', 'السبب مطلوب')); return }
+    setGamificationResetError('')
+    if (!resetSelectedId.trim()) { setGamificationResetError(t('Please select an item to reset', 'يرجى تحديد عنصر للإعادة')); return }
+    if (!gamificationResetReason.trim()) { setGamificationResetError(t('Reason is required', 'السبب مطلوب')); return }
     setResettingGamification(true)
     try {
       const endpoint = resetType === 'student' ? `/gamification/reset/student/${resetSelectedId}`
         : resetType === 'group' ? `/gamification/reset/group/${resetSelectedId}`
         : `/gamification/reset/school?schoolId=${schoolId}`
-      await http.delete(endpoint, { reason: resetReason })
+      await http.delete(endpoint, { reason: gamificationResetReason })
       toast('success', t('Gamification reset successfully', 'تم إعادة تعيين التلعيب بنجاح'))
       setShowResetModal(false)
       setResetSelectedId('')
-      setResetReason('')
+      setGamificationResetReason('')
       fetchLeaderboard()
       fetchStats()
-    } catch (e: any) { setResetError(friendlyError(e, lang)) }
+    } catch (e: any) { setGamificationResetError(friendlyError(e, lang)) }
     setResettingGamification(false)
   }
 
