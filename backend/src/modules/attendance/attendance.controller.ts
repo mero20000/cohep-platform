@@ -201,9 +201,9 @@ export class AttendanceController {
   }
 
   @Post('start-class')
-  @ApiOperation({ summary: 'Start class for today — auto-detect group, pre-fill all present' })
-  async startClass(@Req() req: any) {
-    return this.attendanceService.startClass(req.user.id);
+  @ApiOperation({ summary: 'Start class for today — auto-detect group, or use specified groupId' })
+  async startClass(@Req() req: any, @Query('groupId') groupId?: string) {
+    return this.attendanceService.startClass(req.user.id, groupId);
   }
 
   @Get('liturgy-heatmap')

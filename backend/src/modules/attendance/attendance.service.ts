@@ -767,7 +767,7 @@ export class AttendanceService {
     return { record, message: `${record.student.firstName} ${record.student.lastName} checked in!` };
   }
 
-  async startClass(servantId: string) {
+  async startClass(servantId: string, selectedGroupId?: string) {
     const servant = await this.prisma.user.findUnique({ where: { id: servantId }, select: { schoolId: true, metadata: true } });
     if (!servant) throw new NotFoundException('Servant not found');
 
@@ -804,7 +804,7 @@ export class AttendanceService {
       take: 1,
     });
 
-    let groupId: string | undefined = metaGroupId;
+    let groupId: string | undefined = selectedGroupId || metaGroupId;
     let levelId: string | undefined = metaLevelId;
 
     // If no metadata assignment, try to get from recent sessions
