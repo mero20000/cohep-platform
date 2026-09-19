@@ -194,4 +194,38 @@ export class GamificationController {
   async computeAllBadges(@Query('schoolId') schoolId: string = '') {
     return this.gamificationService.computeAllBadges(schoolId);
   }
+
+  // ── Reset Gamification (Super Admin Only) ────────────────────────────────
+  @Delete('reset/student/:id')
+  @Roles('super_admin')
+  @ApiOperation({ summary: 'Reset XP and badges for a student (Super Admin only)' })
+  async resetStudentGamification(
+    @Param('id') studentId: string,
+    @Query('reason') reason?: string,
+  ) {
+    if (!reason) throw new BadRequestException('Reason is required');
+    return this.gamificationService.resetStudentGamification(studentId, reason);
+  }
+
+  @Delete('reset/group/:groupId')
+  @Roles('super_admin')
+  @ApiOperation({ summary: 'Reset XP and badges for all students in a group (Super Admin only)' })
+  async resetGroupGamification(
+    @Param('groupId') groupId: string,
+    @Query('reason') reason?: string,
+  ) {
+    if (!reason) throw new BadRequestException('Reason is required');
+    return this.gamificationService.resetGroupGamification(groupId, reason);
+  }
+
+  @Delete('reset/school')
+  @Roles('super_admin')
+  @ApiOperation({ summary: 'Reset XP and badges for all students in a school (Super Admin only)' })
+  async resetSchoolGamification(
+    @Query('schoolId') schoolId: string = '',
+    @Query('reason') reason?: string,
+  ) {
+    if (!reason) throw new BadRequestException('Reason is required');
+    return this.gamificationService.resetSchoolGamification(schoolId, reason);
+  }
 }
