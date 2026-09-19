@@ -41,7 +41,7 @@ export function StudentBulkToolbar({ selectedCount, onDelete, onChangeStatus, on
           size="sm"
           onClick={onExport}
           className="inline-flex items-center gap-1 whitespace-nowrap text-xs sm:text-sm text-semantic-activity-create hover:bg-green-100 px-2 sm:px-3 py-1.5 sm:py-2 h-auto sm:h-9"
-          title={t('Export to CSV','تصدير إلى CSV')}
+          title={t('Export to XLSX','تصدير إلى XLSX')}
         >
           <Download className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
           <span className="hidden sm:inline">{t('Export','تصدير')}</span>
