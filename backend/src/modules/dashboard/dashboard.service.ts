@@ -349,6 +349,12 @@ export class DashboardService {
       gradeWhereBase.submission.student.gradeId = assignedGradeId;
     }
 
+    // If teachingGender is set, only count students of that gender
+    const teachingGender = meta.teachingGender as string | undefined;
+    if (teachingGender && teachingGender !== 'both') {
+      studentWhere.gender = teachingGender;
+    }
+
     const now = new Date();
     const todayStart = new Date(now);
     todayStart.setHours(0, 0, 0, 0);
@@ -388,9 +394,12 @@ export class DashboardService {
           name: true,
           nameAr: true,
           students: {
-            where: assignedGradeId
-              ? { gradeId: assignedGradeId, deletedAt: null, status: 'active' }
-              : { deletedAt: null, status: 'active' },
+            where: {
+              deletedAt: null,
+              status: 'active',
+              ...(assignedGradeId && { gradeId: assignedGradeId }),
+              ...(teachingGender && teachingGender !== 'both' && { gender: teachingGender }),
+            },
             select: { id: true },
           },
         },
@@ -837,20 +846,21 @@ export class DashboardService {
     const assignedGroupId = meta.groupId as string | undefined;
     const assignedLevelId = meta.levelId as string | undefined;
 
+    const servantTeachingGender = meta.teachingGender as string | undefined;
+    const genderFilter = servantTeachingGender && servantTeachingGender !== 'both' ? { gender: servantTeachingGender } : {};
+
     if (assignedGroupId) {
-      // If assigned to a specific group, return that group's students
       const groupIds = [assignedGroupId];
       const levelIds = assignedLevelId ? [assignedLevelId] : [];
       const studentIds = (await this.prisma.student.findMany({
-        where: { groupId: { in: groupIds }, deletedAt: null },
+        where: { groupId: { in: groupIds }, deletedAt: null, ...genderFilter },
         select: { id: true },
       })).map((s: any) => s.id);
       return { groupIds, levelIds, studentIds };
     } else if (assignedLevelId) {
-      // If assigned to a level but not a specific group, return all students in that level
       const levelIds = [assignedLevelId];
       const students = await this.prisma.student.findMany({
-        where: { levelId: assignedLevelId, deletedAt: null },
+        where: { levelId: assignedLevelId, deletedAt: null, ...genderFilter },
         select: { id: true, groupId: true },
       });
       const groupIds = [...new Set(students.map((s: any) => s.groupId).filter(Boolean))] as string[];
@@ -866,7 +876,7 @@ export class DashboardService {
     const levelIds = [...new Set(ownSessions.map((s: any) => s.levelId).filter(Boolean))] as string[];
     const studentIds = groupIds.length > 0
       ? (await this.prisma.student.findMany({
-          where: { groupId: { in: groupIds }, deletedAt: null },
+          where: { groupId: { in: groupIds }, deletedAt: null, ...genderFilter },
           select: { id: true },
         })).map((s: any) => s.id)
       : [];

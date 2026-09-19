@@ -48,17 +48,17 @@ export class StudentsService {
       );
 
       if (isServant) {
-        // If metadata has groupId, only show students from that group
         if (meta.groupId) {
           where.groupId = meta.groupId;
         }
-        // If metadata has levelId, only show students from that level
         if (meta.levelId) {
           where.levelId = meta.levelId;
         }
-        // If metadata has gradeId, only show students from that grade
         if (meta.gradeId) {
           where.gradeId = meta.gradeId;
+        }
+        if (meta.teachingGender && meta.teachingGender !== 'both') {
+          where.gender = meta.teachingGender;
         }
       }
     }
@@ -1011,6 +1011,9 @@ async getPortalData(portalAccessKey: string) {
         if (meta.groupId) where.groupId = meta.groupId;
         if (meta.levelId) where.levelId = meta.levelId;
         if (meta.gradeId) where.gradeId = meta.gradeId;
+        if (meta.teachingGender && meta.teachingGender !== 'both') {
+          where.gender = meta.teachingGender;
+        }
       }
     }
 
