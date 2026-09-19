@@ -133,10 +133,10 @@ export function DashboardHeader({
 
       <Link href="/dashboard" className="flex items-center gap-2.5 flex-shrink-0 hover:opacity-80 transition-opacity">
         {schoolLogo ? (
-          <Image src={schoolLogo} alt={language === 'ar' && schoolNameAr ? schoolNameAr : schoolName} width={72} height={72} className="rounded-xl object-cover border border-gray-200 flex-shrink-0" priority />
+          <Image src={schoolLogo} alt={language === 'ar' && schoolNameAr ? schoolNameAr : schoolName} width={72} height={72} className="h-9 w-9 sm:h-[72px] sm:w-[72px] rounded-lg sm:rounded-xl object-cover border border-gray-200 flex-shrink-0" priority />
         ) : (
-          <div className="flex h-[72px] w-[72px] items-center justify-center rounded-xl bg-blue-500 text-white flex-shrink-0">
-            <Cross className="h-8 w-8" />
+          <div className="flex h-9 w-9 sm:h-[72px] sm:w-[72px] items-center justify-center rounded-lg sm:rounded-xl bg-blue-500 text-white flex-shrink-0">
+            <Cross className="h-5 w-5 sm:h-8 sm:w-8" />
           </div>
         )}
         <div className="hidden sm:block">
@@ -152,7 +152,7 @@ export function DashboardHeader({
         </div>
       </Link>
 
-      <div className="flex-1 flex items-center mx-2">
+      <div className="hidden sm:flex flex-1 items-center mx-2">
         <div className="relative w-full max-w-lg">
           <Search className={`absolute ${language === 'ar' ? 'right-3' : 'left-3'} top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400`} />
           <input type="text" placeholder={language === 'ar' ? 'بحث بالاسم...' : 'Search by name...'}
@@ -165,14 +165,14 @@ export function DashboardHeader({
       {canSwitchSchool && (
         <div ref={switchRef} className="relative">
           <Button variant="outline" size="sm" onClick={() => onSetSwitchOpen(!switchOpen)}
-            className="h-auto gap-1.5">
-            <Building2 className="h-3.5 w-3.5 text-gold-700" />
-            <span className="max-w-[140px] truncate">
+            className="h-auto gap-1.5 p-1.5 md:px-3 md:py-1.5">
+            <Building2 className="h-4 w-4 md:h-3.5 md:w-3.5 text-gold-700" />
+            <span className="hidden md:inline max-w-[140px] truncate">
               {activeSchoolId
                 ? (switchSchools.find(s => s.id === activeSchoolId)?.name || (language === 'ar' ? 'مدرسة' : 'School'))
                 : (language === 'ar' ? 'مدرستي' : 'My School')}
             </span>
-            <ChevronDown className="h-3.5 w-3.5" />
+            <ChevronDown className="h-3.5 w-3.5 hidden md:inline" />
           </Button>
           {switchOpen && (
             <div className={`absolute ${language === 'ar' ? 'left-0' : 'right-0'} top-full mt-2 w-72 rounded-xl bg-white shadow-xl border border-gray-200 overflow-hidden z-50`}>
@@ -206,12 +206,12 @@ export function DashboardHeader({
       {isSuperAdmin && (
         <div ref={roleRef} className="relative">
           <Button variant={isViewingAs ? "default" : "outline"} size="sm" onClick={() => onSetRoleOpen(!roleOpen)}
-            className="h-auto gap-1.5">
-            <Crown className="h-3.5 w-3.5 text-gold-700" />
-            <span className="max-w-[140px] truncate">
+            className="h-auto gap-1.5 p-1.5 md:px-3 md:py-1.5">
+            <Crown className="h-4 w-4 md:h-3.5 md:w-3.5 text-gold-700" />
+            <span className="hidden md:inline max-w-[140px] truncate">
               {roleOptions.find(o => o.value === effectiveRole)?.label || effectiveRole}
             </span>
-            <ChevronDown className="h-3.5 w-3.5" />
+            <ChevronDown className="h-3.5 w-3.5 hidden md:inline" />
           </Button>
           {roleOpen && (
             <div className={`absolute ${language === 'ar' ? 'left-0' : 'right-0'} top-full mt-2 w-64 rounded-xl bg-white shadow-xl border border-gray-200 overflow-hidden z-50`}>
