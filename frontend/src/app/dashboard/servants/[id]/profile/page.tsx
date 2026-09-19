@@ -79,6 +79,11 @@ export default function ServantProfilePage() {
                   Teaching: {profile.teachingSubjects.join(', ')}
                 </p>
               )}
+              {profile.teachingGender && (
+                <span className="inline-flex items-center rounded-full bg-purple-50 px-2.5 py-0.5 text-xs font-medium text-purple-700 mt-1">
+                  {profile.teachingGender === 'female' ? 'Teaches Female' : profile.teachingGender === 'male' ? 'Teaches Male' : 'Teaches Both'}
+                </span>
+              )}
             </div>
         </div>
       </div>

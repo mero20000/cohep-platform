@@ -45,6 +45,7 @@ interface ServantUser {
   userRoles: Array<{ role: ServantRole }>;
   metadata?: {
     teachingSubjects?: string[];
+    teachingGender?: 'male' | 'female' | 'both';
     grade?: string;
     levelId?: string;
     groupId?: string;
@@ -150,6 +151,7 @@ export default function ServantsPage() {
     levelId: '',
     groupId: '',
     teachingSubjects: [] as string[],
+    teachingGender: '' as '' | 'male' | 'female' | 'both',
     grade: '',
     gender: '',
     dateJoined: '',
@@ -367,7 +369,7 @@ export default function ServantsPage() {
 
   const openCreate = () => {
     setEditing(null)
-    setForm({ firstName: '', lastName: '', firstNameAr: '', lastNameAr: '', email: '', phone: '', password: '', roleName: 'servant', levelId: '', groupId: '', teachingSubjects: [], grade: '', gender: '', dateJoined: '', dateOfBirth: '' })
+    setForm({ firstName: '', lastName: '', firstNameAr: '', lastNameAr: '', email: '', phone: '', password: '', roleName: 'servant', levelId: '', groupId: '', teachingSubjects: [], teachingGender: '', grade: '', gender: '', dateJoined: '', dateOfBirth: '' })
     revokePhoto()
     setFormError('')
     setEmailError('')
@@ -386,6 +388,7 @@ export default function ServantsPage() {
       levelId: meta.levelId || '',
       groupId: meta.groupId || '',
       teachingSubjects: meta.teachingSubjects || [],
+      teachingGender: meta.teachingGender || '',
       grade: meta.grade || '',
       gender: (s as any).gender || '',
       dateJoined: meta.dateJoined || '',
@@ -411,6 +414,7 @@ export default function ServantsPage() {
       levelId: meta.levelId || '',
       groupId: meta.groupId || '',
       teachingSubjects: meta.teachingSubjects || [],
+      teachingGender: meta.teachingGender || '',
       grade: meta.grade || '',
       gender: (s as any).gender || '',
       dateJoined: '',
@@ -470,6 +474,7 @@ export default function ServantsPage() {
         gender: form.gender,
         metadata: {
           teachingSubjects: form.teachingSubjects,
+          teachingGender: form.teachingGender || undefined,
           levelId: form.levelId || undefined,
           groupId: form.groupId || undefined,
           grade: form.grade || undefined,
@@ -1070,6 +1075,13 @@ export default function ServantsPage() {
                         {lang === 'ar' ? (s.gender === 'female' ? 'أنثى' : 'ذكر') : s.gender === 'female' ? 'Female' : 'Male'}
                       </span>
                     )}
+                    {meta.teachingGender && (
+                      <span className="ms-2 inline-flex items-center rounded-full bg-purple-50 px-2.5 py-0.5 text-xs font-medium text-purple-700">
+                        {lang === 'ar'
+                          ? (meta.teachingGender === 'female' ? 'يعلّم إناث' : meta.teachingGender === 'male' ? 'يعلّم ذكور' : 'يعلّم الكل')
+                          : (meta.teachingGender === 'female' ? 'Teaches Female' : meta.teachingGender === 'male' ? 'Teaches Male' : 'Teaches Both')}
+                      </span>
+                    )}
                     {assignmentLabel(meta) !== '—' && (
                       <span className="ms-2 inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-700">
                         {assignmentLabel(meta)}
@@ -1182,7 +1194,7 @@ export default function ServantsPage() {
               <DatePicker value={form.dateOfBirth} onChange={v => updateField('dateOfBirth', v)} max={new Date().toISOString().split('T')[0]} />
             </div>
           </div>
-          <div>
+          <div role="group" aria-label="Gender">
             <label className="block text-sm font-medium text-gray-700 mb-1.5">{lang === 'ar' ? 'الجنس *' : 'Gender *'}</label>
             <div className="flex gap-2">
               {(['female', 'male'] as const).map((g) => (
@@ -1198,6 +1210,24 @@ export default function ServantsPage() {
                 </button>
               ))}
             </div>
+          </div>
+          <div role="group" aria-label="Teaching Gender">
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">{lang === 'ar' ? 'جنس التعليم' : 'Teaching Gender'}</label>
+            <div className="flex gap-2">
+              {(['male', 'female', 'both'] as const).map((tg) => (
+                <button
+                  key={tg}
+                  type="button"
+                  onClick={() => updateField('teachingGender', tg)}
+                  className={`rounded-lg border px-4 py-2 text-sm font-medium transition-colors ${
+                    form.teachingGender === tg ? 'border-purple-600 bg-purple-600 text-white' : 'border-gray-300 bg-white text-gray-700 hover:border-purple-400'
+                  }`}
+                >
+                  {lang === 'ar' ? (tg === 'female' ? 'إناث' : tg === 'male' ? 'ذكور' : 'كلاهما') : tg === 'female' ? 'Female' : tg === 'male' ? 'Male' : 'Both'}
+                </button>
+              ))}
+            </div>
+            <p className="mt-1 text-xs text-gray-500">{lang === 'ar' ? 'يحدد جنس الطلاب المتصلين بهذا الخادم' : 'Determines which student genders are connected to this servant'}</p>
           </div>
           {!editing && (
             <FormField label={lang === 'ar' ? 'كلمة المرور' : 'Password'} type="password" value={form.password} onChange={e => updateField('password', e.target.value)} hint={lang === 'ar' ? 'اتركه فارغاً لاستخدام كلمة المرور الافتراضية: Password123!' : 'Leave blank to use the default password: Password123!'} placeholder={lang === 'ar' ? 'أدخل كلمة مرور' : 'Enter a password'} />

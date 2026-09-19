@@ -423,6 +423,11 @@ export class AttendanceService {
     const studentWhere: any = { groupId: dto.groupId, deletedAt: null };
     if (dto.levelId) studentWhere.levelId = dto.levelId;
     if (dto.gradeId) studentWhere.gradeId = dto.gradeId;
+    const servant = await this.prisma.user.findUnique({ where: { id: dto.servantId }, select: { metadata: true } });
+    const servantTeachingGender = (servant?.metadata as any)?.teachingGender;
+    if (servantTeachingGender && servantTeachingGender !== 'both') {
+      studentWhere.gender = servantTeachingGender;
+    }
     const students = await this.prisma.student.findMany({
       where: studentWhere,
       select: { id: true },
@@ -455,6 +460,11 @@ export class AttendanceService {
     const studentWhere: any = { groupId: session.groupId, deletedAt: null };
     if (session.levelId) studentWhere.levelId = session.levelId;
     if (session.gradeId) studentWhere.gradeId = session.gradeId;
+    const servantUser = await this.prisma.user.findUnique({ where: { id: session.servantId }, select: { metadata: true } });
+    const teachingGender = (servantUser?.metadata as any)?.teachingGender;
+    if (teachingGender && teachingGender !== 'both') {
+      studentWhere.gender = teachingGender;
+    }
     const activeStudents = await this.prisma.student.findMany({
       where: studentWhere,
       select: { id: true },
@@ -873,6 +883,10 @@ export class AttendanceService {
     const studentWhere: any = { groupId, schoolId: servant.schoolId, deletedAt: null, status: 'active' };
     if (levelId) studentWhere.levelId = levelId;
     if (gradeId) studentWhere.gradeId = gradeId;
+    const metaTeachingGender = meta.teachingGender as string | undefined;
+    if (metaTeachingGender && metaTeachingGender !== 'both') {
+      studentWhere.gender = metaTeachingGender;
+    }
     const students = await this.prisma.student.findMany({
       where: studentWhere,
       select: { id: true },

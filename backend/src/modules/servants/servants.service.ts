@@ -14,6 +14,7 @@ export interface ServantProfileData {
   assignedLevel: string | null
   assignedGroup: string | null
   teachingSubjects: string[]
+  teachingGender: string | null
   yearsOfService: number
   dateJoined: string | null
   totalStudents: number
@@ -416,6 +417,7 @@ export class ServantsService {
       assignedLevel: profile?.currentLevelName || null,
       assignedGroup: profile?.currentGroupName || null,
       teachingSubjects: metadata.teachingSubjects || [],
+      teachingGender: metadata.teachingGender || null,
       yearsOfService: profile?.yearsOfService || 0,
       dateJoined: metadata.dateJoined || user.createdAt.toISOString(),
       totalStudents: profile?.totalStudents || 0,
@@ -474,6 +476,7 @@ export class ServantsService {
         assignedLevel: profile?.currentLevelName || null,
         assignedGroup: profile?.currentGroupName || null,
         teachingSubjects: metadata.teachingSubjects || [],
+        teachingGender: metadata.teachingGender || null,
         yearsOfService: profile?.yearsOfService || 0,
         dateJoined: metadata.dateJoined || user.createdAt.toISOString(),
         totalStudents: profile?.totalStudents || 0,
@@ -505,13 +508,15 @@ export class ServantsService {
     const studentWhere: any = { schoolId, deletedAt: null, status: 'active' }
     
     if (metadata.groupId) {
-      // If assigned to a group, count students in that group
       studentWhere.groupId = metadata.groupId
       if (metadata.levelId) {
         studentWhere.levelId = metadata.levelId
       }
       if (metadata.gradeId) {
         studentWhere.gradeId = metadata.gradeId
+      }
+      if (metadata.teachingGender && metadata.teachingGender !== 'both') {
+        studentWhere.gender = metadata.teachingGender
       }
       totalStudents = await this.prisma.student.count({ where: studentWhere })
     } else {
