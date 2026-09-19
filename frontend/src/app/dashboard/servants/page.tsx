@@ -5,6 +5,7 @@ import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import {
   Search, Plus, Pencil, Trash2, X, Loader2, Upload, UserCheck,
   User, Shield, GraduationCap, LayoutGrid, Rows3, Activity, Copy,
+  Download, FileSpreadsheet, FileText, ChevronDown,
 } from 'lucide-react'
 import { StatCard } from '@/components/ui/stat-card'
 import { EmptyState } from '@/components/ui/empty-state'
@@ -22,6 +23,7 @@ import { useLanguage } from '@/lib/use-language'
 import { SERVANT_ROLES, ROLES } from '@/lib/roles'
 import { PhoneLink } from '@/app/dashboard/students/_components/phone-link'
 import { usePermission } from '@/lib/use-permission'
+import { exportServantsXlsx, exportServantsPdf, type ServantRow } from '@/lib/export-servants'
 
 const API_ORIGIN = process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'http://localhost:3001'
 
@@ -167,6 +169,8 @@ export default function ServantsPage() {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [schoolIdentity, setSchoolIdentity] = useState<{ name: string; nameAr?: string; churchName?: string; logoUrl?: string | null; churchLogoUrl?: string | null } | null>(null)
   const photoInputRef = useRef<HTMLInputElement>(null)
+  const [exportMenuOpen, setExportMenuOpen] = useState(false)
+  const exportMenuRef = useRef<HTMLDivElement>(null)
 
   const schoolId = getSchoolId()
 
@@ -209,6 +213,12 @@ export default function ServantsPage() {
       const logoUrl = s?.logoUrl ? (s.logoUrl.startsWith('http') ? s.logoUrl : API_ORIGIN + s.logoUrl) : null
       setSchoolIdentity({ name, nameAr, churchName, logoUrl, churchLogoUrl })
     }).catch(() => {})
+  }, [])
+
+  useEffect(() => {
+    const h = (e: MouseEvent) => { if (exportMenuRef.current && !exportMenuRef.current.contains(e.target as Node)) setExportMenuOpen(false) }
+    document.addEventListener('mousedown', h)
+    return () => document.removeEventListener('mousedown', h)
   }, [])
 
   const formGroups = useMemo(() => activeGroups, [activeGroups])
@@ -303,6 +313,36 @@ export default function ServantsPage() {
     })
     return { total, active, inactive, byRole, bySubject }
   }, [filteredServants])
+
+  const handleFormatExport = async (format: 'xlsx' | 'pdf') => {
+    setExportMenuOpen(false)
+    try {
+      const rows: ServantRow[] = filteredServants.map(s => {
+        const meta = s.metadata || {}
+        const levelName = meta.levelId ? levels.find(l => l.id === meta.levelId)?.name || '' : ''
+        const groupName = meta.groupId ? activeGroups.find(g => g.id === meta.groupId)?.name || '' : ''
+        return {
+          firstName: s.firstName,
+          lastName: s.lastName,
+          firstNameAr: s.firstNameAr,
+          lastNameAr: s.lastNameAr,
+          email: s.email,
+          phone: s.phone,
+          roles: (s.userRoles || []).map(ur => ur.role.displayName || ur.role.name),
+          groupName,
+          levelName,
+          isActive: s.isActive,
+          joinedAt: meta.dateJoined,
+        }
+      })
+      if (format === 'xlsx') await exportServantsXlsx(rows, lang)
+      else await exportServantsPdf(rows, lang)
+      toast('success', lang === 'ar' ? 'تم التصدير بنجاح' : 'Export completed')
+    } catch (err) {
+      console.error('Export failed', err)
+      toast('error', lang === 'ar' ? 'فشل التصدير' : 'Export failed')
+    }
+  }
 
   const validateEmail = (email: string): string => {
     if (!email.trim()) return lang === 'ar' ? 'البريد الإلكتروني مطلوب' : 'Email is required'
@@ -694,6 +734,15 @@ export default function ServantsPage() {
               <Upload className="h-4 w-4" /> {lang === 'ar' ? 'استيراد' : 'Import'}
             </Button>
           )}
+          {canExport && <div className="relative" ref={exportMenuRef}>
+            <Button variant="outline" size="sm" onClick={() => setExportMenuOpen(!exportMenuOpen)}>
+              <Download className="h-4 w-4" />{lang === 'ar' ? 'تصدير' : 'Export'}<ChevronDown className="h-3 w-3 ml-1" />
+            </Button>
+            {exportMenuOpen && <div className="absolute right-0 top-full mt-1 w-44 rounded-md border bg-white shadow-lg z-50">
+              <button className="flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-gray-100" onClick={() => handleFormatExport('xlsx')}><FileSpreadsheet className="h-4 w-4 text-green-600" />{lang === 'ar' ? 'تصدير XLSX' : 'Export XLSX'}</button>
+              <button className="flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-gray-100" onClick={() => handleFormatExport('pdf')}><FileText className="h-4 w-4 text-red-600" />{lang === 'ar' ? 'تصدير PDF' : 'Export PDF'}</button>
+            </div>}
+          </div>}
           <div className="flex items-center rounded-lg border border-gray-200 bg-white p-0.5">
             <button type="button" onClick={() => toggleView('cards')}
               className={`flex min-h-[44px] items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${view === 'cards' ? 'bg-gold-500 text-gray-950' : 'text-gray-600 hover:text-gray-900'}`}>

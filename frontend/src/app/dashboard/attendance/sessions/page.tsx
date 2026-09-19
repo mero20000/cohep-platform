@@ -6,6 +6,7 @@ import { useLanguage } from '@/lib/use-language'
 import {
   Calendar, Plus, Search, Loader2,
   X, Trash2, RotateCcw, QrCode, Pencil,
+  Download, FileSpreadsheet, FileText, ChevronDown,
 } from 'lucide-react'
 import { useToast } from '@/components/ui/toast'
 import { Button } from '@/components/ui/button'
@@ -18,6 +19,7 @@ import { getSchoolId } from '@/lib/school'
 import { track } from '@/lib/analytics'
 import { TableSkeleton } from '@/components/ui/skeleton'
 import { EmptyState } from '@/components/ui/empty-state'
+import { exportSessionsXlsx, exportSessionsPdf, type SessionSummaryRow } from '@/lib/export-attendance'
 
 interface Session {
   id: string; scheduledDate: string; scheduledTime?: string; status: string; notes?: string;
@@ -240,6 +242,8 @@ export default function SessionsPage() {
   const [showBatchDeleteConfirm, setShowBatchDeleteConfirm] = useState(false)
   const [batchDeleting, setBatchDeleting] = useState(false)
   const [showQrScanner, setShowQrScanner] = useState(false)
+  const [exportMenuOpen, setExportMenuOpen] = useState(false)
+  const exportMenuRef = useRef<HTMLDivElement>(null)
 
   const schoolId = getSchoolId()
 
@@ -277,6 +281,12 @@ export default function SessionsPage() {
 
   useEffect(() => { fetchLevelsGroups() }, [fetchLevelsGroups])
   useEffect(() => { fetchSessions() }, [fetchSessions])
+
+  useEffect(() => {
+    const h = (e: MouseEvent) => { if (exportMenuRef.current && !exportMenuRef.current.contains(e.target as Node)) setExportMenuOpen(false) }
+    document.addEventListener('mousedown', h)
+    return () => document.removeEventListener('mousedown', h)
+  }, [])
 
   const handleQrCheckIn = async (studentId: string) => {
     try {
@@ -398,6 +408,30 @@ export default function SessionsPage() {
     }
   }
 
+  const handleExport = async (format: 'xlsx' | 'pdf') => {
+    setExportMenuOpen(false)
+    try {
+      const rows: SessionSummaryRow[] = filteredSessions.map(s => ({
+        date: s.scheduledDate,
+        levelName: `L${s.level?.number || '?'} ${s.level?.name || ''}`.trim(),
+        groupName: s.group?.name || '',
+        servantName: s.servant ? `${s.servant.firstName} ${s.servant.lastName}`.trim() : '',
+        status: s.status,
+        present: s.summary?.present || 0,
+        absent: s.summary?.absent || 0,
+        late: s.summary?.late || 0,
+        excused: s.summary?.excused || 0,
+        total: s.summary?.total || 0,
+      }))
+      if (format === 'xlsx') await exportSessionsXlsx(rows, lang)
+      else await exportSessionsPdf(rows, lang)
+      toast('success', lang === 'ar' ? 'تم التصدير بنجاح' : 'Export completed')
+    } catch (err) {
+      console.error('Export failed', err)
+      toast('error', lang === 'ar' ? 'فشل التصدير' : 'Export failed')
+    }
+  }
+
   const toggleSessionSelection = (sessionId: string) => {
     setSelectedSessionIds(prev => {
       const next = new Set(prev)
@@ -479,6 +513,15 @@ export default function SessionsPage() {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          <div className="relative" ref={exportMenuRef}>
+            <Button variant="outline" size="sm" onClick={() => setExportMenuOpen(!exportMenuOpen)}>
+              <Download className="h-3.5 w-3.5" />{lang === 'ar' ? 'تصدير' : 'Export'}<ChevronDown className="h-3 w-3 ml-1" />
+            </Button>
+            {exportMenuOpen && <div className="absolute right-0 top-full mt-1 w-44 rounded-md border bg-white shadow-lg z-50">
+              <button className="flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-gray-100" onClick={() => handleExport('xlsx')}><FileSpreadsheet className="h-4 w-4 text-green-600" />{lang === 'ar' ? 'تصدير XLSX' : 'Export XLSX'}</button>
+              <button className="flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-gray-100" onClick={() => handleExport('pdf')}><FileText className="h-4 w-4 text-red-600" />{lang === 'ar' ? 'تصدير PDF' : 'Export PDF'}</button>
+            </div>}
+          </div>
           <Button variant="outline" size="sm" onClick={() => setShowQrScanner(v => !v)}>
             <QrCode className="h-3.5 w-3.5" />{lang === 'ar' ? 'مسح QR' : 'QR Scan'}
           </Button>
