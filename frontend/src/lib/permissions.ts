@@ -7,7 +7,7 @@ export const PERMISSIONS = {
   'student:delete':      'Delete students',
   'student:bulk-delete': 'Bulk delete students',
   'student:import':      'Import students from CSV',
-  'student:export':      'Export students to CSV',
+  'student:export':      'Export students to XLSX or PDF',
   'student:view-profile':'View full student profile',
 
   'servant:view':        'View servants',

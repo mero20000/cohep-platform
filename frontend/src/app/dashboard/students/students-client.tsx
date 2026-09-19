@@ -1,7 +1,8 @@
 'use client'
 import { useState, useEffect, useCallback, useRef, useMemo, useOptimistic, startTransition } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { Download, Upload, Plus, X, AlertCircle, RefreshCw, Star, Search, Copy } from 'lucide-react'
+import { Download, Upload, Plus, X, AlertCircle, RefreshCw, Star, Search, Copy, ChevronDown, FileSpreadsheet, FileText } from 'lucide-react'
+import { exportStudentsXlsx, exportStudentsPdf } from '@/lib/export-students'
 import { ErrorBoundary } from '@/components/ui/error-boundary'
 import { Button } from '@/components/ui/button'
 import { useToast } from '@/components/ui/toast'
@@ -219,36 +220,41 @@ export default function StudentsClient() {
     }
     catch{toast('error',lang==='ar'?'فشل الحذف':'Delete failed');fetchStudents(pagination.page)}
   }
-  const handleExport = async()=>{
-    try{
-      const baseParams:Record<string,string>={schoolId:getSchoolId(),limit:'100'}
-      if(search)baseParams.search=search;if(filterLevel)baseParams.levelId=filterLevel;if(filterGroup)baseParams.groupId=filterGroup;if(filterStatus)baseParams.status=filterStatus;if(filterChurch)baseParams.churchName=filterChurch;if(filterGrade)baseParams.gradeId=filterGrade;if(filterGender)baseParams.gender=filterGender
-      if(showMyStudentsOnly && currentUserId) baseParams.assignedServantId = currentUserId
-      // Get first page to know total pages
-      const firstPage=await http.get<PaginatedResponse>('/students',{...baseParams,page:'1'})
-      const all=[...firstPage.data]
-      const totalPages=firstPage.pagination.totalPages
+  const [exportMenuOpen,setExportMenuOpen]=useState(false)
+  const exportMenuRef=useRef<HTMLDivElement>(null)
+  useEffect(()=>{
+    const handler=(e:MouseEvent)=>{if(exportMenuRef.current&&!exportMenuRef.current.contains(e.target as Node))setExportMenuOpen(false)}
+    document.addEventListener('mousedown',handler)
+    return ()=>document.removeEventListener('mousedown',handler)
+  },[])
 
-      // Parallelize pages 2+ (fetch up to 5 concurrently)
-      if(totalPages>1){
-        const remaining=Array.from({length:totalPages-1},(_,i)=>i+2)
-        const batchSize=5
-        for(let i=0;i<remaining.length;i+=batchSize){
-          const batch=remaining.slice(i,i+batchSize)
-          const results=await Promise.all(batch.map(page=>http.get<PaginatedResponse>('/students',{...baseParams,page:String(page)})))
-          results.forEach(r=>all.push(...r.data))
-        }
+  const fetchAllStudents=async()=>{
+    const baseParams:Record<string,string>={schoolId:getSchoolId(),limit:'100'}
+    if(search)baseParams.search=search;if(filterLevel)baseParams.levelId=filterLevel;if(filterGroup)baseParams.groupId=filterGroup;if(filterStatus)baseParams.status=filterStatus;if(filterChurch)baseParams.churchName=filterChurch;if(filterGrade)baseParams.gradeId=filterGrade;if(filterGender)baseParams.gender=filterGender
+    if(showMyStudentsOnly && currentUserId) baseParams.assignedServantId = currentUserId
+    const firstPage=await http.get<PaginatedResponse>('/students',{...baseParams,page:'1'})
+    const all=[...firstPage.data]
+    const totalPages=firstPage.pagination.totalPages
+    if(totalPages>1){
+      const remaining=Array.from({length:totalPages-1},(_,i)=>i+2)
+      const batchSize=5
+      for(let i=0;i<remaining.length;i+=batchSize){
+        const batch=remaining.slice(i,i+batchSize)
+        const results=await Promise.all(batch.map(page=>http.get<PaginatedResponse>('/students',{...baseParams,page:String(page)})))
+        results.forEach(r=>all.push(...r.data))
       }
-      const escape=(v:any)=>String(v??'')
-      const rows=[['Student Code','Name','First Name (Ar)','Last Name (Ar)','Date of Birth','Gender','Level','Group','Church','Grade','Phone','Email','Church Tool ID','Status','Enrollment Date'],...all.map(s=>[s.studentCode,`${s.firstName} ${s.lastName}`.trim(),s.firstNameAr||'',s.lastNameAr||'',s.dateOfBirth.split('T')[0],s.gender,s.level?.name||'',s.group?.name||'',s.churchName||'',s.grade?.name||'',s.metadata?.phone||'',s.metadata?.email||'',s.metadata?.churchToolId||'',s.status,s.enrollmentDate.split('T')[0]])]
-      const csv=rows.map(r=>r.map(c=>{
-        let val=escape(c).replace(/"/g,'""')
-        if(/^[=+\-@]/.test(val)) val=`'${val}`
-        return `"${val}"`
-      }).join(',')).join('\n')
-      const blob=new Blob([`\uFEFF${csv}`],{type:'text/csv;charset=utf-8;'}); const url=URL.createObjectURL(blob)
-      const a=document.createElement('a'); a.href=url; a.download=`${lang==='ar'?`طلاب-نيانجلوس`:`niangelos-students`}${hasActiveFilters?`-${lang==='ar'?'مصفى':'filtered'}`:''}-${new Date().toISOString().split('T')[0]}.csv`; a.click(); URL.revokeObjectURL(url)
-    }catch(err){console.error('Export failed',err)}
+    }
+    return all
+  }
+
+  const handleExport=async(format:'xlsx'|'pdf')=>{
+    setExportMenuOpen(false)
+    try{
+      const all=await fetchAllStudents()
+      if(format==='xlsx') await exportStudentsXlsx(all,lang,hasActiveFilters)
+      else await exportStudentsPdf(all,lang,hasActiveFilters)
+      toast('success',lang==='ar'?'تم التصدير بنجاح':'Export completed')
+    }catch(err){console.error('Export failed',err);toast('error',lang==='ar'?'فشل التصدير':'Export failed')}
   }
   const t=(en:string,ar:string)=>lang==='ar'?ar:en
 
@@ -261,7 +267,13 @@ export default function StudentsClient() {
         </div>
         <div className="flex flex-wrap items-center gap-3">
           {can('student:edit')&&<Button variant="outline" size="sm" onClick={()=>setShowDuplicates(true)} title={t('Find duplicate students','البحث عن طلاب مكررين')}><Copy className="h-4 w-4"/><span className="hidden sm:inline">{t('Duplicates','مكررون')}</span></Button>}
-          {can('student:export')&&<Button variant="outline" size="sm" onClick={handleExport}><Download className="h-4 w-4"/>{t('Export','تصدير')}</Button>}
+          {can('student:export')&&<div className="relative" ref={exportMenuRef}>
+            <Button variant="outline" size="sm" onClick={()=>setExportMenuOpen(!exportMenuOpen)}><Download className="h-4 w-4"/>{t('Export','تصدير')}<ChevronDown className="h-3 w-3 ml-1"/></Button>
+            {exportMenuOpen&&<div className="absolute right-0 top-full mt-1 w-44 rounded-md border bg-white shadow-lg z-50">
+              <button className="flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-gray-100" onClick={()=>handleExport('xlsx')}><FileSpreadsheet className="h-4 w-4 text-green-600"/>{t('Export XLSX','تصدير XLSX')}</button>
+              <button className="flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-gray-100" onClick={()=>handleExport('pdf')}><FileText className="h-4 w-4 text-red-600"/>{t('Export PDF','تصدير PDF')}</button>
+            </div>}
+          </div>}
           {can('student:import')&&<Button variant="outline" size="sm" onClick={()=>setShowImport(true)}><Upload className="h-4 w-4"/>{t('Import','استيراد')}</Button>}
           {can('student:create')&&<Button size="sm" onClick={openCreate} title={t('Add Student (Ctrl+N)','إضافة طالب (Ctrl+N)')}><Plus className="h-4 w-4"/>{t('Add Student','إضافة طالب')}</Button>}
         </div>
@@ -284,36 +296,12 @@ export default function StudentsClient() {
         onDelete={()=>setBulkOpen(b=>({...b,delete:true}))} onChangeStatus={()=>setBulkOpen(b=>({...b,status:true}))}
         onChangeLevel={()=>setBulkOpen(b=>({...b,level:true}))} onChangeGrade={()=>setBulkOpen(b=>({...b,grade:true}))}
         onAssignServant={()=>setShowAssignServant(true)}
-        onExport={()=>{
+        onExport={async()=>{
           const selectedStudents = sortedStudents.filter(s=>selectedIds.has(s.id))
-          const headers = ['Name','Code','Email','Phone','Level','Group','Status','Church','Grade','Enrollment Date','Gender','Tags','Assigned Servants']
-          const csv = [headers].concat(selectedStudents.map(s=>{
-            const assignedServantCount = Array.isArray(s.metadata?.assignedServantIds) ? s.metadata.assignedServantIds.length : 0
-            const tags = Array.isArray(s.metadata?.tags) ? s.metadata.tags.join(';') : ''
-            return [
-              `"${s.firstName} ${s.lastName}"`,
-              `"${s.studentCode}"`,
-              `"${s.metadata?.email||''}"`,
-              `"${s.metadata?.phone||''}"`,
-              `"${s.level?.name||''}"`,
-              `"${s.group?.name||''}"`,
-              `"${s.status}"`,
-              `"${s.churchName||''}"`,
-              `"${s.grade?.name||''}"`,
-              `"${s.enrollmentDate.split('T')[0]}"`,
-              `"${s.gender||''}"`,
-              `"${tags}"`,
-              `"${assignedServantCount}"`
-            ].join(',')
-          })).map(r=>r).join('\n')
-          const blob = new Blob([csv],{type:'text/csv;charset=utf-8'})
-          const url = URL.createObjectURL(blob)
-          const a = document.createElement('a')
-          a.href = url
-          a.download = `students-${new Date().toISOString().split('T')[0]}.csv`
-          a.click()
-          URL.revokeObjectURL(url)
-          toast('success', lang==='ar'?'تم تصدير الطلاب بنجاح':'Students exported successfully')
+          try{
+            await exportStudentsXlsx(selectedStudents,lang,true)
+            toast('success', lang==='ar'?'تم تصدير الطلاب بنجاح':'Students exported successfully')
+          }catch(err){console.error('Bulk export failed',err);toast('error',lang==='ar'?'فشل التصدير':'Export failed')}
         }}
         onClear={()=>setSelectedIds(new Set())} lang={lang}/>}
 
