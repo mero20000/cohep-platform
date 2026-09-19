@@ -42,7 +42,7 @@ interface GrowthMirror {
   monthlyXp: { month: string; xp: number }[]
   attendance: { thisMonth: number; lastMonth: number; improvement: number }
   assessments: { passedThisMonth: number; passedLastMonth: number; improvement: number }
-  badgeTimeline: { badgeName: string; category: string; icon: string; earnedAt: string }[]
+  badgeTimeline: { badgeName: string; category: string; icon: string; earnedAt: string; reason?: string }[]
   totalBadges: number
 }
 
@@ -234,7 +234,7 @@ function GrowthMirrorPanel({ entry, lang }: { entry: LeaderboardEntry; lang: str
             {data.badgeTimeline.map((b, i) => {
               const Icon = ICON_MAP[b.icon]
               return (
-                <div key={i} className={`flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs ${CATEGORY_COLORS[b.category] || CATEGORY_COLORS.default}`}>
+                <div key={i} title={b.reason} className={`flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs ${CATEGORY_COLORS[b.category] || CATEGORY_COLORS.default}`}>
                   {Icon ? <Icon className="h-3.5 w-3.5" /> : <Award className="h-3.5 w-3.5" />}
                   <span className="font-medium">{b.badgeName}</span>
                 </div>
