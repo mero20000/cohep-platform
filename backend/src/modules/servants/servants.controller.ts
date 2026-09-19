@@ -159,7 +159,8 @@ export class ServantsController {
       } else if (levelId) {
         where.levelId = levelId;
       } else {
-        const isAdmin = ['super_admin', 'admin', 'principal'].includes(user.role);
+        const roles: string[] = Array.isArray(user.roles) ? user.roles : [];
+        const isAdmin = roles.some(r => ['super_admin', 'admin', 'principal'].includes(r));
         if (isAdmin) {
           const schoolFilter: any = { deletedAt: null, status: { not: 'inactive' } };
           if (user.schoolId) schoolFilter.schoolId = user.schoolId;
