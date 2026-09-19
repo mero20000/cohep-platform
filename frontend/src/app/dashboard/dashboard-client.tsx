@@ -1392,6 +1392,16 @@ export function NextSessionCard({ lang, assigned, groups, sessions }: { lang: st
     return { items: [] as Allocation[], dateLabel: '', scope: 'plan' }
   }, [allocations.data, lang, isAdminMode, activeLevel])
 
+  const dedupedItems = useMemo(() => {
+    const seen = new Set<string>()
+    return items.filter(a => {
+      const key = `${a.lesson?.id}-${a.level?.number}-${a.scheduledDate}`
+      if (seen.has(key)) return false
+      seen.add(key)
+      return true
+    })
+  }, [items])
+
   const showLevelBadge = isAdminMode && activeLevel == null
 
   const loading =
@@ -1433,7 +1443,7 @@ export function NextSessionCard({ lang, assigned, groups, sessions }: { lang: st
     <div className="rounded-xl border border-gray-200/60 bg-white overflow-hidden">
       <NextSessionHeader lang={lang} dateLabel={dateLabel} scope={scope} />
       {tabBar}
-      {items.length === 0 ? (
+      {dedupedItems.length === 0 ? (
         <div className="px-5 py-8">
           <EmptyState
             icon={BookOpen}
@@ -1447,7 +1457,7 @@ export function NextSessionCard({ lang, assigned, groups, sessions }: { lang: st
         </div>
       ) : (
         <div className="divide-y divide-gray-100">
-        {items.map((a) => {
+        {dedupedItems.map((a) => {
           const lesson = lessonMap.get(a.lesson?.id || '')
           // Row theme comes from the admin-configured subject color, so each
           // subject item renders in its own subject's color.
