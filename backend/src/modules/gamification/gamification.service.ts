@@ -197,7 +197,7 @@ export class GamificationService {
     return this.prisma.badge.delete({ where: { id } });
   }
 
-  async awardBadge(studentId: string, badgeId: string) {
+  async awardBadge(studentId: string, badgeId: string, awardedBy?: string) {
     const student = await this.prisma.student.findUnique({ where: { id: studentId } });
     if (!student) throw new NotFoundException('Student not found');
 
@@ -212,7 +212,7 @@ export class GamificationService {
       if (existing) throw new BadRequestException('Badge already awarded to this student');
 
       const sb = await tx.studentBadge.create({
-        data: { studentId, badgeId },
+        data: { studentId, badgeId, awardedBy },
         include: { badge: true, student: { select: { id: true, firstName: true, lastName: true } } },
       });
 
@@ -223,7 +223,7 @@ export class GamificationService {
         const currentBalance = Number(rows[0]?.balance ?? 0);
         const balanceAfter = currentBalance + badge.xpReward;
         await tx.xPTransaction.create({
-          data: { studentId, amount: badge.xpReward, balanceAfter, type: 'badge_award', description: `Badge: ${badge.name}` },
+          data: { studentId, amount: badge.xpReward, balanceAfter, type: 'badge_award', description: `Badge: ${badge.name}`, createdBy: awardedBy, referenceType: 'badge', referenceId: badgeId },
         });
         await tx.studentProgress.updateMany({ where: { studentId }, data: { totalXp: balanceAfter, currentLevel: Math.floor(balanceAfter / 100) + 1 } });
       }
@@ -247,7 +247,7 @@ export class GamificationService {
     return result;
   }
 
-  async revokeBadge(studentBadgeId: string) {
+  async revokeBadge(studentBadgeId: string, revokedBy?: string) {
     const studentBadge = await this.prisma.studentBadge.findUnique({
       where: { id: studentBadgeId },
       include: { badge: true },
@@ -270,6 +270,9 @@ export class GamificationService {
             balanceAfter,
             type: 'badge_revoke',
             description: `Badge revoked: ${studentBadge.badge.name}`,
+            createdBy: revokedBy,
+            referenceType: 'badge',
+            referenceId: studentBadge.badge.id,
           },
         });
         await tx.studentProgress.updateMany({ where: { studentId: studentBadge.studentId }, data: { totalXp: balanceAfter, currentLevel: Math.floor(balanceAfter / 100) + 1 } });
@@ -344,7 +347,7 @@ export class GamificationService {
               const currentBalance = Number(rows[0]?.balance ?? 0);
               const balanceAfter = currentBalance + badge.xpReward;
               await tx.xPTransaction.create({
-                data: { studentId, amount: badge.xpReward, balanceAfter, type: 'badge_award', description: `Badge: ${badge.name} — ${result.reason || ''}`.replace(/\s+/g, ' ').trim() },
+                data: { studentId, amount: badge.xpReward, balanceAfter, type: 'badge_award', description: `Badge: ${badge.name} — ${result.reason || ''}`.replace(/\s+/g, ' ').trim(), createdBy: 'system', referenceType: 'badge', referenceId: badge.id },
               });
               await tx.studentProgress.updateMany({ where: { studentId }, data: { totalXp: balanceAfter, currentLevel: Math.floor(balanceAfter / 100) + 1 } });
             }
@@ -831,7 +834,7 @@ export class GamificationService {
     });
   }
 
-  async addXp(studentId: string, amount: number, type: string, description?: string) {
+  async addXp(studentId: string, amount: number, type: string, description?: string, createdBy?: string) {
     return this.prisma.$transaction(async tx => {
       const student = await tx.student.findUnique({ where: { id: studentId } });
       if (!student) throw new NotFoundException('Student not found');
@@ -855,6 +858,7 @@ export class GamificationService {
           balanceAfter,
           type,
           description,
+          createdBy,
         },
       });
 
@@ -1355,7 +1359,7 @@ export class GamificationService {
     };
   }
 
-  async amendStudentXp(studentId: string, amount: number, reason: string) {
+  async amendStudentXp(studentId: string, amount: number, reason: string, amendedBy?: string) {
     return this.prisma.$transaction(async tx => {
       const student = await tx.student.findUnique({ where: { id: studentId } });
       if (!student) throw new NotFoundException('Student not found');
@@ -1377,6 +1381,7 @@ export class GamificationService {
           balanceAfter: newBalance,
           type: 'xp_amendment',
           description: reason,
+          createdBy: amendedBy,
         },
       });
 

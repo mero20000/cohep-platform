@@ -121,21 +121,21 @@ export class GamificationController {
 
   @Post('students/:id/badges')
   @ApiOperation({ summary: 'Award badge to student' })
-  async awardBadge(@Param('id') id: string, @Body() body: { badgeId: string }) {
-    return this.gamificationService.awardBadge(id, body.badgeId);
+  async awardBadge(@Param('id') id: string, @Body() body: { badgeId: string }, @Req() req: any) {
+    return this.gamificationService.awardBadge(id, body.badgeId, req.user?.id);
   }
 
   @Delete('students/:id/badges/:badgeStudentId')
   @Roles('super_admin')
   @ApiOperation({ summary: 'Revoke badge from student (Super Admin only)' })
-  async revokeBadge(@Param('id') _id: string, @Param('badgeStudentId') badgeStudentId: string) {
-    return this.gamificationService.revokeBadge(badgeStudentId);
+  async revokeBadge(@Param('id') _id: string, @Param('badgeStudentId') badgeStudentId: string, @Req() req: any) {
+    return this.gamificationService.revokeBadge(badgeStudentId, req.user?.id);
   }
 
   @Post('students/:id/xp')
   @ApiOperation({ summary: 'Add XP to student' })
-  async addXp(@Param('id') id: string, @Body() dto: AddXpDto) {
-    return this.gamificationService.addXp(id, dto.amount, dto.type, dto.description);
+  async addXp(@Param('id') id: string, @Body() dto: AddXpDto, @Req() req: any) {
+    return this.gamificationService.addXp(id, dto.amount, dto.type, dto.description, req.user?.id);
   }
 
   @Get('students/:id/xp-info')
@@ -148,8 +148,8 @@ export class GamificationController {
   @Put('students/:id/xp')
   @Roles('admin', 'servant', 'super_admin')
   @ApiOperation({ summary: 'Amend (adjust) student XP up or down' })
-  async amendStudentXp(@Param('id') id: string, @Body() dto: AmendXpDto) {
-    return this.gamificationService.amendStudentXp(id, dto.amount, dto.reason);
+  async amendStudentXp(@Param('id') id: string, @Body() dto: AmendXpDto, @Req() req: any) {
+    return this.gamificationService.amendStudentXp(id, dto.amount, dto.reason, req.user?.id);
   }
 
   @Delete('students/:id/xp')
