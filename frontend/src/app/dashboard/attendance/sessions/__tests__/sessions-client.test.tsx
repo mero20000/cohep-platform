@@ -7,7 +7,7 @@ const mockPost = vi.fn()
 vi.mock('@/lib/http-client', () => ({
   http: {
     get: async (url: string) => {
-      if (url.includes('/curriculum/levels') || url.includes('/students/groups')) return []
+      if (url.includes('/curriculum/levels') || url.includes('/students/groups') || url.includes('/grades')) return []
       if (url.includes('/attendance/student-search')) {
         return [
           {
@@ -45,8 +45,7 @@ describe('Sessions manage', () => {
     fireEvent.click(screen.getByRole('button', { name: /New Session/i }))
     await screen.findByText(/New Attendance Session/i)
     fireEvent.click(screen.getByRole('button', { name: /^Create Session$/i }))
-    expect(await screen.findByText('Level is required')).toBeInTheDocument()
-    expect(screen.getByText('Group is required')).toBeInTheDocument()
+    expect(await screen.findByText('Group is required')).toBeInTheDocument()
     expect(screen.getByText('Date is required')).toBeInTheDocument()
     expect(mockPost).not.toHaveBeenCalled()
   })

@@ -15,10 +15,15 @@ export class CreateAttendanceSessionDto {
   servantId: string;
 
   @IsUUID()
-  levelId: string;
+  @IsOptional()
+  levelId?: string;
 
   @IsUUID()
   groupId: string;
+
+  @IsUUID()
+  @IsOptional()
+  gradeId?: string;
 
   @IsDateString()
   scheduledDate: string;

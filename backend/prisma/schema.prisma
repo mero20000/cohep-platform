@@ -592,9 +592,10 @@ model SchoolGrade {
   updatedAt  DateTime  @updatedAt @map("updated_at")
   deletedAt  DateTime? @map("deleted_at")
 
-  school   School    @relation(fields: [schoolId], references: [id])
-  group    Group     @relation(fields: [groupId], references: [id])
-  students Student[]
+  school             School              @relation(fields: [schoolId], references: [id])
+  group              Group               @relation(fields: [groupId], references: [id])
+  students           Student[]
+  attendanceSessions AttendanceSession[]
 
   @@unique([schoolId, name])
   @@index([schoolId])
@@ -806,8 +807,9 @@ model AttendanceSession {
   schoolId        String    @map("school_id")
   sessionId       String?   @map("session_id")
   servantId       String    @map("servant_id")
-  levelId         String    @map("level_id")
+  levelId         String?   @map("level_id")
   groupId         String    @map("group_id")
+  gradeId         String?   @map("grade_id")
   scheduledDate   DateTime  @map("scheduled_date")
   scheduledTime   String?   @map("scheduled_time")
   actualStartTime DateTime? @map("actual_start_time")
@@ -822,8 +824,9 @@ model AttendanceSession {
 
   school            School             @relation(fields: [schoolId], references: [id])
   servant           User               @relation(fields: [servantId], references: [id])
-  level             Level              @relation(fields: [levelId], references: [id])
+  level             Level?             @relation(fields: [levelId], references: [id])
   group             Group              @relation(fields: [groupId], references: [id])
+  grade             SchoolGrade?       @relation(fields: [gradeId], references: [id])
   attendanceRecords AttendanceRecord[]
 
   @@index([schoolId, servantId, scheduledDate])

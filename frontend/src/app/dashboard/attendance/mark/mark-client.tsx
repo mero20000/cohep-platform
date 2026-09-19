@@ -49,10 +49,13 @@ export function MarkClient() {
   const [groupPickerOpen, setGroupPickerOpen] = useState(false)
   const [availableGroups, setAvailableGroups] = useState<Array<{ id: string; name: string }>>([])
   const [availableLevels, setAvailableLevels] = useState<Array<{ id: string; name: string; number?: number }>>([])
+  const [availableGrades, setAvailableGrades] = useState<Array<{ id: string; name: string; groupId: string }>>([])
   const [pickedGroupId, setPickedGroupId] = useState<string | null>(null)
+  const [pickerStep, setPickerStep] = useState<'group' | 'level' | 'grade'>('group')
+  const [pickedLevelId, setPickedLevelId] = useState<string | null>(null)
   const marking = useMarkingState([])
 
-  const load = async (id?: string, quiet = false, groupId?: string, levelId?: string) => {
+  const load = async (id?: string, quiet = false, groupId?: string, levelId?: string, gradeId?: string) => {
     if (!quiet) setLoading(true)
     setLoadError('')
     try {
@@ -62,6 +65,7 @@ export function MarkClient() {
         const qs = new URLSearchParams()
         if (groupId) qs.set('groupId', groupId)
         if (levelId) qs.set('levelId', levelId)
+        if (gradeId) qs.set('gradeId', gradeId)
         const url = `/attendance/start-class${qs.toString() ? `?${qs}` : ''}`
         const started = await http.post<any>(url)
 
@@ -69,7 +73,10 @@ export function MarkClient() {
         if ((started as any)?.requiresGroupPick && (started as any)?.groups) {
           setAvailableGroups((started as any).groups);
           setAvailableLevels((started as any).levels || []);
+          setAvailableGrades((started as any).grades || []);
           setPickedGroupId(null);
+          setPickedLevelId(null);
+          setPickerStep('group');
           setGroupPickerOpen(true);
           setSession(null);
           setLoading(false);
@@ -183,31 +190,45 @@ export function MarkClient() {
   if (loadError && !session) return <EmptyState title={lang === 'ar' ? 'فشل التحميل' : 'Failed to load'} description={loadError} action={<Button onClick={() => { void load() }} className="min-h-[44px]">{lang === 'ar' ? 'إعادة المحاولة' : 'Retry'}</Button>} />
   if (!session && !groupPickerOpen) return <EmptyState title={lang === 'ar' ? 'لا توجد جلسة اليوم' : 'No session today'} description={lang === 'ar' ? 'ابدأ الحصة لفتح التحضير' : 'Start class to open marking'} action={<Button onClick={() => { void load() }} className="min-h-[44px]">{lang === 'ar' ? 'بدء الحصة' : 'Start class'}</Button>} />
 
-  // Group/level picker is open but no session yet — render only the picker overlay
+  const finishPicker = (gid: string, lid?: string, grid?: string) => {
+    setGroupPickerOpen(false)
+    setPickedGroupId(null)
+    setPickedLevelId(null)
+    setPickerStep('group')
+    void load(undefined, false, gid, lid, grid)
+  }
+
+  const groupGrades = pickedGroupId ? availableGrades.filter(g => g.groupId === pickedGroupId) : []
+
+  // Group/level/grade picker is open but no session yet — render only the picker overlay
   if (!session && groupPickerOpen) return (
     <div className="p-8 text-center">
       <h2 className="text-lg font-semibold text-gray-900 mb-2">{lang === 'ar' ? 'بدء حصة جديدة' : 'Start a New Class'}</h2>
-      <p className="text-sm text-gray-500 mb-6">{lang === 'ar' ? 'اختر المجموعة والمرحلة لبدء التحضير' : 'Select a group and level to begin attendance'}</p>
+      <p className="text-sm text-gray-500 mb-6">{lang === 'ar' ? 'اختر المجموعة لبدء التحضير' : 'Select a group to begin attendance'}</p>
       <div className="mx-auto w-full max-w-sm">
         <div role="dialog" aria-labelledby="group-picker-title" className="rounded-2xl bg-white p-6 shadow-lg border border-gray-200">
-          {!pickedGroupId ? (
+          {pickerStep === 'group' && (
             <>
               <h3 id="group-picker-title" className="mb-1 font-semibold text-gray-900">
                 {lang === 'ar' ? 'اختر المجموعة' : 'Select a Group'}
               </h3>
-              <p className="mb-4 text-sm text-gray-500">{lang === 'ar' ? 'الخطوة 1 من 2' : 'Step 1 of 2'}</p>
+              <p className="mb-4 text-sm text-gray-500">{lang === 'ar' ? 'المجموعة (مطلوبة)' : 'Group (required)'}</p>
               <div className="mb-4 space-y-2 max-h-96 overflow-y-auto">
                 {availableGroups.map(group => (
                   <button
                     key={group.id}
                     type="button"
                     onClick={() => {
-                      if (availableLevels.length <= 1) {
-                        setGroupPickerOpen(false);
-                        setPickedGroupId(null);
-                        void load(undefined, false, group.id, availableLevels[0]?.id);
+                      setPickedGroupId(group.id)
+                      if (availableLevels.length > 0) {
+                        setPickerStep('level')
                       } else {
-                        setPickedGroupId(group.id);
+                        const gGrades = availableGrades.filter(g => g.groupId === group.id)
+                        if (gGrades.length > 0) {
+                          setPickerStep('grade')
+                        } else {
+                          finishPicker(group.id)
+                        }
                       }
                     }}
                     className="w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-start font-medium text-gray-900 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500"
@@ -217,13 +238,14 @@ export function MarkClient() {
                 ))}
               </div>
             </>
-          ) : (
+          )}
+          {pickerStep === 'level' && pickedGroupId && (
             <>
               <h3 id="group-picker-title" className="mb-1 font-semibold text-gray-900">
                 {lang === 'ar' ? 'اختر المرحلة' : 'Select a Level'}
               </h3>
               <p className="mb-4 text-sm text-gray-500">
-                {lang === 'ar' ? 'الخطوة 2 من 2' : 'Step 2 of 2'}
+                {lang === 'ar' ? 'المرحلة (اختياري)' : 'Level (optional)'}
                 {' · '}
                 {availableGroups.find(g => g.id === pickedGroupId)?.name}
               </p>
@@ -233,10 +255,13 @@ export function MarkClient() {
                     key={level.id}
                     type="button"
                     onClick={() => {
-                      setGroupPickerOpen(false);
-                      const gid = pickedGroupId;
-                      setPickedGroupId(null);
-                      void load(undefined, false, gid!, level.id);
+                      setPickedLevelId(level.id)
+                      const gGrades = availableGrades.filter(g => g.groupId === pickedGroupId)
+                      if (gGrades.length > 0) {
+                        setPickerStep('grade')
+                      } else {
+                        finishPicker(pickedGroupId!, level.id)
+                      }
                     }}
                     className="w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-start font-medium text-gray-900 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500"
                   >
@@ -244,12 +269,62 @@ export function MarkClient() {
                   </button>
                 ))}
               </div>
-              <Button variant="outline" onClick={() => setPickedGroupId(null)} className="min-h-[44px] w-full mb-2">
+              <button
+                type="button"
+                onClick={() => {
+                  const gGrades = availableGrades.filter(g => g.groupId === pickedGroupId)
+                  if (gGrades.length > 0) {
+                    setPickedLevelId(null)
+                    setPickerStep('grade')
+                  } else {
+                    finishPicker(pickedGroupId!)
+                  }
+                }}
+                className="w-full rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 px-4 py-3 text-center font-medium text-gray-600 hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500 mb-2"
+              >
+                {lang === 'ar' ? 'تخطّي — كل المراحل' : 'Skip — All Levels'}
+              </button>
+              <Button variant="outline" onClick={() => { setPickedGroupId(null); setPickerStep('group') }} className="min-h-[44px] w-full mb-2">
                 {lang === 'ar' ? 'رجوع' : 'Back'}
               </Button>
             </>
           )}
-          <Button variant="outline" onClick={() => { setGroupPickerOpen(false); setPickedGroupId(null); }} className="min-h-[44px] w-full">
+          {pickerStep === 'grade' && pickedGroupId && (
+            <>
+              <h3 id="group-picker-title" className="mb-1 font-semibold text-gray-900">
+                {lang === 'ar' ? 'اختر الصف' : 'Select a Grade'}
+              </h3>
+              <p className="mb-4 text-sm text-gray-500">
+                {lang === 'ar' ? 'الصف (اختياري)' : 'Grade (optional)'}
+                {' · '}
+                {availableGroups.find(g => g.id === pickedGroupId)?.name}
+                {pickedLevelId && ` · ${availableLevels.find(l => l.id === pickedLevelId)?.name}`}
+              </p>
+              <div className="mb-4 space-y-2 max-h-96 overflow-y-auto">
+                {groupGrades.map(grade => (
+                  <button
+                    key={grade.id}
+                    type="button"
+                    onClick={() => finishPicker(pickedGroupId!, pickedLevelId ?? undefined, grade.id)}
+                    className="w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-start font-medium text-gray-900 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500"
+                  >
+                    {grade.name}
+                  </button>
+                ))}
+              </div>
+              <button
+                type="button"
+                onClick={() => finishPicker(pickedGroupId!, pickedLevelId ?? undefined)}
+                className="w-full rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 px-4 py-3 text-center font-medium text-gray-600 hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500 mb-2"
+              >
+                {lang === 'ar' ? 'تخطّي — كل الصفوف' : 'Skip — All Grades'}
+              </button>
+              <Button variant="outline" onClick={() => setPickerStep(availableLevels.length > 0 ? 'level' : 'group')} className="min-h-[44px] w-full mb-2">
+                {lang === 'ar' ? 'رجوع' : 'Back'}
+              </Button>
+            </>
+          )}
+          <Button variant="outline" onClick={() => { setGroupPickerOpen(false); setPickedGroupId(null); setPickedLevelId(null); setPickerStep('group') }} className="min-h-[44px] w-full">
             {lang === 'ar' ? 'إلغاء' : 'Cancel'}
           </Button>
         </div>
@@ -466,75 +541,109 @@ export function MarkClient() {
           </div>
         </div>
       )}
-      {/* Group & level picker — shown when user has no assigned group */}
-      {groupPickerOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => { setGroupPickerOpen(false); setPickedGroupId(null); }}>
+      {/* Group / level / grade picker — group required, level & grade optional */}
+      {groupPickerOpen && (() => {
+        const groupGrades = availableGrades.filter(g => g.groupId === pickedGroupId)
+        const hasLevels = availableLevels.length > 0
+        const hasGrades = groupGrades.length > 0
+        const closePicker = () => { setGroupPickerOpen(false); setPickedGroupId(null); setPickedLevelId(null); setPickerStep('group'); }
+        const finishPicker = (gid: string, lid?: string, grid?: string) => { closePicker(); void load(undefined, false, gid, lid, grid); }
+        const afterGroup = (gid: string) => {
+          setPickedGroupId(gid)
+          if (hasLevels) { setPickerStep('level'); return }
+          const gGrades = availableGrades.filter(g => g.groupId === gid)
+          if (gGrades.length > 0) { setPickerStep('grade'); return }
+          finishPicker(gid)
+        }
+        const afterLevel = (lid?: string) => {
+          setPickedLevelId(lid || null)
+          const gGrades = availableGrades.filter(g => g.groupId === pickedGroupId)
+          if (gGrades.length > 0) { setPickerStep('grade'); return }
+          finishPicker(pickedGroupId!, lid)
+        }
+        const totalSteps = 1 + (hasLevels ? 1 : 0) + (hasGrades ? 1 : 0)
+        const currentStep = pickerStep === 'group' ? 1 : pickerStep === 'level' ? 2 : (hasLevels ? 3 : 2)
+        return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={closePicker}>
           <div role="dialog" aria-modal="true" aria-labelledby="group-picker-title" className="mx-4 w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl" onClick={e => e.stopPropagation()}>
-            {!pickedGroupId ? (
+            {pickerStep === 'group' && (
               <>
                 <h3 id="group-picker-title" className="mb-1 font-semibold text-gray-900">
                   {lang === 'ar' ? 'اختر المجموعة' : 'Select a Group'}
                 </h3>
-                <p className="mb-4 text-sm text-gray-500">{lang === 'ar' ? 'الخطوة 1 من 2' : 'Step 1 of 2'}</p>
+                <p className="mb-4 text-sm text-gray-500">
+                  {lang === 'ar' ? `الخطوة ${currentStep} من ${totalSteps}` : `Step ${currentStep} of ${totalSteps}`}
+                </p>
                 <div className="mb-4 space-y-2 max-h-96 overflow-y-auto">
                   {availableGroups.map(group => (
-                    <button
-                      key={group.id}
-                      type="button"
-                      onClick={() => {
-                        if (availableLevels.length <= 1) {
-                          setGroupPickerOpen(false);
-                          setPickedGroupId(null);
-                          void load(undefined, false, group.id, availableLevels[0]?.id);
-                        } else {
-                          setPickedGroupId(group.id);
-                        }
-                      }}
-                      className="w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-start font-medium text-gray-900 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500"
-                    >
+                    <button key={group.id} type="button" onClick={() => afterGroup(group.id)}
+                      className="w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-start font-medium text-gray-900 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500">
                       {group.name}
                     </button>
                   ))}
                 </div>
               </>
-            ) : (
+            )}
+            {pickerStep === 'level' && (
               <>
                 <h3 id="group-picker-title" className="mb-1 font-semibold text-gray-900">
-                  {lang === 'ar' ? 'اختر المرحلة' : 'Select a Level'}
+                  {lang === 'ar' ? 'اختر المرحلة (اختياري)' : 'Select a Level (Optional)'}
                 </h3>
                 <p className="mb-4 text-sm text-gray-500">
-                  {lang === 'ar' ? 'الخطوة 2 من 2' : 'Step 2 of 2'}
-                  {' · '}
-                  {availableGroups.find(g => g.id === pickedGroupId)?.name}
+                  {lang === 'ar' ? `الخطوة ${currentStep} من ${totalSteps}` : `Step ${currentStep} of ${totalSteps}`}
+                  {' · '}{availableGroups.find(g => g.id === pickedGroupId)?.name}
                 </p>
                 <div className="mb-4 space-y-2 max-h-96 overflow-y-auto">
+                  <button type="button" onClick={() => afterLevel(undefined)}
+                    className="w-full rounded-lg border border-dashed border-gray-300 bg-gray-50 px-4 py-3 text-start font-medium text-gray-500 hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500">
+                    {lang === 'ar' ? 'تخطي — جميع المراحل' : 'Skip — All Levels'}
+                  </button>
                   {availableLevels.map(level => (
-                    <button
-                      key={level.id}
-                      type="button"
-                      onClick={() => {
-                        setGroupPickerOpen(false);
-                        const gid = pickedGroupId;
-                        setPickedGroupId(null);
-                        void load(undefined, false, gid!, level.id);
-                      }}
-                      className="w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-start font-medium text-gray-900 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500"
-                    >
+                    <button key={level.id} type="button" onClick={() => afterLevel(level.id)}
+                      className="w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-start font-medium text-gray-900 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500">
                       {level.name}
                     </button>
                   ))}
                 </div>
-                <Button variant="outline" onClick={() => setPickedGroupId(null)} className="min-h-[44px] w-full mb-2">
+                <Button variant="outline" onClick={() => { setPickerStep('group'); setPickedGroupId(null); }} className="min-h-[44px] w-full mb-2">
                   {lang === 'ar' ? 'رجوع' : 'Back'}
                 </Button>
               </>
             )}
-            <Button variant="outline" onClick={() => { setGroupPickerOpen(false); setPickedGroupId(null); }} className="min-h-[44px] w-full">
+            {pickerStep === 'grade' && (
+              <>
+                <h3 id="group-picker-title" className="mb-1 font-semibold text-gray-900">
+                  {lang === 'ar' ? 'اختر الصف (اختياري)' : 'Select a Grade (Optional)'}
+                </h3>
+                <p className="mb-4 text-sm text-gray-500">
+                  {lang === 'ar' ? `الخطوة ${currentStep} من ${totalSteps}` : `Step ${currentStep} of ${totalSteps}`}
+                  {' · '}{availableGroups.find(g => g.id === pickedGroupId)?.name}
+                  {pickedLevelId && <> · {availableLevels.find(l => l.id === pickedLevelId)?.name}</>}
+                </p>
+                <div className="mb-4 space-y-2 max-h-96 overflow-y-auto">
+                  <button type="button" onClick={() => finishPicker(pickedGroupId!, pickedLevelId || undefined)}
+                    className="w-full rounded-lg border border-dashed border-gray-300 bg-gray-50 px-4 py-3 text-start font-medium text-gray-500 hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500">
+                    {lang === 'ar' ? 'تخطي — جميع الصفوف' : 'Skip — All Grades'}
+                  </button>
+                  {groupGrades.map(grade => (
+                    <button key={grade.id} type="button" onClick={() => finishPicker(pickedGroupId!, pickedLevelId || undefined, grade.id)}
+                      className="w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-start font-medium text-gray-900 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500">
+                      {grade.name}
+                    </button>
+                  ))}
+                </div>
+                <Button variant="outline" onClick={() => { setPickerStep(hasLevels ? 'level' : 'group'); if (!hasLevels) setPickedGroupId(null); }} className="min-h-[44px] w-full mb-2">
+                  {lang === 'ar' ? 'رجوع' : 'Back'}
+                </Button>
+              </>
+            )}
+            <Button variant="outline" onClick={closePicker} className="min-h-[44px] w-full">
               {lang === 'ar' ? 'إلغاء' : 'Cancel'}
             </Button>
           </div>
         </div>
-      )}
+        )
+      })()}
     </div>
   )
 }
