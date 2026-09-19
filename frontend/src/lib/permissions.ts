@@ -34,6 +34,7 @@ export const PERMISSIONS = {
 
   'gamification:view':   'View gamification',
   'gamification:manage': 'Manage gamification settings',
+  'gamification:reset':  'Reset gamification records',
 
   'announcement:view':   'View announcements',
   'announcement:create': 'Create announcements',
@@ -82,7 +83,7 @@ const ROLE_DEFAULT_PERMS: Record<string, Permission[]> = {
     'attendance:view','attendance:record','attendance:manage',
     'assessment:view','assessment:create','assessment:edit','assessment:delete','assessment:grade',
     'curriculum:view','curriculum:edit',
-    'gamification:view','gamification:manage',
+    'gamification:view','gamification:manage','gamification:reset',
     'announcement:view','announcement:create','announcement:edit','announcement:delete','announcement:publish',
     'settings:view','settings:manage',
     'users:view','users:create','users:edit','users:delete',
