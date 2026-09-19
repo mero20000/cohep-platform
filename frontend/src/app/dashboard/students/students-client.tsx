@@ -1,5 +1,6 @@
 'use client'
 import { useState, useEffect, useCallback, useRef, useMemo, useOptimistic, startTransition } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { Download, Upload, Plus, X, AlertCircle, RefreshCw, Star, Search, Copy } from 'lucide-react'
 import { ErrorBoundary } from '@/components/ui/error-boundary'
 import { Button } from '@/components/ui/button'
@@ -61,6 +62,8 @@ export default function StudentsClient() {
   const [levels, setLevels]             = useState<LevelOption[]>([])
   const [allGroups, setAllGroups]       = useState<Group[]>([])
   const [churches, setChurches]         = useState<ChurchItem[]>([])
+  const [defaultChurch, setDefaultChurch] = useState<{ id?: string; name: string } | null>(null)
+  const [schoolChurch, setSchoolChurch] = useState<{ id: string; name: string } | null>(null)
   const [gradeOptions, setGradeOptions] = useState<GradeItem[]>([])
   const [studentStats, setStudentStats] = useState<StatsType|null>(null)
   const [statsLoading, setStatsLoading] = useState(true)
@@ -128,12 +131,21 @@ export default function StudentsClient() {
   useEffect(()=>{fetchStudents(1)},[fetchStudents])
   useEffect(()=>{fetchStats()},[fetchStats])
   useEffect(()=>{setSelectedIds(new Set())},[search,filterLevel,filterGroup,filterStatus,filterChurch,filterGrade,filterGender])
-  useEffect(()=>{setFilterGroup('')},[filterLevel])
+  // Deep link: ?groupId=<id> (e.g. from the servant dashboard My Groups)
+  // wins once on init; later level changes reset the group as before.
+  const urlGroupId = useSearchParams()?.get('groupId') ?? null
+  const urlGroupConsumed = useRef(false)
+  useEffect(()=>{
+    if(urlGroupId && !urlGroupConsumed.current){urlGroupConsumed.current=true;return}
+    setFilterGroup('')
+  },[filterLevel])
   useEffect(()=>{
     http.get<LevelOption[]>('/curriculum/levels',{schoolId:getSchoolId()}).then(d=>setLevels(d)).catch(console.error)
     http.get<Group[]>('/students/groups/all',{schoolId:getSchoolId()}).then(d=>setAllGroups(d.filter(g=>g.status!=='inactive'))).catch(console.error)
-    http.get<ChurchItem[]>('/churches').then(d=>setChurches(d.filter(c=>c.isActive!==false))).catch(console.error)
-    http.get<{church?:{name:string}}>('/users/schools/me').then(s=>{if(s.church?.name)setFilterChurch(s.church.name)}).catch(console.error)
+    // Servants get 403 here (admin-only endpoint) — expected. The school-church
+    // seeding in the form covers them, so stay silent instead of log-spamming.
+    http.get<ChurchItem[]>('/churches').then(d=>setChurches(d.filter(c=>c.isActive!==false))).catch(()=>setChurches([]))
+    http.get<{church?:{id:string;name:string}}>('/users/schools/me').then(s=>{if(s.church?.name){setFilterChurch(s.church.name);setDefaultChurch({id:s.church.id,name:s.church.name});setSchoolChurch({id:s.church.id,name:s.church.name})}}).catch(console.error)
     fetchActiveGrades().then(setGradeOptions).catch(console.error)
     fetchStats()
   },[])
@@ -145,7 +157,8 @@ export default function StudentsClient() {
         const u=JSON.parse(stored)
         setCurrentUserId(u.id)
         const isServant=u.roles?.some((r:string)=>SERVANT_ROLES.includes(r))
-        if(isServant&&u.metadata){
+        if(urlGroupId){setFilterGroup(urlGroupId)}
+        else if(isServant&&u.metadata){
           if(u.metadata.levelId)setFilterLevel(u.metadata.levelId)
           if(u.metadata.groupId)setFilterGroup(u.metadata.groupId)
         }
@@ -180,6 +193,19 @@ export default function StudentsClient() {
   const openEdit   = (s:Student)=>{setSelectedStudent(s);setShowForm(true)}
   const openDetail = (s:Student)=>{setSelectedStudent(s);setShowDetail(true)}
   const openDelete = (s:Student)=>{setSelectedStudent(s);setShowDelete(true)}
+  // Deep link: ?studentId=<id> (e.g. from attendance) opens the student record directly
+  const deepStudentId = useSearchParams()?.get('studentId') ?? null
+  const deepOpenedRef = useRef<string|null>(null)
+  useEffect(()=>{
+    if(!deepStudentId||deepOpenedRef.current===deepStudentId)return
+    const found = students.find(s=>s.id===deepStudentId)
+    if(found){deepOpenedRef.current=deepStudentId;openDetail(found);return}
+    if(loading)return
+    http.get<Student>(`/students/${deepStudentId}`,{schoolId:getSchoolId()})
+      .then(s=>{if(s?.id){deepOpenedRef.current=deepStudentId;openDetail(s)}})
+      .catch(()=>{})
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  },[deepStudentId,students,loading])
   const handleDelete = async()=>{
     if(!selectedStudent)return
     startTransition(()=>addOptimisticStudent({type:'remove',id:selectedStudent.id})); setShowDelete(false)
@@ -310,7 +336,7 @@ export default function StudentsClient() {
       {showForm&&<StudentFormModal student={selectedStudent} activeLevels={activeLevels} churches={churches} gradeOptions={gradeOptions}
         onClose={()=>setShowForm(false)}
         onSuccess={(page:number)=>{fetchStudents(page);fetchStats()}} currentPage={pagination.page}
-        onOptimisticAdd={s=>startTransition(()=>addOptimisticStudent({type:'add',student:s}))} lang={lang}/>}
+        onOptimisticAdd={s=>startTransition(()=>addOptimisticStudent({type:'add',student:s}))} lang={lang} defaultChurch={defaultChurch} schoolChurch={schoolChurch}/>}
 
       {showDetail&&selectedStudent&&<StudentDetailModal student={selectedStudent} onClose={()=>setShowDetail(false)} onEdit={()=>{setShowDetail(false);openEdit(selectedStudent)}} onPreviewPhoto={setPreviewPhotoUrl} lang={lang}/>}
 

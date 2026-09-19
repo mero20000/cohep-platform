@@ -34,8 +34,75 @@ interface Props {
   churches: ChurchItem[]; gradeOptions: GradeItem[]
   onClose: () => void; onSuccess: (page: number) => void
   currentPage: number; onOptimisticAdd: (s: Student) => void; lang: 'en'|'ar'
+  defaultChurch?: { id?: string; name: string } | null
+  schoolChurch?: { id: string; name: string } | null
 }
-export function StudentFormModal({ student, activeLevels, churches, gradeOptions, onClose, onSuccess, currentPage, onOptimisticAdd, lang }: Props) {
+
+const MAX_PHOTO_BYTES = 5 * 1024 * 1024
+const ACCEPTED_PHOTO_EXTS = ['.jpg', '.jpeg', '.png', '.webp', '.gif']
+
+export type HeicLoader = () => Promise<any>
+
+/**
+ * Convert an iPhone HEIC/HEIF photo to JPEG. Loaded lazily so the decoder
+ * (~100KB wasm) only downloads when an HEIC file is actually picked.
+ */
+async function convertHeicToJpeg(file: File, loadHeic2Any: HeicLoader = () => import('heic2any')): Promise<File> {
+  const mod = await loadHeic2Any()
+  const out = await mod.default({ blob: file, toType: 'image/jpeg', quality: 0.85 })
+  const blob = (Array.isArray(out) ? out[0] : out) as Blob
+  const base = file.name.replace(/\.[^.]+$/, '') || 'photo'
+  return new File([blob], `${base}.jpg`, { type: 'image/jpeg' })
+}
+
+/**
+ * Prepare a camera/gallery photo for upload. Phone photos are often HEIC or
+ * larger than the 5MB server limit — both used to fail server-side with an
+ * English-only error. HEIC files are converted to JPEG first; anything else
+ * decodable is downscaled to ≤1600px JPEG. Truly undecodable files are
+ * rejected here with a message the save handler turns into a bilingual toast.
+ */
+export async function preparePhotoFile(file: File, loadHeic2Any?: HeicLoader): Promise<File> {
+  const extOf = (f: File) => '.' + (f.name.split('.').pop() || '').toLowerCase()
+  if (file.type === 'image/heic' || file.type === 'image/heif' || extOf(file) === '.heic' || extOf(file) === '.heif') {
+    try {
+      file = await convertHeicToJpeg(file, loadHeic2Any)
+    } catch {
+      throw new Error('unsupported')
+    }
+  }
+  const ext = extOf(file)
+  if (typeof createImageBitmap === 'undefined') {
+    if (!ACCEPTED_PHOTO_EXTS.includes(ext)) throw new Error('unsupported')
+    if (file.size > MAX_PHOTO_BYTES) throw new Error('too-large')
+    return file
+  }
+  let bitmap: ImageBitmap | null = null
+  try {
+    bitmap = await createImageBitmap(file)
+  } catch {
+    bitmap = null
+  }
+  if (!bitmap) throw new Error('unsupported')
+  try {
+    const needsShrink = file.size > MAX_PHOTO_BYTES || !ACCEPTED_PHOTO_EXTS.includes(ext)
+    if (!needsShrink) return file
+    const scale = Math.min(1, 1600 / Math.max(bitmap.width, bitmap.height))
+    const canvas = document.createElement('canvas')
+    canvas.width = Math.max(1, Math.round(bitmap.width * scale))
+    canvas.height = Math.max(1, Math.round(bitmap.height * scale))
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return file.size <= MAX_PHOTO_BYTES && ACCEPTED_PHOTO_EXTS.includes(ext) ? file : (() => { throw new Error('too-large') })()
+    ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height)
+    const blob: Blob | null = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.85))
+    if (!blob || blob.size > MAX_PHOTO_BYTES) throw new Error('too-large')
+    const base = file.name.replace(/\.[^.]+$/, '') || 'photo'
+    return new File([blob], `${base}.jpg`, { type: 'image/jpeg' })
+  } finally {
+    bitmap.close()
+  }
+}
+export function StudentFormModal({ student, activeLevels, churches, gradeOptions, onClose, onSuccess, currentPage, onOptimisticAdd, lang, defaultChurch, schoolChurch }: Props) {
   const { toast } = useToast()
   const { can } = usePermission()
   const dialogRef = useRef<HTMLFormElement>(null)
@@ -63,18 +130,45 @@ export function StudentFormModal({ student, activeLevels, churches, gradeOptions
       setForm({ name:`${student.firstName} ${student.lastName}`.trim(), firstNameAr:student.firstNameAr||'', lastNameAr:student.lastNameAr||'', dateOfBirth:student.dateOfBirth.split('T')[0], gender:student.gender, churchName:student.churchName||'', gradeId:student.gradeId||'', levelId:student.levelId, groupId:student.groupId, groupName:student.group?.name||'', photoUrl:student.photoUrl||'', status:student.status, phone:student.metadata?.phone||'', email:student.metadata?.email||'', address:student.metadata?.address||'', notes:student.metadata?.notes||'', churchToolId:student.metadata?.churchToolId||'', parentEmail:student.parentEmail||'' })
     } else { setForm(emptyForm) }
   }, [student?.id])
+  // Servants cannot list churches (admin-only endpoint), so the dropdown would
+  // be empty for them. Seed it from their own school profile instead — it is
+  // the only valid choice for students they create.
+  const effectiveChurches = churches.length > 0
+    ? churches
+    : (schoolChurch ? [{ ...schoolChurch } as ChurchItem] : churches)
+  // Default the church from the servant's own school profile (create mode only,
+  // never overwriting an explicit choice). Matches against the effective church
+  // list by id (falling back to name) so the value always equals a real
+  // dropdown option; with a single active church, that church is the default.
+  useEffect(() => {
+    if (student) return
+    const match = defaultChurch
+      ? (effectiveChurches.find(c => defaultChurch.id != null && c.id === defaultChurch.id)
+        ?? effectiveChurches.find(c => c.name === defaultChurch.name))
+      : undefined
+    const fallback = !match && effectiveChurches.length === 1 ? effectiveChurches[0] : undefined
+    const name = match?.name ?? fallback?.name
+    if (name) {
+      setForm(prev => (prev.churchName ? prev : { ...prev, churchName: name }))
+    }
+  }, [student?.id, defaultChurch, schoolChurch, churches])
   useEffect(() => () => revoke(), [])
 
   const setField = (f: string, v: string) => {
     setForm(prev => ({ ...prev, [f]: v }))
   }
+  const [savePhase, setSavePhase] = useState<'idle' | 'uploading' | 'saving'>('idle')
   const [formState, saveAction, isSaving] = useActionState(async (_prev: {error:string}, data: {form:StudentForm;photoFile:File|null;editing:Student|null}) => {
     if (!validate()) return { error: t('Please fill all required fields','يرجى ملء جميع الحقول المطلوبة') }
     const parts = data.form.name.trim().split(/\s+/)
     const firstName = parts[0]||''; const lastName = parts.slice(1).join(' ')||''
     try {
       let photoUrl = data.form.photoUrl
-      if (data.photoFile) { const fd=new FormData(); fd.append('file',data.photoFile); photoUrl=(await http.upload<{url:string}>('/upload/student-photo',fd)).url }
+      if (data.photoFile) {
+        setSavePhase('uploading')
+        const fd=new FormData(); fd.append('file',data.photoFile); photoUrl=(await http.upload<{url:string}>('/upload/student-photo',fd)).url
+      }
+      setSavePhase('saving')
       const { name:_n, groupId:_g, groupName:_gn, ...rest } = data.form
       const ctid = data.form.churchToolId
       const body: Record<string,unknown> = { ...rest, firstName, lastName, photoUrl, firstNameAr:data.form.firstNameAr||undefined, lastNameAr:data.form.lastNameAr||undefined, churchName:data.form.churchName||undefined, gradeId:data.form.gradeId||undefined, churchToolId:ctid }
@@ -86,10 +180,10 @@ export function StudentFormModal({ student, activeLevels, churches, gradeOptions
       } else { await http.put(`/students/${data.editing.id}`,body,{schoolId:getSchoolId()}) }
       toast('success',!data.editing?t('Student created','تم إنشاء الطالب'):t('Student updated','تم تحديث الطالب'))
       // M11: a newly created student sorts to page 1, so jump back there
-      onClose(); onSuccess(data.editing ? currentPage : 1); return {error:''}
+      setSavePhase('idle'); onClose(); onSuccess(data.editing ? currentPage : 1); return {error:''}
     } catch (err:unknown) {
       const msg = err instanceof Error?err.message:t('Connection error','خطأ في الاتصال')
-      toast('error',msg); onSuccess(currentPage); return {error:msg}
+      setSavePhase('idle'); toast('error',msg); onSuccess(currentPage); return {error:msg}
     }
   },{error:''})
 
@@ -142,7 +236,7 @@ export function StudentFormModal({ student, activeLevels, churches, gradeOptions
             </div>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div><label htmlFor="sf-church" className="block text-sm font-medium text-gray-700">{t('Church','الكنيسة')}</label><select id="sf-church" value={form.churchName} onChange={e=>setForm({...form,churchName:e.target.value})} className={ic()}><option value="">{t('Select church','اختر الكنيسة')}</option>{churches.map(c=><option key={c.id} value={c.name}>{c.name}{c.city?`, ${c.city}`:''}</option>)}</select></div>
+            <div><label htmlFor="sf-church" className="block text-sm font-medium text-gray-700">{t('Church','الكنيسة')}</label><select id="sf-church" value={form.churchName} onChange={e=>setForm({...form,churchName:e.target.value})} className={ic()}><option value="">{t('Select church','اختر الكنيسة')}</option>{effectiveChurches.map(c=><option key={c.id} value={c.name}>{c.name}{c.city?`, ${c.city}`:''}</option>)}</select></div>
             <div><label htmlFor="sf-grade" className="block text-sm font-medium text-gray-700">{t('Grade','المرحلة الدراسية')}</label><select id="sf-grade" value={form.gradeId} onChange={e=>{const v=e.target.value;const gr=gradeOptions.find(g=>g.id===v);setForm({...form,gradeId:v,groupId:gr?.groupId||'',groupName:gr?.groupName||''})}} className={ic(fieldErrors.gradeId)}><option value="">{t('Select grade','اختر المرحلة')}</option>{gradeOptions.map(g=>(
               <option key={g.id} value={g.id}>{g.name}</option>
             ))}</select>{fieldErrors.gradeId&&<p role="alert" className="mt-1 text-xs text-red-500">{fieldErrors.gradeId}</p>}<p className="mt-1 text-xs text-gray-400">{t('Group is auto-assigned from the grade','يتم تحديد المجموعة تلقائياً من المرحلة')}</p></div>
@@ -186,7 +280,26 @@ export function StudentFormModal({ student, activeLevels, churches, gradeOptions
                 {form.photoUrl?<Image src={photoSrc(form.photoUrl)} alt="Preview" width={64} height={64} className="h-16 w-16 rounded-full object-cover border border-gray-200" />:<div className="h-16 w-16 rounded-full bg-gray-100 flex items-center justify-center border border-gray-200"><User className="h-6 w-6 text-gray-400" /></div>}
               </div>
               <div className="flex-1">
-                <input ref={photoRef} type="file" accept="image/*" className="hidden" onChange={e=>{const f=e.target.files?.[0];if(f){revoke();const u=URL.createObjectURL(f);blobRef.current=u;setPhotoFile(f);setForm({...form,photoUrl:u})}}} />
+                <input ref={photoRef} type="file" accept="image/*" className="hidden" onChange={e=>{
+                  const f=e.target.files?.[0]
+                  if (!f) return
+                  e.target.value = ''
+                  void (async () => {
+                    try {
+                      const ready = await preparePhotoFile(f)
+                      revoke()
+                      const u=URL.createObjectURL(ready)
+                      blobRef.current=u
+                      setPhotoFile(ready)
+                      setForm(prev=>({...prev,photoUrl:u}))
+                    } catch (err) {
+                      const kind = err instanceof Error ? err.message : ''
+                      toast('error', kind === 'too-large'
+                        ? t('Photo is too large (max 5MB after compression)', 'الصورة كبيرة جداً (الحد الأقصى 5 ميجابايت بعد الضغط)')
+                        : t('Photo format not supported. Please use JPG or PNG.', 'صيغة الصورة غير مدعومة. يرجى استخدام JPG أو PNG.'))
+                    }
+                  })()
+                }} />
                 <Button type="button" variant="outline" onClick={()=>photoRef.current?.click()} className="inline-flex items-center gap-1.5">
                   <Camera className="h-4 w-4" />{photoFile||form.photoUrl?t('Change Photo','تغيير الصورة'):t('Upload Photo','رفع صورة')}
                 </Button>
@@ -209,7 +322,11 @@ export function StudentFormModal({ student, activeLevels, churches, gradeOptions
           <Button type="button" variant="outline" onClick={onClose}>{t('Cancel','إلغاء')}</Button>
           <Button type="submit" disabled={isSaving} className="inline-flex items-center gap-2">
             {isSaving&&<Loader2 className="h-4 w-4 animate-spin" />}
-            {student?t('Save Changes','حفظ التغييرات'):t('Add Student','إضافة طالب')}
+            {isSaving && savePhase === 'uploading'
+              ? t('Uploading photo…','جاري رفع الصورة…')
+              : isSaving
+                ? t('Saving…','جاري الحفظ…')
+                : (student?t('Save Changes','حفظ التغييرات'):t('Add Student','إضافة طالب'))}
           </Button>
         </div>
       </form>

@@ -27,8 +27,9 @@ export class ServantsController {
     @Query('levelId') levelId?: string,
     @Query('groupId') groupId?: string,
     @Query('teachingSubject') teachingSubject?: string,
+    @Query('excludeSelf') excludeSelf?: string,
   ) {
-    return this.servantsService.listServants(req.user, { search, role, levelId, groupId, teachingSubject });
+    return this.servantsService.listServants(req.user, { search, role, levelId, groupId, teachingSubject, excludeSelf: excludeSelf === 'true' });
   }
 
   @Get('liturgy-pending')
@@ -113,6 +114,20 @@ export class ServantsController {
   @ApiOperation({ summary: 'Get all servant profiles for the school' })
   async getSchoolSummary(@CurrentUser() user: any) {
     return this.servantsService.getSchoolServantSummary(user.schoolId);
+  }
+
+  @Patch(':id/toggle-active')
+  @Roles('super_admin', 'admin', 'principal')
+  @ApiOperation({ summary: 'Toggle servant active/inactive status' })
+  async toggleActive(@Param('id') id: string, @CurrentUser() user: any) {
+    return this.servantsService.toggleActive(id);
+  }
+
+  @Post('profiles/recompute')
+  @Roles('super_admin', 'admin', 'principal')
+  @ApiOperation({ summary: 'Recompute all servant profiles now (same job as the nightly cron)' })
+  async recomputeProfiles() {
+    return this.servantsService.updateServantProfiles();
   }
 
   @Get('liturgy-session')

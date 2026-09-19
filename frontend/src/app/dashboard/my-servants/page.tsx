@@ -44,7 +44,8 @@ export default function MyServantsPage() {
       if (!schoolId) throw new Error('No school ID')
       const data = await http.get<ServantStats[]>('/servants', {
         schoolId,
-        levelScoped: 'true'
+        levelScoped: 'true',
+        excludeSelf: 'true',
       })
       setServants(Array.isArray(data) ? data : [])
     } catch (err) {

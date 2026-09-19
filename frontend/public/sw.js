@@ -1,4 +1,4 @@
-const CACHE = 'cohep-v4'
+const CACHE = 'cohep-v5'
 const STATIC = [
   '/',
   '/manifest.json',

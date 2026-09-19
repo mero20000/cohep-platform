@@ -59,7 +59,7 @@ export class ServantsService {
 
   async listServants(
     user: { id: string; schoolId?: string; roles: string[]; metadata?: any },
-    query: { search?: string; role?: string; levelId?: string; groupId?: string; teachingSubject?: string } = {},
+    query: { search?: string; role?: string; levelId?: string; groupId?: string; teachingSubject?: string; excludeSelf?: boolean } = {},
   ) {
     const isSuperAdmin = user.roles?.includes('super_admin');
     const isAdmin = user.roles?.includes('admin') || user.roles?.includes('principal');
@@ -116,6 +116,7 @@ export class ServantsService {
 
     const filtered = users
       .filter((u: any) => !u.deletedAt)
+      .filter((u: any) => !query.excludeSelf || u.id !== user.id)
       .filter((u: any) => {
         const uMeta = (u.metadata as any) || {};
 
@@ -523,11 +524,15 @@ export class ServantsService {
       }).then(records => records.length)
     }
 
-    const totalHymns = await this.prisma.subjectItem.count({
-      where: {
-        lessons: { some: { schoolId: user.schoolId } },
-      },
-    })
+    // Hymns the servant actually taught: distinct curriculum subject items
+    // linked to their own sessions (never the global catalog count).
+    const taughtItems = await this.prisma.attendanceSession.findMany({
+      where: { servantId: userId, deletedAt: null, subjectItemId: { not: null } },
+      select: { subjectItemId: true },
+    });
+    const totalHymns = new Set(
+      taughtItems.map((s: any) => s.subjectItemId).filter((id: any) => id != null),
+    ).size;
 
     const totalReviews = await this.prisma.hymnPracticeSession.count({
       where: { reviewedBy: userId },
@@ -589,6 +594,20 @@ export class ServantsService {
         }
       }
     }
+  }
+
+  async toggleActive(userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, isActive: true, firstName: true, lastName: true, deletedAt: true },
+    });
+    if (!user || user.deletedAt) throw new NotFoundException('Servant not found');
+    const updated = await this.prisma.user.update({
+      where: { id: userId },
+      data: { isActive: !user.isActive },
+      select: { id: true, isActive: true, firstName: true, lastName: true },
+    });
+    return updated;
   }
 
   @Cron('0 3 * * *')
@@ -666,5 +685,6 @@ export class ServantsService {
     }
 
     this.logger.log(`Updated ${servants.length} servant profiles`)
+    return { updated: servants.length }
   }
 }

@@ -64,6 +64,19 @@ describe('ServantsService.listServants', () => {
     );
   });
 
+  it('excludes the caller only when excludeSelf is set', async () => {
+    prisma.user.findMany.mockResolvedValue([
+      S({ id: 'staff-1' }),
+      S({ id: 'u2' }),
+    ]);
+
+    const withSelf = await service.listServants(staff, {});
+    expect(withSelf.map(r => r.id)).toEqual(['staff-1', 'u2']);
+
+    const withoutSelf = await service.listServants(staff, { excludeSelf: true });
+    expect(withoutSelf.map(r => r.id)).toEqual(['u2']);
+  });
+
   it('super_admin is not school-scoped', async () => {
     prisma.user.findMany.mockResolvedValue([S()]);
     await service.listServants(superAdmin, {});
@@ -288,6 +301,55 @@ describe('getServantProfile', () => {
 
     const result = await service.getServantProfile('servant-1', 'viewer-1');
     expect(result?.dateJoined).toBe('2021-06-01T00:00:00.000Z');
+  });
+});
+
+describe('computeServantStats totalHymns', () => {
+  let service: ServantsService;
+  let prisma: any;
+
+  beforeEach(async () => {
+    const prismaMock = {
+      user: { findUnique: jest.fn() },
+      attendanceSession: { count: jest.fn(), findMany: jest.fn() },
+      attendanceRecord: { groupBy: jest.fn() },
+      hymnPracticeSession: { count: jest.fn() },
+      level: { findUnique: jest.fn() },
+      group: { findUnique: jest.fn() },
+    };
+    const module = await Test.createTestingModule({
+      providers: [
+        ServantsService,
+        { provide: StudentNotificationsService, useValue: { notify: jest.fn(), notifyOrRefresh: jest.fn() } },
+        { provide: PrismaService, useValue: prismaMock },
+        { provide: GamificationService, useValue: { addXp: jest.fn(), awardBadge: jest.fn() } },
+      ],
+    }).compile();
+    service = module.get<ServantsService>(ServantsService);
+    prisma = module.get(PrismaService);
+    jest.clearAllMocks();
+  });
+
+  it('counts distinct curriculum items from the servant sessions, not the catalog', async () => {
+    prisma.user.findUnique.mockResolvedValue({
+      id: 's1', schoolId: 'school-1', createdAt: new Date('2020-01-01T00:00:00.000Z'), metadata: {},
+    });
+    prisma.attendanceSession.count.mockResolvedValue(10);
+    prisma.attendanceRecord.groupBy.mockResolvedValue([]);
+    prisma.attendanceSession.findMany.mockResolvedValue([
+      { subjectItemId: 'h1' },
+      { subjectItemId: 'h1' },
+      { subjectItemId: 'h2' },
+      { subjectItemId: null },
+    ]);
+    prisma.hymnPracticeSession.count.mockResolvedValue(3);
+
+    const stats = await (service as any).computeServantStats('s1', 'school-1');
+
+    expect(prisma.attendanceSession.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: expect.objectContaining({ servantId: 's1' }) }),
+    );
+    expect(stats.totalHymns).toBe(2);
   });
 });
 
@@ -550,5 +612,53 @@ describe('ServantsService.rejectLiturgy', () => {
   it('404s on an unknown claim', async () => {
     prisma.familyLiturgy.findUnique.mockResolvedValue(null);
     await expect(service.rejectLiturgy('nope', 'staff-1', 'x')).rejects.toMatchObject({ status: 404 });
+  });
+});
+
+describe('toggleActive', () => {
+  let service: ServantsService;
+  let prisma: any;
+
+  beforeEach(async () => {
+    const prismaMock = {
+      user: { findUnique: jest.fn(), update: jest.fn() },
+    };
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        ServantsService,
+        { provide: StudentNotificationsService, useValue: { notify: jest.fn() } },
+        { provide: PrismaService, useValue: prismaMock },
+        { provide: GamificationService, useValue: { addXp: jest.fn(), awardBadge: jest.fn() } },
+      ],
+    }).compile();
+    service = module.get<ServantsService>(ServantsService);
+    prisma = module.get(PrismaService);
+    jest.clearAllMocks();
+  });
+
+  it('toggles active to inactive', async () => {
+    prisma.user.findUnique.mockResolvedValue({ id: 'u1', isActive: true, deletedAt: null });
+    prisma.user.update.mockResolvedValue({ id: 'u1', isActive: false });
+    const res: any = await service.toggleActive('u1');
+    expect(res.isActive).toBe(false);
+    expect(prisma.user.update).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: 'u1' }, data: { isActive: false } }),
+    );
+  });
+
+  it('toggles inactive to active', async () => {
+    prisma.user.findUnique.mockResolvedValue({ id: 'u1', isActive: false, deletedAt: null });
+    prisma.user.update.mockResolvedValue({ id: 'u1', isActive: true });
+    const res: any = await service.toggleActive('u1');
+    expect(res.isActive).toBe(true);
+    expect(prisma.user.update).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: 'u1' }, data: { isActive: true } }),
+    );
+  });
+
+  it('404s on deleted or unknown servant', async () => {
+    prisma.user.findUnique.mockResolvedValue(null);
+    await expect(service.toggleActive('nope')).rejects.toMatchObject({ status: 404 });
+    expect(prisma.user.update).not.toHaveBeenCalled();
   });
 });

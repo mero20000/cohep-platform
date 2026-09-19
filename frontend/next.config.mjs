@@ -15,6 +15,11 @@ const apiBase   = apiUrl.replace(/\/api\/?$/, '')
 const nextConfig = {
   reactStrictMode: true,
   outputFileTracingRoot: __dirname,
+  // Vercel injects the commit SHA at build time — surfaced in Settings and
+  // the boot log so reports identify the running bundle.
+  env: {
+    NEXT_PUBLIC_BUILD_SHA: process.env.VERCEL_GIT_COMMIT_SHA || 'dev',
+  },
 
   async rewrites() {
     if (process.env.NODE_ENV === 'production') return []
@@ -31,6 +36,10 @@ const nextConfig = {
       { protocol: 'https', hostname: '*.onrender.com' },
       // Cloudinary
       { protocol: 'https', hostname: 'res.cloudinary.com' },
+      // Cloudflare R2 public bucket (registration photos, recordings
+      // thumbs). Without this, next/image answers 400 and every R2-hosted
+      // picture renders as a broken spinner.
+      { protocol: 'https', hostname: '*.r2.dev' },
       ...(uploadsUrl ? [{
         protocol: uploadsUrl.protocol.replace(':', ''),
         hostname: uploadsUrl.hostname,

@@ -24,22 +24,28 @@ export function createCloudinaryStorage(folder: string) {
 
   try {
     const CloudinaryStorage = require('multer-storage-cloudinary');
+    // multer-storage-cloudinary calls `this.cloudinary.v2.uploader...`, so it
+    // needs the object that HAS `.v2` — our `cloudinary` import already IS v2
+    // (passing it bare made `.v2` undefined and crashed the whole process on
+    // the first upload with "Cannot read properties of undefined").
     return new CloudinaryStorage({
-      cloudinary,
-      params: async (_req, file) => {
+      cloudinary: { v2: cloudinary },
+      // NOTE: multer-storage-cloudinary resolves params via run-parallel with
+      // Node-style (req, file, cb) callbacks. An async function NEVER calls
+      // back, so every upload hung forever with no error. Keep this callback
+      // style — do not convert it to async/await.
+      params: (_req: any, file: any, cb: (err: Error | null, params?: Record<string, unknown>) => void) => {
         try {
           const ext = file.originalname.split('.').pop()?.toLowerCase() || 'png';
-          const params = {
+          cb(null, {
             folder: `cohep/${folder}`,
             allowed_formats: ['jpg', 'jpeg', 'png', 'gif', 'webp', 'webm', 'mp3', 'm4a', 'ogg', 'mp4', 'pdf'],
             public_id: `${folder}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
             format: ext,
-          };
-          console.log('Cloudinary storage params:', params);
-          return params;
+          });
         } catch (err) {
           console.error('Error in Cloudinary params handler:', err);
-          throw err;
+          cb(err as Error);
         }
       },
     });

@@ -176,11 +176,11 @@ export class AttendanceService {
    * Prefers an explicitly linked subjectItemId, otherwise derives it from the
    * curriculum allocation for the session's level/week (lesson -> subjectItem).
    */
-  private async resolveSessionSubjectItem(session: { id: string; levelId: string; groupId: string; scheduledDate: Date; subjectItemId?: string | null }): Promise<{ id: string; name: string; nameAr?: string | null; status: string } | null> {
+  private async resolveSessionSubjectItem(session: { id: string; levelId: string; groupId: string; scheduledDate: Date; subjectItemId?: string | null }): Promise<{ id: string; name: string; nameAr?: string | null; status: string; isAssessmentItem?: boolean | null; passRequired?: boolean | null } | null> {
     const load = (id: string) =>
       this.prisma.subjectItem.findUnique({
         where: { id },
-        select: { id: true, name: true, nameAr: true, status: true },
+        select: { id: true, name: true, nameAr: true, status: true, isAssessmentItem: true, passRequired: true },
       });
 
     if (session.subjectItemId) {
@@ -264,7 +264,7 @@ export class AttendanceService {
     if (status === 'completed') {
       const si = await this.prisma.subjectItem.findUnique({
         where: { id: effectiveSubjectItemId },
-        select: { name: true, subjectId: true },
+        select: { name: true, subjectId: true, isAssessmentItem: true },
       });
       const weekStart = new Date(session.scheduledDate);
       weekStart.setHours(0, 0, 0, 0);
@@ -281,38 +281,42 @@ export class AttendanceService {
       const gn = alloc?.groupNumber ?? 1;
       const planned = (si as any)[`sessionsGroup${gn}`] ?? 0;
       const used = await this.prisma.attendanceSession.count({
-        where: { subjectItemId: effectiveSubjectItemId, status: 'completed' },
+        where: { subjectItemId: effectiveSubjectItemId, status: 'completed', deletedAt: null },
       });
 
-      const existingDraft = await this.prisma.assessment.findFirst({
-        where: {
-          schoolId: session.schoolId,
-          levelId: session.levelId,
-          groupId: session.groupId,
-          subjectId: si!.subjectId,
-          title: `Assessment: ${si!.name}`,
-          status: 'draft',
-          deletedAt: null,
-        },
-        select: { id: true, title: true, status: true },
-      });
-      assessment = existingDraft ?? await this.assessments.create(
-        {
-          schoolId: session.schoolId,
-          levelId: session.levelId,
-          groupId: session.groupId,
-          subjectId: si!.subjectId,
-          title: `Assessment: ${si!.name}`,
-          totalPoints: 0,
-          passingPoints: 0,
-          type: 'quiz',
-          status: 'draft',
-        },
-        session.schoolId,
-      );
-      const qCount = await this.prisma.assessmentQuestion.count({ where: { assessmentId: (assessment as any).id } });
-      (assessment as any).actionRequired = qCount === 0 ? 'add-questions-then-publish' : null;
-      (assessment as any).publishUrl = `/dashboard/assessments/${(assessment as any).id}`;
+      // Only assessment items draft a formal assessment on completion.
+      // Plain items complete with just the status flip + sessions report.
+      if ((si as any)?.isAssessmentItem !== false) {
+        const existingDraft = await this.prisma.assessment.findFirst({
+          where: {
+            schoolId: session.schoolId,
+            levelId: session.levelId,
+            groupId: session.groupId,
+            subjectId: si!.subjectId,
+            title: `Assessment: ${si!.name}`,
+            status: 'draft',
+            deletedAt: null,
+          },
+          select: { id: true, title: true, status: true },
+        });
+        assessment = existingDraft ?? await this.assessments.create(
+          {
+            schoolId: session.schoolId,
+            levelId: session.levelId,
+            groupId: session.groupId,
+            subjectId: si!.subjectId,
+            title: `Assessment: ${si!.name}`,
+            totalPoints: 0,
+            passingPoints: 0,
+            type: 'quiz',
+            status: 'draft',
+          },
+          session.schoolId,
+        );
+        const qCount = await this.prisma.assessmentQuestion.count({ where: { assessmentId: (assessment as any).id } });
+        (assessment as any).actionRequired = qCount === 0 ? 'add-questions-then-publish' : null;
+        (assessment as any).publishUrl = `/dashboard/assessments/${(assessment as any).id}`;
+      }
 
       sessionsUsed = used + 1; // include the session just completed
       plannedSessions = planned;
@@ -464,6 +468,121 @@ export class AttendanceService {
     }
   }
 
+  /**
+   * Diagnostic (read-only): list sessions whose records look auto-seeded
+   * rather than manually reported — every record is `present` with no
+   * enrichment (no behavior score, no note, no liturgy flag). A
+   * `seedTimeMatch` flag marks rows recorded within 15 minutes of the
+   * session creation (the legacy Start-Class pre-mark signature).
+   * Heuristic, not proof: a servant using Mark-All right after Start Class
+   * produces the same shape. An admin reviews before any cleanup.
+   */
+  async findSuspectAutoSeeds(schoolId: string, opts: { from?: string; to?: string; limit?: number }) {
+    const limit = Math.min(Math.max(opts.limit ?? 100, 1), 500);
+    // Intentionally scans soft-deleted sessions too: deleting a session
+    // leaves its records behind, and several readers historically counted
+    // them. The `deletedAt` field in each row tells that story.
+    const where: any = { schoolId };
+    if (opts.from || opts.to) {
+      where.scheduledDate = {};
+      if (opts.from) where.scheduledDate.gte = new Date(opts.from);
+      if (opts.to) where.scheduledDate.lte = new Date(opts.to);
+    }
+    const sessions = await this.prisma.attendanceSession.findMany({
+      where,
+      orderBy: { scheduledDate: 'desc' },
+      take: limit,
+      include: {
+        level: { select: { name: true } },
+        group: { select: { name: true } },
+        servant: { select: { id: true, firstName: true, lastName: true } },
+        attendanceRecords: {
+          select: { status: true, behavior: true, participation: true, note: true, attendedLiturgy: true, recordedAt: true },
+        },
+      },
+    });
+    return sessions
+      .map((s: any) => {
+        const recs = s.attendanceRecords || [];
+        const unenriched = recs.filter(
+          (r: any) =>
+            r.status === 'present' &&
+            (r.behavior == null || r.behavior === 0) &&
+            (r.participation == null || r.participation === 0) &&
+            !r.note &&
+            !r.attendedLiturgy,
+        );
+        const createdAt = new Date(s.createdAt).getTime();
+        const seedTimeMatch =
+          recs.length > 0 &&
+          !isNaN(createdAt) &&
+          recs.every((r: any) => {
+            const t = new Date(r.recordedAt).getTime();
+            return !isNaN(t) && Math.abs(t - createdAt) <= 15 * 60 * 1000;
+          });
+        return {
+          id: s.id,
+          scheduledDate: s.scheduledDate,
+          status: s.status,
+          deletedAt: s.deletedAt ?? null,
+          levelName: s.level?.name ?? null,
+          groupName: s.group?.name ?? null,
+          servant: s.servant ? { id: s.servant.id, name: `${s.servant.firstName} ${s.servant.lastName}`.trim() } : null,
+          totalRecords: recs.length,
+          presentRecords: recs.filter((r: any) => r.status === 'present').length,
+          unenrichedPresents: unenriched.length,
+          seedTimeMatch,
+          suspect: recs.length > 0 && unenriched.length === recs.length,
+        };
+      })
+      .filter((s: any) => s.suspect);
+  }
+
+  /**
+   * Cleanup (write): reset auto-seed-like records to `unmarked` on exactly
+   * the sessions flagged by findSuspectAutoSeeds. Safe by default: runs as
+   * a dry run unless `{ dryRun: false, confirm: true }` is passed.
+   * Only the status flips — recordedBy/recordedAt history is preserved.
+   */
+  async resetSuspectAutoSeeds(
+    schoolId: string,
+    opts: { from?: string; to?: string; limit?: number; dryRun?: boolean; confirm?: boolean },
+  ) {
+    const suspects = await this.findSuspectAutoSeeds(schoolId, opts);
+    const sessionIds = suspects.map((s: any) => s.id);
+    const dryRun = opts.dryRun !== false || opts.confirm !== true;
+    let recordsReset = 0;
+    if (!dryRun && sessionIds.length) {
+      const res = await this.prisma.attendanceRecord.updateMany({
+        where: {
+          attendanceSessionId: { in: sessionIds },
+          status: 'present',
+          OR: [{ behavior: null }, { behavior: 0 }],
+          AND: [
+            { OR: [{ participation: null }, { participation: 0 }] },
+            { note: null },
+            { OR: [{ attendedLiturgy: null }, { attendedLiturgy: false }] },
+          ],
+        },
+        data: { status: 'unmarked' },
+      });
+      recordsReset = res.count;
+    }
+    return {
+      dryRun,
+      sessions: suspects.map((s: any) => ({
+        id: s.id,
+        scheduledDate: s.scheduledDate,
+        groupName: s.groupName,
+        servant: s.servant,
+        totalRecords: s.totalRecords,
+        seedTimeMatch: s.seedTimeMatch,
+      })),
+      sessionCount: suspects.length,
+      recordsReset,
+    };
+  }
+
   async markAttendance(sessionId: string, dto: MarkAttendanceDto) {
     const session = await this.prisma.attendanceSession.findUnique({ where: { id: sessionId } });
     if (!session) throw new NotFoundException('Attendance session not found');
@@ -536,7 +655,7 @@ export class AttendanceService {
     const studentNameAr = student.firstNameAr && student.lastNameAr ? `${student.firstNameAr} ${student.lastNameAr}` : studentName;
 
     const group = await this.prisma.attendanceSession.findFirst({
-      where: { attendanceRecords: { some: { studentId } } },
+      where: { attendanceRecords: { some: { studentId } }, deletedAt: null },
       include: { group: { select: { name: true } } },
       orderBy: { scheduledDate: 'desc' },
     });
@@ -740,7 +859,8 @@ export class AttendanceService {
       },
     });
 
-    // Pre-mark all students as present
+    // Seed the roster as unmarked — the servant marks each student explicitly.
+    // Defaulting to present caused false presents and rework on absences.
     const students = await this.prisma.student.findMany({
       where: { groupId, levelId, schoolId: servant.schoolId, deletedAt: null, status: 'active' },
       select: { id: true },
@@ -750,7 +870,7 @@ export class AttendanceService {
         data: students.map(s => ({
           attendanceSessionId: session.id,
           studentId: s.id,
-          status: 'present',
+          status: 'unmarked',
           recordedBy: servantId,
           recordedAt: new Date(),
         })),
@@ -932,7 +1052,7 @@ export class AttendanceService {
     });
     if (!students.length) return [];
     const records = await this.prisma.attendanceRecord.findMany({
-      where: { studentId: { in: students.map(s => s.id) } },
+      where: { studentId: { in: students.map(s => s.id) }, attendanceSession: { deletedAt: null } },
       include: {
         attendanceSession: {
           include: {
@@ -1186,8 +1306,15 @@ export class AttendanceService {
   }
 
   async deleteSession(id: string) {
-    const session = await this.prisma.attendanceSession.findUnique({ where: { id } });
+    const session = await this.prisma.attendanceSession.findUnique({
+      where: { id },
+      select: { id: true, schoolId: true, status: true, levelId: true, groupId: true, attendanceRecords: { select: { studentId: true } } },
+    });
     if (!session) throw new NotFoundException('Attendance session not found');
+    // Collect affected student IDs BEFORE soft-deleting the session — after
+    // deletion the records are filtered out by attendanceSession.deletedAt: null
+    // so we wouldn't be able to recover them.
+    const affectedStudentIds = [...new Set(session.attendanceRecords.map(r => r.studentId))];
     await this.prisma.attendanceSession.update({
       where: { id },
       data: { deletedAt: new Date() },
@@ -1199,6 +1326,12 @@ export class AttendanceService {
       entityId: id,
       oldValues: { status: session.status, levelId: session.levelId, groupId: session.groupId },
     });
+    // Recompute badges for affected students: badges tied to deleted
+    // attendance are revoked and their XP reversed; anything still
+    // qualifying is awarded fresh.
+    for (const sid of affectedStudentIds) {
+      this.gamification.computeBadgesForStudent(sid, undefined, true).catch(() => {});
+    }
     return { deleted: true };
   }
 

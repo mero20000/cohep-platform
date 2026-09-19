@@ -159,7 +159,7 @@ export default function MyClassPage() {
           )}
           {data.nextSession && (
             <Link
-              href={`/dashboard/attendance?sessionId=${data.nextSession.id}&prefill=present`}
+              href={`/dashboard/attendance?sessionId=${data.nextSession.id}`}
               className="mt-2 inline-flex min-h-[44px] items-center gap-1.5 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 transition-colors"
             >
               <CalendarDays className="h-4 w-4" />

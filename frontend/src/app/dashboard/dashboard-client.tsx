@@ -1300,7 +1300,7 @@ function WeekScheduleCard({ lang }: { lang: string }) {
   )
 }
 
-export function NextSessionCard({ lang, assigned, groups }: { lang: string; assigned?: any; groups?: any[] }) {
+export function NextSessionCard({ lang, assigned, groups, sessions }: { lang: string; assigned?: any; groups?: any[]; sessions?: any[] }) {
   const levelId =
     assigned?.levelId ||
     groups?.find((g: any) => g.id === assigned?.groupId)?.levelId ||
@@ -1449,7 +1449,22 @@ export function NextSessionCard({ lang, assigned, groups }: { lang: string; assi
         <div className="divide-y divide-gray-100">
         {items.map((a) => {
           const lesson = lessonMap.get(a.lesson?.id || '')
-          const item = lesson?.subjectItem
+          // Row theme comes from the admin-configured subject color, so each
+          // subject item renders in its own subject's color.
+          const rawColor = lesson?.subject?.color
+          const theme = /^#[0-9a-fA-F]{6}$/.test(rawColor || '') ? rawColor : '#3b82f6'
+          // Prefer the attendance session's own curriculum item when a session
+          // falls in this allocation's week — unifies with the attendance
+          // module's resolver instead of showing a possibly different item.
+          const sessionItem = (sessions || []).reduce((found: any, s: any) => {
+            if (found || !s?.subjectItem || s.levelNumber == null || a.level?.number == null) return found
+            if (s.levelNumber !== a.level.number || !s.scheduledDate || !a.scheduledDate) return found
+            const sDay = toLocalDay(typeof s.scheduledDate === 'string' ? s.scheduledDate : new Date(s.scheduledDate).toISOString())
+            const aDay = toLocalDay(a.scheduledDate as string)
+            const diff = (aDay.getTime() - sDay.getTime()) / 86400000
+            return diff >= 0 && diff < 7 ? s.subjectItem : found
+          }, null)
+          const item = sessionItem || lesson?.subjectItem
           const label = item
             ? lang === 'ar'
               ? item.nameAr || item.name
@@ -1464,7 +1479,10 @@ export function NextSessionCard({ lang, assigned, groups }: { lang: string; assi
             : ''
           return (
             <div key={a.id} className="flex items-start gap-3 px-5 py-3.5 hover:bg-gray-50 transition-colors">
-              <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
+              <div
+                className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl"
+                style={{ backgroundColor: `${theme}14`, color: theme }}
+              >
                 <BookOpen className="h-4 w-4" />
               </div>
               <div className="min-w-0 flex-1">
@@ -1474,10 +1492,13 @@ export function NextSessionCard({ lang, assigned, groups }: { lang: string; assi
                 )}
                 <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
                   {lesson?.subject?.name && (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-medium text-blue-700">
+                    <span
+                      className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium"
+                      style={{ backgroundColor: `${theme}14`, color: theme }}
+                    >
                       <span
                         className="h-1.5 w-1.5 rounded-full"
-                        style={{ backgroundColor: lesson.subject.color || '#3b82f6' }}
+                        style={{ backgroundColor: theme }}
                       />
                       {lesson.subject.name}
                     </span>
@@ -2013,8 +2034,9 @@ function ServantWellbeingPanel({ lang, schoolId }: { lang: string; schoolId: str
   const handleStartClass = async () => {
     if (!digest?.nextSession) return
     setStartingClass(true)
-    // Navigate to attendance for this session with pre-fill param
-    router.push(`/dashboard/attendance?sessionId=${digest.nextSession.id}&prefill=present`)
+    // Navigate to attendance for this session — roster starts unmarked so the
+    // servant marks each student explicitly (no all-present default).
+    router.push(`/dashboard/attendance?sessionId=${digest.nextSession.id}`)
     setStartingClass(false)
   }
 
@@ -2334,7 +2356,7 @@ export function MinistryDashboard({ data, loading, error, onRetry }: { data: any
       {/* Next Session — curriculum subject items allocated for the day/week */}
       {SERVANT_ROLES.includes(d.role || '') && (
         <motion.div variants={fadeUp}>
-          <NextSessionCard lang={lang} assigned={assigned} groups={groups} />
+          <NextSessionCard lang={lang} assigned={assigned} groups={groups} sessions={sessions} />
         </motion.div>
       )}
 
@@ -2429,13 +2451,16 @@ export function MinistryDashboard({ data, loading, error, onRetry }: { data: any
      <div className="divide-y divide-gray-100">
       {sessions.length === 0 ? (
        <div className="px-5 py-8"><EmptyState icon={CalendarClock} title={lang === 'ar' ? 'لا توجد جلسات مجدولة' : 'No scheduled sessions'} description={lang === 'ar' ? 'ستظهر جلساتك هنا.' : 'Your sessions will appear here.'} /></div>
-      ) : sessions.map((s) => (
-       <Link key={s.id} href="/dashboard/attendance" className="flex items-center gap-4 px-5 py-3.5 hover:bg-gray-50 active:bg-gray-100 transition-colors group">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600"><CalendarClock className="h-5 w-5" /></div>
-        <div className="min-w-0 flex-1">
-         <div className="text-sm font-medium text-gray-900 truncate">{s.levelName} · {s.groupName}</div>
-         <div className="text-xs text-gray-500">{formatDate(s.scheduledDate, lang === 'ar' ? 'ar-EG' : 'en-GB')}</div>
-        </div>
+       ) : sessions.map((s) => (
+        <Link key={s.id} href={`/dashboard/attendance?sessionId=${s.id}`} className="flex items-center gap-4 px-5 py-3.5 hover:bg-gray-50 active:bg-gray-100 transition-colors group">
+         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600"><CalendarClock className="h-5 w-5" /></div>
+         <div className="min-w-0 flex-1">
+          <div className="text-sm font-medium text-gray-900 truncate">{s.levelName} · {s.groupName}</div>
+          {s.subjectItem && (
+            <div className="text-xs font-medium text-blue-700 truncate">{lang === 'ar' ? s.subjectItem.nameAr || s.subjectItem.name : s.subjectItem.name}</div>
+          )}
+          <div className="text-xs text-gray-500">{formatDate(s.scheduledDate, lang === 'ar' ? 'ar-EG' : 'en-GB')}</div>
+         </div>
         <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700 group-hover:bg-emerald-100">{lang === 'ar' ? 'تسجيل الحضور' : 'Take Attendance'}</span>
        </Link>
       ))}
@@ -2452,17 +2477,18 @@ export function MinistryDashboard({ data, loading, error, onRetry }: { data: any
      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 p-4">
       {groups.length === 0 ? (
        <div className="col-span-full px-1 py-6"><EmptyState icon={UserCog} title={lang === 'ar' ? 'لا مجموعات' : 'No groups'} /></div>
-      ) : groups.map((g) => (
-       <div key={g.id} className="rounded-xl border border-[var(--hymn-border)] bg-[var(--hymn-surface)] p-4 hover:border-blue-200 hover:shadow-md transition-all">
-        <div className="flex items-center justify-between">
-         <h3 className="font-semibold text-gray-900">{g.name}</h3>
-         <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-medium text-blue-700">{g.levelName}</span>
-        </div>
-        <div className="mt-3 flex items-center gap-2 text-sm text-gray-500">
-         <Users className="h-4 w-4" /><span>{g.studentCount} {lang === 'ar' ? 'طالب' : 'students'}</span>
-        </div>
-       </div>
-      ))}
+       ) : groups.map((g) => (
+        <Link key={g.id} href={`/dashboard/students?groupId=${g.id}`} className="block rounded-xl border border-[var(--hymn-border)] bg-[var(--hymn-surface)] p-4 hover:border-blue-200 hover:shadow-md transition-all group">
+         <div className="flex items-center justify-between">
+          <h3 className="font-semibold text-gray-900">{g.name}</h3>
+          <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-medium text-blue-700">{g.levelName}</span>
+         </div>
+         <div className="mt-3 flex items-center gap-2 text-sm text-gray-500">
+          <Users className="h-4 w-4" /><span>{g.studentCount} {lang === 'ar' ? 'طالب' : 'students'}</span>
+          <ChevronRight className="ms-auto h-4 w-4 text-gray-300 group-hover:text-blue-500" />
+         </div>
+        </Link>
+       ))}
      </div>
     </motion.div>
 

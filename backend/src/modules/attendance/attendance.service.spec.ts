@@ -30,6 +30,7 @@ describe('AttendanceService', () => {
       findMany: jest.fn(),
       createMany: jest.fn(),
       deleteMany: jest.fn(),
+      updateMany: jest.fn(),
       upsert: jest.fn(),
     },
     student: {
@@ -183,6 +184,20 @@ describe('AttendanceService', () => {
       const data = prisma.attendanceSession.create.mock.calls[0][0].data;
       expect(data.status).toBe('in_progress');
       expect(data.actualStartTime).toBeInstanceOf(Date);
+    });
+
+    it('seeds the roster as unmarked (never pre-marks present)', async () => {
+      prisma.student.findMany.mockResolvedValue([{ id: 'stu-1' }]);
+
+      await service.startClass('u1');
+
+      expect(prisma.attendanceRecord.createMany).toHaveBeenCalledWith({
+        data: expect.arrayContaining([
+          expect.objectContaining({ studentId: 'stu-1', status: 'unmarked' }),
+        ]),
+      });
+      const statuses = prisma.attendanceRecord.createMany.mock.calls[0][0].data.map((r: any) => r.status);
+      expect(statuses).not.toContain('present');
     });
   });
 
@@ -388,6 +403,16 @@ describe('AttendanceService', () => {
       expect(result.assessment.publishUrl).toBe('/dashboard/assessments/ass-1');
     });
 
+    it('on completed skips the draft assessment for non-assessment items', async () => {
+      prisma.subjectItem.findUnique.mockResolvedValue({ ...subjectItem, isAssessmentItem: false });
+      const result = await service.markSubjectItemStatus('sess-1', 'completed');
+      expect(result.status).toBe('completed');
+      expect(result.assessment).toBeUndefined();
+      expect(assessmentsMock.create).not.toHaveBeenCalled();
+      expect(result.sessionsUsed).toBe(2);
+      expect(result.plannedSessions).toBe(3);
+    });
+
     it('rejects an unknown subject item link', async () => {
       prisma.subjectItem.findUnique.mockImplementation(({ where }: any) =>
         where.id === 'si-bad' ? Promise.resolve(null) : Promise.resolve(subjectItem),
@@ -432,6 +457,138 @@ describe('AttendanceService', () => {
       const where = await captureWhere({ gradeId: 'GR1' }, [{ groupId: 'G2' }, { groupId: 'G3' }]);
       expect(where.servantId).toBeUndefined();
       expect(where.groupId).toEqual({ in: ['G2', 'G3'] });
+    });
+  });
+
+  describe('findSuspectAutoSeeds', () => {
+    const seedTime = new Date('2026-09-01T10:00:00.000Z');
+    const autoRec = (over = {}) => ({
+      status: 'present',
+      behavior: null,
+      participation: null,
+      note: null,
+      attendedLiturgy: false,
+      recordedAt: new Date(seedTime.getTime() + 60 * 1000),
+      ...over,
+    });
+    const sess = (over = {}) => ({
+      id: 'sess-1',
+      scheduledDate: seedTime,
+      createdAt: seedTime,
+      status: 'completed',
+      level: { name: 'Level 1' },
+      group: { name: 'Group A' },
+      servant: { id: 'u1', firstName: 'George', lastName: 'R' },
+      attendanceRecords: [autoRec(), autoRec()],
+      ...over,
+    });
+
+    it('flags all-present unenriched sessions with seed-time match', async () => {
+      prisma.attendanceSession.findMany.mockResolvedValue([sess()]);
+
+      const result = await service.findSuspectAutoSeeds(schoolId, {});
+
+      expect(result).toHaveLength(1);
+      expect(result[0]).toMatchObject({
+        id: 'sess-1',
+        totalRecords: 2,
+        presentRecords: 2,
+        unenrichedPresents: 2,
+        seedTimeMatch: true,
+        suspect: true,
+      });
+    });
+
+    it('flags auto-seed-like records under soft-deleted sessions too', async () => {
+      const seedTime = new Date('2026-09-01T10:00:00.000Z');
+      prisma.attendanceSession.findMany.mockResolvedValue([
+        sess({
+          id: 'ghost',
+          deletedAt: seedTime,
+          attendanceRecords: [autoRec(), autoRec()],
+        }),
+      ]);
+
+      const result = await service.findSuspectAutoSeeds(schoolId, {});
+
+      expect(result).toHaveLength(1);
+      expect(result[0]).toMatchObject({ id: 'ghost', deletedAt: seedTime, suspect: true });
+    });
+
+    it('ignores sessions with mixed statuses or enriched records', async () => {
+      prisma.attendanceSession.findMany.mockResolvedValue([
+        sess({ id: 'mixed', attendanceRecords: [autoRec(), autoRec({ status: 'absent' })] }),
+        sess({ id: 'enriched', attendanceRecords: [autoRec(), autoRec({ behavior: 4, note: 'late bus' })] }),
+        sess({ id: 'empty', attendanceRecords: [] }),
+      ]);
+
+      const result = await service.findSuspectAutoSeeds(schoolId, {});
+
+      expect(result).toHaveLength(0);
+    });
+
+    it('scopes by school and caps the scan window', async () => {
+      prisma.attendanceSession.findMany.mockResolvedValue([]);
+
+      await service.findSuspectAutoSeeds(schoolId, { from: '2026-08-01', to: '2026-09-01', limit: 50 });
+
+      const where = prisma.attendanceSession.findMany.mock.calls[0][0].where;
+      expect(where.schoolId).toBe(schoolId);
+      expect(where.scheduledDate.gte).toEqual(new Date('2026-08-01'));
+      expect(where.scheduledDate.lte).toEqual(new Date('2026-09-01'));
+      expect(prisma.attendanceSession.findMany.mock.calls[0][0].take).toBe(50);
+    });
+
+    it('dry-runs by default: reports suspects without writing', async () => {
+      const seedTime = new Date('2026-09-01T10:00:00.000Z');
+      prisma.attendanceSession.findMany.mockResolvedValue([
+        {
+          id: 'sess-1', scheduledDate: seedTime, createdAt: seedTime, status: 'completed',
+          level: { name: 'L' }, group: { name: 'G' }, servant: { id: 'u1', firstName: 'A', lastName: 'B' },
+          attendanceRecords: [
+            { status: 'present', behavior: null, participation: null, note: null, attendedLiturgy: false, recordedAt: seedTime },
+          ],
+        },
+      ]);
+
+      const result = await service.resetSuspectAutoSeeds(schoolId, {});
+
+      expect(result.dryRun).toBe(true);
+      expect(result.sessionCount).toBe(1);
+      expect(result.recordsReset).toBe(0);
+      expect(prisma.attendanceRecord.updateMany).not.toHaveBeenCalled();
+    });
+
+    it('resets only unenriched presents on flagged sessions when confirmed', async () => {
+      const seedTime = new Date('2026-09-01T10:00:00.000Z');
+      prisma.attendanceSession.findMany.mockResolvedValue([
+        {
+          id: 'sess-1', scheduledDate: seedTime, createdAt: seedTime, status: 'completed',
+          level: { name: 'L' }, group: { name: 'G' }, servant: { id: 'u1', firstName: 'A', lastName: 'B' },
+          attendanceRecords: [
+            { status: 'present', behavior: null, participation: null, note: null, attendedLiturgy: false, recordedAt: seedTime },
+          ],
+        },
+      ]);
+      prisma.attendanceRecord.updateMany.mockResolvedValue({ count: 1 });
+
+      const result = await service.resetSuspectAutoSeeds(schoolId, { dryRun: false, confirm: true });
+
+      expect(result.dryRun).toBe(false);
+      expect(result.recordsReset).toBe(1);
+      const args = prisma.attendanceRecord.updateMany.mock.calls[0][0];
+      expect(args.where.attendanceSessionId).toEqual({ in: ['sess-1'] });
+      expect(args.where.status).toBe('present');
+      expect(args.data).toEqual({ status: 'unmarked' });
+    });
+
+    it('requires both flags: confirm alone still dry-runs', async () => {
+      prisma.attendanceSession.findMany.mockResolvedValue([]);
+
+      const result = await service.resetSuspectAutoSeeds(schoolId, { confirm: true } as any);
+
+      expect(result.dryRun).toBe(true);
+      expect(prisma.attendanceRecord.updateMany).not.toHaveBeenCalled();
     });
   });
 });

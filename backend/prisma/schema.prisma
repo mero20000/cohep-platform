@@ -642,6 +642,8 @@ model SubjectItem {
   sessionsGroup3     Int      @default(0) @map("sessions_group3")
   sessionsGroup4     Int      @default(0) @map("sessions_group4")
   optional           Boolean  @default(false)
+  isAssessmentItem Boolean  @default(true) @map("is_assessment_item")
+  passRequired     Boolean  @default(false) @map("pass_required")
   orderIndex         Int      @default(0) @map("order_index")
   presentationUrl    String?  @map("presentation_url")
   presentationData   Json?    @map("presentation_data")

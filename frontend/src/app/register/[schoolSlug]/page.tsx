@@ -1,7 +1,8 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useParams } from 'next/navigation'
+import dynamic from 'next/dynamic'
 import Image from 'next/image'
 import Link from 'next/link'
 import {
@@ -11,7 +12,19 @@ import {
 import { DatePicker } from '@/components/ui/date-picker'
 import { Button } from '@/components/ui/button'
 import { useLanguage } from '@/lib/use-language'
-import { VoiceRecorder } from '@/components/registration/voice-recorder'
+// Heavy (MP3 encoder, mic APIs) — loaded only when the Voice step renders,
+// keeping the initial bundle light for fast first paint.
+const VoiceRecorder = dynamic(
+  () => import('@/components/registration/voice-recorder').then(m => m.VoiceRecorder),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-gray-50 py-6 text-sm text-gray-500">
+        <Loader2 className="h-4 w-4 animate-spin" />
+      </div>
+    ),
+  },
+)
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'
 
@@ -56,14 +69,35 @@ export default function RegisterPage() {
     parentName: '', relationship: 'father',
   })
 
-  useEffect(() => {
-    fetch(`${API}/registrations/${schoolSlug}/meta`).then(r=>r.json()).then(d=>{
-      setMeta(d)
-      const churchName = d?.church?.name || d?.school?.name
-      if (churchName) setForm(prev => prev.churchName ? prev : ({ ...prev, churchName }))
-      setMetaLoading(false)
-    }).catch(()=>setMetaLoading(false))
+  const [metaError, setMetaError] = useState(false)
+  // School meta (grades, church name) loads in the background — the form is
+  // usable immediately while the free-tier backend wakes up (~30s cold start).
+  const fetchMeta = useCallback(async () => {
+    setMetaError(false)
+    setMetaLoading(true)
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const ctrl = new AbortController()
+      const timer = setTimeout(() => ctrl.abort(), 90000)
+      try {
+        const r = await fetch(`${API}/registrations/${schoolSlug}/meta`, { signal: ctrl.signal })
+        clearTimeout(timer)
+        if (!r.ok) throw new Error(`meta ${r.status}`)
+        const d = await r.json()
+        setMeta(d)
+        const churchName = d?.church?.name || d?.school?.name
+        if (churchName) setForm(prev => prev.churchName ? prev : ({ ...prev, churchName }))
+        setMetaLoading(false)
+        return
+      } catch {
+        clearTimeout(timer)
+        if (attempt === 0) await new Promise(res => setTimeout(res, 2000))
+      }
+    }
+    setMetaLoading(false)
+    setMetaError(true)
   }, [schoolSlug])
+
+  useEffect(() => { fetchMeta() }, [fetchMeta])
 
   const update = (k: string, v: string) => setForm(prev => ({ ...prev, [k]: v }))
 
@@ -195,14 +229,6 @@ export default function RegisterPage() {
       setError(e.message || t('Failed to submit', 'فشل الإرسال'))
     }
     setSubmitting(false)
-  }
-
-  if (metaLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-gold-600" />
-      </div>
-    )
   }
 
   if (success) {
@@ -461,8 +487,8 @@ export default function RegisterPage() {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700">{t('Grade & Weekday (A = Saturday, B = Sunday)', 'المرحلة واليوم (أ = السبت، ب = الأحد)')}</label>
-                    <select value={form.gradeId} onChange={e => update('gradeId', e.target.value)} className="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2.5 text-base sm:text-sm bg-white focus:border-gold-400 focus:outline-none">
-                      <option value="">{t('Select a grade...', 'اختر المرحلة...')}</option>
+                    <select value={form.gradeId} onChange={e => update('gradeId', e.target.value)} disabled={metaLoading && !metaError} className="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2.5 text-base sm:text-sm bg-white focus:border-gold-400 focus:outline-none disabled:bg-gray-50 disabled:text-gray-400">
+                      <option value="">{metaLoading ? t('Loading grades…', 'جارٍ تحميل المراحل…') : t('Select a grade...', 'اختر المرحلة...')}</option>
                       {Object.entries(getGroupedGrades()).map(([group, grades]) => (
                         <optgroup key={group} label={t(group === 'Primary' ? 'Primary (Grades 4-6)' : group === 'Secondary' ? 'Secondary (Grades 7-9)' : group === 'Preparatory' ? 'Preparatory (Grades 10-13)' : 'Other', group === 'Primary' ? 'الابتدائي (المراحل 4-6)' : group === 'Secondary' ? 'الإعدادي (المراحل 7-9)' : group === 'Preparatory' ? 'الثانوي (المراحل 10-13)' : 'أخرى')}>
                           {grades.map((g: any) => (
@@ -471,6 +497,12 @@ export default function RegisterPage() {
                         </optgroup>
                       ))}
                     </select>
+                    {metaLoading && (
+                      <p className="mt-1 flex items-center gap-1 text-xs text-gray-500"><Loader2 className="h-3 w-3 animate-spin" />{t('Waking up the server — you can fill the rest meanwhile', 'جارٍ إيقاظ الخادم — يمكنك ملء باقي الحقول في هذه الأثناء')}</p>
+                    )}
+                    {metaError && (
+                      <p className="mt-1 text-xs text-amber-700">{t('Could not load grades. ', 'تعذر تحميل المراحل. ')}<button type="button" onClick={fetchMeta} className="font-semibold underline">{t('Retry', 'إعادة المحاولة')}</button></p>
+                    )}
                     <p className="mt-1 text-xs text-gray-500">{t('A classes meet on Saturday, B classes meet on Sunday', 'فصول أ تجتمع يوم السبت، فصول ب تجتمع يوم الأحد')}</p>
                   </div>
                 </div>

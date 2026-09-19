@@ -8,7 +8,7 @@ import { http } from '@/lib/http-client'
 import { getSchoolId } from '@/lib/school'
 import {
   Loader2, Mail, Building2, MapPin, Phone, User, ArrowLeft, Pencil, XCircle,
-  CheckCircle2, Trash2, Music, Clock, Eye, Baby,
+  CheckCircle2, Trash2, Music, Clock, Eye, Baby, X, ZoomIn,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { TableSkeleton } from '@/components/ui/skeleton'
@@ -85,6 +85,7 @@ function StudentsPanel() {
   const [items, setItems] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [selected, setSelected] = useState<any | null>(null)
+  const [previewPhoto, setPreviewPhoto] = useState('')
   const [editData, setEditData] = useState<any>(null)
   const [approving, setApproving] = useState(false)
   const [rejecting, setRejecting] = useState(false)
@@ -184,8 +185,9 @@ function StudentsPanel() {
               return (
                 <div key={app.id} className={`rounded-2xl border bg-white p-5 hover:shadow-md transition-shadow ${app.status === 'approved' ? 'border-green-200' : app.status === 'rejected' ? 'border-red-200' : 'border-gray-200'}`}>
                   <div className="flex items-start gap-4">
-                    <div className="h-14 w-14 rounded-full bg-gray-100 overflow-hidden flex-shrink-0">
-                      {sd.photoUrl ? <Image src={assetUrl(sd.photoUrl)} alt="" width={56} height={56} className="h-full w-full object-cover" priority /> : <div className="h-full w-full flex items-center justify-center text-gray-400 font-bold">{(sd.name || '?')[0]}</div>}
+                    <div className="relative h-14 w-14 rounded-full bg-gray-100 overflow-hidden flex-shrink-0">
+                      <div className="absolute inset-0 flex items-center justify-center text-gray-400 font-bold">{(sd.name || '?')[0]}</div>
+                      {sd.photoUrl ? <div role="button" tabIndex={0} onClick={() => setPreviewPhoto(assetUrl(sd.photoUrl))} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setPreviewPhoto(assetUrl(sd.photoUrl)) } }} aria-label={t('View photo', 'عرض الصورة')} title={t('View larger', 'عرض بحجم أكبر')} className="absolute inset-0 cursor-zoom-in group/thumb touch-manipulation">{/* eslint-disable-line @next/next/no-img-element -- thumb uses raw img to avoid optimizer rejection of future storage hosts */}<img src={assetUrl(sd.photoUrl)} alt="" className="h-full w-full object-cover" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none' }} /><span className="absolute bottom-0 end-0 rounded-tl-lg bg-black/50 p-0.5 opacity-0 group-hover/thumb:opacity-100 transition-opacity"><ZoomIn className="h-3 w-3 text-white" /></span></div> : null}
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="font-bold text-gray-900 truncate">{sd.name || sd.firstName}</div>
@@ -219,7 +221,7 @@ function StudentsPanel() {
                   })()}
                    <div className="mt-3 text-xs text-gray-600 line-clamp-2">{sd.notes || sd.address || ''} · {sd.parentEmail}</div>
                     <div className="mt-3 flex items-center gap-2 flex-wrap">
-                      <Button size="sm" variant="outline" onClick={() => { setSelected(app); setEditData(app.studentData) }}>
+                      <Button size="sm" variant="outline" onClick={() => { setSelected(app); setEditData(app.studentData); setGradeId(app.studentData?.gradeId || ''); setLevelId(''); setGroupId('') }}>
                         <Eye className="h-3.5 w-3.5" />{t('View/Edit', 'عرض/تعديل')}
                       </Button>
                       {app.status === 'pending' && (
@@ -261,6 +263,43 @@ function StudentsPanel() {
         }>
         {selected && (
           <div className="space-y-4 max-h-[60vh] overflow-y-auto">
+            {/* Applicant photo */}
+            {(() => {
+              const sd: any = selected.studentData || {}
+              const initial = ((sd.name || sd.firstName || '?') as string).trim()?.[0] || '?'
+              return (
+                <div className="flex items-center gap-3">
+                  <div className="relative h-20 w-20 rounded-full bg-gray-100 overflow-hidden flex-shrink-0">
+                    <div className="absolute inset-0 flex items-center justify-center text-xl font-bold text-gray-400">{initial}</div>
+                    {sd.photoUrl ? (
+                      <button
+                        type="button"
+                        onClick={() => setPreviewPhoto(assetUrl(sd.photoUrl))}
+                        aria-label={t('View photo larger', 'عرض الصورة بحجم أكبر')}
+                        title={t('View larger', 'عرض بحجم أكبر')}
+                        className="absolute inset-0 cursor-zoom-in group/photo"
+                      >
+                        <Image
+                          src={assetUrl(sd.photoUrl)}
+                          alt={t('Applicant photo', 'صورة المتقدم')}
+                          width={80}
+                          height={80}
+                          className="absolute inset-0 h-full w-full object-cover"
+                          onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none' }}
+                        />
+                        <span className="absolute bottom-1 end-1 rounded-full bg-black/55 p-1 opacity-0 group-hover/photo:opacity-100 transition-opacity">
+                          <ZoomIn className="h-3.5 w-3.5 text-white" />
+                        </span>
+                      </button>
+                    ) : null}
+                  </div>
+                  <div className="min-w-0">
+                    <div className="font-bold text-gray-900 truncate">{sd.name || `${sd.firstName || ''} ${sd.lastName || ''}`.trim() || t('Application', 'طلب')}</div>
+                    <div className="text-xs text-gray-500">{sd.dateOfBirth} · {sd.gender} · {sd.churchName || ''}</div>
+                  </div>
+                </div>
+              )
+            })()}
             {/* Recordings — one player per hymn */}
             {(() => {
               const sd: any = selected.studentData || {}
@@ -295,9 +334,12 @@ function StudentsPanel() {
                     <option value="male">{t('Male', 'ذكر')}</option>
                     <option value="female">{t('Female', 'أنثى')}</option>
                   </FormField>
-                  <FormField label={t('Grade (for group)', 'المرحلة (للمجموعة)')} as="select" value={gradeId} onChange={e => setGradeId(e.target.value)}>
+                  <FormField label={t('Grade (for group)', 'المرحلة (للمجموعة)')} as="select" value={gradeId || editData?.gradeId || ''} onChange={e => { setGradeId(e.target.value); setEditData({ ...editData, gradeId: e.target.value || undefined }) }}>
                     <option value="">{t('Select grade', 'اختر المرحلة')}</option>
                     {grades.map((g: any) => <option key={g.id} value={g.id}>{g.name}{g.nameAr ? ` – ${g.nameAr}` : ''}</option>)}
+                    {((gradeId || editData?.gradeId) && !grades.some((g: any) => g.id === (gradeId || editData?.gradeId))) && (
+                      <option value={gradeId || editData?.gradeId}>{t('Submitted grade (inactive)', 'المرحلة المُرسلة (غير نشطة)')} — {(gradeId || editData?.gradeId) as string}</option>
+                    )}
                   </FormField>
                   <FormField label={t('Church', 'الكنيسة')} value={editData?.churchName || ''} onChange={e => setEditData({ ...editData, churchName: e.target.value })} />
                   <FormField label={t('Parent / Guardian Name', 'اسم ولي الأمر')} value={editData?.parentName || ''} onChange={e => setEditData({ ...editData, parentName: e.target.value })} />
@@ -320,6 +362,15 @@ function StudentsPanel() {
           </div>
         )}
       </Modal>
+      {previewPhoto && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/70 p-4" onClick={() => setPreviewPhoto('')} onKeyDown={e => { if (e.key === 'Escape') setPreviewPhoto('') }} role="presentation">
+          <div role="dialog" aria-modal="true" aria-label={t('Applicant photo', 'صورة المتقدم')} className="relative max-w-lg max-h-[80vh] outline-none" onClick={e => e.stopPropagation()} tabIndex={-1} autoFocus>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={previewPhoto} alt={t('Applicant photo', 'صورة المتقدم')} className="max-w-full max-h-[75vh] rounded-2xl shadow-2xl object-contain" />
+            <Button variant="ghost" size="icon" onClick={() => setPreviewPhoto('')} className="absolute -top-3 -end-3 rounded-full bg-white p-1.5 shadow-lg hover:bg-gray-100" aria-label={t('Close photo', 'إغلاق الصورة')}><X className="h-4 w-4 text-gray-600" /></Button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

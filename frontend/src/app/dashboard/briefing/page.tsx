@@ -35,7 +35,18 @@ interface WeeklyBriefing {
     audioUrl?: string | null
     hazzat?: string | null
     presentationUrl?: string | null
+    recordingUrl?: string | null
   } | null
+  nextLessons?: {
+    lessonId: string; title: string; titleAr?: string; titleCoptic?: string
+    levelName?: string; subjectName?: string; scheduledDate?: string
+    subjectColor?: string | null
+    subjectItemId?: string | null
+    audioUrl?: string | null
+    hazzat?: string | null
+    presentationUrl?: string | null
+    recordingUrl?: string | null
+  }[]
   roster: RosterStudent[]
 }
 
@@ -189,7 +200,7 @@ export default function BriefingPage() {
             )}
           </div>
           <Link
-            href={`/dashboard/attendance?sessionId=${data.nextSession.id}&prefill=present${data.nextLesson?.subjectItemId ? `&subjectItemId=${data.nextLesson.subjectItemId}` : ''}`}
+            href={`/dashboard/attendance?sessionId=${data.nextSession.id}${data.nextLesson?.subjectItemId ? `&subjectItemId=${data.nextLesson.subjectItemId}` : ''}`}
             className="rounded-lg bg-gold-500 px-4 py-2 min-h-[44px] inline-flex items-center justify-center text-sm font-semibold text-gray-950 hover:bg-gold-600 w-full sm:w-auto text-center"
           >
             {t('Start Class', 'ابدأ الفصل')}
@@ -202,56 +213,86 @@ export default function BriefingPage() {
           <BookOpen className="h-4 w-4" />
           {t('Prepare this lesson', 'حضّر هذا الدرس')}
         </div>
-        {data?.nextLesson ? (
-          (() => {
-            const nl = data.nextLesson
-            const chip = subjectChipStyle(nl.subjectColor)
+        {(() => {
+          const lessons =
+            data?.nextLessons && data.nextLessons.length > 0
+              ? data.nextLessons
+              : data?.nextLesson
+                ? [data.nextLesson]
+                : [];
+          if (!lessons.length) {
             return (
-              <>
-                <h2 className="mt-2 text-lg font-bold text-gray-900">
-                  {lang === 'ar' ? nl.titleAr || nl.title : nl.title}
-                </h2>
-                <p className="mt-1 flex flex-wrap items-center gap-2 text-sm text-gray-600">
-                  {nl.titleCoptic && <span className="coptic-text">{nl.titleCoptic}</span>}
-                  {nl.subjectName && (
-                    <span className="inline-flex items-center rounded-md px-2 py-0.5 text-xs font-semibold" style={chip}>
-                      {nl.subjectName}
-                    </span>
-                  )}
-                  {nl.levelName && <span>· {nl.levelName}</span>}
-                </p>
+              <p className="mt-2 text-sm text-gray-500">{t('No lesson scheduled yet.', 'لم يُجدول درس بعد.')}</p>
+            );
+          }
+          return (
+          <div className="divide-y divide-gray-100">
+            {lessons.map((nl) => {
+              const chip = subjectChipStyle(nl.subjectColor)
+              return (
+                <div key={nl.lessonId} className="py-3 first:pt-1 last:pb-0">
+                  <h2 className="mt-2 text-lg font-bold text-gray-900">
+                    {lang === 'ar' ? nl.titleAr || nl.title : nl.title}
+                  </h2>
+                  <p className="mt-1 flex flex-wrap items-center gap-2 text-sm text-gray-600">
+                    {nl.titleCoptic && <span className="coptic-text">{nl.titleCoptic}</span>}
+                    {nl.subjectName && (
+                      <span className="inline-flex items-center rounded-md px-2 py-0.5 text-xs font-semibold" style={chip}>
+                        {nl.subjectName}
+                      </span>
+                    )}
+                    {nl.levelName && <span>· {nl.levelName}</span>}
+                    {nl.scheduledDate && (
+                      <span>
+                        ·{' '}
+                        {new Date(nl.scheduledDate).toLocaleDateString(lang === 'ar' ? 'ar-EG' : 'en-US', {
+                          day: 'numeric',
+                          month: 'short',
+                          year: 'numeric',
+                        })}
+                      </span>
+                    )}
+                  </p>
 
-                {(nl.audioUrl || nl.hazzat || nl.presentationUrl) && (
-                  <div className="mt-3 flex flex-wrap items-center gap-3">
-                    {nl.audioUrl && <AudioPlayer src={assetUrl(nl.audioUrl)} compact />}
-                    {nl.hazzat && (
-                      <a
-                        href={assetUrl(nl.hazzat)}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-700 transition-colors hover:bg-gray-50"
-                      >
-                        <FileText className="h-4 w-4" /> {t('Hazzat', 'الحزّات')}
-                      </a>
-                    )}
-                    {nl.presentationUrl && (
-                      <a
-                        href={assetUrl(nl.presentationUrl)}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-700 transition-colors hover:bg-gray-50"
-                      >
-                        <Presentation className="h-4 w-4" /> {t('PowerPoint', 'باور بوينت')}
-                      </a>
-                    )}
-                  </div>
-                )}
-              </>
-            )
-          })()
-        ) : (
-          <p className="mt-2 text-sm text-gray-500">{t('No lesson scheduled yet.', 'لم يُجدول درس بعد.')}</p>
-        )}
+                  {(nl.audioUrl || nl.hazzat || nl.presentationUrl || nl.recordingUrl) && (
+                    <div className="mt-3 flex flex-wrap items-center gap-3">
+                      {nl.audioUrl && <AudioPlayer src={assetUrl(nl.audioUrl)} compact />}
+                      {nl.recordingUrl && (
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-medium text-gray-500">
+                            {t('Reference recording', 'التسجيل المرجعي')}
+                          </span>
+                          <AudioPlayer src={assetUrl(nl.recordingUrl)} compact />
+                        </div>
+                      )}
+                      {nl.hazzat && (
+                        <a
+                          href={assetUrl(nl.hazzat)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-700 transition-colors hover:bg-gray-50"
+                        >
+                          <FileText className="h-4 w-4" /> {t('Hazzat', 'الحزّات')}
+                        </a>
+                      )}
+                      {nl.presentationUrl && (
+                        <a
+                          href={assetUrl(nl.presentationUrl)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-700 transition-colors hover:bg-gray-50"
+                        >
+                          <Presentation className="h-4 w-4" /> {t('PowerPoint', 'باور بوينت')}
+                        </a>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+          );
+        })()}
       </div>
 
       <div className="mt-6 flex items-center justify-between">

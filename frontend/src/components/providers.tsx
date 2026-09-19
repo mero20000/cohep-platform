@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { LogtoProvider, type LogtoConfig } from '@logto/react'
 import { ToastProvider } from './ui/toast'
 import { startAnalytics, endAnalytics } from '@/lib/analytics'
+import { BUILD_SHA } from '@/lib/build-info'
 
 const logtoConfig: LogtoConfig = {
   endpoint: process.env.NEXT_PUBLIC_LOGTO_ENDPOINT || 'https://your-tenant.logto.app',
@@ -23,6 +24,8 @@ export function Providers({ children }: { children: React.ReactNode }) {
   }))
 
   useEffect(() => {
+    // eslint-disable-next-line no-console
+    console.info(`[COHEP build ${BUILD_SHA}]`)
     startAnalytics()
     const onHide = () => endAnalytics()
     window.addEventListener('pagehide', onHide)

@@ -284,7 +284,7 @@ export class GamificationService {
 
   // ── Badge Computation Engine ──
 
-  async computeBadgesForStudent(studentId: string, badgeId?: string): Promise<{ awarded: number; total: number }> {
+  async computeBadgesForStudent(studentId: string, badgeId?: string, forceRecheck = false): Promise<{ awarded: number; total: number }> {
     const student = await this.prisma.student.findUnique({
       where: { id: studentId },
       select: { id: true, schoolId: true, groupId: true },
@@ -296,6 +296,30 @@ export class GamificationService {
       : await this.prisma.badge.findMany({ where: { schoolId: student.schoolId, isActive: true } });
 
     let awarded = 0;
+    // When forceRecheck is true (called after attendance deletion), first revoke
+    // any badge the student currently owns that no longer qualifies, then award
+    // freshly-qualifying ones. This keeps gamification in sync with reality.
+    if (forceRecheck) {
+      const owned = await this.prisma.studentBadge.findMany({ where: { studentId } });
+      for (const sb of owned) {
+        const badge = await this.prisma.badge.findUnique({ where: { id: sb.badgeId } });
+        if (!badge) continue;
+        const result = await this.checkBadgeCriterion(student, badge);
+        if (!result.earned) {
+          await this.prisma.$transaction(async (tx) => {
+            await tx.studentBadge.deleteMany({ where: { studentId, badgeId: sb.badgeId } });
+            if (badge.xpReward > 0) {
+              const agg = await tx.xPTransaction.aggregate({ where: { studentId }, _sum: { amount: true } });
+              const current = Number(agg._sum.amount || 0);
+              const newBalance = Math.max(0, current - badge.xpReward);
+              await tx.xPTransaction.create({ data: { studentId, amount: -badge.xpReward, balanceAfter: newBalance, type: 'badge_revoke', description: `Badge revoked: ${badge.name}` } });
+              await tx.studentProgress.updateMany({ where: { studentId }, data: { totalXp: newBalance, currentLevel: Math.floor(newBalance / 100) + 1 } });
+            }
+          }).catch(() => {});
+        }
+      }
+    }
+
     for (const badge of badges) {
       if (!badge) continue;
       const alreadyOwned = await this.prisma.studentBadge.findFirst({
@@ -323,7 +347,7 @@ export class GamificationService {
               const currentBalance = Number(rows[0]?.balance ?? 0);
               const balanceAfter = currentBalance + badge.xpReward;
               await tx.xPTransaction.create({
-                data: { studentId, amount: badge.xpReward, balanceAfter, type: 'badge_award', description: `Badge: ${badge.name}`, createdBy: 'system', referenceType: 'badge', referenceId: badge.id },
+                data: { studentId, amount: badge.xpReward, balanceAfter, type: 'badge_award', description: `Badge: ${badge.name} — ${result.reason || ''}`.replace(/\s+/g, ' ').trim(), createdBy: 'system', referenceType: 'badge', referenceId: badge.id },
               });
               await tx.studentProgress.updateMany({ where: { studentId }, data: { totalXp: balanceAfter, currentLevel: Math.floor(balanceAfter / 100) + 1 } });
             }
@@ -400,6 +424,7 @@ export class GamificationService {
         groupId: student.groupId ?? undefined,
         scheduledDate: { gte: startOfWeek, lt: now },
         status: 'completed',
+        deletedAt: null,
       },
       select: { id: true },
     });
@@ -430,6 +455,7 @@ export class GamificationService {
         groupId: student.groupId ?? undefined,
         scheduledDate: { gte: startOfMonth, lt: now },
         status: 'completed',
+        deletedAt: null,
       },
       select: { id: true },
     });
@@ -450,7 +476,7 @@ export class GamificationService {
 
   private async checkBehaviorStreak(student: { id: string }, consecutive: number): Promise<BadgeCheckResult> {
     const records = await this.prisma.attendanceRecord.findMany({
-      where: { studentId: student.id, behavior: { not: null } },
+      where: { studentId: student.id, behavior: { not: null }, attendanceSession: { deletedAt: null } },
       orderBy: { attendanceSession: { scheduledDate: 'desc' } },
       select: { behavior: true, attendanceSession: { select: { scheduledDate: true } } },
       take: 50,
@@ -532,6 +558,7 @@ export class GamificationService {
           groupId: student.groupId ?? undefined,
           scheduledDate: { gte: week.start, lt: week.end },
           status: 'completed',
+          deletedAt: null,
         },
         select: { id: true },
       });
@@ -560,10 +587,16 @@ export class GamificationService {
     ]);
     const rules: any = (pointConfig?.value as any) || {};
     const presentPoints = rules.presentPoints ?? GAMIFICATION_CONSTANTS.PRESENT_POINTS_DEFAULT;
+    const latePoints = rules.latePoints ?? GAMIFICATION_CONSTANTS.LATE_POINTS_DEFAULT;
+    const absentPoints = rules.absentPoints ?? GAMIFICATION_CONSTANTS.ABSENT_POINTS_DEFAULT;
+    const excusedPoints = rules.excusedPoints ?? GAMIFICATION_CONSTANTS.EXCUSED_POINTS_DEFAULT;
     const liturgyPoints = rules.liturgyPoints ?? GAMIFICATION_CONSTANTS.LITURGY_POINTS_DEFAULT;
     const totalPoints = attRecords.reduce((sum: number, r: any) => {
       let s = 0;
       if (r.status === 'present') s += presentPoints;
+      else if (r.status === 'late') s += latePoints;
+      else if (r.status === 'absent') s += absentPoints;
+      else if (r.status === 'excused') s += excusedPoints;
       if (r.behavior) s += r.behavior;
       if (r.participation) s += r.participation;
       if (r.attendedLiturgy) s += liturgyPoints;
@@ -588,6 +621,7 @@ export class GamificationService {
           groupId: student.groupId ?? undefined,
           scheduledDate: { gte: from, lte: to },
           status: 'completed',
+          deletedAt: null,
         },
         select: { id: true },
       });
@@ -961,11 +995,11 @@ export class GamificationService {
     const endLastMonth = new Date(today.getFullYear(), today.getMonth(), 0);
 
     const thisMonthAtt = await this.prisma.attendanceRecord.findMany({
-      where: { studentId, attendanceSession: { scheduledDate: { gte: startThisMonth } } },
+      where: { studentId, attendanceSession: { scheduledDate: { gte: startThisMonth }, deletedAt: null } },
       select: { status: true },
     });
     const lastMonthAtt = await this.prisma.attendanceRecord.findMany({
-      where: { studentId, attendanceSession: { scheduledDate: { gte: startLastMonth, lte: endLastMonth } } },
+      where: { studentId, attendanceSession: { scheduledDate: { gte: startLastMonth, lte: endLastMonth }, deletedAt: null } },
       select: { status: true },
     });
 
@@ -1024,6 +1058,7 @@ export class GamificationService {
         category: b.badge.category,
         icon: b.badge.iconUrl,
         earnedAt: b.awardedAt,
+        reason: b.reason || undefined,
       })),
       totalBadges: badgeTimeline.length,
     };
@@ -1067,7 +1102,7 @@ export class GamificationService {
       where: {
         studentId: { in: studentIds },
         status: { in: ['present', 'late'] },
-        attendanceSession: { scheduledDate: { gte: startMonth } },
+        attendanceSession: { scheduledDate: { gte: startMonth }, deletedAt: null },
       },
     });
     const attendedIds = new Set(attendedThisMonth.map(r => r.studentId));
@@ -1409,12 +1444,12 @@ export class GamificationService {
 
     // Sessions taught: attendance sessions where this servant was involved
     const sessionsTaught = await this.prisma.attendanceSession.count({
-      where: { schoolId },
+      where: { schoolId, deletedAt: null },
     });
 
     // Students assessed: unique students who attended sessions run by this servant
     const servedSessions = await this.prisma.attendanceSession.findMany({
-      where: { schoolId, servantId: userId },
+      where: { schoolId, servantId: userId, deletedAt: null },
       select: { id: true },
     });
     const servedSessionIds = servedSessions.map(s => s.id);

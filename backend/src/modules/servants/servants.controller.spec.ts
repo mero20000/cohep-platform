@@ -1,9 +1,11 @@
 import { ServantsController } from './servants.controller';
+import { ServantsService } from './servants.service';
 
 const prismaMock = {
   student: { findMany: jest.fn(), findFirst: jest.fn() },
   attendanceSession: { findFirst: jest.fn() },
   attendanceRecord: { findMany: jest.fn(), update: jest.fn(), create: jest.fn() },
+  user: { findUnique: jest.fn(), update: jest.fn() },
 };
 
 describe('ServantsController liturgy-session', () => {
@@ -63,5 +65,40 @@ describe('recordLiturgyAttendance', () => {
     await expect(
       controller.recordLiturgyAttendance(user, { date: tomorrow, records: [] }),
     ).rejects.toThrow();
+  });
+});
+
+describe('toggleActive', () => {
+  const controller = new ServantsController(
+    new ServantsService(prismaMock as any, {} as any, {} as any),
+    prismaMock as any,
+  );
+  const admin = { id: 'a1', schoolId: 's1', roles: ['admin'] };
+
+  beforeEach(() => jest.clearAllMocks());
+
+  it('toggles inactive to active', async () => {
+    prismaMock.user.findUnique.mockResolvedValue({ id: 'u1', isActive: false, firstName: 'John', lastName: 'Doe', deletedAt: null });
+    prismaMock.user.update.mockResolvedValue({ id: 'u1', isActive: true, firstName: 'John', lastName: 'Doe' });
+    const res: any = await controller.toggleActive('u1', admin);
+    expect(res.isActive).toBe(true);
+    expect(prismaMock.user.update).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: 'u1' }, data: { isActive: true } }),
+    );
+  });
+
+  it('toggles active to inactive', async () => {
+    prismaMock.user.findUnique.mockResolvedValue({ id: 'u1', isActive: true, firstName: 'John', lastName: 'Doe', deletedAt: null });
+    prismaMock.user.update.mockResolvedValue({ id: 'u1', isActive: false, firstName: 'John', lastName: 'Doe' });
+    const res: any = await controller.toggleActive('u1', admin);
+    expect(res.isActive).toBe(false);
+    expect(prismaMock.user.update).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: 'u1' }, data: { isActive: false } }),
+    );
+  });
+
+  it('rejects missing servant', async () => {
+    prismaMock.user.findUnique.mockResolvedValue(null);
+    await expect(controller.toggleActive('nope', admin)).rejects.toThrow();
   });
 });

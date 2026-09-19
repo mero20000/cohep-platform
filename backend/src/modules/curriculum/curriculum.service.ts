@@ -172,6 +172,8 @@ export class CurriculumService {
         presentationData: data.presentationData || null,
         hazzat: data.hazzat || null,
         active: data.active ?? true,
+        isAssessmentItem: data.isAssessmentItem ?? true,
+        passRequired: data.passRequired ?? false,
         educationLanguages: data.educationLanguages || null,
         levels: {
           create: levelNumbers.map((n: number) => ({ levelNumber: n })),
@@ -230,7 +232,7 @@ export class CurriculumService {
       where,
       include: {
         level: { select: { number: true, name: true } },
-        subject: { select: { name: true, nameCoptic: true } },
+        subject: { select: { name: true, nameCoptic: true, color: true } },
         subjectItem: { select: { id: true, name: true, nameAr: true, nameCoptic: true, presentationData: true } },
         sessions: { orderBy: { orderIndex: 'asc' } },
         _count: { select: { sessions: true } },
@@ -246,7 +248,7 @@ export class CurriculumService {
       where: { id },
       include: {
         level: { select: { number: true, name: true } },
-        subject: { select: { name: true, nameCoptic: true } },
+        subject: { select: { name: true, nameCoptic: true, color: true } },
         subjectItem: { select: { id: true, name: true, nameAr: true, nameCoptic: true, presentationData: true } },
         sessions: { orderBy: { orderIndex: 'asc' } },
         _count: { select: { sessions: true } },

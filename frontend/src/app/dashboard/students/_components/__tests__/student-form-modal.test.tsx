@@ -1,5 +1,5 @@
 import React from 'react'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { StudentFormModal } from '../student-form-modal'
@@ -225,5 +225,105 @@ describe('StudentFormModal', () => {
 
     expect(await screen.findByText('Please fill all required fields')).toBeInTheDocument()
     expect(mocks.post).not.toHaveBeenCalled()
+  })
+
+  it('defaults the church from the servant school profile on create', async () => {
+    const churches = [{ id: 'c1', name: 'St. Mary', city: 'Cairo' }]
+    render(<StudentFormModal {...baseProps} churches={churches} defaultChurch={{ id: 'c1', name: 'St. Mary' }} />)
+
+    await screen.findByText('Add New Student')
+    expect((screen.getByLabelText('Church') as HTMLSelectElement).value).toBe('St. Mary')
+  })
+
+  it('matches the default by name when the school church id is absent from the list', async () => {
+    const churches = [{ id: 'other-id', name: 'St. Mary', city: 'Cairo' }]
+    render(<StudentFormModal {...baseProps} churches={churches} defaultChurch={{ id: 'c1', name: 'St. Mary' }} />)
+
+    await screen.findByText('Add New Student')
+    expect((screen.getByLabelText('Church') as HTMLSelectElement).value).toBe('St. Mary')
+  })
+
+  it('falls back to the sole active church when the school has none linked', async () => {
+    const churches = [{ id: 'c9', name: 'Only Church', city: 'Cairo' }]
+    render(<StudentFormModal {...baseProps} churches={churches} defaultChurch={null} />)
+
+    await screen.findByText('Add New Student')
+    expect((screen.getByLabelText('Church') as HTMLSelectElement).value).toBe('Only Church')
+  })
+
+  it('seeds the dropdown from the school church when servants cannot list churches', async () => {
+    render(
+      <StudentFormModal
+        {...baseProps}
+        churches={[]}
+        defaultChurch={{ id: 'c1', name: 'Saint Mina Coptic Orthodox Church - Dubai' }}
+        schoolChurch={{ id: 'c1', name: 'Saint Mina Coptic Orthodox Church - Dubai' }}
+      />,
+    )
+
+    await screen.findByText('Add New Student')
+    expect(
+      screen.getByRole('option', { name: 'Saint Mina Coptic Orthodox Church - Dubai' }),
+    ).toBeInTheDocument()
+    expect((screen.getByLabelText('Church') as HTMLSelectElement).value).toBe(
+      'Saint Mina Coptic Orthodox Church - Dubai',
+    )
+  })
+
+  it('never overwrites an explicitly chosen church with the default', async () => {
+    const user = userEvent.setup()
+    const churches = [
+      { id: 'c1', name: 'St. Mary', city: 'Cairo' },
+      { id: 'c2', name: 'St. Mark', city: 'Alexandria' },
+    ]
+    render(<StudentFormModal {...baseProps} churches={churches} defaultChurch={{ id: 'c1', name: 'St. Mary' }} />)
+
+    await screen.findByText('Add New Student')
+    await user.selectOptions(screen.getByLabelText('Church'), 'St. Mark')
+    expect((screen.getByLabelText('Church') as HTMLSelectElement).value).toBe('St. Mark')
+  })
+
+  it('rejects oversized photos with a bilingual error before upload', async () => {
+    render(<StudentFormModal {...baseProps} />)
+    await screen.findByText('Add New Student')
+
+    const big = new File([new ArrayBuffer(6 * 1024 * 1024)], 'big.jpg', { type: 'image/jpeg' })
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement
+    fireEvent.change(input, { target: { files: [big] } })
+
+    await waitFor(() => expect(mockToast).toHaveBeenCalledWith('error', expect.stringContaining('5MB')))
+    expect(mocks.upload).not.toHaveBeenCalled()
+  })
+
+  it('rejects unsupported photo formats with a bilingual error before upload', async () => {
+    render(<StudentFormModal {...baseProps} />)
+    await screen.findByText('Add New Student')
+
+    const bmp = new File(['not-a-real-image'], 'photo.bmp', { type: 'image/bmp' })
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement
+    fireEvent.change(input, { target: { files: [bmp] } })
+
+    await waitFor(() => expect(mockToast).toHaveBeenCalledWith('error', expect.stringContaining('JPG')))
+    expect(mocks.upload).not.toHaveBeenCalled()
+  })
+
+  it('converts an HEIC photo to JPEG and accepts it', async () => {
+    const { preparePhotoFile } = await import('../student-form-modal')
+    const converted = await preparePhotoFile(
+      new File(['fake-heic-bytes'], 'photo.heic', { type: 'image/heic' }),
+      async () => ({ default: async () => new Blob(['jpeg-bytes'], { type: 'image/jpeg' }) }),
+    )
+    expect(converted.name).toBe('photo.jpg')
+    expect(converted.type).toBe('image/jpeg')
+  })
+
+  it('rejects HEIC photos when conversion fails', async () => {
+    const { preparePhotoFile } = await import('../student-form-modal')
+    await expect(
+      preparePhotoFile(
+        new File(['fake-heic-bytes'], 'photo.heic', { type: 'image/heic' }),
+        async () => { throw new Error('no decoder') },
+      ),
+    ).rejects.toThrow('unsupported')
   })
 })

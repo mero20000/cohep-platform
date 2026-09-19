@@ -41,6 +41,27 @@ describe('HymnLearningService - subject item recording on hymn map', () => {
     expect(res[0].referenceRecordingUrl).toBe('https://r/rec.mp3');
     expect(res[0].referenceRecordingName).toBe('rec.mp3');
   });
+
+  it('exposes passRequired and passed state from the linked subject item', async () => {
+    (prisma as any).studentSubjectPass = { findMany: jest.fn().mockResolvedValue([{ subjectItemId: 'si1' }]) };
+    prisma.lesson.findMany = jest.fn().mockResolvedValue([
+      {
+        id: 'l1', title: 'H', level: { id: 'lv', number: 1, name: 'L1' },
+        subject: { id: 's1', name: 'Coptic Hymns', color: '#000' },
+        lessonProgress: [], resources: [], audioUrl: null,
+        subjectItem: { id: 'si1', name: 'Hymn', passRequired: true, isAssessmentItem: true },
+      },
+      {
+        id: 'l2', title: 'H2', level: { id: 'lv', number: 1, name: 'L1' },
+        subject: { id: 's1', name: 'Coptic Hymns', color: '#000' },
+        lessonProgress: [], resources: [], audioUrl: null,
+        subjectItem: { id: 'si2', name: 'Hymn 2', passRequired: true, isAssessmentItem: true },
+      },
+    ]);
+    const res = await svc.getStudentHymnMap('stu1', 'sch1');
+    expect(res[0]).toMatchObject({ passRequired: true, passed: true });
+    expect(res[1]).toMatchObject({ passRequired: true, passed: false });
+  });
 });
 
 describe('HymnLearningService - student-scoped write ownership (P-C1)', () => {

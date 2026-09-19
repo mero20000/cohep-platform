@@ -25,7 +25,7 @@ import { DashboardBanners } from './dashboard/banners'
 import { DashboardMainContent } from './dashboard/main-content'
 import { useIdleTimeout } from '@/hooks/use-idle-timeout'
 import { SessionExpiryModal } from './session-expiry-modal'
-import { LastLoginNotification } from './last-login-notification'
+
 import { MobileBottomNav } from './dashboard/mobile-bottom-nav'
 
 interface NotificationItem {
@@ -41,7 +41,7 @@ const navigation = [
   { name: 'Level Report', nameAr: 'تقرير المستوى', href: '/dashboard/level-report', icon: BarChart3, roles: ['level_leader'] as const },
   { name: 'Group Report', nameAr: 'تقرير المجموعة', href: '/dashboard/group-report', icon: BarChart3, roles: ['servant', 'group_leader'] as const },
   { name: 'Curriculum', nameAr: 'المنهج', href: '/dashboard/curriculum', icon: BookOpen, perm: 'curriculum:view' as const },
-  { name: 'Attendance', nameAr: 'الحضور', href: '/dashboard/attendance', icon: Calendar, perm: 'attendance:view' as const },
+  { name: 'Attendance', nameAr: 'الحضور', href: '/dashboard/attendance/mark', icon: Calendar, perm: 'attendance:view' as const },
   { name: 'Assessments', nameAr: 'التقييمات', href: '/dashboard/assessments', icon: ClipboardCheck, perm: 'assessment:view' as const },
   { name: 'Hymn Review', nameAr: 'مراجعة التسابيح', href: '/dashboard/hymn-review', icon: Headphones, perm: 'practice:view' as const },
   { name: 'My Class', nameAr: 'صفي', href: '/dashboard/my-class', icon: School, perm: 'attendance:record' as const },
@@ -270,8 +270,13 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
   }, [canSwitchSchool])
 
   useEffect(() => {
-    if (allSchools.length === 0) return
-    const s = (activeSchoolId && allSchools.find(x => x.id === activeSchoolId)) || allSchools[0]
+    // Only re-brand when the user has explicitly switched to a school via the
+    // "View as" picker. When no activeSchoolId ("My School" scope), the identity
+    // from /users/schools/me (own school) must win — otherwise a super admin's
+    // header gets hijacked by allSchools[0] (alphabetically first, e.g. the
+    // "COHEP Demo School" seeded by the Try Demo flow).
+    if (!activeSchoolId || allSchools.length === 0) return
+    const s = allSchools.find(x => x.id === activeSchoolId)
     if (!s) return
     if (s.name) setSchoolName(s.name)
     if (s.nameAr) setSchoolNameAr(s.nameAr)
@@ -432,7 +437,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
         {language === 'ar' ? 'انتقل إلى المحتوى' : 'Skip to content'}
       </a>
 
-      <LastLoginNotification lastLoginAt={(user as any)?.lastLoginAt ?? null} />
+      
 
       {isCountingDown && remainingMs !== null && (
         <SessionExpiryModal

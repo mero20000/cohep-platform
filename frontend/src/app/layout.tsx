@@ -69,6 +69,7 @@ export default async function RootLayout({
         <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Coptic:wght@400;600;700&family=Noto+Naskh+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet" />
         <link rel="manifest" href="/manifest.json" />
         <meta name="theme-color" content="#C89B3C" />
+        <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <meta name="apple-mobile-web-app-title" content="COHEP" />

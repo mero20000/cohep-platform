@@ -7,6 +7,7 @@ import {
   Layers, Church, Book, CalendarDays, Users, Building, GraduationCap, Star, Key as KeyIcon, Search, ChevronDown,
 } from 'lucide-react'
 import { useLanguage } from '@/lib/use-language'
+import { BUILD_LABEL } from '@/lib/build-info'
 
 const ProfileTab = lazy(() => import('./_components/profile-tab').then(m => ({ default: m.ProfileTab }))) as ComponentType
 const SchoolTab = lazy(() => import('./_components/school-tab').then(m => ({ default: m.SchoolTab }))) as ComponentType
@@ -129,6 +130,7 @@ function SettingsContent() {
       <div>
         <h1 className="text-2xl font-bold text-gray-900">{lang === 'ar' ? 'الإعدادات' : 'Settings'}</h1>
         <p className="text-sm text-gray-500">{lang === 'ar' ? 'إدارة حسابك والكنائس وتفضيلات المنصة' : 'Manage your account, churches, and platform preferences'}</p>
+        <p className="mt-1 text-xs text-gray-400" data-testid="build-fingerprint">Build {BUILD_LABEL}</p>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-4">

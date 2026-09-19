@@ -69,6 +69,37 @@ export class AttendanceController {
     return this.attendanceService.getSessionById(id);
   }
 
+  @Get('diagnostics/auto-seed-suspects')
+  @Roles('super_admin', 'admin', 'principal')
+  @ApiOperation({ summary: 'List sessions whose records look auto-seeded (diagnostic, no writes)' })
+  async findAutoSeedSuspects(
+    @Query('schoolId') schoolId: string = '',
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.attendanceService.findSuspectAutoSeeds(schoolId, {
+      from,
+      to,
+      limit: limit ? parseInt(limit, 10) : undefined,
+    });
+  }
+
+  @Post('diagnostics/auto-seed-reset')
+  @Roles('super_admin', 'admin', 'principal')
+  @ApiOperation({ summary: 'Reset auto-seed-like records to unmarked (dry run unless confirmed)' })
+  async resetAutoSeedSuspects(
+    @Body() body: { schoolId?: string; from?: string; to?: string; limit?: number; dryRun?: boolean; confirm?: boolean },
+  ) {
+    return this.attendanceService.resetSuspectAutoSeeds(body.schoolId || '', {
+      from: body.from,
+      to: body.to,
+      limit: body.limit,
+      dryRun: body.dryRun,
+      confirm: body.confirm,
+    });
+  }
+
   @Post('sessions')
   @ApiOperation({ summary: 'Create an attendance session' })
   async createSession(@Body() dto: CreateAttendanceSessionDto) {

@@ -458,7 +458,7 @@ export function CalendarView({
         const isReview = a.status === 'review'
         const isAssessment = a.status === 'assessment'
         const style = isReview
-          ? { bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-300', dot: 'bg-amber-400' }
+          ? { bg: 'bg-teal-50', text: 'text-teal-700', border: 'border-teal-300', dot: 'bg-teal-400' }
           : isAssessment
           ? { bg: 'bg-violet-50', text: 'text-violet-700', border: 'border-violet-300', dot: 'bg-violet-400' }
           : getSubjectStyle(a.subject.name)
@@ -685,7 +685,7 @@ export function CalendarView({
                             const isReview = a.status === 'review'
                             const isAssessment = a.status === 'assessment'
                             const style = isReview
-                              ? { bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200', dot: 'bg-amber-400' }
+                              ? { bg: 'bg-teal-50', text: 'text-teal-700', border: 'border-teal-200', dot: 'bg-teal-400' }
                               : isAssessment
                               ? { bg: 'bg-violet-50', text: 'text-violet-700', border: 'border-violet-200', dot: 'bg-violet-400' }
                               : getSubjectStyle(a.subject.name)
@@ -868,14 +868,14 @@ export function CalendarView({
               animate={prefersReducedMotion ? undefined : { opacity: draggedReview ? 0.4 : 1, scale: draggedReview ? 0.98 : 1 }}
               className={`group flex items-center gap-2 px-3 py-2.5 rounded-lg border-2 border-dashed cursor-grab active:cursor-grabbing text-xs transition-all ${
                 draggedReview
-                  ? 'bg-amber-50 border-amber-400 shadow-md'
-                  : 'bg-amber-50/50 border-amber-200 hover:border-amber-400 hover:bg-amber-50'
+                  ? 'bg-teal-50 border-teal-400 shadow-md'
+                  : 'bg-teal-50/50 border-teal-200 hover:border-teal-400 hover:bg-teal-50'
               }`}
               title={lang === 'ar' ? 'اسحب إلى أسبوع في التقويم' : 'Drag to a week on the calendar'}>
-              <RotateCcw className="h-3.5 w-3.5 text-amber-500 flex-shrink-0" />
+              <RotateCcw className="h-3.5 w-3.5 text-teal-500 flex-shrink-0" />
               <div className="min-w-0 flex-1">
-                <div className="font-semibold text-amber-700">{lang === 'ar' ? 'جلسة مراجعة' : 'Review Session'}</div>
-                <div className="text-[11px] text-amber-500 mt-0.5">{lang === 'ar' ? 'راجع ما تم تسديده في الأسبوع' : 'Review past delivered content'}</div>
+                <div className="font-semibold text-teal-700">{lang === 'ar' ? 'جلسة مراجعة' : 'Review Session'}</div>
+                <div className="text-[11px] text-teal-500 mt-0.5">{lang === 'ar' ? 'راجع ما تم تسديده في الأسبوع' : 'Review past delivered content'}</div>
               </div>
             </motion.div>
           </div>

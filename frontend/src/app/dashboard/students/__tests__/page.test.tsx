@@ -39,6 +39,11 @@ vi.mock('@/components/ui/toast', () => ({
   ToastProvider: ({ children }: any) => <>{children}</>,
 }))
 
+const navParams: Record<string, string | null> = {}
+vi.mock('next/navigation', () => ({
+  useSearchParams: () => ({ get: (k: string) => navParams[k] ?? null }),
+}))
+
 const API = 'http://localhost:3001/api'
 
 const mockStudents = {
@@ -162,7 +167,21 @@ describe('StudentsPage', () => {
     vi.clearAllMocks()
     localStorage.clear()
     localStorage.setItem('user', JSON.stringify({ id: 'u1', roles: ['super_admin'] }))
+    Object.keys(navParams).forEach((k) => delete navParams[k])
     globalThis.fetch = createFetchMock()
+  })
+
+  describe('Group deep link', () => {
+    it('initializes the group filter from ?groupId=', async () => {
+      navParams.groupId = 'group-2'
+      render(<StudentsPage />)
+      await waitFor(() => {
+        const calls = (globalThis.fetch as any).mock.calls
+          .map(([url]: string[]) => url.toString())
+          .filter((url: string) => url.startsWith(`${API}/students?`))
+        expect(calls.some((url: string) => url.includes('groupId=group-2'))).toBe(true)
+      })
+    })
   })
 
   describe('Initial Render', () => {

@@ -7,7 +7,8 @@ export type StudentNotificationType =
   | 'liturgy_verified'
   | 'liturgy_rejected'
   | 'liturgy_clearance'
-  | 'badge_awarded';
+  | 'badge_awarded'
+  | 'note';
 
 export interface NotifyInput {
   studentId: string;

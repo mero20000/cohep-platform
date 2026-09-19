@@ -382,11 +382,24 @@ export class HymnLearningService {
           orderBy: { orderIndex: 'asc' },
         },
         subjectItem: {
-          select: { id: true, name: true, recordingUrl: true, recordingMeta: true },
+          select: { id: true, name: true, recordingUrl: true, recordingMeta: true, isAssessmentItem: true, passRequired: true },
         },
       },
       orderBy: [{ level: { number: 'asc' } }, { orderIndex: 'asc' }],
     })
+
+    // Active passes for this student, keyed by subject item: a pass-required
+    // item only counts as done with a pass row (servant attestation).
+    let passedItemIds = new Set<string>();
+    try {
+      const passes = await this.prisma.studentSubjectPass.findMany({
+        where: { studentId, revokedAt: null },
+        select: { subjectItemId: true },
+      });
+      passedItemIds = new Set(passes.map(p => p.subjectItemId));
+    } catch {
+      passedItemIds = new Set<string>();
+    }
 
     // Hide data-entry duplicates: same normalized title within the same level
     // shows once (the student's practice progress still tracks each lesson id).
@@ -423,6 +436,8 @@ export class HymnLearningService {
       progress: (l.lessonProgress as any[])[0] ?? null,
       referenceRecordingUrl: (l as any).subjectItem?.recordingUrl ?? null,
       referenceRecordingName: (l as any).subjectItem?.recordingMeta?.originalName ?? null,
+      passRequired: (l as any).subjectItem?.passRequired ?? false,
+      passed: (l as any).subjectItem ? passedItemIds.has((l as any).subjectItem.id) : false,
     }))
   }
 
