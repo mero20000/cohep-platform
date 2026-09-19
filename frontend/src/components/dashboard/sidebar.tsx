@@ -55,8 +55,8 @@ export function DashboardSidebar({
     <aside onMouseEnter={onMouseEnter} onMouseLeave={onMouseLeave}
       className={`fixed inset-y-0 z-50 bg-white border-gray-200 transform ${isResizing ? 'transition-none' : 'transition-all duration-300 ease-in-out'} ${
         language === 'ar'
-          ? 'border-l lg:right-0'
-          : 'border-r lg:left-0'
+          ? 'border-l right-0'
+          : 'border-r left-0'
       } ${sidebarOpen ? 'translate-x-0' : language === 'ar' ? 'translate-x-full' : '-translate-x-full'} lg:translate-x-0 ${
         sidebarVisible ? '' : (language === 'ar' ? 'lg:translate-x-full' : 'lg:-translate-x-full') + ' overflow-hidden'
       }`}
