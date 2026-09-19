@@ -156,6 +156,7 @@ const ROLE_DEFAULT_PERMS: Record<string, Permission[]> = {
     'student:create',
     'student:edit',
     'student:view-profile',
+    'attendance:view',
     'attendance:record',
     'attendance:view-history',
     'assessment:view',
