@@ -23,8 +23,9 @@ import { exportSessionsXlsx, exportSessionsPdf, type SessionSummaryRow } from '@
 
 interface Session {
   id: string; scheduledDate: string; scheduledTime?: string; status: string; notes?: string;
-  level: { id: string; name: string; number: number };
+  level: { id: string; name: string; number: number } | null;
   group: { id: string; name: string };
+  grade?: { id: string; name: string } | null;
   servant: { id: string; firstName: string; lastName: string };
   summary?: { present: number; absent: number; late: number; excused: number; total: number };
 }
@@ -36,28 +37,29 @@ interface StudentHit {
 }
 
 interface SessionForm {
-  levelId: string; groupId: string; servantId: string;
+  levelId: string; groupId: string; gradeId: string; servantId: string;
   scheduledDate: string; scheduledTime: string; status: string; notes: string;
 }
-type SessionFormErrors = Partial<Record<'levelId' | 'groupId' | 'scheduledDate', string>>
+type SessionFormErrors = Partial<Record<'groupId' | 'scheduledDate', string>>
 
 const EMPTY_FORM: SessionForm = {
-  levelId: '', groupId: '', servantId: '', scheduledDate: '', scheduledTime: '12:00', status: 'scheduled', notes: '',
+  levelId: '', groupId: '', gradeId: '', servantId: '', scheduledDate: '', scheduledTime: '12:00', status: 'scheduled', notes: '',
 }
 
 function validateSessionForm(form: SessionForm, lang: 'en' | 'ar'): SessionFormErrors {
   const errors: SessionFormErrors = {}
-  if (!form.levelId) errors.levelId = lang === 'ar' ? 'المستوى مطلوب' : 'Level is required'
   if (!form.groupId) errors.groupId = lang === 'ar' ? 'المجموعة مطلوبة' : 'Group is required'
   if (!form.scheduledDate) errors.scheduledDate = lang === 'ar' ? 'التاريخ مطلوب' : 'Date is required'
   return errors
 }
 
+interface GradeOption { id: string; name: string; groupId?: string }
+
 function SessionFormModal({
-  title, submitLabel, initial, levels, groups, saving, lang, onClose, onSubmit,
+  title, submitLabel, initial, levels, groups, grades, saving, lang, onClose, onSubmit,
 }: {
   title: string; submitLabel: string; initial: SessionForm;
-  levels: Level[]; groups: Group[]; saving: boolean; lang: 'en' | 'ar';
+  levels: Level[]; groups: Group[]; grades: GradeOption[]; saving: boolean; lang: 'en' | 'ar';
   onClose: () => void; onSubmit: (form: SessionForm) => void;
 }) {
   const [form, setForm] = useState<SessionForm>(initial)
@@ -97,8 +99,7 @@ function SessionFormModal({
     const validation = validateSessionForm(form, lang)
     setErrors(validation)
     if (Object.keys(validation).length > 0) {
-      const firstError = validation.levelId ? firstFieldRef.current
-        : dialogRef.current?.querySelector<HTMLElement>('[aria-invalid="true"]')
+      const firstError = dialogRef.current?.querySelector<HTMLElement>('[aria-invalid="true"]')
       firstError?.focus()
       return
     }
@@ -123,29 +124,36 @@ function SessionFormModal({
           </Button>
         </div>
         <div className="px-6 py-4 space-y-4 overflow-y-auto flex-1">
+          <FormField
+            as="select"
+            label={lang === 'ar' ? 'المجموعة *' : 'Group *'}
+            required
+            value={form.groupId}
+            onChange={e => setForm({ ...form, groupId: e.target.value, gradeId: '' })}
+            error={errors.groupId}
+            inputRef={firstFieldRef as React.Ref<HTMLSelectElement>}
+          >
+            <option value="">{lang === 'ar' ? 'اختر المجموعة...' : 'Select group...'}</option>
+            {groups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
+          </FormField>
           <div className="grid grid-cols-2 gap-3">
             <FormField
               as="select"
-              label={lang === 'ar' ? 'المستوى *' : 'Level *'}
-              required
+              label={lang === 'ar' ? 'المستوى' : 'Level'}
               value={form.levelId}
-              onChange={e => setForm({ ...form, levelId: e.target.value, groupId: '' })}
-              error={errors.levelId}
-              inputRef={firstFieldRef as React.Ref<HTMLSelectElement>}
+              onChange={e => setForm({ ...form, levelId: e.target.value })}
             >
-              <option value="">{lang === 'ar' ? 'اختر المستوى...' : 'Select level...'}</option>
+              <option value="">{lang === 'ar' ? 'جميع المستويات' : 'All Levels'}</option>
               {levels.map(l => <option key={l.id} value={l.id}>{lang === 'ar' ? `المستوى ${l.number}` : `Level ${l.number}`}</option>)}
             </FormField>
             <FormField
               as="select"
-              label={lang === 'ar' ? 'المجموعة *' : 'Group *'}
-              required
-              value={form.groupId}
-              onChange={e => setForm({ ...form, groupId: e.target.value })}
-              error={errors.groupId}
+              label={lang === 'ar' ? 'الصف' : 'Grade'}
+              value={form.gradeId}
+              onChange={e => setForm({ ...form, gradeId: e.target.value })}
             >
-              <option value="">{lang === 'ar' ? 'اختر المجموعة...' : 'Select group...'}</option>
-              {groups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
+              <option value="">{lang === 'ar' ? 'جميع الصفوف' : 'All Grades'}</option>
+              {grades.filter(g => !form.groupId || g.groupId === form.groupId).map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
             </FormField>
           </div>
           <div className="grid grid-cols-2 gap-3">
@@ -229,6 +237,7 @@ export default function SessionsPage() {
   const [editSession, setEditSession] = useState<Session | null>(null)
   const [levels, setLevels] = useState<Level[]>([])
   const [groups, setGroups] = useState<Group[]>([])
+  const [grades, setGrades] = useState<GradeOption[]>([])
   const [saving, setSaving] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<Session | null>(null)
   const [deleting, setDeleting] = useState(false)
@@ -268,12 +277,14 @@ export default function SessionsPage() {
 
   const fetchLevelsGroups = useCallback(async () => {
     try {
-      const [allLevels, allGroups] = await Promise.all([
+      const [allLevels, allGroups, allGrades] = await Promise.all([
         http.get<Level[]>('/curriculum/levels', { schoolId }),
         http.get<Group[]>('/students/groups/all', { schoolId }),
+        http.get<GradeOption[]>('/grades', { schoolId }).catch(() => [] as GradeOption[]),
       ])
       setLevels(allLevels.filter(l => l.status !== 'inactive'))
       setGroups((allGroups || []).filter(g => g.status !== 'inactive'))
+      setGrades((allGrades || []).filter((g: any) => g.status !== 'inactive'))
     } catch (e: any) {
       toast('error', lang === 'ar' ? 'فشل تحميل المستويات والمجموعات' : 'Failed to load levels and groups', e?.message || '')
     }
@@ -413,7 +424,7 @@ export default function SessionsPage() {
     try {
       const rows: SessionSummaryRow[] = filteredSessions.map(s => ({
         date: s.scheduledDate,
-        levelName: `L${s.level?.number || '?'} ${s.level?.name || ''}`.trim(),
+        levelName: s.level ? `L${s.level.number} ${s.level.name}`.trim() : '',
         groupName: s.group?.name || '',
         servantName: s.servant ? `${s.servant.firstName} ${s.servant.lastName}`.trim() : '',
         status: s.status,
@@ -486,8 +497,9 @@ export default function SessionsPage() {
   }
 
   const editInitial: SessionForm | null = editSession ? {
-    levelId: editSession.level.id,
+    levelId: editSession.level?.id || '',
     groupId: editSession.group.id,
+    gradeId: editSession.grade?.id || '',
     servantId: editSession.servant?.id || '',
     scheduledDate: editSession.scheduledDate.split('T')[0],
     scheduledTime: editSession.scheduledTime || '12:00',
@@ -714,7 +726,7 @@ export default function SessionsPage() {
                         <Calendar className="h-4 w-4" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <div className="text-sm font-medium text-gray-900 truncate">L{s.level?.number || '?'} &middot; {s.group?.name || '?'}</div>
+                        <div className="text-sm font-medium text-gray-900 truncate">{s.group?.name || '?'}{s.level ? ` · L${s.level.number}` : ''}{s.grade ? ` · ${s.grade.name}` : ''}</div>
                         <div className="flex items-center gap-2 text-xs text-gray-500 mt-0.5">
                           <span>{new Date(s.scheduledDate).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })}</span>
                           {s.scheduledTime && <span>&bull; {s.scheduledTime}</span>}
@@ -770,6 +782,7 @@ export default function SessionsPage() {
           initial={EMPTY_FORM}
           levels={levels}
           groups={groups}
+          grades={grades}
           saving={saving}
           lang={lang}
           onClose={() => setShowCreateModal(false)}
@@ -785,6 +798,7 @@ export default function SessionsPage() {
           initial={editInitial}
           levels={levels}
           groups={groups}
+          grades={grades}
           saving={saving}
           lang={lang}
           onClose={() => setEditSession(null)}

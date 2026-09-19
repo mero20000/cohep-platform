@@ -113,6 +113,7 @@ export class AttendanceService {
         include: {
           level: { select: { id: true, name: true, number: true } },
           group: { select: { id: true, name: true } },
+          grade: { select: { id: true, name: true } },
           servant: { select: { id: true, firstName: true, lastName: true } },
           attendanceRecords: {
             select: { status: true, student: { select: { deletedAt: true } } },
@@ -145,6 +146,7 @@ export class AttendanceService {
       include: {
         level: { select: { id: true, name: true, number: true } },
         group: { select: { id: true, name: true } },
+        grade: { select: { id: true, name: true } },
         servant: { select: { id: true, firstName: true, lastName: true } },
         attendanceRecords: {
           include: {
@@ -176,7 +178,7 @@ export class AttendanceService {
    * Prefers an explicitly linked subjectItemId, otherwise derives it from the
    * curriculum allocation for the session's level/week (lesson -> subjectItem).
    */
-  private async resolveSessionSubjectItem(session: { id: string; levelId: string; groupId: string; scheduledDate: Date; subjectItemId?: string | null }): Promise<{ id: string; name: string; nameAr?: string | null; status: string; isAssessmentItem?: boolean | null; passRequired?: boolean | null } | null> {
+  private async resolveSessionSubjectItem(session: { id: string; levelId: string | null; groupId: string; scheduledDate: Date; subjectItemId?: string | null }): Promise<{ id: string; name: string; nameAr?: string | null; status: string; isAssessmentItem?: boolean | null; passRequired?: boolean | null } | null> {
     const load = (id: string) =>
       this.prisma.subjectItem.findUnique({
         where: { id },
@@ -197,6 +199,8 @@ export class AttendanceService {
     weekStart.setHours(0, 0, 0, 0);
     const weekEnd = new Date(weekStart);
     weekEnd.setDate(weekEnd.getDate() + 7);
+
+    if (!session.levelId) return null;
 
     const alloc = await this.prisma.curriculumAllocation.findFirst({
       where: {
@@ -270,15 +274,18 @@ export class AttendanceService {
       weekStart.setHours(0, 0, 0, 0);
       const weekEnd = new Date(weekStart);
       weekEnd.setDate(weekEnd.getDate() + 7);
-      const alloc = await this.prisma.curriculumAllocation.findFirst({
-        where: {
-          levelId: session.levelId,
-          scheduledDate: { gte: weekStart, lt: weekEnd },
-          lesson: { subjectItemId: effectiveSubjectItemId },
-        },
-        select: { groupNumber: true },
-      });
-      const gn = alloc?.groupNumber ?? 1;
+      let gn = 1;
+      if (session.levelId) {
+        const alloc = await this.prisma.curriculumAllocation.findFirst({
+          where: {
+            levelId: session.levelId,
+            scheduledDate: { gte: weekStart, lt: weekEnd },
+            lesson: { subjectItemId: effectiveSubjectItemId },
+          },
+          select: { groupNumber: true },
+        });
+        gn = alloc?.groupNumber ?? 1;
+      }
       const planned = (si as any)[`sessionsGroup${gn}`] ?? 0;
       const used = await this.prisma.attendanceSession.count({
         where: { subjectItemId: effectiveSubjectItemId, status: 'completed', deletedAt: null },
@@ -286,7 +293,7 @@ export class AttendanceService {
 
       // Only assessment items draft a formal assessment on completion.
       // Plain items complete with just the status flip + sessions report.
-      if ((si as any)?.isAssessmentItem !== false) {
+      if ((si as any)?.isAssessmentItem !== false && session.levelId) {
         const existingDraft = await this.prisma.assessment.findFirst({
           where: {
             schoolId: session.schoolId,
@@ -397,8 +404,9 @@ export class AttendanceService {
         schoolId,
         sessionId: dto.sessionId,
         servantId: dto.servantId,
-        levelId: dto.levelId,
+        levelId: dto.levelId || null,
         groupId: dto.groupId,
+        gradeId: dto.gradeId || null,
         scheduledDate,
         scheduledTime: dto.scheduledTime,
         status: dto.status || 'scheduled',
@@ -408,30 +416,34 @@ export class AttendanceService {
       include: {
         level: { select: { id: true, name: true, number: true } },
         group: { select: { id: true, name: true } },
+        grade: { select: { id: true, name: true } },
       },
     });
-    if (dto.levelId && dto.groupId) {
-      const students = await this.prisma.student.findMany({
-        where: { levelId: dto.levelId, groupId: dto.groupId, deletedAt: null },
-        select: { id: true },
+
+    const studentWhere: any = { groupId: dto.groupId, deletedAt: null };
+    if (dto.levelId) studentWhere.levelId = dto.levelId;
+    if (dto.gradeId) studentWhere.gradeId = dto.gradeId;
+    const students = await this.prisma.student.findMany({
+      where: studentWhere,
+      select: { id: true },
+    });
+    if (students.length > 0) {
+      await this.prisma.attendanceRecord.createMany({
+        data: students.map(s => ({
+          attendanceSessionId: session.id,
+          studentId: s.id,
+          status: 'unmarked',
+          recordedBy: dto.servantId,
+        })),
       });
-      if (students.length > 0) {
-        await this.prisma.attendanceRecord.createMany({
-          data: students.map(s => ({
-            attendanceSessionId: session.id,
-            studentId: s.id,
-            status: 'unmarked',
-            recordedBy: dto.servantId,
-          })),
-        });
-      }
     }
+
     await this.audit.log({
       schoolId,
       action: 'CREATE',
       entityType: 'attendance_session',
       entityId: session.id,
-      newValues: { levelId: dto.levelId, groupId: dto.groupId, scheduledDate: dto.scheduledDate, status: dto.status },
+      newValues: { levelId: dto.levelId, groupId: dto.groupId, gradeId: dto.gradeId, scheduledDate: dto.scheduledDate, status: dto.status },
     });
     return session;
   }
@@ -440,8 +452,11 @@ export class AttendanceService {
     const session = await this.prisma.attendanceSession.findUnique({ where: { id: sessionId } });
     if (!session) return;
 
+    const studentWhere: any = { groupId: session.groupId, deletedAt: null };
+    if (session.levelId) studentWhere.levelId = session.levelId;
+    if (session.gradeId) studentWhere.gradeId = session.gradeId;
     const activeStudents = await this.prisma.student.findMany({
-      where: { groupId: session.groupId, levelId: session.levelId, deletedAt: null },
+      where: studentWhere,
       select: { id: true },
     });
     const activeIds = new Set(activeStudents.map(s => s.id));
@@ -767,7 +782,7 @@ export class AttendanceService {
     return { record, message: `${record.student.firstName} ${record.student.lastName} checked in!` };
   }
 
-  async startClass(servantId: string, selectedGroupId?: string, selectedLevelId?: string) {
+  async startClass(servantId: string, selectedGroupId?: string, selectedLevelId?: string, selectedGradeId?: string) {
     const servant = await this.prisma.user.findUnique({ where: { id: servantId }, select: { schoolId: true, metadata: true } });
     if (!servant) throw new NotFoundException('Servant not found');
 
@@ -786,6 +801,7 @@ export class AttendanceService {
       include: {
         group: { select: { id: true, name: true } },
         level: { select: { id: true, name: true } },
+        grade: { select: { id: true, name: true } },
         attendanceRecords: { include: { student: { select: { id: true, firstName: true, lastName: true, firstNameAr: true, lastNameAr: true } } } },
       },
     });
@@ -805,23 +821,27 @@ export class AttendanceService {
     });
 
     let groupId: string | undefined = selectedGroupId || metaGroupId;
-    let levelId: string | undefined = selectedLevelId || metaLevelId;
+    const levelId: string | undefined = selectedLevelId || metaLevelId || (recentSessions.length > 0 ? recentSessions[0].levelId ?? undefined : undefined);
+    const gradeId: string | undefined = selectedGradeId;
 
     // If no metadata assignment, try to get from recent sessions
     if (!groupId && recentSessions.length > 0) {
       groupId = recentSessions[0].groupId;
-      levelId = levelId || recentSessions[0].levelId;
     }
 
     if (!groupId) {
-      // No assignment found — return all school groups and levels for the client to pick
-      const [groups, levels] = await Promise.all([
+      // No assignment found — return all school groups, levels, and grades for the client to pick
+      const [groups, levels, grades] = await Promise.all([
         this.prisma.group.findMany({
           where: { schoolId: servant.schoolId, deletedAt: null, status: { not: 'inactive' } },
         }),
         this.prisma.level.findMany({
           where: { schoolId: servant.schoolId, deletedAt: null, status: { not: 'inactive' } },
           orderBy: { number: 'asc' },
+        }),
+        this.prisma.schoolGrade.findMany({
+          where: { schoolId: servant.schoolId, deletedAt: null, status: 'active' },
+          orderBy: { orderIndex: 'asc' },
         }),
       ]);
       if (groups.length === 0) {
@@ -830,38 +850,18 @@ export class AttendanceService {
       return {
         groups: groups.map(g => ({ id: g.id, name: g.name })),
         levels: levels.map(l => ({ id: l.id, name: l.name, number: l.number })),
+        grades: grades.map(g => ({ id: g.id, name: g.name, groupId: g.groupId })),
         requiresGroupPick: true,
       };
-    }
-
-    if (!levelId) {
-      // Try to find level from a recent session for this group
-      const groupSession = await this.prisma.attendanceSession.findFirst({
-        where: { servantId, groupId, deletedAt: null },
-        select: { levelId: true },
-      });
-      if (groupSession) {
-        levelId = groupSession.levelId;
-      } else {
-        // Get the first level for this school
-        const firstLevel = await this.prisma.level.findFirst({
-          where: { schoolId: servant.schoolId, deletedAt: null },
-          select: { id: true },
-        });
-        levelId = firstLevel?.id;
-      }
-    }
-
-    if (!levelId) {
-      throw new BadRequestException('No level found. Ask your admin to set up levels.');
     }
 
     const session = await this.prisma.attendanceSession.create({
       data: {
         schoolId: servant.schoolId,
         servantId,
-        levelId,
+        levelId: levelId || null,
         groupId,
+        gradeId: gradeId || null,
         scheduledDate: new Date(),
         scheduledTime: new Date().toTimeString().slice(0, 5),
         status: 'in_progress',
@@ -870,9 +870,11 @@ export class AttendanceService {
     });
 
     // Seed the roster as unmarked — the servant marks each student explicitly.
-    // Defaulting to present caused false presents and rework on absences.
+    const studentWhere: any = { groupId, schoolId: servant.schoolId, deletedAt: null, status: 'active' };
+    if (levelId) studentWhere.levelId = levelId;
+    if (gradeId) studentWhere.gradeId = gradeId;
     const students = await this.prisma.student.findMany({
-      where: { groupId, levelId, schoolId: servant.schoolId, deletedAt: null, status: 'active' },
+      where: studentWhere,
       select: { id: true },
     });
     if (students.length > 0) {
@@ -1215,8 +1217,9 @@ export class AttendanceService {
       where: { id },
       data: {
         ...(dto.servantId && { servantId: dto.servantId }),
-        ...(dto.levelId && { levelId: dto.levelId }),
+        ...(dto.levelId !== undefined && { levelId: dto.levelId || null }),
         ...(dto.groupId && { groupId: dto.groupId }),
+        ...(dto.gradeId !== undefined && { gradeId: dto.gradeId || null }),
         ...(dto.scheduledDate && { scheduledDate: new Date(dto.scheduledDate) }),
         ...(dto.scheduledTime && { scheduledTime: dto.scheduledTime }),
         ...(dto.status && { status: dto.status }),
@@ -1227,12 +1230,13 @@ export class AttendanceService {
       include: {
         level: { select: { id: true, name: true, number: true } },
         group: { select: { id: true, name: true } },
+        grade: { select: { id: true, name: true } },
         servant: { select: { id: true, firstName: true, lastName: true } },
       },
     });
 
-    // Sync students when status or group changes
-    if (statusChanged || groupChanged) {
+    // Sync students when status, group, level or grade changes
+    if (statusChanged || groupChanged || dto.levelId !== undefined || dto.gradeId !== undefined) {
       await this.syncSessionStudents(id, dto.servantId || session.servantId);
     }
 
