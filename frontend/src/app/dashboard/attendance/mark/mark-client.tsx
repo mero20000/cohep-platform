@@ -48,21 +48,28 @@ export function MarkClient() {
   const [unmarkedOnly, setUnmarkedOnly] = useState(false)
   const [groupPickerOpen, setGroupPickerOpen] = useState(false)
   const [availableGroups, setAvailableGroups] = useState<Array<{ id: string; name: string }>>([])
+  const [availableLevels, setAvailableLevels] = useState<Array<{ id: string; name: string; number?: number }>>([])
+  const [pickedGroupId, setPickedGroupId] = useState<string | null>(null)
   const marking = useMarkingState([])
 
-  const load = async (id?: string, quiet = false, groupId?: string) => {
+  const load = async (id?: string, quiet = false, groupId?: string, levelId?: string) => {
     if (!quiet) setLoading(true)
     setLoadError('')
     try {
       let sid = id || params?.get('sessionId') || ''
       setSubjectItemId(params?.get('subjectItemId') ?? null)
       if (!sid) {
-        const url = groupId ? `/attendance/start-class?groupId=${encodeURIComponent(groupId)}` : '/attendance/start-class'
+        const qs = new URLSearchParams()
+        if (groupId) qs.set('groupId', groupId)
+        if (levelId) qs.set('levelId', levelId)
+        const url = `/attendance/start-class${qs.toString() ? `?${qs}` : ''}`
         const started = await http.post<any>(url)
 
         // Check if group picker is needed
         if ((started as any)?.requiresGroupPick && (started as any)?.groups) {
           setAvailableGroups((started as any).groups);
+          setAvailableLevels((started as any).levels || []);
+          setPickedGroupId(null);
           setGroupPickerOpen(true);
           setSession(null);
           setLoading(false);
@@ -174,7 +181,81 @@ export function MarkClient() {
 
   if (loading && !session) return <div className="p-12 text-center text-gray-500">Loading…</div>
   if (loadError && !session) return <EmptyState title={lang === 'ar' ? 'فشل التحميل' : 'Failed to load'} description={loadError} action={<Button onClick={() => { void load() }} className="min-h-[44px]">{lang === 'ar' ? 'إعادة المحاولة' : 'Retry'}</Button>} />
-  if (!session) return <EmptyState title={lang === 'ar' ? 'لا توجد جلسة اليوم' : 'No session today'} description={lang === 'ar' ? 'ابدأ الحصة لفتح التحضير' : 'Start class to open marking'} action={<Button onClick={() => { void load() }} className="min-h-[44px]">{lang === 'ar' ? 'بدء الحصة' : 'Start class'}</Button>} />
+  if (!session && !groupPickerOpen) return <EmptyState title={lang === 'ar' ? 'لا توجد جلسة اليوم' : 'No session today'} description={lang === 'ar' ? 'ابدأ الحصة لفتح التحضير' : 'Start class to open marking'} action={<Button onClick={() => { void load() }} className="min-h-[44px]">{lang === 'ar' ? 'بدء الحصة' : 'Start class'}</Button>} />
+
+  // Group/level picker is open but no session yet — render only the picker overlay
+  if (!session && groupPickerOpen) return (
+    <div className="p-8 text-center">
+      <h2 className="text-lg font-semibold text-gray-900 mb-2">{lang === 'ar' ? 'بدء حصة جديدة' : 'Start a New Class'}</h2>
+      <p className="text-sm text-gray-500 mb-6">{lang === 'ar' ? 'اختر المجموعة والمرحلة لبدء التحضير' : 'Select a group and level to begin attendance'}</p>
+      <div className="mx-auto w-full max-w-sm">
+        <div role="dialog" aria-labelledby="group-picker-title" className="rounded-2xl bg-white p-6 shadow-lg border border-gray-200">
+          {!pickedGroupId ? (
+            <>
+              <h3 id="group-picker-title" className="mb-1 font-semibold text-gray-900">
+                {lang === 'ar' ? 'اختر المجموعة' : 'Select a Group'}
+              </h3>
+              <p className="mb-4 text-sm text-gray-500">{lang === 'ar' ? 'الخطوة 1 من 2' : 'Step 1 of 2'}</p>
+              <div className="mb-4 space-y-2 max-h-96 overflow-y-auto">
+                {availableGroups.map(group => (
+                  <button
+                    key={group.id}
+                    type="button"
+                    onClick={() => {
+                      if (availableLevels.length <= 1) {
+                        setGroupPickerOpen(false);
+                        setPickedGroupId(null);
+                        void load(undefined, false, group.id, availableLevels[0]?.id);
+                      } else {
+                        setPickedGroupId(group.id);
+                      }
+                    }}
+                    className="w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-start font-medium text-gray-900 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500"
+                  >
+                    {group.name}
+                  </button>
+                ))}
+              </div>
+            </>
+          ) : (
+            <>
+              <h3 id="group-picker-title" className="mb-1 font-semibold text-gray-900">
+                {lang === 'ar' ? 'اختر المرحلة' : 'Select a Level'}
+              </h3>
+              <p className="mb-4 text-sm text-gray-500">
+                {lang === 'ar' ? 'الخطوة 2 من 2' : 'Step 2 of 2'}
+                {' · '}
+                {availableGroups.find(g => g.id === pickedGroupId)?.name}
+              </p>
+              <div className="mb-4 space-y-2 max-h-96 overflow-y-auto">
+                {availableLevels.map(level => (
+                  <button
+                    key={level.id}
+                    type="button"
+                    onClick={() => {
+                      setGroupPickerOpen(false);
+                      const gid = pickedGroupId;
+                      setPickedGroupId(null);
+                      void load(undefined, false, gid!, level.id);
+                    }}
+                    className="w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-start font-medium text-gray-900 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500"
+                  >
+                    {level.name}
+                  </button>
+                ))}
+              </div>
+              <Button variant="outline" onClick={() => setPickedGroupId(null)} className="min-h-[44px] w-full mb-2">
+                {lang === 'ar' ? 'رجوع' : 'Back'}
+              </Button>
+            </>
+          )}
+          <Button variant="outline" onClick={() => { setGroupPickerOpen(false); setPickedGroupId(null); }} className="min-h-[44px] w-full">
+            {lang === 'ar' ? 'إلغاء' : 'Cancel'}
+          </Button>
+        </div>
+      </div>
+    </div>
+  )
 
   const recs = session.attendanceRecords || []
   const isUnmarked = (r: any) => { const s = marking.marks[r.student?.id]; return !s || s === 'unmarked' }
@@ -385,26 +466,70 @@ export function MarkClient() {
           </div>
         </div>
       )}
-      {/* Group picker — shown when user has no assigned group */}
+      {/* Group & level picker — shown when user has no assigned group */}
       {groupPickerOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setGroupPickerOpen(false)}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => { setGroupPickerOpen(false); setPickedGroupId(null); }}>
           <div role="dialog" aria-modal="true" aria-labelledby="group-picker-title" className="mx-4 w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl" onClick={e => e.stopPropagation()}>
-            <h3 id="group-picker-title" className="mb-4 font-semibold text-gray-900">
-              {lang === 'ar' ? 'اختر المجموعة' : 'Select a Class'}
-            </h3>
-            <div className="mb-4 space-y-2 max-h-96 overflow-y-auto">
-              {availableGroups.map(group => (
-                <button
-                  key={group.id}
-                  type="button"
-                  onClick={() => { setGroupPickerOpen(false); void load(undefined, false, group.id); }}
-                  className="w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-start font-medium text-gray-900 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500"
-                >
-                  {group.name}
-                </button>
-              ))}
-            </div>
-            <Button variant="outline" onClick={() => setGroupPickerOpen(false)} className="min-h-[44px] w-full">
+            {!pickedGroupId ? (
+              <>
+                <h3 id="group-picker-title" className="mb-1 font-semibold text-gray-900">
+                  {lang === 'ar' ? 'اختر المجموعة' : 'Select a Group'}
+                </h3>
+                <p className="mb-4 text-sm text-gray-500">{lang === 'ar' ? 'الخطوة 1 من 2' : 'Step 1 of 2'}</p>
+                <div className="mb-4 space-y-2 max-h-96 overflow-y-auto">
+                  {availableGroups.map(group => (
+                    <button
+                      key={group.id}
+                      type="button"
+                      onClick={() => {
+                        if (availableLevels.length <= 1) {
+                          setGroupPickerOpen(false);
+                          setPickedGroupId(null);
+                          void load(undefined, false, group.id, availableLevels[0]?.id);
+                        } else {
+                          setPickedGroupId(group.id);
+                        }
+                      }}
+                      className="w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-start font-medium text-gray-900 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500"
+                    >
+                      {group.name}
+                    </button>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <>
+                <h3 id="group-picker-title" className="mb-1 font-semibold text-gray-900">
+                  {lang === 'ar' ? 'اختر المرحلة' : 'Select a Level'}
+                </h3>
+                <p className="mb-4 text-sm text-gray-500">
+                  {lang === 'ar' ? 'الخطوة 2 من 2' : 'Step 2 of 2'}
+                  {' · '}
+                  {availableGroups.find(g => g.id === pickedGroupId)?.name}
+                </p>
+                <div className="mb-4 space-y-2 max-h-96 overflow-y-auto">
+                  {availableLevels.map(level => (
+                    <button
+                      key={level.id}
+                      type="button"
+                      onClick={() => {
+                        setGroupPickerOpen(false);
+                        const gid = pickedGroupId;
+                        setPickedGroupId(null);
+                        void load(undefined, false, gid!, level.id);
+                      }}
+                      className="w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-start font-medium text-gray-900 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500"
+                    >
+                      {level.name}
+                    </button>
+                  ))}
+                </div>
+                <Button variant="outline" onClick={() => setPickedGroupId(null)} className="min-h-[44px] w-full mb-2">
+                  {lang === 'ar' ? 'رجوع' : 'Back'}
+                </Button>
+              </>
+            )}
+            <Button variant="outline" onClick={() => { setGroupPickerOpen(false); setPickedGroupId(null); }} className="min-h-[44px] w-full">
               {lang === 'ar' ? 'إلغاء' : 'Cancel'}
             </Button>
           </div>
