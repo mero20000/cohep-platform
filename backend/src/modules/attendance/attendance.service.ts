@@ -178,7 +178,7 @@ export class AttendanceService {
    * Prefers an explicitly linked subjectItemId, otherwise derives it from the
    * curriculum allocation for the session's level/week (lesson -> subjectItem).
    */
-  private async resolveSessionSubjectItem(session: { id: string; levelId: string | null; groupId: string; scheduledDate: Date; subjectItemId?: string | null }): Promise<{ id: string; name: string; nameAr?: string | null; status: string; isAssessmentItem?: boolean | null; passRequired?: boolean | null } | null> {
+  private async resolveSessionSubjectItem(session: { id: string; levelId: string | null; groupId: string | null; scheduledDate: Date; subjectItemId?: string | null }): Promise<{ id: string; name: string; nameAr?: string | null; status: string; isAssessmentItem?: boolean | null; passRequired?: boolean | null } | null> {
     const load = (id: string) =>
       this.prisma.subjectItem.findUnique({
         where: { id },
@@ -191,7 +191,7 @@ export class AttendanceService {
     }
 
     const group = await this.prisma.group.findUnique({
-      where: { id: session.groupId },
+      where: { id: session.groupId! },
       select: { id: true },
     });
     void group;
@@ -297,8 +297,8 @@ export class AttendanceService {
         const existingDraft = await this.prisma.assessment.findFirst({
           where: {
             schoolId: session.schoolId,
-            levelId: session.levelId,
-            groupId: session.groupId,
+            levelId: session.levelId!,
+            groupId: session.groupId!,
             subjectId: si!.subjectId,
             title: `Assessment: ${si!.name}`,
             status: 'draft',
@@ -309,8 +309,8 @@ export class AttendanceService {
         assessment = existingDraft ?? await this.assessments.create(
           {
             schoolId: session.schoolId,
-            levelId: session.levelId,
-            groupId: session.groupId,
+            levelId: session.levelId!,
+            groupId: session.groupId!,
             subjectId: si!.subjectId,
             title: `Assessment: ${si!.name}`,
             totalPoints: 0,
@@ -852,7 +852,7 @@ export class AttendanceService {
 
     // If no metadata assignment, try to get from recent sessions
     if (!groupId && recentSessions.length > 0) {
-      groupId = recentSessions[0].groupId;
+      groupId = recentSessions[0].groupId || undefined;
     }
 
     if (!groupId) {

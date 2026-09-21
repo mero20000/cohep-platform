@@ -37,10 +37,10 @@ interface StudentHit {
 }
 
 interface SessionForm {
-  levelId: string; groupId: string; gradeId: string; servantId: string;
+  levelId?: string; groupId?: string; gradeId?: string; servantId: string;
   scheduledDate: string; scheduledTime: string; status: string; notes: string;
 }
-type SessionFormErrors = Partial<Record<'groupId' | 'scheduledDate', string>>
+type SessionFormErrors = Partial<Record<'levelId' | 'groupId' | 'scheduledDate', string>>
 
 const EMPTY_FORM: SessionForm = {
   levelId: '', groupId: '', gradeId: '', servantId: '', scheduledDate: '', scheduledTime: '12:00', status: 'scheduled', notes: '',
@@ -48,7 +48,6 @@ const EMPTY_FORM: SessionForm = {
 
 function validateSessionForm(form: SessionForm, lang: 'en' | 'ar'): SessionFormErrors {
   const errors: SessionFormErrors = {}
-  if (!form.groupId) errors.groupId = lang === 'ar' ? 'المجموعة مطلوبة' : 'Group is required'
   if (!form.scheduledDate) errors.scheduledDate = lang === 'ar' ? 'التاريخ مطلوب' : 'Date is required'
   return errors
 }
@@ -126,8 +125,7 @@ function SessionFormModal({
         <div className="px-6 py-4 space-y-4 overflow-y-auto flex-1">
           <FormField
             as="select"
-            label={lang === 'ar' ? 'المجموعة *' : 'Group *'}
-            required
+            label={lang === 'ar' ? 'المجموعة' : 'Group'}
             value={form.groupId}
             onChange={e => setForm({ ...form, groupId: e.target.value, gradeId: '' })}
             error={errors.groupId}
@@ -313,9 +311,15 @@ export default function SessionsPage() {
     const user = JSON.parse(localStorage.getItem('user') || '{}')
     setSaving(true)
     try {
-      await http.post('/attendance/sessions', {
-        ...form, servantId: form.servantId || user.id || '00000000-0000-0000-0000-000000000000', schoolId,
-      })
+      const cleanForm = {
+        ...form,
+        servantId: form.servantId || user.id || '00000000-0000-0000-0000-000000000000',
+        schoolId,
+        levelId: form.levelId || undefined,
+        groupId: form.groupId || undefined,
+        gradeId: form.gradeId || undefined,
+      }
+      await http.post('/attendance/sessions', cleanForm)
       setShowCreateModal(false)
       toast('success', lang === 'ar' ? 'تم إنشاء الجلسة' : 'Session created')
       fetchSessions()
@@ -364,7 +368,13 @@ export default function SessionsPage() {
     if (!editSession) return
     setSaving(true)
     try {
-      await http.put(`/attendance/sessions/${editSession.id}`, form)
+      const cleanForm = {
+        ...form,
+        levelId: form.levelId || undefined,
+        groupId: form.groupId || undefined,
+        gradeId: form.gradeId || undefined,
+      }
+      await http.put(`/attendance/sessions/${editSession.id}`, cleanForm)
       setEditSession(null)
       toast('success', lang === 'ar' ? 'تم تحديث الجلسة' : 'Session updated')
       fetchSessions()
@@ -498,7 +508,7 @@ export default function SessionsPage() {
 
   const editInitial: SessionForm | null = editSession ? {
     levelId: editSession.level?.id || '',
-    groupId: editSession.group.id,
+    groupId: editSession.group?.id || '',
     gradeId: editSession.grade?.id || '',
     servantId: editSession.servant?.id || '',
     scheduledDate: editSession.scheduledDate.split('T')[0],

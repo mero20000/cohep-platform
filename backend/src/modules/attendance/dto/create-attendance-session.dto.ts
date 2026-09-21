@@ -19,7 +19,8 @@ export class CreateAttendanceSessionDto {
   levelId?: string;
 
   @IsUUID()
-  groupId: string;
+  @IsOptional()
+  groupId?: string;
 
   @IsUUID()
   @IsOptional()
