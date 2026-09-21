@@ -43,6 +43,7 @@ export function MarkClient() {
   const [saveError, setSaveError] = useState('')
   const [saving, setSaving] = useState(false)
   const [reopening, setReopening] = useState(false)
+  const [starting, setStarting] = useState(false)
   const [markAllTarget, setMarkAllTarget] = useState<string | null>(null)
   const [query, setQuery] = useState('')
   const [unmarkedOnly, setUnmarkedOnly] = useState(false)
@@ -144,6 +145,20 @@ export function MarkClient() {
       setSaveError(e?.message || 'Failed to reopen session')
       toast('error', lang === 'ar' ? 'فشل إعادة فتح الجلسة' : 'Failed to reopen session', e?.message || '')
     } finally { setReopening(false) }
+  }
+
+  // Start a scheduled session manually
+  const startSession = async () => {
+    if (!session || starting) return
+    setStarting(true); setSaveError('')
+    try {
+      await http.post(`/attendance/sessions/${session.id}/start`)
+      toast('success', lang === 'ar' ? 'بدأت الحصة' : 'Class started')
+      await load(session.id, true)
+    } catch (e: any) {
+      setSaveError(e?.message || 'Failed to start session')
+      toast('error', lang === 'ar' ? 'فشل بدء الحصة' : 'Failed to start session', e?.message || '')
+    } finally { setStarting(false) }
   }
 
   // Ctrl/Cmd+S saves without leaving the keyboard flow.
@@ -385,6 +400,16 @@ export function MarkClient() {
               ? 'هذه الجلسة نهائية ومقفلة للقراءة فقط. أعد فتحها لإجراء تغييرات.'
               : 'This session is finalized and read-only. Re-open it to make changes.'}
           </p>
+        )}
+        {session.status === 'scheduled' && (
+          <button
+            type="button"
+            onClick={() => void startSession()}
+            disabled={starting}
+            className="mt-2 flex min-h-[44px] items-center gap-2 rounded-lg bg-gold-500 px-4 py-2 text-sm font-medium text-gray-950 hover:bg-gold-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500 disabled:opacity-50"
+          >
+            {starting ? (lang === 'ar' ? 'جاري البدء…' : 'Starting…') : (lang === 'ar' ? 'بدء الحصة' : 'Start Class')}
+          </button>
         )}
         <p className="mt-1 text-sm text-gray-500">
           <Link href="/dashboard/attendance/sessions" className="rounded text-blue-700 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500">

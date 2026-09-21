@@ -206,6 +206,12 @@ export class AttendanceController {
     return this.attendanceService.startClass(req.user.id, groupId, levelId, gradeId);
   }
 
+  @Post('sessions/:id/start')
+  @ApiOperation({ summary: 'Start a scheduled attendance session manually' })
+  async startSession(@Param('id') id: string, @Req() req: any) {
+    return this.attendanceService.startSession(id, req.user.id);
+  }
+
   @Get('liturgy-heatmap')
   @ApiOperation({ summary: 'Get liturgy vs class attendance heatmap data' })
   async liturgyHeatmap(

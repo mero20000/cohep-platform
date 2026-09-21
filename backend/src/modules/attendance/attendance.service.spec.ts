@@ -178,12 +178,12 @@ describe('AttendanceService', () => {
       prisma.attendanceRecord.createMany.mockResolvedValue({ count: 0 });
     });
 
-    it('records actualStartTime when creating an in_progress session', async () => {
+    it('creates a scheduled session without actualStartTime when starting class', async () => {
       await service.startClass('u1');
 
       const data = prisma.attendanceSession.create.mock.calls[0][0].data;
-      expect(data.status).toBe('in_progress');
-      expect(data.actualStartTime).toBeInstanceOf(Date);
+      expect(data.status).toBe('scheduled');
+      expect(data.actualStartTime).toBeUndefined();
     });
 
     it('seeds the roster as unmarked (never pre-marks present)', async () => {

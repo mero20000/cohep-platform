@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException, Inject, forwardRef } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ForbiddenException, Inject, forwardRef } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 import { SchoolResolver } from '../../common/utils/school-resolver';
 import { AuditService } from '../audit/audit.service';
@@ -890,8 +890,7 @@ export class AttendanceService {
         gradeId: gradeId || null,
         scheduledDate: new Date(),
         scheduledTime: new Date().toTimeString().slice(0, 5),
-        status: 'in_progress',
-        actualStartTime: new Date(),
+        status: 'scheduled',
       },
     });
 
@@ -921,6 +920,38 @@ export class AttendanceService {
 
     const full = await this.getSessionById(session.id);
     return { session: full, created: true };
+  }
+
+  async startSession(sessionId: string, servantId: string) {
+    const session = await this.prisma.attendanceSession.findUnique({ where: { id: sessionId } });
+    if (!session) throw new NotFoundException('Attendance session not found');
+    if (session.servantId !== servantId) throw new ForbiddenException('Not your session');
+    if (session.status === 'in_progress') return { session, started: false };
+    if (session.status === 'completed') throw new BadRequestException('Cannot start a completed session');
+
+    const updated = await this.prisma.attendanceSession.update({
+      where: { id: sessionId },
+      data: { status: 'in_progress', actualStartTime: new Date() },
+      include: {
+        level: { select: { id: true, name: true, number: true } },
+        group: { select: { id: true, name: true } },
+        servant: { select: { id: true, firstName: true, lastName: true } },
+        attendanceRecords: { include: { student: { select: { id: true, firstName: true, lastName: true } } } },
+      },
+    });
+
+    await this.syncSessionStudents(sessionId, servantId);
+
+    await this.audit.log({
+      schoolId: session.schoolId,
+      action: 'START',
+      entityType: 'attendance_session',
+      entityId: sessionId,
+      oldValues: { status: session.status },
+      newValues: { status: 'in_progress' },
+    });
+
+    return { session: updated, started: true };
   }
 
   async liturgyHeatmap(schoolIdentifier: string, groupId?: string) {
