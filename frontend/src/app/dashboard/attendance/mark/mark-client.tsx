@@ -54,63 +54,86 @@ export function MarkClient() {
   const [pickedGroupId, setPickedGroupId] = useState<string | null>(null)
   const [pickerStep, setPickerStep] = useState<'group' | 'level' | 'grade'>('group')
   const [pickedLevelId, setPickedLevelId] = useState<string | null>(null)
+  const [needsManualStart, setNeedsManualStart] = useState(false)
   const marking = useMarkingState([])
+
+  const loadSession = async (sid: string, quiet = false) => {
+    if (!quiet) setLoading(true)
+    setLoadError('')
+    try {
+      const detail = await http.get<any>(`/attendance/sessions/${sid}`)
+      setSession(detail)
+      marking.initFromRecords(detail.attendanceRecords || [])
+      if (!quiet && params?.get('prefill') === 'present') {
+        marking.markAll('present', (detail.attendanceRecords || []).map((r: any) => r.student?.id).filter(Boolean))
+      }
+    } catch (e: any) {
+      setLoadError(e?.message || (lang === 'ar' ? 'فشل تحميل الجلسة' : 'Failed to load session'))
+    } finally { setLoading(false) }
+  }
+
+  const startClassManually = async (groupId?: string, levelId?: string, gradeId?: string) => {
+    setStarting(true)
+    setLoadError('')
+    try {
+      const qs = new URLSearchParams()
+      if (groupId) qs.set('groupId', groupId)
+      if (levelId) qs.set('levelId', levelId)
+      if (gradeId) qs.set('gradeId', gradeId)
+      const url = `/attendance/start-class${qs.toString() ? `?${qs}` : ''}`
+      const started = await http.post<any>(url)
+
+      if ((started as any)?.requiresGroupPick && (started as any)?.groups) {
+        setAvailableGroups((started as any).groups)
+        setAvailableLevels((started as any).levels || [])
+        setAvailableGrades((started as any).grades || [])
+        setPickedGroupId(null)
+        setPickedLevelId(null)
+        setPickerStep('group')
+        setGroupPickerOpen(true)
+        setSession(null)
+        setNeedsManualStart(false)
+        setStarting(false)
+        return
+      }
+
+      const sid = (started as any)?.session?.id || ''
+      if (!sid) {
+        setLoadError(lang === 'ar'
+          ? 'لم يتم إسناد مجموعة أو مرحلة لك بعد. الرجاء التواصل مع المسؤول.'
+          : 'No group or level assigned to you yet. Please contact your admin.')
+        setSession(null)
+        setStarting(false)
+        return
+      }
+      setNeedsManualStart(false)
+      await loadSession(sid)
+    } catch (e: any) {
+      setLoadError(e?.message || (lang === 'ar' ? 'فشل بدء الحصة' : 'Failed to start class'))
+    } finally { setStarting(false) }
+  }
 
   const load = async (id?: string, quiet = false, groupId?: string, levelId?: string, gradeId?: string) => {
     if (!quiet) setLoading(true)
     setLoadError('')
     try {
-      let sid = id || params?.get('sessionId') || ''
+      const sid = id || params?.get('sessionId') || ''
       setSubjectItemId(params?.get('subjectItemId') ?? null)
       if (!sid) {
-        const qs = new URLSearchParams()
-        if (groupId) qs.set('groupId', groupId)
-        if (levelId) qs.set('levelId', levelId)
-        if (gradeId) qs.set('gradeId', gradeId)
-        const url = `/attendance/start-class${qs.toString() ? `?${qs}` : ''}`
-        const started = await http.post<any>(url)
-
-        // Check if group picker is needed
-        if ((started as any)?.requiresGroupPick && (started as any)?.groups) {
-          setAvailableGroups((started as any).groups);
-          setAvailableLevels((started as any).levels || []);
-          setAvailableGrades((started as any).grades || []);
-          setPickedGroupId(null);
-          setPickedLevelId(null);
-          setPickerStep('group');
-          setGroupPickerOpen(true);
-          setSession(null);
-          setLoading(false);
-          return;
+        if (groupId) {
+          await startClassManually(groupId, levelId, gradeId)
+          return
         }
-
-        sid = (started as any)?.session?.id || ''
-        // If start-class didn't return a session and also no error was thrown,
-        // it means the servant doesn't have a group/level assigned
-        if (!sid) {
-          setLoadError(lang === 'ar'
-            ? 'لم يتم إسناد مجموعة أو مرحلة لك بعد. الرجاء التواصل مع المسؤول.'
-            : 'No group or level assigned to you yet. Please contact your admin.');
-          setSession(null);
-          return;
-        }
+        setNeedsManualStart(true)
+        setLoading(false)
+        return
       }
-      const detail = await http.get<any>(`/attendance/sessions/${sid}`)
-      setSession(detail)
-      marking.initFromRecords(detail.attendanceRecords || [])
-      // Prefill only on explicit (non-quiet) loads: the quiet reload after
-      // save must preserve server truth, not force all-present again.
-      if (!quiet && params?.get('prefill') === 'present') {
-        marking.markAll('present', (detail.attendanceRecords || []).map((r: any) => r.student?.id).filter(Boolean))
-      }
+      await loadSession(sid, quiet)
     } catch (e: any) {
-      const errorMsg = e?.message || (lang === 'ar' ? 'فشل تحميل الجلسة' : 'Failed to load session');
-      setLoadError(errorMsg);
+      setLoadError(e?.message || (lang === 'ar' ? 'فشل تحميل الجلسة' : 'Failed to load session'))
+      setLoading(false)
     }
-    finally { setLoading(false) }
   }
-  // Initial mount only — later session changes reload via load(), which
-  // re-seeds the hook through initFromRecords (the [] initial is ignored after mount).
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { load() }, [])
 
@@ -126,7 +149,7 @@ export function MarkClient() {
       if (finalize) await http.put(`/attendance/sessions/${session.id}`, { status: 'completed' })
       toast('success', lang === 'ar' ? 'تم حفظ الحضور' : 'Attendance saved')
       marking.setDirty(false)
-      await load(session.id, true)
+      await loadSession(session.id, true)
     } catch (e: any) {
       setSaveError(e?.message || 'Failed to save attendance')
       toast('error', lang === 'ar' ? 'فشل حفظ الحضور' : 'Failed to save attendance', e?.message || '')
@@ -140,7 +163,7 @@ export function MarkClient() {
     try {
       await http.put(`/attendance/sessions/${session.id}`, { status: 'in_progress' })
       toast('success', lang === 'ar' ? 'تم إعادة فتح الجلسة' : 'Session reopened')
-      await load(session.id, true)
+      await loadSession(session.id, true)
     } catch (e: any) {
       setSaveError(e?.message || 'Failed to reopen session')
       toast('error', lang === 'ar' ? 'فشل إعادة فتح الجلسة' : 'Failed to reopen session', e?.message || '')
@@ -154,7 +177,7 @@ export function MarkClient() {
     try {
       await http.post(`/attendance/sessions/${session.id}/start`)
       toast('success', lang === 'ar' ? 'بدأت الحصة' : 'Class started')
-      await load(session.id, true)
+      await loadSession(session.id, true)
     } catch (e: any) {
       setSaveError(e?.message || 'Failed to start session')
       toast('error', lang === 'ar' ? 'فشل بدء الحصة' : 'Failed to start session', e?.message || '')
@@ -203,14 +226,25 @@ export function MarkClient() {
 
   if (loading && !session) return <div className="p-12 text-center text-gray-500">Loading…</div>
   if (loadError && !session) return <EmptyState title={lang === 'ar' ? 'فشل التحميل' : 'Failed to load'} description={loadError} action={<Button onClick={() => { void load() }} className="min-h-[44px]">{lang === 'ar' ? 'إعادة المحاولة' : 'Retry'}</Button>} />
-  if (!session && !groupPickerOpen) return <EmptyState title={lang === 'ar' ? 'لا توجد جلسة اليوم' : 'No session today'} description={lang === 'ar' ? 'ابدأ الحصة لفتح التحضير' : 'Start class to open marking'} action={<Button onClick={() => { void load() }} className="min-h-[44px]">{lang === 'ar' ? 'بدء الحصة' : 'Start class'}</Button>} />
+  if (needsManualStart && !session && !groupPickerOpen) return (
+    <EmptyState
+      title={lang === 'ar' ? 'لا توجد جلسة اليوم' : 'No session today'}
+      description={lang === 'ar' ? 'اضغط "بدء الحصة" لإنشاء جلسة حضور جديدة' : 'Press "Start Class" to create a new attendance session'}
+      action={
+        <Button onClick={() => { void startClassManually() }} disabled={starting} className="min-h-[44px]">
+          {starting ? (lang === 'ar' ? 'جاري البدء…' : 'Starting…') : (lang === 'ar' ? 'بدء الحصة' : 'Start Class')}
+        </Button>
+      }
+    />
+  )
+  if (!session && !groupPickerOpen) return <EmptyState title={lang === 'ar' ? 'لا توجد جلسة' : 'No session'} description={lang === 'ar' ? 'لم يتم العثور على جلسة' : 'No session found'} action={<Button onClick={() => { void load() }} className="min-h-[44px]">{lang === 'ar' ? 'إعادة المحاولة' : 'Retry'}</Button>} />
 
   const finishPicker = (gid: string, lid?: string, grid?: string) => {
     setGroupPickerOpen(false)
     setPickedGroupId(null)
     setPickedLevelId(null)
     setPickerStep('group')
-    void load(undefined, false, gid, lid, grid)
+    void startClassManually(gid, lid, grid)
   }
 
   const groupGrades = pickedGroupId ? availableGrades.filter(g => g.groupId === pickedGroupId) : []
@@ -572,7 +606,7 @@ export function MarkClient() {
         const hasLevels = availableLevels.length > 0
         const hasGrades = groupGrades.length > 0
         const closePicker = () => { setGroupPickerOpen(false); setPickedGroupId(null); setPickedLevelId(null); setPickerStep('group'); }
-        const finishPicker = (gid: string, lid?: string, grid?: string) => { closePicker(); void load(undefined, false, gid, lid, grid); }
+        const finishPicker = (gid: string, lid?: string, grid?: string) => { closePicker(); void startClassManually(gid, lid, grid); }
         const afterGroup = (gid: string) => {
           setPickedGroupId(gid)
           if (hasLevels) { setPickerStep('level'); return }

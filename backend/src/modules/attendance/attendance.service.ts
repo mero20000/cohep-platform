@@ -889,7 +889,7 @@ export class AttendanceService {
         groupId,
         gradeId: gradeId || null,
         scheduledDate: new Date(),
-        scheduledTime: new Date().toTimeString().slice(0, 5),
+        scheduledTime: '12:00',
         status: 'scheduled',
       },
     });
