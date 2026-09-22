@@ -16,6 +16,7 @@ import { FormField } from '@/components/ui/form-field'
 import { QrScanner } from '@/components/qr/qr-scanner'
 import { http } from '@/lib/http-client'
 import { getSchoolId } from '@/lib/school'
+import { usePermission } from '@/lib/use-permission'
 import { track } from '@/lib/analytics'
 import { TableSkeleton } from '@/components/ui/skeleton'
 import { EmptyState } from '@/components/ui/empty-state'
@@ -253,6 +254,7 @@ export default function SessionsPage() {
   const exportMenuRef = useRef<HTMLDivElement>(null)
 
   const schoolId = getSchoolId()
+  const { isSuperAdmin } = usePermission()
 
   const fetchSessions = useCallback(async () => {
     setLoading(true)
@@ -687,14 +689,14 @@ export default function SessionsPage() {
               ? (lang === 'ar' ? `${selectedSessionIds.size} محدد` : `${selectedSessionIds.size} selected`)
               : (lang === 'ar' ? 'حدد للحذف' : 'Select to delete')}
           </span>
-          {selectedSessionIds.size > 0 && (
-            <Button variant="destructive" size="sm" onClick={() => setShowBatchDeleteConfirm(true)} disabled={batchDeleting}
-              className="ms-auto">
-              <Trash2 className="h-3.5 w-3.5" />
-              {batchDeleting ? (lang === 'ar' ? '...جاري' : 'Deleting...') : (lang === 'ar' ? `حذف ${selectedSessionIds.size}` : `Delete ${selectedSessionIds.size}`)}
-            </Button>
-          )}
-        </div>
+           {selectedSessionIds.size > 0 && isSuperAdmin && (
+             <Button variant="destructive" size="sm" onClick={() => setShowBatchDeleteConfirm(true)} disabled={batchDeleting}
+               className="ms-auto">
+               <Trash2 className="h-3.5 w-3.5" />
+               {batchDeleting ? (lang === 'ar' ? '...جاري' : 'Deleting...') : (lang === 'ar' ? `حذف ${selectedSessionIds.size}` : `Delete ${selectedSessionIds.size}`)}
+             </Button>
+           )}
+         </div>
 
         {loading && sessions.length === 0 && !loadError ? (
           <div className="px-4 py-6"><TableSkeleton rows={6} cols={4} /></div>
@@ -767,11 +769,13 @@ export default function SessionsPage() {
                         className="text-gray-500 hover:text-gray-700">
                         <Pencil className="h-3.5 w-3.5" />
                       </Button>
-                      <Button variant="ghost" size="sm" onClick={() => setDeleteTarget(s)}
-                        aria-label={lang === 'ar' ? `حذف جلسة ${s.group?.name}` : `Delete session ${s.group?.name}`}
-                        className="text-red-500 hover:text-red-700">
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
+                      {isSuperAdmin && (
+                        <Button variant="ghost" size="sm" onClick={() => setDeleteTarget(s)}
+                          aria-label={lang === 'ar' ? `حذف جلسة ${s.group?.name}` : `Delete session ${s.group?.name}`}
+                          className="text-red-500 hover:text-red-700">
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
                     </div>
                   </div>
                 )

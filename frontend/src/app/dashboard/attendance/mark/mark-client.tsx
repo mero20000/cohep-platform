@@ -109,10 +109,7 @@ export function MarkClient() {
     }
     finally { setLoading(false) }
   }
-  // Initial mount only — later session changes reload via load(), which
-  // re-seeds the hook through initFromRecords (the [] initial is ignored after mount).
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { load() }, [])
+  const handleStartClass = () => { void load() }
 
   const save = async (finalize = false) => {
     if (!session || saving || session.status === 'completed') return
@@ -175,6 +172,8 @@ export function MarkClient() {
     return () => window.removeEventListener('keydown', onKey)
   }, [])
 
+  useEffect(() => { if (params?.get('sessionId')) void load() }, [])
+
   const handleRecordKeyDown = (e: React.KeyboardEvent, record: any) => {
     const id = record.student?.id
     if (!id) return
@@ -203,7 +202,7 @@ export function MarkClient() {
 
   if (loading && !session) return <div className="p-12 text-center text-gray-500">Loading…</div>
   if (loadError && !session) return <EmptyState title={lang === 'ar' ? 'فشل التحميل' : 'Failed to load'} description={loadError} action={<Button onClick={() => { void load() }} className="min-h-[44px]">{lang === 'ar' ? 'إعادة المحاولة' : 'Retry'}</Button>} />
-  if (!session && !groupPickerOpen) return <EmptyState title={lang === 'ar' ? 'لا توجد جلسة اليوم' : 'No session today'} description={lang === 'ar' ? 'ابدأ الحصة لفتح التحضير' : 'Start class to open marking'} action={<Button onClick={() => { void load() }} className="min-h-[44px]">{lang === 'ar' ? 'بدء الحصة' : 'Start class'}</Button>} />
+  if (!session && !groupPickerOpen) return <EmptyState title={lang === 'ar' ? 'لا توجد جلسة اليوم' : 'No session today'} description={lang === 'ar' ? 'اضغط لإنشاء جلسة حضور جديدة ثم ابدأ التحضير' : 'Create a new attendance session, then start marking'} action={<Button onClick={() => { void handleStartClass() }} className="min-h-[44px]">{lang === 'ar' ? 'إنشاء جلسة' : 'New Session'}</Button>} />
 
   const finishPicker = (gid: string, lid?: string, grid?: string) => {
     setGroupPickerOpen(false)

@@ -144,12 +144,14 @@ export class AttendanceController {
   }
 
   @Delete('sessions/:id')
+  @Roles('super_admin')
   @ApiOperation({ summary: 'Delete an attendance session (soft)' })
   async deleteSession(@Param('id') id: string) {
     return this.attendanceService.deleteSession(id);
   }
 
   @Post('sessions/batch-delete')
+  @Roles('super_admin')
   @ApiOperation({ summary: 'Batch delete multiple attendance sessions (only scheduled status allowed)' })
   async batchDeleteSessions(@Body() body: { sessionIds: string[] }) {
     return this.attendanceService.batchDeleteSessions(body.sessionIds);
