@@ -253,6 +253,10 @@ export default function SessionsPage() {
   const exportMenuRef = useRef<HTMLDivElement>(null)
 
   const schoolId = getSchoolId()
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false)
+  useEffect(() => {
+    try { const u = JSON.parse(localStorage.getItem('user') || '{}'); setIsSuperAdmin(u.roles?.includes('super_admin') ?? false) } catch {}
+  }, [])
 
   const fetchSessions = useCallback(async () => {
     setLoading(true)
@@ -674,27 +678,29 @@ export default function SessionsPage() {
             </div>
           )}
         </div>
-        {/* Session list header with select-all */}
-        <div className="flex items-center gap-3 px-5 py-2 bg-gray-50 border-b border-gray-100">
-          <input type="checkbox"
-            checked={selectedSessionIds.size > 0 && selectedSessionIds.size === filteredSessions.filter(s => s.status === 'scheduled').length}
-            onChange={toggleSelectAll}
-            disabled={filteredSessions.filter(s => s.status === 'scheduled').length === 0}
-            aria-label={lang === 'ar' ? 'تحديد الكل' : 'Select all'}
-            className="h-5 w-5 rounded border-gray-300 text-gold-700 focus:ring-gold-500 cursor-pointer" />
-          <span className="text-xs text-gray-600 font-medium">
-            {selectedSessionIds.size > 0
-              ? (lang === 'ar' ? `${selectedSessionIds.size} محدد` : `${selectedSessionIds.size} selected`)
-              : (lang === 'ar' ? 'حدد للحذف' : 'Select to delete')}
-          </span>
-          {selectedSessionIds.size > 0 && (
-            <Button variant="destructive" size="sm" onClick={() => setShowBatchDeleteConfirm(true)} disabled={batchDeleting}
-              className="ms-auto">
-              <Trash2 className="h-3.5 w-3.5" />
-              {batchDeleting ? (lang === 'ar' ? '...جاري' : 'Deleting...') : (lang === 'ar' ? `حذف ${selectedSessionIds.size}` : `Delete ${selectedSessionIds.size}`)}
-            </Button>
-          )}
-        </div>
+        {/* Session list header with select-all (super_admin only) */}
+        {isSuperAdmin && (
+          <div className="flex items-center gap-3 px-5 py-2 bg-gray-50 border-b border-gray-100">
+            <input type="checkbox"
+              checked={selectedSessionIds.size > 0 && selectedSessionIds.size === filteredSessions.filter(s => s.status === 'scheduled').length}
+              onChange={toggleSelectAll}
+              disabled={filteredSessions.filter(s => s.status === 'scheduled').length === 0}
+              aria-label={lang === 'ar' ? 'تحديد الكل' : 'Select all'}
+              className="h-5 w-5 rounded border-gray-300 text-gold-700 focus:ring-gold-500 cursor-pointer" />
+            <span className="text-xs text-gray-600 font-medium">
+              {selectedSessionIds.size > 0
+                ? (lang === 'ar' ? `${selectedSessionIds.size} محدد` : `${selectedSessionIds.size} selected`)
+                : (lang === 'ar' ? 'حدد للحذف' : 'Select to delete')}
+            </span>
+            {selectedSessionIds.size > 0 && (
+              <Button variant="destructive" size="sm" onClick={() => setShowBatchDeleteConfirm(true)} disabled={batchDeleting}
+                className="ms-auto">
+                <Trash2 className="h-3.5 w-3.5" />
+                {batchDeleting ? (lang === 'ar' ? '...جاري' : 'Deleting...') : (lang === 'ar' ? `حذف ${selectedSessionIds.size}` : `Delete ${selectedSessionIds.size}`)}
+              </Button>
+            )}
+          </div>
+        )}
 
         {loading && sessions.length === 0 && !loadError ? (
           <div className="px-4 py-6"><TableSkeleton rows={6} cols={4} /></div>
@@ -720,7 +726,7 @@ export default function SessionsPage() {
                 const isSelected = selectedSessionIds.has(s.id)
                 return (
                   <div key={s.id} className="flex items-center px-5 py-3 hover:bg-gray-50 active:bg-gray-100">
-                    {isScheduled && (
+                    {isSuperAdmin && isScheduled && (
                       <input type="checkbox"
                         checked={isSelected}
                         onChange={(e) => { e.stopPropagation(); toggleSessionSelection(s.id) }}
@@ -767,11 +773,13 @@ export default function SessionsPage() {
                         className="text-gray-500 hover:text-gray-700">
                         <Pencil className="h-3.5 w-3.5" />
                       </Button>
-                      <Button variant="ghost" size="sm" onClick={() => setDeleteTarget(s)}
-                        aria-label={lang === 'ar' ? `حذف جلسة ${s.group?.name}` : `Delete session ${s.group?.name}`}
-                        className="text-red-500 hover:text-red-700">
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
+                      {isSuperAdmin && (
+                        <Button variant="ghost" size="sm" onClick={() => setDeleteTarget(s)}
+                          aria-label={lang === 'ar' ? `حذف جلسة ${s.group?.name}` : `Delete session ${s.group?.name}`}
+                          className="text-red-500 hover:text-red-700">
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
                     </div>
                   </div>
                 )
