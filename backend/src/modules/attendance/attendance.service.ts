@@ -391,6 +391,8 @@ export class AttendanceService {
     const schoolId = await this.schoolResolver.resolve(dto.schoolId || '');
     const scheduledDate = new Date(dto.scheduledDate);
 
+    if (!dto.groupId) throw new BadRequestException('Group is required');
+
     // H9: prevent duplicate sessions for the same group on the same date
     if (dto.groupId) {
       const existing = await this.prisma.attendanceSession.findFirst({
