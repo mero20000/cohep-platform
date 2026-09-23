@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
-import { CheckCircle2, Clock, XCircle, AlertCircle, Search, X } from 'lucide-react'
+import { CheckCircle2, Clock, XCircle, AlertCircle, Search, X, Settings2 } from 'lucide-react'
 import { useLanguage } from '@/lib/use-language'
 import { useToast } from '@/components/ui/toast'
 import { Button } from '@/components/ui/button'
@@ -55,7 +55,12 @@ export function MarkClient() {
   const [pickerStep, setPickerStep] = useState<'group' | 'level' | 'grade'>('group')
   const [pickedLevelId, setPickedLevelId] = useState<string | null>(null)
   const [needsManualStart, setNeedsManualStart] = useState(false)
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false)
   const marking = useMarkingState([])
+
+  useEffect(() => {
+    try { const u = JSON.parse(localStorage.getItem('user') || '{}'); setIsSuperAdmin(u.roles?.includes('super_admin') ?? false) } catch {}
+  }, [])
 
   const loadSession = async (sid: string, quiet = false) => {
     if (!quiet) setLoading(true)
@@ -231,13 +236,37 @@ export function MarkClient() {
       title={lang === 'ar' ? 'لا توجد جلسة اليوم' : 'No session today'}
       description={lang === 'ar' ? 'اضغط "بدء الحصة" لإنشاء جلسة حضور جديدة' : 'Press "Start Class" to create a new attendance session'}
       action={
-        <Button onClick={() => { void startClassManually() }} disabled={starting} className="min-h-[44px]">
-          {starting ? (lang === 'ar' ? 'جاري البدء…' : 'Starting…') : (lang === 'ar' ? 'بدء الحصة' : 'Start Class')}
-        </Button>
+        <div className="flex flex-col items-center gap-2">
+          <Button onClick={() => { void startClassManually() }} disabled={starting} className="min-h-[44px]">
+            {starting ? (lang === 'ar' ? 'جاري البدء…' : 'Starting…') : (lang === 'ar' ? 'بدء الحصة' : 'Start Class')}
+          </Button>
+          {isSuperAdmin && (
+            <Link href="/dashboard/attendance/sessions"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500 min-h-[40px]">
+              <Settings2 className="h-3.5 w-3.5" />{lang === 'ar' ? 'إدارة الجلسات' : 'Manage Sessions'}
+            </Link>
+          )}
+        </div>
       }
     />
   )
-  if (!session && !groupPickerOpen) return <EmptyState title={lang === 'ar' ? 'لا توجد جلسة' : 'No session'} description={lang === 'ar' ? 'لم يتم العثور على جلسة' : 'No session found'} action={<Button onClick={() => { void load() }} className="min-h-[44px]">{lang === 'ar' ? 'إعادة المحاولة' : 'Retry'}</Button>} />
+  if (!session && !groupPickerOpen) return (
+    <EmptyState
+      title={lang === 'ar' ? 'لا توجد جلسة' : 'No session'}
+      description={lang === 'ar' ? 'لم يتم العثور على جلسة' : 'No session found'}
+      action={
+        <div className="flex flex-col items-center gap-2">
+          <Button onClick={() => { void load() }} className="min-h-[44px]">{lang === 'ar' ? 'إعادة المحاولة' : 'Retry'}</Button>
+          {isSuperAdmin && (
+            <Link href="/dashboard/attendance/sessions"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500 min-h-[40px]">
+              <Settings2 className="h-3.5 w-3.5" />{lang === 'ar' ? 'إدارة الجلسات' : 'Manage Sessions'}
+            </Link>
+          )}
+        </div>
+      }
+    />
+  )
 
   const finishPicker = (gid: string, lid?: string, grid?: string) => {
     setGroupPickerOpen(false)
@@ -419,8 +448,18 @@ export function MarkClient() {
   return (
     <div className="space-y-4 p-4">
       <div>
-        <h1 className="text-lg font-semibold text-gray-900">{lang === 'ar' ? 'تسجيل الحضور' : 'Mark Attendance'}</h1>
-        <p className="text-sm text-gray-500">{[scopeName, formatSessionDate(session.scheduledDate, lang), session.status].filter(Boolean).join(' · ')}</p>
+        <div className="flex items-center justify-between gap-2">
+          <div>
+            <h1 className="text-lg font-semibold text-gray-900">{lang === 'ar' ? 'تسجيل الحضور' : 'Mark Attendance'}</h1>
+            <p className="text-sm text-gray-500">{[scopeName, formatSessionDate(session.scheduledDate, lang), session.status].filter(Boolean).join(' · ')}</p>
+          </div>
+          {isSuperAdmin && (
+            <Link href="/dashboard/attendance/sessions"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500 min-h-[40px] shrink-0">
+              <Settings2 className="h-3.5 w-3.5" />{lang === 'ar' ? 'إدارة الجلسات' : 'Manage Sessions'}
+            </Link>
+          )}
+        </div>
         {/* NOTE: `subjectItemId` is caption-only for now. Deferred follow-ups (product
             decision): subject-item actions (in-progress/completed/allocated), PDF export,
             and QR-on-Mark — all intentionally out of this split. */}
