@@ -1037,8 +1037,8 @@ function StartClassCard({ lang, showForm }: { lang: string; showForm?: boolean }
   useEffect(() => {
     if (!showForm) return
     const sid = getSchoolId()
-    http.get('/students/groups', { schoolId: sid }).then((d: any) => setGroups(Array.isArray(d) ? d : d.data || [])).catch(() => {})
-    http.get('/curriculum/levels', { schoolId: sid }).then((d: any) => setLevels(Array.isArray(d) ? d : d.data || [])).catch(() => {})
+    http.get('/students/groups/all', { schoolId: sid }).then((d: any) => setGroups(Array.isArray(d) ? d : d.data || [])).catch(() => {})
+    http.get('/students/levels/all', { schoolId: sid }).then((d: any) => setLevels(Array.isArray(d) ? d : d.data || [])).catch(() => {})
     http.get('/grades', { schoolId: sid }).then((d: any) => setGrades(Array.isArray(d) ? d : d.data || [])).catch(() => {})
   }, [showForm])
 

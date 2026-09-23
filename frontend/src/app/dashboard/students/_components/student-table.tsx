@@ -1,11 +1,11 @@
 'use client'
 import { useState } from 'react'
 import Image from 'next/image'
-import { Loader2, AlertCircle, User, ArrowUpDown, Eye, Pencil, Trash2, RefreshCw, Star, CheckCircle2 } from 'lucide-react'
+import { Loader2, AlertCircle, User, ArrowUpDown, Eye, Pencil, Trash2, RefreshCw, Star, CheckCircle2, AlertTriangle } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Pagination } from '@/components/ui/pagination'
-import { STATUS_STYLE, photoSrc, calcAge, type Student } from './student-types'
+import { STATUS_STYLE, photoSrc, calcAge, getStudentCompleteness, type Student } from './student-types'
 import { PhoneLink } from './phone-link'
 import { usePermission } from '@/lib/use-permission'
 import { http } from '@/lib/http-client'
@@ -100,7 +100,10 @@ export function StudentTable({ students, loading, fetchError, selectedIds, allSe
                 <RowCheckbox checked={selectedIds.has(s.id)} onChange={e => toggleId(s.id,(e.nativeEvent as MouseEvent).shiftKey)} ariaLabel={t(`Select ${s.firstName} ${s.lastName}`,`تحديد ${s.firstName} ${s.lastName}`)} />
                     <AvatarCell s={s} size={36} onPreview={onPreviewPhoto} lang={lang} />
                 <div className="min-w-0">
-                  <div className="text-sm font-medium text-gray-900 truncate">{s.firstName} {s.lastName}</div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-sm font-medium text-gray-900 truncate">{s.firstName} {s.lastName}</span>
+                    <CompletenessIndicator student={s} lang={lang} />
+                  </div>
                   <div className="flex items-center gap-1.5 mt-0.5">
                     <span className="text-xs text-gray-500">#{s.studentCode}</span>
                     <StatusBadge status={s.status} lang={lang} student={s} onUpdated={handleStudentUpdated} onUpdating={setUpdatingId} isUpdating={updatingId === s.id} />
@@ -162,7 +165,10 @@ export function StudentTable({ students, loading, fetchError, selectedIds, allSe
                   <div className="flex items-center gap-3">
                 <AvatarCell s={s} size={36} onPreview={onPreviewPhoto} lang={lang} />
                     <div className="min-w-0">
-                      <div className="text-sm font-medium text-gray-900 truncate">{s.firstName} {s.lastName}</div>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-sm font-medium text-gray-900 truncate">{s.firstName} {s.lastName}</span>
+                        <CompletenessIndicator student={s} lang={lang} />
+                      </div>
                       {s.firstNameAr && <div className="text-xs text-gray-400 truncate">{s.firstNameAr} {s.lastNameAr}</div>}
                       {(s.metadata?.tags?.length ?? 0) > 0 && (
                         <div className="flex items-center gap-1 mt-1 flex-wrap">
@@ -265,5 +271,21 @@ function Actions({ s, onView, onEdit, onDelete, lang }: { s: Student; onView: (s
       {can('student:edit')&&<Button variant="ghost" size="icon" onClick={() => onEdit(s)} aria-label={`Edit ${s.firstName} ${s.lastName}`} title={lang==='ar'?'تعديل البيانات':'Edit student'} className="hover:bg-amber-50 hover:text-amber-600"><Pencil className="h-4 w-4" /></Button>}
       {can('student:delete')&&<Button variant="ghost" size="icon" onClick={() => onDelete(s)} aria-label={`Delete ${s.firstName} ${s.lastName}`} title={lang==='ar'?'حذف الطالب':'Delete student'} className="hover:bg-red-50 hover:text-red-600"><Trash2 className="h-4 w-4" /></Button>}
     </div>
+  )
+}
+
+function CompletenessIndicator({ student, lang }: { student: Student; lang: 'en'|'ar' }) {
+  const { complete, missing, pct } = getStudentCompleteness(student)
+  if (complete) return null
+  const t = (en: string, ar: string) => lang === 'ar' ? ar : en
+  const missingLabels = missing.map(f => lang === 'ar' ? f.ar : f.en).join(', ')
+  return (
+    <span
+      title={`${t('Incomplete','غير مكتمل')} (${pct}%) — ${t('Missing','ينقص')}: ${missingLabels}`}
+      className="inline-flex items-center gap-0.5 shrink-0 rounded-full bg-orange-100 text-orange-700 px-1.5 py-0.5 text-[10px] font-medium cursor-help"
+    >
+      <AlertTriangle className="h-3 w-3" />
+      {pct}%
+    </span>
   )
 }

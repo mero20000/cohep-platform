@@ -828,4 +828,50 @@ export class HymnLearningService {
       totalLessonsForSunday: progress.length,
     }
   }
+
+  // ─── Super admin: Get reviewed practice sessions ──────────────────────────
+  async getReviewedSessions(schoolId: string, limit = 50) {
+    const sessions = await this.prisma.hymnPracticeSession.findMany({
+      where: {
+        schoolId,
+        servantReviewedAt: { not: null },
+      } as any,
+      include: {
+        student: { select: { id: true, firstName: true, lastName: true, photoUrl: true } },
+        lesson: { select: { id: true, title: true, titleAr: true, titleCoptic: true } },
+      },
+      orderBy: { servantReviewedAt: 'desc' } as any,
+      take: Math.min(limit, 100),
+    })
+
+    return sessions.map(s => ({
+      id: s.id,
+      student: (s as any).student,
+      lesson: (s as any).lesson,
+      recordingUrl: s.recordingUrl,
+      selfRating: s.selfRating,
+      servantRating: (s as any).servantRating,
+      servantNote: (s as any).servantNote,
+      durationSec: s.durationSec,
+      submittedAt: s.createdAt,
+      reviewedAt: (s as any).servantReviewedAt,
+    }))
+  }
+
+  // ─── Super admin: Delete a hymn practice session ──────────────────────────
+  async deleteSession(sessionId: string, caller?: any) {
+    const session = await this.prisma.hymnPracticeSession.findUnique({
+      where: { id: sessionId },
+      select: { id: true, studentId: true, lessonId: true },
+    })
+    if (!session) throw new ForbiddenException('Session not found')
+
+    await this.prisma.hymnPracticeSession.delete({
+      where: { id: sessionId },
+    })
+
+    await this.recomputeProgressFromSessions(session.studentId, session.lessonId)
+
+    return { deleted: true, id: sessionId }
+  }
 }

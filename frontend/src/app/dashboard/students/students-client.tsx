@@ -24,7 +24,7 @@ import { StudentBulkModals }  from './_components/student-bulk-modals'
 import { StudentAssignServantModal } from './_components/student-assign-servant-modal'
 import { StudentDuplicatesModal } from './_components/student-duplicates-modal'
 import { AssignedServants, type Servant } from './_components/assigned-servants'
-import { type Student, type Group, type ChurchItem, type PaginatedResponse, type StudentStats as StatsType } from './_components/student-types'
+import { type Student, type Group, type ChurchItem, type PaginatedResponse, type StudentStats as StatsType, getStudentCompleteness } from './_components/student-types'
 import { useStudentFavorites } from './_components/use-student-favorites'
 
 type BulkModal = 'delete'|'status'|'level'|'grade'
@@ -55,6 +55,7 @@ export default function StudentsClient() {
   const [filterGender, setFilterGender] = useState('')
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false)
   const [showMyStudentsOnly, setShowMyStudentsOnly] = useState(false)
+  const [showIncompleteOnly, setShowIncompleteOnly] = useState(false)
   const [currentUserId, setCurrentUserId] = useState('')
   // Sort
   const [sortKey, setSortKey] = useState('')
@@ -89,15 +90,15 @@ export default function StudentsClient() {
   // Derived
   const activeLevels     = useMemo(()=>levels.filter(l=>l.status!=='inactive'),[levels])
   const filterGroups     = allGroups
-  const hasActiveFilters = !!(search||filterLevel||filterGroup||filterStatus||filterChurch||filterGrade||filterGender||showFavoritesOnly||showMyStudentsOnly)
+  const hasActiveFilters = !!(search||filterLevel||filterGroup||filterStatus||filterChurch||filterGrade||filterGender||showFavoritesOnly||showMyStudentsOnly||showIncompleteOnly)
   const allSelected      = optimisticStudents.length>0&&selectedIds.size===optimisticStudents.length
   const levelNameMap     = useMemo(()=>{const m:Record<string,string>={};for(const l of activeLevels)m[l.id]=l.name;return m},[activeLevels])
   const sortedStudents   = useMemo(()=>{
-    if (showFavoritesOnly) {
-      return optimisticStudents.filter(s => favorites.includes(s.id))
-    }
-    return optimisticStudents
-  },[optimisticStudents, showFavoritesOnly, favorites])
+    let list = optimisticStudents
+    if (showFavoritesOnly) list = list.filter(s => favorites.includes(s.id))
+    if (showIncompleteOnly) list = list.filter(s => !getStudentCompleteness(s).complete)
+    return list
+  },[optimisticStudents, showFavoritesOnly, showIncompleteOnly, favorites])
 
   const fetchStudents = useCallback(async(page=1)=>{
     setLoading(true)
@@ -180,7 +181,7 @@ export default function StudentsClient() {
     window.addEventListener('keydown',fn); return ()=>window.removeEventListener('keydown',fn)
   },[showForm,selectedIds,optimisticStudents])
 
-  const clearFilters = ()=>{setSearch('');setFilterLevel('');setFilterGroup('');setFilterStatus('');setFilterChurch('');setFilterGrade('');setFilterGender('');setShowFavoritesOnly(false);setShowMyStudentsOnly(false)}
+  const clearFilters = ()=>{setSearch('');setFilterLevel('');setFilterGroup('');setFilterStatus('');setFilterChurch('');setFilterGrade('');setFilterGender('');setShowFavoritesOnly(false);setShowMyStudentsOnly(false);setShowIncompleteOnly(false)}
   const toggleSort   = (k:string)=>{if(k==='phone')return;if(sortKey===k)setSortDir(d=>d==='asc'?'desc':'asc');else{setSortKey(k);setSortDir('asc')}}
   const toggleAll    = ()=>setSelectedIds(allSelected?new Set():new Set(optimisticStudents.map(s=>s.id)))
   const toggleId     = (id:string,shiftKey?:boolean)=>{
@@ -289,7 +290,8 @@ export default function StudentsClient() {
         activeLevels={activeLevels} filterGroups={filterGroups} gradeOptions={gradeOptions} churches={churches}
         hasActiveFilters={hasActiveFilters} onClearFilters={clearFilters} lang={lang}
         showFavoritesOnly={showFavoritesOnly} onFavoritesToggle={() => setShowFavoritesOnly(!showFavoritesOnly)} favorites={favorites}
-        showMyStudentsOnly={showMyStudentsOnly} onMyStudentsToggle={() => setShowMyStudentsOnly(!showMyStudentsOnly)}/>
+        showMyStudentsOnly={showMyStudentsOnly} onMyStudentsToggle={() => setShowMyStudentsOnly(!showMyStudentsOnly)}
+        showIncompleteOnly={showIncompleteOnly} onIncompleteToggle={() => setShowIncompleteOnly(!showIncompleteOnly)}/>
 
       {selectedIds.size>0&&<StudentBulkToolbar
         selectedCount={selectedIds.size}
