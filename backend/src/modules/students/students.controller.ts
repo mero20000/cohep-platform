@@ -168,10 +168,12 @@ export class StudentsController {
   @ApiOperation({ summary: "Create a new student" })
   @ApiResponse({ status: 201, description: "Student created successfully" })
   async create(
+    @Req() req: any,
     @Body() createStudentDto: CreateStudentDto,
     @Query("schoolId") schoolId: string = "",
   ) {
-    return this.studentsService.create(createStudentDto, schoolId);
+    const roles: string[] = req.user?.roles || [];
+    return this.studentsService.create(createStudentDto, schoolId, roles);
   }
 
   @Put(":id")

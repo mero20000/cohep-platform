@@ -168,7 +168,7 @@ export class StudentsService {
     return student;
   }
 
-  async create(createStudentDto: CreateStudentDto, schoolIdentifier: string) {
+  async create(createStudentDto: CreateStudentDto, schoolIdentifier: string, creatorRoles: string[] = []) {
     const schoolId = await this.schoolResolver.resolve(schoolIdentifier);
     const studentCode = await this.generateStudentCode(schoolId);
 
@@ -229,7 +229,9 @@ export class StudentsService {
         academicYearId: currentYear.id,
         parentEmail: createStudentDto.parentEmail || undefined,
         metadata: Object.keys(metadata).length > 0 ? metadata : undefined,
-        status: createStudentDto.status || 'active',
+        status: creatorRoles.some(r => ['super_admin', 'admin'].includes(r))
+          ? (createStudentDto.status || 'active')
+          : 'pending',
         enrollmentDate: new Date(),
       },
       include: {
