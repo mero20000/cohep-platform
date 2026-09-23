@@ -60,16 +60,17 @@ export class AttendanceService {
 
   async getSessions(schoolIdentifier: string, filters: {
     page?: number; limit?: number; status?: string; levelId?: string;
-    groupId?: string; servantId?: string; from?: string; to?: string;
+    groupId?: string; servantId?: string; from?: string; to?: string; notes?: string;
   }, user?: any) {
     const schoolId = await this.schoolResolver.resolve(schoolIdentifier);
-    const { page = 1, limit: rawLimit = 50, status, levelId, groupId, servantId, from, to } = filters;
+    const { page = 1, limit: rawLimit = 50, status, levelId, groupId, servantId, from, to, notes } = filters;
     const limit = Math.min(rawLimit, 1000);
 
     const where: any = { schoolId, deletedAt: null };
     if (status) where.status = status;
     if (levelId) where.levelId = levelId;
     if (groupId) where.groupId = groupId;
+    if (notes) where.notes = notes;
     
     // If servantId is provided or user is a servant, filter by their sessions
     if (servantId) {

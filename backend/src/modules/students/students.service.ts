@@ -193,6 +193,7 @@ export class StudentsService {
     if (createStudentDto.address) metadata.address = createStudentDto.address;
     if (createStudentDto.notes) metadata.notes = createStudentDto.notes;
     if (createStudentDto.churchToolId) metadata.churchToolId = createStudentDto.churchToolId;
+    if (createStudentDto.studentPhone) metadata.studentPhone = createStudentDto.studentPhone;
 
     let groupId: string;
     if (createStudentDto.gradeId) {
@@ -292,7 +293,7 @@ export class StudentsService {
 
     // Merge contact fields into metadata
     const existingMeta = (student as any).metadata || {};
-    const metaFields: (keyof typeof data)[] = ['phone', 'email', 'address', 'notes', 'churchToolId'];
+    const metaFields: (keyof typeof data)[] = ['phone', 'studentPhone', 'email', 'address', 'notes', 'churchToolId'];
     const hasMetaUpdate = metaFields.some(f => data[f] !== undefined);
     if (hasMetaUpdate) {
       const newMeta: Record<string, string> = { ...existingMeta };

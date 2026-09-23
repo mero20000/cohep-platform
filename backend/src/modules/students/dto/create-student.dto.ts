@@ -33,10 +33,15 @@ export class CreateStudentDto {
   @IsOptional()
   churchName?: string;
 
-  @ApiPropertyOptional({ example: '+201234567890' })
+  @ApiPropertyOptional({ example: '+201234567890', description: 'Parent phone number' })
   @IsString()
   @IsOptional()
   phone?: string;
+
+  @ApiPropertyOptional({ example: '+201234567890', description: 'Student phone number' })
+  @IsString()
+  @IsOptional()
+  studentPhone?: string;
 
   @ApiPropertyOptional({ example: 'parent@example.com' })
   @IsString()

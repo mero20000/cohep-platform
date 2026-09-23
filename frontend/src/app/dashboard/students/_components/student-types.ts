@@ -13,7 +13,7 @@ export interface Student {
   level: { id: string; name: string; number: number }
   group: { id: string; name: string }
   creator?: { id: string; firstName: string; lastName: string } | null
-  metadata?: { phone?: string; email?: string; address?: string; notes?: string; churchToolId?: string; tags?: string[]; assignedServantIds?: string[] }
+  metadata?: { phone?: string; studentPhone?: string; email?: string; address?: string; notes?: string; churchToolId?: string; tags?: string[]; assignedServantIds?: string[] }
   parentEmail?: string
   portalAccessKey?: string
   studentParents?: Array<{ parent?: { id: string; firstName: string; lastName: string; phone?: string; email?: string }; relationship?: string }>
@@ -34,7 +34,7 @@ export interface StudentStats {
 export const emptyForm = {
   name: '', firstNameAr: '', lastNameAr: '', dateOfBirth: '', gender: 'male',
   churchName: '', gradeId: '', levelId: '', groupId: '', groupName: '', photoUrl: '',
-  status: 'active', phone: '', email: '', address: '', notes: '', churchToolId: '', parentEmail: '',
+  status: 'active', phone: '', studentPhone: '', email: '', address: '', notes: '', churchToolId: '', parentEmail: '',
 }
 export type StudentForm = typeof emptyForm
 

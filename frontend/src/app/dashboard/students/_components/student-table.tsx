@@ -28,7 +28,7 @@ interface Props {
 }
 const COLS = [
   ['name','Student','الطالب'],['code','Student Code','رمز الطالب'],['gender','Gender','الجنس'],
-  ['phone','Phone','رقم الهاتف'],['level','Level','المستوى'],['group','Group','المجموعة'],
+  ['phone','Parent Phone','هاتف ولي الأمر'],['level','Level','المستوى'],['group','Group','المجموعة'],
   ['age','Age','العمر'],['church','Church','الكنيسة'],['grade','Grade','المرحلة'],['status','Status','الحالة'],
 ] as const
 

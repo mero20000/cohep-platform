@@ -130,8 +130,14 @@ export function StudentDetailModal({ student:s, onClose, onEdit, onPreviewPhoto,
               <div className="grid grid-cols-2 gap-3">
                 <div className="flex items-start gap-3 rounded-lg border border-gray-100 p-3">
                   <Phone className="h-4 w-4 text-gray-400 mt-0.5 flex-shrink-0" />
-                  <div className="min-w-0"><div className="text-xs text-gray-500">{t('Phone','رقم الهاتف')}</div><div className="text-sm font-medium text-gray-900 truncate"><PhoneLink phone={s.metadata?.phone||''} lang={lang} /></div></div>
+                  <div className="min-w-0"><div className="text-xs text-gray-500">{t('Parent Phone','هاتف ولي الأمر')}</div><div className="text-sm font-medium text-gray-900 truncate"><PhoneLink phone={s.metadata?.phone||''} lang={lang} /></div></div>
                 </div>
+                {s.metadata?.studentPhone && (
+                  <div className="flex items-start gap-3 rounded-lg border border-gray-100 p-3">
+                    <Phone className="h-4 w-4 text-gray-400 mt-0.5 flex-shrink-0" />
+                    <div className="min-w-0"><div className="text-xs text-gray-500">{t('Student Phone','هاتف الطالب')}</div><div className="text-sm font-medium text-gray-900 truncate"><PhoneLink phone={s.metadata.studentPhone} lang={lang} /></div></div>
+                  </div>
+                )}
                 {details.slice(0, 6).map(item=>(
                   <div key={item.label} className="flex items-start gap-3 rounded-lg border border-gray-100 p-3">
                     <item.icon className="h-4 w-4 text-gray-400 mt-0.5 flex-shrink-0" />
