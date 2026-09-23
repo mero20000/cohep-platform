@@ -92,8 +92,8 @@ export class CreateStudentDto {
   @IsOptional()
   parentEmail?: string;
 
-  @ApiPropertyOptional({ enum: ['active', 'inactive', 'graduated'] })
-  @IsEnum(['active', 'inactive', 'graduated'])
+  @ApiPropertyOptional({ enum: ['active', 'inactive', 'graduated', 'pending'] })
+  @IsEnum(['active', 'inactive', 'graduated', 'pending'])
   @IsOptional()
   status?: string;
 }

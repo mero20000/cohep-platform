@@ -725,37 +725,44 @@ export default function SessionsPage() {
                 const isScheduled = s.status === 'scheduled'
                 const isSelected = selectedSessionIds.has(s.id)
                 return (
-                  <div key={s.id} className="flex items-center px-5 py-3 hover:bg-gray-50 active:bg-gray-100">
-                    {isSuperAdmin && isScheduled && (
-                      <input type="checkbox"
-                        checked={isSelected}
-                        onChange={(e) => { e.stopPropagation(); toggleSessionSelection(s.id) }}
-                        aria-label={lang === 'ar' ? `تحديد ${s.group?.name}` : `Select ${s.group?.name}`}
-                        className="h-5 w-5 rounded border-gray-300 text-gold-700 focus:ring-gold-500 cursor-pointer me-3" />
-                    )}
-                    <button onClick={() => openEditSession(s)}
-                      aria-label={lang === 'ar' ? `تعديل جلسة ${s.group?.name || s.id}` : `Edit session ${s.group?.name || s.id}`}
-                      className="flex-1 flex items-center gap-3 text-start transition-colors rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500">
-                      <div className={`flex h-9 w-9 items-center justify-center rounded-lg ${
-                        s.status === 'completed' ? 'bg-green-100 text-green-600' : s.status === 'scheduled' ? 'bg-blue-100 text-blue-600' : 'bg-amber-100 text-amber-600'
-                      }`}>
-                        <Calendar className="h-4 w-4" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="text-sm font-medium text-gray-900 truncate">{s.group?.name || '?'}{s.level ? ` · L${s.level.number}` : ''}{s.grade ? ` · ${s.grade.name}` : ''}</div>
-                        <div className="flex items-center gap-2 text-xs text-gray-500 mt-0.5">
-                          <span>{new Date(s.scheduledDate).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })}</span>
-                          {s.scheduledTime && <span>&bull; {s.scheduledTime}</span>}
-                          {s.summary && s.summary.total > 0 && (
-                            <span>&bull; {s.summary.present + s.summary.late}/{s.summary.total} ({Math.round(((s.summary.present + s.summary.late) / s.summary.total) * 100)}%)</span>
+                  <div key={s.id} className="px-4 sm:px-5 py-3 hover:bg-gray-50 active:bg-gray-100">
+                    <div className="flex items-start gap-3">
+                      {isSuperAdmin && isScheduled && (
+                        <input type="checkbox"
+                          checked={isSelected}
+                          onChange={(e) => { e.stopPropagation(); toggleSessionSelection(s.id) }}
+                          aria-label={lang === 'ar' ? `تحديد ${s.group?.name}` : `Select ${s.group?.name}`}
+                          className="h-5 w-5 mt-0.5 rounded border-gray-300 text-gold-700 focus:ring-gold-500 cursor-pointer" />
+                      )}
+                      <button onClick={() => openEditSession(s)}
+                        aria-label={lang === 'ar' ? `تعديل جلسة ${s.group?.name || s.id}` : `Edit session ${s.group?.name || s.id}`}
+                        className="flex-1 flex items-start gap-3 text-start min-w-0 transition-colors rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500">
+                        <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${
+                          s.status === 'completed' ? 'bg-green-100 text-green-600' : s.status === 'scheduled' ? 'bg-blue-100 text-blue-600' : 'bg-amber-100 text-amber-600'
+                        }`}>
+                          <Calendar className="h-4 w-4" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-start sm:items-center justify-between gap-2">
+                            <span className="text-sm font-medium text-gray-900 truncate">{s.group?.name || '?'}{s.level ? ` · L${s.level.number}` : ''}{s.grade ? ` · ${s.grade.name}` : ''}</span>
+                            <Badge variant={s.status === 'completed' ? 'success' : s.status === 'scheduled' ? 'info' : s.status === 'cancelled' ? 'danger' : s.status === 'postponed' ? 'outline' : 'warning'} size="sm">
+                              {s.status === 'completed' ? (lang === 'ar' ? 'مكتمل' : 'Completed') : s.status === 'scheduled' ? (lang === 'ar' ? 'مجدول' : 'Scheduled') : s.status === 'in_progress' ? (lang === 'ar' ? 'قيد التنفيذ' : 'In Progress') : s.status === 'cancelled' ? (lang === 'ar' ? 'ملغي' : 'Cancelled') : s.status === 'postponed' ? (lang === 'ar' ? 'مؤجل' : 'Postponed') : s.status}
+                            </Badge>
+                          </div>
+                          <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-gray-500 mt-1">
+                            <span>{new Date(s.scheduledDate).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })}</span>
+                            {s.scheduledTime && <span>&bull; {s.scheduledTime}</span>}
+                            {s.summary && s.summary.total > 0 && (
+                              <span>&bull; {s.summary.present + s.summary.late}/{s.summary.total} ({Math.round(((s.summary.present + s.summary.late) / s.summary.total) * 100)}%)</span>
+                            )}
+                          </div>
+                          {s.servant && (
+                            <p className="text-xs text-gray-400 mt-0.5 truncate">{lang === 'ar' ? 'بواسطة' : 'by'} {s.servant.firstName} {s.servant.lastName}</p>
                           )}
                         </div>
-                      </div>
-                      <Badge variant={s.status === 'completed' ? 'success' : s.status === 'scheduled' ? 'info' : s.status === 'cancelled' ? 'danger' : s.status === 'postponed' ? 'outline' : 'warning'} size="sm">
-                        {s.status === 'completed' ? (lang === 'ar' ? 'مكتمل' : 'Completed') : s.status === 'scheduled' ? (lang === 'ar' ? 'مجدول' : 'Scheduled') : s.status === 'in_progress' ? (lang === 'ar' ? 'قيد التنفيذ' : 'In Progress') : s.status === 'cancelled' ? (lang === 'ar' ? 'ملغي' : 'Cancelled') : s.status === 'postponed' ? (lang === 'ar' ? 'مؤجل' : 'Postponed') : s.status}
-                      </Badge>
-                    </button>
-                    <div className="flex items-center gap-1 ms-2">
+                      </button>
+                    </div>
+                    <div className="flex items-center gap-1.5 mt-2 ps-12">
                       {s.status === 'completed' && (
                         <Button variant="ghost" size="sm" onClick={() => handleReopenSession(s)}
                           aria-label={lang === 'ar' ? `إعادة فتح جلسة ${s.group?.name}` : `Re-open session ${s.group?.name}`}

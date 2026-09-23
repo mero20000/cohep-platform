@@ -77,6 +77,7 @@ export function StudentFilters(p: Props) {
           >
             <option value="">{t('All Status','جميع الحالات')}</option>
             <option value="active">{t('Active','نشط')}</option>
+            <option value="pending">{t('Pending Review','في الانتظار')}</option>
             <option value="inactive">{t('Inactive','غير نشط')}</option>
             <option value="graduated">{t('Graduated','متخرج')}</option>
           </select>

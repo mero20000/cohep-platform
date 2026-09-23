@@ -40,6 +40,7 @@ export type StudentForm = typeof emptyForm
 // ─── Constants ───────────────────────────────────────────────────────────────
 export const STATUS_STYLE: Record<string, { variant: 'success' | 'danger' | 'warning' | 'info'; bar: string }> = {
   active:    { variant: 'success', bar: 'border-s-green-400' },
+  pending:   { variant: 'info',    bar: 'border-s-blue-400'  },
   inactive:  { variant: 'danger',  bar: 'border-s-red-400'   },
   graduated: { variant: 'warning', bar: 'border-s-amber-400' },
 }

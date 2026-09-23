@@ -33,7 +33,7 @@ export function DashboardMainContent({
   }
 
   return (
-    <main id="main-content" className="p-4 sm:p-6 lg:p-8">
+    <main id="main-content" className="px-4 pt-2 pb-4 sm:px-6 sm:pt-3 sm:pb-6 lg:px-8 lg:pt-4 lg:pb-8">
       <div className="flex items-center justify-between mb-1">
         <Breadcrumbs />
         <div className="flex items-center gap-2 text-[11px] text-gray-400 shrink-0">

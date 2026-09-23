@@ -1020,24 +1020,61 @@ function RoleBadge({ role, lang }: { role: string; lang: string }) {
  )
 }
 
-function StartClassCard({ lang }: { lang: string }) {
+function StartClassCard({ lang, showForm }: { lang: string; showForm?: boolean }) {
   const [starting, setStarting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [groups, setGroups] = useState<{id:string;name:string}[]>([])
+  const [levels, setLevels] = useState<{id:string;name:string;number:number}[]>([])
+  const [grades, setGrades] = useState<{id:string;name:string}[]>([])
+  const [groupId, setGroupId] = useState('')
+  const [levelId, setLevelId] = useState('')
+  const [gradeId, setGradeId] = useState('')
+  const [date, setDate] = useState(new Date().toISOString().slice(0, 10))
+  const [time, setTime] = useState('12:00')
   const { toast } = useToast()
   const router = useRouter()
 
+  useEffect(() => {
+    if (!showForm) return
+    const sid = getSchoolId()
+    http.get('/students/groups', { schoolId: sid }).then((d: any) => setGroups(Array.isArray(d) ? d : d.data || [])).catch(() => {})
+    http.get('/curriculum/levels', { schoolId: sid }).then((d: any) => setLevels(Array.isArray(d) ? d : d.data || [])).catch(() => {})
+    http.get('/grades', { schoolId: sid }).then((d: any) => setGrades(Array.isArray(d) ? d : d.data || [])).catch(() => {})
+  }, [showForm])
+
   const handleStart = async () => {
+    if (showForm && !groupId) {
+      setError(lang === 'ar' ? 'المجموعة مطلوبة' : 'Group is required')
+      setTimeout(() => setError(null), 3000)
+      return
+    }
     setStarting(true)
     setError(null)
     try {
-      const res = await http.post('/attendance/start-class') as any
-      if (res.requiresGroupPick) {
-        toast('info', lang === 'ar' ? 'اختر المجموعة من صفحة الحضور' : 'Pick your group from the attendance page')
-        router.push('/dashboard/attendance')
-        return
+      if (showForm) {
+        const user = JSON.parse(localStorage.getItem('user') || '{}')
+        const body: Record<string, string> = {
+          servantId: user.id,
+          groupId,
+          scheduledDate: date,
+          scheduledTime: time,
+          status: 'in_progress',
+        }
+        if (levelId) body.levelId = levelId
+        if (gradeId) body.gradeId = gradeId
+        const res = await http.post('/attendance/sessions', body, { schoolId: getSchoolId() }) as any
+        toast('success', lang === 'ar' ? 'تم إنشاء الجلسة!' : 'Session created!')
+        router.push(`/dashboard/attendance/mark?sessionId=${res.id}`)
+      } else {
+        const res = await http.post('/attendance/start-class') as any
+        if (res.requiresGroupPick) {
+          toast('info', lang === 'ar' ? 'اختر المجموعة من صفحة الحضور' : 'Pick your group from the attendance page')
+          router.push('/dashboard/attendance')
+          return
+        }
+        toast('success', lang === 'ar' ? 'تم بدء الفصل!' : 'Class started!')
+        router.push(`/dashboard/attendance?sessionId=${res.session.id}&mode=exceptions`)
       }
-      toast('success', lang === 'ar' ? 'تم بدء الفصل!' : 'Class started!')
-      router.push(`/dashboard/attendance?sessionId=${res.session.id}&mode=exceptions`)
     } catch {
       setError(lang === 'ar' ? 'فشل بدء الفصل' : 'Failed to start class')
       setTimeout(() => setError(null), 3000)
@@ -1045,19 +1082,63 @@ function StartClassCard({ lang }: { lang: string }) {
     setStarting(false)
   }
 
+  const sel = 'w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500'
+
   return (
     <div className="rounded-xl border border-emerald-100 bg-gradient-to-br from-emerald-50 to-white p-5">
       <div className="flex items-center justify-between">
         <div>
           <h3 className="font-semibold text-gray-900">{lang === 'ar' ? 'بدء الفصل' : 'Start Class'}</h3>
-          <p className="text-sm text-gray-500 mt-1">{lang === 'ar' ? 'اضغط لبدء الفصل — سيتم تسجيل جميع الطلاب كحاضرين مسبقًا' : 'One tap — all students pre-marked present. Fix exceptions only.'}</p>
+          <p className="text-sm text-gray-500 mt-1">{showForm ? (lang === 'ar' ? 'حدد المجموعة والتاريخ لبدء جلسة جديدة' : 'Pick group and date to start a new session') : (lang === 'ar' ? 'اضغط لبدء الفصل — سيتم تسجيل جميع الطلاب كحاضرين مسبقًا' : 'One tap — all students pre-marked present. Fix exceptions only.')}</p>
         </div>
-        <button onClick={handleStart} disabled={starting}
-          className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-sm bg-emerald-600 text-white hover:bg-emerald-700 active:scale-95 transition-all disabled:opacity-50 shadow-lg shadow-emerald-200">
-          {starting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
-          {starting ? (lang === 'ar' ? 'جاري البدء...' : 'Starting...') : (lang === 'ar' ? 'بدء الفصل' : 'Start Class')}
-        </button>
+        {!showForm && (
+          <button onClick={handleStart} disabled={starting}
+            className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-sm bg-emerald-600 text-white hover:bg-emerald-700 active:scale-95 transition-all disabled:opacity-50 shadow-lg shadow-emerald-200">
+            {starting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
+            {starting ? (lang === 'ar' ? 'جاري البدء...' : 'Starting...') : (lang === 'ar' ? 'بدء الفصل' : 'Start Class')}
+          </button>
+        )}
       </div>
+      {showForm && (
+        <div className="mt-4 space-y-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">{lang === 'ar' ? 'المجموعة *' : 'Group *'}</label>
+              <select value={groupId} onChange={e => setGroupId(e.target.value)} className={sel}>
+                <option value="">{lang === 'ar' ? 'اختر مجموعة' : 'Select group'}</option>
+                {groups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">{lang === 'ar' ? 'المستوى' : 'Level'}</label>
+              <select value={levelId} onChange={e => setLevelId(e.target.value)} className={sel}>
+                <option value="">{lang === 'ar' ? 'الكل' : 'All'}</option>
+                {levels.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">{lang === 'ar' ? 'الصف' : 'Grade'}</label>
+              <select value={gradeId} onChange={e => setGradeId(e.target.value)} className={sel}>
+                <option value="">{lang === 'ar' ? 'الكل' : 'All'}</option>
+                {grades.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">{lang === 'ar' ? 'التاريخ *' : 'Date *'}</label>
+              <input type="date" value={date} onChange={e => setDate(e.target.value)} className={sel} />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">{lang === 'ar' ? 'الوقت' : 'Time'}</label>
+              <input type="time" value={time} onChange={e => setTime(e.target.value)} className={sel} />
+            </div>
+          </div>
+          <button onClick={handleStart} disabled={starting || !groupId}
+            className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-sm bg-emerald-600 text-white hover:bg-emerald-700 active:scale-95 transition-all disabled:opacity-50 shadow-lg shadow-emerald-200 w-full justify-center">
+            {starting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
+            {starting ? (lang === 'ar' ? 'جاري البدء...' : 'Starting...') : (lang === 'ar' ? 'بدء الجلسة' : 'Start Session')}
+          </button>
+        </div>
+      )}
       {error && <p className="text-sm text-red-600 mt-2">{error}</p>}
     </div>
   )
@@ -3156,6 +3237,11 @@ export default function DashboardPage() {
     <ErrorBoundary onRetry={handleRetry}>
      <HeroSection stats={primary.data?.stats ?? null} churchLogo={primary.data?.churchLogo ?? null} churchName={primary.data?.churchName ?? ''} loading={primary.loading} />
     </ErrorBoundary>
+
+    {/* Start Class — super admin gets form with group/level/grade/date/time pickers */}
+    <motion.div variants={fadeUp}>
+      <StartClassCard lang={lang} showForm />
+    </motion.div>
 
     {/* Next Session — curriculum subject items allocated for the day (all levels for admin) */}
     <ErrorBoundary onRetry={handleRetry}>

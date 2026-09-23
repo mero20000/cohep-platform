@@ -17,7 +17,7 @@ export class QueryStudentDto {
   @IsOptional()
   groupId?: string;
 
-  @ApiPropertyOptional({ enum: ['active', 'inactive', 'graduated', 'transferred'] })
+  @ApiPropertyOptional({ enum: ['active', 'inactive', 'graduated', 'transferred', 'pending'] })
   @IsString()
   @IsOptional()
   status?: string;
