@@ -127,7 +127,7 @@ export function StudentFormModal({ student, activeLevels, churches, gradeOptions
   useEffect(() => {
     revoke(); setPhotoFile(null)
     if (student) {
-      setForm({ name:`${student.firstName} ${student.lastName}`.trim(), firstNameAr:student.firstNameAr||'', lastNameAr:student.lastNameAr||'', dateOfBirth:student.dateOfBirth.split('T')[0], gender:student.gender, churchName:student.churchName||'', gradeId:student.gradeId||'', levelId:student.levelId, groupId:student.groupId, groupName:student.group?.name||'', photoUrl:student.photoUrl||'', status:student.status, phone:student.metadata?.phone||'', email:student.metadata?.email||'', address:student.metadata?.address||'', notes:student.metadata?.notes||'', churchToolId:student.metadata?.churchToolId||'', parentEmail:student.parentEmail||'' })
+      setForm({ name:`${student.firstName} ${student.lastName}`.trim(), firstNameAr:student.firstNameAr||'', lastNameAr:student.lastNameAr||'', dateOfBirth:student.dateOfBirth.split('T')[0], gender:student.gender, churchName:student.churchName||'', gradeId:student.gradeId||'', levelId:student.levelId, groupId:student.groupId, groupName:student.group?.name||'', photoUrl:student.photoUrl||'', status:student.status, phone:student.metadata?.phone||'', studentPhone:student.metadata?.studentPhone||'', email:student.metadata?.email||'', address:student.metadata?.address||'', notes:student.metadata?.notes||'', churchToolId:student.metadata?.churchToolId||'', parentEmail:student.parentEmail||'' })
     } else { setForm(emptyForm) }
   }, [student?.id])
   // Servants cannot list churches (admin-only endpoint), so the dropdown would
@@ -243,13 +243,21 @@ export function StudentFormModal({ student, activeLevels, churches, gradeOptions
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <FormField
-              label={t('Phone','رقم الهاتف')}
+              label={t('Parent Phone','هاتف ولي الأمر')}
               type="tel"
               value={form.phone}
               onChange={e=>setForm({...form,phone:e.target.value})}
               onBlur={()=>handleBlur('phone')}
               error={fieldErrors.phone}
             />
+            <FormField
+              label={t('Student Phone','هاتف الطالب')}
+              type="tel"
+              value={form.studentPhone}
+              onChange={e=>setForm({...form,studentPhone:e.target.value})}
+            />
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <FormField
               label={t('Email','البريد الإلكتروني')}
               type="email"

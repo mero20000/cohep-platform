@@ -559,6 +559,15 @@ export default function SessionsPage() {
           <Button variant="outline" size="sm" onClick={() => setShowGenerateConfirm(true)} className="flex items-center gap-1.5 rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-white">
             <Calendar className="h-3.5 w-3.5" />{lang === 'ar' ? 'إنشاء' : 'Generate'}
           </Button>
+          {isSuperAdmin && sessions.filter(s => s.status === 'scheduled').length > 0 && (
+            <Button variant="destructive" size="sm" onClick={() => {
+              const scheduledIds = sessions.filter(s => s.status === 'scheduled').map(s => s.id)
+              setSelectedSessionIds(new Set(scheduledIds))
+              setShowBatchDeleteConfirm(true)
+            }}>
+              <Trash2 className="h-3.5 w-3.5" />{lang === 'ar' ? `مسح المجدول (${sessions.filter(s => s.status === 'scheduled').length})` : `Clear Scheduled (${sessions.filter(s => s.status === 'scheduled').length})`}
+            </Button>
+          )}
           <Button onClick={() => setShowCreateModal(true)}>
             <Plus className="h-3.5 w-3.5" />{lang === 'ar' ? 'جلسة جديدة' : 'New Session'}
           </Button>

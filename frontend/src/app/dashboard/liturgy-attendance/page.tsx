@@ -2,8 +2,10 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Image from 'next/image'
-import { Church, Check, X, AlertCircle, Save, Search, ChevronRight } from 'lucide-react'
+import { Church, Check, X, AlertCircle, Save, Search, ChevronRight, Trash2, History, Loader2, Calendar } from 'lucide-react'
 import { http } from '@/lib/http-client'
+import { getSchoolId } from '@/lib/school'
+import { Badge } from '@/components/ui/badge'
 import { photoSrc } from '@/app/dashboard/students/_components/student-types'
 import { useLanguage } from '@/lib/use-language'
 import { Button } from '@/components/ui/button'
@@ -49,6 +51,60 @@ export default function LiturgyAttendancePage() {
   const [pickedGroupId, setPickedGroupId] = useState<string | null>(null)
   const [pickedLevelId, setPickedLevelId] = useState<string | null>(null)
   const [pickerStep, setPickerStep] = useState<'group' | 'level'>('group')
+
+  const schoolId = getSchoolId()
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false)
+  const [showSessionManager, setShowSessionManager] = useState(false)
+  const [liturgySessions, setLiturgySessions] = useState<Array<{
+    id: string; scheduledDate: string; status: string;
+    group: { id: string; name: string };
+    level: { id: string; name: string; number: number } | null;
+    summary?: { present: number; absent: number; total: number };
+  }>>([])
+  const [loadingSessions, setLoadingSessions] = useState(false)
+  const [deletingSessionId, setDeletingSessionId] = useState<string | null>(null)
+  const [clearAllConfirm, setClearAllConfirm] = useState(false)
+  const [clearingAll, setClearingAll] = useState(false)
+
+  useEffect(() => {
+    try { const u = JSON.parse(localStorage.getItem('user') || '{}'); setIsSuperAdmin(u.roles?.includes('super_admin') ?? false) } catch {}
+  }, [])
+
+  const fetchLiturgySessions = useCallback(async () => {
+    setLoadingSessions(true)
+    try {
+      const data = await http.get<{ data: any[] }>('/attendance/sessions', { schoolId, limit: '200', notes: 'liturgy' })
+      setLiturgySessions(data.data || [])
+    } catch { setLiturgySessions([]) }
+    setLoadingSessions(false)
+  }, [schoolId])
+
+  const handleDeleteLiturgySession = async (sessionId: string) => {
+    setDeletingSessionId(sessionId)
+    try {
+      await http.delete(`/attendance/sessions/${sessionId}`)
+      toast('success', t('Session deleted', 'تم حذف الجلسة'))
+      setLiturgySessions(prev => prev.filter(s => s.id !== sessionId))
+    } catch {
+      toast('error', t('Failed to delete session', 'فشل حذف الجلسة'))
+    }
+    setDeletingSessionId(null)
+  }
+
+  const handleClearAllLiturgySessions = async () => {
+    setClearingAll(true)
+    try {
+      const ids = liturgySessions.map(s => s.id)
+      await http.post('/attendance/sessions/batch-delete', { sessionIds: ids })
+      toast('success', t(`Deleted ${ids.length} liturgy sessions`, `تم حذف ${ids.length} جلسات قداس`))
+      setLiturgySessions([])
+      setClearAllConfirm(false)
+      loadSession(date, pickedGroupId || undefined, pickedLevelId || undefined)
+    } catch {
+      toast('error', t('Failed to delete sessions', 'فشل حذف الجلسات'))
+    }
+    setClearingAll(false)
+  }
 
   useEffect(() => {
     mountedRef.current = true
@@ -311,10 +367,17 @@ export default function LiturgyAttendancePage() {
             </p>
           </div>
         </div>
-        <div className="text-right">
-          <div className="text-xs font-medium text-gray-600 uppercase mb-1">{t('Progress', 'التقدم')}</div>
-          <div className="text-2xl font-bold text-gray-900">
-            {recordedCount}/{session.students.length}
+        <div className="flex items-center gap-3">
+          {isSuperAdmin && (
+            <Button variant="outline" size="sm" onClick={() => { setShowSessionManager(!showSessionManager); if (!showSessionManager) fetchLiturgySessions() }}>
+              <History className="h-3.5 w-3.5" />{t('Manage', 'إدارة')}
+            </Button>
+          )}
+          <div className="text-right">
+            <div className="text-xs font-medium text-gray-600 uppercase mb-1">{t('Progress', 'التقدم')}</div>
+            <div className="text-2xl font-bold text-gray-900">
+              {recordedCount}/{session.students.length}
+            </div>
           </div>
         </div>
       </div>
@@ -331,6 +394,77 @@ export default function LiturgyAttendancePage() {
           </Button>
         )}
       </div>
+
+      {/* Session Manager (super admin) */}
+      {isSuperAdmin && showSessionManager && (
+        <div className="mb-4 rounded-xl border border-gray-200 bg-white">
+          <div className="flex items-center justify-between border-b border-gray-100 px-5 py-3">
+            <h2 className="font-semibold text-gray-900 flex items-center gap-2">
+              <History className="h-4 w-4" />
+              {t('Liturgy Sessions', 'جلسات القداس')} ({liturgySessions.length})
+            </h2>
+            <div className="flex items-center gap-2">
+              {liturgySessions.length > 0 && (
+                <Button variant="destructive" size="sm" onClick={() => setClearAllConfirm(true)}>
+                  <Trash2 className="h-3.5 w-3.5" />{t('Clear All', 'مسح الكل')}
+                </Button>
+              )}
+              <Button variant="ghost" size="sm" onClick={() => setShowSessionManager(false)}>
+                <X className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+          </div>
+          {loadingSessions ? (
+            <div className="p-6 text-center"><Loader2 className="h-5 w-5 animate-spin mx-auto text-gray-400" /></div>
+          ) : liturgySessions.length === 0 ? (
+            <div className="p-6 text-center text-sm text-gray-500">{t('No liturgy sessions found', 'لا يوجد جلسات قداس')}</div>
+          ) : (
+            <div className="divide-y divide-gray-100 max-h-[40vh] overflow-y-auto">
+              {liturgySessions.map(s => (
+                <div key={s.id} className="flex items-center gap-3 px-5 py-3 hover:bg-gray-50">
+                  <Calendar className="h-4 w-4 text-amber-500 flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-medium text-gray-900">
+                      {s.group?.name || '?'}{s.level ? ` · L${s.level.number}` : ''}
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      {new Date(s.scheduledDate).toLocaleDateString(lang === 'ar' ? 'ar-EG' : 'en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                      {s.summary && s.summary.total > 0 && (
+                        <> · {s.summary.present}/{s.summary.total} ({Math.round((s.summary.present / s.summary.total) * 100)}%)</>
+                      )}
+                    </div>
+                  </div>
+                  <Badge variant={s.status === 'completed' ? 'success' : s.status === 'scheduled' ? 'info' : 'warning'} size="sm">
+                    {s.status === 'completed' ? t('Completed', 'مكتمل') : s.status === 'scheduled' ? t('Scheduled', 'مجدول') : s.status}
+                  </Badge>
+                  <Button variant="ghost" size="sm" onClick={() => handleDeleteLiturgySession(s.id)}
+                    disabled={deletingSessionId === s.id}
+                    className="text-red-500 hover:text-red-700">
+                    {deletingSessionId === s.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Clear All Liturgy Confirmation */}
+      {clearAllConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setClearAllConfirm(false)}>
+          <div role="dialog" aria-modal="true" className="bg-white rounded-2xl shadow-xl w-full max-w-sm mx-4 p-6 text-center" onClick={e => e.stopPropagation()}>
+            <h3 className="font-semibold text-gray-900 mb-2">{t('Clear All Liturgy Sessions', 'مسح جميع جلسات القداس')}</h3>
+            <p className="text-sm text-gray-500 mb-6">{t(`Are you sure you want to delete all ${liturgySessions.length} liturgy sessions? This cannot be undone.`, `هل أنت متأكد من حذف جميع ${liturgySessions.length} جلسات القداس؟ لا يمكن التراجع عن ذلك.`)}</p>
+            <div className="flex items-center justify-center gap-3">
+              <Button variant="outline" onClick={() => setClearAllConfirm(false)}>{t('Cancel', 'إلغاء')}</Button>
+              <Button variant="destructive" onClick={handleClearAllLiturgySessions} disabled={clearingAll}>
+                {clearingAll ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                {t('Delete All', 'حذف الكل')}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Search */}
       <div className="relative mb-4">
