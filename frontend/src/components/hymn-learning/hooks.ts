@@ -95,6 +95,20 @@ export interface LearningStats {
 
 // ─── Query Keys ──────────────────────────────────────────────────────────────
 
+export interface ReviewedSessionItem {
+  id: string
+  student: { id: string; firstName: string; lastName: string; photoUrl?: string }
+  lesson: { id: string; title: string; titleAr?: string; titleCoptic?: string }
+  recordingUrl?: string
+  selfRating: number
+  durationSec?: number
+  submittedAt: string
+  servantRating: number
+  servantNote?: string
+  servantReviewedAt: string
+  reviewer?: { id: string; firstName: string; lastName: string }
+}
+
 export const hymnKeys = {
   all:        ['hymn-learning'] as const,
   map:        (studentId?: string) => [...hymnKeys.all, 'map', studentId] as const,
@@ -103,6 +117,7 @@ export const hymnKeys = {
   stats:      (studentId?: string) => [...hymnKeys.all, 'stats', studentId] as const,
   history:    (lessonId: string, studentId?: string) => [...hymnKeys.all, 'history', lessonId, studentId] as const,
   reviewQueue: () => [...hymnKeys.all, 'review-queue'] as const,
+  reviewedSessions: () => [...hymnKeys.all, 'reviewed-sessions'] as const,
 }
 
 // ─── Hooks ───────────────────────────────────────────────────────────────────
@@ -175,7 +190,31 @@ export function useReviewSession() {
   return useMutation({
     mutationFn: ({ id, ...body }: { id: string; servantRating: number; servantNote?: string }) =>
       http.patch<any>(`/hymn-learning/sessions/${id}/review`, body),
-    onSuccess: () => qc.invalidateQueries({ queryKey: hymnKeys.reviewQueue() }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: hymnKeys.reviewQueue() })
+      qc.invalidateQueries({ queryKey: hymnKeys.reviewedSessions() })
+    },
+  })
+}
+
+export function useReviewedSessions() {
+  return useQuery({
+    queryKey: hymnKeys.reviewedSessions(),
+    queryFn: () => http.get<ReviewedSessionItem[]>('/hymn-learning/reviewed'),
+    staleTime: 15_000,
+  })
+}
+
+export function useDeleteSession() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => http.delete<any>(`/hymn-learning/sessions/${id}`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: hymnKeys.reviewQueue() })
+      qc.invalidateQueries({ queryKey: hymnKeys.reviewedSessions() })
+      qc.invalidateQueries({ queryKey: hymnKeys.map() })
+      qc.invalidateQueries({ queryKey: hymnKeys.stats() })
+    },
   })
 }
 

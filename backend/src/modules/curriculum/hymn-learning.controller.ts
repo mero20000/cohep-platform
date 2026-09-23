@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Patch, Param, Body, Query, Req, UseGuards, ForbiddenException } from '@nestjs/common'
+import { Controller, Get, Post, Patch, Delete, Param, Body, Query, Req, UseGuards, ForbiddenException } from '@nestjs/common'
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger'
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard'
 import { Roles, STAFF_ROLES } from '../../common/decorators/roles.decorator'
@@ -118,6 +118,21 @@ export class HymnLearningController {
     const groupId = (req.user.metadata ?? {}).groupId
     if (!groupId) throw new Error('Servant group context missing')
     return this.svc.addFeedback(submissionId, body.feedbackText, req.user.id, req.user)
+  }
+
+  @Get('reviewed')
+  @Roles(...STAFF_ROLES)
+  @ApiOperation({ summary: 'Super admin: get reviewed practice sessions (history)' })
+  async getReviewedSessions(@Req() req: any, @Query('limit') limit?: string) {
+    const schoolId = req.user.schoolId ?? req.user.currentSchoolId
+    return this.svc.getReviewedSessions(schoolId, Number(limit) || 50)
+  }
+
+  @Delete('sessions/:id')
+  @Roles('super_admin')
+  @ApiOperation({ summary: 'Super admin: delete a hymn practice session' })
+  async deleteSession(@Req() req: any, @Param('id') id: string) {
+    return this.svc.deleteSession(id, req.user)
   }
 
   @Get('liturgy/pending-verifications')

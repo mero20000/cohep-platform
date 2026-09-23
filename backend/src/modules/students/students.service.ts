@@ -109,6 +109,7 @@ export class StudentsService {
           level: { select: { id: true, name: true, number: true } },
           group: { select: { id: true, name: true } },
           grade: { select: { id: true, name: true } },
+          creator: { select: { id: true, firstName: true, lastName: true } },
           profile: true,
         },
         skip: (page - 1) * limit,
@@ -141,6 +142,7 @@ export class StudentsService {
         level: true,
         group: true,
         profile: true,
+        creator: { select: { id: true, firstName: true, lastName: true } },
         studentParents: {
           include: {
             parent: {
@@ -168,7 +170,7 @@ export class StudentsService {
     return student;
   }
 
-  async create(createStudentDto: CreateStudentDto, schoolIdentifier: string, creatorRoles: string[] = []) {
+  async create(createStudentDto: CreateStudentDto, schoolIdentifier: string, creatorRoles: string[] = [], creatorUserId?: string) {
     const schoolId = await this.schoolResolver.resolve(schoolIdentifier);
     const studentCode = await this.generateStudentCode(schoolId);
 
@@ -233,11 +235,13 @@ export class StudentsService {
           ? (createStudentDto.status || 'active')
           : 'pending',
         enrollmentDate: new Date(),
+        createdBy: creatorUserId || undefined,
       },
       include: {
         level: true,
         group: true,
         grade: { select: { id: true, name: true } },
+        creator: creatorUserId ? { select: { id: true, firstName: true, lastName: true } } : false,
       },
     });
 

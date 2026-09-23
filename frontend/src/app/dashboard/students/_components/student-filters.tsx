@@ -1,6 +1,6 @@
 'use client'
 import { useState } from 'react'
-import { Search, Loader2, ChevronDown, Sliders, Star, Users } from 'lucide-react'
+import { Search, Loader2, ChevronDown, Sliders, Star, Users, AlertTriangle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import type { Level, Group, ChurchItem } from './student-types'
 import type { GradeItem } from '@/lib/grades'
@@ -19,6 +19,7 @@ interface Props {
   hasActiveFilters: boolean; onClearFilters: () => void
   showFavoritesOnly?: boolean; onFavoritesToggle?: () => void; favorites?: string[]
   showMyStudentsOnly?: boolean; onMyStudentsToggle?: () => void
+  showIncompleteOnly?: boolean; onIncompleteToggle?: () => void
   lang: 'en' | 'ar'
 }
 
@@ -112,6 +113,22 @@ export function StudentFilters(p: Props) {
             >
               <Users className="h-4 w-4" />
               <span className="hidden sm:inline">{t('My Students', 'طلابي')}</span>
+            </button>
+          )}
+
+          {p.onIncompleteToggle && (
+            <button
+              onClick={p.onIncompleteToggle}
+              aria-label={t('Filter incomplete records','تصفية السجلات غير المكتملة')}
+              className={`flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors whitespace-nowrap ${
+                p.showIncompleteOnly
+                  ? 'bg-orange-100 text-orange-700 border border-orange-200'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200 border border-transparent'
+              }`}
+              title={t('Show only students with incomplete data', 'اعرض فقط الطلاب ببيانات غير مكتملة')}
+            >
+              <AlertTriangle className="h-4 w-4" />
+              <span className="hidden sm:inline">{t('Incomplete', 'غير مكتمل')}</span>
             </button>
           )}
         </div>

@@ -7,6 +7,8 @@ import {
   Calendar, Plus, Search, Loader2,
   X, Trash2, RotateCcw, QrCode, Pencil,
   Download, FileSpreadsheet, FileText, ChevronDown,
+  CheckCircle2, Clock, XCircle, PauseCircle, PlayCircle,
+  BarChart3, Eye,
 } from 'lucide-react'
 import { useToast } from '@/components/ui/toast'
 import { Button } from '@/components/ui/button'
@@ -224,6 +226,7 @@ export default function SessionsPage() {
   const [filterStatus, setFilterStatus] = useState('')
   const [filterDateFrom, setFilterDateFrom] = useState('')
   const [filterDateTo, setFilterDateTo] = useState('')
+  const [filterServant, setFilterServant] = useState('')
   const [search, setSearch] = useState('')
   const [studentQuery, setStudentQuery] = useState('')
   const [studentResults, setStudentResults] = useState<StudentHit[]>([])
@@ -470,6 +473,7 @@ export default function SessionsPage() {
   }
 
   const filteredSessions = sessions.filter(s => {
+    if (filterServant && s.servant?.id !== filterServant) return false
     if (!search) return true
     const q = search.toLowerCase()
     return (s.level?.name || '').toLowerCase().includes(q) || (s.group?.name || '').toLowerCase().includes(q)
@@ -500,13 +504,14 @@ export default function SessionsPage() {
     setBatchDeleting(false)
   }
 
-  const activeFilterCount = [filterLevel, filterGroup, filterStatus, filterDateFrom, filterDateTo, search].filter(Boolean).length
+  const activeFilterCount = [filterLevel, filterGroup, filterStatus, filterDateFrom, filterDateTo, filterServant, search].filter(Boolean).length
   const clearAllFilters = () => {
     setFilterLevel('')
     setFilterGroup('')
     setFilterStatus('')
     setFilterDateFrom('')
     setFilterDateTo('')
+    setFilterServant('')
     setSearch('')
   }
 
@@ -653,6 +658,19 @@ export default function SessionsPage() {
             <option value="cancelled">{lang === 'ar' ? 'ملغي' : 'Cancelled'}</option>
             <option value="postponed">{lang === 'ar' ? 'مؤجل' : 'Postponed'}</option>
           </select>
+          {isSuperAdmin && (() => {
+            const servantMap = new Map<string, { id: string; firstName: string; lastName: string }>()
+            sessions.forEach(s => { if (s.servant?.id) servantMap.set(s.servant.id, s.servant as any) })
+            const servants = Array.from(servantMap.values())
+            return servants.length > 1 ? (
+              <select value={filterServant} onChange={e => setFilterServant(e.target.value)}
+                aria-label={lang === 'ar' ? 'تصفية حسب الخادم' : 'Filter by servant'}
+                className="rounded-lg border border-gray-300 px-2 py-1.5 text-xs min-h-[40px] focus:border-gold-500 focus:outline-none">
+                <option value="">{lang === 'ar' ? 'جميع الخدام' : 'All Servants'}</option>
+                {servants.map(sv => <option key={sv.id} value={sv.id}>{sv.firstName} {sv.lastName}</option>)}
+              </select>
+            ) : null
+          })()}
           <DatePicker value={filterDateFrom} onChange={setFilterDateFrom}
             className="rounded-lg border border-gray-300 px-2 py-1.5 text-xs min-h-[40px] focus:border-gold-500 focus:outline-none" />
           <span className="text-xs text-gray-500">{lang === 'ar' ? 'إلى' : 'to'}</span>
@@ -678,6 +696,41 @@ export default function SessionsPage() {
             </div>
           )}
         </div>
+        {/* Session stats summary (super_admin only) */}
+        {isSuperAdmin && filteredSessions.length > 0 && (
+          <div className="flex flex-wrap items-center gap-3 px-5 py-2.5 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-white">
+            <BarChart3 className="h-4 w-4 text-gray-400" />
+            {[
+              { key: 'scheduled', icon: Clock, color: 'text-blue-600 bg-blue-50', label: lang === 'ar' ? 'مجدول' : 'Scheduled' },
+              { key: 'in_progress', icon: PlayCircle, color: 'text-amber-600 bg-amber-50', label: lang === 'ar' ? 'قيد التنفيذ' : 'In Progress' },
+              { key: 'completed', icon: CheckCircle2, color: 'text-green-600 bg-green-50', label: lang === 'ar' ? 'مكتمل' : 'Completed' },
+              { key: 'cancelled', icon: XCircle, color: 'text-red-600 bg-red-50', label: lang === 'ar' ? 'ملغي' : 'Cancelled' },
+              { key: 'postponed', icon: PauseCircle, color: 'text-gray-600 bg-gray-100', label: lang === 'ar' ? 'مؤجل' : 'Postponed' },
+            ].map(st => {
+              const count = filteredSessions.filter(s => s.status === st.key).length
+              if (count === 0) return null
+              const Icon = st.icon
+              return (
+                <button key={st.key} onClick={() => setFilterStatus(filterStatus === st.key ? '' : st.key)}
+                  className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium transition-all ${filterStatus === st.key ? 'ring-2 ring-gold-400 ' : ''}${st.color}`}>
+                  <Icon className="h-3.5 w-3.5" />
+                  {st.label}: {count}
+                </button>
+              )
+            })}
+            {(() => {
+              const total = filteredSessions.reduce((a, s) => a + (s.summary?.total || 0), 0)
+              const present = filteredSessions.reduce((a, s) => a + (s.summary?.present || 0) + (s.summary?.late || 0), 0)
+              if (total === 0) return null
+              return (
+                <span className="ms-auto text-xs text-gray-500">
+                  {lang === 'ar' ? 'إجمالي الحضور' : 'Attendance'}: {present}/{total} ({Math.round((present / total) * 100)}%)
+                </span>
+              )
+            })()}
+          </div>
+        )}
+
         {/* Session list header with select-all (super_admin only) */}
         {isSuperAdmin && (
           <div className="flex items-center gap-3 px-5 py-2 bg-gray-50 border-b border-gray-100">
@@ -762,7 +815,28 @@ export default function SessionsPage() {
                         </div>
                       </button>
                     </div>
-                    <div className="flex items-center gap-1.5 mt-2 ps-12">
+                    <div className="flex items-center gap-1.5 mt-2 ps-12 flex-wrap">
+                      {isSuperAdmin && s.status !== 'completed' && s.status !== 'cancelled' && (
+                        <select
+                          value={s.status}
+                          onChange={async (e) => {
+                            const newStatus = e.target.value
+                            try {
+                              await http.put(`/attendance/sessions/${s.id}`, { status: newStatus })
+                              toast('success', lang === 'ar' ? 'تم تحديث الحالة' : 'Status updated')
+                              fetchSessions()
+                            } catch (err: any) { toast('error', err?.message || 'Failed') }
+                          }}
+                          className="rounded-md border border-gray-200 bg-white px-2 py-1 text-xs font-medium focus:outline-none focus:ring-1 focus:ring-gold-500"
+                          aria-label={lang === 'ar' ? 'تغيير الحالة' : 'Change status'}
+                        >
+                          <option value="scheduled">{lang === 'ar' ? 'مجدول' : 'Scheduled'}</option>
+                          <option value="in_progress">{lang === 'ar' ? 'قيد التنفيذ' : 'In Progress'}</option>
+                          <option value="completed">{lang === 'ar' ? 'مكتمل' : 'Completed'}</option>
+                          <option value="cancelled">{lang === 'ar' ? 'ملغي' : 'Cancelled'}</option>
+                          <option value="postponed">{lang === 'ar' ? 'مؤجل' : 'Postponed'}</option>
+                        </select>
+                      )}
                       {s.status === 'completed' && (
                         <Button variant="ghost" size="sm" onClick={() => handleReopenSession(s)}
                           aria-label={lang === 'ar' ? `إعادة فتح جلسة ${s.group?.name}` : `Re-open session ${s.group?.name}`}
@@ -774,6 +848,11 @@ export default function SessionsPage() {
                         className="inline-flex items-center justify-center rounded-lg px-3 py-1.5 text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500 min-h-[36px]"
                         title={lang === 'ar' ? `تسجيل الحضور` : `Record Attendance`}>
                         {lang === 'ar' ? 'تسجيل' : 'Record'}
+                      </Link>
+                      <Link href={`/dashboard/attendance/mark?sessionId=${s.id}`}
+                        className="inline-flex items-center gap-1 rounded-lg border border-gray-200 px-2.5 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50 min-h-[36px]"
+                        title={lang === 'ar' ? 'عرض التفاصيل' : 'View details'}>
+                        <Eye className="h-3.5 w-3.5" />
                       </Link>
                       <Button variant="ghost" size="sm" onClick={() => openEditSession(s)}
                         aria-label={lang === 'ar' ? `تعديل جلسة ${s.group?.name}` : `Edit session ${s.group?.name}`}

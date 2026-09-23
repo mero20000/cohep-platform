@@ -80,6 +80,7 @@ export function StudentDetailModal({ student:s, onClose, onEdit, onPreviewPhoto,
     {icon:Church,label:t('Church','الكنيسة'),value:s.churchName||'—'},{icon:GraduationCap,label:t('Grade','المرحلة الدراسية'),value:s.grade?.name||'—'},
     {icon:Mail,label:t('Email','البريد الإلكتروني'),value:s.metadata?.email||'—'},
     {icon:MapPin,label:t('Address','العنوان'),value:s.metadata?.address||'—'},{icon:UserCheck,label:t('Parent Email','بريد ولي الأمر'),value:s.parentEmail||'—'},
+    ...(s.creator ? [{icon:UserCheck,label:t('Created By','أنشأه'),value:`${s.creator.firstName} ${s.creator.lastName}`}] : []),
   ]
   const statusLabel = s.status==='active'?t('Active','نشط'):s.status==='inactive'?t('Inactive','غير نشط'):s.status==='graduated'?t('Graduated','متخرج'):s.status
 

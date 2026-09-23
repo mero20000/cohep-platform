@@ -173,7 +173,8 @@ export class StudentsController {
     @Query("schoolId") schoolId: string = "",
   ) {
     const roles: string[] = req.user?.roles || [];
-    return this.studentsService.create(createStudentDto, schoolId, roles);
+    const userId: string | undefined = req.user?.id;
+    return this.studentsService.create(createStudentDto, schoolId, roles, userId);
   }
 
   @Put(":id")

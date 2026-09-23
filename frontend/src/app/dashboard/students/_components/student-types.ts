@@ -12,6 +12,7 @@ export interface Student {
   levelId: string; groupId: string; status: string; enrollmentDate: string
   level: { id: string; name: string; number: number }
   group: { id: string; name: string }
+  creator?: { id: string; firstName: string; lastName: string } | null
   metadata?: { phone?: string; email?: string; address?: string; notes?: string; churchToolId?: string; tags?: string[]; assignedServantIds?: string[] }
   parentEmail?: string
   portalAccessKey?: string
@@ -55,6 +56,23 @@ export function photoSrc(url: string | undefined | null): string {
     return `${base}${url}`
   }
   return url
+}
+
+export const COMPLETENESS_FIELDS = [
+  { key: 'churchName', en: 'Church', ar: 'الكنيسة' },
+  { key: 'gradeId', en: 'Grade', ar: 'المرحلة' },
+  { key: 'photoUrl', en: 'Photo', ar: 'الصورة' },
+  { key: 'parentEmail', en: 'Parent Email', ar: 'بريد ولي الأمر' },
+  { key: 'phone', en: 'Phone', ar: 'رقم الهاتف', meta: true },
+] as const
+
+export function getStudentCompleteness(s: Student): { complete: boolean; missing: typeof COMPLETENESS_FIELDS[number][]; pct: number } {
+  const missing = COMPLETENESS_FIELDS.filter(f => {
+    if ('meta' in f) return !s.metadata?.phone
+    return !(s as any)[f.key]
+  })
+  const total = COMPLETENESS_FIELDS.length
+  return { complete: missing.length === 0, missing, pct: Math.round(((total - missing.length) / total) * 100) }
 }
 
 export function calcAge(dob: string): number {
