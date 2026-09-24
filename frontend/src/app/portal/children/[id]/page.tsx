@@ -13,7 +13,7 @@ import {
   Calendar, ClipboardCheck, TrendingUp, Loader2, ArrowLeft, User,
   CheckCircle2, Clock, XCircle, AlertCircle, Award, FileText,
   Star, Crown, Cross, Music, CheckCircle, Church, Plus, Sprout, X,
-  Play, Headphones, BookOpen, Home
+  Play, Headphones, BookOpen, Home, ChevronRight
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { DatePicker } from '@/components/ui/date-picker'
@@ -775,6 +775,47 @@ export default function ChildDetailPage() {
             )}
           </div>
         </div>
+      )}
+
+      {/* How Points Work — collapsible guide for parents */}
+      {gamification && (
+        <details className="rounded-xl border border-indigo-200 bg-gradient-to-r from-indigo-50 to-blue-50 group">
+          <summary className="flex items-center gap-2 px-5 py-3 cursor-pointer select-none text-sm font-semibold text-indigo-800 hover:bg-indigo-50/50 transition-colors">
+            <Star className="h-4 w-4 text-indigo-600" />
+            {t('How Points & XP Work', 'كيف تعمل النقاط والخبرة')}
+            <ChevronRight className="h-4 w-4 text-indigo-400 ml-auto transition-transform group-open:rotate-90 rtl:rotate-180 rtl:group-open:rotate-90" />
+          </summary>
+          <div className="px-5 pb-4 space-y-3 text-sm text-gray-700">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="rounded-lg bg-white/70 border border-amber-100 p-3">
+                <div className="font-semibold text-amber-800 text-xs mb-1">{t('Points (per session)', 'النقاط (لكل حصة)')}</div>
+                <ul className="space-y-0.5 text-xs text-gray-600">
+                  <li>{t('Present: 5 pts', 'حاضر: 5 نقاط')}</li>
+                  <li>{t('Late: 2 pts', 'متأخر: 2 نقاط')}</li>
+                  <li>{t('Excused: 1 pt', 'معذور: 1 نقطة')}</li>
+                  <li>{t('Behavior: score × 2 (0-10)', 'السلوك: التقييم × 2 (0-10)')}</li>
+                  <li>{t('Participation: score × 2 (0-10)', 'المشاركة: التقييم × 2 (0-10)')}</li>
+                  <li>{t('Liturgy: 3 pts', 'القداس: 3 نقاط')}</li>
+                </ul>
+              </div>
+              <div className="rounded-lg bg-white/70 border border-purple-100 p-3">
+                <div className="font-semibold text-purple-800 text-xs mb-1">{t('XP (Experience)', 'الخبرة (XP)')}</div>
+                <ul className="space-y-0.5 text-xs text-gray-600">
+                  <li>{t('Present: +10 XP', 'حاضر: +10 خبرة')}</li>
+                  <li>{t('Late: +5 XP', 'متأخر: +5 خبرة')}</li>
+                  <li>{t('3+ week streak: +5 XP', 'سلسلة 3+ أسابيع: +5 خبرة')}</li>
+                  <li>{t('Practice at home: +10 XP', 'التمرين في المنزل: +10 خبرة')}</li>
+                  <li>{t('Badge earned: +50-800 XP', 'شارة مكتسبة: +50-800 خبرة')}</li>
+                  <li>{t('Level = Total XP ÷ 100 + 1', 'المستوى = مجموع الخبرة ÷ 100 + 1')}</li>
+                </ul>
+              </div>
+            </div>
+            <p className="text-xs text-gray-500">
+              {t('Tip: Encourage regular attendance and home practice to maximize both points and XP. Badges are milestones — they reward consistent effort, not perfection.',
+                 'نصيحة: شجع الحضور المنتظم والتمرين المنزلي لزيادة النقاط والخبرة. الشارات هي إنجازات — تكافئ الجهد المستمر، ليس الكمال.')}
+            </p>
+          </div>
+        </details>
       )}
 
       {drill && (
