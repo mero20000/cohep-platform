@@ -648,8 +648,11 @@ export class AttendanceService {
       properties: { count: dto.records.length, sessionId },
     });
 
-    // Compute badges for all affected students (fire-and-forget)
+    // Award direct attendance XP + compute badges (fire-and-forget)
     const affectedStudentIds = [...new Set(dto.records.map(r => r.studentId))];
+    for (const rec of dto.records) {
+      this.gamification.awardAttendanceXp(rec.studentId, sessionId, rec.status, session.schoolId).catch(() => {});
+    }
     for (const sid of affectedStudentIds) {
       this.gamification.computeBadgesForStudent(sid).catch(() => {});
     }
@@ -773,6 +776,7 @@ export class AttendanceService {
       },
     });
 
+    this.gamification.awardAttendanceXp(studentId, session.id, 'present', servant.schoolId!).catch(() => {});
     this.gamification.computeBadgesForStudent(studentId).catch(() => {});
 
     // Notify parents of arrival
