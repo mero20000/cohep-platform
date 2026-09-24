@@ -31,10 +31,20 @@ export const GAMIFICATION_CONSTANTS = {
 
   // Point Calculation Rules (overridable per school via systemConfig 'point_rules')
   PRESENT_POINTS_DEFAULT: 5,
-  LATE_POINTS_DEFAULT: 0,
+  LATE_POINTS_DEFAULT: 2,
   ABSENT_POINTS_DEFAULT: 0,
-  EXCUSED_POINTS_DEFAULT: 0,
+  EXCUSED_POINTS_DEFAULT: 1,
   LITURGY_POINTS_DEFAULT: 3,
+  BEHAVIOR_MULTIPLIER_DEFAULT: 2,
+  PARTICIPATION_MULTIPLIER_DEFAULT: 2,
+
+  // Direct XP awards for attendance (overridable per school via systemConfig 'point_rules')
+  ATTENDANCE_XP_PRESENT: 10,
+  ATTENDANCE_XP_LATE: 5,
+
+  // Streak XP bonus: awarded when a student attends N+ consecutive weeks
+  STREAK_BONUS_WEEKS: 3,
+  STREAK_BONUS_XP: 5,
 
   // Query Limits
   RECENT_TRANSACTIONS_LIMIT: 10,

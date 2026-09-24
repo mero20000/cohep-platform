@@ -657,15 +657,20 @@ export class DashboardService {
           : 0;
         const totalXp = xp._sum.amount || 0;
 
-        // Compute total points from attendance records using point rules
         const rules: any = (pointConfig?.value as any) || {};
         const presentPoints = rules.presentPoints ?? 5;
+        const latePoints = rules.latePoints ?? 2;
+        const excusedPoints = rules.excusedPoints ?? 1;
         const liturgyPoints = rules.liturgyPoints ?? 3;
+        const behaviorMult = rules.behaviorMultiplier ?? 2;
+        const participationMult = rules.participationMultiplier ?? 2;
         const totalPoints = att.reduce((sum: number, r: any) => {
           let s = 0;
           if (r.status === 'present') s += presentPoints;
-          if (r.behavior) s += r.behavior;
-          if (r.participation) s += r.participation;
+          else if (r.status === 'late') s += latePoints;
+          else if (r.status === 'excused') s += excusedPoints;
+          if (r.behavior) s += r.behavior * behaviorMult;
+          if (r.participation) s += r.participation * participationMult;
           if (r.attendedLiturgy) s += liturgyPoints;
           return sum + s;
         }, 0);

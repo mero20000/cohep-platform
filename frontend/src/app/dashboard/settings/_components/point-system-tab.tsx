@@ -11,10 +11,14 @@ import { Loader2, Save } from 'lucide-react'
 
 interface PointRules {
   presentPoints: number
+  latePoints: number
+  excusedPoints: number
   liturgyPoints: number
+  behaviorMultiplier: number
+  participationMultiplier: number
 }
 
-const DEFAULTS: PointRules = { presentPoints: 5, liturgyPoints: 3 }
+const DEFAULTS: PointRules = { presentPoints: 5, latePoints: 2, excusedPoints: 1, liturgyPoints: 3, behaviorMultiplier: 2, participationMultiplier: 2 }
 
 export function PointSystemTab() {
   const lang = useLanguage()
@@ -71,22 +75,50 @@ export function PointSystemTab() {
             className="w-20 rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-center focus:border-gold-500 focus:outline-none" />
         </div>
 
-        {/* Behavior */}
-        <div className="flex items-center gap-4 px-5 py-4">
-          <div className="flex-1">
-            <div className="text-sm font-medium text-gray-900">{lang === 'ar' ? 'السلوك' : 'Behavior'}</div>
-            <div className="text-xs text-gray-500">{lang === 'ar' ? 'نقاط حسب تقييم السلوك (0-5) من سجل الحضور' : 'Points equal to the behavior score (0-5) from attendance records'}</div>
+        {/* Late */}
+        <div className="flex items-center justify-between px-5 py-4">
+          <div>
+            <div className="text-sm font-medium text-gray-900">{lang === 'ar' ? 'الحضور (متأخر)' : 'Attendance (Late)'}</div>
+            <div className="text-xs text-gray-500">{lang === 'ar' ? 'نقاط ثابتة للطالب المتأخر — أفضل من الغياب' : 'Fixed points for a late student — better than absent'}</div>
           </div>
-          <span className="text-sm text-gray-600 font-medium">{lang === 'ar' ? 'تلقائي 0-5' : 'Auto 0-5'}</span>
+          <input type="number" min={0} max={100} value={rules.latePoints} onChange={e => setRules({ ...rules, latePoints: Math.max(0, parseInt(e.target.value) || 0) })}
+            className="w-20 rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-center focus:border-gold-500 focus:outline-none" />
+        </div>
+
+        {/* Excused */}
+        <div className="flex items-center justify-between px-5 py-4">
+          <div>
+            <div className="text-sm font-medium text-gray-900">{lang === 'ar' ? 'الحضور (معذور)' : 'Attendance (Excused)'}</div>
+            <div className="text-xs text-gray-500">{lang === 'ar' ? 'نقاط ثابتة للعذر المقبول — لا يُعاقب الطالب' : 'Fixed points for a valid excuse — student not penalized'}</div>
+          </div>
+          <input type="number" min={0} max={100} value={rules.excusedPoints} onChange={e => setRules({ ...rules, excusedPoints: Math.max(0, parseInt(e.target.value) || 0) })}
+            className="w-20 rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-center focus:border-gold-500 focus:outline-none" />
+        </div>
+
+        {/* Behavior */}
+        <div className="flex items-center justify-between px-5 py-4">
+          <div>
+            <div className="text-sm font-medium text-gray-900">{lang === 'ar' ? 'مضاعف السلوك' : 'Behavior Multiplier'}</div>
+            <div className="text-xs text-gray-500">{lang === 'ar' ? `تقييم السلوك (0-5) × ${rules.behaviorMultiplier} = 0-${5 * rules.behaviorMultiplier} نقاط` : `Behavior score (0-5) × ${rules.behaviorMultiplier} = 0-${5 * rules.behaviorMultiplier} points`}</div>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs text-gray-400">×</span>
+            <input type="number" min={1} max={10} value={rules.behaviorMultiplier} onChange={e => setRules({ ...rules, behaviorMultiplier: Math.max(1, parseInt(e.target.value) || 1) })}
+              className="w-20 rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-center focus:border-gold-500 focus:outline-none" />
+          </div>
         </div>
 
         {/* Participation */}
-        <div className="flex items-center gap-4 px-5 py-4">
-          <div className="flex-1">
-            <div className="text-sm font-medium text-gray-900">{lang === 'ar' ? 'المشاركة' : 'Participation'}</div>
-            <div className="text-xs text-gray-500">{lang === 'ar' ? 'نقاط حسب تقييم المشاركة (0-5) من سجل الحضور' : 'Points equal to the participation score (0-5) from attendance records'}</div>
+        <div className="flex items-center justify-between px-5 py-4">
+          <div>
+            <div className="text-sm font-medium text-gray-900">{lang === 'ar' ? 'مضاعف المشاركة' : 'Participation Multiplier'}</div>
+            <div className="text-xs text-gray-500">{lang === 'ar' ? `تقييم المشاركة (0-5) × ${rules.participationMultiplier} = 0-${5 * rules.participationMultiplier} نقاط` : `Participation score (0-5) × ${rules.participationMultiplier} = 0-${5 * rules.participationMultiplier} points`}</div>
           </div>
-          <span className="text-sm text-gray-600 font-medium">{lang === 'ar' ? 'تلقائي 0-5' : 'Auto 0-5'}</span>
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs text-gray-400">×</span>
+            <input type="number" min={1} max={10} value={rules.participationMultiplier} onChange={e => setRules({ ...rules, participationMultiplier: Math.max(1, parseInt(e.target.value) || 1) })}
+              className="w-20 rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-center focus:border-gold-500 focus:outline-none" />
+          </div>
         </div>
 
         {/* Liturgy */}
@@ -104,8 +136,13 @@ export function PointSystemTab() {
         <h4 className="text-sm font-semibold text-indigo-900 mb-1">{lang === 'ar' ? 'ملخص طريقة الاحتساب' : 'Calculation Summary'}</h4>
         <p className="text-xs text-indigo-700 leading-relaxed">
           {lang === 'ar'
-            ? `النقاط الإجمالية للطالب = (عدد مرات الحضور × ${rules.presentPoints}) + (مجموع تقييم السلوك) + (مجموع تقييم المشاركة) + (عدد مرات حضور القداس × ${rules.liturgyPoints})`
-            : `Total points = (Present sessions × ${rules.presentPoints}) + (Sum of behavior scores) + (Sum of participation scores) + (Liturgy attendances × ${rules.liturgyPoints})`}
+            ? `النقاط الإجمالية = (حاضر × ${rules.presentPoints}) + (متأخر × ${rules.latePoints}) + (معذور × ${rules.excusedPoints}) + (سلوك × ${rules.behaviorMultiplier}) + (مشاركة × ${rules.participationMultiplier}) + (قداس × ${rules.liturgyPoints})`
+            : `Total = (Present × ${rules.presentPoints}) + (Late × ${rules.latePoints}) + (Excused × ${rules.excusedPoints}) + (Behavior × ${rules.behaviorMultiplier}) + (Participation × ${rules.participationMultiplier}) + (Liturgy × ${rules.liturgyPoints})`}
+        </p>
+        <p className="text-xs text-indigo-600 mt-1">
+          {lang === 'ar'
+            ? `الحد الأقصى لكل حصة = ${rules.presentPoints} + ${5 * rules.behaviorMultiplier} + ${5 * rules.participationMultiplier} + ${rules.liturgyPoints} = ${rules.presentPoints + 5 * rules.behaviorMultiplier + 5 * rules.participationMultiplier + rules.liturgyPoints} نقطة`
+            : `Max per session = ${rules.presentPoints} + ${5 * rules.behaviorMultiplier} + ${5 * rules.participationMultiplier} + ${rules.liturgyPoints} = ${rules.presentPoints + 5 * rules.behaviorMultiplier + 5 * rules.participationMultiplier + rules.liturgyPoints} pts`}
         </p>
       </div>
 

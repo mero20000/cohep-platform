@@ -591,14 +591,16 @@ export class GamificationService {
     const absentPoints = rules.absentPoints ?? GAMIFICATION_CONSTANTS.ABSENT_POINTS_DEFAULT;
     const excusedPoints = rules.excusedPoints ?? GAMIFICATION_CONSTANTS.EXCUSED_POINTS_DEFAULT;
     const liturgyPoints = rules.liturgyPoints ?? GAMIFICATION_CONSTANTS.LITURGY_POINTS_DEFAULT;
+    const behaviorMult = rules.behaviorMultiplier ?? GAMIFICATION_CONSTANTS.BEHAVIOR_MULTIPLIER_DEFAULT;
+    const participationMult = rules.participationMultiplier ?? GAMIFICATION_CONSTANTS.PARTICIPATION_MULTIPLIER_DEFAULT;
     const totalPoints = attRecords.reduce((sum: number, r: any) => {
       let s = 0;
       if (r.status === 'present') s += presentPoints;
       else if (r.status === 'late') s += latePoints;
       else if (r.status === 'absent') s += absentPoints;
       else if (r.status === 'excused') s += excusedPoints;
-      if (r.behavior) s += r.behavior;
-      if (r.participation) s += r.participation;
+      if (r.behavior) s += r.behavior * behaviorMult;
+      if (r.participation) s += r.participation * participationMult;
       if (r.attendedLiturgy) s += liturgyPoints;
       return sum + s;
     }, 0);
@@ -870,6 +872,116 @@ export class GamificationService {
 
       return transaction;
     });
+  }
+
+  async awardAttendanceXp(
+    studentId: string,
+    sessionId: string,
+    status: string,
+    schoolId: string,
+  ) {
+    if (status !== 'present' && status !== 'late') return;
+
+    const existing = await this.prisma.xPTransaction.findFirst({
+      where: { studentId, referenceType: 'attendance_session', referenceId: sessionId },
+    });
+    if (existing) return;
+
+    const pointConfig = await this.prisma.systemConfig.findUnique({
+      where: { schoolId_key: { schoolId, key: 'point_rules' } },
+      select: { value: true },
+    });
+    const rules: any = (pointConfig?.value as any) || {};
+    const xpPresent = rules.attendanceXpPresent ?? GAMIFICATION_CONSTANTS.ATTENDANCE_XP_PRESENT;
+    const xpLate = rules.attendanceXpLate ?? GAMIFICATION_CONSTANTS.ATTENDANCE_XP_LATE;
+    const amount = status === 'present' ? xpPresent : xpLate;
+
+    await this.prisma.$transaction(async tx => {
+      await tx.$queryRawUnsafe('SELECT id FROM students WHERE id = $1 FOR UPDATE', studentId);
+      const agg = await tx.xPTransaction.aggregate({ where: { studentId }, _sum: { amount: true } });
+      const balanceAfter = (agg._sum.amount || 0) + amount;
+      await tx.xPTransaction.create({
+        data: {
+          studentId, amount, balanceAfter,
+          type: 'attendance',
+          description: status === 'present' ? 'Attendance: Present' : 'Attendance: Late',
+          referenceType: 'attendance_session',
+          referenceId: sessionId,
+        },
+      });
+      await tx.studentProgress.updateMany({
+        where: { studentId },
+        data: { totalXp: balanceAfter, currentLevel: Math.floor(balanceAfter / GAMIFICATION_CONSTANTS.XP_PER_LEVEL) + 1 },
+      }).catch(() => {});
+    });
+
+    await this.checkAndAwardStreakBonus(studentId, schoolId);
+  }
+
+  private async checkAndAwardStreakBonus(studentId: string, schoolId: string) {
+    const now = new Date();
+    const weeksNeeded = GAMIFICATION_CONSTANTS.STREAK_BONUS_WEEKS;
+    const lookbackStart = new Date(now);
+    lookbackStart.setDate(lookbackStart.getDate() - weeksNeeded * 7);
+
+    const sessions = await this.prisma.attendanceRecord.findMany({
+      where: {
+        studentId,
+        status: { in: ['present', 'late'] },
+        attendanceSession: { scheduledDate: { gte: lookbackStart }, deletedAt: null },
+      },
+      include: { attendanceSession: { select: { scheduledDate: true } } },
+      orderBy: { attendanceSession: { scheduledDate: 'desc' } },
+    });
+
+    const weekSet = new Set<string>();
+    for (const s of sessions) {
+      const d = new Date(s.attendanceSession.scheduledDate);
+      const year = d.getFullYear();
+      const jan1 = new Date(year, 0, 1);
+      const weekNum = Math.ceil(((d.getTime() - jan1.getTime()) / 86400000 + jan1.getDay() + 1) / 7);
+      weekSet.add(`${year}-W${weekNum}`);
+    }
+
+    if (weekSet.size < weeksNeeded) return;
+
+    const currentWeek = (() => {
+      const d = now;
+      const year = d.getFullYear();
+      const jan1 = new Date(year, 0, 1);
+      const weekNum = Math.ceil(((d.getTime() - jan1.getTime()) / 86400000 + jan1.getDay() + 1) / 7);
+      return `${year}-W${weekNum}`;
+    })();
+
+    let consecutive = 0;
+    const d = new Date(now);
+    for (let i = 0; i < weeksNeeded; i++) {
+      const year = d.getFullYear();
+      const jan1 = new Date(year, 0, 1);
+      const weekNum = Math.ceil(((d.getTime() - jan1.getTime()) / 86400000 + jan1.getDay() + 1) / 7);
+      const key = `${year}-W${weekNum}`;
+      if (weekSet.has(key)) {
+        consecutive++;
+      } else {
+        break;
+      }
+      d.setDate(d.getDate() - 7);
+    }
+
+    if (consecutive < weeksNeeded) return;
+
+    const bonusRef = `streak-${currentWeek}`;
+    const existing = await this.prisma.xPTransaction.findFirst({
+      where: { studentId, referenceType: 'streak_bonus', referenceId: bonusRef },
+    });
+    if (existing) return;
+
+    await this.addXp(
+      studentId,
+      GAMIFICATION_CONSTANTS.STREAK_BONUS_XP,
+      'streak_bonus',
+      `${consecutive}-week attendance streak bonus`,
+    );
   }
 
   async getStudentBadges(studentId: string) {
