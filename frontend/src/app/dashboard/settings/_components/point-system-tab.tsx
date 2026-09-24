@@ -146,6 +146,41 @@ export function PointSystemTab() {
         </p>
       </div>
 
+      {/* XP Awards Reference */}
+      <div className="rounded-xl border border-gray-200 bg-emerald-50 px-5 py-4">
+        <h4 className="text-sm font-semibold text-emerald-900 mb-1">{lang === 'ar' ? 'مكافآت الخبرة (XP) التلقائية' : 'Automatic XP Awards'}</h4>
+        <p className="text-xs text-emerald-700 leading-relaxed">
+          {lang === 'ar'
+            ? 'بالإضافة إلى النقاط، يحصل الطلاب على نقاط خبرة (XP) تلقائياً: حاضر = +10 XP · متأخر = +5 XP · سلسلة حضور 3+ أسابيع = +5 XP مكافأة · التمرين المنزلي = +10 XP · الشارات = +50-800 XP'
+            : 'In addition to points, students automatically earn XP: Present = +10 XP · Late = +5 XP · 3+ week attendance streak = +5 XP bonus · Home practice = +10 XP · Badge earned = +50-800 XP'}
+        </p>
+        <p className="text-xs text-emerald-600 mt-1">
+          {lang === 'ar' ? 'المستوى = مجموع الخبرة ÷ 100 + 1 (مثلاً: 250 XP = المستوى 3)' : 'Level = Total XP ÷ 100 + 1 (e.g. 250 XP = Level 3)'}
+        </p>
+      </div>
+
+      {/* Badge Tiers Reference */}
+      <div className="rounded-xl border border-gray-200 bg-amber-50 px-5 py-4">
+        <h4 className="text-sm font-semibold text-amber-900 mb-1">{lang === 'ar' ? 'شارات النقاط (تلقائية)' : 'Point Badge Tiers (automatic)'}</h4>
+        <div className="flex flex-wrap gap-2 mt-2">
+          {[
+            { name: lang === 'ar' ? 'جامع النقاط' : 'Point Collector', pts: '500', icon: '🪙' },
+            { name: lang === 'ar' ? 'صاعد النقاط' : 'Point Rising', pts: '1,000', icon: '🥈' },
+            { name: lang === 'ar' ? 'أسطورة النقاط' : 'Point Legend', pts: '1,500', icon: '🏅' },
+            { name: lang === 'ar' ? 'سيد النقاط' : 'Point Master', pts: '2,000', icon: '💎' },
+          ].map(b => (
+            <span key={b.pts} className="inline-flex items-center gap-1.5 rounded-lg border border-amber-200 bg-white px-2.5 py-1.5 text-xs">
+              <span>{b.icon}</span>
+              <span className="font-medium text-gray-900">{b.name}</span>
+              <span className="text-gray-500">({b.pts} {lang === 'ar' ? 'نقطة' : 'pts'})</span>
+            </span>
+          ))}
+        </div>
+        <p className="text-xs text-amber-700 mt-2">
+          {lang === 'ar' ? 'تُمنح هذه الشارات تلقائياً عند وصول الطالب للعدد المطلوب من النقاط الإجمالية.' : 'These badges are awarded automatically when a student reaches the required total point count.'}
+        </p>
+      </div>
+
       <div className="flex justify-end">
         <Button onClick={save} disabled={saving}>
           {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}

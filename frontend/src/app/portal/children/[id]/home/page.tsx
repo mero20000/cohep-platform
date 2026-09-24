@@ -369,6 +369,30 @@ export default function StudentHomePage() {
         </div>
       )}
 
+      {/* ── HOW POINTS WORK — student-friendly guide ───────────────── */}
+      <div className="px-4 mb-4">
+        <details className="max-w-xl mx-auto rounded-2xl bg-white/[0.06] border border-white/10 group">
+          <summary className="flex items-center gap-2 px-4 py-3 cursor-pointer select-none text-sm font-semibold text-white/80 hover:text-white transition-colors">
+            <Sparkles className="h-4 w-4 text-amber-400" />
+            {t('How do I earn points & XP?', 'كيف أحصل على النقاط والخبرة؟')}
+            <ChevronRight className="h-4 w-4 text-white/40 ml-auto transition-transform group-open:rotate-90 rtl:rotate-180 rtl:group-open:rotate-90" />
+          </summary>
+          <div className="px-4 pb-4 space-y-2 text-xs text-white/60">
+            <div className="rounded-xl bg-white/[0.05] border border-white/10 p-3 space-y-1.5">
+              <p className="font-semibold text-white/90">{t('Every session earns points:', 'كل حصة تكسبك نقاطاً:')}</p>
+              <p>{t('Present = 5 pts · Late = 2 pts · Excused = 1 pt', 'حاضر = 5 نقاط · متأخر = 2 · معذور = 1')}</p>
+              <p>{t('Good behavior & participation = bonus points (up to 10 each)', 'السلوك الجيد والمشاركة = نقاط إضافية (حتى 10 لكل)')}</p>
+              <p>{t('Liturgy attendance = 3 bonus pts', 'حضور القداس = 3 نقاط إضافية')}</p>
+            </div>
+            <div className="rounded-xl bg-white/[0.05] border border-white/10 p-3 space-y-1.5">
+              <p className="font-semibold text-white/90">{t('XP levels you up:', 'الخبرة ترفع مستواك:')}</p>
+              <p>{t('Present = +10 XP · Late = +5 XP · Practice = +10 XP', 'حاضر = +10 خبرة · متأخر = +5 · التمرين = +10')}</p>
+              <p>{t('3+ weeks streak = +5 XP bonus · Every 100 XP = 1 Level!', 'سلسلة 3+ أسابيع = +5 خبرة · كل 100 خبرة = مستوى جديد!')}</p>
+            </div>
+          </div>
+        </details>
+      </div>
+
       {/* ── TABS ────────────────────────────────────────────────────── */}
       <div className="px-4 mb-4">
         <div className="max-w-xl mx-auto flex gap-2">

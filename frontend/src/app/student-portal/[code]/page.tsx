@@ -831,6 +831,33 @@ export default function StudentDashboard() {
               </section>
             )}
 
+            {/* ── How Points & XP Work — student guide ── */}
+            <details className="rounded-xl border border-indigo-200 bg-gradient-to-r from-indigo-50 to-purple-50 group">
+              <summary className="flex items-center gap-2 px-4 py-3 cursor-pointer select-none text-sm font-semibold text-indigo-800 hover:bg-indigo-50/50 transition-colors">
+                <Sparkles className="h-4 w-4 text-indigo-500" />
+                {lang === 'ar' ? 'كيف أحصل على النقاط والخبرة؟' : 'How do I earn points & XP?'}
+                <ChevronRight className="h-4 w-4 text-indigo-400 ml-auto transition-transform group-open:rotate-90 rtl:rotate-180 rtl:group-open:rotate-90" />
+              </summary>
+              <div className="px-4 pb-4 space-y-2 text-xs text-gray-700">
+                <div className="rounded-lg bg-white/80 border border-gray-100 p-3 space-y-1.5">
+                  <p className="font-semibold text-gray-900">{lang === 'ar' ? 'كل حصة تكسبك نقاطاً:' : 'Every session earns points:'}</p>
+                  <p>{lang === 'ar' ? 'حاضر = 5 نقاط · متأخر = 2 · معذور = 1' : 'Be present = 5 pts · Late = 2 pts · Excused = 1 pt'}</p>
+                  <p>{lang === 'ar' ? 'السلوك الجيد والمشاركة يكسبان نقاطاً إضافية (حتى 10 لكل منهما)' : 'Good behavior & participation earn bonus points (up to 10 each)'}</p>
+                  <p>{lang === 'ar' ? 'حضور القداس = 3 نقاط إضافية' : 'Attending liturgy = 3 bonus pts'}</p>
+                </div>
+                <div className="rounded-lg bg-white/80 border border-gray-100 p-3 space-y-1.5">
+                  <p className="font-semibold text-gray-900">{lang === 'ar' ? 'الخبرة ترفع مستواك:' : 'XP levels you up:'}</p>
+                  <p>{lang === 'ar' ? 'حاضر = +10 خبرة · متأخر = +5 · التمرين المنزلي = +10' : 'Present = +10 XP · Late = +5 XP · Practice at home = +10 XP'}</p>
+                  <p>{lang === 'ar' ? '3+ أسابيع متتالية = +5 خبرة مكافأة سلسلة' : '3+ weeks in a row = +5 XP streak bonus'}</p>
+                  <p>{lang === 'ar' ? 'كل 100 خبرة = مستوى جديد!' : 'Every 100 XP = 1 Level up!'}</p>
+                </div>
+                <div className="rounded-lg bg-white/80 border border-gray-100 p-3 space-y-1.5">
+                  <p className="font-semibold text-gray-900">{lang === 'ar' ? 'اكسب الشارات عبر:' : 'Earn badges by:'}</p>
+                  <p>{lang === 'ar' ? 'جمع 500 / 1,000 / 1,500 / 2,000 نقطة · أسابيع حضور كاملة · سلاسل سلوك ممتاز · حضور القداس' : 'Collecting 500 / 1,000 / 1,500 / 2,000 points · Perfect attendance weeks · Great behavior streaks · Liturgy attendance'}</p>
+                </div>
+              </div>
+            </details>
+
             {/* ── My Hymn Journey — progress summary card ── */}
             {(() => {
               const t = (en: string, ar: string) => (lang === 'ar' ? ar : en)

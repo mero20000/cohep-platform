@@ -101,6 +101,122 @@ const BADGE_CATEGORY_OPTIONS = [
 
 const emptyBadgeForm = { name: '', description: '', category: 'participation', iconUrl: '', points: '' }
 
+// ── How It Works Guide (servant-facing) ─────────────────────────────────────
+
+function HowItWorksPanel({ lang }: { lang: string }) {
+  const t = (en: string, ar: string) => lang === 'ar' ? ar : en
+  const Section = ({ icon: Icon, title, children }: { icon: any; title: string; children: React.ReactNode }) => (
+    <div className="rounded-xl border border-gray-200 bg-white p-5">
+      <h4 className="text-sm font-bold text-gray-900 flex items-center gap-2 mb-3">
+        <Icon className="h-4 w-4 text-gold-700" />{title}
+      </h4>
+      {children}
+    </div>
+  )
+
+  return (
+    <div className="space-y-4">
+      <div className="rounded-xl border border-blue-100 bg-blue-50 p-4 flex items-start gap-3">
+        <Info className="h-4 w-4 text-blue-600 mt-0.5 shrink-0" />
+        <p className="text-sm text-blue-800">
+          {t('This guide explains how the gamification system works. Share it with parents and students so everyone understands how points and rewards are earned.',
+             'يشرح هذا الدليل كيفية عمل نظام التلعيب. شاركه مع الأهالي والطلاب ليفهم الجميع كيف تُكتسب النقاط والمكافآت.')}
+        </p>
+      </div>
+
+      <Section icon={Target} title={t('Two Currencies: Points & XP', 'عملتان: النقاط والخبرة')}>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div className="rounded-lg bg-amber-50 border border-amber-100 p-3">
+            <div className="font-semibold text-amber-800 text-sm mb-1">{t('Points', 'النقاط')}</div>
+            <p className="text-xs text-amber-700">{t('Calculated per session from attendance, behavior, participation, and liturgy. Configurable in Settings > Point System.', 'تُحسب لكل حصة من الحضور والسلوك والمشاركة والقداس. قابلة للتعديل في الإعدادات > نظام النقاط.')}</p>
+          </div>
+          <div className="rounded-lg bg-purple-50 border border-purple-100 p-3">
+            <div className="font-semibold text-purple-800 text-sm mb-1">{t('XP (Experience)', 'الخبرة (XP)')}</div>
+            <p className="text-xs text-purple-700">{t('Awarded for specific actions: attendance check-in, badge milestones, practice, assessments. Stored permanently and determines Level.', 'تُمنح لأفعال محددة: تسجيل الحضور، إنجازات الشارات، التمرين، التقييمات. تُحفظ بشكل دائم وتحدد المستوى.')}</p>
+          </div>
+        </div>
+      </Section>
+
+      <Section icon={Star} title={t('Points Formula (per session)', 'معادلة النقاط (لكل حصة)')}>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-gray-100">
+                <th className="text-left py-2 text-xs font-semibold text-gray-500">{t('Component', 'العنصر')}</th>
+                <th className="text-left py-2 text-xs font-semibold text-gray-500">{t('Default', 'الافتراضي')}</th>
+                <th className="text-left py-2 text-xs font-semibold text-gray-500">{t('How it works', 'كيف يعمل')}</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-50">
+              <tr><td className="py-2 font-medium text-gray-900">{t('Present', 'حاضر')}</td><td className="py-2 text-gray-600">5 {t('pts', 'نقاط')}</td><td className="py-2 text-gray-500 text-xs">{t('Fixed award', 'مكافأة ثابتة')}</td></tr>
+              <tr><td className="py-2 font-medium text-gray-900">{t('Late', 'متأخر')}</td><td className="py-2 text-gray-600">2 {t('pts', 'نقاط')}</td><td className="py-2 text-gray-500 text-xs">{t('Better than absent', 'أفضل من الغياب')}</td></tr>
+              <tr><td className="py-2 font-medium text-gray-900">{t('Excused', 'معذور')}</td><td className="py-2 text-gray-600">1 {t('pt', 'نقطة')}</td><td className="py-2 text-gray-500 text-xs">{t('Valid excuse — not penalized', 'عذر مقبول — لا عقوبة')}</td></tr>
+              <tr><td className="py-2 font-medium text-gray-900">{t('Absent', 'غائب')}</td><td className="py-2 text-gray-600">0</td><td className="py-2 text-gray-500 text-xs">{t('No points', 'بدون نقاط')}</td></tr>
+              <tr><td className="py-2 font-medium text-gray-900">{t('Behavior', 'السلوك')}</td><td className="py-2 text-gray-600">{t('Score (0-5) × 2', 'التقييم (0-5) × 2')}</td><td className="py-2 text-gray-500 text-xs">{t('0-10 pts range', 'من 0 إلى 10 نقاط')}</td></tr>
+              <tr><td className="py-2 font-medium text-gray-900">{t('Participation', 'المشاركة')}</td><td className="py-2 text-gray-600">{t('Score (0-5) × 2', 'التقييم (0-5) × 2')}</td><td className="py-2 text-gray-500 text-xs">{t('0-10 pts range', 'من 0 إلى 10 نقاط')}</td></tr>
+              <tr><td className="py-2 font-medium text-gray-900">{t('Liturgy', 'القداس')}</td><td className="py-2 text-gray-600">3 {t('pts', 'نقاط')}</td><td className="py-2 text-gray-500 text-xs">{t('When liturgy attended', 'عند حضور القداس')}</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div className="mt-3 rounded-lg bg-gray-50 px-3 py-2 text-xs text-gray-600">
+          {t('Max per session = 5 + 10 + 10 + 3 = 28 points (with defaults)', 'الحد الأقصى لكل حصة = 5 + 10 + 10 + 3 = 28 نقطة (بالقيم الافتراضية)')}
+        </div>
+      </Section>
+
+      <Section icon={Zap} title={t('XP Awards', 'مكافآت الخبرة')}>
+        <div className="space-y-2">
+          {[
+            { label: t('Present check-in', 'تسجيل حضور'), value: '+10 XP' },
+            { label: t('Late check-in', 'تسجيل متأخر'), value: '+5 XP' },
+            { label: t('Attendance streak (3+ weeks)', 'سلسلة حضور (3+ أسابيع)'), value: '+5 XP' },
+            { label: t('Badge earned', 'شارة مكتسبة'), value: t('+50-800 XP (varies)', '+50-800 خبرة (متفاوتة)') },
+            { label: t('Home practice session', 'جلسة تمرين منزلي'), value: '+10 XP' },
+            { label: t('Level = Total XP ÷ 100 + 1', 'المستوى = مجموع الخبرة ÷ 100 + 1'), value: '' },
+          ].map((row, i) => (
+            <div key={i} className="flex items-center justify-between py-1.5 px-2 rounded-lg odd:bg-gray-50">
+              <span className="text-sm text-gray-700">{row.label}</span>
+              {row.value && <span className="text-sm font-semibold text-green-700">{row.value}</span>}
+            </div>
+          ))}
+        </div>
+      </Section>
+
+      <Section icon={Award} title={t('Badge Milestones', 'إنجازات الشارات')}>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          {[
+            { name: t('Perfect Week', 'أسبوع كامل'), cat: 'attendance', desc: t('All sessions in a week', 'كل حصص الأسبوع') },
+            { name: t('Perfect Month', 'شهر كامل'), cat: 'attendance', desc: t('All sessions in a month', 'كل حصص الشهر') },
+            { name: t('Star Behavior', 'سلوك نجمي'), cat: 'behavior', desc: t('5/5 behavior × 3 sessions', '5/5 سلوك × 3 حصص') },
+            { name: t('Active Voice', 'صوت نشط'), cat: 'participation', desc: t('5/5 participation × 5 sessions', '5/5 مشاركة × 5 حصص') },
+            { name: t('Point Collector', 'جامع النقاط'), cat: 'points', desc: t('500 total points', '500 نقطة إجمالاً') },
+            { name: t('Point Rising', 'صاعد النقاط'), cat: 'points', desc: t('1,000 total points', '1,000 نقطة إجمالاً') },
+            { name: t('Point Legend', 'أسطورة النقاط'), cat: 'points', desc: t('1,500 total points', '1,500 نقطة إجمالاً') },
+            { name: t('Point Master', 'سيد النقاط'), cat: 'points', desc: t('2,000 total points', '2,000 نقطة إجمالاً') },
+            { name: t('Faithful', 'مؤمن'), cat: 'liturgy', desc: t('5 liturgies attended', '5 قداسات') },
+            { name: t('Faithful Worshipper', 'المُصَلّي الأمين'), cat: 'liturgy', desc: t('10 liturgies attended', '10 قداسات') },
+          ].map((b, i) => (
+            <div key={i} className={`flex items-center gap-2 rounded-lg border px-3 py-2 ${CATEGORY_COLORS[b.cat] || CATEGORY_COLORS.default}`}>
+              <div className="min-w-0 flex-1">
+                <div className="text-xs font-semibold text-gray-900">{b.name}</div>
+                <div className="text-[10px] text-gray-500">{b.desc}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+        <p className="mt-3 text-xs text-gray-500">{t('More badges are available — see the Badges tab for the full list.', 'المزيد من الشارات متاحة — اطلع على تبويب الشارات للقائمة الكاملة.')}</p>
+      </Section>
+
+      <Section icon={Flame} title={t('Streaks & Motivation', 'السلاسل والتحفيز')}>
+        <ul className="space-y-2 text-sm text-gray-700">
+          <li className="flex items-start gap-2"><span className="text-amber-500 mt-0.5">•</span>{t('Attending at least one session per week for 3+ consecutive weeks triggers a streak bonus (+5 XP).', 'حضور حصة واحدة على الأقل أسبوعياً لمدة 3+ أسابيع متتالية يمنح مكافأة سلسلة (+5 خبرة).')}</li>
+          <li className="flex items-start gap-2"><span className="text-amber-500 mt-0.5">•</span>{t('Streaks are "grace-mode": a zero week is a fresh start, not a punishment.', 'السلاسل بنظام "التسامح": أسبوع فارغ هو بداية جديدة، ليس عقوبة.')}</li>
+          <li className="flex items-start gap-2"><span className="text-amber-500 mt-0.5">•</span>{t('Growth Mirror compares each student to their own past — never to peers.', 'مرآة النمو تقارن كل طالب بماضيه — أبداً بأقرانه.')}</li>
+        </ul>
+      </Section>
+    </div>
+  )
+}
+
 const TX_LABELS: Record<string, string> = {
   badge_award: 'Badge earned', attendance_xp: 'Attendance XP', behavior_bonus: 'Behavior bonus',
   participation_bonus: 'Participation bonus', liturgy_bonus: 'Liturgy attendance', assessment: 'Assessment score',
@@ -979,6 +1095,7 @@ export default function GamificationPage() {
           { id: 'seasonal',  label: t('Seasonal Badges', 'الشارات الموسمية'), icon: Star },
           { id: 'servants',  label: t('Servant Awards', 'جوائز الخدام'),    icon: Medal },
           { id: 'badges',    label: t('Badges', 'الشارات'),                icon: Award,       count: badges.length },
+          { id: 'guide',     label: t('Guide', 'الدليل'),                  icon: Info },
           ...(isSuperAdmin ? [{ id: 'reset', label: t('Reset', 'إعادة تعيين'), icon: RotateCcw }] : []),
         ]}
         activeTab={activeTab}
@@ -1132,6 +1249,10 @@ export default function GamificationPage() {
               })}
             </div>
           )}
+      </AnimatedTabPanel>
+
+      <AnimatedTabPanel tabId="guide" activeTab={activeTab}>
+        <HowItWorksPanel lang={lang} />
       </AnimatedTabPanel>
 
       {/* ── Reset Tab ── */}
