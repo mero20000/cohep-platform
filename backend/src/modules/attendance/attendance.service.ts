@@ -394,12 +394,22 @@ export class AttendanceService {
 
     if (!dto.groupId) throw new BadRequestException('Group is required');
 
-    // H9: prevent duplicate sessions for the same group on the same date
+    // H9: prevent duplicate sessions for the same group+level+grade+gender on the same date
     if (dto.groupId) {
-      const existing = await this.prisma.attendanceSession.findFirst({
-        where: { schoolId, groupId: dto.groupId, scheduledDate, deletedAt: null },
+      const dupWhere: any = { schoolId, groupId: dto.groupId, scheduledDate, deletedAt: null };
+      if (dto.levelId) dupWhere.levelId = dto.levelId;
+      else dupWhere.levelId = null;
+      if (dto.gradeId) dupWhere.gradeId = dto.gradeId;
+      else dupWhere.gradeId = null;
+      const existing = await this.prisma.attendanceSession.findMany({
+        where: dupWhere,
       });
-      if (existing) throw new BadRequestException('A session already exists for this group on the selected date');
+      const genderFilter = dto.gender || null;
+      const duplicate = existing.find(s => {
+        const sMeta = (s.metadata as any) || {};
+        return (sMeta.genderFilter || null) === genderFilter;
+      });
+      if (duplicate) throw new BadRequestException('A session already exists for this group on the selected date with the same filters');
     }
 
     const sessionMetadata = { ...dto.metadata };
@@ -822,37 +832,6 @@ export class AttendanceService {
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
 
-    // Find existing session for today
-    const existing = await this.prisma.attendanceSession.findFirst({
-      where: {
-        servantId,
-        scheduledDate: { gte: today, lt: tomorrow },
-        deletedAt: null,
-      },
-      include: {
-        group: { select: { id: true, name: true } },
-        level: { select: { id: true, name: true } },
-        grade: { select: { id: true, name: true } },
-        attendanceRecords: { include: { student: { select: { id: true, firstName: true, lastName: true, firstNameAr: true, lastNameAr: true } } } },
-      },
-    });
-    if (existing) {
-      if (existing.status === 'in_progress') {
-        await this.syncSessionStudents(existing.id, servantId);
-        const refreshed = await this.prisma.attendanceSession.findUnique({
-          where: { id: existing.id },
-          include: {
-            group: { select: { id: true, name: true } },
-            level: { select: { id: true, name: true } },
-            grade: { select: { id: true, name: true } },
-            attendanceRecords: { include: { student: { select: { id: true, firstName: true, lastName: true, firstNameAr: true, lastNameAr: true } } } },
-          },
-        });
-        return { session: refreshed, created: false };
-      }
-      return { session: existing, created: false };
-    }
-
     // Check user metadata for assigned group/level
     const meta = (servant.metadata as any) || {};
     const metaGroupId = meta.groupId as string | undefined;
@@ -899,6 +878,48 @@ export class AttendanceService {
         grades: grades.map(g => ({ id: g.id, name: g.name, groupId: g.groupId })),
         requiresGroupPick: true,
       };
+    }
+
+    // Find existing session for today matching the same filters
+    const existingWhere: any = {
+      servantId,
+      groupId,
+      scheduledDate: { gte: today, lt: tomorrow },
+      deletedAt: null,
+    };
+    if (levelId) existingWhere.levelId = levelId;
+    else existingWhere.levelId = null;
+    if (gradeId) existingWhere.gradeId = gradeId;
+    else existingWhere.gradeId = null;
+    const existingSessions = await this.prisma.attendanceSession.findMany({
+      where: existingWhere,
+      include: {
+        group: { select: { id: true, name: true } },
+        level: { select: { id: true, name: true } },
+        grade: { select: { id: true, name: true } },
+        attendanceRecords: { include: { student: { select: { id: true, firstName: true, lastName: true, firstNameAr: true, lastNameAr: true } } } },
+      },
+    });
+    const genderVal = selectedGender || null;
+    const existing = existingSessions.find(s => {
+      const sMeta = (s.metadata as any) || {};
+      return (sMeta.genderFilter || null) === genderVal;
+    });
+    if (existing) {
+      if (existing.status === 'in_progress') {
+        await this.syncSessionStudents(existing.id, servantId);
+        const refreshed = await this.prisma.attendanceSession.findUnique({
+          where: { id: existing.id },
+          include: {
+            group: { select: { id: true, name: true } },
+            level: { select: { id: true, name: true } },
+            grade: { select: { id: true, name: true } },
+            attendanceRecords: { include: { student: { select: { id: true, firstName: true, lastName: true, firstNameAr: true, lastNameAr: true } } } },
+          },
+        });
+        return { session: refreshed, created: false };
+      }
+      return { session: existing, created: false };
     }
 
     const sessionMeta: Record<string, any> = {};
@@ -1509,7 +1530,7 @@ export class AttendanceService {
       targetDate.setDate(targetDate.getDate() + (i * 7) + ((dayOfWeek - targetDate.getDay() + 7) % 7));
       
       const existing = await this.prisma.attendanceSession.findFirst({
-        where: { schoolId, groupId, scheduledDate: targetDate, deletedAt: null },
+        where: { schoolId, groupId, levelId: levelId || null, scheduledDate: targetDate, deletedAt: null },
       });
 
       if (!existing) {
