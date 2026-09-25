@@ -202,8 +202,8 @@ describe('AttendanceService', () => {
   });
 
   describe('createSession', () => {
-    it('throws when a session already exists for the group on the date', async () => {
-      prisma.attendanceSession.findFirst.mockResolvedValue({ id: 'existing' });
+    it('throws when a session already exists for the group on the date with same filters', async () => {
+      prisma.attendanceSession.findMany.mockResolvedValue([{ id: 'existing', metadata: null }]);
 
       await expect(
         service.createSession({
@@ -216,8 +216,25 @@ describe('AttendanceService', () => {
       expect(prisma.attendanceSession.create).not.toHaveBeenCalled();
     });
 
+    it('allows a second session for the same group+date when filters differ', async () => {
+      prisma.attendanceSession.findMany.mockResolvedValue([{ id: 'existing', metadata: { genderFilter: 'male' } }]);
+      prisma.attendanceSession.create.mockResolvedValue({ id: 'sess-2', groupId: 'group-1' });
+      prisma.student.findMany.mockResolvedValue([]);
+
+      const result = await service.createSession({
+        schoolId,
+        groupId: 'group-1',
+        levelId: 'level-1',
+        scheduledDate: '2026-01-05',
+        gender: 'female',
+      } as any);
+
+      expect(result.id).toBe('sess-2');
+      expect(prisma.attendanceSession.create).toHaveBeenCalled();
+    });
+
     it('creates a session when none exists for the group on the date', async () => {
-      prisma.attendanceSession.findFirst.mockResolvedValue(null);
+      prisma.attendanceSession.findMany.mockResolvedValue([]);
       prisma.attendanceSession.create.mockResolvedValue({ id: 'sess-1', groupId: 'group-1' });
       prisma.student.findMany.mockResolvedValue([]);
 
