@@ -402,6 +402,9 @@ export class AttendanceService {
       if (existing) throw new BadRequestException('A session already exists for this group on the selected date');
     }
 
+    const sessionMetadata = { ...dto.metadata };
+    if (dto.gender) sessionMetadata.genderFilter = dto.gender;
+
     const session = await this.prisma.attendanceSession.create({
       data: {
         schoolId,
@@ -414,7 +417,7 @@ export class AttendanceService {
         scheduledTime: dto.scheduledTime,
         status: dto.status || 'scheduled',
         notes: dto.notes,
-        metadata: dto.metadata,
+        metadata: Object.keys(sessionMetadata).length > 0 ? sessionMetadata : undefined,
       },
       include: {
         level: { select: { id: true, name: true, number: true } },
@@ -426,10 +429,15 @@ export class AttendanceService {
     const studentWhere: any = { groupId: dto.groupId, deletedAt: null };
     if (dto.levelId) studentWhere.levelId = dto.levelId;
     if (dto.gradeId) studentWhere.gradeId = dto.gradeId;
-    const servant = await this.prisma.user.findUnique({ where: { id: dto.servantId }, select: { metadata: true } });
-    const servantTeachingGender = (servant?.metadata as any)?.teachingGender;
-    if (servantTeachingGender && servantTeachingGender !== 'both') {
-      studentWhere.gender = servantTeachingGender;
+    const effectiveGender = dto.gender || undefined;
+    if (!effectiveGender) {
+      const servant = await this.prisma.user.findUnique({ where: { id: dto.servantId }, select: { metadata: true } });
+      const servantTeachingGender = (servant?.metadata as any)?.teachingGender;
+      if (servantTeachingGender && servantTeachingGender !== 'both') {
+        studentWhere.gender = servantTeachingGender;
+      }
+    } else if (effectiveGender !== 'both') {
+      studentWhere.gender = effectiveGender;
     }
     const students = await this.prisma.student.findMany({
       where: studentWhere,
@@ -463,10 +471,15 @@ export class AttendanceService {
     const studentWhere: any = { groupId: session.groupId, deletedAt: null };
     if (session.levelId) studentWhere.levelId = session.levelId;
     if (session.gradeId) studentWhere.gradeId = session.gradeId;
-    const servantUser = await this.prisma.user.findUnique({ where: { id: session.servantId }, select: { metadata: true } });
-    const teachingGender = (servantUser?.metadata as any)?.teachingGender;
-    if (teachingGender && teachingGender !== 'both') {
-      studentWhere.gender = teachingGender;
+    const sessionGenderFilter = (session.metadata as any)?.genderFilter;
+    if (sessionGenderFilter && sessionGenderFilter !== 'both') {
+      studentWhere.gender = sessionGenderFilter;
+    } else if (!sessionGenderFilter) {
+      const servantUser = await this.prisma.user.findUnique({ where: { id: session.servantId }, select: { metadata: true } });
+      const teachingGender = (servantUser?.metadata as any)?.teachingGender;
+      if (teachingGender && teachingGender !== 'both') {
+        studentWhere.gender = teachingGender;
+      }
     }
     const activeStudents = await this.prisma.student.findMany({
       where: studentWhere,
@@ -800,7 +813,7 @@ export class AttendanceService {
     return { record, message: `${record.student.firstName} ${record.student.lastName} checked in!` };
   }
 
-  async startClass(servantId: string, selectedGroupId?: string, selectedLevelId?: string, selectedGradeId?: string) {
+  async startClass(servantId: string, selectedGroupId?: string, selectedLevelId?: string, selectedGradeId?: string, selectedGender?: string) {
     const servant = await this.prisma.user.findUnique({ where: { id: servantId }, select: { schoolId: true, metadata: true } });
     if (!servant) throw new NotFoundException('Servant not found');
 
@@ -888,6 +901,9 @@ export class AttendanceService {
       };
     }
 
+    const sessionMeta: Record<string, any> = {};
+    if (selectedGender) sessionMeta.genderFilter = selectedGender;
+
     const session = await this.prisma.attendanceSession.create({
       data: {
         schoolId: servant.schoolId,
@@ -898,6 +914,7 @@ export class AttendanceService {
         scheduledDate: new Date(),
         scheduledTime: '12:00',
         status: 'scheduled',
+        ...(Object.keys(sessionMeta).length > 0 && { metadata: sessionMeta }),
       },
     });
 
@@ -905,9 +922,13 @@ export class AttendanceService {
     const studentWhere: any = { groupId, schoolId: servant.schoolId, deletedAt: null, status: 'active' };
     if (levelId) studentWhere.levelId = levelId;
     if (gradeId) studentWhere.gradeId = gradeId;
-    const metaTeachingGender = meta.teachingGender as string | undefined;
-    if (metaTeachingGender && metaTeachingGender !== 'both') {
-      studentWhere.gender = metaTeachingGender;
+    if (selectedGender && selectedGender !== 'both') {
+      studentWhere.gender = selectedGender;
+    } else {
+      const metaTeachingGender = meta.teachingGender as string | undefined;
+      if (metaTeachingGender && metaTeachingGender !== 'both') {
+        studentWhere.gender = metaTeachingGender;
+      }
     }
     const students = await this.prisma.student.findMany({
       where: studentWhere,
@@ -1280,6 +1301,18 @@ export class AttendanceService {
 
     const statusChanged = !!dto.status && dto.status !== session.status;
     const groupChanged = !!dto.groupId && dto.groupId !== session.groupId;
+    const genderChanged = dto.gender !== undefined;
+
+    let metadataUpdate: any = undefined;
+    if (genderChanged) {
+      const existingMeta = (session.metadata as any) || {};
+      if (dto.gender) {
+        metadataUpdate = { ...existingMeta, genderFilter: dto.gender };
+      } else {
+        const { genderFilter: _, ...rest } = existingMeta;
+        metadataUpdate = Object.keys(rest).length > 0 ? rest : null;
+      }
+    }
 
     const updated = await this.prisma.attendanceSession.update({
       where: { id },
@@ -1292,6 +1325,7 @@ export class AttendanceService {
         ...(dto.scheduledTime && { scheduledTime: dto.scheduledTime }),
         ...(dto.status && { status: dto.status }),
         ...(dto.notes !== undefined && { notes: dto.notes }),
+        ...(metadataUpdate !== undefined && { metadata: metadataUpdate }),
         ...(statusChanged && dto.status === 'in_progress' && !session.actualStartTime && { actualStartTime: new Date() }),
         ...(statusChanged && dto.status === 'completed' && { actualEndTime: new Date() }),
       },
@@ -1303,8 +1337,8 @@ export class AttendanceService {
       },
     });
 
-    // Sync students when status, group, level or grade changes
-    if (statusChanged || groupChanged || dto.levelId !== undefined || dto.gradeId !== undefined) {
+    // Sync students when status, group, level, grade, or gender changes
+    if (statusChanged || groupChanged || dto.levelId !== undefined || dto.gradeId !== undefined || genderChanged) {
       await this.syncSessionStudents(id, dto.servantId || session.servantId);
     }
 

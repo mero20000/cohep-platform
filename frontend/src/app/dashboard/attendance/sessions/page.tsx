@@ -25,6 +25,7 @@ import { exportSessionsXlsx, exportSessionsPdf, type SessionSummaryRow } from '@
 
 interface Session {
   id: string; scheduledDate: string; scheduledTime?: string; status: string; notes?: string;
+  metadata?: { genderFilter?: string; [key: string]: any } | null;
   level: { id: string; name: string; number: number } | null;
   group: { id: string; name: string };
   grade?: { id: string; name: string } | null;
@@ -39,13 +40,13 @@ interface StudentHit {
 }
 
 interface SessionForm {
-  levelId?: string; groupId?: string; gradeId?: string; servantId: string;
+  levelId?: string; groupId?: string; gradeId?: string; gender?: string; servantId: string;
   scheduledDate: string; scheduledTime: string; status: string; notes: string;
 }
 type SessionFormErrors = Partial<Record<'levelId' | 'groupId' | 'scheduledDate', string>>
 
 const EMPTY_FORM: SessionForm = {
-  levelId: '', groupId: '', gradeId: '', servantId: '', scheduledDate: '', scheduledTime: '12:00', status: 'scheduled', notes: '',
+  levelId: '', groupId: '', gradeId: '', gender: '', servantId: '', scheduledDate: '', scheduledTime: '12:00', status: 'scheduled', notes: '',
 }
 
 function validateSessionForm(form: SessionForm, lang: 'en' | 'ar'): SessionFormErrors {
@@ -136,7 +137,7 @@ function SessionFormModal({
             <option value="">{lang === 'ar' ? 'اختر المجموعة...' : 'Select group...'}</option>
             {groups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
           </FormField>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-3 gap-3">
             <FormField
               as="select"
               label={lang === 'ar' ? 'المستوى' : 'Level'}
@@ -154,6 +155,17 @@ function SessionFormModal({
             >
               <option value="">{lang === 'ar' ? 'جميع الصفوف' : 'All Grades'}</option>
               {grades.filter(g => !form.groupId || g.groupId === form.groupId).map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
+            </FormField>
+            <FormField
+              as="select"
+              label={lang === 'ar' ? 'الجنس' : 'Gender'}
+              value={form.gender}
+              onChange={e => setForm({ ...form, gender: e.target.value })}
+            >
+              <option value="">{lang === 'ar' ? 'الكل (تلقائي)' : 'All (auto)'}</option>
+              <option value="male">{lang === 'ar' ? 'ذكور' : 'Male'}</option>
+              <option value="female">{lang === 'ar' ? 'إناث' : 'Female'}</option>
+              <option value="both">{lang === 'ar' ? 'الكل' : 'Both'}</option>
             </FormField>
           </div>
           <div className="grid grid-cols-2 gap-3">
@@ -322,9 +334,10 @@ export default function SessionsPage() {
         ...form,
         servantId: form.servantId || user.id || '00000000-0000-0000-0000-000000000000',
         schoolId,
-        levelId: form.levelId || undefined,
-        groupId: form.groupId || undefined,
-        gradeId: form.gradeId || undefined,
+        levelId: form.levelId || null,
+        groupId: form.groupId || null,
+        gradeId: form.gradeId || null,
+        gender: form.gender || null,
       }
       await http.post('/attendance/sessions', cleanForm)
       setShowCreateModal(false)
@@ -377,9 +390,10 @@ export default function SessionsPage() {
     try {
       const cleanForm = {
         ...form,
-        levelId: form.levelId || undefined,
-        groupId: form.groupId || undefined,
-        gradeId: form.gradeId || undefined,
+        levelId: form.levelId || null,
+        groupId: form.groupId || null,
+        gradeId: form.gradeId || null,
+        gender: form.gender || null,
       }
       await http.put(`/attendance/sessions/${editSession.id}`, cleanForm)
       setEditSession(null)
@@ -519,6 +533,7 @@ export default function SessionsPage() {
     levelId: editSession.level?.id || '',
     groupId: editSession.group?.id || '',
     gradeId: editSession.grade?.id || '',
+    gender: editSession.metadata?.genderFilter || '',
     servantId: editSession.servant?.id || '',
     scheduledDate: editSession.scheduledDate.split('T')[0],
     scheduledTime: editSession.scheduledTime || '12:00',

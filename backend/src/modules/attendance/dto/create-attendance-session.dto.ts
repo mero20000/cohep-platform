@@ -45,6 +45,10 @@ export class CreateAttendanceSessionDto {
   @IsOptional()
   schoolId?: string;
 
+  @IsString()
+  @IsOptional()
+  gender?: string;
+
   @IsOptional()
   metadata?: Record<string, any>;
 }
