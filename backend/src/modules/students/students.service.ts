@@ -836,7 +836,7 @@ async getPortalData(portalAccessKey: string) {
     });
     if (!student) throw new NotFoundException('Student not found');
 
-    const [attRecords, badges, xpResult, upcoming, assignedAssessments, liturgies] = await Promise.all([
+    const [attRecords, badges, xpResult, upcoming, assignedAssessments, familyLiturgies, servantLiturgyRecords] = await Promise.all([
       this.prisma.attendanceRecord.findMany({
         // Integrate with the attendance module's semantics: exclude records
         // belonging to soft-deleted sessions and scope to the student's school.
@@ -871,7 +871,7 @@ async getPortalData(portalAccessKey: string) {
           assessment: {
             select: {
               id: true, title: true, titleAr: true, type: true, totalPoints: true,
-              passingScore: true, dueDate: true, status: true,
+              passingScore: true, dueDate: true, status: true, deletedAt: true,
               level: { select: { id: true, name: true } },
               subject: { select: { id: true, name: true, nameAr: true } },
             },
@@ -882,12 +882,23 @@ async getPortalData(portalAccessKey: string) {
         take: 20,
         distinct: ['assessmentId'], // Only latest submission per assessment
       }),
-      // Liturgy attendance (FamilyLiturgy) — verified + pending entries
+      // Liturgy attendance (FamilyLiturgy) — self-reported by student/parent
       this.prisma.familyLiturgy.findMany({
         where: { studentId: student.id },
         orderBy: { date: 'desc' },
         take: 10,
         select: { date: true, status: true, notes: true, servantNote: true },
+      }),
+      // Liturgy attendance (AttendanceRecord) — recorded by servants via roll-call
+      this.prisma.attendanceRecord.findMany({
+        where: {
+          studentId: student.id,
+          attendedLiturgy: true,
+          attendanceSession: { schoolId: student.schoolId, deletedAt: null },
+        },
+        include: { attendanceSession: { select: { scheduledDate: true } } },
+        orderBy: { attendanceSession: { scheduledDate: 'desc' } },
+        take: 10,
       }),
     ]);
 
@@ -959,15 +970,29 @@ async getPortalData(portalAccessKey: string) {
         awardedBy: b.awardedBy ? awarderNames.get(b.awardedBy) || null : null,
         reason: b.reason || null,
       })),
-      liturgy: {
-        verifiedCount: liturgies.filter((l: any) => l.status === 'verified').length,
-        pendingCount: liturgies.filter((l: any) => l.status !== 'verified').length,
-        recent: liturgies.slice(0, 5).map((l: any) => ({
-          date: l.date,
-          status: l.status,
-          servantNote: l.servantNote,
-        })),
-      },
+      liturgy: (() => {
+        // Merge both liturgy sources: FamilyLiturgy (self-reported) and
+        // AttendanceRecord (servant roll-call). Deduplicate by date so a date
+        // that appears in both counts only once, preferring the richer record.
+        const dateKey = (d: Date | string) => new Date(d).toISOString().split('T')[0];
+        const merged = new Map<string, { date: Date | string; status: string; servantNote?: string | null }>();
+        for (const r of servantLiturgyRecords) {
+          const dk = dateKey(r.attendanceSession.scheduledDate);
+          merged.set(dk, { date: r.attendanceSession.scheduledDate, status: 'verified', servantNote: null });
+        }
+        for (const l of familyLiturgies as any[]) {
+          const dk = dateKey(l.date);
+          if (!merged.has(dk) || l.status === 'verified') {
+            merged.set(dk, { date: l.date, status: l.status, servantNote: l.servantNote });
+          }
+        }
+        const all = [...merged.values()].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        return {
+          verifiedCount: all.filter(l => l.status === 'verified').length,
+          pendingCount: all.filter(l => l.status !== 'verified').length,
+          recent: all.slice(0, 5).map(l => ({ date: l.date, status: l.status, servantNote: l.servantNote })),
+        };
+      })(),
       totalXp,
       upcomingSessions: upcoming.map(s => ({
         id: s.id,
@@ -975,24 +1000,26 @@ async getPortalData(portalAccessKey: string) {
         time: s.scheduledTime,
       })),
       recentHomework,
-      assessments: assignedAssessments.map((sub: any) => {
-        const totalScore = sub.grades?.reduce((sum: number, g: any) => sum + Number(g.score || 0), 0) ?? 0;
-        return {
-          id: sub.assessment.id,
-          title: sub.assessment.title,
-          titleAr: sub.assessment.titleAr,
-          type: sub.assessment.type,
-          totalPoints: Number(sub.assessment.totalPoints),
-          passingScore: Number(sub.assessment.passingScore),
-          dueDate: sub.assessment.dueDate,
-          level: sub.assessment.level,
-          subject: sub.assessment.subject,
-          submissionStatus: sub.status,
-          submissionId: sub.id,
-          submittedAt: sub.submittedAt,
-          earnedScore: sub.status === 'completed' ? totalScore : null,
-        };
-      }),
+      assessments: assignedAssessments
+        .filter((sub: any) => sub.assessment && !sub.assessment.deletedAt)
+        .map((sub: any) => {
+          const totalScore = sub.grades?.reduce((sum: number, g: any) => sum + Number(g.score || 0), 0) ?? 0;
+          return {
+            id: sub.assessment.id,
+            title: sub.assessment.title,
+            titleAr: sub.assessment.titleAr,
+            type: sub.assessment.type,
+            totalPoints: Number(sub.assessment.totalPoints),
+            passingScore: Number(sub.assessment.passingScore),
+            dueDate: sub.assessment.dueDate,
+            level: sub.assessment.level,
+            subject: sub.assessment.subject,
+            submissionStatus: sub.status,
+            submissionId: sub.id,
+            submittedAt: sub.submittedAt,
+            earnedScore: sub.status === 'completed' ? totalScore : null,
+          };
+        }),
     };
   }
 
