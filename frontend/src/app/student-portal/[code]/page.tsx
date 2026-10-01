@@ -1315,7 +1315,7 @@ export default function StudentDashboard() {
           <>
             {/* Learning Stats */}
             {stats && (
-              <div className="grid grid-cols-5 gap-2">
+              <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
                 {(['not_started', 'introduced', 'practicing', 'known', 'mastered'] as const).map(s => {
                   const meta = MASTERY_META[s]
                   return (
@@ -1501,9 +1501,14 @@ export default function StudentDashboard() {
                           <p className="text-sm font-medium text-gray-900 truncate">{t.description || t.type}</p>
                           <p className="text-xs text-gray-400">{new Date(t.date).toLocaleDateString(lang === 'ar' ? 'ar-EG' : 'en-GB', { day: 'numeric', month: 'short' })}</p>
                         </div>
-                        <span className={`text-sm font-bold tabular-nums ${t.amount >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                          {t.amount >= 0 ? '+' : ''}{t.amount} XP
-                        </span>
+                        <div className="text-right shrink-0">
+                          <span className={`text-sm font-bold tabular-nums ${t.amount >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                            {t.amount >= 0 ? '+' : ''}{t.amount} XP
+                          </span>
+                          {t.balanceAfter != null && (
+                            <p className="text-[10px] text-gray-400 tabular-nums">{lang === 'ar' ? 'الرصيد' : 'Balance'}: {t.balanceAfter}</p>
+                          )}
+                        </div>
                       </li>
                     ))}
                   </ul>
