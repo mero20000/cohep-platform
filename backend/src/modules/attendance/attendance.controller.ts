@@ -29,11 +29,12 @@ export class AttendanceController {
     @Query('from') from?: string,
     @Query('to') to?: string,
     @Query('notes') notes?: string,
+    @Query('excludeNotes') excludeNotes?: string,
   ) {
     return this.attendanceService.getSessions(schoolId, {
       page: page ? parseInt(page, 10) : 1,
       limit: limit ? parseInt(limit, 10) : 50,
-      status, levelId, groupId, servantId, from, to, notes,
+      status, levelId, groupId, servantId, from, to, notes, excludeNotes,
     }, req.user);
   }
 

@@ -8,7 +8,7 @@ import {
   X, Trash2, RotateCcw, QrCode, Pencil,
   Download, FileSpreadsheet, FileText, ChevronDown,
   CheckCircle2, Clock, XCircle, PauseCircle, PlayCircle,
-  BarChart3, Eye,
+  BarChart3, Eye, Church, Users,
 } from 'lucide-react'
 import { useToast } from '@/components/ui/toast'
 import { Button } from '@/components/ui/button'
@@ -137,7 +137,7 @@ function SessionFormModal({
             <option value="">{lang === 'ar' ? 'اختر المجموعة...' : 'Select group...'}</option>
             {groups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
           </FormField>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <FormField
               as="select"
               label={lang === 'ar' ? 'المستوى' : 'Level'}
@@ -229,7 +229,10 @@ function SessionFormModal({
 export default function SessionsPage() {
   const { toast } = useToast()
   const lang = useLanguage()
+  const [mainTab, setMainTab] = useState<'sessions' | 'liturgy'>('sessions')
+  const [statusTab, setStatusTab] = useState<'' | 'scheduled' | 'in_progress' | 'completed'>('')
   const [sessions, setSessions] = useState<Session[]>([])
+  const [liturgySessions, setLiturgySessions] = useState<Session[]>([])
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState('')
 
@@ -276,15 +279,19 @@ export default function SessionsPage() {
   const fetchSessions = useCallback(async () => {
     setLoading(true)
     setLoadError('')
-    const params: Record<string, string> = { schoolId, limit: '500' }
+    const params: Record<string, string> = { schoolId, limit: '500', excludeNotes: 'liturgy' }
     if (filterLevel) params.levelId = filterLevel
     if (filterGroup) params.groupId = filterGroup
     if (filterStatus) params.status = filterStatus
     if (filterDateFrom) params.from = filterDateFrom
     if (filterDateTo) params.to = filterDateTo
     try {
-      const data = await http.get<{ data: Session[] }>('/attendance/sessions', params)
-      setSessions(data.data || [])
+      const [sessionData, liturgyData] = await Promise.all([
+        http.get<{ data: Session[] }>('/attendance/sessions', params),
+        http.get<{ data: Session[] }>('/attendance/sessions', { schoolId, limit: '200', notes: 'liturgy' }),
+      ])
+      setSessions(sessionData.data || [])
+      setLiturgySessions(liturgyData.data || [])
     } catch (e: any) {
       setLoadError(e?.message || (lang === 'ar' ? 'فشل تحميل الجلسات' : 'Failed to load sessions'))
       toast('error', lang === 'ar' ? 'فشل تحميل الجلسات' : 'Failed to load sessions', e?.message || '')
@@ -486,7 +493,9 @@ export default function SessionsPage() {
     })
   }
 
-  const filteredSessions = sessions.filter(s => {
+  const baseSessions = mainTab === 'liturgy' ? liturgySessions : sessions
+  const filteredSessions = baseSessions.filter(s => {
+    if (statusTab && s.status !== statusTab) return false
     if (filterServant && s.servant?.id !== filterServant) return false
     if (!search) return true
     const q = search.toLowerCase()
@@ -654,58 +663,108 @@ export default function SessionsPage() {
         )}
       </div>
 
+      {/* Main Tabs: Sessions / Liturgy */}
+      <div className="flex gap-1 rounded-lg bg-gray-100 p-1">
+        <button onClick={() => { setMainTab('sessions'); setStatusTab('') }}
+          className={`flex-1 flex items-center justify-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-all ${mainTab === 'sessions' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
+          <Calendar className="h-4 w-4" />
+          {lang === 'ar' ? 'الجلسات' : 'Sessions'}
+          <span className="rounded-full bg-gray-200 px-2 py-0.5 text-xs">{sessions.length}</span>
+        </button>
+        <button onClick={() => { setMainTab('liturgy'); setStatusTab('') }}
+          className={`flex-1 flex items-center justify-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-all ${mainTab === 'liturgy' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
+          <Church className="h-4 w-4" />
+          {lang === 'ar' ? 'القداس' : 'Liturgy'}
+          <span className="rounded-full bg-gray-200 px-2 py-0.5 text-xs">{liturgySessions.length}</span>
+        </button>
+      </div>
+
+      {/* Status Sub-tabs (Sessions tab only) */}
+      {mainTab === 'sessions' && (
+        <div className="flex gap-1 overflow-x-auto">
+          {([
+            { key: '', label: lang === 'ar' ? 'الكل' : 'All', count: sessions.length },
+            { key: 'scheduled', label: lang === 'ar' ? 'مجدول' : 'Scheduled', count: sessions.filter(s => s.status === 'scheduled').length, icon: Clock, color: 'text-blue-600' },
+            { key: 'in_progress', label: lang === 'ar' ? 'قيد التنفيذ' : 'In Progress', count: sessions.filter(s => s.status === 'in_progress').length, icon: PlayCircle, color: 'text-amber-600' },
+            { key: 'completed', label: lang === 'ar' ? 'مكتمل' : 'Completed', count: sessions.filter(s => s.status === 'completed').length, icon: CheckCircle2, color: 'text-green-600' },
+          ] as const).map(tab => {
+            const Icon = 'icon' in tab ? tab.icon : null
+            return (
+              <button key={tab.key} onClick={() => setStatusTab(tab.key as any)}
+                className={`flex items-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-all ${statusTab === tab.key ? 'bg-white border border-gray-200 shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'}`}>
+                {Icon && <Icon className={`h-3.5 w-3.5 ${'color' in tab ? tab.color : ''}`} />}
+                {tab.label}
+                {tab.count > 0 && <span className="text-xs text-gray-400">({tab.count})</span>}
+              </button>
+            )
+          })}
+        </div>
+      )}
+
       <div className="rounded-xl border border-gray-200 bg-white transition-all">
         <div className="flex items-center justify-between border-b border-gray-100 px-5 py-3">
-          <h2 className="font-semibold text-gray-900">{lang === 'ar' ? 'الجلسات' : 'Sessions'} ({filteredSessions.length})</h2>
+          <h2 className="font-semibold text-gray-900">
+            {mainTab === 'liturgy'
+              ? (lang === 'ar' ? 'جلسات القداس' : 'Liturgy Sessions')
+              : statusTab
+                ? (lang === 'ar' ? `${statusTab === 'scheduled' ? 'مجدول' : statusTab === 'in_progress' ? 'قيد التنفيذ' : 'مكتمل'}` : statusTab.replace('_', ' ').replace(/\b\w/g, c => c.toUpperCase()))
+                : (lang === 'ar' ? 'جميع الجلسات' : 'All Sessions')
+            }
+            {' '}({filteredSessions.length})
+          </h2>
         </div>
         {/* Filters */}
-        <div className="flex flex-wrap items-center gap-2 px-5 py-3 border-b border-gray-100 bg-gray-50">
-          <select value={filterLevel} onChange={e => { setFilterLevel(e.target.value); setFilterGroup('') }}
-            aria-label={lang === 'ar' ? 'تصفية حسب المستوى' : 'Filter by level'}
-            className="rounded-lg border border-gray-300 px-2 py-1.5 text-xs min-h-[40px] focus:border-gold-500 focus:outline-none">
-            <option value="">{lang === 'ar' ? 'جميع المستويات' : 'All Levels'}</option>
-            {levels.map(l => <option key={l.id} value={l.id}>{lang === 'ar' ? `المستوى ${l.number}` : `Level ${l.number}`}</option>)}
-          </select>
-          <select value={filterGroup} onChange={e => setFilterGroup(e.target.value)}
-            aria-label={lang === 'ar' ? 'تصفية حسب المجموعة' : 'Filter by group'}
-            className="rounded-lg border border-gray-300 px-2 py-1.5 text-xs min-h-[40px] focus:border-gold-500 focus:outline-none">
-            <option value="">{lang === 'ar' ? 'جميع المجموعات' : 'All Groups'}</option>
-            {groups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
-          </select>
-          <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)}
-            aria-label={lang === 'ar' ? 'تصفية حسب الحالة' : 'Filter by status'}
-            className="rounded-lg border border-gray-300 px-2 py-1.5 text-xs min-h-[40px] focus:border-gold-500 focus:outline-none">
-            <option value="">{lang === 'ar' ? 'جميع الحالات' : 'All Status'}</option>
-            <option value="scheduled">{lang === 'ar' ? 'مجدول' : 'Scheduled'}</option>
-            <option value="in_progress">{lang === 'ar' ? 'قيد التنفيذ' : 'In Progress'}</option>
-            <option value="completed">{lang === 'ar' ? 'مكتمل' : 'Completed'}</option>
-            <option value="cancelled">{lang === 'ar' ? 'ملغي' : 'Cancelled'}</option>
-            <option value="postponed">{lang === 'ar' ? 'مؤجل' : 'Postponed'}</option>
-          </select>
-          {isSuperAdmin && (() => {
-            const servantMap = new Map<string, { id: string; firstName: string; lastName: string }>()
-            sessions.forEach(s => { if (s.servant?.id) servantMap.set(s.servant.id, s.servant as any) })
-            const servants = Array.from(servantMap.values())
-            return servants.length > 1 ? (
-              <select value={filterServant} onChange={e => setFilterServant(e.target.value)}
-                aria-label={lang === 'ar' ? 'تصفية حسب الخادم' : 'Filter by servant'}
-                className="rounded-lg border border-gray-300 px-2 py-1.5 text-xs min-h-[40px] focus:border-gold-500 focus:outline-none">
-                <option value="">{lang === 'ar' ? 'جميع الخدام' : 'All Servants'}</option>
-                {servants.map(sv => <option key={sv.id} value={sv.id}>{sv.firstName} {sv.lastName}</option>)}
-              </select>
-            ) : null
-          })()}
-          <DatePicker value={filterDateFrom} onChange={setFilterDateFrom}
-            className="rounded-lg border border-gray-300 px-2 py-1.5 text-xs min-h-[40px] focus:border-gold-500 focus:outline-none" />
-          <span className="text-xs text-gray-500">{lang === 'ar' ? 'إلى' : 'to'}</span>
-          <DatePicker value={filterDateTo} onChange={setFilterDateTo}
-            className="rounded-lg border border-gray-300 px-2 py-1.5 text-xs min-h-[40px] focus:border-gold-500 focus:outline-none" />
-          <div className="relative flex-1 min-w-[140px]">
-            <Search className="absolute start-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
-            <input type="text" value={search} onChange={e => setSearch(e.target.value)}
-              placeholder={lang === 'ar' ? 'بحث...' : 'Search...'}
-              aria-label={lang === 'ar' ? 'بحث في الجلسات' : 'Search sessions'}
-              className="w-full rounded-lg border border-gray-300 ps-8 pe-2 py-1.5 text-xs min-h-[40px] focus:border-gold-500 focus:outline-none" />
+        <div className="px-5 py-3 border-b border-gray-100 bg-gray-50 space-y-2">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:flex lg:flex-wrap items-center gap-2">
+            <select value={filterLevel} onChange={e => { setFilterLevel(e.target.value); setFilterGroup('') }}
+              aria-label={lang === 'ar' ? 'تصفية حسب المستوى' : 'Filter by level'}
+              className="rounded-lg border border-gray-300 px-2 py-1.5 text-xs min-h-[40px] focus:border-gold-500 focus:outline-none w-full lg:w-auto">
+              <option value="">{lang === 'ar' ? 'جميع المستويات' : 'All Levels'}</option>
+              {levels.map(l => <option key={l.id} value={l.id}>{lang === 'ar' ? `المستوى ${l.number}` : `Level ${l.number}`}</option>)}
+            </select>
+            <select value={filterGroup} onChange={e => setFilterGroup(e.target.value)}
+              aria-label={lang === 'ar' ? 'تصفية حسب المجموعة' : 'Filter by group'}
+              className="rounded-lg border border-gray-300 px-2 py-1.5 text-xs min-h-[40px] focus:border-gold-500 focus:outline-none w-full lg:w-auto">
+              <option value="">{lang === 'ar' ? 'جميع المجموعات' : 'All Groups'}</option>
+              {groups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
+            </select>
+            <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)}
+              aria-label={lang === 'ar' ? 'تصفية حسب الحالة' : 'Filter by status'}
+              className="rounded-lg border border-gray-300 px-2 py-1.5 text-xs min-h-[40px] focus:border-gold-500 focus:outline-none w-full lg:w-auto">
+              <option value="">{lang === 'ar' ? 'جميع الحالات' : 'All Status'}</option>
+              <option value="scheduled">{lang === 'ar' ? 'مجدول' : 'Scheduled'}</option>
+              <option value="in_progress">{lang === 'ar' ? 'قيد التنفيذ' : 'In Progress'}</option>
+              <option value="completed">{lang === 'ar' ? 'مكتمل' : 'Completed'}</option>
+              <option value="cancelled">{lang === 'ar' ? 'ملغي' : 'Cancelled'}</option>
+              <option value="postponed">{lang === 'ar' ? 'مؤجل' : 'Postponed'}</option>
+            </select>
+            {isSuperAdmin && (() => {
+              const servantMap = new Map<string, { id: string; firstName: string; lastName: string }>()
+              sessions.forEach(s => { if (s.servant?.id) servantMap.set(s.servant.id, s.servant as any) })
+              const servants = Array.from(servantMap.values())
+              return servants.length > 1 ? (
+                <select value={filterServant} onChange={e => setFilterServant(e.target.value)}
+                  aria-label={lang === 'ar' ? 'تصفية حسب الخادم' : 'Filter by servant'}
+                  className="rounded-lg border border-gray-300 px-2 py-1.5 text-xs min-h-[40px] focus:border-gold-500 focus:outline-none w-full lg:w-auto">
+                  <option value="">{lang === 'ar' ? 'جميع الخدام' : 'All Servants'}</option>
+                  {servants.map(sv => <option key={sv.id} value={sv.id}>{sv.firstName} {sv.lastName}</option>)}
+                </select>
+              ) : null
+            })()}
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto_1fr_1fr] items-center gap-2">
+            <DatePicker value={filterDateFrom} onChange={setFilterDateFrom}
+              className="rounded-lg border border-gray-300 px-2 py-1.5 text-xs min-h-[40px] focus:border-gold-500 focus:outline-none w-full" />
+            <span className="text-xs text-gray-500 text-center hidden sm:block">{lang === 'ar' ? 'إلى' : 'to'}</span>
+            <DatePicker value={filterDateTo} onChange={setFilterDateTo}
+              className="rounded-lg border border-gray-300 px-2 py-1.5 text-xs min-h-[40px] focus:border-gold-500 focus:outline-none w-full" />
+            <div className="relative">
+              <Search className="absolute start-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
+              <input type="text" value={search} onChange={e => setSearch(e.target.value)}
+                placeholder={lang === 'ar' ? 'بحث...' : 'Search...'}
+                aria-label={lang === 'ar' ? 'بحث في الجلسات' : 'Search sessions'}
+                className="w-full rounded-lg border border-gray-300 ps-8 pe-2 py-1.5 text-xs min-h-[40px] focus:border-gold-500 focus:outline-none" />
+            </div>
           </div>
           {activeFilterCount > 0 && (
             <div className="inline-flex items-center gap-2 rounded-lg bg-blue-100 px-2 py-1.5 text-xs font-medium text-blue-700">
@@ -722,7 +781,7 @@ export default function SessionsPage() {
         </div>
         {/* Session stats summary (super_admin only) */}
         {isSuperAdmin && filteredSessions.length > 0 && (
-          <div className="flex flex-wrap items-center gap-3 px-5 py-2.5 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-white">
+          <div className="flex items-center gap-3 px-5 py-2.5 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-white overflow-x-auto">
             <BarChart3 className="h-4 w-4 text-gray-400" />
             {[
               { key: 'scheduled', icon: Clock, color: 'text-blue-600 bg-blue-50', label: lang === 'ar' ? 'مجدول' : 'Scheduled' },
@@ -821,7 +880,17 @@ export default function SessionsPage() {
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-start sm:items-center justify-between gap-2">
-                            <span className="text-sm font-medium text-gray-900 truncate">{s.group?.name || '?'}{s.level ? ` · L${s.level.number}` : ''}{s.grade ? ` · ${s.grade.name}` : ''}</span>
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              <span className="text-sm font-medium text-gray-900 truncate">{s.group?.name || '?'}{s.level ? ` · L${s.level.number}` : ''}{s.grade ? ` · ${s.grade.name}` : ''}</span>
+                              {s.metadata?.genderFilter && (
+                                <span className={`inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-medium leading-none ${
+                                  s.metadata.genderFilter === 'male' ? 'bg-blue-50 text-blue-700' : s.metadata.genderFilter === 'female' ? 'bg-pink-50 text-pink-700' : 'bg-purple-50 text-purple-700'
+                                }`}>
+                                  <Users className="h-2.5 w-2.5" />
+                                  {s.metadata.genderFilter === 'male' ? (lang === 'ar' ? 'ذكور' : 'Male') : s.metadata.genderFilter === 'female' ? (lang === 'ar' ? 'إناث' : 'Female') : (lang === 'ar' ? 'الكل' : 'Both')}
+                                </span>
+                              )}
+                            </div>
                             <Badge variant={s.status === 'completed' ? 'success' : s.status === 'scheduled' ? 'info' : s.status === 'cancelled' ? 'danger' : s.status === 'postponed' ? 'outline' : 'warning'} size="sm">
                               {s.status === 'completed' ? (lang === 'ar' ? 'مكتمل' : 'Completed') : s.status === 'scheduled' ? (lang === 'ar' ? 'مجدول' : 'Scheduled') : s.status === 'in_progress' ? (lang === 'ar' ? 'قيد التنفيذ' : 'In Progress') : s.status === 'cancelled' ? (lang === 'ar' ? 'ملغي' : 'Cancelled') : s.status === 'postponed' ? (lang === 'ar' ? 'مؤجل' : 'Postponed') : s.status}
                             </Badge>
