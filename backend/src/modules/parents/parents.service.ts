@@ -857,24 +857,67 @@ export class ParentsService {
 
   async getLiturgyRecords(studentId: string, userId: string) {
     await this.verifyParent(userId, studentId);
-    const records = await this.prisma.familyLiturgy.findMany({
-      where: { studentId },
-      orderBy: { date: 'desc' },
-      take: 30,
+
+    const student = await this.prisma.student.findUnique({
+      where: { id: studentId },
+      select: { schoolId: true },
     });
-    return records.map(r => ({
-      id: r.id,
-      date: r.date,
-      status: r.status,
-      notes: r.notes,
-      servantNote: r.servantNote,
-      verifiedAt: r.verifiedAt,
-      // Without these a rejection is indistinguishable from a claim still pending, which
-      // is most of what made the old hard delete so opaque.
-      rejectedAt: r.rejectedAt,
-      rejectionReason: r.rejectionReason,
-      createdAt: r.createdAt,
-    }));
+
+    const [familyRecords, servantRecords] = await Promise.all([
+      this.prisma.familyLiturgy.findMany({
+        where: { studentId },
+        orderBy: { date: 'desc' },
+        take: 30,
+      }),
+      this.prisma.attendanceRecord.findMany({
+        where: {
+          studentId,
+          attendedLiturgy: true,
+          attendanceSession: { schoolId: student?.schoolId, deletedAt: null },
+        },
+        include: { attendanceSession: { select: { scheduledDate: true } } },
+        orderBy: { attendanceSession: { scheduledDate: 'desc' } },
+        take: 30,
+      }),
+    ]);
+
+    const dateKey = (d: Date | string) => new Date(d).toISOString().split('T')[0];
+    const merged = new Map<string, any>();
+
+    for (const r of servantRecords) {
+      const dk = dateKey(r.attendanceSession.scheduledDate);
+      merged.set(dk, {
+        id: r.id,
+        date: r.attendanceSession.scheduledDate,
+        status: 'verified',
+        notes: null,
+        servantNote: null,
+        verifiedAt: r.recordedAt,
+        rejectedAt: null,
+        rejectionReason: null,
+        createdAt: r.recordedAt,
+        source: 'servant',
+      });
+    }
+    for (const r of familyRecords) {
+      const dk = dateKey(r.date);
+      if (!merged.has(dk) || r.status === 'verified') {
+        merged.set(dk, {
+          id: r.id,
+          date: r.date,
+          status: r.status,
+          notes: r.notes,
+          servantNote: r.servantNote,
+          verifiedAt: r.verifiedAt,
+          rejectedAt: r.rejectedAt,
+          rejectionReason: r.rejectionReason,
+          createdAt: r.createdAt,
+          source: 'family',
+        });
+      }
+    }
+
+    return [...merged.values()].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }
 
   async getMilestones(studentId: string, userId: string) {
