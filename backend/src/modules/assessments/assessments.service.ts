@@ -250,10 +250,13 @@ export class AssessmentsService {
       throw new NotFoundException('Assessment not found');
     }
 
-    await this.prisma.assessment.update({
-      where: { id },
-      data: { deletedAt: new Date() },
-    });
+    await this.prisma.$transaction([
+      this.prisma.grade.deleteMany({
+        where: { submission: { assessmentId: id } },
+      }),
+      this.prisma.assessmentSubmission.deleteMany({ where: { assessmentId: id } }),
+      this.prisma.assessment.update({ where: { id }, data: { deletedAt: new Date() } }),
+    ]);
 
     return { message: 'Assessment deleted successfully' };
   }

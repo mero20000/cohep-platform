@@ -28,7 +28,7 @@ describe('AssessmentsService', () => {
   };
 
   const prismaMock = {
-    $transaction: jest.fn(async (fn: any) => fn(prismaMock)),
+    $transaction: jest.fn(async (arg: any) => Array.isArray(arg) ? Promise.all(arg) : arg(prismaMock)),
     assessment: {
       findUnique: jest.fn(),
       findMany: jest.fn(),

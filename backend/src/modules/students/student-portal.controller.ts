@@ -191,6 +191,7 @@ export class StudentPortalController {
         type: t.type,
         description: t.description,
         date: t.createdAt,
+        balanceAfter: t.balanceAfter,
       })),
     };
   }
