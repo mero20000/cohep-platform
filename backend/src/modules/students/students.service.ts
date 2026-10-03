@@ -43,8 +43,10 @@ export class StudentsService {
         select: { metadata: true, userRoles: { select: { role: { select: { name: true } } } } },
       });
       const meta = (userRecord?.metadata as any) || {};
-      const isServant = userRecord?.userRoles?.some((ur: any) =>
-        ['servant', 'group_leader', 'level_leader'].includes(ur.role.name)
+      const roleNames = (userRecord?.userRoles || []).map((ur: any) => ur.role?.name).filter(Boolean);
+      const isAdmin = roleNames.some((r: string) => ['super_admin', 'admin', 'principal'].includes(r));
+      const isServant = !isAdmin && roleNames.some((r: string) =>
+        ['servant', 'group_leader', 'level_leader'].includes(r)
       );
 
       if (isServant) {
@@ -1050,8 +1052,10 @@ async getPortalData(portalAccessKey: string) {
         select: { metadata: true, userRoles: { select: { role: { select: { name: true } } } } },
       });
       const meta = (userRecord?.metadata as any) || {};
-      const isServant = userRecord?.userRoles?.some((ur: any) =>
-        ['servant', 'group_leader', 'level_leader'].includes(ur.role.name)
+      const roleNames = (userRecord?.userRoles || []).map((ur: any) => ur.role?.name).filter(Boolean);
+      const isAdmin = roleNames.some((r: string) => ['super_admin', 'admin', 'principal'].includes(r));
+      const isServant = !isAdmin && roleNames.some((r: string) =>
+        ['servant', 'group_leader', 'level_leader'].includes(r)
       );
 
       if (isServant) {
