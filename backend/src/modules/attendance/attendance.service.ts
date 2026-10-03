@@ -640,6 +640,13 @@ export class AttendanceService {
     const session = await this.prisma.attendanceSession.findUnique({ where: { id: sessionId } });
     if (!session) throw new NotFoundException('Attendance session not found');
 
+    if (session.status === 'scheduled') {
+      await this.prisma.attendanceSession.update({
+        where: { id: sessionId },
+        data: { status: 'in_progress', actualStartTime: new Date() },
+      });
+    }
+
     // Sync attendance records with current active students in this group
     await this.syncSessionStudents(sessionId, dto.recordedBy || session.servantId);
 
@@ -850,8 +857,13 @@ export class AttendanceService {
     const levelId: string | undefined = selectedLevelId || metaLevelId || (recentSessions.length > 0 ? recentSessions[0].levelId ?? undefined : undefined);
     const gradeId: string | undefined = selectedGradeId;
 
-    // If no metadata assignment, try to get from recent sessions
-    if (!groupId && recentSessions.length > 0) {
+    // If no metadata assignment, try to get from recent sessions (only for non-admin servants)
+    const servantRoles = await this.prisma.userRole.findMany({
+      where: { userId: servantId },
+      include: { role: { select: { name: true } } },
+    });
+    const isAdmin = servantRoles.some(ur => ['super_admin', 'admin'].includes(ur.role?.name));
+    if (!groupId && !isAdmin && recentSessions.length > 0) {
       groupId = recentSessions[0].groupId || undefined;
     }
 
@@ -972,10 +984,11 @@ export class AttendanceService {
     return { session: full, created: true };
   }
 
-  async startSession(sessionId: string, servantId: string) {
+  async startSession(sessionId: string, servantId: string, roles?: string[]) {
     const session = await this.prisma.attendanceSession.findUnique({ where: { id: sessionId } });
     if (!session) throw new NotFoundException('Attendance session not found');
-    if (session.servantId !== servantId) throw new ForbiddenException('Not your session');
+    const isAdmin = (roles || []).some(r => ['super_admin', 'admin'].includes(r));
+    if (!isAdmin && session.servantId !== servantId) throw new ForbiddenException('Not your session');
     if (session.status === 'in_progress') return { session, started: false };
     if (session.status === 'completed') throw new BadRequestException('Cannot start a completed session');
 

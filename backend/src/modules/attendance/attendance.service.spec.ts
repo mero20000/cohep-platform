@@ -63,6 +63,9 @@ describe('AttendanceService', () => {
     schoolGrade: {
       findMany: jest.fn(),
     },
+    userRole: {
+      findMany: jest.fn(),
+    },
     $transaction: jest.fn(),
   };
 
@@ -75,7 +78,7 @@ describe('AttendanceService', () => {
         { provide: PrismaService, useValue: prismaMock },
         { provide: SchoolResolver, useValue: { resolve: jest.fn().mockResolvedValue(schoolId) } },
         { provide: AuditService, useValue: { log: jest.fn() } },
-        { provide: GamificationService, useValue: { computeBadgesForStudent: jest.fn() } },
+        { provide: GamificationService, useValue: { computeBadgesForStudent: jest.fn(), awardAttendanceXp: jest.fn().mockResolvedValue(undefined) } },
         { provide: NotificationsService, useValue: { createNotification: jest.fn() } },
         { provide: MailService, useValue: { sendAttendanceAlert: jest.fn() } },
         { provide: AnalyticsService, useValue: { record: jest.fn() } },
@@ -176,6 +179,7 @@ describe('AttendanceService', () => {
       prisma.attendanceRecord.findMany.mockResolvedValue([]);
       prisma.student.findMany.mockResolvedValue([]);
       prisma.attendanceRecord.createMany.mockResolvedValue({ count: 0 });
+      prisma.userRole.findMany.mockResolvedValue([{ role: { name: 'servant' } }]);
     });
 
     it('creates a scheduled session without actualStartTime when starting class', async () => {

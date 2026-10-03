@@ -58,7 +58,7 @@ interface DashboardData {
 }
 
 interface ActivityItem { id: string; action: string; entityType: string; createdAt: string; user?: { firstName: string; lastName: string } | null }
-interface UpcomingSession { id: string; scheduledDate: string; status: string; level: { name: string; number?: number } | null; servant: { firstName: string; lastName: string } | null }
+interface UpcomingSession { id: string; scheduledDate: string; status: string; level: { name: string; number?: number } | null; group: { id: string; name: string } | null; servant: { firstName: string; lastName: string } | null }
 interface TopStudent { rank: number; id: string; firstName: string; lastName: string; photoUrl: string | null; level: number; levelName: string; xp: number; badgeCount: number }
 interface WeeklyStat { scheduledDate: string; status: string; _count: { attendanceRecords: number } }
 
@@ -875,14 +875,16 @@ function UpcomingSection({ stats, loading }: { stats: DashboardData | null; load
  return (
   <div className="divide-y divide-gray-100">
     {sessions.slice(0, 5).map((sess, i) => (
-     <motion.div key={sess.id} initial={reduce ? false : { opacity: 0, x: -10 }} animate={reduce ? undefined : { opacity: 1, x: 0 }} transition={reduce ? undefined : { delay: i * 0.05 }}
-      className="flex items-center gap-3 px-5 py-3.5 hover:bg-gradient-to-r hover:from-blue-50/30 hover:to-transparent transition-all duration-200 group">
+     <Link key={sess.id} href={`/dashboard/attendance/mark?sessionId=${sess.id}`}>
+     <motion.div initial={reduce ? false : { opacity: 0, x: -10 }} animate={reduce ? undefined : { opacity: 1, x: 0 }} transition={reduce ? undefined : { delay: i * 0.05 }}
+      className="flex items-center gap-3 px-5 py-3.5 hover:bg-gradient-to-r hover:from-blue-50/30 hover:to-transparent transition-all duration-200 group cursor-pointer">
      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-blue-50 to-blue-100 text-blue-700 shadow-sm group-hover:shadow-md group-hover:scale-110 group-active:shadow-md group-active:scale-110 transition-transform duration-300">
       <Calendar className="h-5 w-5" />
      </div>
      <div className="flex-1 min-w-0">
       <div className="flex items-center gap-2">
-       <span className="text-sm font-semibold text-gray-900">{sess.level?.name ?? (lang === 'ar' ? 'بدون مستوى' : 'No level')}</span>
+       <span className="text-sm font-semibold text-gray-900">{sess.group?.name ?? (lang === 'ar' ? 'بدون مجموعة' : 'No group')}</span>
+       {sess.level?.name && <span className="text-xs text-gray-500">· {sess.level.name}</span>}
        <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 uppercase border border-emerald-200">{sess.status}</span>
       </div>
       <div className="text-xs text-gray-500 mt-0.5 flex items-center gap-1">
@@ -891,6 +893,7 @@ function UpcomingSection({ stats, loading }: { stats: DashboardData | null; load
      </div>
      <ChevronRight className="h-4 w-4 text-gray-300 group-hover:text-gold-700 group-hover:translate-x-0.5 transition-all" />
     </motion.div>
+     </Link>
    ))}
   </div>
  )

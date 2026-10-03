@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { CheckCircle2, Clock, XCircle, AlertCircle, Search, X, Settings2 } from 'lucide-react'
@@ -205,6 +205,17 @@ export function MarkClient() {
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [])
+
+  // Auto-save: debounce 3s after any marking change
+  const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const autoSave = useCallback(() => {
+    if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current)
+    autoSaveTimer.current = setTimeout(() => { void saveRef.current(false) }, 3000)
+  }, [])
+  useEffect(() => {
+    if (marking.dirty && session && session.status !== 'completed') autoSave()
+    return () => { if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current) }
+  }, [marking.dirty, marking.marks, marking.behavior, marking.participation, marking.liturgy, marking.notes, session, autoSave])
 
   const handleRecordKeyDown = (e: React.KeyboardEvent, record: any) => {
     const id = record.student?.id
@@ -653,9 +664,12 @@ export function MarkClient() {
           </Button>
         </div>
       ) : (
-        <div className="sticky bottom-0 flex gap-2 bg-white p-3">
-          <Button onClick={() => save(false)} disabled={saving} className="min-h-[44px] flex-1">{lang === 'ar' ? 'حفظ' : 'Save'}</Button>
-          <Button onClick={() => save(true)} disabled={saving} variant="outline" className="min-h-[44px] flex-1">{lang === 'ar' ? 'حفظ وإنهاء' : 'Save & Finalize'}</Button>
+        <div className="sticky bottom-0 bg-white p-3">
+          {marking.dirty && <p className="text-center text-xs text-amber-600 mb-1">{saving ? (lang === 'ar' ? 'جاري الحفظ التلقائي...' : 'Auto-saving...') : (lang === 'ar' ? 'سيتم الحفظ تلقائياً' : 'Auto-save in a moment...')}</p>}
+          <div className="flex gap-2">
+            <Button onClick={() => save(false)} disabled={saving} className="min-h-[44px] flex-1">{lang === 'ar' ? 'حفظ' : 'Save'}</Button>
+            <Button onClick={() => save(true)} disabled={saving} variant="outline" className="min-h-[44px] flex-1">{lang === 'ar' ? 'حفظ وإنهاء' : 'Save & Finalize'}</Button>
+          </div>
         </div>
       )}
       {/* Mark-all confirm — same dialog pattern as Sessions delete confirms. */}

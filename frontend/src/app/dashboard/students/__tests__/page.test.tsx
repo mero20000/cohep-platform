@@ -209,7 +209,7 @@ describe('StudentsPage', () => {
 
     it('renders search input', async () => {
       render(<StudentsPage />)
-      expect(await screen.findByPlaceholderText('Search by name or code...')).toBeInTheDocument()
+      expect(await screen.findByPlaceholderText('Search by name, code, phone, or email...')).toBeInTheDocument()
     })
 
     it('renders filter dropdowns', async () => {
@@ -266,7 +266,7 @@ describe('StudentsPage', () => {
       const user = userEvent.setup()
       render(<StudentsPage />)
 
-      const searchInput = await screen.findByPlaceholderText('Search by name or code...')
+      const searchInput = await screen.findByPlaceholderText('Search by name, code, phone, or email...')
       await user.type(searchInput, 'Malak')
       await user.keyboard('{Enter}')
 

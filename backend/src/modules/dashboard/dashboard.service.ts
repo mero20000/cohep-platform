@@ -172,7 +172,7 @@ export class DashboardService {
           scheduledDate: { gte: (() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d; })() },
         },
         orderBy: { scheduledDate: 'asc' }, take: 5,
-        include: { level: true, servant: { select: { firstName: true, lastName: true } } },
+        include: { level: true, group: { select: { id: true, name: true } }, servant: { select: { firstName: true, lastName: true } } },
       }),
       topStudents: await (async () => {
         const top = await this.prisma.xPTransaction.groupBy({
