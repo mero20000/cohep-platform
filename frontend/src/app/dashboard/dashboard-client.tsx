@@ -58,7 +58,7 @@ interface DashboardData {
 }
 
 interface ActivityItem { id: string; action: string; entityType: string; createdAt: string; user?: { firstName: string; lastName: string } | null }
-interface UpcomingSession { id: string; scheduledDate: string; status: string; level: { name: string; number?: number }; servant: { firstName: string; lastName: string } }
+interface UpcomingSession { id: string; scheduledDate: string; status: string; level: { name: string; number?: number } | null; servant: { firstName: string; lastName: string } | null }
 interface TopStudent { rank: number; id: string; firstName: string; lastName: string; photoUrl: string | null; level: number; levelName: string; xp: number; badgeCount: number }
 interface WeeklyStat { scheduledDate: string; status: string; _count: { attendanceRecords: number } }
 
@@ -882,11 +882,11 @@ function UpcomingSection({ stats, loading }: { stats: DashboardData | null; load
      </div>
      <div className="flex-1 min-w-0">
       <div className="flex items-center gap-2">
-       <span className="text-sm font-semibold text-gray-900">{sess.level.name}</span>
+       <span className="text-sm font-semibold text-gray-900">{sess.level?.name ?? (lang === 'ar' ? 'بدون مستوى' : 'No level')}</span>
        <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 uppercase border border-emerald-200">{sess.status}</span>
       </div>
       <div className="text-xs text-gray-500 mt-0.5 flex items-center gap-1">
-       <User className="h-3 w-3 inline" /> {sess.servant.firstName} {sess.servant.lastName} · {formatDate(sess.scheduledDate, lang === 'ar' ? 'ar-EG' : 'en-GB')} <span className="text-gold-700 font-medium">{formatTime(sess.scheduledDate, lang === 'ar' ? 'ar-EG' : 'en-GB')}</span>
+       <User className="h-3 w-3 inline" /> {sess.servant ? `${sess.servant.firstName} ${sess.servant.lastName}` : (lang === 'ar' ? 'غير معين' : 'Unassigned')} · {formatDate(sess.scheduledDate, lang === 'ar' ? 'ar-EG' : 'en-GB')} <span className="text-gold-700 font-medium">{formatTime(sess.scheduledDate, lang === 'ar' ? 'ar-EG' : 'en-GB')}</span>
       </div>
      </div>
      <ChevronRight className="h-4 w-4 text-gray-300 group-hover:text-gold-700 group-hover:translate-x-0.5 transition-all" />
