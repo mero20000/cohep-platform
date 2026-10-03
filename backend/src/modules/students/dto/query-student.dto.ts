@@ -37,7 +37,7 @@ export class QueryStudentDto {
   @IsOptional()
   gender?: string;
 
-  @ApiPropertyOptional({ description: 'Search by name or code' })
+  @ApiPropertyOptional({ description: 'Search by name, code, phone, email, or church' })
   @IsString()
   @IsOptional()
   search?: string;
