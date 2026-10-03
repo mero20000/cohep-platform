@@ -83,7 +83,14 @@ export class StudentsService {
       where.OR = [
         { firstName: { contains: search, mode: 'insensitive' } },
         { lastName: { contains: search, mode: 'insensitive' } },
+        { firstNameAr: { contains: search, mode: 'insensitive' } },
+        { lastNameAr: { contains: search, mode: 'insensitive' } },
         { studentCode: { contains: search, mode: 'insensitive' } },
+        { parentEmail: { contains: search, mode: 'insensitive' } },
+        { churchName: { contains: search, mode: 'insensitive' } },
+        { metadata: { path: ['parentPhone'], string_contains: search } },
+        { studentParents: { some: { parent: { phone: { contains: search, mode: 'insensitive' } } } } },
+        { studentParents: { some: { parent: { email: { contains: search, mode: 'insensitive' } } } } },
       ];
     }
 
@@ -1076,7 +1083,14 @@ async getPortalData(portalAccessKey: string) {
       where.OR = [
         { firstName: { contains: filters.search, mode: 'insensitive' } },
         { lastName: { contains: filters.search, mode: 'insensitive' } },
+        { firstNameAr: { contains: filters.search, mode: 'insensitive' } },
+        { lastNameAr: { contains: filters.search, mode: 'insensitive' } },
         { studentCode: { contains: filters.search, mode: 'insensitive' } },
+        { parentEmail: { contains: filters.search, mode: 'insensitive' } },
+        { churchName: { contains: filters.search, mode: 'insensitive' } },
+        { metadata: { path: ['parentPhone'], string_contains: filters.search } },
+        { studentParents: { some: { parent: { phone: { contains: filters.search, mode: 'insensitive' } } } } },
+        { studentParents: { some: { parent: { email: { contains: filters.search, mode: 'insensitive' } } } } },
       ];
     }
 

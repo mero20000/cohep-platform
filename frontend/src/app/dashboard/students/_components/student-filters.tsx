@@ -36,15 +36,15 @@ export function StudentFilters(p: Props) {
     <div className="space-y-3">
       {/* Primary filters - always visible */}
       <div className="flex flex-col sm:flex-row gap-3">
-        <div className="relative flex-1">
+        <div className="relative w-full sm:flex-1">
           <Search className="absolute start-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
           <input
             type="text"
             aria-label={t('Search students','بحث عن الطلاب')}
-            placeholder={t('Search by name or code...','البحث بالاسم أو الرمز...')}
+            placeholder={t('Search by name, code, phone, or email...','البحث بالاسم، الرمز، الهاتف، أو البريد...')}
             value={p.search}
             onChange={e => p.onSearchChange(e.target.value)}
-            className="w-full rounded-lg border border-gray-200 bg-white ps-10 pe-4 py-2 text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-gold-500 focus:border-gold-500"
+            className="w-full rounded-lg border border-gray-200 bg-white ps-10 pe-4 py-3 text-base sm:text-sm sm:py-2 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-gold-500 focus:border-gold-500 min-h-[48px] sm:min-h-0"
           />
           {p.isSearching && <Loader2 className="absolute end-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gold-700 animate-spin" />}
         </div>
