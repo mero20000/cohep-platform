@@ -230,7 +230,7 @@ export default function SessionsPage() {
   const { toast } = useToast()
   const lang = useLanguage()
   const [mainTab, setMainTab] = useState<'sessions' | 'liturgy'>('sessions')
-  const [statusTab, setStatusTab] = useState<'' | 'scheduled' | 'in_progress' | 'completed'>('')
+  const [statusTab, setStatusTab] = useState<'' | 'scheduled' | 'in_progress' | 'completed' | 'cancelled' | 'postponed'>('')
   const [sessions, setSessions] = useState<Session[]>([])
   const [liturgySessions, setLiturgySessions] = useState<Session[]>([])
   const [loading, setLoading] = useState(true)
@@ -687,6 +687,8 @@ export default function SessionsPage() {
             { key: 'scheduled', label: lang === 'ar' ? 'مجدول' : 'Scheduled', count: sessions.filter(s => s.status === 'scheduled').length, icon: Clock, color: 'text-blue-600' },
             { key: 'in_progress', label: lang === 'ar' ? 'قيد التنفيذ' : 'In Progress', count: sessions.filter(s => s.status === 'in_progress').length, icon: PlayCircle, color: 'text-amber-600' },
             { key: 'completed', label: lang === 'ar' ? 'مكتمل' : 'Completed', count: sessions.filter(s => s.status === 'completed').length, icon: CheckCircle2, color: 'text-green-600' },
+            { key: 'cancelled', label: lang === 'ar' ? 'ملغي' : 'Cancelled', count: sessions.filter(s => s.status === 'cancelled').length, icon: XCircle, color: 'text-red-600' },
+            { key: 'postponed', label: lang === 'ar' ? 'مؤجل' : 'Postponed', count: sessions.filter(s => s.status === 'postponed').length, icon: PauseCircle, color: 'text-gray-600' },
           ] as const).map(tab => {
             const Icon = 'icon' in tab ? tab.icon : null
             return (
@@ -707,7 +709,7 @@ export default function SessionsPage() {
             {mainTab === 'liturgy'
               ? (lang === 'ar' ? 'جلسات القداس' : 'Liturgy Sessions')
               : statusTab
-                ? (lang === 'ar' ? `${statusTab === 'scheduled' ? 'مجدول' : statusTab === 'in_progress' ? 'قيد التنفيذ' : 'مكتمل'}` : statusTab.replace('_', ' ').replace(/\b\w/g, c => c.toUpperCase()))
+                ? (lang === 'ar' ? `${statusTab === 'scheduled' ? 'مجدول' : statusTab === 'in_progress' ? 'قيد التنفيذ' : statusTab === 'completed' ? 'مكتمل' : statusTab === 'cancelled' ? 'ملغي' : 'مؤجل'}` : statusTab.replace('_', ' ').replace(/\b\w/g, c => c.toUpperCase()))
                 : (lang === 'ar' ? 'جميع الجلسات' : 'All Sessions')
             }
             {' '}({filteredSessions.length})
@@ -874,7 +876,7 @@ export default function SessionsPage() {
                         aria-label={lang === 'ar' ? `تعديل جلسة ${s.group?.name || s.id}` : `Edit session ${s.group?.name || s.id}`}
                         className="flex-1 flex items-start gap-3 text-start min-w-0 transition-colors rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500">
                         <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${
-                          s.status === 'completed' ? 'bg-green-100 text-green-600' : s.status === 'scheduled' ? 'bg-blue-100 text-blue-600' : 'bg-amber-100 text-amber-600'
+                          s.status === 'completed' ? 'bg-green-100 text-green-600' : s.status === 'scheduled' ? 'bg-blue-100 text-blue-600' : s.status === 'cancelled' ? 'bg-red-100 text-red-600' : s.status === 'postponed' ? 'bg-gray-100 text-gray-600' : 'bg-amber-100 text-amber-600'
                         }`}>
                           <Calendar className="h-4 w-4" />
                         </div>

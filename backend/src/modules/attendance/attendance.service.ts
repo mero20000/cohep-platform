@@ -81,8 +81,10 @@ export class AttendanceService {
         where: { id: user.id },
         select: { metadata: true, userRoles: { select: { role: { select: { name: true } } } } },
       });
-      const isServant = userRecord?.userRoles?.some((ur: any) =>
-        ['servant', 'group_leader', 'level_leader'].includes(ur.role.name)
+      const roleNames = (userRecord?.userRoles || []).map((ur: any) => ur.role?.name).filter(Boolean);
+      const isAdmin = roleNames.some((r: string) => ['super_admin', 'admin', 'principal'].includes(r));
+      const isServant = !isAdmin && roleNames.some((r: string) =>
+        ['servant', 'group_leader', 'level_leader'].includes(r)
       );
       if (isServant) {
         // Scope to the servant's assigned group/level/grade (servant module assignment).
