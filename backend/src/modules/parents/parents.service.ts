@@ -97,7 +97,7 @@ export class ParentsService {
     // Compute total points from attendance records
     const [attRecords, pointConfig, badgeCount, currentLesson] = await Promise.all([
       this.prisma.attendanceRecord.findMany({
-        where: { studentId: sp.student.id, attendanceSession: { NOT: { notes: 'liturgy' } } },
+        where: { studentId: sp.student.id, attendanceSession: { OR: [{ notes: null }, { notes: { not: 'liturgy' } }] } },
         select: { status: true, behavior: true, participation: true, attendedLiturgy: true },
       }),
       this.prisma.systemConfig.findUnique({
@@ -251,7 +251,7 @@ export class ParentsService {
   async getChildAttendance(studentId: string, userId: string) {
     await this.verifyParent(userId, studentId);
     const records = await this.prisma.attendanceRecord.findMany({
-      where: { studentId, attendanceSession: { deletedAt: null, NOT: { notes: 'liturgy' } } },
+      where: { studentId, attendanceSession: { deletedAt: null, OR: [{ notes: null }, { notes: { not: 'liturgy' } }] } },
       include: {
         attendanceSession: {
           include: { level: { select: { number: true, name: true } } },
@@ -323,7 +323,7 @@ export class ParentsService {
 
   private async getAttendanceCounts(studentId: string) {
     const records = await this.prisma.attendanceRecord.findMany({
-      where: { studentId, attendanceSession: { deletedAt: null, NOT: { notes: 'liturgy' } } },
+      where: { studentId, attendanceSession: { deletedAt: null, OR: [{ notes: null }, { notes: { not: 'liturgy' } }] } },
       select: { status: true },
     });
     let present = 0, late = 0, absent = 0, excused = 0;
@@ -382,7 +382,7 @@ export class ParentsService {
 
     // Attendance
     const attRecords = await this.prisma.attendanceRecord.findMany({
-      where: { studentId, attendanceSession: { deletedAt: null, NOT: { notes: 'liturgy' } } },
+      where: { studentId, attendanceSession: { deletedAt: null, OR: [{ notes: null }, { notes: { not: 'liturgy' } }] } },
       select: { status: true },
     });
     const present = attRecords.filter(r => r.status === 'present').length;
@@ -1097,7 +1097,7 @@ export class ParentsService {
       this.prisma.attendanceRecord.findMany({
         where: {
           studentId,
-          attendanceSession: { scheduledDate: { gte: termStart, lte: termEnd }, deletedAt: null, NOT: { notes: 'liturgy' } },
+          attendanceSession: { scheduledDate: { gte: termStart, lte: termEnd }, deletedAt: null, OR: [{ notes: null }, { notes: { not: 'liturgy' } }] },
         },
         select: { status: true },
       }),

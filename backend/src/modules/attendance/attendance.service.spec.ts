@@ -123,14 +123,14 @@ describe('AttendanceService', () => {
       );
     });
 
-    it('sorts sessions ascending by scheduled date', async () => {
+    it('sorts sessions descending by scheduled date', async () => {
       prisma.attendanceSession.findMany.mockResolvedValue([]);
       prisma.attendanceSession.count.mockResolvedValue(0);
 
       await service.getSessions(schoolId, {});
 
       expect(prisma.attendanceSession.findMany).toHaveBeenCalledWith(
-        expect.objectContaining({ orderBy: { scheduledDate: 'asc' } }),
+        expect.objectContaining({ orderBy: { scheduledDate: 'desc' } }),
       );
     });
 
