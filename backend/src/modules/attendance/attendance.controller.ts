@@ -213,7 +213,7 @@ export class AttendanceController {
   @Post('sessions/:id/start')
   @ApiOperation({ summary: 'Start a scheduled attendance session manually' })
   async startSession(@Param('id') id: string, @Req() req: any) {
-    return this.attendanceService.startSession(id, req.user.id);
+    return this.attendanceService.startSession(id, req.user.id, req.user.roles);
   }
 
   @Get('liturgy-heatmap')
