@@ -71,7 +71,9 @@ export class AttendanceService {
     if (levelId) where.levelId = levelId;
     if (groupId) where.groupId = groupId;
     if (notes) where.notes = notes;
-    if (excludeNotes) where.NOT = { notes: excludeNotes };
+    else if (excludeNotes) {
+      where.OR = [{ notes: null }, { notes: { not: excludeNotes } }];
+    }
     
     // If servantId is provided or user is a servant, filter by their sessions
     if (servantId) {
@@ -125,7 +127,7 @@ export class AttendanceService {
         },
         skip: (page - 1) * limit,
         take: limit,
-        orderBy: { scheduledDate: 'asc' },
+        orderBy: { scheduledDate: 'desc' },
       }),
       this.prisma.attendanceSession.count({ where }),
     ]);

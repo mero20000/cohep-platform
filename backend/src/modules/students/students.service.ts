@@ -852,8 +852,7 @@ async getPortalData(portalAccessKey: string) {
           attendanceSession: {
             schoolId: student.schoolId,
             deletedAt: null,
-            // Exclude liturgy-only sessions — they are tracked separately.
-            NOT: { notes: 'liturgy' },
+            OR: [{ notes: null }, { notes: { not: 'liturgy' } }],
           },
         },
         include: { attendanceSession: { select: { scheduledDate: true, scheduledTime: true } } },
