@@ -31,9 +31,10 @@ export class AttendanceRecordInputDto {
   @IsOptional()
   attendedLiturgy?: boolean;
 
+  // null explicitly clears an existing note; undefined leaves it untouched.
   @IsString()
   @IsOptional()
-  note?: string;
+  note?: string | null;
 }
 
 export class MarkAttendanceDto {
@@ -44,4 +45,21 @@ export class MarkAttendanceDto {
 
   @IsUUID()
   recordedBy: string;
+}
+
+export class FinalizeAttendanceDto {
+  @IsArray()
+  @IsOptional()
+  @ValidateNested({ each: true })
+  @Type(() => AttendanceRecordInputDto)
+  records?: AttendanceRecordInputDto[];
+
+  @IsUUID()
+  @IsOptional()
+  recordedBy?: string;
+
+  // Finalizing with students still `unmarked` is rejected unless explicitly allowed.
+  @IsBoolean()
+  @IsOptional()
+  allowUnmarked?: boolean;
 }

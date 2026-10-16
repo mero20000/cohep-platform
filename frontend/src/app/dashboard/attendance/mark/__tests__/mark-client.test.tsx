@@ -23,7 +23,7 @@ const mockGet = vi.fn(async (url: string) => {
   return []
 })
 const mockPost = vi.fn(async (url: string, body?: any) => {
-  if (url.endsWith('/mark') && body?.records) {
+  if ((url.endsWith('/mark') || url.endsWith('/finalize')) && body?.records) {
     state.saved = body.records.map((r: any) => ({
       student: r.studentId === 's2' ? { id: 's2', firstName: 'John', lastName: 'D' } : { id: 's1', firstName: 'Mina', lastName: 'G' },
       status: r.status, behavior: 0, participation: 0, attendedLiturgy: false, note: '',
@@ -89,8 +89,8 @@ describe('MarkClient', () => {
     fireEvent.click(screen.getByRole('button', { name: /Present - Mina G/i }))
     fireEvent.click(screen.getByRole('button', { name: /Present - John D/i }))
     fireEvent.click(screen.getByRole('button', { name: /Save & Finalize/i }))
-    await waitFor(() => expect(mockPost).toHaveBeenCalledWith(expect.stringContaining('/mark'), expect.anything()))
-    await waitFor(() => expect(mockPut).toHaveBeenCalledWith('/attendance/sessions/sess-1', { status: 'completed' }))
+    await waitFor(() => expect(mockPost).toHaveBeenCalledWith('/attendance/sessions/sess-1/finalize', expect.objectContaining({ allowUnmarked: false })))
+    expect(mockPut).not.toHaveBeenCalledWith('/attendance/sessions/sess-1', { status: 'completed' })
     // Quiet reload after finalize must preserve server truth.
     await waitFor(() => expect(mockGet.mock.calls.length).toBeGreaterThanOrEqual(2))
     await waitFor(() => expect(screen.getByRole('button', { name: /Present - Mina G/i }).getAttribute('aria-pressed')).toBe('true'))

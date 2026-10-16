@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException, ForbiddenException, Inject, forwardRef } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ConflictException, ForbiddenException, Inject, forwardRef } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 import { SchoolResolver } from '../../common/utils/school-resolver';
 import { AuditService } from '../audit/audit.service';
@@ -9,7 +9,7 @@ import { AnalyticsService } from '../analytics/analytics.service';
 import { AssessmentsService } from '../assessments/assessments.service';
 import { WhatsAppService } from '../../common/whatsapp/whatsapp.service';
 import { CreateAttendanceSessionDto } from './dto/create-attendance-session.dto';
-import { MarkAttendanceDto } from './dto/mark-attendance.dto';
+import { MarkAttendanceDto, FinalizeAttendanceDto } from './dto/mark-attendance.dto';
 
 @Injectable()
 export class AttendanceService {
@@ -385,7 +385,7 @@ export class AttendanceService {
       const res = await this.whatsapp.sendText(phone, message);
       whatsappSent = res.sent;
       if (!whatsappSent) {
-        const digits = phone.replace(/[^\\d]/g, '').replace(/^\\+/, '');
+        const digits = phone.replace(/\D/g, '');
         whatsappLink = `https://wa.me/${digits}?text=${encodeURIComponent(message)}`;
       }
     }
@@ -640,9 +640,69 @@ export class AttendanceService {
     };
   }
 
+  /** Completed sessions are read-only at the API level; they must be re-opened first. */
+  private assertSessionWritable(session: { status: string; deletedAt?: Date | null }) {
+    if (session.deletedAt) throw new NotFoundException('Attendance session not found');
+    if (session.status === 'completed') {
+      throw new ConflictException('This session is completed and read-only. Re-open it to make changes.');
+    }
+  }
+
+  private buildRecordUpsert(sessionId: string, record: MarkAttendanceDto['records'][number], recordedBy: string) {
+    return this.prisma.attendanceRecord.upsert({
+      where: { attendanceSessionId_studentId: { attendanceSessionId: sessionId, studentId: record.studentId } },
+      create: {
+        attendanceSessionId: sessionId, studentId: record.studentId, status: record.status,
+        homeworkStatus: record.homeworkStatus || 'not_assigned',
+        behavior: record.behavior, participation: record.participation, attendedLiturgy: record.attendedLiturgy,
+        note: record.note,
+        recordedBy, recordedAt: new Date(),
+      },
+      update: {
+        status: record.status, homeworkStatus: record.homeworkStatus || 'not_assigned',
+        behavior: record.behavior, participation: record.participation, attendedLiturgy: record.attendedLiturgy,
+        note: record.note, recordedBy, recordedAt: new Date(),
+      },
+    });
+  }
+
+  /** Analytics, XP, badges and absence alerts after marks are committed (all best-effort). */
+  private runMarkSideEffects(
+    session: { schoolId: string },
+    sessionId: string,
+    records: MarkAttendanceDto['records'],
+    recordedBy: string,
+  ) {
+    // MEASURE (C2): first attendance within 7 days of signup = activation.
+    this.analytics.record({
+      name: 'attendance.marked',
+      category: 'activation',
+      userId: recordedBy,
+      schoolId: session.schoolId,
+      properties: { count: records.length, sessionId },
+    });
+
+    // Award direct attendance XP + compute badges (fire-and-forget)
+    const affectedStudentIds = [...new Set(records.map(r => r.studentId))];
+    for (const rec of records) {
+      this.gamification.awardAttendanceXp(rec.studentId, sessionId, rec.status, session.schoolId).catch(() => {});
+    }
+    for (const sid of affectedStudentIds) {
+      this.gamification.computeBadgesForStudent(sid).catch(() => {});
+    }
+
+    // Absence cascade: check for 3 consecutive absences
+    for (const record of records) {
+      if (record.status === 'absent') {
+        this.checkAbsenceCascade(record.studentId, session.schoolId, recordedBy).catch(() => {});
+      }
+    }
+  }
+
   async markAttendance(sessionId: string, dto: MarkAttendanceDto) {
     const session = await this.prisma.attendanceSession.findUnique({ where: { id: sessionId } });
     if (!session) throw new NotFoundException('Attendance session not found');
+    this.assertSessionWritable(session);
 
     if (session.status === 'scheduled') {
       await this.prisma.attendanceSession.update({
@@ -655,49 +715,68 @@ export class AttendanceService {
     await this.syncSessionStudents(sessionId, dto.recordedBy || session.servantId);
 
     const recordedBy = dto.recordedBy || session.servantId;
-    const upserts = dto.records.map(record =>
-      this.prisma.attendanceRecord.upsert({
-        where: { attendanceSessionId_studentId: { attendanceSessionId: sessionId, studentId: record.studentId } },
-        create: {
-          attendanceSessionId: sessionId, studentId: record.studentId, status: record.status,
-          homeworkStatus: record.homeworkStatus || 'not_assigned',
-          behavior: record.behavior, participation: record.participation, attendedLiturgy: record.attendedLiturgy,
-          note: record.note,
-          recordedBy, recordedAt: new Date(),
-        },
-        update: {
-          status: record.status, homeworkStatus: record.homeworkStatus || 'not_assigned',
-          behavior: record.behavior, participation: record.participation, attendedLiturgy: record.attendedLiturgy,
-          note: record.note, recordedBy, recordedAt: new Date(),
+    await this.prisma.$transaction(dto.records.map(record => this.buildRecordUpsert(sessionId, record, recordedBy)));
+
+    this.runMarkSideEffects(session, sessionId, dto.records, recordedBy);
+
+    return this.getSessionById(sessionId);
+  }
+
+  /**
+   * Save the final marks and complete the session atomically: either every
+   * record is written AND the session is completed, or nothing changes.
+   * Rejects when the roster is empty or students remain `unmarked`
+   * (unless `allowUnmarked` is set).
+   */
+  async finalizeSession(sessionId: string, dto: FinalizeAttendanceDto) {
+    const session = await this.prisma.attendanceSession.findUnique({ where: { id: sessionId } });
+    if (!session) throw new NotFoundException('Attendance session not found');
+    this.assertSessionWritable(session);
+
+    const recordedBy = dto.recordedBy || session.servantId;
+    const records = dto.records ?? [];
+
+    await this.syncSessionStudents(sessionId, recordedBy);
+
+    // Validate against the roster as it will be after this save.
+    const existing = await this.prisma.attendanceRecord.findMany({
+      where: { attendanceSessionId: sessionId, student: { deletedAt: null } },
+      select: { studentId: true, status: true },
+    });
+    const finalStatus = new Map<string, string>(existing.map(r => [r.studentId, r.status]));
+    for (const r of records) finalStatus.set(r.studentId, r.status);
+    if (finalStatus.size === 0) {
+      throw new BadRequestException('Cannot finalize a session with no students.');
+    }
+    const unmarkedCount = [...finalStatus.values()].filter(s => s === 'unmarked').length;
+    if (unmarkedCount > 0 && !dto.allowUnmarked) {
+      throw new BadRequestException(`${unmarkedCount} student(s) are still unmarked. Mark them or confirm finalizing anyway.`);
+    }
+
+    const now = new Date();
+    await this.prisma.$transaction([
+      ...records.map(record => this.buildRecordUpsert(sessionId, record, recordedBy)),
+      this.prisma.attendanceSession.updateMany({
+        where: { id: sessionId, status: { not: 'completed' } },
+        data: {
+          status: 'completed',
+          actualEndTime: now,
+          ...(!session.actualStartTime && { actualStartTime: now }),
         },
       }),
-    );
-    await this.prisma.$transaction(upserts);
+    ]);
 
-    // MEASURE (C2): first attendance within 7 days of signup = activation.
-    this.analytics.record({
-      name: 'attendance.marked',
-      category: 'activation',
-      userId: recordedBy,
+    await this.audit.log({
       schoolId: session.schoolId,
-      properties: { count: dto.records.length, sessionId },
+      action: 'FINALIZE',
+      entityType: 'attendance_session',
+      entityId: sessionId,
+      oldValues: { status: session.status },
+      newValues: { status: 'completed', unmarkedCount },
     });
 
-    // Award direct attendance XP + compute badges (fire-and-forget)
-    const affectedStudentIds = [...new Set(dto.records.map(r => r.studentId))];
-    for (const rec of dto.records) {
-      this.gamification.awardAttendanceXp(rec.studentId, sessionId, rec.status, session.schoolId).catch(() => {});
-    }
-    for (const sid of affectedStudentIds) {
-      this.gamification.computeBadgesForStudent(sid).catch(() => {});
-    }
-
-    // Absence cascade: check for 3 consecutive absences
-    for (const record of dto.records) {
-      if (record.status === 'absent') {
-        this.checkAbsenceCascade(record.studentId, session.schoolId, recordedBy).catch(() => {});
-      }
-    }
+    this.runMarkSideEffects(session, sessionId, records, recordedBy);
+    this.sendPracticeGuideNotifications(sessionId).catch(() => {});
 
     return this.getSessionById(sessionId);
   }
@@ -790,6 +869,7 @@ export class AttendanceService {
       });
       if (!session) throw new BadRequestException('No session found. Start a class first.');
     }
+    this.assertSessionWritable(session);
 
     const record = await this.prisma.attendanceRecord.upsert({
       where: { attendanceSessionId_studentId: { attendanceSessionId: session.id, studentId } },
@@ -1590,6 +1670,7 @@ export class AttendanceService {
   async batchUpdateRecords(sessionId: string, updates: Array<{ studentId: string; status: string }>) {
     const session = await this.prisma.attendanceSession.findUnique({ where: { id: sessionId } });
     if (!session) throw new NotFoundException('Attendance session not found');
+    this.assertSessionWritable(session);
 
     const results: any[] = [];
     for (const update of updates) {
