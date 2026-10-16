@@ -24,6 +24,7 @@ describe('AttendanceService', () => {
       findUnique: jest.fn(),
       create: jest.fn(),
       update: jest.fn(),
+      updateMany: jest.fn(),
       count: jest.fn(),
     },
     attendanceRecord: {
@@ -70,6 +71,7 @@ describe('AttendanceService', () => {
   };
 
   const assessmentsMock = { create: jest.fn() };
+  const whatsappMock = { sendText: jest.fn().mockResolvedValue({ sent: false }) };
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -78,12 +80,12 @@ describe('AttendanceService', () => {
         { provide: PrismaService, useValue: prismaMock },
         { provide: SchoolResolver, useValue: { resolve: jest.fn().mockResolvedValue(schoolId) } },
         { provide: AuditService, useValue: { log: jest.fn() } },
-        { provide: GamificationService, useValue: { computeBadgesForStudent: jest.fn(), awardAttendanceXp: jest.fn().mockResolvedValue(undefined) } },
+        { provide: GamificationService, useValue: { computeBadgesForStudent: jest.fn().mockResolvedValue(undefined), awardAttendanceXp: jest.fn().mockResolvedValue(undefined) } },
         { provide: NotificationsService, useValue: { createNotification: jest.fn() } },
         { provide: MailService, useValue: { sendAttendanceAlert: jest.fn() } },
         { provide: AnalyticsService, useValue: { record: jest.fn() } },
         { provide: AssessmentsService, useValue: assessmentsMock },
-        { provide: WhatsAppService, useValue: { sendText: jest.fn().mockResolvedValue({ sent: false }) } },
+        { provide: WhatsAppService, useValue: whatsappMock },
       ],
     }).compile();
 
@@ -610,6 +612,101 @@ describe('AttendanceService', () => {
 
       expect(result.dryRun).toBe(true);
       expect(prisma.attendanceRecord.updateMany).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('completed-session write guard and finalize', () => {
+    const open = { id: 'sess-1', schoolId, servantId: 'u1', groupId: 'g1', levelId: 'l1', status: 'in_progress', actualStartTime: new Date(), deletedAt: null, metadata: null };
+    const dto = { recordedBy: 'u1', records: [{ studentId: 's1', status: 'present' }] } as any;
+
+    beforeEach(() => {
+      prisma.student.findMany.mockResolvedValue([{ id: 's1' }, { id: 's2' }]);
+      prisma.user.findUnique.mockResolvedValue({ metadata: {} });
+      prisma.attendanceRecord.deleteMany.mockResolvedValue({ count: 0 });
+      prisma.attendanceRecord.createMany.mockResolvedValue({ count: 0 });
+      prisma.attendanceRecord.upsert.mockReturnValue('upsert-op');
+      prisma.attendanceSession.updateMany.mockReturnValue('complete-op');
+      prisma.$transaction.mockResolvedValue([]);
+      jest.spyOn(service, 'getSessionById').mockResolvedValue({ id: 'sess-1' } as any);
+    });
+
+    it('markAttendance rejects completed sessions', async () => {
+      prisma.attendanceSession.findUnique.mockResolvedValue({ ...open, status: 'completed' });
+      await expect(service.markAttendance('sess-1', dto)).rejects.toThrow(/read-only/);
+      expect(prisma.$transaction).not.toHaveBeenCalled();
+    });
+
+    it('batchUpdateRecords rejects completed sessions', async () => {
+      prisma.attendanceSession.findUnique.mockResolvedValue({ ...open, status: 'completed' });
+      await expect(service.batchUpdateRecords('sess-1', [{ studentId: 's1', status: 'absent' }])).rejects.toThrow(/read-only/);
+      expect(prisma.attendanceRecord.upsert).not.toHaveBeenCalled();
+    });
+
+    it('finalizeSession rejects an already completed session', async () => {
+      prisma.attendanceSession.findUnique.mockResolvedValue({ ...open, status: 'completed' });
+      await expect(service.finalizeSession('sess-1', dto)).rejects.toThrow(/read-only/);
+    });
+
+    it('finalizeSession rejects when students remain unmarked', async () => {
+      prisma.attendanceSession.findUnique.mockResolvedValue(open);
+      prisma.attendanceRecord.findMany
+        .mockResolvedValueOnce([]) // syncSessionStudents existing ids
+        .mockResolvedValueOnce([{ studentId: 's1', status: 'unmarked' }, { studentId: 's2', status: 'unmarked' }]);
+      await expect(service.finalizeSession('sess-1', dto)).rejects.toThrow(/1 student\(s\) are still unmarked/);
+      expect(prisma.$transaction).not.toHaveBeenCalled();
+    });
+
+    it('finalizeSession rejects an empty roster', async () => {
+      prisma.attendanceSession.findUnique.mockResolvedValue(open);
+      prisma.attendanceRecord.findMany.mockResolvedValue([]);
+      await expect(service.finalizeSession('sess-1', { recordedBy: 'u1', records: [] } as any)).rejects.toThrow(/no students/);
+    });
+
+    it('finalizeSession writes records and completes the session in ONE transaction', async () => {
+      prisma.attendanceSession.findUnique.mockResolvedValue(open);
+      prisma.attendanceRecord.findMany
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([{ studentId: 's1', status: 'unmarked' }, { studentId: 's2', status: 'absent' }])
+        .mockResolvedValue([]);
+      await service.finalizeSession('sess-1', dto);
+
+      expect(prisma.$transaction).toHaveBeenCalledTimes(1);
+      expect(prisma.$transaction.mock.calls[0][0]).toEqual(['upsert-op', 'complete-op']);
+      const completion = prisma.attendanceSession.updateMany.mock.calls[0][0];
+      expect(completion.where).toEqual({ id: 'sess-1', status: { not: 'completed' } });
+      expect(completion.data.status).toBe('completed');
+      expect(completion.data.actualEndTime).toBeInstanceOf(Date);
+    });
+
+    it('finalizeSession allows unmarked students when allowUnmarked is set', async () => {
+      prisma.attendanceSession.findUnique.mockResolvedValue(open);
+      prisma.attendanceRecord.findMany
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([{ studentId: 's2', status: 'unmarked' }])
+        .mockResolvedValue([]);
+      await service.finalizeSession('sess-1', { ...dto, allowUnmarked: true });
+      expect(prisma.$transaction).toHaveBeenCalledTimes(1);
+    });
+
+    it('markAttendance persists an explicit unmarked status and null note', async () => {
+      prisma.attendanceSession.findUnique.mockResolvedValue(open);
+      prisma.attendanceRecord.findMany.mockResolvedValue([]);
+      await service.markAttendance('sess-1', { recordedBy: 'u1', records: [{ studentId: 's1', status: 'unmarked', note: null }] } as any);
+      const args = prisma.attendanceRecord.upsert.mock.calls[0][0];
+      expect(args.update.status).toBe('unmarked');
+      expect(args.update.note).toBeNull();
+    });
+  });
+
+  describe('markSubjectPassed WhatsApp fallback link', () => {
+    it('keeps the digits of the parent phone in the wa.me link', async () => {
+      prisma.attendanceSession.findUnique.mockResolvedValue({ id: 'sess-1', subjectItemId: 'si-1', levelId: null, groupId: 'g1', scheduledDate: new Date() });
+      prisma.subjectItem.findUnique.mockResolvedValue({ id: 'si-1', name: 'Creed' });
+      prisma.student.findFirst = jest.fn().mockResolvedValue({ id: 's1', firstName: 'Mina', firstNameAr: null, metadata: { parentPhone: '+20 100-123-4567' } });
+      (prisma as any).studentSubjectPass = { findFirst: jest.fn().mockResolvedValue(null), create: jest.fn() };
+      prisma.group.findUnique.mockResolvedValue({ id: 'g1' });
+      const res = await service.markSubjectPassed('sess-1', 's1', 'u1');
+      expect(res.whatsappLink).toMatch(/^https:\/\/wa\.me\/201001234567\?text=/);
     });
   });
 });

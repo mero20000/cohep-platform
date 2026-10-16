@@ -153,8 +153,22 @@ export function MarkClient() {
     // buildSavePayload returns records WITHOUT recordedBy — recordedBy is top-level per API shape.
     const records = marking.buildSavePayload(userId)
     try {
-      await http.post(`/attendance/sessions/${session.id}/mark`, { records, recordedBy: userId })
-      if (finalize) await http.put(`/attendance/sessions/${session.id}`, { status: 'completed' })
+      if (finalize) {
+        // One atomic call: saves marks and completes the session together.
+        const unmarked = (session.attendanceRecords || []).filter((r: any) => {
+          const m = marking.marks[r.student?.id]; return !m || m === 'unmarked'
+        }).length
+        let allowUnmarked = false
+        if (unmarked > 0) {
+          allowUnmarked = window.confirm(lang === 'ar'
+            ? `لا يزال ${unmarked} طالب غير مسجل. هل تريد الإنهاء على أي حال؟`
+            : `${unmarked} student(s) are still unmarked. Finalize anyway?`)
+          if (!allowUnmarked) { setSaving(false); return }
+        }
+        await http.post(`/attendance/sessions/${session.id}/finalize`, { records, recordedBy: userId, allowUnmarked })
+      } else {
+        await http.post(`/attendance/sessions/${session.id}/mark`, { records, recordedBy: userId })
+      }
       toast('success', lang === 'ar' ? 'تم حفظ الحضور' : 'Attendance saved')
       marking.setDirty(false)
       await loadSession(session.id, true)

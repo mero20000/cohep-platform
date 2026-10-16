@@ -1206,7 +1206,7 @@ export function TodaysSessionCard({ lang }: { lang: string }) {
 
   const updateAttendance = async (studentId: string, status: string) => {
     try {
-      await http.patch(`/attendance/sessions/${session.id}/records`, { studentId, status })
+      await http.put(`/attendance/sessions/${session.id}/records/batch`, { updates: [{ studentId, status }] })
       setStudents(prev => prev.map(s => s.studentId === studentId ? { ...s, status } : s))
       toast('success', lang === 'ar' ? 'تم التحديث' : 'Updated')
     } catch {
