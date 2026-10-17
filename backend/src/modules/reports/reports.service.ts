@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 import { SchoolResolver } from '../../common/utils/school-resolver';
+import { attendanceRate } from '../attendance/attendance-metrics';
 
 @Injectable()
 export class ReportsService {
@@ -20,7 +21,7 @@ export class ReportsService {
     const calcRate = (sessions: any[]) => {
       const all = sessions.flatMap((s: any) => s.attendanceRecords);
       if (!all.length) return 0;
-      return Math.round(all.filter((r: any) => r.status === 'present' || r.status === 'late').length / all.length * 100);
+      return attendanceRate(all);
     };
 
     const [thisWeekSessions, lastWeekSessions] = await Promise.all([
@@ -168,7 +169,7 @@ export class ReportsService {
       const allRecs = sessions.flatMap((s: any) => s.attendanceRecords);
       const present = allRecs.filter((r: any) => r.status === 'present' || r.status === 'late').length;
       const liturgy = allRecs.filter((r: any) => r.attendedLiturgy).length;
-      const rate = allRecs.length > 0 ? Math.round(present / allRecs.length * 100) : 0;
+      const rate = attendanceRate(allRecs);
       const xp = await this.prisma.xPTransaction.aggregate({
         where: { student: { schoolId, deletedAt: null }, createdAt: { gte: season.start, lte: season.end } },
         _sum: { amount: true },
@@ -198,10 +199,9 @@ export class ReportsService {
         include: { attendanceRecords: { select: { status: true } } },
       });
       const all = sessions.flatMap((s: any) => s.attendanceRecords);
-      const pres = all.filter((r: any) => r.status === 'present' || r.status === 'late').length;
       monthly.push({
         month: start.toLocaleString('en-US', { month: 'short', year: '2-digit' }),
-        rate: all.length > 0 ? Math.round(pres / all.length * 100) : 0,
+        rate: attendanceRate(all),
         sessions: sessions.length,
       });
     }
@@ -336,7 +336,7 @@ export class ReportsService {
           include: { attendanceRecords: { select: { status: true } } },
         }).then((sessions: any[]) => {
           const all = sessions.flatMap((s: any) => s.attendanceRecords);
-          return { count: sessions.length, rate: all.length > 0 ? Math.round(all.filter((r: any) => r.status === 'present' || r.status === 'late').length / all.length * 100) : 0 };
+          return { count: sessions.length, rate: attendanceRate(all) };
         }),
         this.prisma.xPTransaction.aggregate({
           where: { student: { schoolId: school.id, deletedAt: null }, createdAt: { gte: weekAgo } },
@@ -419,7 +419,7 @@ async getDioceseReport(churchId?: string) {
     const calcRate = (sessions: any[]) => {
       const all = sessions.flatMap((s: any) => s.attendanceRecords);
       if (!all.length) return 0;
-      return Math.round(all.filter((r: any) => r.status === 'present' || r.status === 'late').length / all.length * 100);
+      return attendanceRate(all);
     };
 
     const schoolStats = await Promise.all(

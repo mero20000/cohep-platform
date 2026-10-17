@@ -129,7 +129,7 @@ describe('DashboardService', () => {
         absent: 1,
         excused: 1,
         total: 5,
-        attendanceRate: 60,
+        attendanceRate: 75,
       });
     });
 

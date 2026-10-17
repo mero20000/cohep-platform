@@ -25,10 +25,13 @@ describe('AttendanceService', () => {
       create: jest.fn(),
       update: jest.fn(),
       updateMany: jest.fn(),
+      groupBy: jest.fn(),
       count: jest.fn(),
     },
     attendanceRecord: {
       findMany: jest.fn(),
+      findUnique: jest.fn(),
+      groupBy: jest.fn(),
       createMany: jest.fn(),
       deleteMany: jest.fn(),
       updateMany: jest.fn(),
@@ -43,9 +46,11 @@ describe('AttendanceService', () => {
     },
     level: {
       findFirst: jest.fn(),
+      findMany: jest.fn(),
     },
     group: {
       findUnique: jest.fn(),
+      findMany: jest.fn(),
     },
     subjectItem: {
       findUnique: jest.fn(),
@@ -71,6 +76,7 @@ describe('AttendanceService', () => {
   };
 
   const assessmentsMock = { create: jest.fn() };
+  const notificationsMock = { createNotification: jest.fn().mockResolvedValue(undefined) };
   const whatsappMock = { sendText: jest.fn().mockResolvedValue({ sent: false }) };
 
   beforeEach(async () => {
@@ -81,7 +87,7 @@ describe('AttendanceService', () => {
         { provide: SchoolResolver, useValue: { resolve: jest.fn().mockResolvedValue(schoolId) } },
         { provide: AuditService, useValue: { log: jest.fn() } },
         { provide: GamificationService, useValue: { computeBadgesForStudent: jest.fn().mockResolvedValue(undefined), awardAttendanceXp: jest.fn().mockResolvedValue(undefined) } },
-        { provide: NotificationsService, useValue: { createNotification: jest.fn() } },
+        { provide: NotificationsService, useValue: notificationsMock },
         { provide: MailService, useValue: { sendAttendanceAlert: jest.fn() } },
         { provide: AnalyticsService, useValue: { record: jest.fn() } },
         { provide: AssessmentsService, useValue: assessmentsMock },
@@ -707,6 +713,127 @@ describe('AttendanceService', () => {
       prisma.group.findUnique.mockResolvedValue({ id: 'g1' });
       const res = await service.markSubjectPassed('sess-1', 's1', 'u1');
       expect(res.whatsappLink).toMatch(/^https:\/\/wa\.me\/201001234567\?text=/);
+    });
+  });
+
+  describe('insights stats (aggregated, consistent definition)', () => {
+    const tallies = [
+      { attendanceSessionId: 's1', status: 'present', _count: { _all: 6 } },
+      { attendanceSessionId: 's1', status: 'absent', _count: { _all: 2 } },
+      { attendanceSessionId: 's1', status: 'excused', _count: { _all: 1 } },
+      { attendanceSessionId: 's1', status: 'unmarked', _count: { _all: 3 } },
+      { attendanceSessionId: 's2', status: 'late', _count: { _all: 2 } },
+      { attendanceSessionId: 's2', status: 'absent', _count: { _all: 2 } },
+    ];
+
+    beforeEach(() => {
+      prisma.level.findMany.mockResolvedValue([{ id: 'l1', number: 1, name: 'Level 1' }]);
+      prisma.group.findMany.mockResolvedValue([{ id: 'g1', name: 'Group A' }]);
+      // s1 has a level, s2 is a level-less session
+      prisma.attendanceSession.findMany.mockResolvedValue([
+        { id: 's1', levelId: 'l1', groupId: 'g1' },
+        { id: 's2', levelId: null, groupId: 'g1' },
+      ]);
+      prisma.attendanceRecord.groupBy.mockResolvedValue(tallies);
+      prisma.attendanceSession.groupBy.mockResolvedValue([
+        { status: 'completed', _count: { _all: 2 } },
+        { status: 'scheduled', _count: { _all: 3 } },
+      ]);
+    });
+
+    it('rates exclude unmarked and excused, and level-less sessions are included', async () => {
+      const stats = await service.getSessionStats('school-1');
+      expect(stats.presentCount).toBe(6);
+      expect(stats.lateCount).toBe(2);
+      expect(stats.absentCount).toBe(4);
+      expect(stats.excusedCount).toBe(1);
+      expect(stats.unmarkedCount).toBe(3);
+      expect(stats.totalRecords).toBe(13); // marked rows only
+      expect(stats.averageAttendanceRate).toBe(66.67); // (6+2)/(6+2+4)
+      expect(stats.totalSessions).toBe(5);
+      expect(stats.completedSessions).toBe(2);
+      expect(stats.scheduledSessions).toBe(3);
+    });
+
+    it('uses GROUP BY aggregation instead of loading records', async () => {
+      await service.getSessionStats('school-1');
+      expect(prisma.attendanceRecord.groupBy).toHaveBeenCalled();
+      expect(prisma.attendanceRecord.findMany).not.toHaveBeenCalled();
+    });
+
+    it('level stats add a "no level" bucket for level-less sessions', async () => {
+      const stats = await service.getLevelStats('school-1');
+      expect(stats).toHaveLength(2);
+      expect(stats[0]).toMatchObject({ levelId: 'l1', levelNumber: 1, totalSessions: 1, attendanceRate: 75 }); // 6/(6+2)
+      expect(stats[1]).toMatchObject({ levelId: null, levelNumber: null, totalSessions: 1, attendanceRate: 50 }); // 2/(2+2)
+    });
+
+    it('group stats report the levels each group actually ran', async () => {
+      const stats = await service.getGroupStats('school-1');
+      expect(stats).toHaveLength(1);
+      expect(stats[0]).toMatchObject({ groupId: 'g1', groupName: 'Group A', totalSessions: 2, levels: [{ number: 1, name: 'Level 1' }] });
+      expect(stats[0].attendanceRate).toBe(66.67);
+    });
+  });
+
+  describe('parent notifications are not repeated', () => {
+    const openSession = { id: 'sess-1', schoolId, servantId: 'u1', groupId: 'g1', levelId: 'l1', status: 'in_progress', actualStartTime: new Date(), deletedAt: null, metadata: null };
+
+    beforeEach(() => {
+      prisma.attendanceSession.findUnique.mockResolvedValue(openSession);
+      prisma.student.findMany.mockResolvedValue([{ id: 's1' }]);
+      prisma.user.findUnique.mockResolvedValue({ metadata: {} });
+      prisma.attendanceRecord.deleteMany.mockResolvedValue({ count: 0 });
+      prisma.attendanceRecord.createMany.mockResolvedValue({ count: 0 });
+      prisma.attendanceRecord.upsert.mockReturnValue('op');
+      prisma.$transaction.mockResolvedValue([]);
+      jest.spyOn(service, 'getSessionById').mockResolvedValue({ id: 'sess-1' } as any);
+    });
+
+    const markAbsent = () => service.markAttendance('sess-1', { recordedBy: 'u1', records: [{ studentId: 's1', status: 'absent' }] } as any);
+
+    it('runs the absence check when a student newly becomes absent', async () => {
+      prisma.attendanceRecord.findMany.mockResolvedValue([{ studentId: 's1', status: 'present' }]);
+      const cascade = jest.spyOn(service as any, 'checkAbsenceCascade').mockResolvedValue(undefined);
+      await markAbsent();
+      expect(cascade).toHaveBeenCalledWith('s1', schoolId, 'u1');
+    });
+
+    it('does NOT re-run it when the record was already absent', async () => {
+      prisma.attendanceRecord.findMany.mockResolvedValue([{ studentId: 's1', status: 'absent' }]);
+      const cascade = jest.spyOn(service as any, 'checkAbsenceCascade').mockResolvedValue(undefined);
+      await markAbsent();
+      expect(cascade).not.toHaveBeenCalled();
+    });
+
+    const record = (status: string) => ({
+      status,
+      student: { firstName: 'Mina', lastName: 'G', firstNameAr: null, lastNameAr: null, parentEmail: null },
+    });
+
+    it('alerts once when the streak reaches exactly 3 absences', async () => {
+      prisma.attendanceRecord.findMany.mockResolvedValue([record('absent'), record('absent'), record('absent'), record('present')]);
+      prisma.attendanceSession.findFirst.mockResolvedValue({ group: { name: 'Group A' } });
+      (prisma as any).studentParent = { findFirst: jest.fn().mockResolvedValue({ parentId: 'p1' }) };
+      await (service as any).checkAbsenceCascade('s1', schoolId, 'u1');
+      expect(notificationsMock.createNotification).toHaveBeenCalledTimes(2); // parent + servant
+    });
+
+    it('stays silent on the 4th consecutive absence', async () => {
+      prisma.attendanceRecord.findMany.mockResolvedValue([record('absent'), record('absent'), record('absent'), record('absent')]);
+      await (service as any).checkAbsenceCascade('s1', schoolId, 'u1');
+      expect(notificationsMock.createNotification).not.toHaveBeenCalled();
+    });
+
+    it('QR re-scan of an already checked-in student does not re-notify or rewrite the record', async () => {
+      prisma.user.findUnique.mockResolvedValue({ schoolId });
+      prisma.student.findUnique.mockResolvedValue({ id: 's1' });
+      prisma.attendanceSession.findFirst.mockResolvedValue(openSession);
+      prisma.attendanceRecord.findUnique.mockResolvedValue({ status: 'present', student: { firstName: 'Mina', lastName: 'G' } });
+      const res: any = await service.qrCheckIn('u1', 's1');
+      expect(res.alreadyCheckedIn).toBe(true);
+      expect(prisma.attendanceRecord.upsert).not.toHaveBeenCalled();
+      expect(notificationsMock.createNotification).not.toHaveBeenCalled();
     });
   });
 });

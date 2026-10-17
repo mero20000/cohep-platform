@@ -10,6 +10,15 @@ import { AssessmentsService } from '../assessments/assessments.service';
 import { WhatsAppService } from '../../common/whatsapp/whatsapp.service';
 import { CreateAttendanceSessionDto } from './dto/create-attendance-session.dto';
 import { MarkAttendanceDto, FinalizeAttendanceDto } from './dto/mark-attendance.dto';
+import { CLASS_SESSION_FILTER, preciseRateFromCounts } from './attendance-metrics';
+
+interface StatusTally { present: number; late: number; absent: number; excused: number; unmarked: number }
+const emptyTally = (): StatusTally => ({ present: 0, late: 0, absent: 0, excused: 0, unmarked: 0 });
+function addTally(into: StatusTally, from?: StatusTally) {
+  if (!from) return;
+  into.present += from.present; into.late += from.late; into.absent += from.absent;
+  into.excused += from.excused; into.unmarked += from.unmarked;
+}
 
 @Injectable()
 export class AttendanceService {
@@ -666,12 +675,21 @@ export class AttendanceService {
     });
   }
 
+  private async loadRecordStatuses(sessionId: string, studentIds: string[]) {
+    const rows = await this.prisma.attendanceRecord.findMany({
+      where: { attendanceSessionId: sessionId, studentId: { in: studentIds } },
+      select: { studentId: true, status: true },
+    });
+    return new Map<string, string>((rows ?? []).map(r => [r.studentId, r.status]));
+  }
+
   /** Analytics, XP, badges and absence alerts after marks are committed (all best-effort). */
   private runMarkSideEffects(
     session: { schoolId: string },
     sessionId: string,
     records: MarkAttendanceDto['records'],
     recordedBy: string,
+    previousStatus?: Map<string, string>,
   ) {
     // MEASURE (C2): first attendance within 7 days of signup = activation.
     this.analytics.record({
@@ -691,9 +709,10 @@ export class AttendanceService {
       this.gamification.computeBadgesForStudent(sid).catch(() => {});
     }
 
-    // Absence cascade: check for 3 consecutive absences
+    // Absence cascade: only when a student *newly* becomes absent. Re-saving an
+    // already-absent record must not re-notify parents.
     for (const record of records) {
-      if (record.status === 'absent') {
+      if (record.status === 'absent' && previousStatus?.get(record.studentId) !== 'absent') {
         this.checkAbsenceCascade(record.studentId, session.schoolId, recordedBy).catch(() => {});
       }
     }
@@ -715,9 +734,10 @@ export class AttendanceService {
     await this.syncSessionStudents(sessionId, dto.recordedBy || session.servantId);
 
     const recordedBy = dto.recordedBy || session.servantId;
+    const previousStatus = await this.loadRecordStatuses(sessionId, dto.records.map(r => r.studentId));
     await this.prisma.$transaction(dto.records.map(record => this.buildRecordUpsert(sessionId, record, recordedBy)));
 
-    this.runMarkSideEffects(session, sessionId, dto.records, recordedBy);
+    this.runMarkSideEffects(session, sessionId, dto.records, recordedBy, previousStatus);
 
     return this.getSessionById(sessionId);
   }
@@ -743,7 +763,8 @@ export class AttendanceService {
       where: { attendanceSessionId: sessionId, student: { deletedAt: null } },
       select: { studentId: true, status: true },
     });
-    const finalStatus = new Map<string, string>(existing.map(r => [r.studentId, r.status]));
+    const previousStatus = new Map<string, string>(existing.map(r => [r.studentId, r.status]));
+    const finalStatus = new Map<string, string>(previousStatus);
     for (const r of records) finalStatus.set(r.studentId, r.status);
     if (finalStatus.size === 0) {
       throw new BadRequestException('Cannot finalize a session with no students.');
@@ -775,28 +796,36 @@ export class AttendanceService {
       newValues: { status: 'completed', unmarkedCount },
     });
 
-    this.runMarkSideEffects(session, sessionId, records, recordedBy);
+    this.runMarkSideEffects(session, sessionId, records, recordedBy, previousStatus);
     this.sendPracticeGuideNotifications(sessionId).catch(() => {});
 
     return this.getSessionById(sessionId);
   }
 
   private async checkAbsenceCascade(studentId: string, schoolId: string, servantId: string) {
+    // Class sessions only (liturgy and deleted sessions don't count). Fetch one
+    // extra row so we alert once, when the streak reaches exactly 3.
     const recent = await this.prisma.attendanceRecord.findMany({
-      where: { studentId, status: { in: ['present', 'late', 'absent'] } },
+      where: {
+        studentId,
+        status: { in: ['present', 'late', 'absent'] },
+        attendanceSession: { deletedAt: null, AND: [CLASS_SESSION_FILTER] },
+      },
       include: {
         attendanceSession: { select: { scheduledDate: true } },
         student: { select: { firstName: true, lastName: true, firstNameAr: true, lastNameAr: true, parentEmail: true } },
       },
       orderBy: { attendanceSession: { scheduledDate: 'desc' } },
-      take: 3,
+      take: 4,
     });
 
     if (recent.length < 3) return;
-    const allAbsent = recent.every(r => r.status === 'absent');
-    if (!allAbsent) return;
+    const streak = recent.slice(0, 3);
+    if (!streak.every(r => r.status === 'absent')) return;
+    // A 4th consecutive absence means the alert already went out at 3.
+    if (recent.length === 4 && recent[3].status === 'absent') return;
 
-    const student = recent[0].student;
+    const student = streak[0].student;
     const studentName = `${student.firstName} ${student.lastName}`;
     const studentNameAr = student.firstNameAr && student.lastNameAr ? `${student.firstNameAr} ${student.lastNameAr}` : studentName;
 
@@ -871,6 +900,24 @@ export class AttendanceService {
     }
     this.assertSessionWritable(session);
 
+    const recordInclude = {
+      student: { select: { id: true, firstName: true, lastName: true, firstNameAr: true, lastNameAr: true } },
+      attendanceSession: { select: { id: true, group: { select: { name: true } } } },
+    };
+
+    // A repeat scan must not reset the check-in time or re-notify parents.
+    const already = await this.prisma.attendanceRecord.findUnique({
+      where: { attendanceSessionId_studentId: { attendanceSessionId: session.id, studentId } },
+      include: recordInclude,
+    });
+    if (already && (already.status === 'present' || already.status === 'late')) {
+      return {
+        record: already,
+        alreadyCheckedIn: true,
+        message: `${already.student.firstName} ${already.student.lastName} is already checked in.`,
+      };
+    }
+
     const record = await this.prisma.attendanceRecord.upsert({
       where: { attendanceSessionId_studentId: { attendanceSessionId: session.id, studentId } },
       create: {
@@ -885,10 +932,7 @@ export class AttendanceService {
         recordedBy: servantId,
         recordedAt: new Date(),
       },
-      include: {
-        student: { select: { id: true, firstName: true, lastName: true, firstNameAr: true, lastNameAr: true } },
-        attendanceSession: { select: { id: true, group: { select: { name: true } } } },
-      },
+      include: recordInclude,
     });
 
     this.gamification.awardAttendanceXp(studentId, session.id, 'present', servant.schoolId!).catch(() => {});
@@ -1157,104 +1201,133 @@ export class AttendanceService {
     };
   }
 
+  /** Class sessions only (soft-deleted and liturgy sessions excluded). */
+  private classSessionWhere(schoolId: string, extra: Record<string, any> = {}, and: any[] = []) {
+    return { schoolId, deletedAt: null, ...extra, AND: [CLASS_SESSION_FILTER, ...and] };
+  }
+
+  /**
+   * Per-session status tallies for completed class sessions, computed with a
+   * database GROUP BY instead of loading every attendance record into memory.
+   */
+  private async completedSessionTallies(schoolId: string, and: any[] = []) {
+    const where = this.classSessionWhere(schoolId, { status: 'completed' }, and);
+    const [sessions, grouped] = await Promise.all([
+      this.prisma.attendanceSession.findMany({ where: where as any, select: { id: true, levelId: true, groupId: true } }),
+      (this.prisma.attendanceRecord as any).groupBy({
+        by: ['attendanceSessionId', 'status'],
+        where: { attendanceSession: where, student: { deletedAt: null } },
+        _count: { _all: true },
+      }) as Promise<Array<{ attendanceSessionId: string; status: string; _count: { _all: number } }>>,
+    ]);
+    const bySession = new Map<string, StatusTally>();
+    for (const g of grouped) {
+      const t = bySession.get(g.attendanceSessionId) ?? emptyTally();
+      if (g.status in t) (t as any)[g.status] += g._count._all;
+      bySession.set(g.attendanceSessionId, t);
+    }
+    return { sessions, bySession };
+  }
+
   async getSessionStats(schoolIdentifier: string) {
     const schoolId = await this.schoolResolver.resolve(schoolIdentifier);
     const activeLevels = await this.prisma.level.findMany({
       where: { schoolId, status: { not: 'inactive' } },
       select: { id: true },
     });
-    const activeLevelIds = activeLevels.map(l => l.id);
-    if (activeLevelIds.length === 0) {
-      return { totalSessions: 0, completedSessions: 0, scheduledSessions: 0, inProgressSessions: 0, totalRecords: 0, presentCount: 0, lateCount: 0, absentCount: 0, excusedCount: 0, averageAttendanceRate: 0 };
-    }
-    const levelFilter = { levelId: { in: activeLevelIds } };
+    // Sessions without a level (now allowed) still count; only sessions of
+    // deactivated levels are left out.
+    const levelScope = { OR: [{ levelId: null }, { levelId: { in: activeLevels.map(l => l.id) } }] };
 
-    const totalSessions = await this.prisma.attendanceSession.count({ where: { schoolId, deletedAt: null, ...levelFilter } });
-    const completedSessions = await this.prisma.attendanceSession.count({ where: { schoolId, deletedAt: null, status: 'completed', ...levelFilter } });
-    const scheduledSessions = await this.prisma.attendanceSession.count({ where: { schoolId, deletedAt: null, status: 'scheduled', ...levelFilter } });
-    const inProgressSessions = await this.prisma.attendanceSession.count({ where: { schoolId, deletedAt: null, status: 'in_progress', ...levelFilter } });
+    const [byStatus, { sessions, bySession }] = await Promise.all([
+      (this.prisma.attendanceSession as any).groupBy({
+        by: ['status'],
+        where: this.classSessionWhere(schoolId, {}, [levelScope]),
+        _count: { _all: true },
+      }) as Promise<Array<{ status: string; _count: { _all: number } }>>,
+      this.completedSessionTallies(schoolId, [levelScope]),
+    ]);
+    const sessionCount = (status: string) => byStatus.find(g => g.status === status)?._count._all ?? 0;
 
-    const allCompleted = await this.prisma.attendanceSession.findMany({
-      where: { schoolId, deletedAt: null, status: 'completed', ...levelFilter },
-      select: { attendanceRecords: { select: { status: true } } },
-    });
-
-    let totalRecords = 0, presentCount = 0, lateCount = 0, absentCount = 0, excusedCount = 0;
-    for (const session of allCompleted) {
-      for (const record of session.attendanceRecords) {
-        totalRecords++;
-        if (record.status === 'present') presentCount++;
-        else if (record.status === 'late') lateCount++;
-        else if (record.status === 'absent') absentCount++;
-        else if (record.status === 'excused') excusedCount++;
-      }
-    }
-
-    const avgRate = totalRecords > 0 ? Math.round(((presentCount + lateCount) / totalRecords) * 10000) / 100 : 0;
+    const total = emptyTally();
+    for (const s of sessions) addTally(total, bySession.get(s.id));
 
     return {
-      totalSessions, completedSessions, scheduledSessions, inProgressSessions,
-      totalRecords, presentCount, lateCount, absentCount, excusedCount,
-      averageAttendanceRate: avgRate,
+      totalSessions: byStatus.reduce((n, g) => n + g._count._all, 0),
+      completedSessions: sessionCount('completed'),
+      scheduledSessions: sessionCount('scheduled'),
+      inProgressSessions: sessionCount('in_progress'),
+      // Marked records only: unmarked rows are pending work, not attendance data.
+      totalRecords: total.present + total.late + total.absent + total.excused,
+      presentCount: total.present,
+      lateCount: total.late,
+      absentCount: total.absent,
+      excusedCount: total.excused,
+      unmarkedCount: total.unmarked,
+      averageAttendanceRate: preciseRateFromCounts(total),
     };
   }
 
   async getLevelStats(schoolIdentifier: string) {
     const schoolId = await this.schoolResolver.resolve(schoolIdentifier);
     const levels = await this.prisma.level.findMany({ where: { schoolId, status: { not: 'inactive' } }, orderBy: { number: 'asc' } });
+    const { sessions, bySession } = await this.completedSessionTallies(schoolId);
 
-    const stats: any[] = [];
-    for (const level of levels) {
-      const sessions = await this.prisma.attendanceSession.findMany({
-        where: { schoolId, levelId: level.id, status: 'completed', deletedAt: null },
-        select: { attendanceRecords: { select: { status: true } } },
-      });
-      let total = 0, present = 0;
-      for (const s of sessions) {
-        for (const r of s.attendanceRecords) {
-          total++;
-          if (r.status === 'present' || r.status === 'late') present++;
-        }
-      }
-      stats.push({
-        levelId: level.id, levelNumber: level.number, levelName: level.name,
-        totalSessions: sessions.length, totalRecords: total,
-        attendanceRate: total > 0 ? Math.round((present / total) * 10000) / 100 : 0,
-      });
+    const summarize = (subset: typeof sessions) => {
+      const tally = emptyTally();
+      for (const s of subset) addTally(tally, bySession.get(s.id));
+      return {
+        totalSessions: subset.length,
+        totalRecords: tally.present + tally.late + tally.absent + tally.excused,
+        attendanceRate: preciseRateFromCounts(tally),
+      };
+    };
+
+    const stats: any[] = levels.map(level => ({
+      levelId: level.id, levelNumber: level.number, levelName: level.name,
+      ...summarize(sessions.filter(s => s.levelId === level.id)),
+    }));
+    const noLevel = sessions.filter(s => !s.levelId);
+    if (noLevel.length > 0) {
+      stats.push({ levelId: null, levelNumber: null, levelName: null, ...summarize(noLevel) });
     }
     return stats;
   }
 
   async getGroupStats(schoolIdentifier: string) {
     const schoolId = await this.schoolResolver.resolve(schoolIdentifier);
-    const groups = await this.prisma.group.findMany({
-      where: { schoolId, status: { not: 'inactive' }, deletedAt: null },
-      orderBy: { name: 'asc' },
-    });
+    const [groups, levels, { sessions, bySession }] = await Promise.all([
+      this.prisma.group.findMany({
+        where: { schoolId, status: { not: 'inactive' }, deletedAt: null },
+        orderBy: { name: 'asc' },
+      }),
+      this.prisma.level.findMany({ where: { schoolId }, select: { id: true, number: true, name: true } }),
+      this.completedSessionTallies(schoolId),
+    ]);
+    const levelById = new Map(levels.map(l => [l.id, l]));
 
-    const stats: any[] = [];
-    for (const group of groups) {
-      const sessions = await this.prisma.attendanceSession.findMany({
-        where: { schoolId, groupId: group.id, status: 'completed', deletedAt: null },
-        select: { attendanceRecords: { select: { status: true } } },
-      });
-      let total = 0, present = 0;
-      for (const s of sessions) {
-        for (const r of s.attendanceRecords) {
-          total++;
-          if (r.status === 'present' || r.status === 'late') present++;
-        }
-      }
-      stats.push({
+    return groups.map(group => {
+      const groupSessions = sessions.filter(s => s.groupId === group.id);
+      const tally = emptyTally();
+      for (const s of groupSessions) addTally(tally, bySession.get(s.id));
+      // A group spans several levels, so report which levels it actually ran.
+      const levelIds = [...new Set(groupSessions.map(s => s.levelId).filter((id): id is string => !!id))];
+      return {
         groupId: group.id, groupName: group.name,
-        totalSessions: sessions.length, totalRecords: total,
-        attendanceRate: total > 0 ? Math.round((present / total) * 10000) / 100 : 0,
-      });
-    }
-    return stats;
+        levels: levelIds
+          .map(id => levelById.get(id))
+          .filter((l): l is NonNullable<typeof l> => !!l)
+          .sort((a, b) => a.number - b.number)
+          .map(l => ({ number: l.number, name: l.name })),
+        totalSessions: groupSessions.length,
+        totalRecords: tally.present + tally.late + tally.absent + tally.excused,
+        attendanceRate: preciseRateFromCounts(tally),
+      };
+    });
   }
 
-  async searchStudentAttendance(q: string, schoolId: string) {
+  async searchStudentAttendance(q: string, schoolIdentifier: string) {
+    const schoolId = await this.schoolResolver.resolve(schoolIdentifier);
     const students = await this.prisma.student.findMany({
       where: {
         schoolId,
@@ -1272,7 +1345,8 @@ export class AttendanceService {
     });
     if (!students.length) return [];
     const records = await this.prisma.attendanceRecord.findMany({
-      where: { studentId: { in: students.map(s => s.id) }, attendanceSession: { deletedAt: null } },
+      // Rows that were never marked are not attendance history.
+      where: { studentId: { in: students.map(s => s.id) }, status: { not: 'unmarked' }, attendanceSession: { deletedAt: null } },
       include: {
         attendanceSession: {
           include: {
@@ -1280,7 +1354,7 @@ export class AttendanceService {
           },
         },
       },
-      orderBy: { recordedAt: 'desc' },
+      orderBy: { attendanceSession: { scheduledDate: 'desc' } },
     });
     return students.map(s => ({
       student: s,
