@@ -28,8 +28,8 @@ export class DashboardService {
       this.prisma.church.count({ where: { deletedAt: null, isActive: true } }),
       this.prisma.user.count({ where: { schoolId: resolvedId, ...where } }),
       this.prisma.studentBadge.count({ where: { student: { schoolId: resolvedId, deletedAt: null } } }),
-      this.prisma.attendanceSession.count({ where: { schoolId: resolvedId, status: 'completed', deletedAt: null } }),
-      this.prisma.attendanceSession.count({ where: { schoolId: resolvedId, deletedAt: null } }),
+      this.prisma.attendanceSession.count({ where: { schoolId: resolvedId, type: 'class', status: 'completed', deletedAt: null } }),
+      this.prisma.attendanceSession.count({ where: { schoolId: resolvedId, type: 'class', deletedAt: null } }),
       this.prisma.student.count({ where: { schoolId: resolvedId, status: 'active', ...where } }),
       this.prisma.assessment.count({ where: { schoolId: resolvedId, status: 'published', deletedAt: null } }),
       this.prisma.assessment.count({ where: { schoolId: resolvedId, deletedAt: null } }),
@@ -44,7 +44,7 @@ export class DashboardService {
 
     const attendanceRecords = await this.prisma.attendanceRecord.findMany({
       where: {
-        attendanceSession: { schoolId: resolvedId, deletedAt: null, scheduledDate: { gte: today, lt: tomorrow } }
+        attendanceSession: { schoolId: resolvedId, type: 'class', deletedAt: null, scheduledDate: { gte: today, lt: tomorrow } }
       },
       select: { status: true },
     });
@@ -166,6 +166,7 @@ export class DashboardService {
       upcomingSessions: await this.prisma.attendanceSession.findMany({
         where: {
           schoolId: resolvedId,
+          type: 'class',
           deletedAt: null,
           status: 'scheduled',
           scheduledDate: { gte: (() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d; })() },
@@ -206,6 +207,7 @@ export class DashboardService {
       weeklyStats: await this.prisma.attendanceSession.findMany({
         where: {
           schoolId: resolvedId,
+          type: 'class',
           deletedAt: null,
           scheduledDate: {
             gte: (() => { const d = new Date(); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() - 6); return d; })(),
@@ -328,7 +330,7 @@ export class DashboardService {
 
     // Build filter conditions based on assignments
     // (deleted sessions are never live data — every reader must exclude them)
-    const sessionWhere: any = { schoolId, groupId: { in: groupIds }, status: 'scheduled', deletedAt: null };
+    const sessionWhere: any = { schoolId, groupId: { in: groupIds }, type: 'class', status: 'scheduled', deletedAt: null };
     // Active students only — inactive/graduated records must not inflate
     // "My Students" or dilute attendance denominators.
     const studentWhere: any = { schoolId, groupId: { in: groupIds }, deletedAt: null, status: 'active' };
@@ -404,11 +406,11 @@ export class DashboardService {
         },
       }),
       this.prisma.student.count({ where: studentWhere }),
-      this.prisma.attendanceSession.count({ where: { schoolId, groupId: { in: groupIds }, status: 'completed', deletedAt: null } }),
-      this.prisma.attendanceSession.count({ where: { schoolId, groupId: { in: groupIds }, deletedAt: null } }),
+      this.prisma.attendanceSession.count({ where: { schoolId, groupId: { in: groupIds }, type: 'class', status: 'completed', deletedAt: null } }),
+      this.prisma.attendanceSession.count({ where: { schoolId, groupId: { in: groupIds }, type: 'class', deletedAt: null } }),
       this.prisma.attendanceRecord.findMany({
         where: {
-          attendanceSession: { schoolId, groupId: { in: groupIds }, deletedAt: null },
+          attendanceSession: { schoolId, groupId: { in: groupIds }, type: 'class', deletedAt: null },
           student: { deletedAt: null },
         },
         select: { status: true },
@@ -434,6 +436,7 @@ export class DashboardService {
           attendanceSession: {
             schoolId,
             groupId: { in: groupIds },
+            type: 'class',
             deletedAt: null,
             scheduledDate: { gte: saturday, lte: todayEnd },
           },
@@ -969,11 +972,11 @@ export class DashboardService {
       const twoWeeksAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
       const [thisWeekSessions, lastWeekSessions] = await Promise.all([
         this.prisma.attendanceSession.findMany({
-          where: { groupId: { in: groupIds }, scheduledDate: { gte: weekAgo }, deletedAt: null },
+          where: { groupId: { in: groupIds }, type: 'class', scheduledDate: { gte: weekAgo }, deletedAt: null },
           include: { attendanceRecords: { select: { status: true } } },
         }),
         this.prisma.attendanceSession.findMany({
-          where: { groupId: { in: groupIds }, scheduledDate: { gte: twoWeeksAgo, lt: weekAgo }, deletedAt: null },
+          where: { groupId: { in: groupIds }, type: 'class', scheduledDate: { gte: twoWeeksAgo, lt: weekAgo }, deletedAt: null },
           include: { attendanceRecords: { select: { status: true } } },
         }),
       ]);
@@ -1070,6 +1073,7 @@ export class DashboardService {
         schoolId,
         servantId: user.id,
         groupId: { in: groupIds },
+        type: 'class',
         status: 'scheduled',
         deletedAt: null,
         scheduledDate: { gte: new Date() },
@@ -1105,7 +1109,7 @@ export class DashboardService {
     const { groupIds, levelIds, studentIds } = await this.resolveServantClass(user.id, schoolId);
 
     const nextSession = await this.prisma.attendanceSession.findFirst({
-      where: { schoolId, servantId: user.id, groupId: { in: groupIds }, status: 'scheduled', deletedAt: null, scheduledDate: { gte: new Date() } },
+      where: { schoolId, servantId: user.id, groupId: { in: groupIds }, type: 'class', status: 'scheduled', deletedAt: null, scheduledDate: { gte: new Date() } },
       orderBy: { scheduledDate: 'asc' },
       include: {
         level: { select: { id: true, name: true, number: true } },
@@ -1395,6 +1399,7 @@ export class DashboardService {
         schoolId,
         servantId: user.id,
         groupId: { in: groupIds },
+        type: 'class',
         status: 'scheduled',
         deletedAt: null,
         scheduledDate: { gte: new Date() },

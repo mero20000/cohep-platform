@@ -1,9 +1,8 @@
 'use client'
 
-// Contract: four explicit callbacks (onBehaviorChange / onParticipationChange /
-// onLiturgyChange / onNoteChange) map 1:1 to the four useMarkingState setters
-// wired by Task 3. Kept explicit (instead of a single onChange) so each Task 3
-// setter binds directly without an intermediate dispatch key.
+// Contract: explicit callbacks (onBehaviorChange / onParticipationChange /
+// onNoteChange) map 1:1 to the useMarkingState setters. Liturgy attendance is no
+// longer ticked per class record: it is taken as its own Liturgy session.
 
 type Lang = 'en' | 'ar'
 
@@ -15,11 +14,9 @@ const STRINGS = {
 interface DetailExpanderProps {
   behavior: number
   participation: number
-  liturgy: boolean
   note: string
   onBehaviorChange: (v: number) => void
   onParticipationChange: (v: number) => void
-  onLiturgyChange: (v: boolean) => void
   onNoteChange: (v: string) => void
   lang: Lang
   studentName?: string
@@ -68,11 +65,9 @@ function StarRow({
 export function DetailExpander({
   behavior,
   participation,
-  liturgy,
   note,
   onBehaviorChange,
   onParticipationChange,
-  onLiturgyChange,
   onNoteChange,
   lang,
 }: DetailExpanderProps) {
@@ -91,15 +86,6 @@ export function DetailExpander({
           <label className="block text-xs font-medium text-gray-700 mb-1">{t.participation}</label>
           <StarRow label={t.participation} value={participation} onChange={onParticipationChange} lang={lang} />
         </div>
-        <label className="flex min-h-[44px] items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            checked={!!liturgy}
-            onChange={(e) => onLiturgyChange(e.target.checked)}
-            className="h-6 w-6 accent-yellow-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500"
-          />
-          {lang === 'ar' ? 'حضر القداس' : 'Attended liturgy'}
-        </label>
         <input
           value={note || ''}
           onChange={(e) => onNoteChange(e.target.value)}

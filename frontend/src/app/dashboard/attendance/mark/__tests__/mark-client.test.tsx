@@ -7,6 +7,8 @@ const state = vi.hoisted(() => ({
   twoStudents: false,
   saved: null as any[] | null,
   status: 'in_progress' as string,
+  extra: {} as Record<string, any>,
+  records: null as any[] | null,
 }))
 
 const TWO = [
@@ -17,8 +19,8 @@ const ONE = [TWO[0]]
 
 const mockGet = vi.fn(async (url: string) => {
   if (url.startsWith('/attendance/sessions/')) {
-    if (state.saved) return { id: 'sess-1', status: state.status, attendanceRecords: state.saved }
-    return { id: 'sess-1', status: state.status, attendanceRecords: state.twoStudents ? TWO : ONE }
+    if (state.saved) return { id: 'sess-1', status: state.status, ...state.extra, attendanceRecords: state.saved }
+    return { id: 'sess-1', status: state.status, ...state.extra, attendanceRecords: state.records ?? (state.twoStudents ? TWO : ONE) }
   }
   return []
 })
@@ -44,6 +46,8 @@ beforeEach(() => {
   state.twoStudents = false
   state.saved = null
   state.status = 'in_progress'
+  state.extra = {}
+  state.records = null
   mockGet.mockClear()
   mockPost.mockClear()
   mockPut.mockClear()
@@ -167,5 +171,110 @@ describe('MarkClient', () => {
     fireEvent.click(screen.getByRole('button', { name: /^Confirm/i }))
     await waitFor(() => expect(screen.getByRole('button', { name: /Present - Mina G/i }).getAttribute('aria-pressed')).toBe('true'))
     expect(screen.getByRole('button', { name: /Present - John D/i }).getAttribute('aria-pressed')).toBe('true')
+  })
+  describe('liturgy / event sessions', () => {
+    const rec = (id: string, first: string, group: string, grade = 'Grade 1', status = 'unmarked') => ({
+      student: { id, firstName: first, lastName: 'X', group: { id: `g-${group}`, name: group }, grade: { id: `gr-${grade}`, name: grade } },
+      status, behavior: 0, participation: 0, attendedLiturgy: false, note: '',
+    })
+    const today = new Date().toISOString()
+    const future = new Date(Date.now() + 5 * 86400000).toISOString()
+
+    it('liturgy offers only Present and Absent, with no scores and no liturgy tick', async () => {
+      state.extra = { type: 'liturgy', scheduledDate: today, targets: [{ groupId: 'g-A', group: { name: 'Group A' } }] }
+      state.records = [rec('s1', 'Mina', 'Group A')]
+      render(<MarkClient />)
+      await screen.findByRole('group', { name: /Status - Mina X/i })
+      expect(screen.getByRole('button', { name: /Present - Mina X/i })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: /Absent - Mina X/i })).toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: /Late - Mina X/i })).not.toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: /Excused - Mina X/i })).not.toBeInTheDocument()
+      expect(screen.queryByText('Details')).not.toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: /All Late/i })).not.toBeInTheDocument()
+      expect(screen.getByText('Liturgy')).toBeInTheDocument() // type badge
+    })
+
+    it('class sessions no longer show an "Attended liturgy" tick', async () => {
+      render(<MarkClient />)
+      await screen.findByRole('group', { name: /Status - Mina G/i })
+      fireEvent.click(screen.getByText('Details'))
+      expect(screen.queryByLabelText(/Attended liturgy/i)).not.toBeInTheDocument()
+    })
+
+    it('finalizing a liturgy tells you unmarked students become absent, and only then posts', async () => {
+      state.extra = { type: 'liturgy', scheduledDate: today }
+      state.records = [rec('s1', 'Mina', 'Group A'), rec('s2', 'John', 'Group A')]
+      const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false)
+      render(<MarkClient />)
+      await screen.findByRole('group', { name: /Status - Mina X/i })
+      fireEvent.click(screen.getByRole('button', { name: /Present - Mina X/i }))
+      fireEvent.click(screen.getByRole('button', { name: /Save & Finalize/i }))
+      await waitFor(() => expect(confirm).toHaveBeenCalled())
+      expect(confirm.mock.calls[0][0]).toMatch(/1 student\(s\) not marked present will be saved as absent/)
+      expect(mockPost).not.toHaveBeenCalledWith(expect.stringContaining('/finalize'), expect.anything())
+
+      confirm.mockReturnValue(true)
+      fireEvent.click(screen.getByRole('button', { name: /Save & Finalize/i }))
+      await waitFor(() => expect(mockPost).toHaveBeenCalledWith('/attendance/sessions/sess-1/finalize', expect.objectContaining({ allowUnmarked: true })))
+      confirm.mockRestore()
+    })
+
+    it('multi-group sessions show group chips with counts, sections, and filter by group', async () => {
+      state.extra = { type: 'liturgy', scheduledDate: today, allGroups: true }
+      state.records = [rec('s1', 'Mina', 'Group A', 'Grade 1', 'present'), rec('s2', 'John', 'Group B', 'Grade 2')]
+      render(<MarkClient />)
+      await screen.findByRole('group', { name: /Status - Mina X/i })
+      expect(screen.getByRole('button', { name: /All groups \(1\/2\)/ })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: /Group A \(1\/1\)/ })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: /Group B \(0\/1\)/ })).toBeInTheDocument()
+      fireEvent.click(screen.getByRole('button', { name: /Group B \(0\/1\)/ }))
+      expect(screen.queryByRole('group', { name: /Status - Mina X/i })).not.toBeInTheDocument()
+      expect(screen.getByRole('group', { name: /Status - John X/i })).toBeInTheDocument()
+      expect(screen.getByText(/Showing 1 of 2/i)).toBeInTheDocument()
+    })
+
+    it('a group section can be collapsed', async () => {
+      state.extra = { type: 'event', title: 'Picnic', scheduledDate: today, allGroups: true }
+      state.records = [rec('s1', 'Mina', 'Group A'), rec('s2', 'John', 'Group B')]
+      render(<MarkClient />)
+      await screen.findByRole('group', { name: /Status - Mina X/i })
+      expect(screen.getByText(/Picnic/)).toBeInTheDocument()
+      fireEvent.click(screen.getByRole('button', { name: /^Group A 0\/1/ }))
+      expect(screen.queryByRole('group', { name: /Status - Mina X/i })).not.toBeInTheDocument()
+      expect(screen.getByRole('group', { name: /Status - John X/i })).toBeInTheDocument()
+    })
+
+    it('"Mark all" on a group only touches that group', async () => {
+      state.extra = { type: 'liturgy', scheduledDate: today, allGroups: true }
+      state.records = [rec('s1', 'Mina', 'Group A'), rec('s2', 'John', 'Group B')]
+      render(<MarkClient />)
+      await screen.findByRole('group', { name: /Status - Mina X/i })
+      fireEvent.click(screen.getByRole('button', { name: /Group A \(0\/1\)/ }))
+      fireEvent.click(screen.getByRole('button', { name: /All Present/i }))
+      fireEvent.click(screen.getByRole('button', { name: /^Confirm|^Yes|^Mark/i }))
+      fireEvent.click(screen.getByRole('button', { name: /All groups/ }))
+      expect(screen.getByRole('button', { name: /Present - Mina X/i }).getAttribute('aria-pressed')).toBe('true')
+      expect(screen.getByRole('button', { name: /Present - John X/i }).getAttribute('aria-pressed')).toBe('false')
+    })
+
+    it('a liturgy scheduled for a later day cannot be recorded yet', async () => {
+      state.status = 'scheduled'
+      state.extra = { type: 'liturgy', scheduledDate: future }
+      state.records = [rec('s1', 'Mina', 'Group A')]
+      render(<MarkClient />)
+      await screen.findByText(/scheduled for .* Attendance can be recorded from that day/i)
+      expect(screen.queryByRole('button', { name: /Save/i })).not.toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: /Start Liturgy/i })).not.toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: /Present - Mina X/i })).not.toBeInTheDocument()
+    })
+
+    it('legacy "recorded" liturgy is shown as finalized and can be re-opened', async () => {
+      state.status = 'recorded'
+      state.extra = { type: 'liturgy', scheduledDate: '2026-01-04T00:00:00.000Z' }
+      state.records = [rec('s1', 'Mina', 'Group A', 'Grade 1', 'present')]
+      render(<MarkClient />)
+      await screen.findByRole('button', { name: /Re-open/i })
+      expect(screen.getByText(/finalized|read-only/i)).toBeInTheDocument()
+    })
   })
 })

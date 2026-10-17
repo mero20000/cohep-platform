@@ -26,11 +26,11 @@ export class ReportsService {
 
     const [thisWeekSessions, lastWeekSessions] = await Promise.all([
       this.prisma.attendanceSession.findMany({
-        where: { schoolId, scheduledDate: { gte: weekAgo }, deletedAt: null },
+        where: { schoolId, type: 'class', scheduledDate: { gte: weekAgo }, deletedAt: null },
         include: { attendanceRecords: { select: { status: true } } },
       }),
       this.prisma.attendanceSession.findMany({
-        where: { schoolId, scheduledDate: { gte: twoWeeksAgo, lt: weekAgo }, deletedAt: null },
+        where: { schoolId, type: 'class', scheduledDate: { gte: twoWeeksAgo, lt: weekAgo }, deletedAt: null },
         include: { attendanceRecords: { select: { status: true } } },
       }),
     ]);
@@ -195,7 +195,7 @@ export class ReportsService {
       const start = new Date(d.getFullYear(), d.getMonth(), 1);
       const end = new Date(d.getFullYear(), d.getMonth() + 1, 0);
       const sessions = await this.prisma.attendanceSession.findMany({
-        where: { schoolId, scheduledDate: { gte: start, lte: end }, deletedAt: null },
+        where: { schoolId, type: 'class', scheduledDate: { gte: start, lte: end }, deletedAt: null },
         include: { attendanceRecords: { select: { status: true } } },
       });
       const all = sessions.flatMap((s: any) => s.attendanceRecords);
@@ -332,7 +332,7 @@ export class ReportsService {
           }),
         this.prisma.userRole.count({ where: { user: { schoolId: school.id }, role: { name: { in: ['servant', 'group_leader', 'level_leader', 'curriculum_manager'] } } } }),
         this.prisma.attendanceSession.findMany({
-          where: { schoolId: school.id, scheduledDate: { gte: weekAgo }, deletedAt: null },
+          where: { schoolId: school.id, type: 'class', scheduledDate: { gte: weekAgo }, deletedAt: null },
           include: { attendanceRecords: { select: { status: true } } },
         }).then((sessions: any[]) => {
           const all = sessions.flatMap((s: any) => s.attendanceRecords);
@@ -440,12 +440,12 @@ async getDioceseReport(churchId?: string) {
             }),
 
             this.prisma.attendanceSession.findMany({
-              where: { schoolId: school.id, scheduledDate: { gte: weekAgo }, deletedAt: null },
+              where: { schoolId: school.id, type: 'class', scheduledDate: { gte: weekAgo }, deletedAt: null },
               include: { attendanceRecords: { select: { status: true } } },
             }),
 
             this.prisma.attendanceSession.findMany({
-              where: { schoolId: school.id, scheduledDate: { gte: twoWeeksAgo, lt: weekAgo }, deletedAt: null },
+              where: { schoolId: school.id, type: 'class', scheduledDate: { gte: twoWeeksAgo, lt: weekAgo }, deletedAt: null },
               include: { attendanceRecords: { select: { status: true } } },
             }),
 

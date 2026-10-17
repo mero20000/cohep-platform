@@ -105,8 +105,8 @@ export class AttendanceController {
 
   @Post('sessions')
   @ApiOperation({ summary: 'Create an attendance session' })
-  async createSession(@Body() dto: CreateAttendanceSessionDto) {
-    return this.attendanceService.createSession(dto);
+  async createSession(@Body() dto: CreateAttendanceSessionDto, @Req() req: any) {
+    return this.attendanceService.createSession(dto, req.user);
   }
 
   @Post('sessions/:id/mark')
@@ -114,8 +114,9 @@ export class AttendanceController {
   async markAttendance(
     @Param('id') id: string,
     @Body() dto: MarkAttendanceDto,
+    @Req() req: any,
   ) {
-    return this.attendanceService.markAttendance(id, dto);
+    return this.attendanceService.markAttendance(id, dto, req.user);
   }
 
   @Post('sessions/:id/finalize')
@@ -123,8 +124,9 @@ export class AttendanceController {
   async finalizeSession(
     @Param('id') id: string,
     @Body() dto: FinalizeAttendanceDto,
+    @Req() req: any,
   ) {
-    return this.attendanceService.finalizeSession(id, dto);
+    return this.attendanceService.finalizeSession(id, dto, req.user);
   }
 
   @Put('sessions/:id')
@@ -132,8 +134,9 @@ export class AttendanceController {
   async updateSession(
     @Param('id') id: string,
     @Body() dto: UpdateAttendanceSessionDto,
+    @Req() req: any,
   ) {
-    return this.attendanceService.updateSession(id, dto);
+    return this.attendanceService.updateSession(id, dto, req.user);
   }
 
   @Post('sessions/:id/subject-item/pass')
@@ -195,8 +198,9 @@ export class AttendanceController {
   async batchUpdateRecords(
     @Param('id') id: string,
     @Body() body: { updates: Array<{ studentId: string; status: string }> },
+    @Req() req: any,
   ) {
-    return this.attendanceService.batchUpdateRecords(id, body.updates);
+    return this.attendanceService.batchUpdateRecords(id, body.updates, req.user);
   }
 
   @Put('sessions/:id/notes')
