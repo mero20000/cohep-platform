@@ -19,13 +19,13 @@ import { EmptyState } from '@/components/ui/empty-state'
 interface Stats {
   totalSessions: number; completedSessions: number; scheduledSessions: number; inProgressSessions: number;
   totalRecords: number; presentCount: number; lateCount: number; absentCount: number; excusedCount: number;
-  averageAttendanceRate: number;
+  averageAttendanceRate: number; unmarkedCount?: number;
 }
-interface LevelStat { levelId: string; levelNumber: number; levelName: string; totalSessions: number; attendanceRate: number }
-interface GroupStat { groupId: string; groupName: string; levelNumber: number; levelName: string; totalSessions: number; totalRecords: number; attendanceRate: number }
+interface LevelStat { levelId: string | null; levelNumber: number | null; levelName: string | null; totalSessions: number; attendanceRate: number }
+interface GroupStat { groupId: string; groupName: string; levels: { number: number; name: string }[]; totalSessions: number; totalRecords: number; attendanceRate: number }
 interface StudentResult {
   student: { id: string; studentCode: string; firstName: string; lastName: string; firstNameAr?: string; lastNameAr?: string };
-  records: { id: string; status: string; recordedAt: string; homeworkStatus?: string; behavior?: number; participation?: number; attendedLiturgy?: boolean; attendanceSession?: { level?: { number?: number } } }[];
+  records: { id: string; status: string; recordedAt: string; homeworkStatus?: string; behavior?: number; participation?: number; attendedLiturgy?: boolean; attendanceSession?: { scheduledDate?: string; notes?: string | null; level?: { number?: number } | null } }[];
 }
 
 export function InsightsClient() {
@@ -131,7 +131,7 @@ export function InsightsClient() {
         {stats && (
           <>
             <StatCard label={lang === 'ar' ? 'متوسط الحضور' : 'Avg Attendance'} value={`${stats.averageAttendanceRate}%`} icon={BarChart3}
-              subtitle={`${stats.completedSessions} ${lang === 'ar' ? 'مكتملة' : 'completed'} • ${stats.scheduledSessions} ${lang === 'ar' ? 'قادمة' : 'upcoming'}`} />
+              subtitle={lang === 'ar' ? 'حاضر + متأخر من المسجّلين (دون المعذورين)' : 'Present + late of marked (excused excluded)'} />
             <StatCard label={lang === 'ar' ? 'إجمالي الجلسات' : 'Total Sessions'} value={stats.totalSessions} icon={Calendar}
               subtitle={`${stats.completedSessions} ${lang === 'ar' ? 'مكتملة' : 'completed'} • ${stats.scheduledSessions} ${lang === 'ar' ? 'قادمة' : 'upcoming'}`} />
             <StatCard label={lang === 'ar' ? 'حاضر' : 'Present'} value={stats.presentCount} icon={UserCheck}
@@ -144,7 +144,7 @@ export function InsightsClient() {
               iconColor="text-red-600" iconBg="bg-red-50"
               subtitle={stats.totalRecords > 0 ? `${Math.round((stats.absentCount / stats.totalRecords) * 100)}%` : '0%'} />
             <StatCard label={lang === 'ar' ? 'سجلات الطلاب' : 'Student Records'} value={stats.totalRecords} icon={FileText}
-              subtitle={`${stats.excusedCount} ${lang === 'ar' ? 'معذور' : 'excused'}`} />
+              subtitle={`${stats.excusedCount} ${lang === 'ar' ? 'معذور' : 'excused'}${stats.unmarkedCount ? ` • ${stats.unmarkedCount} ${lang === 'ar' ? 'غير مسجل' : 'unmarked'}` : ''}`} />
           </>
         )}
       </div>
@@ -152,18 +152,20 @@ export function InsightsClient() {
       {/* Attendance by Level */}
       {levelStats.length > 0 && (
         <div className="rounded-xl border border-gray-200 bg-white p-6">
-          <h3 className="font-semibold text-gray-900 mb-4">{lang === 'ar' ? 'الحضور حسب المستوى' : 'Attendance by Grade'}</h3>
+          <h3 className="font-semibold text-gray-900 mb-4">{lang === 'ar' ? 'الحضور حسب المستوى' : 'Attendance by Level'}</h3>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {levelStats.map(ls => (
-              <div key={ls.levelId} className="rounded-xl border border-gray-100 bg-gray-50 p-4">
+              <div key={ls.levelId ?? 'no-level'} className="rounded-xl border border-gray-100 bg-gray-50 p-4">
                 <div className="flex items-center justify-between mb-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-100 text-blue-700 font-bold text-sm">L{ls.levelNumber}</div>
+                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-100 text-blue-700 font-bold text-sm">{ls.levelNumber != null ? `L${ls.levelNumber}` : '—'}</div>
                   <span className="text-2xl font-bold text-gray-900">{ls.attendanceRate}%</span>
                 </div>
                 <div className="h-2 rounded-full bg-gray-200 mb-2">
                   <div className="h-2 rounded-full bg-blue-500" style={{ width: `${ls.attendanceRate}%` }} />
                 </div>
-                <div className="text-xs text-gray-500">{ls.totalSessions} {lang === 'ar' ? 'جلسة مكتملة' : 'sessions completed'}</div>
+                <div className="text-xs text-gray-500">
+                  {ls.levelName ?? (lang === 'ar' ? 'بدون مستوى' : 'No level')} • {ls.totalSessions} {lang === 'ar' ? 'جلسة مكتملة' : 'sessions completed'}
+                </div>
               </div>
             ))}
           </div>
@@ -179,7 +181,7 @@ export function InsightsClient() {
               <thead>
                 <tr className="border-b border-gray-100 text-start text-xs text-gray-500">
                   <th className="pb-2 font-medium">{lang === 'ar' ? 'المجموعة' : 'Group'}</th>
-                  <th className="pb-2 font-medium">{lang === 'ar' ? 'المستوى' : 'Level'}</th>
+                  <th className="pb-2 font-medium">{lang === 'ar' ? 'المستويات' : 'Levels'}</th>
                   <th className="pb-2 font-medium text-end">{lang === 'ar' ? 'الجلسات' : 'Sessions'}</th>
                   <th className="pb-2 font-medium text-end">{lang === 'ar' ? 'السجلات' : 'Records'}</th>
                   <th className="pb-2 font-medium text-end">{lang === 'ar' ? 'النسبة' : 'Rate'}</th>
@@ -189,7 +191,7 @@ export function InsightsClient() {
                 {groupStats.map(g => (
                   <tr key={g.groupId} className="hover:bg-gray-50 active:bg-gray-100">
                     <td data-label="Group" className="py-2.5 font-medium text-gray-900">{g.groupName}</td>
-                    <td data-label="Level" className="py-2.5 text-gray-500">{lang === 'ar' ? `المستوى ${g.levelNumber}` : `Level ${g.levelNumber}`}</td>
+                    <td data-label="Levels" className="py-2.5 text-gray-500">{g.levels?.length ? g.levels.map(l => `L${l.number}`).join(', ') : '—'}</td>
                     <td data-label="Sessions" className="py-2.5 text-end text-gray-700">{g.totalSessions}</td>
                     <td data-label="Records" className="py-2.5 text-end text-gray-700">{g.totalRecords}</td>
                     <td data-label="Rate" className="py-2.5 text-end">
@@ -269,7 +271,10 @@ export function InsightsClient() {
                           {r.status === 'present' ? (lang === 'ar' ? 'حاضر' : 'Present') : r.status === 'late' ? (lang === 'ar' ? 'متأخر' : 'Late') : r.status === 'absent' ? (lang === 'ar' ? 'غائب' : 'Absent') : r.status === 'excused' ? (lang === 'ar' ? 'معذور' : 'Excused') : r.status}
                         </Badge>
                         <span className="text-gray-600">
-                          L{r.attendanceSession?.level?.number} &bull; {new Date(r.recordedAt).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                          {r.attendanceSession?.notes === 'liturgy'
+                            ? (lang === 'ar' ? 'قداس' : 'Liturgy')
+                            : r.attendanceSession?.level?.number != null ? `L${r.attendanceSession.level.number}` : '—'}
+                          {' '}&bull; {new Date(r.attendanceSession?.scheduledDate ?? r.recordedAt).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })}
                         </span>
                         {r.behavior != null && r.behavior > 0 && (
                           <span className="text-xs text-emerald-600">{lang === 'ar' ? `سلوك:${r.behavior}/5` : `Beh:${r.behavior}/5`}</span>

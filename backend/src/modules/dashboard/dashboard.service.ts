@@ -2,6 +2,7 @@ import { Injectable, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 import { SchoolResolver } from '../../common/utils/school-resolver';
 import { getCopticContext } from '../../common/utils/coptic-calendar';
+import { attendanceRate as calcAttendanceRate, rateFromCounts } from '../attendance/attendance-metrics';
 
 @Injectable()
 export class DashboardService {
@@ -47,9 +48,7 @@ export class DashboardService {
       },
       select: { status: true },
     });
-    const attendanceRate = attendanceRecords.length > 0
-      ? Math.round((attendanceRecords.filter(r => r.status === 'present' || r.status === 'late').length / attendanceRecords.length) * 100)
-      : 0;
+    const attendanceRate = calcAttendanceRate(attendanceRecords);
 
     // Grade distribution — students grouped by gradeId
     const gradeGroups = await this.prisma.student.groupBy({
@@ -461,20 +460,15 @@ export class DashboardService {
       assignedGradeName = gr?.name || null;
     }
 
-    // Unmarked rows (not yet taken) are excluded from rate denominators —
-    // they represent pending work, not absence.
-    const DECIDED_STATUSES = ['present', 'late', 'absent', 'excused'];
-    const decidedRecords = attendanceRecords.filter((r: any) => DECIDED_STATUSES.includes(r.status));
-    let attendanceRate = 0;
-    if (decidedRecords.length > 0) {
-      const present = decidedRecords.filter(r => r.status === 'present' || r.status === 'late').length;
-      attendanceRate = Math.round((present / decidedRecords.length) * 100);
-    }
+    // Unmarked and excused rows are neutral (see attendance-metrics).
+    const attendanceRate = calcAttendanceRate(attendanceRecords);
 
     const weekInScope = weekRecords.filter((r: any) => {
       const d = new Date(r.attendanceSession?.scheduledDate);
       return !isNaN(d.getTime()) && activeDays.includes(d.getDay());
     });
+    // Unmarked rows are pending work, not absence.
+    const DECIDED_STATUSES = ['present', 'late', 'absent', 'excused'];
     const weekDecided = weekInScope.filter((r: any) => DECIDED_STATUSES.includes(r.status));
     const weekPresent = weekDecided.filter((r: any) => r.status === 'present').length;
     const weekLate = weekDecided.filter((r: any) => r.status === 'late').length;
@@ -487,7 +481,7 @@ export class DashboardService {
       absent: weekAbsent,
       excused: weekExcused,
       total: weekTotal,
-      attendanceRate: weekTotal > 0 ? Math.round(((weekPresent + weekLate) / weekTotal) * 100) : 0,
+      attendanceRate: rateFromCounts({ present: weekPresent, late: weekLate, absent: weekAbsent }),
     };
 
     return {
@@ -647,10 +641,7 @@ export class DashboardService {
             select: { value: true },
           }),
         ]);
-        const attTotal = att.length;
-        const attPresent = att.filter((r: any) => r.status === 'present').length;
-        const attLate = att.filter((r: any) => r.status === 'late').length;
-        const attendancePercent = attTotal > 0 ? Math.round(((attPresent + attLate) / attTotal) * 100) : 0;
+        const attendancePercent = calcAttendanceRate(att);
         const graded = grades.filter((g: any) => Number(g.maxScore) > 0);
         const averageScore = graded.length > 0
           ? Math.round((graded.reduce((s: number, g: any) => s + Number(g.score) / Number(g.maxScore), 0) / graded.length) * 100)
@@ -730,8 +721,8 @@ export class DashboardService {
           this.prisma.xPTransaction.aggregate({ where: { studentId: student.id, createdAt: { gte: twoWeeksAgo, lt: weekAgo } }, _sum: { amount: true } }),
         ]);
         const weeklyComparison = {
-          attendanceThisWeek: attThisWeek.length > 0 ? Math.round((attThisWeek.filter((r: any) => r.status === 'present' || r.status === 'late').length / attThisWeek.length) * 100) : 0,
-          attendanceLastWeek: attLastWeek.length > 0 ? Math.round((attLastWeek.filter((r: any) => r.status === 'present' || r.status === 'late').length / attLastWeek.length) * 100) : 0,
+          attendanceThisWeek: calcAttendanceRate(attThisWeek),
+          attendanceLastWeek: calcAttendanceRate(attLastWeek),
           xpThisWeek: xpThisW._sum.amount || 0,
           xpLastWeek: xpLastW._sum.amount || 0,
         };
@@ -988,8 +979,7 @@ export class DashboardService {
       ]);
       const rate = (sessions: any[]) => {
         const all = sessions.flatMap((s: any) => s.attendanceRecords);
-        if (!all.length) return 0;
-        return Math.round(all.filter((r: any) => r.status === 'present' || r.status === 'late').length / all.length * 100);
+        return calcAttendanceRate(all);
       };
       const thisRate = rate(thisWeekSessions);
       const lastRate = rate(lastWeekSessions);
@@ -1225,8 +1215,7 @@ export class DashboardService {
 
     for (const student of students) {
       const sr = records.filter(r => r.studentId === student.id);
-      const presentCount = sr.filter(r => r.status === 'present' || r.status === 'late').length;
-      const attendanceRate = sr.length ? Math.round(presentCount / sr.length * 100) : 0;
+      const attendanceRate = calcAttendanceRate(sr);
       const lastStatus = sr[0]?.status ?? null;
 
       const lastTwo = sr.slice(0, 2);
@@ -1636,9 +1625,7 @@ export class DashboardService {
       where: { attendanceSession: { schoolId, groupId: { in: groupIds }, deletedAt: null } },
       select: { status: true },
     });
-    const attendanceRate = attendanceRecords.length > 0
-      ? Math.round((attendanceRecords.filter(r => r.status === 'present' || r.status === 'late').length / attendanceRecords.length) * 100)
-      : 0;
+    const attendanceRate = calcAttendanceRate(attendanceRecords);
 
     // Assessment completion
     const studentIds = students.map(s => s.id);
@@ -1739,9 +1726,7 @@ export class DashboardService {
       where: { attendanceSession: { schoolId, groupId, deletedAt: null } },
       select: { status: true },
     });
-    const attendanceRate = attendanceRecords.length > 0
-      ? Math.round((attendanceRecords.filter(r => r.status === 'present' || r.status === 'late').length / attendanceRecords.length) * 100)
-      : 0;
+    const attendanceRate = calcAttendanceRate(attendanceRecords);
 
     const assessmentSubmissions = await this.prisma.assessmentSubmission.findMany({
       where: { studentId: { in: studentIds } },

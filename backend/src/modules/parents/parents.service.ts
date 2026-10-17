@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException, ForbiddenException, HttpException } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 import { HymnLearningService } from '../curriculum/hymn-learning.service';
+import { rateFromCounts } from '../attendance/attendance-metrics';
 
 /**
  * Passed in place of a parent's user id when the student themselves is the caller.
@@ -144,9 +145,7 @@ export class ParentsService {
         badges: badgeCount,
         ...attCounts,
         upcomingSessions: upcomingCount,
-        attendanceRate: attCounts.total > 0
-          ? Math.round(((attCounts.present + attCounts.late) / attCounts.total) * 100)
-          : 0,
+        attendanceRate: rateFromCounts(attCounts),
       },
       currentLesson,
     };
