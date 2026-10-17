@@ -72,6 +72,11 @@ describe('AttendanceService', () => {
     userRole: {
       findMany: jest.fn(),
     },
+    attendanceSessionTarget: {
+      findMany: jest.fn().mockResolvedValue([]),
+      create: jest.fn().mockResolvedValue({}),
+      deleteMany: jest.fn().mockResolvedValue({ count: 0 }),
+    },
     $transaction: jest.fn(),
   };
 
@@ -472,7 +477,9 @@ describe('AttendanceService', () => {
     it('scopes a servant to the assigned group (+ level, + grade) instead of servantId', async () => {
       const where = await captureWhere({ groupId: 'G1', levelId: 'L1', gradeId: 'GR1' });
       expect(where.servantId).toBeUndefined();
-      expect(where.groupId).toEqual({ in: ['G1'] });
+      expect(where.groupId).toBeUndefined();
+      // group scope matches the session's own group OR any of its audience rows
+      expect(where.AND).toContainEqual({ OR: [{ groupId: { in: ['G1'] } }, { targets: { some: { groupId: { in: ['G1'] } } } }] });
       expect(where.levelId).toEqual('L1');
     });
 
@@ -480,12 +487,13 @@ describe('AttendanceService', () => {
       const where = await captureWhere({});
       expect(where.servantId).toBe('u1');
       expect(where.groupId).toBeUndefined();
+      expect(where.AND).toBeUndefined();
     });
 
     it('resolves grade to its group IDs when no explicit group is assigned', async () => {
       const where = await captureWhere({ gradeId: 'GR1' }, [{ groupId: 'G2' }, { groupId: 'G3' }]);
       expect(where.servantId).toBeUndefined();
-      expect(where.groupId).toEqual({ in: ['G2', 'G3'] });
+      expect(where.AND).toContainEqual({ OR: [{ groupId: { in: ['G2', 'G3'] } }, { targets: { some: { groupId: { in: ['G2', 'G3'] } } } }] });
     });
   });
 
@@ -834,6 +842,107 @@ describe('AttendanceService', () => {
       expect(res.alreadyCheckedIn).toBe(true);
       expect(prisma.attendanceRecord.upsert).not.toHaveBeenCalled();
       expect(notificationsMock.createNotification).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('session types and audience targets', () => {
+    const captureListWhere = async (filters: any) => {
+      let captured: any;
+      prisma.attendanceSession.findMany.mockImplementation((args: any) => { captured = args; return Promise.resolve([]); });
+      prisma.attendanceSession.count.mockResolvedValue(0);
+      await service.getSessions(schoolId, filters);
+      return captured;
+    };
+
+    it('filters the session list by type', async () => {
+      const args = await captureListWhere({ type: 'liturgy' });
+      expect(args.where.type).toBe('liturgy');
+    });
+
+    it('rejects an unknown session type', async () => {
+      await expect(service.getSessions(schoolId, { type: 'party' })).rejects.toThrow(/class, liturgy or event/);
+    });
+
+    it('matches a group filter through the audience rows and keeps excludeNotes working', async () => {
+      const args = await captureListWhere({ groupId: 'G1', excludeNotes: 'liturgy' });
+      expect(args.where.groupId).toBeUndefined();
+      expect(args.where.AND).toEqual(expect.arrayContaining([
+        { OR: [{ notes: null }, { notes: { not: 'liturgy' } }] },
+        { OR: [{ groupId: 'G1' }, { targets: { some: { groupId: 'G1' } } }] },
+      ]));
+      expect(args.include.targets).toBeDefined();
+    });
+
+    it('creates a class with exactly one audience row mirroring its own columns', async () => {
+      prisma.attendanceSession.findMany.mockResolvedValue([]);
+      prisma.attendanceSession.create.mockResolvedValue({ id: 'new-1' });
+      prisma.user.findUnique.mockResolvedValue({ metadata: {} });
+      prisma.student.findMany.mockResolvedValue([]);
+      await service.createSession({
+        servantId: 'u1', groupId: 'g1', levelId: 'l1', gradeId: 'gr1', scheduledDate: '2026-10-01', gender: 'female',
+      } as any);
+      const data = prisma.attendanceSession.create.mock.calls[0][0].data;
+      expect(data.type).toBeUndefined(); // DB default 'class'
+      expect(data.targets).toEqual({ create: [{ groupId: 'g1', levelId: 'l1', gradeId: 'gr1', gender: 'female' }] });
+    });
+
+    it('does not restrict gender when the session filter is "both"', async () => {
+      prisma.attendanceSession.findMany.mockResolvedValue([]);
+      prisma.attendanceSession.create.mockResolvedValue({ id: 'new-2' });
+      prisma.user.findUnique.mockResolvedValue({ metadata: {} });
+      prisma.student.findMany.mockResolvedValue([]);
+      await service.createSession({ servantId: 'u1', groupId: 'g1', scheduledDate: '2026-10-02', gender: 'both' } as any);
+      expect(prisma.attendanceSession.create.mock.calls[0][0].data.targets).toEqual({ create: [{ groupId: 'g1', levelId: null, gradeId: null, gender: null }] });
+    });
+
+    it('re-points the class audience row when the session group changes', async () => {
+      prisma.attendanceSession.findUnique.mockResolvedValue({ id: 's1', schoolId, servantId: 'u1', groupId: 'g1', levelId: 'l1', status: 'scheduled', type: 'class', metadata: null });
+      prisma.attendanceSession.update.mockResolvedValue({ id: 's1', schoolId, servantId: 'u1', groupId: 'g2', levelId: 'l1', gradeId: null, status: 'scheduled', type: 'class', metadata: null });
+      prisma.student.findMany.mockResolvedValue([]);
+      prisma.attendanceRecord.findMany.mockResolvedValue([]);
+      prisma.attendanceRecord.deleteMany.mockResolvedValue({ count: 0 });
+      await service.updateSession('s1', { groupId: 'g2' } as any);
+      expect(prisma.attendanceSessionTarget.deleteMany).toHaveBeenCalledWith({ where: { sessionId: 's1' } });
+      expect(prisma.attendanceSessionTarget.create).toHaveBeenCalledWith({ data: { sessionId: 's1', groupId: 'g2', levelId: 'l1', gradeId: null, gender: null } });
+    });
+
+    it('syncs a liturgy roster from the union of its audience rows', async () => {
+      prisma.attendanceSession.findUnique.mockResolvedValue({ id: 'lit1', schoolId, servantId: 'u1', groupId: null, type: 'liturgy', allGroups: false, metadata: null });
+      prisma.attendanceSessionTarget.findMany.mockResolvedValueOnce([
+        { groupId: 'g1', levelId: null, gradeId: null, gender: null },
+        { groupId: 'g2', levelId: 'l2', gradeId: null, gender: null },
+      ]);
+      prisma.user.findUnique.mockResolvedValue({ metadata: {} });
+      prisma.student.findMany.mockResolvedValue([]);
+      prisma.attendanceRecord.findMany.mockResolvedValue([]);
+      prisma.attendanceRecord.deleteMany.mockResolvedValue({ count: 0 });
+      await (service as any).syncSessionStudents('lit1', 'u1');
+      expect(prisma.student.findMany.mock.calls[0][0].where).toEqual({
+        deletedAt: null,
+        OR: [{ groupId: 'g1' }, { groupId: 'g2', levelId: 'l2' }],
+      });
+    });
+
+    it('a whole-school session is scoped to its own school, never all schools', async () => {
+      prisma.attendanceSession.findUnique.mockResolvedValue({ id: 'ev1', schoolId, servantId: 'u1', groupId: null, type: 'event', allGroups: true, metadata: null });
+      prisma.attendanceSessionTarget.findMany.mockResolvedValueOnce([]);
+      prisma.user.findUnique.mockResolvedValue({ metadata: {} });
+      prisma.student.findMany.mockResolvedValue([]);
+      prisma.attendanceRecord.findMany.mockResolvedValue([]);
+      prisma.attendanceRecord.deleteMany.mockResolvedValue({ count: 0 });
+      await (service as any).syncSessionStudents('ev1', 'u1');
+      expect(prisma.student.findMany.mock.calls[0][0].where).toEqual({ deletedAt: null, schoolId });
+    });
+
+    it('a class roster is selected exactly as before (own group/level/grade)', async () => {
+      prisma.attendanceSession.findUnique.mockResolvedValue({ id: 'c1', schoolId, servantId: 'u1', groupId: 'g1', levelId: 'l1', gradeId: 'gr1', type: 'class', metadata: null });
+      prisma.user.findUnique.mockResolvedValue({ metadata: {} });
+      prisma.student.findMany.mockResolvedValue([]);
+      prisma.attendanceRecord.findMany.mockResolvedValue([]);
+      prisma.attendanceRecord.deleteMany.mockResolvedValue({ count: 0 });
+      await (service as any).syncSessionStudents('c1', 'u1');
+      expect(prisma.attendanceSessionTarget.findMany).not.toHaveBeenCalled();
+      expect(prisma.student.findMany.mock.calls[0][0].where).toEqual({ deletedAt: null, groupId: 'g1', levelId: 'l1', gradeId: 'gr1' });
     });
   });
 });

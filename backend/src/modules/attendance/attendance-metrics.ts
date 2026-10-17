@@ -43,5 +43,7 @@ export function attendanceRate(records: StatusCarrier[]): number {
  * tracked separately and must not dilute class attendance rates.
  */
 export const CLASS_SESSION_FILTER = {
+  type: 'class',
+  // Legacy guard: liturgy sessions were once identified only by their notes.
   OR: [{ notes: null }, { notes: { not: 'liturgy' } }],
 };
