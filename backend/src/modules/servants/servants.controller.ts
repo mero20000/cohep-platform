@@ -285,6 +285,8 @@ export class ServantsController {
           status: 'recorded',
           scheduledDate: target,
           notes: 'liturgy',
+          type: 'liturgy',
+          targets: { create: [{ groupId, levelId }] },
         },
       });
     }
@@ -406,6 +408,8 @@ export class ServantsController {
           status: 'recorded',
           scheduledDate: target,
           notes: 'liturgy',
+          type: 'liturgy',
+          ...(groupId ? { targets: { create: [{ groupId, levelId }] } } : {}),
         },
       });
     }

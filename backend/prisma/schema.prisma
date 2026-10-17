@@ -524,6 +524,7 @@ model Level {
   promotionFromRecords  PromotionRecord[]      @relation("PromotionFromLevel")
   promotionToRecords    PromotionRecord[]      @relation("PromotionToLevel")
   attendanceSessions    AttendanceSession[]
+  sessionTargets AttendanceSessionTarget[]
   studentProgress       StudentProgress[]
   curriculumAllocations CurriculumAllocation[]
 
@@ -550,6 +551,7 @@ model Group {
   schoolGrades       SchoolGrade[]
   students           Student[]
   attendanceSessions AttendanceSession[]
+  sessionTargets AttendanceSessionTarget[]
   assessments        Assessment[]
 
   @@index([schoolId])
@@ -599,6 +601,7 @@ model SchoolGrade {
   group              Group               @relation(fields: [groupId], references: [id])
   students           Student[]
   attendanceSessions AttendanceSession[]
+  sessionTargets AttendanceSessionTarget[]
 
   @@unique([schoolId, name])
   @@index([schoolId])
@@ -811,7 +814,9 @@ model AttendanceSession {
   sessionId       String?   @map("session_id")
   servantId       String    @map("servant_id")
   levelId         String?   @map("level_id")
-  groupId         String    @map("group_id")
+  /// Primary group. Required for `class` sessions; liturgy/event sessions that span
+  /// several groups (or the whole school) describe their audience in `targets`.
+  groupId         String?   @map("group_id")
   gradeId         String?   @map("grade_id")
   scheduledDate   DateTime  @map("scheduled_date")
   scheduledTime   String?   @map("scheduled_time")
@@ -821,20 +826,50 @@ model AttendanceSession {
   notes           String?
   metadata        Json?
   subjectItemId   String?   @map("subject_item_id")
+  /// class | liturgy | event
+  type            String    @default("class")
+  title           String?
+  titleAr         String?   @map("title_ar")
+  location        String?
+  /// Audience is every active group in the school (liturgy / event only).
+  allGroups       Boolean   @default(false) @map("all_groups")
   createdAt       DateTime  @default(now()) @map("created_at")
   updatedAt       DateTime  @updatedAt @map("updated_at")
   deletedAt       DateTime? @map("deleted_at")
 
-  school            School             @relation(fields: [schoolId], references: [id])
-  servant           User               @relation(fields: [servantId], references: [id])
-  level             Level?             @relation(fields: [levelId], references: [id])
-  group             Group              @relation(fields: [groupId], references: [id])
-  grade             SchoolGrade?       @relation(fields: [gradeId], references: [id])
+  school            School                    @relation(fields: [schoolId], references: [id])
+  servant           User                      @relation(fields: [servantId], references: [id])
+  level             Level?                    @relation(fields: [levelId], references: [id])
+  group             Group?                    @relation(fields: [groupId], references: [id], onDelete: Restrict)
+  grade             SchoolGrade?              @relation(fields: [gradeId], references: [id])
   attendanceRecords AttendanceRecord[]
+  targets           AttendanceSessionTarget[]
 
   @@index([schoolId, servantId, scheduledDate])
   @@index([subjectItemId])
+  @@index([schoolId, type, scheduledDate])
   @@map("attendance_sessions")
+}
+
+/// Who a session is for. A class has exactly one target; liturgy and event
+/// sessions may have several. The roster is the union of the targets.
+model AttendanceSessionTarget {
+  id        String   @id @default(uuid())
+  sessionId String   @map("session_id")
+  groupId   String   @map("group_id")
+  levelId   String?  @map("level_id")
+  gradeId   String?  @map("grade_id")
+  gender    String?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  session AttendanceSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  group   Group             @relation(fields: [groupId], references: [id])
+  level   Level?            @relation(fields: [levelId], references: [id])
+  grade   SchoolGrade?      @relation(fields: [gradeId], references: [id])
+
+  @@index([sessionId])
+  @@index([groupId])
+  @@map("attendance_session_targets")
 }
 
 model AttendanceRecord {

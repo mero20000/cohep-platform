@@ -11,6 +11,7 @@ import { WhatsAppService } from '../../common/whatsapp/whatsapp.service';
 import { CreateAttendanceSessionDto } from './dto/create-attendance-session.dto';
 import { MarkAttendanceDto, FinalizeAttendanceDto } from './dto/mark-attendance.dto';
 import { CLASS_SESSION_FILTER, preciseRateFromCounts } from './attendance-metrics';
+import { classTargetFor, isSessionType, rosterFragments, TargetInput } from './attendance-targets';
 
 interface StatusTally { present: number; late: number; absent: number; excused: number; unmarked: number }
 const emptyTally = (): StatusTally => ({ present: 0, late: 0, absent: 0, excused: 0, unmarked: 0 });
@@ -69,19 +70,24 @@ export class AttendanceService {
 
   async getSessions(schoolIdentifier: string, filters: {
     page?: number; limit?: number; status?: string; levelId?: string;
-    groupId?: string; servantId?: string; from?: string; to?: string; notes?: string; excludeNotes?: string;
+    groupId?: string; servantId?: string; from?: string; to?: string; notes?: string; excludeNotes?: string; type?: string;
   }, user?: any) {
     const schoolId = await this.schoolResolver.resolve(schoolIdentifier);
-    const { page = 1, limit: rawLimit = 50, status, levelId, groupId, servantId, from, to, notes, excludeNotes } = filters;
+    const { page = 1, limit: rawLimit = 50, status, levelId, groupId, servantId, from, to, notes, excludeNotes, type } = filters;
     const limit = Math.min(rawLimit, 1000);
 
     const where: any = { schoolId, deletedAt: null };
     if (status) where.status = status;
     if (levelId) where.levelId = levelId;
     if (groupId) where.groupId = groupId;
+    const and: any[] = [];
+    if (type) {
+      if (!isSessionType(type)) throw new BadRequestException('type must be class, liturgy or event');
+      where.type = type;
+    }
     if (notes) where.notes = notes;
     else if (excludeNotes) {
-      where.OR = [{ notes: null }, { notes: { not: excludeNotes } }];
+      and.push({ OR: [{ notes: null }, { notes: { not: excludeNotes } }] });
     }
     
     // If servantId is provided or user is a servant, filter by their sessions
@@ -111,6 +117,15 @@ export class AttendanceService {
       }
     }
     
+    // A group filter/scope matches a session's own group or any of its audience rows,
+    // so multi-group liturgy/event sessions show up under every group they cover.
+    if (where.groupId !== undefined) {
+      const groupScope = where.groupId;
+      delete where.groupId;
+      and.push({ OR: [{ groupId: groupScope }, { targets: { some: { groupId: groupScope } } }] });
+    }
+    if (and.length > 0) where.AND = and;
+
     if (from || to) {
       where.scheduledDate = {};
       if (from) where.scheduledDate.gte = new Date(from);
@@ -130,6 +145,7 @@ export class AttendanceService {
           group: { select: { id: true, name: true } },
           grade: { select: { id: true, name: true } },
           servant: { select: { id: true, firstName: true, lastName: true } },
+          targets: { select: { groupId: true, levelId: true, gradeId: true, gender: true } },
           attendanceRecords: {
             select: { status: true, student: { select: { deletedAt: true } } },
           },
@@ -442,6 +458,7 @@ export class AttendanceService {
         status: dto.status || 'scheduled',
         notes: dto.notes,
         metadata: Object.keys(sessionMetadata).length > 0 ? sessionMetadata : undefined,
+        targets: this.targetsCreate(classTargetFor({ groupId: dto.groupId, levelId: dto.levelId, gradeId: dto.gradeId }, dto.gender)),
       },
       include: {
         level: { select: { id: true, name: true, number: true } },
@@ -488,13 +505,36 @@ export class AttendanceService {
     return session;
   }
 
+  /** Prisma nested-create payload for a session's audience rows (omitted when there is none). */
+  private targetsCreate(...targets: Array<TargetInput | null>) {
+    const rows = targets.filter((t): t is TargetInput => !!t);
+    return rows.length > 0 ? { create: rows } : undefined;
+  }
+
+  /** Keep a class session's single audience row in step with its own columns. */
+  private async replaceClassTarget(sessionId: string, target: TargetInput | null) {
+    await this.prisma.attendanceSessionTarget.deleteMany({ where: { sessionId } });
+    if (target) await this.prisma.attendanceSessionTarget.create({ data: { sessionId, ...target } });
+  }
+
   private async syncSessionStudents(sessionId: string, recordedBy: string) {
     const session = await this.prisma.attendanceSession.findUnique({ where: { id: sessionId } });
     if (!session) return;
 
-    const studentWhere: any = { groupId: session.groupId, deletedAt: null };
-    if (session.levelId) studentWhere.levelId = session.levelId;
-    if (session.gradeId) studentWhere.gradeId = session.gradeId;
+    // Classes (and sessions without audience rows) use the session's own columns,
+    // exactly as before; liturgy/event sessions use the union of their audience rows.
+    const targets = (session.type ?? 'class') !== 'class'
+      ? await this.prisma.attendanceSessionTarget.findMany({
+          where: { sessionId },
+          select: { groupId: true, levelId: true, gradeId: true, gender: true },
+        })
+      : [];
+    const fragments = rosterFragments(session, targets);
+    const studentWhere: any = {
+      deletedAt: null,
+      ...(session.allGroups ? { schoolId: session.schoolId } : {}),
+      ...(fragments.length === 1 ? fragments[0] : { OR: fragments }),
+    };
     const sessionGenderFilter = (session.metadata as any)?.genderFilter;
     if (sessionGenderFilter && sessionGenderFilter !== 'both') {
       studentWhere.gender = sessionGenderFilter;
@@ -1077,6 +1117,7 @@ export class AttendanceService {
         scheduledTime: '12:00',
         status: 'scheduled',
         ...(Object.keys(sessionMeta).length > 0 && { metadata: sessionMeta }),
+        targets: this.targetsCreate(classTargetFor({ groupId, levelId, gradeId }, selectedGender)),
       },
     });
 
@@ -1463,6 +1504,7 @@ export class AttendanceService {
                 scheduledDate: new Date(dateStr),
                 scheduledTime: '12:00',
                 status: 'scheduled',
+                targets: this.targetsCreate(classTargetFor({ groupId: group.id, levelId })),
               },
             });
 
@@ -1529,6 +1571,12 @@ export class AttendanceService {
         servant: { select: { id: true, firstName: true, lastName: true } },
       },
     });
+
+    // Keep the class audience row in step with the session's own columns.
+    if ((updated.type ?? 'class') === 'class' && (groupChanged || dto.levelId !== undefined || dto.gradeId !== undefined || genderChanged)) {
+      const gender = ((updated.metadata as any)?.genderFilter as string | undefined) ?? null;
+      await this.replaceClassTarget(id, classTargetFor(updated, gender));
+    }
 
     // Sync students when status, group, level, grade, or gender changes
     if (statusChanged || groupChanged || dto.levelId !== undefined || dto.gradeId !== undefined || genderChanged) {
@@ -1715,6 +1763,7 @@ export class AttendanceService {
             scheduledDate: targetDate,
             scheduledTime: time,
             status: 'scheduled',
+            targets: this.targetsCreate(classTargetFor({ groupId, levelId })),
           },
         });
 
