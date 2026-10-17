@@ -11,7 +11,8 @@ import { WhatsAppService } from '../../common/whatsapp/whatsapp.service';
 import { CreateAttendanceSessionDto } from './dto/create-attendance-session.dto';
 import { MarkAttendanceDto, FinalizeAttendanceDto } from './dto/mark-attendance.dto';
 import { CLASS_SESSION_FILTER, preciseRateFromCounts } from './attendance-metrics';
-import { classTargetFor, isSessionType, rosterFragments, TargetInput } from './attendance-targets';
+import { classTargetFor, isSessionType, normalizeGender, rosterFragments, SessionType, TargetInput } from './attendance-targets';
+import { Actor, canCreateMultiGroup, canCreateType, isAdminActor, isGroupStaffActor, isLevelLeaderActor } from './attendance-permissions';
 
 interface StatusTally { present: number; late: number; absent: number; excused: number; unmarked: number }
 const emptyTally = (): StatusTally => ({ present: 0, late: 0, absent: 0, excused: 0, unmarked: 0 });
@@ -122,7 +123,7 @@ export class AttendanceService {
     if (where.groupId !== undefined) {
       const groupScope = where.groupId;
       delete where.groupId;
-      and.push({ OR: [{ groupId: groupScope }, { targets: { some: { groupId: groupScope } } }] });
+      and.push({ OR: [{ groupId: groupScope }, { targets: { some: { groupId: groupScope } } }, { allGroups: true }] });
     }
     if (and.length > 0) where.AND = and;
 
@@ -145,7 +146,7 @@ export class AttendanceService {
           group: { select: { id: true, name: true } },
           grade: { select: { id: true, name: true } },
           servant: { select: { id: true, firstName: true, lastName: true } },
-          targets: { select: { groupId: true, levelId: true, gradeId: true, gender: true } },
+          targets: { select: { groupId: true, levelId: true, gradeId: true, gender: true, group: { select: { name: true } } } },
           attendanceRecords: {
             select: { status: true, student: { select: { deletedAt: true } } },
           },
@@ -179,10 +180,11 @@ export class AttendanceService {
         group: { select: { id: true, name: true } },
         grade: { select: { id: true, name: true } },
         servant: { select: { id: true, firstName: true, lastName: true } },
+        targets: { select: { groupId: true, levelId: true, gradeId: true, gender: true, group: { select: { name: true } } } },
         attendanceRecords: {
           include: {
             student: {
-              select: { id: true, firstName: true, lastName: true, studentCode: true, photoUrl: true, levelId: true, groupId: true, deletedAt: true },
+              select: { id: true, firstName: true, lastName: true, studentCode: true, photoUrl: true, levelId: true, groupId: true, gradeId: true, deletedAt: true, grade: { select: { id: true, name: true, nameAr: true } }, group: { select: { id: true, name: true } } },
             },
           },
           orderBy: { recordedAt: 'desc' },
@@ -192,7 +194,8 @@ export class AttendanceService {
     if (!session) throw new NotFoundException('Attendance session not found');
     // Filter out records belonging to soft-deleted students
     session.attendanceRecords = session.attendanceRecords.filter(r => r.student && !r.student.deletedAt);
-    const subjectItem = await this.resolveSessionSubjectItem(session);
+    // Curriculum subject items belong to classes; liturgy/event sessions have none.
+    const subjectItem = (session.type ?? 'class') === 'class' ? await this.resolveSessionSubjectItem(session) : null;
     let passedStudentIds: string[] = [];
     if (subjectItem) {
       const passes = await this.prisma.studentSubjectPass.findMany({
@@ -221,11 +224,6 @@ export class AttendanceService {
       return si ?? null;
     }
 
-    const group = await this.prisma.group.findUnique({
-      where: { id: session.groupId! },
-      select: { id: true },
-    });
-    void group;
     const weekStart = new Date(session.scheduledDate);
     weekStart.setHours(0, 0, 0, 0);
     const weekEnd = new Date(weekStart);
@@ -418,9 +416,16 @@ export class AttendanceService {
     return { passed: true, studentId, subjectItemId: subjectItem.id, whatsappSent, whatsappLink };
   }
 
-  async createSession(dto: CreateAttendanceSessionDto) {
+  async createSession(dto: CreateAttendanceSessionDto, user?: { id: string; schoolId?: string }) {
+    const type = dto.type ?? 'class';
+    if (!isSessionType(type)) throw new BadRequestException('type must be class, liturgy or event');
+    if (type !== 'class') return this.createTypedSession(dto, type, user);
+
     const schoolId = await this.schoolResolver.resolve(dto.schoolId || '');
     const scheduledDate = new Date(dto.scheduledDate);
+    if (!dto.servantId) dto.servantId = user?.id;
+    if (!dto.servantId) throw new BadRequestException('servantId is required');
+    const servantId: string = dto.servantId;
 
     if (!dto.groupId) throw new BadRequestException('Group is required');
 
@@ -449,7 +454,7 @@ export class AttendanceService {
       data: {
         schoolId,
         sessionId: dto.sessionId,
-        servantId: dto.servantId,
+        servantId,
         levelId: dto.levelId || null,
         groupId: dto.groupId,
         gradeId: dto.gradeId || null,
@@ -472,7 +477,7 @@ export class AttendanceService {
     if (dto.gradeId) studentWhere.gradeId = dto.gradeId;
     const effectiveGender = dto.gender || undefined;
     if (!effectiveGender) {
-      const servant = await this.prisma.user.findUnique({ where: { id: dto.servantId }, select: { metadata: true } });
+      const servant = await this.prisma.user.findUnique({ where: { id: servantId }, select: { metadata: true } });
       const servantTeachingGender = (servant?.metadata as any)?.teachingGender;
       if (servantTeachingGender && servantTeachingGender !== 'both') {
         studentWhere.gender = servantTeachingGender;
@@ -490,7 +495,7 @@ export class AttendanceService {
           attendanceSessionId: session.id,
           studentId: s.id,
           status: 'unmarked',
-          recordedBy: dto.servantId,
+          recordedBy: servantId,
         })),
       });
     }
@@ -538,7 +543,8 @@ export class AttendanceService {
     const sessionGenderFilter = (session.metadata as any)?.genderFilter;
     if (sessionGenderFilter && sessionGenderFilter !== 'both') {
       studentWhere.gender = sessionGenderFilter;
-    } else if (!sessionGenderFilter) {
+    } else if (!sessionGenderFilter && (session.type ?? 'class') === 'class') {
+      // A servant's teaching-gender only narrows *their class*, never a liturgy/event audience.
       const servantUser = await this.prisma.user.findUnique({ where: { id: session.servantId }, select: { metadata: true } });
       const teachingGender = (servantUser?.metadata as any)?.teachingGender;
       if (teachingGender && teachingGender !== 'both') {
@@ -689,10 +695,231 @@ export class AttendanceService {
     };
   }
 
+  // ─── Liturgy / event sessions ────────────────────────────────────────────
+
+  /** The caller as the permission rules see them (roles + assignment come from the DB). */
+  private async loadActor(user: { id: string }): Promise<Actor> {
+    const row = await this.prisma.user.findUnique({
+      where: { id: user.id },
+      select: { id: true, schoolId: true, metadata: true, userRoles: { select: { role: { select: { name: true } } } } },
+    });
+    if (!row) throw new ForbiddenException('User not found');
+    return {
+      id: row.id,
+      schoolId: row.schoolId,
+      roles: (row.userRoles || []).map((ur: any) => ur.role?.name).filter(Boolean),
+      metadata: (row.metadata as any) || {},
+    };
+  }
+
+  /** Start of the scheduled day .. end of it, for same-day duplicate checks. */
+  private dayRange(date: Date) {
+    const start = new Date(date); start.setHours(0, 0, 0, 0);
+    const end = new Date(start); end.setDate(end.getDate() + 1);
+    return { start, end };
+  }
+
+  /**
+   * Turn the requested audience into validated target rows, applying who-may-do-what:
+   * group staff only their own group (liturgy); level leaders any audience but only
+   * their own level; admins anything.
+   */
+  private async resolveAudience(
+    dto: { targets?: Array<{ groupId: string; levelId?: string | null; gradeId?: string | null; gender?: string | null }>; allGroups?: boolean; groupId?: string; levelId?: string; gradeId?: string; gender?: string },
+    type: Exclude<SessionType, 'class'>,
+    actor: Actor,
+    schoolId: string,
+  ): Promise<{ targets: TargetInput[]; allGroups: boolean }> {
+    if (!canCreateType(type, actor)) {
+      throw new ForbiddenException(type === 'event'
+        ? 'Only admins, principals and level leaders can create events'
+        : 'You are not allowed to create liturgy sessions');
+    }
+    const multiOk = canCreateMultiGroup(actor);
+
+    let requested: TargetInput[] = (dto.targets ?? []).map(t => ({ groupId: t.groupId, levelId: t.levelId ?? null, gradeId: t.gradeId ?? null, gender: normalizeGender(t.gender) }));
+    if (requested.length === 0 && dto.groupId) {
+      requested = [{ groupId: dto.groupId, levelId: dto.levelId ?? null, gradeId: dto.gradeId ?? null, gender: normalizeGender(dto.gender) }];
+    }
+    let allGroups = !!dto.allGroups;
+
+    if (!allGroups && requested.length === 0) {
+      if (type === 'liturgy' && isGroupStaffActor(actor)) {
+        // Default audience for a servant: their own group(s).
+        const own = await this.resolveServantSessionGroupIds(actor.metadata, schoolId);
+        requested = own.map(groupId => ({ groupId, levelId: actor.metadata?.levelId ?? null, gradeId: null, gender: null }));
+      }
+      if (requested.length === 0) throw new BadRequestException('Choose at least one group, or select all groups');
+    }
+
+    if (!multiOk) {
+      // Group staff: liturgy for their own group only.
+      const own = new Set(await this.resolveServantSessionGroupIds(actor.metadata, schoolId));
+      if (allGroups || requested.length !== 1 || !own.has(requested[0].groupId)) {
+        throw new ForbiddenException('You can only create a liturgy session for your own group');
+      }
+    }
+
+    // Level leaders: audience is limited to their own level.
+    if (isLevelLeaderActor(actor)) {
+      const levelId = actor.metadata?.levelId as string | undefined;
+      if (!levelId) throw new ForbiddenException('No level is assigned to you');
+      if (allGroups) {
+        const groups = await this.prisma.group.findMany({ where: { schoolId, deletedAt: null, status: { not: 'inactive' } }, select: { id: true } });
+        requested = groups.map(g => ({ groupId: g.id, levelId, gradeId: null, gender: null }));
+        allGroups = false;
+      }
+      if (requested.some(t => t.levelId && t.levelId !== levelId)) {
+        throw new ForbiddenException('Level leaders can only target their own level');
+      }
+      requested = requested.map(t => ({ ...t, levelId }));
+    }
+
+    // De-duplicate and verify every group belongs to this school.
+    const seen = new Set<string>();
+    const targets = requested.filter(t => {
+      const key = [t.groupId, t.levelId ?? '', t.gradeId ?? '', t.gender ?? ''].join('|');
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+    if (targets.length > 0) {
+      const ids = [...new Set(targets.map(t => t.groupId))];
+      const found = await this.prisma.group.findMany({ where: { id: { in: ids }, schoolId, deletedAt: null }, select: { id: true } });
+      if (found.length !== ids.length) throw new BadRequestException('One or more selected groups were not found in this school');
+    }
+    return { targets, allGroups };
+  }
+
+  private async createTypedSession(
+    dto: CreateAttendanceSessionDto,
+    type: Exclude<SessionType, 'class'>,
+    user?: { id: string },
+  ) {
+    if (!user?.id) throw new ForbiddenException('Authentication required');
+    const actor = await this.loadActor(user);
+    const schoolId = await this.schoolResolver.resolve(dto.schoolId || actor.schoolId);
+    if (actor.schoolId !== schoolId && !actor.roles.includes('super_admin')) {
+      throw new ForbiddenException('Access to the requested school is not permitted');
+    }
+    const title = dto.title?.trim() || null;
+    if (type === 'event' && !title) throw new BadRequestException('An event needs a title');
+
+    const { targets, allGroups } = await this.resolveAudience(dto, type, actor, schoolId);
+    const scheduledDate = dto.startNow ? new Date() : new Date(dto.scheduledDate);
+    if (isNaN(scheduledDate.getTime())) throw new BadRequestException('Invalid date');
+
+    // One liturgy per group/level on a given day (events can repeat).
+    if (type === 'liturgy' && !allGroups) {
+      const { start, end } = this.dayRange(scheduledDate);
+      const clash = await this.prisma.attendanceSession.findFirst({
+        where: {
+          schoolId, type: 'liturgy', deletedAt: null, scheduledDate: { gte: start, lt: end },
+          OR: [{ allGroups: true }, ...targets.map(t => ({ targets: { some: { groupId: t.groupId, ...(t.levelId ? { levelId: t.levelId } : {}) } } }))],
+        },
+        select: { id: true },
+      });
+      if (clash) {
+        throw new ConflictException({ message: 'A liturgy session already exists for this group on that date', existingSessionId: clash.id });
+      }
+    }
+
+    const single = targets.length === 1 && !allGroups ? targets[0] : null;
+    const now = new Date();
+    const session = await this.prisma.attendanceSession.create({
+      data: {
+        schoolId,
+        servantId: actor.id,
+        type,
+        title,
+        titleAr: dto.titleAr?.trim() || null,
+        location: dto.location?.trim() || null,
+        allGroups,
+        // A single-group session also fills the legacy columns so older readers keep working.
+        groupId: single?.groupId ?? null,
+        levelId: single?.levelId ?? null,
+        gradeId: single?.gradeId ?? null,
+        scheduledDate,
+        scheduledTime: dto.scheduledTime,
+        status: dto.startNow ? 'in_progress' : (dto.status || 'scheduled'),
+        actualStartTime: dto.startNow ? now : undefined,
+        notes: dto.notes,
+        metadata: dto.metadata && Object.keys(dto.metadata).length > 0 ? dto.metadata : undefined,
+        targets: targets.length > 0 ? { create: targets } : undefined,
+      },
+    });
+
+    // Seed the roster (unmarked) from the audience.
+    await this.syncSessionStudents(session.id, actor.id);
+
+    await this.audit.log({
+      schoolId,
+      action: 'CREATE',
+      entityType: 'attendance_session',
+      entityId: session.id,
+      newValues: { type, title, allGroups, groups: targets.map(t => t.groupId), scheduledDate: dto.scheduledDate, startNow: !!dto.startNow },
+    });
+    return this.getSessionById(session.id);
+  }
+
+  /** Liturgy/event sessions can't be marked before their scheduled day (classes: unchanged). */
+  private assertDateReached(session: { type?: string | null; scheduledDate: Date }) {
+    if ((session.type ?? 'class') === 'class') return;
+    const endOfToday = new Date(); endOfToday.setHours(23, 59, 59, 999);
+    if (new Date(session.scheduledDate).getTime() > endOfToday.getTime()) {
+      const day = new Date(session.scheduledDate).toISOString().slice(0, 10);
+      throw new BadRequestException(`This session is scheduled for ${day}. Attendance can be recorded from that day.`);
+    }
+  }
+
+  /**
+   * Who may record attendance for a liturgy/event: admins, level leaders, its creator,
+   * and anyone assigned to a group in its audience. (Classes: unchanged.)
+   */
+  private async assertCanMarkSession(
+    session: { id: string; type?: string | null; servantId: string; groupId: string | null; allGroups?: boolean | null; schoolId: string },
+    user?: { id: string },
+  ) {
+    if (!user || (session.type ?? 'class') === 'class') return;
+    const actor = await this.loadActor(user);
+    if (isAdminActor(actor) || isLevelLeaderActor(actor) || session.servantId === actor.id) return;
+    const own = await this.resolveServantSessionGroupIds(actor.metadata, session.schoolId);
+    if (own.length > 0) {
+      if (session.allGroups) return;
+      const targetGroups = new Set<string>(
+        (await this.prisma.attendanceSessionTarget.findMany({ where: { sessionId: session.id }, select: { groupId: true } })).map(t => t.groupId),
+      );
+      if (session.groupId) targetGroups.add(session.groupId);
+      if (own.some(g => targetGroups.has(g))) return;
+    }
+    throw new ForbiddenException('You are not assigned to this session');
+  }
+
+  /** Liturgy/event attendance is present/absent only; per-student scores don't apply. */
+  private sanitizeRecordsForType<T extends { studentId: string; status: string; behavior?: number; participation?: number; homeworkStatus?: string; attendedLiturgy?: boolean }>(
+    type: string | null | undefined,
+    records: T[],
+  ): T[] {
+    if ((type ?? 'class') === 'class') return records;
+    return records.map(r => {
+      if (!['present', 'absent', 'unmarked'].includes(r.status)) {
+        throw new BadRequestException('Liturgy and event attendance allows only present or absent');
+      }
+      return {
+        ...r,
+        behavior: undefined,
+        participation: undefined,
+        homeworkStatus: undefined,
+        attendedLiturgy: type === 'liturgy' ? r.status === 'present' : undefined,
+      };
+    });
+  }
+
   /** Completed sessions are read-only at the API level; they must be re-opened first. */
   private assertSessionWritable(session: { status: string; deletedAt?: Date | null }) {
     if (session.deletedAt) throw new NotFoundException('Attendance session not found');
-    if (session.status === 'completed') {
+    // Legacy liturgy sessions were stored as 'recorded'; that means finished.
+    if (session.status === 'completed' || session.status === 'recorded') {
       throw new ConflictException('This session is completed and read-only. Re-open it to make changes.');
     }
   }
@@ -725,28 +952,37 @@ export class AttendanceService {
 
   /** Analytics, XP, badges and absence alerts after marks are committed (all best-effort). */
   private runMarkSideEffects(
-    session: { schoolId: string },
+    session: { schoolId: string; type?: string | null },
     sessionId: string,
     records: MarkAttendanceDto['records'],
     recordedBy: string,
     previousStatus?: Map<string, string>,
   ) {
+    const type = session.type ?? 'class';
+
     // MEASURE (C2): first attendance within 7 days of signup = activation.
     this.analytics.record({
       name: 'attendance.marked',
       category: 'activation',
       userId: recordedBy,
       schoolId: session.schoolId,
-      properties: { count: records.length, sessionId },
+      properties: { count: records.length, sessionId, type },
     });
 
-    // Award direct attendance XP + compute badges (fire-and-forget)
+    // Events never touch XP, badges or absence alerts.
+    if (type === 'event') return;
+
+    // Badges (liturgy badges read the liturgy flag, class badges read everything).
     const affectedStudentIds = [...new Set(records.map(r => r.studentId))];
-    for (const rec of records) {
-      this.gamification.awardAttendanceXp(rec.studentId, sessionId, rec.status, session.schoolId).catch(() => {});
-    }
     for (const sid of affectedStudentIds) {
       this.gamification.computeBadgesForStudent(sid).catch(() => {});
+    }
+    // Liturgy sessions earn no class XP and trigger no absence alerts.
+    if (type !== 'class') return;
+
+    // Award direct attendance XP (fire-and-forget)
+    for (const rec of records) {
+      this.gamification.awardAttendanceXp(rec.studentId, sessionId, rec.status, session.schoolId).catch(() => {});
     }
 
     // Absence cascade: only when a student *newly* becomes absent. Re-saving an
@@ -758,10 +994,13 @@ export class AttendanceService {
     }
   }
 
-  async markAttendance(sessionId: string, dto: MarkAttendanceDto) {
+  async markAttendance(sessionId: string, dto: MarkAttendanceDto, user?: { id: string }) {
     const session = await this.prisma.attendanceSession.findUnique({ where: { id: sessionId } });
     if (!session) throw new NotFoundException('Attendance session not found');
     this.assertSessionWritable(session);
+    await this.assertCanMarkSession(session, user);
+    this.assertDateReached(session);
+    const records = this.sanitizeRecordsForType(session.type, dto.records);
 
     if (session.status === 'scheduled') {
       await this.prisma.attendanceSession.update({
@@ -770,14 +1009,16 @@ export class AttendanceService {
       });
     }
 
-    // Sync attendance records with current active students in this group
-    await this.syncSessionStudents(sessionId, dto.recordedBy || session.servantId);
+    const isClass = (session.type ?? 'class') === 'class';
+    const recordedBy = (!isClass && user?.id) || dto.recordedBy || session.servantId;
 
-    const recordedBy = dto.recordedBy || session.servantId;
-    const previousStatus = await this.loadRecordStatuses(sessionId, dto.records.map(r => r.studentId));
-    await this.prisma.$transaction(dto.records.map(record => this.buildRecordUpsert(sessionId, record, recordedBy)));
+    // Sync attendance records with current active students in this session's audience
+    await this.syncSessionStudents(sessionId, recordedBy);
 
-    this.runMarkSideEffects(session, sessionId, dto.records, recordedBy, previousStatus);
+    const previousStatus = await this.loadRecordStatuses(sessionId, records.map(r => r.studentId));
+    await this.prisma.$transaction(records.map(record => this.buildRecordUpsert(sessionId, record, recordedBy)));
+
+    this.runMarkSideEffects(session, sessionId, records, recordedBy, previousStatus);
 
     return this.getSessionById(sessionId);
   }
@@ -785,16 +1026,22 @@ export class AttendanceService {
   /**
    * Save the final marks and complete the session atomically: either every
    * record is written AND the session is completed, or nothing changes.
-   * Rejects when the roster is empty or students remain `unmarked`
-   * (unless `allowUnmarked` is set).
+   *
+   * Classes reject when students remain `unmarked` (unless `allowUnmarked`).
+   * Liturgy and events instead save everyone not marked present as absent,
+   * in the same transaction.
    */
-  async finalizeSession(sessionId: string, dto: FinalizeAttendanceDto) {
+  async finalizeSession(sessionId: string, dto: FinalizeAttendanceDto, user?: { id: string }) {
     const session = await this.prisma.attendanceSession.findUnique({ where: { id: sessionId } });
     if (!session) throw new NotFoundException('Attendance session not found');
     this.assertSessionWritable(session);
+    await this.assertCanMarkSession(session, user);
+    this.assertDateReached(session);
 
-    const recordedBy = dto.recordedBy || session.servantId;
-    const records = dto.records ?? [];
+    const type = session.type ?? 'class';
+    const isClass = type === 'class';
+    const recordedBy = (!isClass && user?.id) || dto.recordedBy || session.servantId;
+    const records = this.sanitizeRecordsForType(type, dto.records ?? []);
 
     await this.syncSessionStudents(sessionId, recordedBy);
 
@@ -810,15 +1057,22 @@ export class AttendanceService {
       throw new BadRequestException('Cannot finalize a session with no students.');
     }
     const unmarkedCount = [...finalStatus.values()].filter(s => s === 'unmarked').length;
-    if (unmarkedCount > 0 && !dto.allowUnmarked) {
+    if (isClass && unmarkedCount > 0 && !dto.allowUnmarked) {
       throw new BadRequestException(`${unmarkedCount} student(s) are still unmarked. Mark them or confirm finalizing anyway.`);
     }
 
     const now = new Date();
     await this.prisma.$transaction([
       ...records.map(record => this.buildRecordUpsert(sessionId, record, recordedBy)),
+      // Liturgy / event: whoever was not marked present is absent.
+      ...(isClass ? [] : [
+        this.prisma.attendanceRecord.updateMany({
+          where: { attendanceSessionId: sessionId, status: 'unmarked' },
+          data: { status: 'absent', recordedBy, recordedAt: now, ...(type === 'liturgy' ? { attendedLiturgy: false } : {}) },
+        }),
+      ]),
       this.prisma.attendanceSession.updateMany({
-        where: { id: sessionId, status: { not: 'completed' } },
+        where: { id: sessionId, status: { notIn: ['completed', 'recorded'] } },
         data: {
           status: 'completed',
           actualEndTime: now,
@@ -833,11 +1087,11 @@ export class AttendanceService {
       entityType: 'attendance_session',
       entityId: sessionId,
       oldValues: { status: session.status },
-      newValues: { status: 'completed', unmarkedCount },
+      newValues: { status: 'completed', type, unmarkedCount, ...(isClass ? {} : { autoMarkedAbsent: unmarkedCount }) },
     });
 
     this.runMarkSideEffects(session, sessionId, records, recordedBy, previousStatus);
-    this.sendPracticeGuideNotifications(sessionId).catch(() => {});
+    if (isClass) this.sendPracticeGuideNotifications(sessionId).catch(() => {});
 
     return this.getSessionById(sessionId);
   }
@@ -1156,10 +1410,15 @@ export class AttendanceService {
   async startSession(sessionId: string, servantId: string, roles?: string[]) {
     const session = await this.prisma.attendanceSession.findUnique({ where: { id: sessionId } });
     if (!session) throw new NotFoundException('Attendance session not found');
-    const isAdmin = (roles || []).some(r => ['super_admin', 'admin'].includes(r));
-    if (!isAdmin && session.servantId !== servantId) throw new ForbiddenException('Not your session');
+    if ((session.type ?? 'class') === 'class') {
+      const isAdmin = (roles || []).some(r => ['super_admin', 'admin'].includes(r));
+      if (!isAdmin && session.servantId !== servantId) throw new ForbiddenException('Not your session');
+    } else {
+      await this.assertCanMarkSession(session, { id: servantId });
+      this.assertDateReached(session);
+    }
     if (session.status === 'in_progress') return { session, started: false };
-    if (session.status === 'completed') throw new BadRequestException('Cannot start a completed session');
+    if (session.status === 'completed' || session.status === 'recorded') throw new BadRequestException('Cannot start a completed session');
 
     const updated = await this.prisma.attendanceSession.update({
       where: { id: sessionId },
@@ -1530,9 +1789,38 @@ export class AttendanceService {
     return { created, skipped, total: created + skipped };
   }
 
-  async updateSession(id: string, dto: Partial<CreateAttendanceSessionDto>) {
+  async updateSession(id: string, dto: Partial<CreateAttendanceSessionDto>, user?: { id: string }) {
     const session = await this.prisma.attendanceSession.findUnique({ where: { id } });
     if (!session) throw new NotFoundException('Attendance session not found');
+
+    const sessionType = (session.type ?? 'class') as SessionType;
+    if (dto.type && dto.type !== sessionType) throw new BadRequestException('The session type cannot be changed');
+
+    // Liturgy / event: who may edit, and the editable descriptive fields + audience.
+    let typedData: Record<string, any> = {};
+    let typedAudience: { targets: TargetInput[]; allGroups: boolean } | null = null;
+    if (sessionType !== 'class') {
+      if (user) {
+        const actor = await this.loadActor(user);
+        if (!(isAdminActor(actor) || isLevelLeaderActor(actor) || session.servantId === actor.id)) {
+          throw new ForbiddenException('Only the creator, a level leader or an admin can edit this session');
+        }
+        if (dto.targets !== undefined || dto.allGroups !== undefined || dto.groupId !== undefined) {
+          typedAudience = await this.resolveAudience(dto, sessionType, actor, session.schoolId);
+        }
+      }
+      if (dto.title !== undefined) {
+        const title = dto.title?.trim() || null;
+        if (sessionType === 'event' && !title) throw new BadRequestException('An event needs a title');
+        typedData.title = title;
+      }
+      if (dto.titleAr !== undefined) typedData.titleAr = dto.titleAr?.trim() || null;
+      if (dto.location !== undefined) typedData.location = dto.location?.trim() || null;
+      if (typedAudience) {
+        const single = typedAudience.targets.length === 1 && !typedAudience.allGroups ? typedAudience.targets[0] : null;
+        typedData = { ...typedData, allGroups: typedAudience.allGroups, groupId: single?.groupId ?? null, levelId: single?.levelId ?? null, gradeId: single?.gradeId ?? null };
+      }
+    }
 
     const statusChanged = !!dto.status && dto.status !== session.status;
     const groupChanged = !!dto.groupId && dto.groupId !== session.groupId;
@@ -1563,6 +1851,7 @@ export class AttendanceService {
         ...(metadataUpdate !== undefined && { metadata: metadataUpdate }),
         ...(statusChanged && dto.status === 'in_progress' && !session.actualStartTime && { actualStartTime: new Date() }),
         ...(statusChanged && dto.status === 'completed' && { actualEndTime: new Date() }),
+        ...typedData,
       },
       include: {
         level: { select: { id: true, name: true, number: true } },
@@ -1572,6 +1861,13 @@ export class AttendanceService {
       },
     });
 
+    if (typedAudience) {
+      await this.prisma.attendanceSessionTarget.deleteMany({ where: { sessionId: id } });
+      if (typedAudience.targets.length > 0) {
+        await this.prisma.attendanceSessionTarget.createMany({ data: typedAudience.targets.map(t => ({ sessionId: id, ...t })) });
+      }
+    }
+
     // Keep the class audience row in step with the session's own columns.
     if ((updated.type ?? 'class') === 'class' && (groupChanged || dto.levelId !== undefined || dto.gradeId !== undefined || genderChanged)) {
       const gender = ((updated.metadata as any)?.genderFilter as string | undefined) ?? null;
@@ -1579,7 +1875,7 @@ export class AttendanceService {
     }
 
     // Sync students when status, group, level, grade, or gender changes
-    if (statusChanged || groupChanged || dto.levelId !== undefined || dto.gradeId !== undefined || genderChanged) {
+    if (statusChanged || groupChanged || dto.levelId !== undefined || dto.gradeId !== undefined || genderChanged || typedAudience) {
       await this.syncSessionStudents(id, dto.servantId || session.servantId);
     }
 
@@ -1790,10 +2086,13 @@ export class AttendanceService {
     return { created: sessions.length, sessions };
   }
 
-  async batchUpdateRecords(sessionId: string, updates: Array<{ studentId: string; status: string }>) {
+  async batchUpdateRecords(sessionId: string, updates: Array<{ studentId: string; status: string }>, user?: { id: string }) {
     const session = await this.prisma.attendanceSession.findUnique({ where: { id: sessionId } });
     if (!session) throw new NotFoundException('Attendance session not found');
     this.assertSessionWritable(session);
+    await this.assertCanMarkSession(session, user);
+    this.assertDateReached(session);
+    this.sanitizeRecordsForType(session.type, updates);
 
     const results: any[] = [];
     for (const update of updates) {
@@ -1804,12 +2103,13 @@ export class AttendanceService {
             studentId: update.studentId,
           },
         },
-        update: { status: update.status },
+        update: { status: update.status, ...(session.type === 'liturgy' ? { attendedLiturgy: update.status === 'present' } : {}) },
         create: {
           attendanceSessionId: sessionId,
           studentId: update.studentId,
           status: update.status,
           recordedBy: session.servantId || '',
+          ...(session.type === 'liturgy' ? { attendedLiturgy: update.status === 'present' } : {}),
         },
       });
       results.push(record);

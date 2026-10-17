@@ -76,6 +76,7 @@ describe('AttendanceService', () => {
       findMany: jest.fn().mockResolvedValue([]),
       create: jest.fn().mockResolvedValue({}),
       deleteMany: jest.fn().mockResolvedValue({ count: 0 }),
+      createMany: jest.fn().mockResolvedValue({ count: 0 }),
     },
     $transaction: jest.fn(),
   };
@@ -240,6 +241,7 @@ describe('AttendanceService', () => {
 
       const result = await service.createSession({
         schoolId,
+        servantId: 'u1',
         groupId: 'group-1',
         levelId: 'level-1',
         scheduledDate: '2026-01-05',
@@ -257,6 +259,7 @@ describe('AttendanceService', () => {
 
       const result = await service.createSession({
         schoolId,
+        servantId: 'u1',
         groupId: 'group-1',
         levelId: 'level-1',
         scheduledDate: '2026-01-05',
@@ -479,7 +482,7 @@ describe('AttendanceService', () => {
       expect(where.servantId).toBeUndefined();
       expect(where.groupId).toBeUndefined();
       // group scope matches the session's own group OR any of its audience rows
-      expect(where.AND).toContainEqual({ OR: [{ groupId: { in: ['G1'] } }, { targets: { some: { groupId: { in: ['G1'] } } } }] });
+      expect(where.AND).toContainEqual({ OR: [{ groupId: { in: ['G1'] } }, { targets: { some: { groupId: { in: ['G1'] } } } }, { allGroups: true }] });
       expect(where.levelId).toEqual('L1');
     });
 
@@ -493,7 +496,7 @@ describe('AttendanceService', () => {
     it('resolves grade to its group IDs when no explicit group is assigned', async () => {
       const where = await captureWhere({ gradeId: 'GR1' }, [{ groupId: 'G2' }, { groupId: 'G3' }]);
       expect(where.servantId).toBeUndefined();
-      expect(where.AND).toContainEqual({ OR: [{ groupId: { in: ['G2', 'G3'] } }, { targets: { some: { groupId: { in: ['G2', 'G3'] } } } }] });
+      expect(where.AND).toContainEqual({ OR: [{ groupId: { in: ['G2', 'G3'] } }, { targets: { some: { groupId: { in: ['G2', 'G3'] } } } }, { allGroups: true }] });
     });
   });
 
@@ -687,7 +690,7 @@ describe('AttendanceService', () => {
       expect(prisma.$transaction).toHaveBeenCalledTimes(1);
       expect(prisma.$transaction.mock.calls[0][0]).toEqual(['upsert-op', 'complete-op']);
       const completion = prisma.attendanceSession.updateMany.mock.calls[0][0];
-      expect(completion.where).toEqual({ id: 'sess-1', status: { not: 'completed' } });
+      expect(completion.where).toEqual({ id: 'sess-1', status: { notIn: ['completed', 'recorded'] } });
       expect(completion.data.status).toBe('completed');
       expect(completion.data.actualEndTime).toBeInstanceOf(Date);
     });
@@ -868,7 +871,7 @@ describe('AttendanceService', () => {
       expect(args.where.groupId).toBeUndefined();
       expect(args.where.AND).toEqual(expect.arrayContaining([
         { OR: [{ notes: null }, { notes: { not: 'liturgy' } }] },
-        { OR: [{ groupId: 'G1' }, { targets: { some: { groupId: 'G1' } } }] },
+        { OR: [{ groupId: 'G1' }, { targets: { some: { groupId: 'G1' } } }, { allGroups: true }] },
       ]));
       expect(args.include.targets).toBeDefined();
     });
@@ -943,6 +946,220 @@ describe('AttendanceService', () => {
       await (service as any).syncSessionStudents('c1', 'u1');
       expect(prisma.attendanceSessionTarget.findMany).not.toHaveBeenCalled();
       expect(prisma.student.findMany.mock.calls[0][0].where).toEqual({ deletedAt: null, groupId: 'g1', levelId: 'l1', gradeId: 'gr1' });
+    });
+  });
+
+  describe('liturgy / event sessions', () => {
+    const G1 = '11111111-1111-4111-8111-111111111111';
+    const G2 = '22222222-2222-4222-8222-222222222222';
+    const L1 = '33333333-3333-4333-8333-333333333333';
+    const L2 = '44444444-4444-4444-8444-444444444444';
+    const actorRow = (roles: string[], metadata: any = {}) => ({ id: 'u1', schoolId, metadata, userRoles: roles.map(name => ({ role: { name } })) });
+    const future = new Date(Date.now() + 5 * 86400000).toISOString().slice(0, 10);
+    const past = '2026-01-04';
+
+    beforeEach(() => {
+      jest.spyOn(service as any, 'syncSessionStudents').mockResolvedValue(undefined);
+      jest.spyOn(service, 'getSessionById').mockResolvedValue({ id: 'new-1' } as any);
+      prisma.group.findMany.mockImplementation(({ where }: any) => Promise.resolve((where?.id?.in ?? [G1, G2]).map((id: string) => ({ id }))));
+      prisma.attendanceSession.findFirst.mockResolvedValue(null);
+      prisma.attendanceSession.create.mockResolvedValue({ id: 'new-1' });
+      prisma.schoolGrade.findMany.mockResolvedValue([]);
+    });
+    const createdData = () => prisma.attendanceSession.create.mock.calls[0][0].data;
+
+    it('servant can create a liturgy for their own group, future-dated', async () => {
+      prisma.user.findUnique.mockResolvedValue(actorRow(['servant'], { groupId: G1 }));
+      await service.createSession({ type: 'liturgy', targets: [{ groupId: G1 }], scheduledDate: future } as any, { id: 'u1' });
+      const d = createdData();
+      expect(d).toMatchObject({ type: 'liturgy', groupId: G1, allGroups: false, servantId: 'u1' });
+      expect(d.targets).toEqual({ create: [{ groupId: G1, levelId: null, gradeId: null, gender: null }] });
+    });
+
+    it('a servant with no audience gets their own group by default', async () => {
+      prisma.user.findUnique.mockResolvedValue(actorRow(['servant'], { groupId: G1 }));
+      await service.createSession({ type: 'liturgy', scheduledDate: past } as any, { id: 'u1' });
+      expect(createdData().groupId).toBe(G1);
+    });
+
+    it('servant cannot create a liturgy for another group, several groups or all groups', async () => {
+      prisma.user.findUnique.mockResolvedValue(actorRow(['servant'], { groupId: G1 }));
+      await expect(service.createSession({ type: 'liturgy', targets: [{ groupId: G2 }], scheduledDate: past } as any, { id: 'u1' })).rejects.toThrow(/own group/);
+      await expect(service.createSession({ type: 'liturgy', targets: [{ groupId: G1 }, { groupId: G2 }], scheduledDate: past } as any, { id: 'u1' })).rejects.toThrow(/own group/);
+      await expect(service.createSession({ type: 'liturgy', allGroups: true, scheduledDate: past } as any, { id: 'u1' })).rejects.toThrow(/own group/);
+      expect(prisma.attendanceSession.create).not.toHaveBeenCalled();
+    });
+
+    it('servants and group leaders cannot create events', async () => {
+      prisma.user.findUnique.mockResolvedValue(actorRow(['group_leader'], { groupId: G1 }));
+      await expect(service.createSession({ type: 'event', title: 'Picnic', targets: [{ groupId: G1 }], scheduledDate: future } as any, { id: 'u1' })).rejects.toThrow(/Only admins, principals and level leaders/);
+    });
+
+    it('admin can create a multi-group event and a whole-school liturgy', async () => {
+      prisma.user.findUnique.mockResolvedValue(actorRow(['admin']));
+      await service.createSession({ type: 'event', title: 'Picnic', location: 'Park', targets: [{ groupId: G1 }, { groupId: G2 }], scheduledDate: future } as any, { id: 'u1' });
+      expect(createdData()).toMatchObject({ type: 'event', title: 'Picnic', location: 'Park', groupId: null, allGroups: false });
+      expect(createdData().targets.create).toHaveLength(2);
+
+      prisma.attendanceSession.create.mockClear();
+      await service.createSession({ type: 'liturgy', allGroups: true, scheduledDate: future } as any, { id: 'u1' });
+      expect(createdData()).toMatchObject({ type: 'liturgy', allGroups: true, groupId: null });
+      expect(createdData().targets).toBeUndefined();
+    });
+
+    it('an event needs a title', async () => {
+      prisma.user.findUnique.mockResolvedValue(actorRow(['admin']));
+      await expect(service.createSession({ type: 'event', allGroups: true, scheduledDate: future } as any, { id: 'u1' })).rejects.toThrow(/needs a title/);
+    });
+
+    it('level leaders are limited to their own level; "all groups" becomes per-group targets in that level', async () => {
+      prisma.user.findUnique.mockResolvedValue(actorRow(['level_leader'], { levelId: L1 }));
+      await expect(service.createSession({ type: 'event', title: 'x', targets: [{ groupId: G1, levelId: L2 }], scheduledDate: future } as any, { id: 'u1' })).rejects.toThrow(/own level/);
+      await service.createSession({ type: 'liturgy', allGroups: true, scheduledDate: future } as any, { id: 'u1' });
+      const d = createdData();
+      expect(d.allGroups).toBe(false);
+      expect(d.targets.create.every((t: any) => t.levelId === L1)).toBe(true);
+    });
+
+    it('rejects a second liturgy for the same group and day, pointing at the existing one', async () => {
+      prisma.user.findUnique.mockResolvedValue(actorRow(['admin']));
+      prisma.attendanceSession.findFirst.mockResolvedValue({ id: 'existing-lit' });
+      await expect(service.createSession({ type: 'liturgy', targets: [{ groupId: G1 }], scheduledDate: past } as any, { id: 'u1' }))
+        .rejects.toMatchObject({ response: { existingSessionId: 'existing-lit' } });
+      expect(prisma.attendanceSession.create).not.toHaveBeenCalled();
+    });
+
+    it('startNow creates an in-progress session dated today', async () => {
+      prisma.user.findUnique.mockResolvedValue(actorRow(['admin']));
+      await service.createSession({ type: 'event', title: 'Surprise visit', allGroups: true, startNow: true, scheduledDate: future } as any, { id: 'u1' });
+      const d = createdData();
+      expect(d.status).toBe('in_progress');
+      expect(d.actualStartTime).toBeInstanceOf(Date);
+      expect(Math.abs(d.scheduledDate.getTime() - Date.now())).toBeLessThan(5000);
+    });
+
+    it('rejects groups outside the school', async () => {
+      prisma.user.findUnique.mockResolvedValue(actorRow(['admin']));
+      prisma.group.findMany.mockResolvedValue([]);
+      await expect(service.createSession({ type: 'liturgy', targets: [{ groupId: G1 }], scheduledDate: past } as any, { id: 'u1' })).rejects.toThrow(/not found in this school/);
+    });
+
+    // ── marking ──
+    const typedSession = (over: any = {}) => ({ id: 's-lit', schoolId, servantId: 'owner', groupId: G1, type: 'liturgy', allGroups: false, status: 'in_progress', scheduledDate: new Date(), actualStartTime: new Date(), deletedAt: null, metadata: null, ...over });
+
+    it('liturgy/event cannot be marked before their scheduled day; classes still can', async () => {
+      prisma.user.findUnique.mockResolvedValue(actorRow(['admin']));
+      const dto = { recordedBy: 'u1', records: [{ studentId: 's1', status: 'present' }] } as any;
+      prisma.attendanceSession.findUnique.mockResolvedValue(typedSession({ scheduledDate: new Date(Date.now() + 3 * 86400000) }));
+      await expect(service.markAttendance('s-lit', dto, { id: 'u1' })).rejects.toThrow(/scheduled for/);
+      expect(prisma.$transaction).not.toHaveBeenCalled();
+
+      jest.restoreAllMocks();
+      jest.spyOn(service as any, 'syncSessionStudents').mockResolvedValue(undefined);
+      jest.spyOn(service, 'getSessionById').mockResolvedValue({ id: 'c1' } as any);
+      prisma.attendanceSession.findUnique.mockResolvedValue({ ...typedSession({ type: 'class', scheduledDate: new Date(Date.now() + 3 * 86400000) }) });
+      prisma.attendanceRecord.findMany.mockResolvedValue([]);
+      prisma.attendanceRecord.upsert.mockReturnValue('op');
+      prisma.$transaction.mockResolvedValue([]);
+      await expect(service.markAttendance('c1', dto, { id: 'u1' })).resolves.toBeDefined();
+    });
+
+    it('liturgy allows only present/absent, drops scores and sets the liturgy flag', async () => {
+      prisma.user.findUnique.mockResolvedValue(actorRow(['admin']));
+      prisma.attendanceSession.findUnique.mockResolvedValue(typedSession());
+      prisma.attendanceRecord.findMany.mockResolvedValue([]);
+      prisma.attendanceRecord.upsert.mockReturnValue('op');
+      prisma.$transaction.mockResolvedValue([]);
+      await expect(service.markAttendance('s-lit', { records: [{ studentId: 's1', status: 'late' }] } as any, { id: 'u1' })).rejects.toThrow(/only present or absent/);
+
+      await service.markAttendance('s-lit', { records: [{ studentId: 's1', status: 'present', behavior: 5, participation: 4, homeworkStatus: 'completed' }] } as any, { id: 'u1' });
+      const args = prisma.attendanceRecord.upsert.mock.calls[0][0];
+      expect(args.update).toMatchObject({ status: 'present', attendedLiturgy: true, behavior: undefined, participation: undefined });
+    });
+
+    it('a servant outside the audience cannot mark; one in the audience can', async () => {
+      prisma.attendanceSession.findUnique.mockResolvedValue(typedSession());
+      prisma.attendanceSessionTarget.findMany.mockResolvedValue([{ groupId: G1 }]);
+      prisma.attendanceRecord.findMany.mockResolvedValue([]);
+      prisma.attendanceRecord.upsert.mockReturnValue('op');
+      prisma.$transaction.mockResolvedValue([]);
+      const dto = { records: [{ studentId: 's1', status: 'present' }] } as any;
+      prisma.user.findUnique.mockResolvedValue(actorRow(['servant'], { groupId: G2 }));
+      await expect(service.markAttendance('s-lit', dto, { id: 'u1' })).rejects.toThrow(/not assigned/);
+      prisma.user.findUnique.mockResolvedValue(actorRow(['servant'], { groupId: G1 }));
+      await expect(service.markAttendance('s-lit', dto, { id: 'u1' })).resolves.toBeDefined();
+    });
+
+    it('legacy "recorded" liturgy sessions are read-only until re-opened', async () => {
+      prisma.user.findUnique.mockResolvedValue(actorRow(['admin']));
+      prisma.attendanceSession.findUnique.mockResolvedValue(typedSession({ status: 'recorded' }));
+      await expect(service.markAttendance('s-lit', { records: [] } as any, { id: 'u1' })).rejects.toThrow(/read-only/);
+    });
+
+    // ── finalize ──
+    it('finalizing a liturgy marks everyone not present as absent, atomically, with no unmarked prompt', async () => {
+      prisma.user.findUnique.mockResolvedValue(actorRow(['admin']));
+      prisma.attendanceSession.findUnique.mockResolvedValue(typedSession());
+      prisma.attendanceRecord.findMany.mockResolvedValue([{ studentId: 's1', status: 'unmarked' }, { studentId: 's2', status: 'unmarked' }]);
+      prisma.attendanceRecord.upsert.mockReturnValue('upsert-op');
+      prisma.attendanceRecord.updateMany.mockReturnValue('absent-op');
+      prisma.attendanceSession.updateMany.mockReturnValue('complete-op');
+      prisma.$transaction.mockResolvedValue([]);
+      await service.finalizeSession('s-lit', { records: [{ studentId: 's1', status: 'present' }] } as any, { id: 'u1' });
+      expect(prisma.$transaction).toHaveBeenCalledTimes(1);
+      expect(prisma.$transaction.mock.calls[0][0]).toEqual(['upsert-op', 'absent-op', 'complete-op']);
+      expect(prisma.attendanceRecord.updateMany).toHaveBeenCalledWith({
+        where: { attendanceSessionId: 's-lit', status: 'unmarked' },
+        data: expect.objectContaining({ status: 'absent', attendedLiturgy: false }),
+      });
+    });
+
+    it('liturgy/event finalize triggers no class XP or absence alerts; events trigger no badges either', async () => {
+      const gamification: any = (service as any).gamification;
+      gamification.awardAttendanceXp.mockClear();
+      gamification.computeBadgesForStudent.mockClear();
+      const cascade = jest.spyOn(service as any, 'checkAbsenceCascade').mockResolvedValue(undefined);
+      prisma.user.findUnique.mockResolvedValue(actorRow(['admin']));
+      prisma.attendanceRecord.findMany.mockResolvedValue([{ studentId: 's1', status: 'unmarked' }]);
+      prisma.attendanceRecord.upsert.mockReturnValue('op');
+      prisma.attendanceRecord.updateMany.mockReturnValue('op');
+      prisma.attendanceSession.updateMany.mockReturnValue('op');
+      prisma.$transaction.mockResolvedValue([]);
+
+      prisma.attendanceSession.findUnique.mockResolvedValue(typedSession());
+      await service.finalizeSession('s-lit', { records: [{ studentId: 's1', status: 'absent' }] } as any, { id: 'u1' });
+      expect(gamification.awardAttendanceXp).not.toHaveBeenCalled();
+      expect(cascade).not.toHaveBeenCalled();
+      expect(gamification.computeBadgesForStudent).toHaveBeenCalled(); // liturgy badges
+
+      gamification.computeBadgesForStudent.mockClear();
+      prisma.attendanceSession.findUnique.mockResolvedValue(typedSession({ type: 'event' }));
+      await service.finalizeSession('s-ev', { records: [{ studentId: 's1', status: 'present' }] } as any, { id: 'u1' });
+      expect(gamification.computeBadgesForStudent).not.toHaveBeenCalled();
+    });
+
+    // ── edit ──
+    it('the session type cannot be changed', async () => {
+      prisma.attendanceSession.findUnique.mockResolvedValue(typedSession());
+      await expect(service.updateSession('s-lit', { type: 'event' } as any)).rejects.toThrow(/cannot be changed/);
+    });
+
+    it('an editor replaces the audience of a liturgy/event and the roster is re-synced', async () => {
+      prisma.user.findUnique.mockResolvedValue(actorRow(['admin']));
+      prisma.attendanceSession.findUnique.mockResolvedValue(typedSession({ type: 'event' }));
+      prisma.attendanceSession.update.mockResolvedValue({ id: 's-ev', type: 'event', metadata: null });
+      await service.updateSession('s-ev', { title: 'New title', targets: [{ groupId: G1 }, { groupId: G2 }] } as any, { id: 'u1' });
+      const data = prisma.attendanceSession.update.mock.calls[0][0].data;
+      expect(data).toMatchObject({ title: 'New title', allGroups: false, groupId: null });
+      expect(prisma.attendanceSessionTarget.deleteMany).toHaveBeenCalledWith({ where: { sessionId: 's-ev' } });
+      expect(prisma.attendanceSessionTarget.createMany.mock.calls[0][0].data).toHaveLength(2);
+      expect((service as any).syncSessionStudents).toHaveBeenCalled();
+    });
+
+    it('only the creator, a level leader or an admin can edit a liturgy/event', async () => {
+      prisma.user.findUnique.mockResolvedValue(actorRow(['servant'], { groupId: G1 }));
+      prisma.attendanceSession.findUnique.mockResolvedValue(typedSession());
+      await expect(service.updateSession('s-lit', { title: 'x' } as any, { id: 'u1' })).rejects.toThrow(/creator, a level leader or an admin/);
     });
   });
 });

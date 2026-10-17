@@ -94,7 +94,7 @@ export default function ServantProfilePage() {
           { href: '/dashboard', label: 'Dashboard', labelAr: 'لوحة التحكم', icon: LayoutGrid },
           { href: '/dashboard/students', label: 'Students', labelAr: 'الطلاب', icon: Users },
           { href: '/dashboard/attendance/mark', label: 'Attendance', labelAr: 'الحضور', icon: Calendar },
-          { href: '/dashboard/liturgy-attendance', label: 'Liturgy', labelAr: 'حضور القداس', icon: Church },
+          { href: '/dashboard/attendance/sessions?new=liturgy', label: 'Liturgy', labelAr: 'حضور القداس', icon: Church },
           { href: '/dashboard/briefing', label: 'This Sunday', labelAr: 'أحد الأسبوع', icon: Sun },
         ].map(({ href, label, labelAr, icon: Icon }) => (
           <Link key={href} href={href} title={labelAr}

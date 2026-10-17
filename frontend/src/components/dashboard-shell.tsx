@@ -38,7 +38,6 @@ const navigation = [
   { name: 'Dashboard', nameAr: 'لوحة التحكم', href: '/dashboard', icon: LayoutDashboard },
   { name: 'Students', nameAr: 'الطلاب', href: '/dashboard/students', icon: Users },
   { name: 'Attendance', nameAr: 'الحضور', href: '/dashboard/attendance/mark', icon: Calendar, perm: 'attendance:view' as const },
-  { name: 'Liturgy Attendance', nameAr: 'حضور القداس', href: '/dashboard/liturgy-attendance', icon: Church, perm: 'attendance:record' as const },
   { name: 'This Sunday', nameAr: 'أحد الأسبوع', href: '/dashboard/briefing', icon: Sun, perm: 'attendance:record' as const },
   // Additional navigation items
   { name: 'Servants', nameAr: 'الخدام', href: '/dashboard/servants', icon: UserCheck, perm: 'servant:view' as const },

@@ -8,10 +8,11 @@ const ITEMS = [
   { key: 'excused', en: 'Excused', ar: 'معذور', Icon: AlertCircle, active: 'bg-gray-200 text-gray-700' },
 ] as const
 
-export function StatusSegment({ value, onChange, lang, studentName, compact = false }: { value: string; onChange: (s:string)=>void; lang: 'en'|'ar'; studentName: string; compact?: boolean }) {
+export function StatusSegment({ value, onChange, lang, studentName, compact = false, statuses }: { value: string; onChange: (s:string)=>void; lang: 'en'|'ar'; studentName: string; compact?: boolean; /** Limit the choices (liturgy/event: present and absent only). */ statuses?: readonly string[] }) {
+  const items = statuses ? ITEMS.filter(i => statuses.includes(i.key)) : ITEMS
   return (
-    <div role="group" aria-label={lang==='ar' ? `الحالة - ${studentName}` : `Status - ${studentName}`} className={compact ? 'grid grid-cols-4 gap-1.5' : 'grid grid-cols-2 gap-2'}>
-      {ITEMS.map(({key,en,ar,Icon,active}) => {
+    <div role="group" aria-label={lang==='ar' ? `الحالة - ${studentName}` : `Status - ${studentName}`} className={compact ? (items.length === 2 ? 'grid grid-cols-2 gap-1.5' : 'grid grid-cols-4 gap-1.5') : 'grid grid-cols-2 gap-2'}>
+      {items.map(({key,en,ar,Icon,active}) => {
         const label = lang==='ar' ? ar : en
         const pressed = value===key
         return (

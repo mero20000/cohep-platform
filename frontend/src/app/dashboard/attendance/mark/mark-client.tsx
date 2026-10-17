@@ -12,6 +12,14 @@ import { useMarkingState } from '../lib/use-marking-state'
 import { StatusSegment } from '../components/status-segment'
 import { MarkSummaryBar } from '../components/mark-summary-bar'
 import { DetailExpander } from '../components/detail-expander'
+import { SessionTypeBadge } from '../components/session-type-badge'
+import { audienceSummary, isFinalStatus, isFutureDay, sessionTitle, sessionType, typeLabel } from '../lib/session-types'
+
+/** Final (completed/legacy recorded), or a liturgy/event that is scheduled for a later day. */
+function sessionLocked(s: any): boolean {
+  if (!s) return false
+  return isFinalStatus(s.status) || (sessionType(s) !== 'class' && isFutureDay(s.scheduledDate))
+}
 
 const FALLBACK_USER_ID = '00000000-0000-0000-0000-000000000000'
 
@@ -57,10 +65,18 @@ export function MarkClient() {
   const [pickedGradeId, setPickedGradeId] = useState<string | null>(null)
   const [needsManualStart, setNeedsManualStart] = useState(false)
   const [isSuperAdmin, setIsSuperAdmin] = useState(false)
+  const [canMulti, setCanMulti] = useState(false)
+  const [groupFilter, setGroupFilter] = useState('')
+  const [gradeFilter, setGradeFilter] = useState('')
+  const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({})
   const marking = useMarkingState([])
 
   useEffect(() => {
-    try { const u = JSON.parse(localStorage.getItem('user') || '{}'); setIsSuperAdmin(u.roles?.includes('super_admin') ?? false) } catch {}
+    try {
+      const u = JSON.parse(localStorage.getItem('user') || '{}')
+      setIsSuperAdmin(u.roles?.includes('super_admin') ?? false)
+      setCanMulti((u.roles ?? []).some((r: string) => ['super_admin', 'admin', 'principal', 'level_leader'].includes(r)))
+    } catch {}
   }, [])
 
   const loadSession = async (sid: string, quiet = false) => {
@@ -146,7 +162,7 @@ export function MarkClient() {
   useEffect(() => { load() }, [])
 
   const save = async (finalize = false) => {
-    if (!session || saving || session.status === 'completed') return
+    if (!session || saving || sessionLocked(session)) return
     setSaving(true); setSaveError('')
     let userId = FALLBACK_USER_ID
     try { userId = JSON.parse(localStorage.getItem('user') || '{}').id || FALLBACK_USER_ID } catch {}
@@ -155,15 +171,23 @@ export function MarkClient() {
     try {
       if (finalize) {
         // One atomic call: saves marks and completes the session together.
+        const type = sessionType(session)
         const unmarked = (session.attendanceRecords || []).filter((r: any) => {
           const m = marking.marks[r.student?.id]; return !m || m === 'unmarked'
         }).length
         let allowUnmarked = false
-        if (unmarked > 0) {
+        if (unmarked > 0 && type === 'class') {
           allowUnmarked = window.confirm(lang === 'ar'
             ? `لا يزال ${unmarked} طالب غير مسجل. هل تريد الإنهاء على أي حال؟`
             : `${unmarked} student(s) are still unmarked. Finalize anyway?`)
           if (!allowUnmarked) { setSaving(false); return }
+        } else if (unmarked > 0) {
+          // Liturgy / event: anyone not marked present is saved as absent.
+          const ok = window.confirm(lang === 'ar'
+            ? `سيتم تسجيل ${unmarked} طالب غير حاضر كغائب. هل تريد الإنهاء؟`
+            : `${unmarked} student(s) not marked present will be saved as absent. Finalize?`)
+          if (!ok) { setSaving(false); return }
+          allowUnmarked = true
         }
         await http.post(`/attendance/sessions/${session.id}/finalize`, { records, recordedBy: userId, allowUnmarked })
       } else {
@@ -227,15 +251,16 @@ export function MarkClient() {
     autoSaveTimer.current = setTimeout(() => { void saveRef.current(false) }, 3000)
   }, [])
   useEffect(() => {
-    if (marking.dirty && session && session.status !== 'completed') autoSave()
+    if (marking.dirty && session && !sessionLocked(session)) autoSave()
     return () => { if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current) }
-  }, [marking.dirty, marking.marks, marking.behavior, marking.participation, marking.liturgy, marking.notes, session, autoSave])
+  }, [marking.dirty, marking.marks, marking.behavior, marking.participation, marking.notes, session, autoSave])
 
   const handleRecordKeyDown = (e: React.KeyboardEvent, record: any) => {
     const id = record.student?.id
     if (!id) return
     // Completed sessions are read-only — never mutate marks via keyboard.
-    if (session?.status === 'completed') return
+    if (sessionLocked(session)) return
+    const binary = sessionType(session) !== 'class'
     // Never hijack typing inside the note field.
     const t = e.target as HTMLElement
     if (t instanceof HTMLInputElement || t instanceof HTMLTextAreaElement) return
@@ -244,10 +269,10 @@ export function MarkClient() {
     const order = Array.from(document.querySelectorAll('[data-student-id]'))
     const at = order.indexOf(e.target as Element)
     if (e.key === 'p' || e.key === 'P') { e.preventDefault(); marking.setStatus(id, 'present') }
-    else if (e.key === 'l' || e.key === 'L') { e.preventDefault(); marking.setStatus(id, 'late') }
+    else if (!binary && (e.key === 'l' || e.key === 'L')) { e.preventDefault(); marking.setStatus(id, 'late') }
     else if (e.key === 'a' || e.key === 'A') { e.preventDefault(); marking.setStatus(id, 'absent') }
-    else if (e.key === 'e' || e.key === 'E') { e.preventDefault(); marking.setStatus(id, 'excused') }
-    else if (e.key >= '1' && e.key <= '5') { e.preventDefault(); marking.setBehavior(id, parseInt(e.key, 10)) }
+    else if (!binary && (e.key === 'e' || e.key === 'E')) { e.preventDefault(); marking.setStatus(id, 'excused') }
+    else if (!binary && e.key >= '1' && e.key <= '5') { e.preventDefault(); marking.setBehavior(id, parseInt(e.key, 10)) }
     else if (e.key === 'ArrowUp' && at > 0) {
       e.preventDefault()
       ;(order[at - 1] as HTMLElement)?.focus()
@@ -268,6 +293,18 @@ export function MarkClient() {
           <Button onClick={() => { void startClassManually() }} disabled={starting} className="min-h-[44px]">
             {starting ? (lang === 'ar' ? 'جاري البدء…' : 'Starting…') : (lang === 'ar' ? 'بدء الحصة' : 'Start Class')}
           </Button>
+          <div className="flex flex-wrap justify-center gap-2">
+            <Link href="/dashboard/attendance/sessions?new=liturgy"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500 min-h-[40px]">
+              {lang === 'ar' ? 'بدء قداس' : 'Start Liturgy'}
+            </Link>
+            {canMulti && (
+              <Link href="/dashboard/attendance/sessions?new=event"
+                className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500 min-h-[40px]">
+                {lang === 'ar' ? 'بدء فعالية' : 'Start Event'}
+              </Link>
+            )}
+          </div>
           {isSuperAdmin && (
             <Link href="/dashboard/attendance/sessions"
               className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500 min-h-[40px]">
@@ -487,12 +524,47 @@ export function MarkClient() {
     const s = r.student || {}
     return `${s.firstName || ''} ${s.lastName || ''}`.trim() || `${s.firstNameAr || ''} ${s.lastNameAr || ''}`.trim()
   }
+  const type = sessionType(session)
+  const isBinary = type !== 'class'
+  const isCompleted = isFinalStatus(session.status)
+  const notYet = !isCompleted && isBinary && isFutureDay(session.scheduledDate)
+  const readOnly = isCompleted || notYet
+  const t = (en: string, ar: string) => (lang === 'ar' ? ar : en)
+
+  // Group / grade breakdown (multi-group liturgy & events, or a class spanning several grades).
+  const groupOf = (r: any) => ({ id: r.student?.group?.id || r.student?.groupId || '', name: r.student?.group?.name || '' })
+  const gradeOf = (r: any) => ({ id: r.student?.grade?.id || r.student?.gradeId || '', name: r.student?.grade?.name || '' })
+  const matchesScope = (r: any) =>
+    (!groupFilter || groupOf(r).id === groupFilter) && (!gradeFilter || gradeOf(r).id === gradeFilter)
+  const groupStats = new Map<string, { id: string; name: string; total: number; marked: number }>()
+  const gradeStats = new Map<string, { id: string; name: string; total: number; marked: number }>()
+  for (const r of recs) {
+    const g = groupOf(r)
+    if (g.id) {
+      const e = groupStats.get(g.id) ?? { ...g, total: 0, marked: 0 }
+      e.total++; if (!isUnmarked(r)) e.marked++
+      groupStats.set(g.id, e)
+    }
+    const gr = gradeOf(r)
+    if (gr.id && (!groupFilter || g.id === groupFilter)) {
+      const e = gradeStats.get(gr.id) ?? { ...gr, total: 0, marked: 0 }
+      e.total++; if (!isUnmarked(r)) e.marked++
+      gradeStats.set(gr.id, e)
+    }
+  }
+  const groupChips = [...groupStats.values()].sort((a, b) => a.name.localeCompare(b.name))
+  const gradeChips = [...gradeStats.values()].sort((a, b) => a.name.localeCompare(b.name))
+  const showGroupChips = groupChips.length > 1
+  const showGradeChips = gradeChips.length > 1
+  const showSections = showGroupChips && !groupFilter
+
   const visibleRecs = recs
-    .filter((r: any) => matchesQuery(r) && (!unmarkedOnly || isUnmarked(r)))
-    // Alphabetical roster so the servant scans in a predictable order.
-    .sort((a: any, b: any) => studentSortName(a).localeCompare(studentSortName(b), lang === 'ar' ? 'ar' : 'en'))
+    .filter((r: any) => matchesQuery(r) && matchesScope(r) && (!unmarkedOnly || isUnmarked(r)))
+    // Group first (multi-group sessions), then alphabetical so the servant scans in a predictable order.
+    .sort((a: any, b: any) => (showSections ? groupOf(a).name.localeCompare(groupOf(b).name, lang === 'ar' ? 'ar' : 'en') : 0)
+      || studentSortName(a).localeCompare(studentSortName(b), lang === 'ar' ? 'ar' : 'en'))
   const unmarkedCount = recs.filter(isUnmarked).length
-  const isFiltering = query.trim() !== '' || unmarkedOnly
+  const isFiltering = query.trim() !== '' || unmarkedOnly || !!groupFilter || !!gradeFilter
   const counts = {
     present: recs.filter((r: any) => marking.marks[r.student?.id] === 'present').length,
     late: recs.filter((r: any) => marking.marks[r.student?.id] === 'late').length,
@@ -501,9 +573,9 @@ export function MarkClient() {
     marked: Object.values(marking.marks).filter(v => v && v !== 'unmarked').length,
     total: recs.length,
   }
-  const scopeName = session.group?.name || session.level?.name || ''
-  const isCompleted = session.status === 'completed'
-  const visibleIds = recs.map((r: any) => r.student?.id).filter(Boolean)
+  const titleText = sessionTitle(session, lang)
+  const scopeIds = recs.filter(matchesScope).map((r: any) => r.student?.id).filter(Boolean)
+  const visibleIds = scopeIds
   const markAllLabel = markAllTarget === 'present'
     ? (lang === 'ar' ? 'تحديد الكل حاضر؟' : 'Mark all as Present?')
     : markAllTarget === 'late'
@@ -516,7 +588,13 @@ export function MarkClient() {
         <div className="flex items-center justify-between gap-2">
           <div>
             <h1 className="text-lg font-semibold text-gray-900">{lang === 'ar' ? 'تسجيل الحضور' : 'Mark Attendance'}</h1>
-            <p className="text-sm text-gray-500">{[scopeName, formatSessionDate(session.scheduledDate, lang), session.status].filter(Boolean).join(' · ')}</p>
+            <p className="flex flex-wrap items-center gap-x-1.5 text-sm text-gray-500">
+              {isBinary && <SessionTypeBadge type={type} lang={lang} />}
+              <span>{[titleText, isBinary ? '' : '', formatSessionDate(session.scheduledDate, lang), isFinalStatus(session.status) ? 'completed' : session.status].filter(Boolean).join(' · ')}</span>
+            </p>
+            {isBinary && (session.location || audienceSummary(session, lang)) && (
+              <p className="text-xs text-gray-500">{[audienceSummary(session, lang), session.location].filter(Boolean).join(' · ')}</p>
+            )}
           </div>
           {isSuperAdmin && (
             <Link href="/dashboard/attendance/sessions"
@@ -539,14 +617,26 @@ export function MarkClient() {
               : 'This session is finalized and read-only. Re-open it to make changes.'}
           </p>
         )}
-        {session.status === 'scheduled' && (
+        {notYet && (
+          <p role="note" className="mt-2 rounded-lg bg-blue-50 px-3 py-2 text-sm text-blue-800">
+            {t(
+              `This ${typeLabel(type, 'en').toLowerCase()} is scheduled for ${formatSessionDate(session.scheduledDate, 'en')}. Attendance can be recorded from that day.`,
+              `هذه الجلسة مجدولة بتاريخ ${formatSessionDate(session.scheduledDate, 'ar')}. يمكن تسجيل الحضور من ذلك اليوم.`,
+            )}
+          </p>
+        )}
+        {session.status === 'scheduled' && !notYet && (
           <button
             type="button"
             onClick={() => void startSession()}
             disabled={starting}
             className="mt-2 flex min-h-[44px] items-center gap-2 rounded-lg bg-gold-500 px-4 py-2 text-sm font-medium text-gray-950 hover:bg-gold-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500 disabled:opacity-50"
           >
-            {starting ? (lang === 'ar' ? 'جاري البدء…' : 'Starting…') : (lang === 'ar' ? 'بدء الحصة' : 'Start Class')}
+            {starting
+              ? (lang === 'ar' ? 'جاري البدء…' : 'Starting…')
+              : type === 'liturgy' ? t('Start Liturgy', 'بدء القداس')
+              : type === 'event' ? t('Start Event', 'بدء الفعالية')
+              : (lang === 'ar' ? 'بدء الحصة' : 'Start Class')}
           </button>
         )}
         <p className="mt-1 text-sm text-gray-500">
@@ -560,8 +650,8 @@ export function MarkClient() {
         </p>
       </div>
       <div className="sticky top-0 z-10 space-y-2 bg-white/95 py-2 backdrop-blur">
-        <MarkSummaryBar {...counts} dirty={marking.dirty} error={saveError} onRetry={() => save(false)} lang={lang} />
-        {!isCompleted && (
+        <MarkSummaryBar {...counts} binary={isBinary} dirty={marking.dirty} error={saveError} onRetry={() => save(false)} lang={lang} />
+        {!readOnly && (
           <div className="flex items-center gap-2">
             <div className="relative flex-1">
               <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" aria-hidden="true" />
@@ -596,11 +686,43 @@ export function MarkClient() {
         )}
       </div>
       {/* Mark-all row (hidden once finalized) — mirrors the legacy confirm pattern. */}
-      {!isCompleted && (
+      {(showGroupChips || showGradeChips) && (
+        <div className="space-y-2" aria-label={t('Filter by group and grade', 'تصفية حسب المجموعة والصف')}>
+          {showGroupChips && (
+            <div className="flex gap-1.5 overflow-x-auto pb-1" role="group" aria-label={t('Groups', 'المجموعات')}>
+              <button type="button" aria-pressed={!groupFilter} onClick={() => { setGroupFilter(''); setGradeFilter('') }}
+                className={`min-h-[40px] shrink-0 rounded-full px-3 text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500 ${!groupFilter ? 'bg-gold-100 text-gold-800' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+                {t('All groups', 'كل المجموعات')} ({counts.marked}/{counts.total})
+              </button>
+              {groupChips.map(g => (
+                <button key={g.id} type="button" aria-pressed={groupFilter === g.id} onClick={() => { setGroupFilter(groupFilter === g.id ? '' : g.id); setGradeFilter('') }}
+                  className={`min-h-[40px] shrink-0 rounded-full px-3 text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500 ${groupFilter === g.id ? 'bg-gold-100 text-gold-800' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+                  {g.name} ({g.marked}/{g.total})
+                </button>
+              ))}
+            </div>
+          )}
+          {showGradeChips && (
+            <div className="flex gap-1.5 overflow-x-auto pb-1" role="group" aria-label={t('Grades', 'الصفوف')}>
+              <button type="button" aria-pressed={!gradeFilter} onClick={() => setGradeFilter('')}
+                className={`min-h-[36px] shrink-0 rounded-full px-3 text-xs font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500 ${!gradeFilter ? 'bg-gold-100 text-gold-800' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+                {t('All grades', 'كل الصفوف')}
+              </button>
+              {gradeChips.map(g => (
+                <button key={g.id} type="button" aria-pressed={gradeFilter === g.id} onClick={() => setGradeFilter(gradeFilter === g.id ? '' : g.id)}
+                  className={`min-h-[36px] shrink-0 rounded-full px-3 text-xs font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500 ${gradeFilter === g.id ? 'bg-gold-100 text-gold-800' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+                  {g.name} ({g.marked}/{g.total})
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+      {!readOnly && (
         <div className="flex flex-wrap items-center gap-2 rounded-xl border border-gray-200 bg-gray-50 px-3 py-2">
           <span className="text-xs text-gray-500">{lang === 'ar' ? 'تحديد الكل:' : 'Mark all:'}</span>
           <Button type="button" variant="ghost" size="sm" onClick={() => setMarkAllTarget('present')} className="min-h-[44px] bg-green-100 text-green-700 hover:bg-green-200">{lang === 'ar' ? 'الكل حاضر' : 'All Present'}</Button>
-          <Button type="button" variant="ghost" size="sm" onClick={() => setMarkAllTarget('late')} className="min-h-[44px] bg-amber-100 text-amber-700 hover:bg-amber-200">{lang === 'ar' ? 'الكل متأخر' : 'All Late'}</Button>
+          {!isBinary && <Button type="button" variant="ghost" size="sm" onClick={() => setMarkAllTarget('late')} className="min-h-[44px] bg-amber-100 text-amber-700 hover:bg-amber-200">{lang === 'ar' ? 'الكل متأخر' : 'All Late'}</Button>}
           <Button type="button" variant="ghost" size="sm" onClick={() => setMarkAllTarget('absent')} className="min-h-[44px] bg-red-100 text-red-700 hover:bg-red-200">{lang === 'ar' ? 'الكل غائب' : 'All Absent'}</Button>
         </div>
       )}
@@ -616,62 +738,97 @@ export function MarkClient() {
           {lang === 'ar' ? 'لا يوجد طلاب مطابقون للبحث' : 'No students match the search'}
         </p>
       )}
-      {visibleRecs.map((r: any) => {
-        const studentName = `${r.student?.firstName} ${r.student?.lastName}`
-        const current = marking.marks[r.student?.id] || 'unmarked'
-        return (
-        <div
-          key={r.student?.id}
-          data-student-id={r.student?.id}
-          tabIndex={0}
-          onKeyDown={(e) => handleRecordKeyDown(e, r)}
-          className="rounded-xl border border-gray-200 bg-white p-2.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500"
-        >
-          <div className="mb-1.5 truncate text-[15px] font-medium">{r.student?.firstName} {r.student?.lastName}</div>
-          {isCompleted ? (
-            <div role="group" aria-label={lang === 'ar' ? `الحالة - ${studentName} (نهائية)` : `Status - ${studentName} (finalized)`} className="grid grid-cols-2 gap-2">
-              {READONLY_STATUSES.map(({ key, en, ar, Icon, active }) => {
-                const label = lang === 'ar' ? ar : en
-                const isCurrent = current === key
-                return (
-                  <div key={key} role="img" aria-label={isCurrent ? label : ''} title={label}
-                    className={`flex min-h-[44px] items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-medium ${isCurrent ? active : 'bg-gray-50 text-gray-300'}`}>
-                    <Icon className="h-5 w-5 shrink-0" aria-hidden="true" /><span>{label}</span>
-                    {isCurrent && <span className="sr-only">{label}</span>}
-                  </div>
-                )
-              })}
+      {(() => {
+        const readonlyStatuses = isBinary ? READONLY_STATUSES.filter(x => x.key === 'present' || x.key === 'absent') : READONLY_STATUSES
+        const renderRecord = (r: any) => {
+          const studentName = `${r.student?.firstName} ${r.student?.lastName}`
+          const current = marking.marks[r.student?.id] || 'unmarked'
+          return (
+            <div
+              key={r.student?.id}
+              data-student-id={r.student?.id}
+              tabIndex={0}
+              onKeyDown={(e) => handleRecordKeyDown(e, r)}
+              className="rounded-xl border border-gray-200 bg-white p-2.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500"
+            >
+              <div className="mb-1.5 truncate text-[15px] font-medium">{r.student?.firstName} {r.student?.lastName}</div>
+              {readOnly ? (
+                <div role="group" aria-label={lang === 'ar' ? `الحالة - ${studentName} (نهائية)` : `Status - ${studentName} (finalized)`} className="grid grid-cols-2 gap-2">
+                  {readonlyStatuses.map(({ key, en, ar, Icon, active }) => {
+                    const label = lang === 'ar' ? ar : en
+                    const isCurrent = current === key
+                    return (
+                      <div key={key} role="img" aria-label={isCurrent ? label : ''} title={label}
+                        className={`flex min-h-[44px] items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-medium ${isCurrent ? active : 'bg-gray-50 text-gray-300'}`}>
+                        <Icon className="h-5 w-5 shrink-0" aria-hidden="true" /><span>{label}</span>
+                        {isCurrent && <span className="sr-only">{label}</span>}
+                      </div>
+                    )
+                  })}
+                </div>
+              ) : (
+                <StatusSegment compact value={current} onChange={(s) => marking.setStatus(r.student.id, s)} lang={lang} studentName={studentName}
+                  statuses={isBinary ? ['present', 'absent'] : undefined} />
+              )}
+              {isBinary ? null : readOnly ? (
+                <div className="mt-2 text-xs text-gray-500">
+                  {lang === 'ar'
+                    ? `السلوك: ${marking.behavior[r.student?.id] || 0}/5 · المشاركة: ${marking.participation[r.student?.id] || 0}/5${marking.notes[r.student?.id] ? ` · ${marking.notes[r.student?.id]}` : ''}`
+                    : `Behavior: ${marking.behavior[r.student?.id] || 0}/5 · Participation: ${marking.participation[r.student?.id] || 0}/5${marking.notes[r.student?.id] ? ` · ${marking.notes[r.student?.id]}` : ''}`}
+                </div>
+              ) : (
+                <DetailExpander
+                  behavior={marking.behavior[r.student?.id] || 0}
+                  participation={marking.participation[r.student?.id] || 0}
+                  note={marking.notes[r.student?.id] || ''}
+                  onBehaviorChange={(v) => marking.setBehavior(r.student.id, v)}
+                  onParticipationChange={(v) => marking.setParticipation(r.student.id, v)}
+                  onNoteChange={(v) => marking.setNote(r.student.id, v)}
+                  lang={lang}
+                  studentName={studentName}
+                />
+              )}
             </div>
-          ) : (
-            <StatusSegment compact value={current} onChange={(s) => marking.setStatus(r.student.id, s)} lang={lang} studentName={studentName} />
-          )}
-          {isCompleted ? (
-            <div className="mt-2 text-xs text-gray-500">
-              {lang === 'ar'
-                ? `السلوك: ${marking.behavior[r.student?.id] || 0}/5 · المشاركة: ${marking.participation[r.student?.id] || 0}/5${marking.liturgy[r.student?.id] ? ' · قداس' : ''}${marking.notes[r.student?.id] ? ` · ${marking.notes[r.student?.id]}` : ''}`
-                : `Behavior: ${marking.behavior[r.student?.id] || 0}/5 · Participation: ${marking.participation[r.student?.id] || 0}/5${marking.liturgy[r.student?.id] ? ' · Liturgy' : ''}${marking.notes[r.student?.id] ? ` · ${marking.notes[r.student?.id]}` : ''}`}
+          )
+        }
+
+        // Multi-group sessions are shown in collapsible sections, one per group.
+        const sections: Array<{ id: string; name: string; recs: any[] }> = []
+        if (showSections) {
+          for (const r of visibleRecs) {
+            const g = groupOf(r)
+            const last = sections[sections.length - 1]
+            if (last && last.id === g.id) last.recs.push(r)
+            else sections.push({ id: g.id, name: g.name, recs: [r] })
+          }
+        } else {
+          sections.push({ id: '', name: '', recs: visibleRecs })
+        }
+        return sections.map(sec => {
+          const stat = groupStats.get(sec.id)
+          const collapsed = showSections && !!collapsedGroups[sec.id]
+          return (
+            <div key={sec.id || 'all'} className="space-y-4">
+              {showSections && (
+                <button
+                  type="button"
+                  aria-expanded={!collapsed}
+                  onClick={() => setCollapsedGroups(c => ({ ...c, [sec.id]: !c[sec.id] }))}
+                  className="flex min-h-[44px] w-full items-center justify-between rounded-lg bg-gray-100 px-3 text-sm font-semibold text-gray-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500"
+                >
+                  <span>{sec.name || t('Other', 'أخرى')}</span>
+                  <span className="text-xs font-medium text-gray-500">{stat ? `${stat.marked}/${stat.total}` : sec.recs.length} {collapsed ? '▸' : '▾'}</span>
+                </button>
+              )}
+              {!collapsed && sec.recs.map(renderRecord)}
             </div>
-          ) : (
-            <DetailExpander
-              behavior={marking.behavior[r.student?.id] || 0}
-              participation={marking.participation[r.student?.id] || 0}
-              liturgy={!!marking.liturgy[r.student?.id]}
-              note={marking.notes[r.student?.id] || ''}
-              onBehaviorChange={(v) => marking.setBehavior(r.student.id, v)}
-              onParticipationChange={(v) => marking.setParticipation(r.student.id, v)}
-              onLiturgyChange={(v) => marking.setLiturgy(r.student.id, v)}
-              onNoteChange={(v) => marking.setNote(r.student.id, v)}
-              lang={lang}
-              studentName={studentName}
-            />
-          )}
-        </div>
-        )
-      })}
-      {!isCompleted && (
+          )
+        })
+      })()}
+      {!readOnly && !isBinary && (
         <p className="text-xs text-gray-500">{lang === 'ar' ? 'P/L/A/E للحالة · 1-5 للسلوك · ↑↓ للتنقل · Ctrl+S للحفظ' : 'P/L/A/E status · 1-5 behavior · ↑↓ move · Ctrl+S save'}</p>
       )}
-      {isCompleted ? (
+      {notYet ? null : isCompleted ? (
         <div className="sticky bottom-0 bg-white p-3">
           <Button onClick={() => { void reopen() }} disabled={reopening} className="min-h-[44px] w-full bg-amber-500 text-white hover:bg-amber-600">
             {lang === 'ar' ? 'إعادة فتح الحضور' : 'Re-open Attendance'}
@@ -687,7 +844,7 @@ export function MarkClient() {
         </div>
       )}
       {/* Mark-all confirm — same dialog pattern as Sessions delete confirms. */}
-      {markAllTarget && !isCompleted && (
+      {markAllTarget && !readOnly && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setMarkAllTarget(null)}>
           <div role="dialog" aria-modal="true" aria-labelledby="mark-all-title" className="mx-4 w-full max-w-sm rounded-2xl bg-white p-6 text-center shadow-xl" onClick={e => e.stopPropagation()}>
             <h3 id="mark-all-title" className="mb-2 font-semibold text-gray-900">{markAllLabel}</h3>
