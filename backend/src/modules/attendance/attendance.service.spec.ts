@@ -664,13 +664,18 @@ describe('AttendanceService', () => {
       await expect(service.finalizeSession('sess-1', dto)).rejects.toThrow(/read-only/);
     });
 
-    it('finalizeSession rejects when students remain unmarked', async () => {
+    it('finalizeSession saves students still unmarked as absent instead of rejecting', async () => {
       prisma.attendanceSession.findUnique.mockResolvedValue(open);
       prisma.attendanceRecord.findMany
         .mockResolvedValueOnce([]) // syncSessionStudents existing ids
         .mockResolvedValueOnce([{ studentId: 's1', status: 'unmarked' }, { studentId: 's2', status: 'unmarked' }]);
-      await expect(service.finalizeSession('sess-1', dto)).rejects.toThrow(/1 student\(s\) are still unmarked/);
-      expect(prisma.$transaction).not.toHaveBeenCalled();
+      prisma.attendanceRecord.updateMany.mockReturnValue('absent-op');
+      await expect(service.finalizeSession('sess-1', dto)).resolves.toBeDefined();
+      expect(prisma.$transaction).toHaveBeenCalledTimes(1);
+      expect(prisma.attendanceRecord.updateMany).toHaveBeenCalledWith({
+        where: { attendanceSessionId: 'sess-1', status: 'unmarked' },
+        data: expect.objectContaining({ status: 'absent' }),
+      });
     });
 
     it('finalizeSession rejects an empty roster', async () => {
@@ -685,24 +690,15 @@ describe('AttendanceService', () => {
         .mockResolvedValueOnce([])
         .mockResolvedValueOnce([{ studentId: 's1', status: 'unmarked' }, { studentId: 's2', status: 'absent' }])
         .mockResolvedValue([]);
+      prisma.attendanceRecord.updateMany.mockReturnValue('absent-op');
       await service.finalizeSession('sess-1', dto);
 
       expect(prisma.$transaction).toHaveBeenCalledTimes(1);
-      expect(prisma.$transaction.mock.calls[0][0]).toEqual(['upsert-op', 'complete-op']);
+      expect(prisma.$transaction.mock.calls[0][0]).toEqual(['upsert-op', 'absent-op', 'complete-op']);
       const completion = prisma.attendanceSession.updateMany.mock.calls[0][0];
       expect(completion.where).toEqual({ id: 'sess-1', status: { notIn: ['completed', 'recorded'] } });
       expect(completion.data.status).toBe('completed');
       expect(completion.data.actualEndTime).toBeInstanceOf(Date);
-    });
-
-    it('finalizeSession allows unmarked students when allowUnmarked is set', async () => {
-      prisma.attendanceSession.findUnique.mockResolvedValue(open);
-      prisma.attendanceRecord.findMany
-        .mockResolvedValueOnce([])
-        .mockResolvedValueOnce([{ studentId: 's2', status: 'unmarked' }])
-        .mockResolvedValue([]);
-      await service.finalizeSession('sess-1', { ...dto, allowUnmarked: true });
-      expect(prisma.$transaction).toHaveBeenCalledTimes(1);
     });
 
     it('markAttendance persists an explicit unmarked status and null note', async () => {
@@ -1160,6 +1156,76 @@ describe('AttendanceService', () => {
       prisma.user.findUnique.mockResolvedValue(actorRow(['servant'], { groupId: G1 }));
       prisma.attendanceSession.findUnique.mockResolvedValue(typedSession());
       await expect(service.updateSession('s-lit', { title: 'x' } as any, { id: 'u1' })).rejects.toThrow(/creator, a level leader or an admin/);
+    });
+  });
+
+  describe('finalize and completion mark unmarked students absent', () => {
+    const classSession = { id: 'c1', schoolId, servantId: 'u1', groupId: 'g1', levelId: 'l1', type: 'class', status: 'in_progress', scheduledDate: new Date(), actualStartTime: new Date(), deletedAt: null, metadata: null };
+
+    beforeEach(() => {
+      jest.spyOn(service as any, 'syncSessionStudents').mockResolvedValue(undefined);
+      jest.spyOn(service, 'getSessionById').mockResolvedValue({ id: 'c1' } as any);
+      prisma.attendanceRecord.upsert.mockReturnValue('upsert-op');
+      prisma.attendanceRecord.updateMany.mockReturnValue('absent-op');
+      prisma.attendanceSession.updateMany.mockReturnValue('complete-op');
+      prisma.$transaction.mockResolvedValue([]);
+    });
+
+    it('a class finalize keeps present/late/excused and turns every other student into absent, in one transaction', async () => {
+      prisma.attendanceSession.findUnique.mockResolvedValue(classSession);
+      prisma.attendanceRecord.findMany.mockResolvedValue([
+        { studentId: 's1', status: 'unmarked' }, { studentId: 's2', status: 'unmarked' }, { studentId: 's3', status: 'unmarked' }, { studentId: 's4', status: 'unmarked' },
+      ]);
+      await service.finalizeSession('c1', { recordedBy: 'u1', records: [
+        { studentId: 's1', status: 'present' }, { studentId: 's2', status: 'late' }, { studentId: 's3', status: 'excused' },
+      ] } as any);
+      const ops = prisma.$transaction.mock.calls[0][0];
+      expect(ops).toHaveLength(5); // 3 explicit marks, the unmarked->absent sweep, the completion
+      expect(ops.slice(3)).toEqual(['absent-op', 'complete-op']);
+      // the sweep only touches rows still unmarked AFTER the explicit marks were written
+      expect(prisma.attendanceRecord.updateMany.mock.calls[0][0]).toEqual({
+        where: { attendanceSessionId: 'c1', status: 'unmarked' },
+        data: expect.objectContaining({ status: 'absent' }),
+      });
+    });
+
+    it('auto-absent class students count like any absence: parent absence check runs for them only', async () => {
+      const cascade = jest.spyOn(service as any, 'checkAbsenceCascade').mockResolvedValue(undefined);
+      prisma.attendanceSession.findUnique.mockResolvedValue(classSession);
+      prisma.attendanceRecord.findMany.mockResolvedValue([{ studentId: 's1', status: 'unmarked' }, { studentId: 's2', status: 'unmarked' }]);
+      await service.finalizeSession('c1', { recordedBy: 'u1', records: [{ studentId: 's1', status: 'present' }] } as any);
+      expect(cascade).toHaveBeenCalledTimes(1);
+      expect(cascade).toHaveBeenCalledWith('s2', schoolId, 'u1');
+    });
+
+    it('already-absent students are not re-notified when the class is finalized', async () => {
+      const cascade = jest.spyOn(service as any, 'checkAbsenceCascade').mockResolvedValue(undefined);
+      prisma.attendanceSession.findUnique.mockResolvedValue(classSession);
+      prisma.attendanceRecord.findMany.mockResolvedValue([{ studentId: 's1', status: 'absent' }]);
+      await service.finalizeSession('c1', { recordedBy: 'u1', records: [{ studentId: 's1', status: 'absent' }] } as any);
+      expect(cascade).not.toHaveBeenCalled();
+    });
+
+    it('completing a session through a plain status update also saves unmarked students as absent', async () => {
+      prisma.attendanceSession.findUnique.mockResolvedValue({ ...classSession, status: 'in_progress' });
+      prisma.attendanceSession.update.mockResolvedValue({ ...classSession, status: 'completed', metadata: null });
+      prisma.student.findMany.mockResolvedValue([]);
+      prisma.attendanceRecord.findMany.mockResolvedValue([{ studentId: 's9' }]); // the unmarked rows
+      jest.spyOn(service as any, 'sendPracticeGuideNotifications').mockResolvedValue(undefined);
+      await service.updateSession('c1', { status: 'completed' } as any);
+      expect(prisma.attendanceRecord.updateMany).toHaveBeenCalledWith({
+        where: { attendanceSessionId: 'c1', status: 'unmarked' },
+        data: expect.objectContaining({ status: 'absent' }),
+      });
+    });
+
+    it('a status change that is not a completion leaves unmarked students alone', async () => {
+      prisma.attendanceSession.findUnique.mockResolvedValue({ ...classSession, status: 'scheduled' });
+      prisma.attendanceSession.update.mockResolvedValue({ ...classSession, status: 'in_progress', metadata: null });
+      prisma.student.findMany.mockResolvedValue([]);
+      prisma.attendanceRecord.findMany.mockResolvedValue([]);
+      await service.updateSession('c1', { status: 'in_progress' } as any);
+      expect(prisma.attendanceRecord.updateMany).not.toHaveBeenCalled();
     });
   });
 });

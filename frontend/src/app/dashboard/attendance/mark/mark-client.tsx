@@ -175,21 +175,18 @@ export function MarkClient() {
         const unmarked = (session.attendanceRecords || []).filter((r: any) => {
           const m = marking.marks[r.student?.id]; return !m || m === 'unmarked'
         }).length
-        let allowUnmarked = false
-        if (unmarked > 0 && type === 'class') {
-          allowUnmarked = window.confirm(lang === 'ar'
-            ? `لا يزال ${unmarked} طالب غير مسجل. هل تريد الإنهاء على أي حال؟`
-            : `${unmarked} student(s) are still unmarked. Finalize anyway?`)
-          if (!allowUnmarked) { setSaving(false); return }
-        } else if (unmarked > 0) {
-          // Liturgy / event: anyone not marked present is saved as absent.
-          const ok = window.confirm(lang === 'ar'
-            ? `سيتم تسجيل ${unmarked} طالب غير حاضر كغائب. هل تريد الإنهاء؟`
-            : `${unmarked} student(s) not marked present will be saved as absent. Finalize?`)
+        // Anyone still unmarked is saved as absent when the session is finalized.
+        if (unmarked > 0) {
+          const ok = window.confirm(type === 'class'
+            ? (lang === 'ar'
+                ? `سيتم تسجيل ${unmarked} طالب لم يُسجَّل حاضرًا أو متأخرًا أو معذورًا كغائب. هل تريد الإنهاء؟`
+                : `${unmarked} student(s) not marked present, late or excused will be saved as absent. Finalize?`)
+            : (lang === 'ar'
+                ? `سيتم تسجيل ${unmarked} طالب غير حاضر كغائب. هل تريد الإنهاء؟`
+                : `${unmarked} student(s) not marked present will be saved as absent. Finalize?`))
           if (!ok) { setSaving(false); return }
-          allowUnmarked = true
         }
-        await http.post(`/attendance/sessions/${session.id}/finalize`, { records, recordedBy: userId, allowUnmarked })
+        await http.post(`/attendance/sessions/${session.id}/finalize`, { records, recordedBy: userId })
       } else {
         await http.post(`/attendance/sessions/${session.id}/mark`, { records, recordedBy: userId })
       }

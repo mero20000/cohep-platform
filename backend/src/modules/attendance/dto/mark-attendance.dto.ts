@@ -58,7 +58,7 @@ export class FinalizeAttendanceDto {
   @IsOptional()
   recordedBy?: string;
 
-  // Finalizing with students still `unmarked` is rejected unless explicitly allowed.
+  // Deprecated and ignored: students still unmarked at finalize are always saved as absent.
   @IsBoolean()
   @IsOptional()
   allowUnmarked?: boolean;
