@@ -322,7 +322,7 @@ export function StudentFormModal({ student, activeLevels, churches, gradeOptions
             <label className="block text-sm font-medium text-gray-700 mb-2">{t('Status','الحالة')}</label>
             <div className="flex flex-wrap gap-2">
               {([{value:'active',label:t('Active','نشط'),color:'border-green-300 bg-green-50 text-green-700'},{value:'pending',label:t('Pending Review','في الانتظار'),color:'border-blue-300 bg-blue-50 text-blue-700'},{value:'inactive',label:t('Inactive','غير نشط'),color:'border-red-300 bg-red-50 text-red-700'},{value:'graduated',label:t('Graduated','متخرج'),color:'border-amber-300 bg-amber-50 text-amber-700'}]).map(opt=>(
-                <Button key={opt.value} type="button" variant="outline" onClick={()=>setForm({...form,status:opt.value})}
+                <Button key={opt.value} type="button" variant="outline" disabled={opt.value==='active'&&student?.status==='pending'&&!can('student:approve')} title={opt.value==='active'&&student?.status==='pending'&&!can('student:approve')?t('An admin or principal must approve this student','يجب أن يعتمد المسؤول أو المدير هذا الطالب'):undefined} onClick={()=>setForm({...form,status:opt.value})}
                   className={`flex-1 border-2 px-3 py-2 text-sm font-medium transition-all ${form.status===opt.value?opt.color+' ring-2 ring-offset-1':'border-gray-200 text-gray-500 hover:border-gray-300'}`}>{opt.label}</Button>
               ))}
             </div>

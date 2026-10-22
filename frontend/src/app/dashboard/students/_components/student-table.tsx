@@ -12,6 +12,7 @@ import { toTelHref } from '@/lib/phone'
 import { buildPortalShareMessage, buildPortalWhatsAppUrl } from '@/lib/portal-share'
 import { usePermission } from '@/lib/use-permission'
 import { http } from '@/lib/http-client'
+import { getSchoolId } from '@/lib/school'
 import { useToast } from '@/components/ui/toast'
 import { TagBadge } from './student-tags'
 
@@ -47,6 +48,17 @@ export function StudentTable({ students, loading, fetchError, selectedIds, allSe
   }
   const t = (en: string, ar: string) => lang === 'ar' ? ar : en
   // Explicit (menu-driven) status change used by the mobile sheet; the desktop pill keeps its inline toggle.
+  const approve = async (student: Student) => {
+    setUpdatingId(student.id)
+    try {
+      await http.patch(`/students/${student.id}/approve`, {}, { schoolId: getSchoolId() })
+      handleStudentUpdated({ ...student, status: 'active' })
+      toast('success', t('Student approved', 'تم اعتماد الطالب'))
+    } catch (e: any) {
+      handleStudentUpdated(student)
+      toast('error', e?.message || t('Failed to approve', 'فشل الاعتماد'))
+    }
+  }
   const toggleStatus = async (student: Student) => {
     const nextStatus = student.status === 'active' ? 'inactive' : 'active'
     setUpdatingId(student.id)
@@ -197,7 +209,7 @@ export function StudentTable({ students, loading, fetchError, selectedIds, allSe
       {sheetStudent && (
         <StudentActionSheet student={sheetStudent} lang={lang} isFavorite={favorites.includes(sheetStudent.id)}
           onClose={() => setSheetStudent(null)} onView={onView} onEdit={onEdit} onDelete={onDelete}
-          onToggleFavorite={onToggleFavorite} onToggleStatus={toggleStatus} />
+          onToggleFavorite={onToggleFavorite} onToggleStatus={toggleStatus} onApprove={approve} />
       )}
       {/* Desktop */}
       <div className="hidden md:block overflow-x-auto">
@@ -306,6 +318,30 @@ function StatusBadge({ status, lang, student, onUpdated, onUpdating, isUpdating 
       onUpdated?.(student)
       toast('error', e?.message || (lang === 'ar' ? 'فشل تحديث الحالة' : 'Failed to update status'))
     }
+  }
+
+  if (student && status === 'pending' && can('student:approve')) {
+    const approve = async (e: React.MouseEvent) => {
+      e.stopPropagation()
+      if (isUpdating) return
+      onUpdating?.(student.id)
+      try {
+        await http.patch(`/students/${student.id}/approve`, {}, { schoolId: getSchoolId() })
+        onUpdated?.({ ...student, status: 'active' })
+        toast('success', lang === 'ar' ? 'تم اعتماد الطالب' : 'Student approved')
+      } catch (err: any) {
+        onUpdated?.(student)
+        toast('error', err?.message || (lang === 'ar' ? 'فشل الاعتماد' : 'Failed to approve'))
+      }
+    }
+    return (
+      <button onClick={approve} disabled={isUpdating}
+        className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg font-medium text-xs bg-blue-100 text-blue-700 hover:bg-blue-200 disabled:opacity-60"
+        title={lang === 'ar' ? 'اعتماد الطالب' : 'Approve student'}>
+        {isUpdating ? <Loader2 className="h-3 w-3 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
+        {lang === 'ar' ? 'اعتماد' : 'Approve'}
+      </button>
+    )
   }
 
   if (student && can('student:edit') && (status === 'active' || status === 'inactive')) {

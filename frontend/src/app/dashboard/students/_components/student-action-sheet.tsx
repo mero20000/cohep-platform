@@ -16,18 +16,20 @@ interface Props {
   onDelete: (s: Student) => void
   onToggleFavorite?: (id: string) => void
   onToggleStatus: (s: Student) => void
+  onApprove: (s: Student) => void
 }
 
 const row = 'flex min-h-[48px] w-full items-center gap-3 rounded-xl px-3 text-start text-sm font-medium text-gray-800 hover:bg-gray-50 active:bg-gray-100'
 
 /** Mobile "⋯" menu for a roster card — replaces the row of tiny icon buttons. */
-export function StudentActionSheet({ student: s, lang, isFavorite, onClose, onView, onEdit, onDelete, onToggleFavorite, onToggleStatus }: Props) {
+export function StudentActionSheet({ student: s, lang, isFavorite, onClose, onView, onEdit, onDelete, onToggleFavorite, onToggleStatus, onApprove }: Props) {
   const { can } = usePermission()
   const ref = useRef<HTMLDivElement>(null)
   const t = (en: string, ar: string) => lang === 'ar' ? ar : en
   useEffect(() => { ref.current?.focus() }, [])
   const done = (fn: () => void) => () => { onClose(); fn() }
   const parentPhone = s.metadata?.phone?.trim()
+  const canApprove = can('student:approve') && s.status === 'pending'
   const canToggle = can('student:edit') && (s.status === 'active' || s.status === 'inactive')
 
   return (
@@ -61,6 +63,11 @@ export function StudentActionSheet({ student: s, lang, isFavorite, onClose, onVi
           <button type="button" className={row} onClick={done(() => onToggleFavorite(s.id))}>
             <Star className={`h-5 w-5 ${isFavorite ? 'fill-amber-500 text-amber-500' : 'text-gray-400'}`} />
             {isFavorite ? t('Remove from favorites', 'إزالة من المفضلة') : t('Add to favorites', 'إضافة للمفضلة')}
+          </button>
+        )}
+        {canApprove && (
+          <button type="button" className={`${row} text-green-700`} onClick={done(() => onApprove(s))}>
+            <CheckCircle2 className="h-5 w-5" />{t('Approve student', 'اعتماد الطالب')}
           </button>
         )}
         {canToggle && (
