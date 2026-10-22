@@ -123,28 +123,32 @@ export class StudentsController {
   @Patch("bulk")
   @ApiOperation({ summary: "Bulk update students" })
   async bulkUpdate(
+    @Req() req: any,
     @Body() dto: { ids: string[]; data: Partial<UpdateStudentDto> },
     @Query("schoolId") schoolId: string = "",
   ) {
-    return this.studentsService.bulkUpdate(dto.ids, dto.data, schoolId);
+    return this.studentsService.bulkUpdate(dto.ids, dto.data, schoolId, req.user);
   }
 
   @Post("bulk-delete")
+  @Roles("admin", "super_admin")
   @ApiOperation({ summary: "Bulk delete students" })
   async bulkDelete(
+    @Req() req: any,
     @Body() dto: { ids: string[] },
     @Query("schoolId") schoolId: string = "",
   ) {
-    return this.studentsService.bulkDelete(dto.ids, schoolId);
+    return this.studentsService.bulkDelete(dto.ids, schoolId, req.user);
   }
 
   @Post("bulk-assign-servant")
   @ApiOperation({ summary: "Bulk assign a servant to students" })
   async bulkAssignServant(
+    @Req() req: any,
     @Body() dto: { ids: string[]; servantId: string },
     @Query("schoolId") schoolId: string = "",
   ) {
-    return this.studentsService.bulkAssignServant(dto.ids, dto.servantId, schoolId);
+    return this.studentsService.bulkAssignServant(dto.ids, dto.servantId, schoolId, req.user);
   }
 
   @Get("duplicates")
@@ -158,10 +162,11 @@ export class StudentsController {
   @ApiResponse({ status: 200, description: "Student retrieved successfully" })
   @ApiResponse({ status: 404, description: "Student not found" })
   async findOne(
+    @Req() req: any,
     @Param("id") id: string,
     @Query("schoolId") schoolId: string = "",
   ) {
-    return this.studentsService.findOne(id, schoolId);
+    return this.studentsService.findOne(id, schoolId, req.user);
   }
 
   @Post()
@@ -181,57 +186,76 @@ export class StudentsController {
   @ApiOperation({ summary: "Update student" })
   @ApiResponse({ status: 200, description: "Student updated successfully" })
   async update(
+    @Req() req: any,
     @Param("id") id: string,
     @Body() updateStudentDto: UpdateStudentDto,
     @Query("schoolId") schoolId: string = "",
   ) {
-    return this.studentsService.update(id, updateStudentDto, schoolId);
+    return this.studentsService.update(id, updateStudentDto, schoolId, req.user);
   }
 
-  @Delete(":id")
-  @ApiOperation({ summary: "Delete student (soft delete)" })
-  @ApiResponse({ status: 200, description: "Student deleted successfully" })
-  async remove(
+  @Patch(":id/approve")
+  @Roles("admin", "principal", "super_admin")
+  @ApiOperation({ summary: "Approve a pending student" })
+  async approve(
+    @Req() req: any,
     @Param("id") id: string,
     @Query("schoolId") schoolId: string = "",
   ) {
-    return this.studentsService.remove(id, schoolId);
+    return this.studentsService.approve(id, schoolId, req.user);
+  }
+
+  @Delete(":id")
+  @Roles("admin", "super_admin")
+  @ApiOperation({ summary: "Delete student (soft delete)" })
+  @ApiResponse({ status: 200, description: "Student deleted successfully" })
+  async remove(
+    @Req() req: any,
+    @Param("id") id: string,
+    @Query("schoolId") schoolId: string = "",
+  ) {
+    return this.studentsService.remove(id, schoolId, req.user);
   }
 
   @Patch(":id/tags")
   @ApiOperation({ summary: "Set student tags" })
   async updateTags(
+    @Req() req: any,
     @Param("id") id: string,
     @Body() dto: { tags: string[] },
     @Query("schoolId") schoolId: string = "",
   ) {
-    return this.studentsService.updateTags(id, dto.tags || [], schoolId);
+    return this.studentsService.updateTags(id, dto.tags || [], schoolId, req.user);
   }
 
   @Get(":id/attendance")
   @ApiOperation({ summary: "Get student attendance history" })
   async getAttendanceHistory(
+    @Req() req: any,
     @Param("id") id: string,
     @Query("schoolId") schoolId: string = "",
   ) {
-    return this.studentsService.getAttendanceHistory(id, schoolId);
+    return this.studentsService.getAttendanceHistory(id, schoolId, req.user);
   }
 
   @Get(":id/progress")
   @ApiOperation({ summary: "Get student progress" })
   async getProgress(
+    @Req() req: any,
     @Param("id") id: string,
     @Query("schoolId") schoolId: string = "",
   ) {
-    return this.studentsService.getProgress(id, schoolId);
+    return this.studentsService.getProgress(id, schoolId, req.user);
   }
 
   @Get(":id/activity")
   @ApiOperation({ summary: "Get student activity log" })
   async getActivity(
+    @Req() req: any,
     @Param("id") id: string,
     @Query("schoolId") schoolId: string = "",
   ) {
+    await this.studentsService.findOne(id, schoolId, req.user);
     return this.auditService.findByEntity("student", id, 50, schoolId);
   }
 
@@ -295,7 +319,7 @@ export class StudentsController {
   @Roles("admin", "super_admin")
   @ApiOperation({ summary: "Rotate student portal access key (generates new UUID key)" })
   @ApiResponse({ status: 200, description: 'New portal access key generated' })
-  async rotatePortalAccessKey(@Param("id") studentId: string) {
-    return this.studentsService.rotatePortalAccessKey(studentId);
+  async rotatePortalAccessKey(@Req() req: any, @Param("id") studentId: string) {
+    return this.studentsService.rotatePortalAccessKey(studentId, req.user);
   }
 }

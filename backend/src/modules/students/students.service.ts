@@ -37,36 +37,7 @@ export class StudentsService {
       deletedAt: null,
     };
 
-    // Auto-filter by servant's metadata assignments
-    if (user) {
-      const userRecord = await this.prisma.user.findUnique({
-        where: { id: user.id },
-        select: { metadata: true, userRoles: { select: { role: { select: { name: true } } } } },
-      });
-      const meta = (userRecord?.metadata as any) || {};
-      const roleNames = (userRecord?.userRoles || []).map((ur: any) => ur.role?.name).filter(Boolean);
-      const isAdmin = roleNames.some((r: string) => ['super_admin', 'admin', 'principal'].includes(r));
-      const isServant = !isAdmin && roleNames.some((r: string) =>
-        ['servant', 'group_leader', 'level_leader'].includes(r)
-      );
-
-      if (isServant) {
-        if (meta.groupId) {
-          where.groupId = meta.groupId;
-        }
-        if (meta.levelId) {
-          where.levelId = meta.levelId;
-        }
-        if (meta.gradeId) {
-          where.gradeId = meta.gradeId;
-        }
-        if (meta.teachingGender && meta.teachingGender !== 'both') {
-          where.gender = meta.teachingGender;
-        }
-      }
-    }
-
-    // Apply explicit query filters (these override metadata if provided)
+    // Explicit query filters first; the caller's assignment scope is applied afterwards so it always wins.
     if (levelId) where.levelId = levelId;
     if (groupId) where.groupId = groupId;
     if (status) where.status = status;
@@ -74,6 +45,7 @@ export class StudentsService {
     if (gradeId) where.gradeId = gradeId;
     if (gender) where.gender = gender;
     if (ids?.length) where.id = { in: ids };
+    Object.assign(where, await this.getAccessScope(user));
 
     // Filter by assigned servant ID using JSON array containment
     if (assignedServantId) {
@@ -142,13 +114,86 @@ export class StudentsService {
     };
   }
 
-  async findOne(id: string, schoolIdentifier: string) {
+  private static readonly APPROVER_ROLES = ['super_admin', 'admin', 'principal'];
+  private static readonly STUDENT_STATUSES = ['active', 'inactive', 'graduated', 'transferred', 'pending'];
+
+  /**
+   * Row-level scope for assigned servants (servant / group_leader / level_leader):
+   * the where-fragment that limits which students they may touch. `{}` means
+   * unrestricted (admins, principals, internal callers with no user).
+   */
+  private async getAccessScope(user?: any): Promise<Record<string, any>> {
+    if (!user?.id) return {};
+    const userRecord = await this.prisma.user.findUnique({
+      where: { id: user.id },
+      select: { metadata: true, userRoles: { select: { role: { select: { name: true } } } } },
+    });
+    const meta = (userRecord?.metadata as any) || {};
+    const roleNames = (userRecord?.userRoles || []).map((ur: any) => ur.role?.name).filter(Boolean);
+    const isAdmin = roleNames.some((r: string) => ['super_admin', 'admin', 'principal'].includes(r));
+    const isServant = !isAdmin && roleNames.some((r: string) =>
+      ['servant', 'group_leader', 'level_leader'].includes(r),
+    );
+    const scope: Record<string, any> = {};
+    if (!isServant) return scope;
+    if (meta.groupId) scope.groupId = meta.groupId;
+    if (meta.levelId) scope.levelId = meta.levelId;
+    if (meta.gradeId) scope.gradeId = meta.gradeId;
+    if (meta.teachingGender && meta.teachingGender !== 'both') scope.gender = meta.teachingGender;
+    return scope;
+  }
+
+  /** 404 (not 403, so existence isn't leaked) when the student is outside the caller's scope. */
+  private async assertStudentAccess(id: string, schoolId: string, user?: any) {
+    const scope = await this.getAccessScope(user);
+    const found = await this.prisma.student.findFirst({
+      where: { id, schoolId, deletedAt: null, ...scope },
+      select: { id: true },
+    });
+    if (!found) throw new NotFoundException('Student not found');
+  }
+
+  /** A scoped user may not move a student into a level/group/grade outside their own assignment. */
+  private assertTargetInScope(scope: Record<string, any>, target: { levelId?: string; groupId?: string; gradeId?: string | null }) {
+    for (const key of ['levelId', 'groupId', 'gradeId'] as const) {
+      if (scope[key] && target[key] !== undefined && target[key] !== null && target[key] !== scope[key]) {
+        throw new ForbiddenException('You can only assign students within your own level, group and grade');
+      }
+    }
+  }
+
+  private isApprover(user?: any): boolean {
+    const roles: string[] = this.getUserRoleNames(user);
+    return roles.some(r => StudentsService.APPROVER_ROLES.includes(r));
+  }
+
+  private assertValidStatus(status: unknown) {
+    if (typeof status !== 'string' || !StudentsService.STUDENT_STATUSES.includes(status)) {
+      throw new BadRequestException('Invalid status');
+    }
+  }
+
+  /** Level / group / grade must belong to the caller's school (never trust ids from the body). */
+  private async assertSchoolOwns(schoolId: string, ref: { levelId?: string | null; groupId?: string | null }) {
+    if (ref.levelId) {
+      const level = await this.prisma.level.findFirst({ where: { id: ref.levelId, schoolId, deletedAt: null }, select: { id: true } });
+      if (!level) throw new BadRequestException('Level not found');
+    }
+    if (ref.groupId) {
+      const group = await this.prisma.group.findFirst({ where: { id: ref.groupId, schoolId, deletedAt: null }, select: { id: true } });
+      if (!group) throw new BadRequestException('Group not found');
+    }
+  }
+
+  async findOne(id: string, schoolIdentifier: string, user?: any) {
     const schoolId = await this.schoolResolver.resolve(schoolIdentifier);
+    const scope = await this.getAccessScope(user);
     const student = await this.prisma.student.findFirst({
       where: {
         id,
         schoolId,
         deletedAt: null,
+        ...scope,
       },
       include: {
         level: true,
@@ -204,6 +249,8 @@ export class StudentsService {
     if (createStudentDto.notes) metadata.notes = createStudentDto.notes;
     if (createStudentDto.churchToolId) metadata.churchToolId = createStudentDto.churchToolId;
     if (createStudentDto.studentPhone) metadata.studentPhone = createStudentDto.studentPhone;
+
+    await this.assertSchoolOwns(schoolId, { levelId: createStudentDto.levelId });
 
     let groupId: string;
     if (createStudentDto.gradeId) {
@@ -291,11 +338,20 @@ export class StudentsService {
     return student;
   }
 
-  async update(id: string, updateStudentDto: UpdateStudentDto, schoolIdentifier: string) {
+  async update(id: string, updateStudentDto: UpdateStudentDto, schoolIdentifier: string, user?: any) {
     const schoolId = await this.schoolResolver.resolve(schoolIdentifier);
-    const student = await this.findOne(id, schoolId);
+    const student = await this.findOne(id, schoolId, user);
 
     const data = { ...updateStudentDto } as any;
+
+    if (data.status !== undefined) {
+      this.assertValidStatus(data.status);
+      // Pending students were added by a servant and wait for an admin/principal to approve them.
+      if (student.status === 'pending' && data.status !== 'pending' && !this.isApprover(user)) {
+        throw new ForbiddenException('Only an admin or principal can approve a pending student');
+      }
+    }
+    await this.assertSchoolOwns(schoolId, { levelId: data.levelId });
     if (data.dateOfBirth) data.dateOfBirth = new Date(data.dateOfBirth);
 
     if (data.groupId === null) delete data.groupId;
@@ -316,6 +372,8 @@ export class StudentsService {
     } else if (data.gradeId === null) {
       delete data.groupId;
     }
+
+    this.assertTargetInScope(await this.getAccessScope(user), { levelId: data.levelId, groupId: data.groupId, gradeId: data.gradeId });
 
     // Merge contact fields into metadata
     const existingMeta = (student as any).metadata || {};
@@ -355,9 +413,9 @@ export class StudentsService {
     return updated;
   }
 
-  async remove(id: string, schoolIdentifier: string) {
+  async remove(id: string, schoolIdentifier: string, user?: any) {
     const schoolId = await this.schoolResolver.resolve(schoolIdentifier);
-    const student = await this.findOne(id, schoolId);
+    const student = await this.findOne(id, schoolId, user);
 
     await this.prisma.student.update({
       where: { id: student.id },
@@ -375,9 +433,9 @@ export class StudentsService {
     return { success: true };
   }
 
-  async getAttendanceHistory(studentId: string, schoolIdentifier: string) {
+  async getAttendanceHistory(studentId: string, schoolIdentifier: string, user?: any) {
     const schoolId = await this.schoolResolver.resolve(schoolIdentifier);
-    await this.findOne(studentId, schoolId);
+    await this.findOne(studentId, schoolId, user);
 
     const records = await this.prisma.attendanceRecord.findMany({
       where: {
@@ -397,9 +455,9 @@ export class StudentsService {
     return records;
   }
 
-  async getProgress(studentId: string, schoolIdentifier: string) {
+  async getProgress(studentId: string, schoolIdentifier: string, user?: any) {
     const schoolId = await this.schoolResolver.resolve(schoolIdentifier);
-    await this.findOne(studentId, schoolId);
+    await this.findOne(studentId, schoolId, user);
 
     const progress = await this.prisma.studentProgress.findMany({
       where: { studentId },
@@ -594,7 +652,7 @@ export class StudentsService {
     return { imported: results.length, students: results };
   }
 
-  async bulkUpdate(ids: string[], data: Partial<UpdateStudentDto>, schoolIdentifier: string) {
+  async bulkUpdate(ids: string[], data: Partial<UpdateStudentDto>, schoolIdentifier: string, user?: any) {
     const schoolId = await this.schoolResolver.resolve(schoolIdentifier);
     if (!Array.isArray(ids) || ids.length === 0) throw new BadRequestException('ids are required');
 
@@ -616,10 +674,19 @@ export class StudentsService {
       updateData.groupId = grade.groupId;
     }
 
-    const result = await this.prisma.student.updateMany({
-      where: { id: { in: ids }, schoolId, deletedAt: null },
-      data: updateData,
-    });
+    if (updateData.status !== undefined) this.assertValidStatus(updateData.status);
+    await this.assertSchoolOwns(schoolId, { levelId: updateData.levelId, groupId: updateData.groupId });
+
+    const scope = await this.getAccessScope(user);
+    this.assertTargetInScope(scope, updateData);
+
+    const where: any = { id: { in: ids }, schoolId, deletedAt: null, ...scope };
+    // Only an approver may move students out of 'pending'; those rows are skipped, not failed.
+    if (updateData.status !== undefined && updateData.status !== 'pending' && !this.isApprover(user)) {
+      where.status = { not: 'pending' };
+    }
+
+    const result = await this.prisma.student.updateMany({ where, data: updateData });
 
     await this.audit.log({
       schoolId,
@@ -628,15 +695,15 @@ export class StudentsService {
       newValues: { ids, data: updateData, count: result.count },
     });
 
-    return { updated: result.count };
+    return { updated: result.count, skipped: ids.length - result.count };
   }
 
-  async bulkDelete(ids: string[], schoolIdentifier: string) {
+  async bulkDelete(ids: string[], schoolIdentifier: string, user?: any) {
     const schoolId = await this.schoolResolver.resolve(schoolIdentifier);
     if (!Array.isArray(ids) || ids.length === 0) throw new BadRequestException('ids are required');
 
     const result = await this.prisma.student.updateMany({
-      where: { id: { in: ids }, schoolId, deletedAt: null },
+      where: { id: { in: ids }, schoolId, deletedAt: null, ...(await this.getAccessScope(user)) },
       data: { deletedAt: new Date() },
     });
 
@@ -658,7 +725,7 @@ export class StudentsService {
     return { deleted: result.count };
   }
 
-  async bulkAssignServant(ids: string[], servantId: string, schoolIdentifier: string) {
+  async bulkAssignServant(ids: string[], servantId: string, schoolIdentifier: string, user?: any) {
     const schoolId = await this.schoolResolver.resolve(schoolIdentifier);
     if (!Array.isArray(ids) || ids.length === 0) throw new BadRequestException('ids are required');
     if (!servantId) throw new BadRequestException('servantId is required');
@@ -667,7 +734,7 @@ export class StudentsService {
     if (!servant) throw new BadRequestException('Servant not found');
 
     const students = await this.prisma.student.findMany({
-      where: { id: { in: ids }, schoolId, deletedAt: null },
+      where: { id: { in: ids }, schoolId, deletedAt: null, ...(await this.getAccessScope(user)) },
       select: { id: true, metadata: true },
     });
 
@@ -693,9 +760,9 @@ export class StudentsService {
     return { assigned: students.length };
   }
 
-  async updateTags(id: string, tags: string[], schoolIdentifier: string) {
+  async updateTags(id: string, tags: string[], schoolIdentifier: string, user?: any) {
     const schoolId = await this.schoolResolver.resolve(schoolIdentifier);
-    const student = await this.findOne(id, schoolId);
+    const student = await this.findOne(id, schoolId, user);
     const meta = ((student as any).metadata as any) || {};
     const cleanTags = [...new Set(tags.map(t => t.trim()).filter(Boolean))].slice(0, 10);
 
@@ -1062,35 +1129,14 @@ async getPortalData(portalAccessKey: string) {
     const where: any = { deletedAt: null, schoolId };
 
     // Auto-filter by servant's metadata assignments
-    if (user) {
-      const userRecord = await this.prisma.user.findUnique({
-        where: { id: user.id },
-        select: { metadata: true, userRoles: { select: { role: { select: { name: true } } } } },
-      });
-      const meta = (userRecord?.metadata as any) || {};
-      const roleNames = (userRecord?.userRoles || []).map((ur: any) => ur.role?.name).filter(Boolean);
-      const isAdmin = roleNames.some((r: string) => ['super_admin', 'admin', 'principal'].includes(r));
-      const isServant = !isAdmin && roleNames.some((r: string) =>
-        ['servant', 'group_leader', 'level_leader'].includes(r)
-      );
-
-      if (isServant) {
-        if (meta.groupId) where.groupId = meta.groupId;
-        if (meta.levelId) where.levelId = meta.levelId;
-        if (meta.gradeId) where.gradeId = meta.gradeId;
-        if (meta.teachingGender && meta.teachingGender !== 'both') {
-          where.gender = meta.teachingGender;
-        }
-      }
-    }
-
-    // Apply explicit query filters (override metadata)
+    // Explicit filters first; the caller's assignment scope is applied afterwards so it always wins.
     if (filters?.levelId) where.levelId = filters.levelId;
     if (filters?.groupId) where.groupId = filters.groupId;
     if (filters?.status) where.status = filters.status;
     if (filters?.gradeId) where.gradeId = filters.gradeId;
     if (filters?.gender) where.gender = filters.gender;
     if (filters?.churchName) where.churchName = filters.churchName;
+    Object.assign(where, await this.getAccessScope(user));
 
     if (filters?.assignedServantId) {
       where.metadata = {
@@ -1191,6 +1237,27 @@ async getPortalData(portalAccessKey: string) {
     return [];
   }
 
+  /**
+   * Gate for the subject-item endpoints, which look students up by bare id: the caller must be in
+   * the student's school and, if assigned to a level/group/grade, the student must be inside it.
+   * Parents only reach their own linked children.
+   */
+  private async assertCanAccessStudentRecord(student: { id: string; schoolId: string }, user: any) {
+    const roles = this.getUserRoleNames(user);
+    if (roles.includes('super_admin')) return;
+    if (!user?.schoolId || user.schoolId !== student.schoolId) throw new NotFoundException('Student not found');
+    if (roles.some(r => StudentsService.PASS_ROLES.includes(r))) {
+      const scope = await this.getAccessScope(user);
+      if (Object.keys(scope).length) {
+        const inScope = await this.prisma.student.findFirst({ where: { id: student.id, ...scope }, select: { id: true } });
+        if (!inScope) throw new NotFoundException('Student not found');
+      }
+      return;
+    }
+    const link = await this.prisma.studentParent.findFirst({ where: { studentId: student.id, parentId: user.id }, select: { id: true } });
+    if (!link) throw new NotFoundException('Student not found');
+  }
+
   async toggleSubjectItemPass(studentId: string, subjectItemId: string, user: any, dto: { note?: string } = {}) {
     const roleNames = this.getUserRoleNames(user);
     if (!roleNames.some((r) => StudentsService.PASS_ROLES.includes(r))) {
@@ -1203,6 +1270,7 @@ async getPortalData(portalAccessKey: string) {
       select: { id: true, schoolId: true, level: { select: { number: true } } },
     });
     if (!student) throw new NotFoundException('Student not found');
+    await this.assertCanAccessStudentRecord(student, user);
 
     const subjectItem = await this.prisma.subjectItem.findFirst({
       where: { id: subjectItemId, subject: { deletedAt: null } },
@@ -1252,9 +1320,10 @@ async getPortalData(portalAccessKey: string) {
 
     const student = await this.prisma.student.findFirst({
       where: { id: studentId, deletedAt: null },
-      select: { id: true, level: { select: { number: true } } },
+      select: { id: true, schoolId: true, level: { select: { number: true } } },
     });
     if (!student) throw new NotFoundException('Student not found');
+    if (!opts?.portal) await this.assertCanAccessStudentRecord(student, user);
 
     const items = await this.prisma.subjectItem.findMany({
       where: {
@@ -1306,9 +1375,10 @@ async getPortalData(portalAccessKey: string) {
 
     const student = await this.prisma.student.findFirst({
       where: { id: studentId, deletedAt: null },
-      select: { id: true },
+      select: { id: true, schoolId: true },
     });
     if (!student) throw new NotFoundException('Student not found');
+    if (!opts?.portal) await this.assertCanAccessStudentRecord(student, user);
 
 return this.prisma.studentSubjectPass.findMany({
       where: { studentId },
@@ -1316,11 +1386,46 @@ return this.prisma.studentSubjectPass.findMany({
     });
   }
 
-  async rotatePortalAccessKey(studentId: string) {
+  /** Approve a pending student (admin / principal only — enforced by the controller's @Roles). */
+  async approve(id: string, schoolIdentifier: string, user?: any) {
+    const schoolId = await this.schoolResolver.resolve(schoolIdentifier);
+    const student = await this.findOne(id, schoolId, user);
+    if (student.status !== 'pending') throw new BadRequestException('Student is not pending approval');
+    const updated = await this.prisma.student.update({
+      where: { id: student.id },
+      data: { status: 'active' },
+      include: { level: true, group: true, grade: { select: { id: true, name: true } } },
+    });
+    await this.audit.log({
+      schoolId,
+      action: 'APPROVE',
+      entityType: 'student',
+      entityId: student.id,
+      userId: user?.id,
+      oldValues: { status: 'pending' },
+      newValues: { status: 'active' },
+    });
+    return updated;
+  }
+
+  async rotatePortalAccessKey(studentId: string, user?: any) {
+    const isSuperAdmin = this.getUserRoleNames(user).includes('super_admin');
+    if (!isSuperAdmin && !user?.schoolId) throw new ForbiddenException('School context is required');
+    const student = await this.prisma.student.findFirst({
+      where: { id: studentId, deletedAt: null, ...(isSuperAdmin ? {} : { schoolId: user.schoolId }) },
+      select: { id: true, schoolId: true },
+    });
+    if (!student) throw new NotFoundException('Student not found');
+
     const newKey = uuidv4();
-    const student = await this.prisma.student.update({
-      where: { id: studentId },
-      data: { portalAccessKey: newKey },
+    await this.prisma.student.update({ where: { id: student.id }, data: { portalAccessKey: newKey } });
+    // The key itself is a credential: record who rotated it and when, never the value.
+    await this.audit.log({
+      schoolId: student.schoolId,
+      action: 'ROTATE_PORTAL_KEY',
+      entityType: 'student',
+      entityId: student.id,
+      userId: user?.id,
     });
     return { newKey, message: 'Portal access key rotated successfully' };
   }

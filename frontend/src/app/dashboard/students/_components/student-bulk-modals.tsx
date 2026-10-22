@@ -27,8 +27,9 @@ export function StudentBulkModals({ showBulkDelete, showBulkStatus, showBulkLeve
 
   const patch = async (data: Record<string,string>, m: 'status'|'level'|'grade') => {
     try {
-      const r: {updated:number} = await http.patch('/students/bulk',{ids,data},{schoolId:getSchoolId()})
+      const r: {updated:number;skipped?:number} = await http.patch('/students/bulk',{ids,data},{schoolId:getSchoolId()})
       onClose(m); onSuccess(currentPage); toast('success',`${r.updated} ${t('students updated','طالب تم تحديثهم')}`)
+      if(r.skipped) toast('success',t(`${r.skipped} skipped — pending students must be approved by an admin or principal`,`تم تخطي ${r.skipped} — الطلاب قيد الانتظار يعتمدهم المسؤول أو المدير`))
       track('bulk.action','action',{action:`students.bulk_update_${m}`,count:ids.length})
     } catch { toast('error',t('Bulk update failed','فشل التحديث الجماعي')); onSuccess(currentPage) }
   }

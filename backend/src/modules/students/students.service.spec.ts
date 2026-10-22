@@ -92,6 +92,7 @@ systemConfig: {
     assessmentSubmission: { findMany: jest.fn() },
     familyLiturgy: { findMany: jest.fn() },
     user: { findUnique: jest.fn() },
+    studentParent: { findFirst: jest.fn() },
     subjectItem: { findFirst: jest.fn(), findMany: jest.fn() },
     studentSubjectPass: {
       findFirst: jest.fn(),
@@ -122,6 +123,7 @@ systemConfig: {
     prisma.academicYear.findFirst.mockResolvedValue({ id: academicYearId, isCurrent: true });
     prisma.student.count.mockResolvedValue(0);
     prisma.schoolGrade.findFirst.mockResolvedValue({ id: 'grade-1', groupId: 'group-1' });
+    prisma.level.findFirst.mockResolvedValue({ id: 'level-1' });
   });
 
   // ===== findAll =====
@@ -348,6 +350,13 @@ systemConfig: {
 
       await expect(service.create(dto, schoolId)).rejects.toBe(conflict);
       expect(prisma.student.create).toHaveBeenCalledTimes(5);
+    });
+
+    it('B4: rejects a level that belongs to another school', async () => {
+      prisma.level.findFirst.mockResolvedValue(null);
+      const dto = { firstName: 'Malak', lastName: 'Ahmed', dateOfBirth: '2026-01-01', gender: 'female', levelId: 'level-foreign', gradeId: 'grade-1' };
+      await expect(service.create(dto as any, schoolId)).rejects.toThrow(BadRequestException);
+      expect(prisma.student.create).not.toHaveBeenCalled();
     });
 
     it('throws when no academic year is set', async () => {
@@ -682,6 +691,189 @@ systemConfig: {
   });
 
   // ===== bulkCreate =====
+  // ===== authorization (B1–B4) =====
+  describe('authorization', () => {
+    const scopedServant = { id: 'srv-1', roles: ['servant'], schoolId };
+    const admin = { id: 'adm-1', roles: ['admin'], schoolId };
+    const principal = { id: 'pri-1', roles: ['principal'], schoolId };
+
+    const asServant = (meta: any = { groupId: 'group-1', levelId: 'level-1' }) =>
+      prisma.user.findUnique.mockResolvedValue({ metadata: meta, userRoles: [{ role: { name: 'servant' } }] });
+    const asAdmin = () =>
+      prisma.user.findUnique.mockResolvedValue({ metadata: {}, userRoles: [{ role: { name: 'admin' } }] });
+
+    beforeEach(() => {
+      prisma.student.findFirst.mockReset();
+      prisma.student.findMany.mockReset();
+      prisma.student.update.mockReset();
+      prisma.student.updateMany.mockReset();
+      prisma.level.findFirst.mockReset();
+      prisma.group.findFirst.mockReset();
+      prisma.studentParent.findFirst.mockReset();
+    });
+
+    it('B1: findOne applies a servant\'s assignment scope', async () => {
+      asServant();
+      prisma.student.findFirst.mockResolvedValue(mockStudent);
+      await service.findOne('stu-1', schoolId, scopedServant);
+      expect(prisma.student.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({ where: expect.objectContaining({ id: 'stu-1', schoolId, groupId: 'group-1', levelId: 'level-1' }) }),
+      );
+    });
+
+    it('B1: a student outside the servant\'s scope is a 404 on delete', async () => {
+      asServant();
+      prisma.student.findFirst.mockResolvedValue(null);
+      await expect(service.remove('stu-9', schoolId, scopedServant)).rejects.toThrow(NotFoundException);
+      expect(prisma.student.update).not.toHaveBeenCalled();
+    });
+
+    it('B1: the list cannot be widened by passing another groupId', async () => {
+      asServant();
+      prisma.student.findMany.mockResolvedValue([]);
+      prisma.student.count.mockResolvedValue(0);
+      await service.findAll({ page: 1, limit: 20, groupId: 'group-other' }, schoolId, scopedServant);
+      const where = prisma.student.findMany.mock.calls[0][0].where;
+      expect(where.groupId).toBe('group-1');
+    });
+
+    it('B1: admins stay unrestricted', async () => {
+      asAdmin();
+      prisma.student.findFirst.mockResolvedValue(mockStudent);
+      await service.findOne('stu-1', schoolId, admin);
+      expect(prisma.student.findFirst.mock.calls[0][0].where).toEqual({ id: 'stu-1', schoolId, deletedAt: null });
+    });
+
+    it('B1: bulk delete only touches students inside the caller\'s scope', async () => {
+      asServant();
+      prisma.student.updateMany.mockResolvedValue({ count: 1 });
+      await service.bulkDelete(['a', 'b'], schoolId, scopedServant);
+      expect(prisma.student.updateMany.mock.calls[0][0].where).toEqual(
+        expect.objectContaining({ id: { in: ['a', 'b'] }, groupId: 'group-1', levelId: 'level-1' }),
+      );
+    });
+
+    it('B1: a servant cannot move a student into another group', async () => {
+      asServant();
+      prisma.student.findFirst.mockResolvedValue(mockStudent);
+      prisma.group.findFirst.mockResolvedValue({ id: 'group-2' });
+      await expect(service.update('stu-1', { groupId: 'group-2' } as any, schoolId, scopedServant)).rejects.toThrow(ForbiddenException);
+      expect(prisma.student.update).not.toHaveBeenCalled();
+    });
+
+    it('B1: subject-item endpoints reject a caller from another school', async () => {
+      asAdmin();
+      prisma.student.findFirst.mockResolvedValue({ id: 'stu-1', schoolId: 'school-2', level: { number: 1 } });
+      await expect(service.getStudentSubjectItems('stu-1', admin)).rejects.toThrow(NotFoundException);
+      await expect(service.toggleSubjectItemPass('stu-1', 'item-1', admin)).rejects.toThrow(NotFoundException);
+    });
+
+    it('B1: a parent only reaches a linked child\'s subject items', async () => {
+      const parent = { id: 'par-1', roles: ['parent'], schoolId };
+      prisma.student.findFirst.mockResolvedValue({ id: 'stu-1', schoolId, level: { number: 1 } });
+      prisma.studentParent.findFirst.mockResolvedValue(null);
+      await expect(service.getStudentSubjectItems('stu-1', parent)).rejects.toThrow(NotFoundException);
+    });
+
+    it('B2: a servant cannot approve a pending student through update', async () => {
+      asServant({});
+      prisma.student.findFirst.mockResolvedValue({ ...mockStudent, status: 'pending' });
+      await expect(service.update('stu-1', { status: 'active' } as any, schoolId, scopedServant)).rejects.toThrow(ForbiddenException);
+      expect(prisma.student.update).not.toHaveBeenCalled();
+    });
+
+    it('B2: an admin can move a pending student to active, and a servant can still toggle active/inactive', async () => {
+      asAdmin();
+      prisma.student.findFirst.mockResolvedValue({ ...mockStudent, status: 'pending' });
+      prisma.student.update.mockResolvedValue({ ...mockStudent, status: 'active' });
+      await expect(service.update('stu-1', { status: 'active' } as any, schoolId, admin)).resolves.toBeDefined();
+
+      asServant({});
+      prisma.student.findFirst.mockResolvedValue({ ...mockStudent, status: 'active' });
+      await expect(service.update('stu-1', { status: 'inactive' } as any, schoolId, scopedServant)).resolves.toBeDefined();
+    });
+
+    it('B2: rejects unknown status values', async () => {
+      asAdmin();
+      prisma.student.findFirst.mockResolvedValue(mockStudent);
+      await expect(service.update('stu-1', { status: 'wizard' } as any, schoolId, admin)).rejects.toThrow(BadRequestException);
+    });
+
+    it('B2: bulk status change skips pending students unless the caller is an approver', async () => {
+      asServant({});
+      prisma.student.updateMany.mockResolvedValue({ count: 1 });
+      await service.bulkUpdate(['a', 'b'], { status: 'active' } as any, schoolId, scopedServant);
+      expect(prisma.student.updateMany.mock.calls[0][0].where.status).toEqual({ not: 'pending' });
+
+      asAdmin();
+      prisma.student.updateMany.mockClear();
+      prisma.student.updateMany.mockResolvedValue({ count: 2 });
+      const res = await service.bulkUpdate(['a', 'b'], { status: 'active' } as any, schoolId, principal);
+      expect(prisma.student.updateMany.mock.calls[0][0].where.status).toBeUndefined();
+      expect(res).toEqual({ updated: 2, skipped: 0 });
+    });
+
+    it('B2: approve activates a pending student and audits it', async () => {
+      asAdmin();
+      prisma.student.findFirst.mockResolvedValue({ ...mockStudent, status: 'pending' });
+      prisma.student.update.mockResolvedValue({ ...mockStudent, status: 'active' });
+      const out = await service.approve('stu-1', schoolId, admin);
+      expect(out.status).toBe('active');
+      expect(prisma.student.update).toHaveBeenCalledWith(expect.objectContaining({ data: { status: 'active' } }));
+    });
+
+    it('B2: approve refuses a student that is not pending', async () => {
+      asAdmin();
+      prisma.student.findFirst.mockResolvedValue(mockStudent);
+      await expect(service.approve('stu-1', schoolId, admin)).rejects.toThrow(BadRequestException);
+    });
+
+    it('B3: rotating a key is limited to the caller\'s own school', async () => {
+      prisma.student.findFirst.mockResolvedValue(null);
+      await expect(service.rotatePortalAccessKey('stu-other', admin)).rejects.toThrow(NotFoundException);
+      expect(prisma.student.findFirst.mock.calls[0][0].where).toEqual(expect.objectContaining({ id: 'stu-other', schoolId }));
+      expect(prisma.student.update).not.toHaveBeenCalled();
+    });
+
+    it('B3: rotation is audited without recording the key, and super_admin spans schools', async () => {
+      prisma.student.findFirst.mockResolvedValue({ id: 'stu-1', schoolId: 'school-2' });
+      prisma.student.update.mockResolvedValue({});
+      const out = await service.rotatePortalAccessKey('stu-1', { id: 'sa-1', roles: ['super_admin'] });
+      expect(out.newKey).toMatch(/[0-9a-f-]{36}/);
+      expect(prisma.student.findFirst.mock.calls[0][0].where).toEqual({ id: 'stu-1', deletedAt: null });
+      const audit = (service as any).audit.log.mock.calls[0][0];
+      expect(audit).toEqual(expect.objectContaining({ action: 'ROTATE_PORTAL_KEY', entityId: 'stu-1', schoolId: 'school-2', userId: 'sa-1' }));
+      expect(JSON.stringify(audit)).not.toContain(out.newKey);
+    });
+
+    it('B4: bulk level change rejects a level from another school', async () => {
+      asAdmin();
+      prisma.level.findFirst.mockResolvedValue(null);
+      await expect(service.bulkUpdate(['a'], { levelId: 'level-foreign' } as any, schoolId, admin)).rejects.toThrow(BadRequestException);
+      expect(prisma.student.updateMany).not.toHaveBeenCalled();
+      expect(prisma.level.findFirst).toHaveBeenCalledWith(expect.objectContaining({ where: expect.objectContaining({ id: 'level-foreign', schoolId }) }));
+    });
+
+    it('B4: bulk group change rejects a group from another school', async () => {
+      asAdmin();
+      prisma.group.findFirst.mockResolvedValue(null);
+      await expect(service.bulkUpdate(['a'], { groupId: 'group-foreign' } as any, schoolId, admin)).rejects.toThrow(BadRequestException);
+    });
+
+    it('B4: a servant cannot bulk-move students outside their own group', async () => {
+      asServant();
+      prisma.group.findFirst.mockResolvedValue({ id: 'group-2' });
+      await expect(service.bulkUpdate(['a'], { groupId: 'group-2' } as any, schoolId, scopedServant)).rejects.toThrow(ForbiddenException);
+    });
+
+    it('B4: single update also rejects a level from another school', async () => {
+      asAdmin();
+      prisma.student.findFirst.mockResolvedValue(mockStudent);
+      prisma.level.findFirst.mockResolvedValue(null);
+      await expect(service.update('stu-1', { levelId: 'level-foreign' } as any, schoolId, admin)).rejects.toThrow(BadRequestException);
+    });
+  });
+
   describe('bulkCreate', () => {
     it('imports students in bulk, resolving grades by name', async () => {
       prisma.student.count.mockResolvedValue(5);
@@ -862,9 +1054,10 @@ systemConfig: {
 
   // ===== toggleSubjectItemPass =====
   describe('toggleSubjectItemPass', () => {
-    const servantUser = { id: 'user-1', roles: ['servant'] };
+    const servantUser = { id: 'user-1', roles: ['servant'], schoolId };
 
     beforeEach(() => {
+      prisma.user.findUnique.mockResolvedValue({ metadata: {}, userRoles: [{ role: { name: 'servant' } }] });
       prisma.studentSubjectPass.findFirst.mockReset();
       prisma.studentSubjectPass.findMany.mockReset();
       prisma.studentSubjectPass.create.mockReset();
