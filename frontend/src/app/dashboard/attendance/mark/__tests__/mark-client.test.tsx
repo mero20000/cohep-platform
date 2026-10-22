@@ -93,7 +93,7 @@ describe('MarkClient', () => {
     fireEvent.click(screen.getByRole('button', { name: /Present - Mina G/i }))
     fireEvent.click(screen.getByRole('button', { name: /Present - John D/i }))
     fireEvent.click(screen.getByRole('button', { name: /Save & Finalize/i }))
-    await waitFor(() => expect(mockPost).toHaveBeenCalledWith('/attendance/sessions/sess-1/finalize', expect.objectContaining({ allowUnmarked: false })))
+    await waitFor(() => expect(mockPost).toHaveBeenCalledWith('/attendance/sessions/sess-1/finalize', expect.not.objectContaining({ allowUnmarked: expect.anything() })))
     expect(mockPut).not.toHaveBeenCalledWith('/attendance/sessions/sess-1', { status: 'completed' })
     // Quiet reload after finalize must preserve server truth.
     await waitFor(() => expect(mockGet.mock.calls.length).toBeGreaterThanOrEqual(2))
@@ -172,6 +172,38 @@ describe('MarkClient', () => {
     await waitFor(() => expect(screen.getByRole('button', { name: /Present - Mina G/i }).getAttribute('aria-pressed')).toBe('true'))
     expect(screen.getByRole('button', { name: /Present - John D/i }).getAttribute('aria-pressed')).toBe('true')
   })
+  it('finalizing a class warns that unmarked students become absent, and only then posts', async () => {
+    state.twoStudents = true
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false)
+    render(<MarkClient />)
+    await waitFor(() => expect(screen.getByRole('group', { name: /Status - Mina G/i })).toBeInTheDocument())
+    fireEvent.click(screen.getByRole('button', { name: /Late - Mina G/i }))
+    fireEvent.click(screen.getByRole('button', { name: /Save & Finalize/i }))
+    await waitFor(() => expect(confirm).toHaveBeenCalled())
+    expect(confirm.mock.calls[0][0]).toMatch(/1 student\(s\) not marked present, late or excused will be saved as absent/)
+    expect(mockPost).not.toHaveBeenCalledWith(expect.stringContaining('/finalize'), expect.anything())
+
+    confirm.mockReturnValue(true)
+    fireEvent.click(screen.getByRole('button', { name: /Save & Finalize/i }))
+    await waitFor(() => expect(mockPost).toHaveBeenCalledWith('/attendance/sessions/sess-1/finalize', expect.anything()))
+    const body = mockPost.mock.calls.find(c => String(c[0]).endsWith('/finalize'))![1]
+    expect(body.records.map((r: any) => [r.studentId, r.status])).toEqual([['s1', 'late']]) // the unmarked student is left to the server to save as absent
+    confirm.mockRestore()
+  })
+
+  it('finalizing a class with everyone marked does not ask', async () => {
+    state.twoStudents = true
+    const confirm = vi.spyOn(window, 'confirm')
+    render(<MarkClient />)
+    await waitFor(() => expect(screen.getByRole('group', { name: /Status - Mina G/i })).toBeInTheDocument())
+    fireEvent.click(screen.getByRole('button', { name: /Present - Mina G/i }))
+    fireEvent.click(screen.getByRole('button', { name: /Excused - John D/i }))
+    fireEvent.click(screen.getByRole('button', { name: /Save & Finalize/i }))
+    await waitFor(() => expect(mockPost).toHaveBeenCalledWith('/attendance/sessions/sess-1/finalize', expect.anything()))
+    expect(confirm).not.toHaveBeenCalled()
+    confirm.mockRestore()
+  })
+
   describe('liturgy / event sessions', () => {
     const rec = (id: string, first: string, group: string, grade = 'Grade 1', status = 'unmarked') => ({
       student: { id, firstName: first, lastName: 'X', group: { id: `g-${group}`, name: group }, grade: { id: `gr-${grade}`, name: grade } },
@@ -215,7 +247,7 @@ describe('MarkClient', () => {
 
       confirm.mockReturnValue(true)
       fireEvent.click(screen.getByRole('button', { name: /Save & Finalize/i }))
-      await waitFor(() => expect(mockPost).toHaveBeenCalledWith('/attendance/sessions/sess-1/finalize', expect.objectContaining({ allowUnmarked: true })))
+      await waitFor(() => expect(mockPost).toHaveBeenCalledWith('/attendance/sessions/sess-1/finalize', expect.objectContaining({ records: expect.any(Array) })))
       confirm.mockRestore()
     })
 

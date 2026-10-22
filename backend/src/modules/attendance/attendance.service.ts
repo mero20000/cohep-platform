@@ -1027,9 +1027,9 @@ export class AttendanceService {
    * Save the final marks and complete the session atomically: either every
    * record is written AND the session is completed, or nothing changes.
    *
-   * Classes reject when students remain `unmarked` (unless `allowUnmarked`).
-   * Liturgy and events instead save everyone not marked present as absent,
-   * in the same transaction.
+   * Anyone still `unmarked` when a session is finalized is saved as absent, in
+   * the same transaction. Classes: anything other than present/late/excused
+   * counts as absent. Liturgy and events: anything other than present.
    */
   async finalizeSession(sessionId: string, dto: FinalizeAttendanceDto, user?: { id: string }) {
     const session = await this.prisma.attendanceSession.findUnique({ where: { id: sessionId } });
@@ -1056,21 +1056,18 @@ export class AttendanceService {
     if (finalStatus.size === 0) {
       throw new BadRequestException('Cannot finalize a session with no students.');
     }
-    const unmarkedCount = [...finalStatus.values()].filter(s => s === 'unmarked').length;
-    if (isClass && unmarkedCount > 0 && !dto.allowUnmarked) {
-      throw new BadRequestException(`${unmarkedCount} student(s) are still unmarked. Mark them or confirm finalizing anyway.`);
-    }
+    // Students nobody marked: they become absent when the session is finalized.
+    const autoAbsentIds = [...finalStatus.entries()].filter(([, st]) => st === 'unmarked').map(([id]) => id);
+    const unmarkedCount = autoAbsentIds.length;
 
     const now = new Date();
     await this.prisma.$transaction([
       ...records.map(record => this.buildRecordUpsert(sessionId, record, recordedBy)),
-      // Liturgy / event: whoever was not marked present is absent.
-      ...(isClass ? [] : [
-        this.prisma.attendanceRecord.updateMany({
-          where: { attendanceSessionId: sessionId, status: 'unmarked' },
-          data: { status: 'absent', recordedBy, recordedAt: now, ...(type === 'liturgy' ? { attendedLiturgy: false } : {}) },
-        }),
-      ]),
+      // Whoever is still unmarked is absent (after the explicit marks above are written).
+      this.prisma.attendanceRecord.updateMany({
+        where: { attendanceSessionId: sessionId, status: 'unmarked' },
+        data: { status: 'absent', recordedBy, recordedAt: now, ...(type === 'liturgy' ? { attendedLiturgy: false } : {}) },
+      }),
       this.prisma.attendanceSession.updateMany({
         where: { id: sessionId, status: { notIn: ['completed', 'recorded'] } },
         data: {
@@ -1087,13 +1084,34 @@ export class AttendanceService {
       entityType: 'attendance_session',
       entityId: sessionId,
       oldValues: { status: session.status },
-      newValues: { status: 'completed', type, unmarkedCount, ...(isClass ? {} : { autoMarkedAbsent: unmarkedCount }) },
+      newValues: { status: 'completed', type, autoMarkedAbsent: unmarkedCount },
     });
 
-    this.runMarkSideEffects(session, sessionId, records, recordedBy, previousStatus);
+    // Auto-absent students count like any other absence (badges, 3-in-a-row parent alert).
+    const effective = [...records, ...autoAbsentIds.map(studentId => ({ studentId, status: 'absent' }))] as MarkAttendanceDto['records'];
+    this.runMarkSideEffects(session, sessionId, effective, recordedBy, previousStatus);
     if (isClass) this.sendPracticeGuideNotifications(sessionId).catch(() => {});
 
     return this.getSessionById(sessionId);
+  }
+
+  /**
+   * A session completed through the plain status update (not /finalize) must obey the
+   * same rule: anyone still unmarked becomes absent.
+   */
+  private async markUnmarkedAbsent(session: { id: string; schoolId: string; type?: string | null; servantId: string }, recordedBy: string) {
+    const unmarked = await this.prisma.attendanceRecord.findMany({
+      where: { attendanceSessionId: session.id, status: 'unmarked', student: { deletedAt: null } },
+      select: { studentId: true },
+    });
+    if (unmarked.length === 0) return;
+    const type = session.type ?? 'class';
+    await this.prisma.attendanceRecord.updateMany({
+      where: { attendanceSessionId: session.id, status: 'unmarked' },
+      data: { status: 'absent', recordedBy, recordedAt: new Date(), ...(type === 'liturgy' ? { attendedLiturgy: false } : {}) },
+    });
+    const absent = unmarked.map(r => ({ studentId: r.studentId, status: 'absent' })) as MarkAttendanceDto['records'];
+    this.runMarkSideEffects(session, session.id, absent, recordedBy, new Map(unmarked.map(r => [r.studentId, 'unmarked'])));
   }
 
   private async checkAbsenceCascade(studentId: string, schoolId: string, servantId: string) {
@@ -1887,6 +1905,11 @@ export class AttendanceService {
       oldValues: { status: session.status, servantId: session.servantId },
       newValues: { status: updated.status, servantId: updated.servantId },
     });
+
+    // Completing a session by status change also saves unmarked students as absent.
+    if (statusChanged && dto.status === 'completed') {
+      await this.markUnmarkedAbsent(updated, user?.id || session.servantId);
+    }
 
     // When session is completed, notify parents of present students with practice guide
     if (dto.status === 'completed') {
