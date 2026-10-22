@@ -48,10 +48,10 @@ export function StudentAssignServantModal({ studentIds, onClose, onSuccess, lang
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 p-0 sm:p-4">
       <div ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-label={t('Assign Servant','تعيين خادم')}
-        className="w-full max-w-md rounded-2xl bg-white shadow-xl max-h-[85vh] flex flex-col outline-none">
-        <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4 flex-shrink-0">
+        className="w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl bg-white shadow-xl max-h-[92dvh] sm:max-h-[85vh] pb-[env(safe-area-inset-bottom)] animate-slideUp sm:animate-none flex flex-col outline-none">
+        <div className="flex items-center justify-between border-b border-gray-100 px-4 sm:px-6 py-3 sm:py-4 flex-shrink-0">
           <h2 className="text-lg font-semibold inline-flex items-center gap-2"><Users className="h-5 w-5 text-purple-600" />{t('Assign Servant','تعيين خادم')}</h2>
           <Button variant="ghost" size="icon" onClick={onClose}><X className="h-5 w-5" /></Button>
         </div>
@@ -108,7 +108,7 @@ export function StudentAssignServantModal({ studentIds, onClose, onSuccess, lang
             </div>
           )}
         </div>
-        <div className="flex items-center justify-end gap-3 border-t border-gray-100 px-6 py-4 flex-shrink-0">
+        <div className="flex items-center justify-end gap-3 border-t border-gray-100 px-4 sm:px-6 py-3 sm:py-4 flex-shrink-0">
           <Button variant="outline" onClick={onClose}>{t('Cancel','إلغاء')}</Button>
           <Button onClick={handleAssign} disabled={!selectedId || assigning} className="inline-flex items-center gap-2">
             {assigning && <Loader2 className="h-4 w-4 animate-spin" />}

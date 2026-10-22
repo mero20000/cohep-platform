@@ -144,6 +144,27 @@ systemConfig: {
       );
     });
 
+    it('restricts the list to the given ids (favorites)', async () => {
+      prisma.student.findMany.mockResolvedValue([]);
+      prisma.student.count.mockResolvedValue(0);
+
+      await service.findAll({ page: 1, limit: 20, ids: 'a, b,,c' }, schoolId);
+
+      expect(prisma.student.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: expect.objectContaining({ id: { in: ['a', 'b', 'c'] } }) }),
+      );
+    });
+
+    it('searches the parent phone stored in metadata.phone', async () => {
+      prisma.student.findMany.mockResolvedValue([]);
+      prisma.student.count.mockResolvedValue(0);
+
+      await service.findAll({ page: 1, limit: 20, search: '0100' }, schoolId);
+
+      const where = prisma.student.findMany.mock.calls[0][0].where;
+      expect(where.OR).toContainEqual({ metadata: { path: ['phone'], string_contains: '0100' } });
+    });
+
     it('applies search filter', async () => {
       prisma.student.findMany.mockResolvedValue([]);
       prisma.student.count.mockResolvedValue(0);
@@ -161,7 +182,8 @@ systemConfig: {
               { studentCode: { contains: 'Malak', mode: 'insensitive' } },
               { parentEmail: { contains: 'Malak', mode: 'insensitive' } },
               { churchName: { contains: 'Malak', mode: 'insensitive' } },
-              { metadata: { path: ['parentPhone'], string_contains: 'Malak' } },
+              { metadata: { path: ['phone'], string_contains: 'Malak' } },
+              { metadata: { path: ['studentPhone'], string_contains: 'Malak' } },
               { studentParents: { some: { parent: { phone: { contains: 'Malak', mode: 'insensitive' } } } } },
               { studentParents: { some: { parent: { email: { contains: 'Malak', mode: 'insensitive' } } } } },
             ],
@@ -288,6 +310,44 @@ systemConfig: {
       expect(result.studentCode).toBe('STU-00001');
       expect(result.firstName).toBe('Malak');
       expect(prisma.student.create).toHaveBeenCalled();
+    });
+
+    it('retries with the next free code when a concurrent create took the same one', async () => {
+      const dto = {
+        firstName: 'Malak', lastName: 'Ahmed', dateOfBirth: '2026-01-01', gender: 'female',
+        levelId: 'level-1', gradeId: 'grade-1', churchName: 'St. Mary',
+      };
+      const conflict = Object.assign(new Error('Unique constraint failed'), { code: 'P2002', meta: { target: ['school_id', 'student_code'] } });
+      prisma.student.create.mockRejectedValueOnce(conflict).mockResolvedValueOnce({ ...mockStudent, studentCode: 'STU-00002' });
+
+      const result = await service.create(dto, schoolId);
+
+      expect(result.studentCode).toBe('STU-00002');
+      expect(prisma.student.create).toHaveBeenCalledTimes(2);
+    });
+
+    it('does not retry unrelated unique violations', async () => {
+      const dto = {
+        firstName: 'Malak', lastName: 'Ahmed', dateOfBirth: '2026-01-01', gender: 'female',
+        levelId: 'level-1', gradeId: 'grade-1', churchName: 'St. Mary',
+      };
+      const other = Object.assign(new Error('Unique constraint failed'), { code: 'P2002', meta: { target: ['portal_access_key'] } });
+      prisma.student.create.mockRejectedValueOnce(other);
+
+      await expect(service.create(dto, schoolId)).rejects.toBe(other);
+      expect(prisma.student.create).toHaveBeenCalledTimes(1);
+    });
+
+    it('gives up after repeated code conflicts instead of looping forever', async () => {
+      const dto = {
+        firstName: 'Malak', lastName: 'Ahmed', dateOfBirth: '2026-01-01', gender: 'female',
+        levelId: 'level-1', gradeId: 'grade-1', churchName: 'St. Mary',
+      };
+      const conflict = Object.assign(new Error('Unique constraint failed'), { code: 'P2002', meta: { target: ['student_code'] } });
+      prisma.student.create.mockRejectedValue(conflict);
+
+      await expect(service.create(dto, schoolId)).rejects.toBe(conflict);
+      expect(prisma.student.create).toHaveBeenCalledTimes(5);
     });
 
     it('throws when no academic year is set', async () => {
