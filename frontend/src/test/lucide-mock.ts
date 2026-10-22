@@ -28,7 +28,7 @@ export const LUCIDE_ICON_NAMES = [
   'LucideIcon', 'Mail', 'MapPin', 'Maximize', 'Medal', 'Megaphone', 'Menu', 'MessageCircle',
   'MessageSquare', 'Mic', 'Minimize', 'Minus', 'MonitorSmartphone', 'Moon', 'MoreVertical',
   'Music', 'Music2', 'Music3', 'Palette', 'PanelLeft', 'PanelLeftClose', 'Pause', 'Pencil',
-  'Phone', 'Play', 'PlayCircle', 'Plus', 'PlusSquare', 'Power', 'PowerOff', 'Presentation',
+  'PauseCircle', 'Phone', 'Play', 'PlayCircle', 'Plus', 'PlusSquare', 'Power', 'PowerOff', 'Presentation',
   'Printer', 'QrCode', 'Quote', 'RefreshCw', 'RotateCcw', 'RotateCw', 'Rows3', 'Save',
   'School', 'Search', 'Send', 'Settings', 'Share', 'Shield', 'ShieldCheck', 'Sliders',
   'SlidersHorizontal', 'Sparkles', 'Sprout', 'Square', 'Star', 'StickyNote', 'Sun', 'Tag',

@@ -118,13 +118,13 @@ export function StudentImportModal({ onClose, onSuccess, levelNameMap, lang }: P
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-label={t('Import Students from CSV','استيراد الطلاب من ملف CSV')} className="w-full max-w-2xl rounded-2xl bg-white shadow-xl max-h-[90vh] flex flex-col outline-none">
-        <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4 flex-shrink-0">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 p-0 sm:p-4">
+      <div ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-label={t('Import Students from CSV','استيراد الطلاب من ملف CSV')} className="w-full sm:max-w-2xl rounded-t-2xl sm:rounded-2xl bg-white shadow-xl max-h-[92dvh] sm:max-h-[90vh] pb-[env(safe-area-inset-bottom)] animate-slideUp sm:animate-none flex flex-col outline-none">
+        <div className="flex items-center justify-between border-b border-gray-100 px-4 sm:px-6 py-3 sm:py-4 flex-shrink-0">
           <h2 className="text-lg font-semibold">{t('Import Students from CSV','استيراد الطلاب من ملف CSV')}</h2>
           <Button variant="ghost" size="icon" onClick={handleClose}><X className="h-5 w-5" /></Button>
         </div>
-        <div className="px-6 py-5 space-y-4 overflow-y-auto flex-1">
+        <div className="px-4 sm:px-6 py-5 space-y-4 overflow-y-auto overscroll-contain flex-1">
           {result?(<div className="rounded-lg bg-green-50 border border-green-200 p-4 text-center"><CheckCircle2 className="h-10 w-10 text-green-500 mx-auto" /><p className="mt-2 text-sm font-medium text-green-800">{result.imported} {t('students imported successfully','طالب تم استيرادهم بنجاح')}</p><Button onClick={handleClose} className="mt-3">{t('Done','تم')}</Button></div>):(<>
             <div className="rounded-lg bg-blue-50 border border-blue-200 p-4">
               <p className="text-sm font-medium text-blue-800 mb-1">{t('Required CSV columns:','الأعمدة المطلوبة:')}</p>
@@ -187,7 +187,7 @@ export function StudentImportModal({ onClose, onSuccess, levelNameMap, lang }: P
             </div>)}
           </>)}
         </div>
-        {preview.length>0&&!result&&(<div className="flex items-center justify-end gap-3 border-t border-gray-100 px-6 py-4 flex-shrink-0">
+        {preview.length>0&&!result&&(<div className="flex items-center justify-end gap-3 border-t border-gray-100 px-4 sm:px-6 py-3 sm:py-4 flex-shrink-0">
           <Button variant="outline" onClick={()=>{setPreview([]);setFile(null);setDuplicateWarnings([]);setRowValidations([])}}>{t('Cancel','إلغاء')}</Button>
           <Button onClick={handleImport} disabled={importing||(skipInvalid&&rowValidations.every(v=>v.status==='error'))} className="inline-flex items-center gap-2">
             {importing&&<Loader2 className="h-4 w-4 animate-spin"/>}{(()=>{

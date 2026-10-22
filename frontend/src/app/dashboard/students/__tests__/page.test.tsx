@@ -66,6 +66,8 @@ const mockStudents = {
       enrollmentDate: '2026-01-01T00:00:00Z',
       level: { id: 'level-1', name: 'Level 1', number: 1 },
       group: { id: 'group-1', name: 'Group A' },
+      portalAccessKey: 'key-malak-0001',
+      metadata: { phone: '+20 100 123 4567' },
     },
     {
       id: '2',
@@ -250,14 +252,67 @@ describe('StudentsPage', () => {
       expect(badges[0]).toHaveTextContent('Active')
     })
 
-    it('shows action buttons per student', async () => {
+    it('shows action buttons per desktop row', async () => {
       render(<StudentsPage />)
-      const eyeButtons = await screen.findAllByLabelText(/View/)
-      const editButtons = await screen.findAllByLabelText(/Edit/)
-      const deleteButtons = await screen.findAllByLabelText(/Delete/)
-      expect(eyeButtons.length).toBe(4)
-      expect(editButtons.length).toBe(4)
-      expect(deleteButtons.length).toBe(4)
+      const eyeButtons = await screen.findAllByLabelText(/^View/)
+      const editButtons = await screen.findAllByLabelText(/^Edit/)
+      const deleteButtons = await screen.findAllByLabelText(/^Delete/)
+      expect(eyeButtons.length).toBe(2)
+      expect(editButtons.length).toBe(2)
+      expect(deleteButtons.length).toBe(2)
+    })
+
+    it('mobile card opens an action sheet instead of crowding the row with icon buttons', async () => {
+      const user = userEvent.setup()
+      render(<StudentsPage />)
+      const menus = await screen.findAllByLabelText(/Actions for Malak Ahmed/)
+      await user.click(menus[0])
+      const dialog = await screen.findByRole('dialog', { name: 'Malak Ahmed' })
+      expect(dialog).toHaveTextContent('View details')
+      expect(dialog).toHaveTextContent('Edit student')
+      expect(dialog).toHaveTextContent('Delete student')
+    })
+
+    it('shares the student portal with the parent over WhatsApp', async () => {
+      render(<StudentsPage />)
+      const links = await screen.findAllByRole('link', { name: /Share portal/ })
+      const href = links[0].getAttribute('href') as string
+      expect(href).toContain('https://wa.me/201001234567?text=')
+      expect(decodeURIComponent(href)).toContain('/student-portal/key-malak-0001')
+      // John has no portal key, so he gets no share link
+      expect(links).toHaveLength(1)
+    })
+
+    it('select-all selects only the rows on screen', async () => {
+      const user = userEvent.setup()
+      render(<StudentsPage />)
+      const boxes = await screen.findAllByLabelText(/Select all/)
+      await user.click(boxes[0])
+      expect(await screen.findByText(/2\s+selected/)).toBeInTheDocument()
+    })
+  })
+
+  describe('Server-side list filters', () => {
+    it('Favorites sends the starred ids to the API instead of hiding rows client-side', async () => {
+      const user = userEvent.setup()
+      localStorage.setItem('student-favorites', JSON.stringify(['1']))
+      render(<StudentsPage />)
+      await screen.findAllByLabelText(/^View/)
+      await user.click(screen.getByRole('button', { name: /Filter by favorites/ }))
+      await waitFor(() => {
+        const urls = (globalThis.fetch as any).mock.calls.map((c: any[]) => c[0].toString())
+        expect(urls.some((u: string) => u.includes('/students?') && u.includes('ids=1'))).toBe(true)
+      })
+    })
+
+    it('Favorites with nothing starred shows the empty state without asking the API for everyone', async () => {
+      const user = userEvent.setup()
+      render(<StudentsPage />)
+      await screen.findAllByLabelText(/^View/)
+      await user.click(screen.getByRole('button', { name: /Filter by favorites/ }))
+      expect(await screen.findByText('No students match your filters')).toBeInTheDocument()
+      const urls = (globalThis.fetch as any).mock.calls.map((c: any[]) => c[0].toString())
+      expect(urls.some((u: string) => u.includes('/students?') && u.includes('ids='))).toBe(false)
     })
   })
 

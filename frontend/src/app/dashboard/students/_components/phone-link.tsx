@@ -1,11 +1,16 @@
 'use client'
 import { useState, useRef, useEffect } from 'react'
-import { Phone, MessageCircle } from 'lucide-react'
+import { Phone, MessageCircle, Send } from 'lucide-react'
 import { toTelHref, toWhatsAppDigits } from '@/lib/phone'
+import { buildPortalShareMessage, buildPortalWhatsAppUrl } from '@/lib/portal-share'
 
-interface Props { phone: string; lang: 'en' | 'ar' }
+interface Props {
+  phone: string; lang: 'en' | 'ar'
+  /** When set, the menu offers to invite the parent to the student portal over WhatsApp. */
+  share?: { studentName: string; portalKey?: string | null }
+}
 
-export function PhoneLink({ phone, lang }: Props) {
+export function PhoneLink({ phone, lang, share }: Props) {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
   const t = (en: string, ar: string) => lang === 'ar' ? ar : en
@@ -27,7 +32,7 @@ export function PhoneLink({ phone, lang }: Props) {
         <Phone className="h-3.5 w-3.5" />{phone}
       </button>
       {open && (
-        <div className="absolute start-0 top-full mt-1 z-50 flex gap-1 rounded-lg border border-gray-200 bg-white p-1 shadow-lg" onClick={() => setOpen(false)}>
+        <div className="absolute start-0 top-full mt-1 z-50 flex flex-wrap gap-1 rounded-lg border border-gray-200 bg-white p-1 shadow-lg" onClick={() => setOpen(false)}>
           <a href={toTelHref(phone)}
             className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium text-green-700 hover:bg-green-50 transition-colors">
             <Phone className="h-3.5 w-3.5" />{t('Call','اتصال')}
@@ -43,6 +48,13 @@ export function PhoneLink({ phone, lang }: Props) {
               className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium text-gray-400 cursor-not-allowed">
               <MessageCircle className="h-3.5 w-3.5" />{t('WhatsApp','واتساب')}
             </span>
+          )}
+          {share?.portalKey && (
+            <a href={buildPortalWhatsAppUrl(phone, buildPortalShareMessage({ studentName: share.studentName, portalKey: share.portalKey }))}
+              target="_blank" rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 rounded-md bg-emerald-50 px-2.5 py-1.5 text-xs font-semibold text-emerald-800 hover:bg-emerald-100 transition-colors">
+              <Send className="h-3.5 w-3.5" />{t('Share student portal','مشاركة بوابة الطالب')}
+            </a>
           )}
         </div>
       )}

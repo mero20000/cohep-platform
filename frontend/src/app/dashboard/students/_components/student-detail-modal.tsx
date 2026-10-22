@@ -1,7 +1,7 @@
 'use client'
 import Image from 'next/image'
 import { useState, useEffect, useRef } from 'react'
-import { X, Loader2, Pencil, Calendar, User, MapPin, Phone, Layers, Users, Church, GraduationCap, Mail, UserCheck, Copy, Check, QrCode, MessageSquare, MessageCircle, Award, Plus, Trash2, Zap, History, Key } from 'lucide-react'
+import { X, Loader2, Pencil, Calendar, User, MapPin, Phone, Layers, Users, Church, GraduationCap, Mail, UserCheck, Copy, Check, QrCode, MessageSquare, MessageCircle, Award, Plus, Trash2, Zap, History, Key, Send } from 'lucide-react'
 import { Badge as UIBadge } from '@/components/ui/badge'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -12,6 +12,7 @@ import { toTelHref, toWhatsAppDigits } from '@/lib/phone'
 import { StudentQrCard } from '@/components/qr/qr-code-card'
 import { STATUS_STYLE, photoSrc, calcAge, type Student } from './student-types'
 import { PhoneLink } from './phone-link'
+import { buildPortalShareMessage, buildPortalWhatsAppUrl } from '@/lib/portal-share'
 import { StudentSubjectItemsPanel } from './student-subject-items'
 import { StudentTagEditor } from './student-tags'
 import { CollapsibleSection } from './collapsible-section'
@@ -100,19 +101,20 @@ export function StudentDetailModal({ student:s, onClose, onEdit, onPreviewPhoto,
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 animate-fadeIn">
-      <div ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-label={t('Student Details','تفاصيل الطالب')} className="w-full max-w-lg rounded-2xl bg-white shadow-xl max-h-[90vh] flex flex-col outline-none animate-scaleIn">
-        <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4 flex-shrink-0">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 p-0 sm:p-4 animate-fadeIn">
+      <div ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-label={t('Student Details','تفاصيل الطالب')} className="w-full sm:max-w-lg rounded-t-2xl sm:rounded-2xl bg-white shadow-xl max-h-[92dvh] sm:max-h-[90vh] flex flex-col outline-none animate-slideUp sm:animate-scaleIn pb-[env(safe-area-inset-bottom)]">
+        <div className="sm:hidden mx-auto mt-2 h-1 w-10 rounded-full bg-gray-300 flex-shrink-0" aria-hidden="true" />
+        <div className="flex items-center justify-between border-b border-gray-100 px-4 sm:px-6 py-3 sm:py-4 flex-shrink-0">
           <h2 className="text-lg font-semibold">{t('Student Details','تفاصيل الطالب')}</h2>
-          <Button variant="ghost" size="icon" onClick={onClose}><X className="h-5 w-5" /></Button>
+          <Button variant="ghost" size="icon" onClick={onClose} aria-label={t('Close','إغلاق')}><X className="h-5 w-5" /></Button>
         </div>
-        <div className="px-6 py-5 overflow-y-auto flex-1 space-y-2">
+        <div className="px-4 sm:px-6 py-5 overflow-y-auto overscroll-contain flex-1 space-y-2">
           {/* Header: Photo, Name, Code */}
           <div className="flex items-center gap-4 mb-6">
             {s.photoUrl && !photoBroken?<Button type="button" variant="ghost" size="icon" onClick={()=>onPreviewPhoto(photoSrc(s.photoUrl))} className="flex-shrink-0 relative"><div className={`absolute inset-0 rounded-full bg-gray-200 animate-pulse flex items-center justify-center ${photoLoading?'':'hidden'}`}><Loader2 className="h-4 w-4 text-gray-400 animate-spin" /></div><Image src={photoSrc(s.photoUrl)} alt={`${s.firstName} ${s.lastName} profile photo`} width={64} height={64} onLoadingComplete={()=>setPhotoLoading(false)} onError={()=>{setPhotoBroken(true);setPhotoLoading(false)}} className="h-16 w-16 rounded-full object-cover border border-gray-200 cursor-pointer hover:ring-2 hover:ring-gold-400" priority /></Button>
             :<div className={`flex h-16 w-16 items-center justify-center rounded-full text-xl font-bold flex-shrink-0 ${s.gender==='female'?'bg-semantic-gender-female-bg text-semantic-gender-female':'bg-semantic-gender-male-bg text-semantic-gender-male'}`}>{s.firstName[0]}{s.lastName[0]}</div>}
             <div className="flex-1">
-              <h3 className="text-xl font-bold text-gray-900">{s.firstName} {s.lastName}</h3>
+              <h3 className="text-xl font-bold text-gray-900 break-words">{s.firstName} {s.lastName}</h3>
               {s.firstNameAr&&<p className="text-sm text-gray-500">{s.firstNameAr} {s.lastNameAr}</p>}
               <p className="text-sm text-gray-500">{s.studentCode}</p>
             </div>
@@ -127,27 +129,27 @@ export function StudentDetailModal({ student:s, onClose, onEdit, onPreviewPhoto,
               </div>
 
               {/* Basic Info Grid (2 columns) */}
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 min-[420px]:grid-cols-2 gap-3">
                 <div className="flex items-start gap-3 rounded-lg border border-gray-100 p-3">
                   <Phone className="h-4 w-4 text-gray-400 mt-0.5 flex-shrink-0" />
-                  <div className="min-w-0"><div className="text-xs text-gray-500">{t('Parent Phone','هاتف ولي الأمر')}</div><div className="text-sm font-medium text-gray-900 truncate"><PhoneLink phone={s.metadata?.phone||''} lang={lang} /></div></div>
+                  <div className="min-w-0"><div className="text-xs text-gray-500">{t('Parent Phone','هاتف ولي الأمر')}</div><div className="text-sm font-medium text-gray-900 break-words"><PhoneLink phone={s.metadata?.phone||''} lang={lang} share={{studentName:`${s.firstName} ${s.lastName}`,portalKey:s.portalAccessKey}} /></div></div>
                 </div>
                 {s.metadata?.studentPhone && (
                   <div className="flex items-start gap-3 rounded-lg border border-gray-100 p-3">
                     <Phone className="h-4 w-4 text-gray-400 mt-0.5 flex-shrink-0" />
-                    <div className="min-w-0"><div className="text-xs text-gray-500">{t('Student Phone','هاتف الطالب')}</div><div className="text-sm font-medium text-gray-900 truncate"><PhoneLink phone={s.metadata.studentPhone} lang={lang} /></div></div>
+                    <div className="min-w-0"><div className="text-xs text-gray-500">{t('Student Phone','هاتف الطالب')}</div><div className="text-sm font-medium text-gray-900 break-words"><PhoneLink phone={s.metadata.studentPhone} lang={lang} /></div></div>
                   </div>
                 )}
                 {details.slice(0, 6).map(item=>(
                   <div key={item.label} className="flex items-start gap-3 rounded-lg border border-gray-100 p-3">
                     <item.icon className="h-4 w-4 text-gray-400 mt-0.5 flex-shrink-0" />
-                    <div className="min-w-0"><div className="text-xs text-gray-500">{item.label}</div><div className="text-sm font-medium text-gray-900 truncate">{item.value}</div></div>
+                    <div className="min-w-0"><div className="text-xs text-gray-500">{item.label}</div><div className="text-sm font-medium text-gray-900 break-words">{item.value}</div></div>
                   </div>
                 ))}
               </div>
 
               {/* Status & Enrollment (2 columns) */}
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 min-[420px]:grid-cols-2 gap-3">
                 <div className="rounded-lg border border-gray-100 p-3"><div className="text-xs text-gray-500">{t('Status','الحالة')}</div><Badge variant={STATUS_STYLE[s.status]?.variant||'default'}>{statusLabel}</Badge></div>
                 <div className="rounded-lg border border-gray-100 p-3"><div className="text-xs text-gray-500">{t('Enrolled','تاريخ التسجيل')}</div><div className="text-sm font-medium text-gray-900">{new Date(s.enrollmentDate).toLocaleDateString('en-GB',{day:'2-digit',month:'2-digit',year:'numeric'})}</div></div>
               </div>
@@ -233,6 +235,12 @@ export function StudentDetailModal({ student:s, onClose, onEdit, onPreviewPhoto,
                     </button>
                   </div>
                 </div>
+                <a href={buildPortalWhatsAppUrl(s.metadata?.phone, buildPortalShareMessage({ studentName: `${s.firstName} ${s.lastName}`, portalKey: s.portalAccessKey }))}
+                  target="_blank" rel="noopener noreferrer"
+                  className="flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700 transition-colors">
+                  <Send className="h-4 w-4" />
+                  {s.metadata?.phone ? t('Share portal with parent on WhatsApp','شارك البوابة مع ولي الأمر على واتساب') : t('Share portal on WhatsApp','شارك البوابة على واتساب')}
+                </a>
                 <a href={`/student-portal/${s.portalAccessKey}`} target="_blank" rel="noopener noreferrer"
                   className="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700 font-medium">
                   {t('Open Student Portal','فتح بوابة الطالب')} →
@@ -280,7 +288,7 @@ export function StudentDetailModal({ student:s, onClose, onEdit, onPreviewPhoto,
             </div>
           </CollapsibleSection>
         </div>
-        <div className="flex items-center justify-end gap-3 border-t border-gray-100 px-6 py-4 flex-shrink-0">
+        <div className="flex items-center justify-end gap-3 border-t border-gray-100 px-4 sm:px-6 py-3 sm:py-4 flex-shrink-0">
           <Button variant="outline" onClick={onEdit} className="inline-flex items-center gap-2"><Pencil className="h-4 w-4" />{t('Edit','تعديل')}</Button>
           <Button variant="secondary" onClick={onClose}>{t('Close','إغلاق')}</Button>
         </div>

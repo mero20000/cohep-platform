@@ -1,12 +1,15 @@
 'use client'
 import { useState } from 'react'
 import Image from 'next/image'
-import { Loader2, AlertCircle, User, ArrowUpDown, Eye, Pencil, Trash2, RefreshCw, Star, CheckCircle2, AlertTriangle } from 'lucide-react'
+import { Loader2, AlertCircle, User, ArrowUpDown, ArrowUp, ArrowDown, Eye, Pencil, Trash2, RefreshCw, Star, CheckCircle2, AlertTriangle, MoreVertical, Phone, Send } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Pagination } from '@/components/ui/pagination'
 import { STATUS_STYLE, photoSrc, calcAge, getStudentCompleteness, type Student } from './student-types'
 import { PhoneLink } from './phone-link'
+import { StudentActionSheet } from './student-action-sheet'
+import { toTelHref } from '@/lib/phone'
+import { buildPortalShareMessage, buildPortalWhatsAppUrl } from '@/lib/portal-share'
 import { usePermission } from '@/lib/use-permission'
 import { http } from '@/lib/http-client'
 import { useToast } from '@/components/ui/toast'
@@ -35,11 +38,27 @@ const COLS = [
 export function StudentTable({ students, loading, fetchError, selectedIds, allSelected, toggleId, toggleAll, sortKey, sortDir, toggleSort, onView, onEdit, onDelete, onRetry, hasActiveFilters, onClearFilters, onOpenCreate, pagination, onPageChange, pageSize, onPageSizeChange, onPreviewPhoto, lang, favorites = [], onToggleFavorite, onStudentUpdated }: Props) {
   const [updatingId, setUpdatingId] = useState<string | null>(null)
 
+  const [sheetStudent, setSheetStudent] = useState<Student | null>(null)
+  const { toast } = useToast()
+
   const handleStudentUpdated = (student: Student) => {
     setUpdatingId(null)
     onStudentUpdated?.(student)
   }
   const t = (en: string, ar: string) => lang === 'ar' ? ar : en
+  // Explicit (menu-driven) status change used by the mobile sheet; the desktop pill keeps its inline toggle.
+  const toggleStatus = async (student: Student) => {
+    const nextStatus = student.status === 'active' ? 'inactive' : 'active'
+    setUpdatingId(student.id)
+    try {
+      await http.put(`/students/${student.id}`, { status: nextStatus })
+      handleStudentUpdated({ ...student, status: nextStatus })
+      toast('success', lang === 'ar' ? `تم تغيير الحالة إلى ${nextStatus === 'active' ? 'نشط' : 'غير نشط'}` : `Status changed to ${nextStatus}`)
+    } catch (e: any) {
+      handleStudentUpdated(student)
+      toast('error', e?.message || t('Failed to update status', 'فشل تحديث الحالة'))
+    }
+  }
   if (loading) return (
     <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
       <div className="animate-pulse">
@@ -92,48 +111,94 @@ export function StudentTable({ students, loading, fetchError, selectedIds, allSe
   return (
     <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
       {/* Mobile */}
-      <div className="md:hidden divide-y divide-gray-100">
-        {students.map(s => (
-          <div key={s.id} onClick={() => onView(s)} className={`px-4 py-3 border-s-4 ${STATUS_STYLE[s.status]?.bar || 'border-s-transparent'} cursor-pointer hover:bg-gray-50`}>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3 min-w-0 flex-1">
-                <RowCheckbox checked={selectedIds.has(s.id)} onChange={e => toggleId(s.id,(e.nativeEvent as MouseEvent).shiftKey)} ariaLabel={t(`Select ${s.firstName} ${s.lastName}`,`تحديد ${s.firstName} ${s.lastName}`)} />
-                    <AvatarCell s={s} size={36} onPreview={onPreviewPhoto} lang={lang} />
-                <div className="min-w-0">
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-sm font-medium text-gray-900 truncate">{s.firstName} {s.lastName}</span>
-                    <CompletenessIndicator student={s} lang={lang} />
-                  </div>
-                  <div className="flex items-center gap-1.5 mt-0.5">
-                    <span className="text-xs text-gray-500">#{s.studentCode}</span>
-                    <StatusBadge status={s.status} lang={lang} student={s} onUpdated={handleStudentUpdated} onUpdating={setUpdatingId} isUpdating={updatingId === s.id} />
-                  </div>
-                  {(s.metadata?.tags?.length ?? 0) > 0 && (
-                    <div className="flex items-center gap-1 mt-1 flex-wrap">
-                      {s.metadata!.tags!.slice(0,3).map(tag => <TagBadge key={tag} tag={tag} size="xs" />)}
-                    </div>
-                  )}
-                </div>
-              </div>
-              <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
-                {onToggleFavorite && (
-                  <button onClick={() => onToggleFavorite(s.id)} aria-label={favorites.includes(s.id) ? (lang === 'ar' ? 'إزالة من المفضلة' : 'Remove from favorites') : (lang === 'ar' ? 'إضافة للمفضلة' : 'Add to favorites')} className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors">
-                    <Star className={`h-4 w-4 ${favorites.includes(s.id) ? 'fill-amber-500 text-amber-500' : 'text-gray-400'}`} />
-                  </button>
-                )}
-                <Actions s={s} onView={onView} onEdit={onEdit} onDelete={onDelete} lang={lang} />
-              </div>
-            </div>
-            <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-500 ms-10">
-              {s.level?.name && <span>{s.level.name}{s.group?.name ? ` · ${s.group.name}` : ''}</span>}
-              {s.gender && <span>{s.gender === 'female' ? t('Female','أنثى') : t('Male','ذكر')}</span>}
-              {s.grade?.name && <span>{s.grade.name}</span>}
-              {s.churchName && <span className="truncate max-w-[120px]">{s.churchName}</span>}
-              {calcAge(s.dateOfBirth) > 0 && <span>{calcAge(s.dateOfBirth)} {t('yrs','سنة')}</span>}
-            </div>
+      <div className="md:hidden">
+        <div className="flex items-center gap-2 border-b border-gray-100 bg-gray-50/60 px-2 py-1.5">
+          <label className="flex h-11 items-center gap-2 ps-2 pe-1 text-xs font-medium text-gray-600">
+            <input type="checkbox" checked={allSelected} onChange={toggleAll} aria-label={t('Select all on this page','تحديد الكل في هذه الصفحة')} className="h-4 w-4 rounded border-gray-300 accent-gold-600" />
+            {t('All','الكل')}
+          </label>
+          <div className="ms-auto flex items-center gap-1">
+            <select aria-label={t('Sort by','ترتيب حسب')} value={sortKey}
+              onChange={e => { if (e.target.value && e.target.value !== sortKey) toggleSort(e.target.value) }}
+              className="h-11 rounded-lg border border-gray-200 bg-white px-2 text-xs text-gray-700 focus:outline-none focus:ring-2 focus:ring-gold-500">
+              <option value="">{t('Sort: newest','الترتيب: الأحدث')}</option>
+              {COLS.filter(([k]) => k !== 'phone').map(([k, en, ar]) => <option key={k} value={k}>{lang === 'ar' ? ar : en}</option>)}
+            </select>
+            <button type="button" disabled={!sortKey} onClick={() => toggleSort(sortKey)}
+              aria-label={sortDir === 'asc' ? t('Ascending','تصاعدي') : t('Descending','تنازلي')}
+              className="flex h-11 w-11 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-600 disabled:opacity-40">
+              {sortDir === 'asc' ? <ArrowUp className="h-4 w-4" /> : <ArrowDown className="h-4 w-4" />}
+            </button>
           </div>
-        ))}
+        </div>
+        <div className="divide-y divide-gray-100">
+        {students.map(s => {
+          const parentPhone = s.metadata?.phone?.trim()
+          const age = calcAge(s.dateOfBirth)
+          const facts = [
+            s.level?.name ? `${s.level.name}${s.group?.name ? ` · ${s.group.name}` : ''}` : '',
+            s.grade?.name || '',
+            s.gender ? (s.gender === 'female' ? t('Female','أنثى') : t('Male','ذكر')) : '',
+            age > 0 ? `${age} ${t('yrs','سنة')}` : '',
+          ].filter(Boolean)
+          return (
+          <div key={s.id} className={`flex items-start gap-1 ps-1 pe-1 py-2 border-s-4 ${STATUS_STYLE[s.status]?.bar || 'border-s-transparent'} ${selectedIds.has(s.id) ? 'bg-gold-50/40' : ''}`}>
+            <RowCheckbox checked={selectedIds.has(s.id)} onChange={e => toggleId(s.id,(e.nativeEvent as MouseEvent).shiftKey)} ariaLabel={t(`Select ${s.firstName} ${s.lastName}`,`تحديد ${s.firstName} ${s.lastName}`)} />
+            <div role="button" tabIndex={0} onClick={() => onView(s)}
+              onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onView(s) } }}
+              className="flex min-w-0 flex-1 cursor-pointer items-start gap-3 rounded-lg py-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">
+              <span onClick={e => e.stopPropagation()}><AvatarCell s={s} size={44} onPreview={onPreviewPhoto} lang={lang} /></span>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-start gap-1.5">
+                  <span className="line-clamp-2 break-words text-[15px] font-semibold leading-snug text-gray-900">{s.firstName} {s.lastName}</span>
+                  <CompletenessIndicator student={s} lang={lang} />
+                </div>
+                <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1">
+                  <span className="text-xs text-gray-500">#{s.studentCode}</span>
+                  <Badge variant={STATUS_STYLE[s.status]?.variant || 'default'}>{s.status === 'active' ? t('Active','نشط') : s.status === 'inactive' ? t('Inactive','غير نشط') : s.status === 'graduated' ? t('Graduated','متخرج') : s.status === 'pending' ? t('Pending Review','في الانتظار') : s.status}</Badge>
+                  {favorites.includes(s.id) && <Star className="h-3.5 w-3.5 fill-amber-500 text-amber-500" aria-label={t('Favorite','مفضل')} />}
+                </div>
+                {facts.length > 0 && <p className="mt-1 text-xs leading-relaxed text-gray-500">{facts.join(' • ')}</p>}
+                {s.churchName && <p className="text-xs text-gray-400 break-words">{s.churchName}</p>}
+                {(parentPhone || s.portalAccessKey) && (
+                  <div className="mt-2 flex flex-wrap gap-2" onClick={e => e.stopPropagation()}>
+                    {parentPhone && (
+                      <a href={toTelHref(parentPhone)} aria-label={t(`Call parent ${parentPhone}`,`اتصال بولي الأمر ${parentPhone}`)}
+                        className="inline-flex min-h-[40px] items-center gap-1.5 rounded-full border border-green-200 bg-green-50 px-3 text-xs font-medium text-green-700 active:bg-green-100">
+                        <Phone className="h-3.5 w-3.5" /><span dir="ltr">{parentPhone}</span>
+                      </a>
+                    )}
+                    {s.portalAccessKey && (
+                      <a href={buildPortalWhatsAppUrl(parentPhone, buildPortalShareMessage({ studentName: `${s.firstName} ${s.lastName}`, portalKey: s.portalAccessKey }))}
+                        target="_blank" rel="noopener noreferrer"
+                        className="inline-flex min-h-[40px] items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3 text-xs font-semibold text-emerald-800 active:bg-emerald-100">
+                        <Send className="h-3.5 w-3.5" />{t('Share portal','مشاركة البوابة')}
+                      </a>
+                    )}
+                  </div>
+                )}
+                {(s.metadata?.tags?.length ?? 0) > 0 && (
+                  <div className="mt-1 flex flex-wrap items-center gap-1">
+                    {s.metadata!.tags!.slice(0,3).map(tag => <TagBadge key={tag} tag={tag} size="xs" />)}
+                    {s.metadata!.tags!.length > 3 && <span className="text-[11px] text-gray-400">+{s.metadata!.tags!.length - 3}</span>}
+                  </div>
+                )}
+              </div>
+            </div>
+            <button type="button" onClick={() => setSheetStudent(s)} aria-label={t(`Actions for ${s.firstName} ${s.lastName}`,`إجراءات ${s.firstName} ${s.lastName}`)}
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-gray-500 hover:bg-gray-100 active:bg-gray-200">
+              <MoreVertical className="h-5 w-5" />
+            </button>
+          </div>
+          )
+        })}
+        </div>
       </div>
+      {sheetStudent && (
+        <StudentActionSheet student={sheetStudent} lang={lang} isFavorite={favorites.includes(sheetStudent.id)}
+          onClose={() => setSheetStudent(null)} onView={onView} onEdit={onEdit} onDelete={onDelete}
+          onToggleFavorite={onToggleFavorite} onToggleStatus={toggleStatus} />
+      )}
       {/* Desktop */}
       <div className="hidden md:block overflow-x-auto">
         <table className="w-full">
@@ -181,7 +246,7 @@ export function StudentTable({ students, loading, fetchError, selectedIds, allSe
                 </td>
                 <td className="hidden md:table-cell px-4 py-3 text-sm text-gray-600 font-mono">{s.studentCode}</td>
                 <td className="hidden md:table-cell px-4 py-3"><span className={`inline-flex items-center text-xs font-medium px-2 py-0.5 rounded-full ${s.gender==='female'?'bg-semantic-gender-female-bg text-semantic-gender-female':'bg-semantic-gender-male-bg text-semantic-gender-male'}`}>{s.gender==='female'?t('Female','أنثى'):t('Male','ذكر')}</span></td>
-                <td className="hidden md:table-cell px-4 py-3"><PhoneLink phone={s.metadata?.phone||''} lang={lang} /></td>
+                <td className="hidden md:table-cell px-4 py-3"><PhoneLink phone={s.metadata?.phone||''} lang={lang} share={{studentName:`${s.firstName} ${s.lastName}`,portalKey:s.portalAccessKey}} /></td>
                 <td className="hidden md:table-cell px-4 py-3 text-sm text-gray-900">{s.level?.name||'—'}</td>
                 <td className="hidden md:table-cell px-4 py-3 text-sm text-gray-900">{s.group?.name||'—'}</td>
                 <td className="hidden md:table-cell px-4 py-3 text-sm text-gray-600">{calcAge(s.dateOfBirth)}</td>
@@ -223,7 +288,7 @@ function RowCheckbox({ checked, onChange, ariaLabel }: { checked: boolean; onCha
   )
 }
 function StatusBadge({ status, lang, student, onUpdated, onUpdating, isUpdating }: { status: string; lang: 'en'|'ar'; student?: Student; onUpdated?: (s: Student) => void; onUpdating?: (id: string) => void; isUpdating?: boolean }) {
-  const label = status==='active'?(lang==='ar'?'نشط':'Active'):status==='inactive'?(lang==='ar'?'غير نشط':'Inactive'):status==='graduated'?(lang==='ar'?'متخرج':'Graduated'):status
+  const label = status==='active'?(lang==='ar'?'نشط':'Active'):status==='inactive'?(lang==='ar'?'غير نشط':'Inactive'):status==='graduated'?(lang==='ar'?'متخرج':'Graduated'):status==='pending'?(lang==='ar'?'في الانتظار':'Pending Review'):status
   const { toast } = useToast()
   const { can } = usePermission()
 
@@ -243,7 +308,7 @@ function StatusBadge({ status, lang, student, onUpdated, onUpdating, isUpdating 
     }
   }
 
-  if (student && can('student:edit') && status !== 'graduated') {
+  if (student && can('student:edit') && (status === 'active' || status === 'inactive')) {
     return (
       <button
         onClick={handleStatusToggle}

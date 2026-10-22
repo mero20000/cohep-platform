@@ -28,7 +28,8 @@ export class StudentsService {
 
   async findAll(queryDto: QueryStudentDto, schoolIdentifier: string, user?: any) {
     const schoolId = await this.schoolResolver.resolve(schoolIdentifier);
-    const { levelId, groupId, status, churchName, gradeId, gender, search, page = 1, limit: rawLimit = 20, sortBy, sortDir, assignedServantId, engagementStatus } = queryDto;
+    const { levelId, groupId, status, churchName, gradeId, gender, search, page = 1, limit: rawLimit = 20, sortBy, sortDir, assignedServantId, engagementStatus, ids: rawIds } = queryDto;
+    const ids = rawIds ? rawIds.split(',').map(i => i.trim()).filter(Boolean).slice(0, 200) : undefined;
     const limit = Math.min(rawLimit, 100);
 
     const where: any = {
@@ -72,6 +73,7 @@ export class StudentsService {
     if (churchName) where.churchName = churchName;
     if (gradeId) where.gradeId = gradeId;
     if (gender) where.gender = gender;
+    if (ids?.length) where.id = { in: ids };
 
     // Filter by assigned servant ID using JSON array containment
     if (assignedServantId) {
@@ -90,7 +92,8 @@ export class StudentsService {
         { studentCode: { contains: search, mode: 'insensitive' } },
         { parentEmail: { contains: search, mode: 'insensitive' } },
         { churchName: { contains: search, mode: 'insensitive' } },
-        { metadata: { path: ['parentPhone'], string_contains: search } },
+        { metadata: { path: ['phone'], string_contains: search } },
+        { metadata: { path: ['studentPhone'], string_contains: search } },
         { studentParents: { some: { parent: { phone: { contains: search, mode: 'insensitive' } } } } },
         { studentParents: { some: { parent: { email: { contains: search, mode: 'insensitive' } } } } },
       ];
@@ -181,8 +184,6 @@ export class StudentsService {
 
   async create(createStudentDto: CreateStudentDto, schoolIdentifier: string, creatorRoles: string[] = [], creatorUserId?: string) {
     const schoolId = await this.schoolResolver.resolve(schoolIdentifier);
-    const studentCode = await this.generateStudentCode(schoolId);
-
     let currentYear = await this.prisma.academicYear.findFirst({
       where: { schoolId, isCurrent: true },
     });
@@ -223,7 +224,9 @@ export class StudentsService {
       throw new BadRequestException('Grade or group is required');
     }
 
-    const student = await this.prisma.student.create({
+    const createOnce = async () => {
+      const studentCode = await this.generateStudentCode(schoolId);
+      return this.prisma.student.create({
       data: {
         firstName: createStudentDto.firstName,
         lastName: createStudentDto.lastName,
@@ -253,7 +256,21 @@ export class StudentsService {
         grade: { select: { id: true, name: true } },
         creator: creatorUserId ? { select: { id: true, firstName: true, lastName: true } } : false,
       },
-    });
+      });
+    };
+
+    // Two concurrent creates can be handed the same next code; the unique
+    // (schoolId, studentCode) index rejects the loser, which simply asks again.
+    let student: Awaited<ReturnType<typeof createOnce>>;
+    for (let attempt = 0; ; attempt++) {
+      try {
+        student = await createOnce();
+        break;
+      } catch (e: any) {
+        const isCodeConflict = e?.code === 'P2002' && /code/i.test(JSON.stringify(e?.meta?.target ?? ''));
+        if (!isCodeConflict || attempt >= 4) throw e;
+      }
+    }
 
     await this.audit.log({
       schoolId,

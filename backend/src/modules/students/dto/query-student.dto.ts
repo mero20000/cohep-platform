@@ -75,4 +75,9 @@ export class QueryStudentDto {
   @IsString()
   @IsOptional()
   engagementStatus?: string;
+
+  @ApiPropertyOptional({ description: 'Comma-separated student IDs to restrict the list to (max 200)' })
+  @IsString()
+  @IsOptional()
+  ids?: string;
 }
