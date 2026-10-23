@@ -1017,6 +1017,24 @@ systemConfig: {
         churchLogoUrl: null,
       });
     });
+
+    it('surfaces cancelled sessions as "cancelled" and excludes them from the attendance summary/rate', async () => {
+      prisma.attendanceRecord.findMany.mockImplementation(({ where }: any) =>
+        Promise.resolve(
+          where?.attendedLiturgy
+            ? []
+            : [
+                { status: 'present', homeworkStatus: 'not_assigned', attendanceSession: { scheduledDate: mockDate, scheduledTime: '12:00' } },
+                { status: 'cancelled', homeworkStatus: 'not_assigned', attendanceSession: { scheduledDate: mockDate, scheduledTime: '12:00' } },
+              ],
+        ),
+      );
+
+      const result = await service.getPortalData('abc-secret-key');
+
+      expect(result.attendance).toEqual({ present: 1, late: 0, absent: 0, excused: 0, total: 1 });
+      expect(result.recentAttendance.map((r: any) => r.status)).toEqual(['present', 'cancelled']);
+    });
   });
 
   // ===== getStudentSubjectItems (portal) =====

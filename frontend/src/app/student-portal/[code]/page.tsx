@@ -56,10 +56,16 @@ interface PortalData {
   }>
 }
 
-const STATUS_ICONS: Record<string, any> = { present: CheckCircle2, late: Clock, absent: XCircle, excused: AlertCircle }
+const STATUS_ICONS: Record<string, any> = { present: CheckCircle2, late: Clock, absent: XCircle, excused: AlertCircle, cancelled: Calendar }
 const STATUS_COLORS: Record<string, string> = {
   present: 'text-green-600 bg-green-50', late: 'text-amber-600 bg-amber-50',
   absent: 'text-red-600 bg-red-50', excused: 'text-gray-700 bg-gray-100',
+  cancelled: 'text-gray-500 bg-gray-100',
+}
+const STATUS_LABELS: Record<string, { en: string; ar: string }> = {
+  present: { en: 'Present', ar: 'حاضر' }, late: { en: 'Late', ar: 'متأخر' },
+  absent: { en: 'Absent', ar: 'غائب' }, excused: { en: 'Excused', ar: 'معذور' },
+  cancelled: { en: 'Cancelled', ar: 'ملغاة' },
 }
 const HW_COLORS: Record<string, string> = {
   completed: 'text-green-700 bg-green-100', partial: 'text-amber-700 bg-amber-100',
@@ -788,7 +794,7 @@ export default function StudentDashboard() {
                         <Icon className="h-4 w-4" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <div className="text-sm text-gray-900 capitalize">{r.status}</div>
+                        <div className="text-sm text-gray-900">{lang === 'ar' ? (STATUS_LABELS[r.status]?.ar ?? r.status) : (STATUS_LABELS[r.status]?.en ?? r.status)}</div>
                         <div className="text-xs text-gray-500">
                           {new Date(r.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
                           {r.time ? ` at ${r.time}` : ''}
@@ -1541,7 +1547,7 @@ export default function StudentDashboard() {
                         <li key={i} className="flex items-center gap-3 py-2.5">
                           <div className={`flex h-9 w-9 items-center justify-center rounded-lg ${color}`}><Icon className="h-4 w-4" /></div>
                           <div className="flex-1">
-                            <p className="text-sm capitalize text-gray-900">{r.status}</p>
+                            <p className="text-sm text-gray-900">{lang === 'ar' ? (STATUS_LABELS[r.status]?.ar ?? r.status) : (STATUS_LABELS[r.status]?.en ?? r.status)}</p>
                             <p className="text-xs text-gray-400">{new Date(r.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
                           </div>
                           {r.homeworkStatus && r.homeworkStatus !== 'not_assigned' && (

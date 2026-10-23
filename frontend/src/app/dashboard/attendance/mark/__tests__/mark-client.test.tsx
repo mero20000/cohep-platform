@@ -112,6 +112,16 @@ describe('MarkClient', () => {
     expect(screen.queryByRole('button', { name: /Present - Mina G/i })).not.toBeInTheDocument()
   })
 
+  it('cancelled session needs no recording: no save/finalize/re-open, and no interactive status controls', async () => {
+    state.status = 'cancelled'
+    render(<MarkClient />)
+    await waitFor(() => expect(screen.getByText(/no attendance recording is needed/i)).toBeInTheDocument())
+    expect(screen.queryByRole('button', { name: /^Save$/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Save & Finalize/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Re-open/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Present - Mina G/i })).not.toBeInTheDocument()
+  })
+
   it('Re-open issues PUT in_progress and reloads the session', async () => {
     state.status = 'completed'
     render(<MarkClient />)

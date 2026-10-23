@@ -41,8 +41,29 @@ export class AttendanceController {
 
   @Get('stats')
   @ApiOperation({ summary: 'Get attendance session stats' })
-  async getStats(@Query('schoolId') schoolId: string = '') {
-    return this.attendanceService.getSessionStats(schoolId);
+  async getStats(
+    @Query('schoolId') schoolId: string = '',
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+  ) {
+    return this.attendanceService.getSessionStats(schoolId, { from, to });
+  }
+
+  @Get('enrolled-count')
+  @ApiOperation({ summary: 'Get the active enrolled student headcount — the denominator for insights' })
+  async getEnrolledCount(@Query('schoolId') schoolId: string = '') {
+    return { enrolledStudents: await this.attendanceService.getEnrolledStudentCount(schoolId) };
+  }
+
+  @Get('top-absentees')
+  @ApiOperation({ summary: 'Students with the most absences in a date range (insights drill-down)' })
+  async getTopAbsentees(
+    @Query('schoolId') schoolId: string = '',
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.attendanceService.getTopAbsentees(schoolId, { from, to, limit: limit ? parseInt(limit, 10) : undefined });
   }
 
   @Get('student-search')
@@ -56,14 +77,22 @@ export class AttendanceController {
 
   @Get('level-stats')
   @ApiOperation({ summary: 'Get attendance stats by level' })
-  async getLevelStats(@Query('schoolId') schoolId: string = '') {
-    return this.attendanceService.getLevelStats(schoolId);
+  async getLevelStats(
+    @Query('schoolId') schoolId: string = '',
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+  ) {
+    return this.attendanceService.getLevelStats(schoolId, { from, to });
   }
 
   @Get('group-stats')
   @ApiOperation({ summary: 'Get attendance stats by group' })
-  async getGroupStats(@Query('schoolId') schoolId: string = '') {
-    return this.attendanceService.getGroupStats(schoolId);
+  async getGroupStats(
+    @Query('schoolId') schoolId: string = '',
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+  ) {
+    return this.attendanceService.getGroupStats(schoolId, { from, to });
   }
 
   @Get('sessions/:id')
