@@ -525,6 +525,8 @@ export class AttendanceService {
   private async syncSessionStudents(sessionId: string, recordedBy: string) {
     const session = await this.prisma.attendanceSession.findUnique({ where: { id: sessionId } });
     if (!session) return;
+    // A cancelled session needs no roster — don't seed 'unmarked' records for it.
+    if (session.status === 'cancelled') return;
 
     // Classes (and sessions without audience rows) use the session's own columns,
     // exactly as before; liturgy/event sessions use the union of their audience rows.
@@ -921,6 +923,10 @@ export class AttendanceService {
     // Legacy liturgy sessions were stored as 'recorded'; that means finished.
     if (session.status === 'completed' || session.status === 'recorded') {
       throw new ConflictException('This session is completed and read-only. Re-open it to make changes.');
+    }
+    // A cancelled session needs no recording at all — not even a reopen path.
+    if (session.status === 'cancelled') {
+      throw new ConflictException('This session was cancelled. No attendance recording is needed.');
     }
   }
 
@@ -1333,12 +1339,18 @@ export class AttendanceService {
       };
     }
 
-    // Find existing session for today matching the same filters
+    // Find an existing session for today matching the same filters — across
+    // ALL servants, not just this one. Two servants (e.g. co-teachers of the
+    // same group) starting class at the same time must land on the same
+    // session instead of each creating their own duplicate, which would
+    // double-count attendance in stats/insights. A cancelled slot is treated
+    // as free (it needs no recording), so a fresh session can still be made.
     const existingWhere: any = {
-      servantId,
+      type: 'class',
       groupId,
       scheduledDate: { gte: today, lt: tomorrow },
       deletedAt: null,
+      status: { not: 'cancelled' },
     };
     if (levelId) existingWhere.levelId = levelId;
     else existingWhere.levelId = null;
@@ -1430,13 +1442,25 @@ export class AttendanceService {
     if (!session) throw new NotFoundException('Attendance session not found');
     if ((session.type ?? 'class') === 'class') {
       const isAdmin = (roles || []).some(r => ['super_admin', 'admin'].includes(r));
-      if (!isAdmin && session.servantId !== servantId) throw new ForbiddenException('Not your session');
+      // Not the creator? Still fine if this servant is assigned to the same
+      // group — co-teachers starting class moments apart land on one shared
+      // session (see startClass), and need to be able to start it too.
+      if (!isAdmin && session.servantId !== servantId) {
+        const actingUser = await this.prisma.user.findUnique({ where: { id: servantId }, select: { metadata: true, schoolId: true } });
+        const ownGroupIds = actingUser
+          ? await this.resolveServantSessionGroupIds((actingUser.metadata as any) || {}, actingUser.schoolId)
+          : [];
+        if (!session.groupId || !ownGroupIds.includes(session.groupId)) {
+          throw new ForbiddenException('Not your session');
+        }
+      }
     } else {
       await this.assertCanMarkSession(session, { id: servantId });
       this.assertDateReached(session);
     }
     if (session.status === 'in_progress') return { session, started: false };
     if (session.status === 'completed' || session.status === 'recorded') throw new BadRequestException('Cannot start a completed session');
+    if (session.status === 'cancelled') throw new BadRequestException('Cannot start a cancelled session');
 
     const updated = await this.prisma.attendanceSession.update({
       where: { id: sessionId },
@@ -1524,6 +1548,34 @@ export class AttendanceService {
     return { schoolId, deletedAt: null, ...extra, AND: [CLASS_SESSION_FILTER, ...and] };
   }
 
+  /** `scheduledDate` range as an `AND` fragment for classSessionWhere — the
+   * shared date-range filter behind Insights' week selector. Empty when
+   * neither bound is given (callers then see all-time totals, as before). */
+  private dateRangeAnd(from?: string, to?: string): Record<string, any>[] {
+    if (!from && !to) return [];
+    const range: { gte?: Date; lte?: Date } = {};
+    if (from) range.gte = new Date(from);
+    if (to) {
+      const end = new Date(to);
+      end.setHours(23, 59, 59, 999);
+      range.lte = end;
+    }
+    return [{ scheduledDate: range }];
+  }
+
+  /** Distinct students with a marked record in scope — the headcount-sane
+   * figure behind "Present 355 of ~270 students": that confusion comes from
+   * summing attendance *records* across many sessions, which naturally
+   * exceeds enrollment once more than one session is in range. */
+  private async countDistinctStudents(schoolId: string, and: any[] = []): Promise<number> {
+    const where = this.classSessionWhere(schoolId, { status: 'completed' }, and);
+    const rows = await (this.prisma.attendanceRecord as any).groupBy({
+      by: ['studentId'],
+      where: { attendanceSession: where, student: { deletedAt: null }, status: { in: ['present', 'late', 'absent', 'excused'] } },
+    });
+    return rows.length;
+  }
+
   /**
    * Per-session status tallies for completed class sessions, computed with a
    * database GROUP BY instead of loading every attendance record into memory.
@@ -1547,7 +1599,7 @@ export class AttendanceService {
     return { sessions, bySession };
   }
 
-  async getSessionStats(schoolIdentifier: string) {
+  async getSessionStats(schoolIdentifier: string, opts: { from?: string; to?: string } = {}) {
     const schoolId = await this.schoolResolver.resolve(schoolIdentifier);
     const activeLevels = await this.prisma.level.findMany({
       where: { schoolId, status: { not: 'inactive' } },
@@ -1556,14 +1608,19 @@ export class AttendanceService {
     // Sessions without a level (now allowed) still count; only sessions of
     // deactivated levels are left out.
     const levelScope = { OR: [{ levelId: null }, { levelId: { in: activeLevels.map(l => l.id) } }] };
+    const rangeAnd = this.dateRangeAnd(opts.from, opts.to);
 
-    const [byStatus, { sessions, bySession }] = await Promise.all([
+    const [byStatus, { sessions, bySession }, cancelledSessions, distinctStudents] = await Promise.all([
       (this.prisma.attendanceSession as any).groupBy({
         by: ['status'],
-        where: this.classSessionWhere(schoolId, {}, [levelScope]),
+        where: this.classSessionWhere(schoolId, {}, [levelScope, ...rangeAnd]),
         _count: { _all: true },
       }) as Promise<Array<{ status: string; _count: { _all: number } }>>,
-      this.completedSessionTallies(schoolId, [levelScope]),
+      this.completedSessionTallies(schoolId, [levelScope, ...rangeAnd]),
+      this.prisma.attendanceSession.count({
+        where: this.classSessionWhere(schoolId, { status: 'cancelled' }, [levelScope, ...rangeAnd]) as any,
+      }),
+      this.countDistinctStudents(schoolId, [levelScope, ...rangeAnd]),
     ]);
     const sessionCount = (status: string) => byStatus.find(g => g.status === status)?._count._all ?? 0;
 
@@ -1575,6 +1632,7 @@ export class AttendanceService {
       completedSessions: sessionCount('completed'),
       scheduledSessions: sessionCount('scheduled'),
       inProgressSessions: sessionCount('in_progress'),
+      cancelledSessions,
       // Marked records only: unmarked rows are pending work, not attendance data.
       totalRecords: total.present + total.late + total.absent + total.excused,
       presentCount: total.present,
@@ -1583,13 +1641,19 @@ export class AttendanceService {
       excusedCount: total.excused,
       unmarkedCount: total.unmarked,
       averageAttendanceRate: preciseRateFromCounts(total),
+      // Headcount-sane figure: how many different students these records
+      // belong to — the raw counts above are attendance-record counts and
+      // will exceed the school's enrollment once more than one session is
+      // included in the range.
+      distinctStudents,
     };
   }
 
-  async getLevelStats(schoolIdentifier: string) {
+  async getLevelStats(schoolIdentifier: string, opts: { from?: string; to?: string } = {}) {
     const schoolId = await this.schoolResolver.resolve(schoolIdentifier);
     const levels = await this.prisma.level.findMany({ where: { schoolId, status: { not: 'inactive' } }, orderBy: { number: 'asc' } });
-    const { sessions, bySession } = await this.completedSessionTallies(schoolId);
+    const rangeAnd = this.dateRangeAnd(opts.from, opts.to);
+    const { sessions, bySession } = await this.completedSessionTallies(schoolId, rangeAnd);
 
     const summarize = (subset: typeof sessions) => {
       const tally = emptyTally();
@@ -1612,15 +1676,16 @@ export class AttendanceService {
     return stats;
   }
 
-  async getGroupStats(schoolIdentifier: string) {
+  async getGroupStats(schoolIdentifier: string, opts: { from?: string; to?: string } = {}) {
     const schoolId = await this.schoolResolver.resolve(schoolIdentifier);
+    const rangeAnd = this.dateRangeAnd(opts.from, opts.to);
     const [groups, levels, { sessions, bySession }] = await Promise.all([
       this.prisma.group.findMany({
         where: { schoolId, status: { not: 'inactive' }, deletedAt: null },
         orderBy: { name: 'asc' },
       }),
       this.prisma.level.findMany({ where: { schoolId }, select: { id: true, number: true, name: true } }),
-      this.completedSessionTallies(schoolId),
+      this.completedSessionTallies(schoolId, rangeAnd),
     ]);
     const levelById = new Map(levels.map(l => [l.id, l]));
 
@@ -1642,6 +1707,63 @@ export class AttendanceService {
         attendanceRate: preciseRateFromCounts(tally),
       };
     });
+  }
+
+  /** Enrolled headcount — the denominator a Priest actually recognizes, as
+   * opposed to a cumulative attendance-record count across many completed
+   * sessions (see distinctStudents on getSessionStats). */
+  async getEnrolledStudentCount(schoolIdentifier: string): Promise<number> {
+    const schoolId = await this.schoolResolver.resolve(schoolIdentifier);
+    return this.prisma.student.count({ where: { schoolId, deletedAt: null, status: 'active' } });
+  }
+
+  /**
+   * Students with the most absences in a date range — the drill-down behind
+   * the "Absent" number so a Priest-shareable weekly report can show *who*,
+   * not just *how many*.
+   */
+  async getTopAbsentees(schoolIdentifier: string, opts: { from?: string; to?: string; limit?: number } = {}) {
+    const schoolId = await this.schoolResolver.resolve(schoolIdentifier);
+    const limit = Math.min(Math.max(opts.limit ?? 20, 1), 100);
+    const rangeAnd = this.dateRangeAnd(opts.from, opts.to);
+    const sessionWhere = this.classSessionWhere(schoolId, { status: 'completed' }, rangeAnd);
+
+    const records = await this.prisma.attendanceRecord.findMany({
+      where: { status: 'absent', student: { deletedAt: null }, attendanceSession: sessionWhere as any },
+      include: {
+        student: { select: { id: true, firstName: true, lastName: true, firstNameAr: true, lastNameAr: true, studentCode: true } },
+        attendanceSession: { select: { scheduledDate: true, group: { select: { name: true } } } },
+      },
+      orderBy: { attendanceSession: { scheduledDate: 'desc' } },
+    });
+
+    const byStudent = new Map<string, { student: any; absences: number; lastAbsence: Date; groupName?: string }>();
+    for (const r of records) {
+      const existing = byStudent.get(r.studentId);
+      if (existing) {
+        existing.absences++;
+      } else {
+        byStudent.set(r.studentId, {
+          student: r.student,
+          absences: 1,
+          lastAbsence: r.attendanceSession.scheduledDate,
+          groupName: r.attendanceSession.group?.name,
+        });
+      }
+    }
+
+    return [...byStudent.values()]
+      .sort((a, b) => b.absences - a.absences)
+      .slice(0, limit)
+      .map(e => ({
+        studentId: e.student.id,
+        studentCode: e.student.studentCode,
+        name: `${e.student.firstName} ${e.student.lastName}`.trim(),
+        nameAr: e.student.firstNameAr && e.student.lastNameAr ? `${e.student.firstNameAr} ${e.student.lastNameAr}` : null,
+        absences: e.absences,
+        lastAbsence: e.lastAbsence,
+        groupName: e.groupName ?? null,
+      }));
   }
 
   async searchStudentAttendance(q: string, schoolIdentifier: string) {
@@ -1892,8 +2014,23 @@ export class AttendanceService {
       await this.replaceClassTarget(id, classTargetFor(updated, gender));
     }
 
-    // Sync students when status, group, level, grade, or gender changes
-    if (statusChanged || groupChanged || dto.levelId !== undefined || dto.gradeId !== undefined || genderChanged || typedAudience) {
+    if (statusChanged && dto.status === 'cancelled') {
+      // Cancelled: no recording is required, so every record on this session
+      // (regardless of its current mark) reflects the cancellation instead
+      // of being re-synced against the current roster.
+      await this.prisma.attendanceRecord.updateMany({
+        where: { attendanceSessionId: id },
+        data: { status: 'cancelled' },
+      });
+    } else if (statusChanged && session.status === 'cancelled' && dto.status !== 'cancelled') {
+      // Un-cancelling: give the servant a fresh, unmarked roster to record against.
+      await this.prisma.attendanceRecord.updateMany({
+        where: { attendanceSessionId: id, status: 'cancelled' },
+        data: { status: 'unmarked' },
+      });
+      await this.syncSessionStudents(id, dto.servantId || session.servantId);
+    } else if (statusChanged || groupChanged || dto.levelId !== undefined || dto.gradeId !== undefined || genderChanged || typedAudience) {
+      // Sync students when status, group, level, grade, or gender changes
       await this.syncSessionStudents(id, dto.servantId || session.servantId);
     }
 

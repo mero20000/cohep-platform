@@ -1010,12 +1010,16 @@ async getPortalData(portalAccessKey: string) {
       : [];
     const awarderNames = new Map(awarders.map(u => [u.id, `${u.firstName} ${u.lastName}`]));
 
+    // Cancelled sessions require no recording from the student — their records
+    // (status 'cancelled') are excluded from the summary/rate, same as the
+    // staff-facing attendance stats.
+    const gradableAttRecords = attRecords.filter(r => r.status !== 'cancelled');
     const attendanceSummary = {
-      present: attRecords.filter(r => r.status === 'present').length,
-      late: attRecords.filter(r => r.status === 'late').length,
-      absent: attRecords.filter(r => r.status === 'absent').length,
-      excused: attRecords.filter(r => r.status === 'excused').length,
-      total: attRecords.length,
+      present: gradableAttRecords.filter(r => r.status === 'present').length,
+      late: gradableAttRecords.filter(r => r.status === 'late').length,
+      absent: gradableAttRecords.filter(r => r.status === 'absent').length,
+      excused: gradableAttRecords.filter(r => r.status === 'excused').length,
+      total: gradableAttRecords.length,
     };
 
     const totalXp = xpResult._sum?.amount || 0;

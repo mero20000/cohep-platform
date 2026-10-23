@@ -18,7 +18,7 @@ import { audienceSummary, isFinalStatus, isFutureDay, sessionTitle, sessionType,
 /** Final (completed/legacy recorded), or a liturgy/event that is scheduled for a later day. */
 function sessionLocked(s: any): boolean {
   if (!s) return false
-  return isFinalStatus(s.status) || (sessionType(s) !== 'class' && isFutureDay(s.scheduledDate))
+  return isFinalStatus(s.status) || s.status === 'cancelled' || (sessionType(s) !== 'class' && isFutureDay(s.scheduledDate))
 }
 
 const FALLBACK_USER_ID = '00000000-0000-0000-0000-000000000000'
@@ -524,8 +524,9 @@ export function MarkClient() {
   const type = sessionType(session)
   const isBinary = type !== 'class'
   const isCompleted = isFinalStatus(session.status)
+  const isCancelled = session.status === 'cancelled'
   const notYet = !isCompleted && isBinary && isFutureDay(session.scheduledDate)
-  const readOnly = isCompleted || notYet
+  const readOnly = isCompleted || notYet || isCancelled
   const t = (en: string, ar: string) => (lang === 'ar' ? ar : en)
 
   // Group / grade breakdown (multi-group liturgy & events, or a class spanning several grades).
@@ -612,6 +613,13 @@ export function MarkClient() {
             {lang === 'ar'
               ? 'هذه الجلسة نهائية ومقفلة للقراءة فقط. أعد فتحها لإجراء تغييرات.'
               : 'This session is finalized and read-only. Re-open it to make changes.'}
+          </p>
+        )}
+        {isCancelled && (
+          <p role="note" className="mt-2 rounded-lg bg-gray-100 px-3 py-2 text-sm text-gray-600">
+            {lang === 'ar'
+              ? 'تم إلغاء هذه الجلسة. لا حاجة لتسجيل الحضور.'
+              : 'This session was cancelled. No attendance recording is needed.'}
           </p>
         )}
         {notYet && (
@@ -825,7 +833,7 @@ export function MarkClient() {
       {!readOnly && !isBinary && (
         <p className="text-xs text-gray-500">{lang === 'ar' ? 'P/L/A/E للحالة · 1-5 للسلوك · ↑↓ للتنقل · Ctrl+S للحفظ' : 'P/L/A/E status · 1-5 behavior · ↑↓ move · Ctrl+S save'}</p>
       )}
-      {notYet ? null : isCompleted ? (
+      {notYet || isCancelled ? null : isCompleted ? (
         <div className="sticky bottom-0 bg-white p-3">
           <Button onClick={() => { void reopen() }} disabled={reopening} className="min-h-[44px] w-full bg-amber-500 text-white hover:bg-amber-600">
             {lang === 'ar' ? 'إعادة فتح الحضور' : 'Re-open Attendance'}

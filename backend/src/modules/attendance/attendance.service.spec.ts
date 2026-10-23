@@ -40,6 +40,7 @@ describe('AttendanceService', () => {
     student: {
       findMany: jest.fn(),
       findUnique: jest.fn(),
+      count: jest.fn(),
     },
     user: {
       findUnique: jest.fn(),
@@ -217,6 +218,73 @@ describe('AttendanceService', () => {
       const statuses = prisma.attendanceRecord.createMany.mock.calls[0][0].data.map((r: any) => r.status);
       expect(statuses).not.toContain('present');
     });
+
+    it('joins an already-started session for the same group/date instead of creating a duplicate, even for a different servant', async () => {
+      // A co-teacher ("other-servant") already started today's class for this group.
+      prisma.attendanceSession.findMany.mockResolvedValue([
+        { id: 'sess-other', status: 'in_progress', servantId: 'other-servant', groupId: 'group-1', levelId: 'level-1', gradeId: null, metadata: null },
+      ]);
+
+      const result: any = await service.startClass('u1');
+
+      expect(prisma.attendanceSession.create).not.toHaveBeenCalled();
+      expect(result.created).toBe(false);
+      expect(result.session.id).toBe('sess-other');
+    });
+
+    it('excludes cancelled sessions from the same-group/date match, so a cancelled slot is free to re-start', async () => {
+      // The DB query itself filters cancelled out via status: { not: 'cancelled' };
+      // simulate that by returning none, and assert the query actually asks for it.
+      prisma.attendanceSession.findMany.mockResolvedValue([]);
+
+      const result: any = await service.startClass('u1');
+
+      const existingCall = prisma.attendanceSession.findMany.mock.calls.find(
+        (c: any) => c[0]?.where?.groupId === 'group-1' && c[0]?.where?.scheduledDate,
+      );
+      expect(existingCall?.[0]?.where?.status).toEqual({ not: 'cancelled' });
+      expect(prisma.attendanceSession.create).toHaveBeenCalled();
+      expect(result.created).toBe(true);
+    });
+  });
+
+  describe('startSession', () => {
+    const classSession = { id: 'sess-1', schoolId, servantId: 'owner', groupId: 'group-1', levelId: 'level-1', type: 'class', status: 'scheduled', actualStartTime: null, deletedAt: null };
+
+    beforeEach(() => {
+      prisma.attendanceSession.update.mockImplementation(({ data }: any) => Promise.resolve({ ...classSession, ...data }));
+      prisma.attendanceSession.findUnique.mockResolvedValue(classSession);
+      prisma.student.findMany.mockResolvedValue([]);
+      prisma.attendanceRecord.findMany.mockResolvedValue([]);
+      prisma.attendanceRecord.deleteMany.mockResolvedValue({ count: 0 });
+      prisma.attendanceRecord.createMany.mockResolvedValue({ count: 0 });
+    });
+
+    it('the owning servant can start their own session', async () => {
+      const result = await service.startSession('sess-1', 'owner', []);
+      expect(result.started).toBe(true);
+    });
+
+    it('a co-teacher assigned to the same group can start the shared session too', async () => {
+      prisma.user.findUnique.mockResolvedValue({ metadata: { groupId: 'group-1' }, schoolId });
+      const result = await service.startSession('sess-1', 'co-teacher', []);
+      expect(result.started).toBe(true);
+    });
+
+    it('a servant with no assignment to this group is rejected', async () => {
+      prisma.user.findUnique.mockResolvedValue({ metadata: { groupId: 'some-other-group' }, schoolId });
+      await expect(service.startSession('sess-1', 'stranger', [])).rejects.toThrow(/Not your session/);
+    });
+
+    it('an admin can start any session regardless of assignment', async () => {
+      const result = await service.startSession('sess-1', 'admin-1', ['admin']);
+      expect(result.started).toBe(true);
+    });
+
+    it('rejects starting a cancelled session', async () => {
+      prisma.attendanceSession.findUnique.mockResolvedValue({ ...classSession, status: 'cancelled' });
+      await expect(service.startSession('sess-1', 'owner', [])).rejects.toThrow(/cancelled/);
+    });
   });
 
   describe('createSession', () => {
@@ -344,6 +412,28 @@ describe('AttendanceService', () => {
       const data = prisma.attendanceSession.update.mock.calls[0][0].data;
       expect(data.actualStartTime).toBeUndefined();
       expect(storedSession.actualStartTime).toBe(started);
+    });
+
+    it('cancels all attendance records instead of re-syncing the roster when status becomes cancelled', async () => {
+      await service.updateSession('sess-1', { status: 'cancelled' } as any);
+
+      expect(prisma.attendanceRecord.updateMany).toHaveBeenCalledWith({
+        where: { attendanceSessionId: 'sess-1' },
+        data: { status: 'cancelled' },
+      });
+      expect(prisma.student.findMany).not.toHaveBeenCalled();
+    });
+
+    it('resets cancelled records to unmarked and re-syncs the roster when un-cancelled', async () => {
+      storedSession = { ...baseSession, status: 'cancelled' };
+
+      await service.updateSession('sess-1', { status: 'scheduled' } as any);
+
+      expect(prisma.attendanceRecord.updateMany).toHaveBeenCalledWith({
+        where: { attendanceSessionId: 'sess-1', status: 'cancelled' },
+        data: { status: 'unmarked' },
+      });
+      expect(prisma.student.findMany).toHaveBeenCalled();
     });
   });
 
@@ -653,6 +743,12 @@ describe('AttendanceService', () => {
       expect(prisma.$transaction).not.toHaveBeenCalled();
     });
 
+    it('markAttendance rejects cancelled sessions — no recording is needed', async () => {
+      prisma.attendanceSession.findUnique.mockResolvedValue({ ...open, status: 'cancelled' });
+      await expect(service.markAttendance('sess-1', dto)).rejects.toThrow(/cancelled/);
+      expect(prisma.$transaction).not.toHaveBeenCalled();
+    });
+
     it('batchUpdateRecords rejects completed sessions', async () => {
       prisma.attendanceSession.findUnique.mockResolvedValue({ ...open, status: 'completed' });
       await expect(service.batchUpdateRecords('sess-1', [{ studentId: 's1', status: 'absent' }])).rejects.toThrow(/read-only/);
@@ -780,6 +876,71 @@ describe('AttendanceService', () => {
       expect(stats).toHaveLength(1);
       expect(stats[0]).toMatchObject({ groupId: 'g1', groupName: 'Group A', totalSessions: 2, levels: [{ number: 1, name: 'Level 1' }] });
       expect(stats[0].attendanceRate).toBe(66.67);
+    });
+
+    it('threads a from/to range into the underlying queries (week-scoped insights, not lifetime totals)', async () => {
+      await service.getSessionStats('school-1', { from: '2026-02-01', to: '2026-02-07' });
+
+      const sessionGroupByWhere = prisma.attendanceSession.groupBy.mock.calls[0][0].where;
+      expect(sessionGroupByWhere.AND).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ scheduledDate: { gte: new Date('2026-02-01'), lte: new Date('2026-02-07T23:59:59.999') } }),
+        ]),
+      );
+    });
+
+    it('reports cancelledSessions and a distinct-student headcount distinct from raw record counts', async () => {
+      prisma.attendanceSession.count.mockResolvedValue(2);
+      prisma.attendanceRecord.groupBy.mockImplementation(({ by }: any) => {
+        if (by?.[0] === 'studentId') return Promise.resolve([{ studentId: 'st1' }, { studentId: 'st2' }]);
+        return Promise.resolve(tallies);
+      });
+
+      const stats = await service.getSessionStats('school-1');
+
+      expect(stats.cancelledSessions).toBe(2);
+      expect(stats.distinctStudents).toBe(2);
+      // Distinct students (2) is far smaller than totalRecords (13): the raw
+      // counts are record-level and naturally exceed a small headcount once
+      // more than one session is in range — that gap is what Insights now
+      // surfaces instead of hiding.
+      expect(stats.distinctStudents).toBeLessThan(stats.totalRecords);
+    });
+  });
+
+  describe('getEnrolledStudentCount', () => {
+    it('counts only active, non-deleted students for the school', async () => {
+      prisma.student.count.mockResolvedValue(42);
+      const count = await service.getEnrolledStudentCount('school-1');
+      expect(count).toBe(42);
+      expect(prisma.student.count).toHaveBeenCalledWith({ where: { schoolId, deletedAt: null, status: 'active' } });
+    });
+  });
+
+  describe('getTopAbsentees', () => {
+    it('ranks students by absence count within the date range, most absent first', async () => {
+      prisma.attendanceRecord.findMany.mockResolvedValue([
+        { studentId: 'st1', studentCode: undefined, student: { id: 'st1', firstName: 'Mina', lastName: 'G', firstNameAr: null, lastNameAr: null, studentCode: 'S1' }, attendanceSession: { scheduledDate: new Date('2026-02-05'), group: { name: 'Group A' } } },
+        { studentId: 'st1', student: { id: 'st1', firstName: 'Mina', lastName: 'G', firstNameAr: null, lastNameAr: null, studentCode: 'S1' }, attendanceSession: { scheduledDate: new Date('2026-01-29'), group: { name: 'Group A' } } },
+        { studentId: 'st2', student: { id: 'st2', firstName: 'Sara', lastName: 'K', firstNameAr: null, lastNameAr: null, studentCode: 'S2' }, attendanceSession: { scheduledDate: new Date('2026-02-01'), group: { name: 'Group B' } } },
+      ]);
+
+      const result = await service.getTopAbsentees('school-1', { from: '2026-01-25', to: '2026-02-07' });
+
+      expect(result[0]).toMatchObject({ studentId: 'st1', absences: 2, groupName: 'Group A' });
+      expect(result[1]).toMatchObject({ studentId: 'st2', absences: 1, groupName: 'Group B' });
+    });
+
+    it('caps the result at the requested limit', async () => {
+      prisma.attendanceRecord.findMany.mockResolvedValue(
+        Array.from({ length: 5 }, (_, i) => ({
+          studentId: `st${i}`,
+          student: { id: `st${i}`, firstName: 'S', lastName: `${i}`, firstNameAr: null, lastNameAr: null, studentCode: `S${i}` },
+          attendanceSession: { scheduledDate: new Date('2026-02-01'), group: { name: 'Group A' } },
+        })),
+      );
+      const result = await service.getTopAbsentees('school-1', { limit: 2 });
+      expect(result).toHaveLength(2);
     });
   });
 
