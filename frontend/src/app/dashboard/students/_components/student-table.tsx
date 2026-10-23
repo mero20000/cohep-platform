@@ -181,7 +181,7 @@ export function StudentTable({ students, loading, fetchError, selectedIds, allSe
                       </a>
                     )}
                     {s.portalAccessKey && (
-                      <a href={buildPortalWhatsAppUrl(parentPhone, buildPortalShareMessage({ studentName: `${s.firstName} ${s.lastName}`, portalKey: s.portalAccessKey }))}
+                      <a href={buildPortalWhatsAppUrl(parentPhone, buildPortalShareMessage({ firstName: s.firstName, portalKey: s.portalAccessKey }))}
                         target="_blank" rel="noopener noreferrer"
                         className="inline-flex min-h-[40px] items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3 text-xs font-semibold text-emerald-800 active:bg-emerald-100">
                         <Send className="h-3.5 w-3.5" />{t('Share portal','مشاركة البوابة')}
@@ -258,7 +258,7 @@ export function StudentTable({ students, loading, fetchError, selectedIds, allSe
                 </td>
                 <td className="hidden md:table-cell px-4 py-3 text-sm text-gray-600 font-mono">{s.studentCode}</td>
                 <td className="hidden md:table-cell px-4 py-3"><span className={`inline-flex items-center text-xs font-medium px-2 py-0.5 rounded-full ${s.gender==='female'?'bg-semantic-gender-female-bg text-semantic-gender-female':'bg-semantic-gender-male-bg text-semantic-gender-male'}`}>{s.gender==='female'?t('Female','أنثى'):t('Male','ذكر')}</span></td>
-                <td className="hidden md:table-cell px-4 py-3"><PhoneLink phone={s.metadata?.phone||''} lang={lang} share={{studentName:`${s.firstName} ${s.lastName}`,portalKey:s.portalAccessKey}} /></td>
+                <td className="hidden md:table-cell px-4 py-3"><PhoneLink phone={s.metadata?.phone||''} lang={lang} share={{firstName:s.firstName,portalKey:s.portalAccessKey}} /></td>
                 <td className="hidden md:table-cell px-4 py-3 text-sm text-gray-900">{s.level?.name||'—'}</td>
                 <td className="hidden md:table-cell px-4 py-3 text-sm text-gray-900">{s.group?.name||'—'}</td>
                 <td className="hidden md:table-cell px-4 py-3 text-sm text-gray-600">{calcAge(s.dateOfBirth)}</td>

@@ -1,9 +1,11 @@
 import { toWhatsAppDigits } from './phone'
 
 interface ShareInput {
-  studentName: string
+  /** First name only — the message never includes the surname. */
+  firstName: string
+  /** The student's own portal access key; the link is built from it, never hard-coded. */
   portalKey: string
-  /** Defaults to the current origin (or NEXT_PUBLIC_APP_URL when set). */
+  /** Defaults to NEXT_PUBLIC_APP_URL, then the current origin. */
   origin?: string
 }
 
@@ -14,28 +16,26 @@ export function portalUrl(portalKey: string, origin?: string): string {
   return `${base}/student-portal/${encodeURIComponent(portalKey)}`
 }
 
-/**
- * Warm, bilingual invitation for the parent. Arabic first, English second, so
- * it reads naturally for either household without the servant picking a language.
- */
-export function buildPortalShareMessage({ studentName, portalKey, origin }: ShareInput): string {
-  const url = portalUrl(portalKey, origin)
-  const name = studentName.trim()
+/** WhatsApp invitation sent to the parent. `*name*` renders bold in WhatsApp. */
+export function buildPortalShareMessage({ firstName, portalKey, origin }: ShareInput): string {
+  const name = firstName.trim() || 'your child'
   return [
-    `🕊️ سلام ونعمة ربنا يسوع معكم،`,
-    `ابنكم/ابنتكم *${name}* عنده بوابة خاصة للتعلم في مدرسة الألحان! 🎶`,
-    `من خلالها يقدر يتابع حضوره، يتدرّب على الألحان، يجمع النقاط والشارات 🏅 ويحل التقييمات.`,
-    `شجّعوه يفتحها كل أسبوع، وشاركوه فرحة تقدّمه ❤️`,
-    `👇 اضغط الرابط للدخول مباشرة:`,
-    url,
-    ``,
-    `Grace and peace to you! 🕊️`,
-    `*${name}* has a personal Student Portal for hymn learning. 🎶 They can follow attendance, practise hymns, earn points and badges 🏅 and take assessments.`,
-    `Please open it together and cheer them on! ❤️`,
-    `👇 Tap to open:`,
-    url,
-    ``,
-    `🔒 هذا الرابط خاص بكم، من فضلكم لا تشاركوه مع الآخرين / This link is private — please don't share it.`,
+    'Salam 🙏',
+    `*${name}* has a personal Portal at NiAngelos School 🎶`,
+    '',
+    '🎵 Practise Hymns',
+    '⭐ Earn XP',
+    '🏅 Collect Badges',
+    '📈 Track Attendance & Progress',
+    '',
+    `❤️ Encourage *${name}* to log in every week, keep learning, and earn more XP!`,
+    '',
+    `👇 Open *${name}*’s NiAngelos Portal:`,
+    portalUrl(portalKey, origin),
+    '',
+    '🔒 This link is private. Please don’t share it with others.',
+    '',
+    'Please pray for the Church and Service 🙏',
   ].join('\n')
 }
 

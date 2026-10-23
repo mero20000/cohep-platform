@@ -55,7 +55,7 @@ export function StudentActionSheet({ student: s, lang, isFavorite, onClose, onVi
         )}
         {s.portalAccessKey && (
           <a className={`${row} bg-emerald-50 text-emerald-800 hover:bg-emerald-100`} target="_blank" rel="noopener noreferrer" onClick={onClose}
-            href={buildPortalWhatsAppUrl(parentPhone, buildPortalShareMessage({ studentName: `${s.firstName} ${s.lastName}`, portalKey: s.portalAccessKey }))}>
+            href={buildPortalWhatsAppUrl(parentPhone, buildPortalShareMessage({ firstName: s.firstName, portalKey: s.portalAccessKey }))}>
             <Send className="h-5 w-5" />{t('Share portal on WhatsApp', 'مشاركة البوابة على واتساب')}
           </a>
         )}

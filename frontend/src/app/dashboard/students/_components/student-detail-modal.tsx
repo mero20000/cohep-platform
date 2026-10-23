@@ -132,7 +132,7 @@ export function StudentDetailModal({ student:s, onClose, onEdit, onPreviewPhoto,
               <div className="grid grid-cols-1 min-[420px]:grid-cols-2 gap-3">
                 <div className="flex items-start gap-3 rounded-lg border border-gray-100 p-3">
                   <Phone className="h-4 w-4 text-gray-400 mt-0.5 flex-shrink-0" />
-                  <div className="min-w-0"><div className="text-xs text-gray-500">{t('Parent Phone','هاتف ولي الأمر')}</div><div className="text-sm font-medium text-gray-900 break-words"><PhoneLink phone={s.metadata?.phone||''} lang={lang} share={{studentName:`${s.firstName} ${s.lastName}`,portalKey:s.portalAccessKey}} /></div></div>
+                  <div className="min-w-0"><div className="text-xs text-gray-500">{t('Parent Phone','هاتف ولي الأمر')}</div><div className="text-sm font-medium text-gray-900 break-words"><PhoneLink phone={s.metadata?.phone||''} lang={lang} share={{firstName:s.firstName,portalKey:s.portalAccessKey}} /></div></div>
                 </div>
                 {s.metadata?.studentPhone && (
                   <div className="flex items-start gap-3 rounded-lg border border-gray-100 p-3">
@@ -235,7 +235,7 @@ export function StudentDetailModal({ student:s, onClose, onEdit, onPreviewPhoto,
                     </button>
                   </div>
                 </div>
-                <a href={buildPortalWhatsAppUrl(s.metadata?.phone, buildPortalShareMessage({ studentName: `${s.firstName} ${s.lastName}`, portalKey: s.portalAccessKey }))}
+                <a href={buildPortalWhatsAppUrl(s.metadata?.phone, buildPortalShareMessage({ firstName: s.firstName, portalKey: s.portalAccessKey }))}
                   target="_blank" rel="noopener noreferrer"
                   className="flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700 transition-colors">
                   <Send className="h-4 w-4" />

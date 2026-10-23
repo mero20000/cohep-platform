@@ -7,7 +7,7 @@ import { buildPortalShareMessage, buildPortalWhatsAppUrl } from '@/lib/portal-sh
 interface Props {
   phone: string; lang: 'en' | 'ar'
   /** When set, the menu offers to invite the parent to the student portal over WhatsApp. */
-  share?: { studentName: string; portalKey?: string | null }
+  share?: { firstName: string; portalKey?: string | null }
 }
 
 export function PhoneLink({ phone, lang, share }: Props) {
@@ -50,7 +50,7 @@ export function PhoneLink({ phone, lang, share }: Props) {
             </span>
           )}
           {share?.portalKey && (
-            <a href={buildPortalWhatsAppUrl(phone, buildPortalShareMessage({ studentName: share.studentName, portalKey: share.portalKey }))}
+            <a href={buildPortalWhatsAppUrl(phone, buildPortalShareMessage({ firstName: share.firstName, portalKey: share.portalKey }))}
               target="_blank" rel="noopener noreferrer"
               className="inline-flex items-center gap-1.5 rounded-md bg-emerald-50 px-2.5 py-1.5 text-xs font-semibold text-emerald-800 hover:bg-emerald-100 transition-colors">
               <Send className="h-3.5 w-3.5" />{t('Share student portal','مشاركة بوابة الطالب')}
