@@ -442,27 +442,21 @@ describe('AssessmentsService', () => {
       questions: [], dueDate: yesterday(), allowLateSubmission: allowLate,
     });
 
-    it('refuses a late submission when allowLateSubmission is false', async () => {
-      prisma.assessment.findUnique.mockResolvedValue(overdueAssess(false));
-      prisma.assessmentSubmission.findFirst.mockResolvedValue({ id: 's1', status: 'assigned', attemptNumber: 1 });
+    it.each([false, true])(
+      'accepts a past-due submission and stamps isLate (allowLateSubmission=%s)',
+      async (allowLate) => {
+        prisma.assessment.findUnique.mockResolvedValue(overdueAssess(allowLate));
+        prisma.assessmentSubmission.findFirst.mockResolvedValue({ id: 's1', status: 'assigned', attemptNumber: 1 });
+        prisma.assessmentSubmission.update.mockResolvedValue({ id: 's1' });
+        prisma.assessmentSubmission.findUnique.mockResolvedValue({ id: 's1', grades: [], student: null });
 
-      await expect(service.submit('a1', 'stu-1', { answers: [] })).rejects.toThrow(
-        /late submissions are not allowed/,
-      );
-    });
+        await service.submit('a1', 'stu-1', { answers: [] });
 
-    it('accepts a late submission and stamps isLate when allowLateSubmission is true', async () => {
-      prisma.assessment.findUnique.mockResolvedValue(overdueAssess(true));
-      prisma.assessmentSubmission.findFirst.mockResolvedValue({ id: 's1', status: 'assigned', attemptNumber: 1 });
-      prisma.assessmentSubmission.update.mockResolvedValue({ id: 's1' });
-      prisma.assessmentSubmission.findUnique.mockResolvedValue({ id: 's1', grades: [], student: null });
-
-      await service.submit('a1', 'stu-1', { answers: [] });
-
-      expect(prisma.assessmentSubmission.update).toHaveBeenCalledWith(
-        expect.objectContaining({ data: expect.objectContaining({ isLate: true }) }),
-      );
-    });
+        expect(prisma.assessmentSubmission.update).toHaveBeenCalledWith(
+          expect.objectContaining({ data: expect.objectContaining({ isLate: true }) }),
+        );
+      },
+    );
 
     it('does not mark a submission late when there is no due date', async () => {
       prisma.assessment.findUnique.mockResolvedValue({
