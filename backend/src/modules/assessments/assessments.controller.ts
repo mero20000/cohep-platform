@@ -50,6 +50,13 @@ export class AssessmentsController {
     });
   }
 
+  @Get('pending-review')
+  @Roles('super_admin', 'admin', 'principal')
+  @ApiOperation({ summary: 'List every submission awaiting marking (admin overview)' })
+  async getPendingReview(@Query('schoolId') schoolId: string = '') {
+    return this.assessmentsService.getPendingReview(schoolId);
+  }
+
   @Get('stats')
   @ApiOperation({ summary: 'Get assessment stats' })
   async getStats(@Query('schoolId') schoolId: string = '') {

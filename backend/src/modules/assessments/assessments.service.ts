@@ -364,6 +364,94 @@ export class AssessmentsService {
     });
   }
 
+  /**
+   * Every live submission still waiting for a mark, school-wide. Lets an admin see what
+   * servants have not marked yet and act on their behalf via markStudent.
+   */
+  async getPendingReview(schoolIdentifier: string) {
+    const schoolId = await this.schoolResolver.resolve(schoolIdentifier);
+
+    const submissions = await this.prisma.assessmentSubmission.findMany({
+      where: {
+        status: 'submitted',
+        assessment: { schoolId, deletedAt: null },
+        student: { deletedAt: null },
+      },
+      include: {
+        student: {
+          select: {
+            id: true, firstName: true, lastName: true, studentCode: true,
+            level: { select: { id: true, name: true } },
+            group: { select: { id: true, name: true } },
+            grade: { select: { name: true } },
+          },
+        },
+        assessment: {
+          select: {
+            id: true, title: true, titleAr: true, type: true, dueDate: true, totalPoints: true,
+            questions: { orderBy: { orderIndex: 'asc' } },
+          },
+        },
+        grades: true,
+      },
+      orderBy: { submittedAt: 'asc' },
+    });
+
+    const toNum = (v: any) => (v == null ? 0 : typeof v === 'number' ? v : Number(v.toString()));
+
+    return submissions.map((s) => {
+      let rawAnswers: { questionId: string; answer: string }[] = [];
+      try {
+        const parsed = JSON.parse(s.submissionContent || '[]');
+        if (Array.isArray(parsed)) rawAnswers = parsed;
+      } catch {
+        rawAnswers = [];
+      }
+      const answers = s.assessment.questions.map((q) => {
+        const given = rawAnswers.find((a) => a.questionId === q.id);
+        const grade = s.grades.find((g) => g.questionId === q.id);
+        return {
+          questionId: q.id,
+          questionText: q.questionText,
+          type: q.type,
+          points: toNum(q.points),
+          correctAnswer: q.type === 'essay' ? null : q.correctAnswer,
+          answer: given?.answer ?? null,
+          awarded: grade ? toNum(grade.score) : null,
+        };
+      });
+
+      return {
+        submissionId: s.id,
+        submittedAt: s.submittedAt,
+        isLate: s.isLate,
+        attemptNumber: s.attemptNumber,
+        student: {
+          id: s.student.id,
+          firstName: s.student.firstName,
+          lastName: s.student.lastName,
+          studentCode: s.student.studentCode,
+          levelName: s.student.level?.name ?? null,
+          groupName: s.student.group?.name ?? null,
+          gradeName: s.student.grade?.name ?? null,
+        },
+        assessment: {
+          id: s.assessment.id,
+          title: s.assessment.title,
+          titleAr: s.assessment.titleAr,
+          type: s.assessment.type,
+          dueDate: s.assessment.dueDate,
+          totalPoints: toNum(s.assessment.totalPoints),
+        },
+        hasEssay: s.assessment.questions.some((q) => q.type === 'essay'),
+        autoScore: s.grades
+          .filter((g) => g.questionId !== null)
+          .reduce((sum, g) => sum + toNum(g.score), 0),
+        answers,
+      };
+    });
+  }
+
   async getSubmissions(assessmentId: string) {
     const assessment = await this.prisma.assessment.findUnique({ where: { id: assessmentId } });
     if (!assessment || assessment.deletedAt) {

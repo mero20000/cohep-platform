@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useLanguage } from '@/lib/use-language'
+import { usePermission } from '@/lib/use-permission'
 import { validateQuestions } from './validation'
 import {
   ClipboardCheck, Plus, Pencil, Trash2, Loader2, ChevronRight, Zap,
@@ -135,6 +136,8 @@ const emptyForm = {
 export default function AssessmentsPage() {
   const { toast } = useToast()
   const lang = useLanguage()
+  const { role } = usePermission()
+  const canReviewAll = ['super_admin', 'admin', 'principal'].includes(role)
 
   const [assessments, setAssessments] = useState<Assessment[]>([])
   const [pagination, setPagination] = useState({ page: 1, limit: 20, total: 0, totalPages: 0 })
@@ -860,6 +863,15 @@ export default function AssessmentsPage() {
               <button className="flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-gray-100" onClick={() => handleExport('pdf')}><FileText className="h-4 w-4 text-red-600" />{lang === 'ar' ? 'تصدير PDF' : 'Export PDF'}</button>
             </div>}
           </div>
+          {canReviewAll && (
+            <a
+              href="/dashboard/assessments/pending-review"
+              className="inline-flex items-center gap-2 rounded-lg border border-indigo-200 px-3 py-1.5 text-sm font-medium text-indigo-700 hover:bg-indigo-50"
+            >
+              <ClipboardCheck className="h-4 w-4" />
+              {lang === 'ar' ? 'بانتظار المراجعة' : 'Pending review'}
+            </a>
+          )}
           <Button onClick={openCreate}>
             <Plus className="h-4 w-4" /> {lang === 'ar' ? 'تقييم جديد' : 'New Assessment'}
           </Button>

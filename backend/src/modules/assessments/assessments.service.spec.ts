@@ -475,6 +475,56 @@ describe('AssessmentsService', () => {
     });
   });
 
+  describe('getPendingReview', () => {
+    const row = (over: any = {}) => ({
+      id: 'sub-1', submittedAt: new Date('2026-01-01'), isLate: true, attemptNumber: 1,
+      submissionContent: JSON.stringify([{ questionId: 'q1', answer: 'B' }]),
+      student: {
+        id: 'stu-1', firstName: 'Robin', lastName: 'Amir', studentCode: 'S1',
+        level: { id: 'l1', name: 'Level 1' }, group: { id: 'g1', name: 'Group 1B' }, grade: { name: 'Grade 6' },
+      },
+      assessment: {
+        id: 'a1', title: 'Quiz', titleAr: null, type: 'quiz', dueDate: null, totalPoints: 10,
+        questions: [
+          { id: 'q1', questionText: 'Pick', type: 'mcq', points: 5, correctAnswer: 'B', orderIndex: 0 },
+          { id: 'q2', questionText: 'Explain', type: 'essay', points: 5, correctAnswer: '', orderIndex: 1 },
+        ],
+      },
+      grades: [{ questionId: 'q1', score: 5 }],
+      ...over,
+    });
+
+    it('queries only live submitted rows and maps answers, auto score and essay flag', async () => {
+      resolver.resolve.mockResolvedValue(schoolId);
+      prisma.assessmentSubmission.findMany.mockResolvedValue([row()]);
+
+      const result = await service.getPendingReview('school-1');
+
+      expect(prisma.assessmentSubmission.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ status: 'submitted', assessment: { schoolId, deletedAt: null } }),
+        }),
+      );
+      expect(result).toHaveLength(1);
+      expect(result[0]).toMatchObject({
+        submissionId: 'sub-1', isLate: true, hasEssay: true, autoScore: 5,
+        student: { firstName: 'Robin', groupName: 'Group 1B', gradeName: 'Grade 6' },
+        assessment: { id: 'a1', totalPoints: 10 },
+      });
+      expect(result[0].answers[0]).toMatchObject({ answer: 'B', awarded: 5, correctAnswer: 'B' });
+      expect(result[0].answers[1]).toMatchObject({ answer: null, awarded: null, correctAnswer: null });
+    });
+
+    it('survives unparseable submission content', async () => {
+      resolver.resolve.mockResolvedValue(schoolId);
+      prisma.assessmentSubmission.findMany.mockResolvedValue([row({ submissionContent: 'not json' })]);
+
+      const result = await service.getPendingReview('school-1');
+
+      expect(result[0].answers.every((a: any) => a.answer === null)).toBe(true);
+    });
+  });
+
   describe('prepareRetake', () => {
     const retakeable = (over: any = {}) => ({
       id: 'a1', status: 'published', deletedAt: null, maxAttempts: null,
