@@ -191,6 +191,7 @@ export class AssessmentsController {
   ) {
     return this.assessmentsService.markStudent(id, studentId, dto.score, dto.maxScore, dto.feedback, req.user?.id, {
       questionScores: dto.questionScores,
+      extraScore: dto.extraScore,
       actor: req.user,
     });
   }

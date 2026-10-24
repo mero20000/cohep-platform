@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import Link from 'next/link'
 import {
-  ArrowLeft, CheckCircle, ChevronDown, ChevronUp, ClipboardCheck, Clock, Download, Loader2, Undo2, Zap,
+  ArrowLeft, CheckCircle, ChevronDown, ChevronUp, ClipboardCheck, Clock, Download, Loader2, Mic, Undo2, Zap,
 } from 'lucide-react'
 import { useLanguage } from '@/lib/use-language'
 import { usePermission } from '@/lib/use-permission'
@@ -14,13 +14,16 @@ import { EmptyState } from '@/components/ui/empty-state'
 import { TableSkeleton } from '@/components/ui/skeleton'
 import { Tabs } from '@/components/ui/tabs'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
+import { AudioPlayer } from '@/components/audio-player'
+import { assetUrl } from '@/lib/asset-url'
 import { getSchoolId } from '@/lib/school'
 import { http } from '@/lib/http-client'
 import { exportPendingReviewXlsx } from '@/lib/export-pending-review'
-import { ADMIN_ROLES, waitingDays, type PendingItem } from './types'
+import { ADMIN_ROLES, needsManualMarking, waitingDays, type PendingItem } from './types'
 import { ReviewMode } from './review-mode'
 import { ReturnModal } from './return-modal'
 import { Turnaround } from './turnaround'
+import { EvidencePanel } from './evidence-panel'
 
 interface AcceptAutoResult {
   accepted: number
@@ -86,8 +89,8 @@ export default function PendingReviewPage() {
     setSelected(sel => new Set(Array.from(sel).filter(id => !ids.includes(id))))
   }
 
-  // Only submissions free of essays can have their auto score accepted in bulk.
-  const bulkEligible = visible.filter(i => !i.hasEssay)
+  // Only submissions the auto score can fully stand for (no essay, no recording) go in bulk.
+  const bulkEligible = visible.filter(i => !needsManualMarking(i))
   const selectedEligible = bulkEligible.filter(i => selected.has(i.submissionId))
   const allEligibleSelected = bulkEligible.length > 0 && selectedEligible.length === bulkEligible.length
 
@@ -226,7 +229,7 @@ export default function PendingReviewPage() {
             <div className="flex flex-wrap items-center gap-3 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm">
               <label className="inline-flex items-center gap-2">
                 <input type="checkbox" checked={allEligibleSelected} onChange={toggleAll} />
-                {t('Select all without essays', 'تحديد كل ما لا يتضمن مقالاً')} ({bulkEligible.length})
+                {t('Select all that can be auto-accepted', 'تحديد كل ما يمكن اعتماده تلقائياً')} ({bulkEligible.length})
               </label>
               <Button
                 size="sm"
@@ -268,11 +271,11 @@ export default function PendingReviewPage() {
                       {isAdmin && (
                         <input
                           type="checkbox"
-                          disabled={item.hasEssay}
+                          disabled={needsManualMarking(item)}
                           checked={selected.has(id)}
                           onChange={() => toggle(id)}
                           aria-label={t('Select for bulk accept', 'تحديد للاعتماد الجماعي')}
-                          title={item.hasEssay ? t('Has an essay — mark manually', 'يتضمن مقالاً — قيّمه يدوياً') : undefined}
+                          title={needsManualMarking(item) ? t('Needs manual marking', 'يحتاج تقييماً يدوياً') : undefined}
                         />
                       )}
                       <div className="min-w-0 flex-1">
@@ -291,12 +294,22 @@ export default function PendingReviewPage() {
                           </Badge>
                           {item.isLate && <Badge variant="danger">{t('Late', 'متأخر')}</Badge>}
                           {item.hasEssay && <Badge variant="info">{t('Has essay', 'يتضمن مقالاً')}</Badge>}
+                          {item.recording && (
+                            <Badge variant="info"><span className="inline-flex items-center gap-1"><Mic className="h-3 w-3" />{t('Recording', 'تسجيل')}</span></Badge>
+                          )}
                         </div>
+                        {item.recording && (
+                          <div className="mt-2 max-w-sm">
+                            <AudioPlayer src={assetUrl(item.recording.url)} duration={item.recording.durationSeconds ?? undefined} compact />
+                          </div>
+                        )}
                       </div>
 
-                      <div className="text-xs text-gray-500">
-                        {t('Auto score', 'الدرجة التلقائية')}: <span className="font-semibold text-gray-900">{item.autoScore}</span> / {max}
-                      </div>
+                      {item.answers.length > 0 && (
+                        <div className="text-xs text-gray-500">
+                          {t('Auto score', 'الدرجة التلقائية')}: <span className="font-semibold text-gray-900">{item.autoScore}</span> / {max}
+                        </div>
+                      )}
 
                       <div className="flex flex-wrap items-center gap-2">
                         <input
@@ -319,7 +332,7 @@ export default function PendingReviewPage() {
                         >
                           {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : t('Mark', 'تقييم')}
                         </Button>
-                        {!item.hasEssay && (
+                        {!needsManualMarking(item) && (
                           <Button size="sm" variant="outline" disabled={busy} onClick={() => mark(item, item.autoScore)}>
                             {t('Accept auto score', 'اعتماد التلقائية')}
                           </Button>
@@ -340,8 +353,11 @@ export default function PendingReviewPage() {
 
                     {isOpen && (
                       <div className="mt-3 space-y-3 rounded-lg bg-gray-50 p-3">
+                        <EvidencePanel item={item} />
                         {item.answers.length === 0 ? (
-                          <p className="text-sm text-gray-500">{t('No answers recorded.', 'لا توجد إجابات مسجلة.')}</p>
+                          !item.recording && !item.notes && item.extraAnswers.length === 0 && (
+                            <p className="text-sm text-gray-500">{t('Nothing was submitted besides the attempt itself.', 'لم يتم تسليم شيء سوى المحاولة نفسها.')}</p>
+                          )
                         ) : item.answers.map((a, n) => (
                           <div key={a.questionId} className="text-sm">
                             <div className="font-medium text-gray-900">{n + 1}. {a.questionText}</div>

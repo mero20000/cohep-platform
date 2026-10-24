@@ -316,7 +316,7 @@ export class AssessmentsService {
           fileUrl: dto.fileUrl || null,
           fileType: dto.fileType || null,
           durationSeconds: dto.durationSeconds ?? null,
-          ...(dto.notes ? { metadata: { notes: dto.notes } } : {}),
+          ...(dto.notes ? { metadata: { ...(((assignment.metadata as any) || {}) as object), notes: dto.notes } } : {}),
           status: 'submitted',
           submittedAt: new Date(),
           isLate,
@@ -422,6 +422,7 @@ export class AssessmentsService {
         assessment: {
           select: {
             id: true, title: true, titleAr: true, type: true, dueDate: true, totalPoints: true,
+            referenceRecordingUrl: true, referenceRecordingName: true,
             questions: { orderBy: { orderIndex: 'asc' } },
           },
         },
@@ -454,11 +455,24 @@ export class AssessmentsService {
         };
       });
 
+      // Answers whose question was edited or removed after the student answered are still
+      // evidence the marker should see, so they are listed rather than silently dropped.
+      const knownIds = new Set(s.assessment.questions.map((q) => q.id));
+      const extraAnswers = rawAnswers
+        .filter((a) => a && !knownIds.has(a.questionId) && a.answer)
+        .map((a) => ({ questionId: a.questionId, answer: a.answer }));
+      const meta = ((s.metadata as any) || {}) as Record<string, any>;
+
       return {
         submissionId: s.id,
         submittedAt: s.submittedAt,
         isLate: s.isLate,
         attemptNumber: s.attemptNumber,
+        recording: s.fileUrl
+          ? { url: s.fileUrl, type: s.fileType ?? null, durationSeconds: s.durationSeconds ?? null }
+          : null,
+        notes: typeof meta.notes === 'string' && meta.notes ? meta.notes : null,
+        extraAnswers,
         student: {
           id: s.student.id,
           firstName: s.student.firstName,
@@ -475,6 +489,8 @@ export class AssessmentsService {
           type: s.assessment.type,
           dueDate: s.assessment.dueDate,
           totalPoints: toNum(s.assessment.totalPoints),
+          referenceRecordingUrl: s.assessment.referenceRecordingUrl ?? null,
+          referenceRecordingName: s.assessment.referenceRecordingName ?? null,
         },
         hasEssay: s.assessment.questions.some((q) => q.type === 'essay'),
         autoScore: s.grades
@@ -527,6 +543,10 @@ export class AssessmentsService {
         }
         if (sub.assessment.questions.some((q) => q.type === 'essay')) {
           results.push({ submissionId: id, ok: false, error: 'Contains an essay — needs manual marking' });
+          continue;
+        }
+        if (sub.fileUrl || sub.assessment.questions.length === 0) {
+          results.push({ submissionId: id, ok: false, error: 'Has a recording or no auto-graded questions — needs manual marking' });
           continue;
         }
         const score = sub.grades
@@ -868,7 +888,7 @@ export class AssessmentsService {
     maxScore: number,
     feedback?: string,
     gradedBy?: string | null,
-    opts?: { questionScores?: QuestionScore[]; actor?: Actor; viaAutoAccept?: boolean },
+    opts?: { questionScores?: QuestionScore[]; extraScore?: number; actor?: Actor; viaAutoAccept?: boolean },
   ) {
     const assessment = await this.prisma.assessment.findUnique({
       where: { id: assessmentId },
@@ -894,7 +914,10 @@ export class AssessmentsService {
         }
         sum += qs.score;
       }
-      score = Math.round(sum * 100) / 100;
+      score = Math.round((sum + (opts?.extraScore ?? 0)) * 100) / 100;
+    } else if (opts?.extraScore !== undefined) {
+      // Nothing to score per question (oral / recording-only): the marker's score is the mark.
+      score = opts.extraScore;
     }
 
     const total = Number(assessment.totalPoints);

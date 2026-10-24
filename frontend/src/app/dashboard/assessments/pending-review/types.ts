@@ -22,10 +22,31 @@ export interface PendingItem {
     groupName: string | null
     gradeName: string | null
   }
-  assessment: { id: string; title: string; titleAr: string | null; type: string; dueDate: string | null; totalPoints: number }
+  assessment: {
+    id: string
+    title: string
+    titleAr: string | null
+    type: string
+    dueDate: string | null
+    totalPoints: number
+    referenceRecordingUrl: string | null
+    referenceRecordingName: string | null
+  }
+  recording: { url: string; type: string | null; durationSeconds: number | null } | null
+  notes: string | null
+  /** Answers to questions that were edited or removed after the student answered. */
+  extraAnswers: { questionId: string; answer: string }[]
   hasEssay: boolean
   autoScore: number
   answers: PendingAnswer[]
+}
+
+/**
+ * True when the automatic score cannot stand as the mark: an essay, a recording to listen
+ * to, or nothing auto-graded at all (oral / recording-only assessments).
+ */
+export function needsManualMarking(i: Pick<PendingItem, 'hasEssay' | 'recording' | 'answers'>): boolean {
+  return i.hasEssay || !!i.recording || i.answers.length === 0
 }
 
 export interface QuestionScore { questionId: string; score: number }

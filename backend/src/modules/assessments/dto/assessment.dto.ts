@@ -265,7 +265,16 @@ export class MarkStudentDto {
   @IsString()
   feedback?: string;
 
-  /** Optional per-question scores. When given, the overall score is their sum. */
+  /**
+   * Points not tied to a question (a recording, an oral). Added to the per-question sum, or
+   * used as the whole mark when there are no per-question scores.
+   */
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  extraScore?: number;
+
+  /** Optional per-question scores. When given, the overall score is their sum plus extraScore. */
   @IsOptional()
   @IsArray()
   @ValidateNested({ each: true })

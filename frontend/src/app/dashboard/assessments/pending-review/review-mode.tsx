@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge'
 import { Modal } from '@/components/ui/modal'
 import { http } from '@/lib/http-client'
 import { FEEDBACK_SNIPPETS, type PendingItem } from './types'
+import { EvidencePanel } from './evidence-panel'
 
 interface Props {
   open: boolean
@@ -30,6 +31,7 @@ export function ReviewMode({ open, items, startIndex, onClose, onMarked, onRetur
 
   const [index, setIndex] = useState(startIndex)
   const [scores, setScores] = useState<Record<string, string>>({})
+  const [extra, setExtra] = useState('')
   const [feedback, setFeedback] = useState('')
   const [busy, setBusy] = useState(false)
 
@@ -49,21 +51,31 @@ export function ReviewMode({ open, items, startIndex, onClose, onMarked, onRetur
     const next: Record<string, string> = {}
     item.answers.forEach(a => { next[a.questionId] = String(a.awarded ?? 0) })
     setScores(next)
+    setExtra('0')
     setFeedback('')
   }, [item?.submissionId]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Points the questions cannot account for: a recording, an oral, or an assessment with no
+  // questions at all. The marker awards these directly.
+  const questionPoints = useMemo(() => (item ? item.answers.reduce((n, a) => n + a.points, 0) : 0), [item])
+  const extraMax = item ? Math.max(0, item.assessment.totalPoints - questionPoints) : 0
+  const showExtra = !!item && extraMax > 0 && (!!item.recording || item.answers.length === 0)
+  const extraValue = showExtra ? Number(extra) || 0 : 0
+
   const total = useMemo(
-    () => Object.values(scores).reduce((sum, v) => sum + (Number(v) || 0), 0),
-    [scores],
+    () => Object.values(scores).reduce((sum, v) => sum + (Number(v) || 0), 0) + extraValue,
+    [scores, extraValue],
   )
 
   const invalid = useMemo(() => {
     if (!item) return false
-    return item.answers.some(a => {
+    const badQuestion = item.answers.some(a => {
       const n = Number(scores[a.questionId])
       return Number.isNaN(n) || n < 0 || n > a.points
-    }) || total > item.assessment.totalPoints
-  }, [item, scores, total])
+    })
+    const badExtra = showExtra && (Number.isNaN(Number(extra)) || Number(extra) < 0 || Number(extra) > extraMax)
+    return badQuestion || badExtra || total > item.assessment.totalPoints
+  }, [item, scores, extra, showExtra, extraMax, total])
 
   const step = (delta: number) => setIndex(i => Math.min(Math.max(0, i + delta), Math.max(0, items.length - 1)))
 
@@ -75,7 +87,10 @@ export function ReviewMode({ open, items, startIndex, onClose, onMarked, onRetur
         score: total,
         maxScore: item.assessment.totalPoints,
         feedback: feedback.trim(),
-        questionScores: item.answers.map(a => ({ questionId: a.questionId, score: Number(scores[a.questionId]) || 0 })),
+        ...(item.answers.length > 0
+          ? { questionScores: item.answers.map(a => ({ questionId: a.questionId, score: Number(scores[a.questionId]) || 0 })) }
+          : {}),
+        ...(showExtra || item.answers.length === 0 ? { extraScore: extraValue } : {}),
       })
       toast('success', t(
         `Marked ${item.student.firstName} ${item.student.lastName}: ${total}/${item.assessment.totalPoints}`,
@@ -138,8 +153,15 @@ export function ReviewMode({ open, items, startIndex, onClose, onMarked, onRetur
         <div className="flex flex-wrap gap-2">
           {item.isLate && <Badge variant="danger">{t('Late', 'متأخر')}</Badge>}
           {item.hasEssay && <Badge variant="info">{t('Has essay', 'يتضمن مقالاً')}</Badge>}
+          {item.recording && <Badge variant="info">{t('Recording', 'تسجيل')}</Badge>}
           <span className="text-xs text-gray-500">{new Date(item.submittedAt).toLocaleString(lang === 'ar' ? 'ar-EG' : 'en-GB')}</span>
         </div>
+
+        <EvidencePanel item={item} />
+
+        {item.answers.length === 0 && !item.recording && !item.notes && (
+          <p className="text-sm text-gray-500">{t('Nothing was submitted besides the attempt itself.', 'لم يتم تسليم شيء سوى المحاولة نفسها.')}</p>
+        )}
 
         {item.answers.map((a, n) => (
           <div key={a.questionId} className="rounded-lg border border-gray-200 p-3">
@@ -168,6 +190,28 @@ export function ReviewMode({ open, items, startIndex, onClose, onMarked, onRetur
             )}
           </div>
         ))}
+
+        {showExtra && (
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-gray-200 p-3">
+            <div className="text-sm font-medium text-gray-900">
+              {item.recording ? t('Recording / other points', 'نقاط التسجيل / أخرى') : t('Overall score', 'الدرجة الكلية')}
+            </div>
+            <div className="flex items-center gap-1.5">
+              <input
+                type="number"
+                min={0}
+                max={extraMax}
+                step="any"
+                inputMode="decimal"
+                value={extra}
+                onChange={e => setExtra(e.target.value)}
+                aria-label={t('Recording or overall score', 'درجة التسجيل أو الكلية')}
+                className="w-20 rounded-lg border border-gray-300 px-2 py-1 text-sm"
+              />
+              <span className="text-xs text-gray-500">/ {extraMax}</span>
+            </div>
+          </div>
+        )}
 
         <div>
           <div className="mb-1.5 flex flex-wrap gap-1.5">
