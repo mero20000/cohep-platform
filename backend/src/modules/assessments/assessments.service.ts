@@ -296,14 +296,8 @@ export class AssessmentsService {
       throw new BadRequestException('This student has already submitted this assessment');
     }
 
-    // Due dates were displayed but never enforced: isLate was never written and
-    // allowLateSubmission was never read. Stamp the one, honour the other.
+    // Past-due submissions are always accepted; they are only flagged as late.
     const isLate = !!(assessment.dueDate && new Date() > assessment.dueDate);
-    if (isLate && !assessment.allowLateSubmission) {
-      throw new BadRequestException(
-        'The due date for this assessment has passed and late submissions are not allowed',
-      );
-    }
 
     const submission = await this.prisma.$transaction(async (tx) => {
       // Fill in the attempt row itself rather than inserting a second row beside it.
