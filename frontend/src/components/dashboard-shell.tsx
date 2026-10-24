@@ -19,6 +19,7 @@ import { track } from '@/lib/analytics'
 import { MotionConfig } from 'motion/react'
 import { ROLES } from '@/lib/roles'
 import { usePermission } from '@/lib/use-permission'
+import { usePendingReviewCount } from '@/lib/use-pending-review-count'
 import { DashboardSidebar } from './dashboard/sidebar'
 import { DashboardHeader } from './dashboard/header'
 import { DashboardBanners } from './dashboard/banners'
@@ -106,6 +107,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
   const { can } = usePermission()
   const isParent = effectiveRole === 'parent'
   const [pendingRegsCount, setPendingRegsCount] = useState(0)
+  const pendingReviewCount = usePendingReviewCount(!isParent && can('assessment:grade'), pathname)
   const mainNav: any[] = isParent
     ? [...navigation.filter((n) => n.name === 'Dashboard'), parentsNav]
     : navigation.filter((item) => {
@@ -113,7 +115,11 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
         if ((item as any).roles && !user?.roles?.some((r: string) => (item as any).roles.includes(r))) return false
         if ((item as any).perm && !can((item as any).perm)) return false
         return item.href !== parentsNav.href || showParentsNav
-      }).map(item => item.href === '/dashboard/pending-registrations' && pendingRegsCount > 0 ? { ...item, badge: pendingRegsCount } : item)
+      }).map(item => {
+        if (item.href === '/dashboard/pending-registrations' && pendingRegsCount > 0) return { ...item, badge: pendingRegsCount }
+        if (item.href === '/dashboard/assessments' && pendingReviewCount > 0) return { ...item, badge: pendingReviewCount }
+        return item
+      })
   const [notifications, setNotifications] = useState<NotificationItem[]>([])
   const [notiLoading, setNotiLoading] = useState(false)
   const notiRef = useRef<HTMLDivElement>(null)

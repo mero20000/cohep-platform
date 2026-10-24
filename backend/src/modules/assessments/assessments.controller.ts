@@ -20,6 +20,8 @@ import {
   SubmitAssessmentDto,
   AssignStudentsDto,
   MarkStudentDto,
+  ReturnSubmissionDto,
+  AcceptAutoScoresDto,
 } from './dto/assessment.dto';
 
 @ApiTags('assessments')
@@ -48,6 +50,36 @@ export class AssessmentsController {
       status,
       type,
     });
+  }
+
+  @Get('pending-review')
+  @ApiOperation({ summary: 'List submissions awaiting marking (all for admins, own group for servants)' })
+  async getPendingReview(@Query('schoolId') schoolId: string = '', @Req() req: any) {
+    return this.assessmentsService.getPendingReview(schoolId, req.user);
+  }
+
+  @Get('pending-review/count')
+  @ApiOperation({ summary: 'Count of submissions awaiting marking for the caller' })
+  async getPendingReviewCount(@Query('schoolId') schoolId: string = '', @Req() req: any) {
+    return this.assessmentsService.getPendingReviewCount(schoolId, req.user);
+  }
+
+  @Post('pending-review/accept-auto')
+  @Roles('super_admin', 'admin', 'principal')
+  @ApiOperation({ summary: 'Accept the automatic score for many submissions at once (admin)' })
+  async acceptAutoScores(
+    @Query('schoolId') schoolId: string = '',
+    @Body(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true })) dto: AcceptAutoScoresDto,
+    @Req() req: any,
+  ) {
+    return this.assessmentsService.acceptAutoScores(schoolId, dto.submissionIds, req.user);
+  }
+
+  @Get('review-stats')
+  @Roles('super_admin', 'admin', 'principal')
+  @ApiOperation({ summary: 'Marking backlog and turnaround per group and marker (admin)' })
+  async getReviewStats(@Query('schoolId') schoolId: string = '') {
+    return this.assessmentsService.getReviewStats(schoolId);
   }
 
   @Get('stats')
@@ -157,7 +189,21 @@ export class AssessmentsController {
     @Body(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true })) dto: MarkStudentDto,
     @Req() req: any,
   ) {
-    return this.assessmentsService.markStudent(id, studentId, dto.score, dto.maxScore, dto.feedback, req.user?.id);
+    return this.assessmentsService.markStudent(id, studentId, dto.score, dto.maxScore, dto.feedback, req.user?.id, {
+      questionScores: dto.questionScores,
+      actor: req.user,
+    });
+  }
+
+  @Post(':id/students/:studentId/return')
+  @ApiOperation({ summary: 'Return a submitted attempt to the student to redo (nothing is deleted)' })
+  async returnSubmission(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('studentId', ParseUUIDPipe) studentId: string,
+    @Body(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true })) dto: ReturnSubmissionDto,
+    @Req() req: any,
+  ) {
+    return this.assessmentsService.returnSubmission(id, studentId, dto.note, req.user);
   }
 
   @Get(':id/students')

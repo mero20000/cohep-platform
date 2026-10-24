@@ -5,6 +5,12 @@ import { AuditService } from '../audit/audit.service';
 import { StudentNotificationsService } from '../student-notifications/student-notifications.service';
 import { CreateAssessmentDto, UpdateAssessmentDto, SubmitAssessmentDto, CreateQuestionDto } from './dto/assessment.dto';
 
+type Actor = { id?: string; roles?: string[]; schoolId?: string };
+type QuestionScore = { questionId: string; score: number };
+
+const ADMIN_ROLES = ['super_admin', 'admin', 'principal'];
+const REVIEWER_ROLES = ['servant', 'group_leader'];
+
 @Injectable()
 export class AssessmentsService {
   constructor(
@@ -355,6 +361,8 @@ export class AssessmentsService {
       newValues: { studentId, assessmentId },
     });
 
+    await this.notifyReviewers(assessment, studentId, submission.id, actor?.id);
+
     return this.prisma.assessmentSubmission.findUnique({
       where: { id: submission.id },
       include: {
@@ -362,6 +370,358 @@ export class AssessmentsService {
         student: { select: { id: true, firstName: true, lastName: true } },
       },
     });
+  }
+
+  private isAdminActor(actor?: Actor) {
+    return (actor?.roles || []).some((r) => ADMIN_ROLES.includes(r));
+  }
+
+  /**
+   * Which students an actor may review. `{}` for admins; for servants/leaders the group,
+   * level, grade and gender recorded on their profile; `null` when a non-admin has no
+   * group or level at all (so a mis-configured account sees nothing rather than everything).
+   */
+  private async reviewStudentScope(actor?: Actor): Promise<Record<string, any> | null> {
+    if (this.isAdminActor(actor)) return {};
+    if (!actor?.id) return null;
+    const user = await this.prisma.user.findUnique({ where: { id: actor.id }, select: { metadata: true } });
+    const meta = ((user as any)?.metadata as any) || {};
+    if (!meta.groupId && !meta.levelId) return null;
+    const scope: Record<string, any> = {};
+    if (meta.groupId) scope.groupId = meta.groupId;
+    if (meta.levelId) scope.levelId = meta.levelId;
+    if (meta.gradeId) scope.gradeId = meta.gradeId;
+    if (meta.teachingGender && meta.teachingGender !== 'both') scope.gender = meta.teachingGender;
+    return scope;
+  }
+
+  /**
+   * Every live submission still waiting for a mark. Admins see the whole school and can
+   * mark on a servant's behalf via markStudent; servants and leaders see their own group.
+   */
+  async getPendingReview(schoolIdentifier: string, actor?: Actor) {
+    const schoolId = await this.schoolResolver.resolve(schoolIdentifier);
+    const scope = await this.reviewStudentScope(actor);
+    if (!scope) return [];
+
+    const submissions = await this.prisma.assessmentSubmission.findMany({
+      where: {
+        status: 'submitted',
+        assessment: { schoolId, deletedAt: null },
+        student: { deletedAt: null, ...scope },
+      },
+      include: {
+        student: {
+          select: {
+            id: true, firstName: true, lastName: true, studentCode: true,
+            level: { select: { id: true, name: true } },
+            group: { select: { id: true, name: true } },
+            grade: { select: { name: true } },
+          },
+        },
+        assessment: {
+          select: {
+            id: true, title: true, titleAr: true, type: true, dueDate: true, totalPoints: true,
+            questions: { orderBy: { orderIndex: 'asc' } },
+          },
+        },
+        grades: true,
+      },
+      orderBy: { submittedAt: 'asc' },
+    });
+
+    const toNum = (v: any) => (v == null ? 0 : typeof v === 'number' ? v : Number(v.toString()));
+
+    return submissions.map((s) => {
+      let rawAnswers: { questionId: string; answer: string }[] = [];
+      try {
+        const parsed = JSON.parse(s.submissionContent || '[]');
+        if (Array.isArray(parsed)) rawAnswers = parsed;
+      } catch {
+        rawAnswers = [];
+      }
+      const answers = s.assessment.questions.map((q) => {
+        const given = rawAnswers.find((a) => a.questionId === q.id);
+        const grade = s.grades.find((g) => g.questionId === q.id);
+        return {
+          questionId: q.id,
+          questionText: q.questionText,
+          type: q.type,
+          points: toNum(q.points),
+          correctAnswer: q.type === 'essay' ? null : q.correctAnswer,
+          answer: given?.answer ?? null,
+          awarded: grade ? toNum(grade.score) : null,
+        };
+      });
+
+      return {
+        submissionId: s.id,
+        submittedAt: s.submittedAt,
+        isLate: s.isLate,
+        attemptNumber: s.attemptNumber,
+        student: {
+          id: s.student.id,
+          firstName: s.student.firstName,
+          lastName: s.student.lastName,
+          studentCode: s.student.studentCode,
+          levelName: s.student.level?.name ?? null,
+          groupName: s.student.group?.name ?? null,
+          gradeName: s.student.grade?.name ?? null,
+        },
+        assessment: {
+          id: s.assessment.id,
+          title: s.assessment.title,
+          titleAr: s.assessment.titleAr,
+          type: s.assessment.type,
+          dueDate: s.assessment.dueDate,
+          totalPoints: toNum(s.assessment.totalPoints),
+        },
+        hasEssay: s.assessment.questions.some((q) => q.type === 'essay'),
+        autoScore: s.grades
+          .filter((g) => g.questionId !== null)
+          .reduce((sum, g) => sum + toNum(g.score), 0),
+        answers,
+      };
+    });
+  }
+
+  async getPendingReviewCount(schoolIdentifier: string, actor?: Actor) {
+    const schoolId = await this.schoolResolver.resolve(schoolIdentifier);
+    const scope = await this.reviewStudentScope(actor);
+    if (!scope) return { count: 0, oldestSubmittedAt: null };
+
+    const where = {
+      status: 'submitted',
+      assessment: { schoolId, deletedAt: null },
+      student: { deletedAt: null, ...scope },
+    };
+    const [count, oldest] = await Promise.all([
+      this.prisma.assessmentSubmission.count({ where }),
+      this.prisma.assessmentSubmission.findFirst({ where, orderBy: { submittedAt: 'asc' }, select: { submittedAt: true } }),
+    ]);
+    return { count, oldestSubmittedAt: oldest?.submittedAt ?? null };
+  }
+
+  /**
+   * Accept the automatic score as the final mark for many submissions at once. Anything
+   * containing an essay is refused (it needs a human), and each id is reported separately
+   * so one bad row never blocks the rest.
+   */
+  async acceptAutoScores(schoolIdentifier: string, submissionIds: string[], actor?: Actor) {
+    const schoolId = await this.schoolResolver.resolve(schoolIdentifier);
+    const ids = Array.from(new Set(submissionIds)).slice(0, 100);
+    const results: { submissionId: string; ok: boolean; score?: number; error?: string }[] = [];
+
+    for (const id of ids) {
+      try {
+        const sub = await this.prisma.assessmentSubmission.findFirst({
+          where: { id, status: 'submitted', assessment: { schoolId, deletedAt: null } },
+          include: {
+            assessment: { select: { id: true, totalPoints: true, questions: { select: { type: true } } } },
+            grades: true,
+          },
+        });
+        if (!sub) {
+          results.push({ submissionId: id, ok: false, error: 'Not awaiting review' });
+          continue;
+        }
+        if (sub.assessment.questions.some((q) => q.type === 'essay')) {
+          results.push({ submissionId: id, ok: false, error: 'Contains an essay — needs manual marking' });
+          continue;
+        }
+        const score = sub.grades
+          .filter((g) => g.questionId !== null)
+          .reduce((sum, g) => sum + Number(g.score.toString()), 0);
+        await this.markStudent(
+          sub.assessmentId, sub.studentId, score, Number(sub.assessment.totalPoints.toString()),
+          undefined, actor?.id ?? null, { actor, viaAutoAccept: true },
+        );
+        results.push({ submissionId: id, ok: true, score });
+      } catch (err: any) {
+        results.push({ submissionId: id, ok: false, error: err?.message || 'Failed' });
+      }
+    }
+    return { accepted: results.filter((r) => r.ok).length, failed: results.filter((r) => !r.ok).length, results };
+  }
+
+  /**
+   * Send a submitted attempt back to the student to redo, without deleting anything the
+   * way unassignStudent does. The student is notified with the reviewer's note.
+   */
+  async returnSubmission(assessmentId: string, studentId: string, note?: string, actor?: Actor) {
+    const assessment = await this.prisma.assessment.findUnique({ where: { id: assessmentId } });
+    if (!assessment || assessment.deletedAt) throw new NotFoundException('Assessment not found');
+
+    const submission = await this.liveSubmission(assessmentId, studentId);
+    if (!submission) throw new NotFoundException('Student not assigned to this assessment');
+    if (submission.status !== 'submitted') {
+      throw new BadRequestException('Only a submitted attempt awaiting review can be returned');
+    }
+
+    const meta = ((submission.metadata as any) || {}) as Record<string, any>;
+    const history = Array.isArray(meta.returns) ? meta.returns : [];
+    const updated = await this.prisma.assessmentSubmission.update({
+      where: { id: submission.id },
+      data: {
+        status: 'assigned',
+        metadata: {
+          ...meta,
+          returns: [...history, { at: new Date().toISOString(), by: actor?.id ?? null, note: note || null }],
+        },
+      },
+    });
+
+    await this.audit.log({
+      schoolId: assessment.schoolId,
+      userId: actor?.id,
+      action: 'assessment.return',
+      entityType: 'assessment_submission',
+      entityId: submission.id,
+      newValues: { assessmentId, studentId, note: note || null },
+    }).catch(() => undefined);
+
+    await this.studentNotifications.notifyOrRefresh({
+      studentId,
+      type: 'assessment_returned',
+      title: 'Your assessment was returned',
+      titleAr: 'تمت إعادة تقييمك إليك',
+      body: note ? `${assessment.title} — ${note}` : `${assessment.title} — please review and submit again`,
+      bodyAr: note ? `${assessment.titleAr ?? assessment.title} — ${note}` : `${assessment.titleAr ?? assessment.title} — يرجى المراجعة والتسليم مرة أخرى`,
+      linkPath: '?tab=assessments',
+      referenceType: 'assessment_submission',
+      referenceId: submission.id,
+    }).catch(() => undefined);
+
+    return updated;
+  }
+
+  /** Backlog and turnaround per group and per marker (admin overview). */
+  async getReviewStats(schoolIdentifier: string, days = 90) {
+    const schoolId = await this.schoolResolver.resolve(schoolIdentifier);
+    const since = new Date(Date.now() - days * 86_400_000);
+    const toNum = (v: any) => (v == null ? 0 : typeof v === 'number' ? v : Number(v.toString()));
+
+    const [pending, completed] = await Promise.all([
+      this.prisma.assessmentSubmission.findMany({
+        where: { status: 'submitted', assessment: { schoolId, deletedAt: null }, student: { deletedAt: null } },
+        select: { submittedAt: true, student: { select: { group: { select: { id: true, name: true } } } } },
+      }),
+      this.prisma.assessmentSubmission.findMany({
+        where: {
+          status: 'completed',
+          submissionType: 'online',
+          assessment: { schoolId, deletedAt: null },
+          grades: { some: { questionId: null, gradedAt: { gte: since } } },
+        },
+        select: {
+          submittedAt: true,
+          student: { select: { group: { select: { id: true, name: true } } } },
+          grades: {
+            where: { questionId: null },
+            select: {
+              gradedAt: true,
+              grader: { select: { id: true, firstName: true, lastName: true } },
+            },
+          },
+        },
+      }),
+    ]);
+
+    type G = { groupId: string; groupName: string; pending: number; oldestPendingAt: Date | null; completed: number; totalHours: number };
+    const groups = new Map<string, G>();
+    const bucket = (g?: { id: string; name: string } | null): G => {
+      const key = g?.id ?? 'none';
+      if (!groups.has(key)) {
+        groups.set(key, { groupId: key, groupName: g?.name ?? '—', pending: 0, oldestPendingAt: null, completed: 0, totalHours: 0 });
+      }
+      return groups.get(key)!;
+    };
+
+    for (const p of pending) {
+      const b = bucket(p.student?.group);
+      b.pending += 1;
+      if (!b.oldestPendingAt || p.submittedAt < b.oldestPendingAt) b.oldestPendingAt = p.submittedAt;
+    }
+
+    const markers = new Map<string, { userId: string; name: string; completed: number; totalHours: number }>();
+    for (const c of completed) {
+      const grade = c.grades[0];
+      if (!grade) continue;
+      const hours = Math.max(0, (grade.gradedAt.getTime() - c.submittedAt.getTime()) / 3_600_000);
+      const b = bucket(c.student?.group);
+      b.completed += 1;
+      b.totalHours += hours;
+      if (grade.grader) {
+        const key = grade.grader.id;
+        const m = markers.get(key) ?? {
+          userId: key, name: `${grade.grader.firstName} ${grade.grader.lastName}`.trim(), completed: 0, totalHours: 0,
+        };
+        m.completed += 1;
+        m.totalHours += hours;
+        markers.set(key, m);
+      }
+    }
+
+    const round = (n: number) => Math.round(n * 10) / 10;
+    return {
+      days,
+      totalPending: pending.length,
+      groups: Array.from(groups.values())
+        .map((g) => ({
+          groupId: g.groupId, groupName: g.groupName, pending: g.pending,
+          oldestPendingAt: g.oldestPendingAt, completed: g.completed,
+          avgTurnaroundHours: g.completed ? round(g.totalHours / g.completed) : null,
+        }))
+        .sort((a, b) => b.pending - a.pending),
+      markers: Array.from(markers.values())
+        .map((m) => ({
+          userId: m.userId, name: m.name, completed: m.completed,
+          avgTurnaroundHours: m.completed ? round(m.totalHours / m.completed) : null,
+        }))
+        .sort((a, b) => b.completed - a.completed),
+    };
+  }
+
+  /** Tell the student's own servants (same group) that work is waiting. Never fails a submission. */
+  private async notifyReviewers(assessment: { id: string; schoolId: string; title: string; titleAr: string | null }, studentId: string, submissionId: string, skipUserId?: string) {
+    try {
+      const student = await this.prisma.student.findUnique({
+        where: { id: studentId },
+        select: { firstName: true, lastName: true, groupId: true },
+      });
+      if (!student?.groupId) return;
+      const users = await this.prisma.user.findMany({
+        where: {
+          schoolId: assessment.schoolId,
+          deletedAt: null,
+          isActive: true,
+          userRoles: { some: { role: { name: { in: REVIEWER_ROLES } } } },
+        },
+        select: { id: true, metadata: true },
+      });
+      const reviewers = users.filter((u) => ((u.metadata as any) || {}).groupId === student.groupId && u.id !== skipUserId);
+      const name = `${student.firstName} ${student.lastName}`.trim();
+      for (const r of reviewers) {
+        await this.prisma.notification.upsert({
+          where: {
+            schoolId_userId_type_referenceId: {
+              schoolId: assessment.schoolId, userId: r.id, type: 'assessment_submitted', referenceId: submissionId,
+            },
+          },
+          create: {
+            schoolId: assessment.schoolId, userId: r.id, type: 'assessment_submitted',
+            title: 'Assessment waiting for review', titleAr: 'تقييم بانتظار المراجعة',
+            body: `${name} submitted ${assessment.title}`.slice(0, 500),
+            bodyAr: `${name} سلّم ${assessment.titleAr ?? assessment.title}`.slice(0, 500),
+            channel: 'in_app', linkPath: '/dashboard/assessments/pending-review',
+            referenceType: 'assessment_submission', referenceId: submissionId,
+          },
+          update: { isRead: false, readAt: null, createdAt: new Date() },
+        });
+      }
+    } catch (err) {
+      console.error('notifyReviewers failed', err);
+    }
   }
 
   async getSubmissions(assessmentId: string) {
@@ -501,10 +861,40 @@ export class AssessmentsService {
     });
   }
 
-  async markStudent(assessmentId: string, studentId: string, score: number, maxScore: number, feedback?: string, gradedBy?: string | null) {
-    const assessment = await this.prisma.assessment.findUnique({ where: { id: assessmentId } });
+  async markStudent(
+    assessmentId: string,
+    studentId: string,
+    score: number,
+    maxScore: number,
+    feedback?: string,
+    gradedBy?: string | null,
+    opts?: { questionScores?: QuestionScore[]; actor?: Actor; viaAutoAccept?: boolean },
+  ) {
+    const assessment = await this.prisma.assessment.findUnique({
+      where: { id: assessmentId },
+      ...(opts?.questionScores?.length ? { include: { questions: true } } : {}),
+    });
     if (!assessment || assessment.deletedAt) {
       throw new NotFoundException('Assessment not found');
+    }
+
+    // Per-question scores: the overall mark is their sum, never a number typed separately.
+    const questionScores = opts?.questionScores?.length ? opts.questionScores : null;
+    if (questionScores) {
+      const questions: any[] = (assessment as any).questions || [];
+      const seen = new Set<string>();
+      let sum = 0;
+      for (const qs of questionScores) {
+        const q = questions.find((x) => x.id === qs.questionId);
+        if (!q) throw new BadRequestException('Unknown question in questionScores');
+        if (seen.has(qs.questionId)) throw new BadRequestException('Duplicate question in questionScores');
+        seen.add(qs.questionId);
+        if (qs.score < 0 || qs.score > Number(q.points)) {
+          throw new BadRequestException(`Score for a question cannot exceed its ${Number(q.points)} points`);
+        }
+        sum += qs.score;
+      }
+      score = Math.round(sum * 100) / 100;
     }
 
     const total = Number(assessment.totalPoints);
@@ -534,6 +924,25 @@ export class AssessmentsService {
     if (!gradedBy) {
       const adminUser = await this.prisma.user.findFirst({ where: { deletedAt: null }, select: { id: true } });
       gradedBy = adminUser?.id || null;
+    }
+
+    if (questionScores) {
+      for (const qs of questionScores) {
+        const q = ((assessment as any).questions as any[]).find((x) => x.id === qs.questionId);
+        const existingQ = await this.prisma.grade.findFirst({
+          where: { submissionId: submission.id, questionId: qs.questionId },
+        });
+        if (existingQ) {
+          await this.prisma.grade.update({
+            where: { id: existingQ.id },
+            data: { score: qs.score, maxScore: Number(q.points), gradedBy },
+          });
+        } else {
+          await this.prisma.grade.create({
+            data: { submissionId: submission.id, questionId: qs.questionId, score: qs.score, maxScore: Number(q.points), gradedBy },
+          });
+        }
+      }
     }
 
     const existingGrade = await this.prisma.grade.findFirst({
@@ -595,6 +1004,20 @@ export class AssessmentsService {
       });
     }
 
+    // Who marked, and whether an admin did it in place of the servant, must be traceable.
+    await this.audit.log({
+      schoolId: assessment.schoolId,
+      userId: gradedBy ?? undefined,
+      action: 'assessment.mark',
+      entityType: 'assessment_submission',
+      entityId: submission.id,
+      newValues: { assessmentId, studentId, score, maxScore, perQuestion: !!questionScores },
+      metadata: {
+        markedByAdmin: this.isAdminActor(opts?.actor),
+        viaAutoAccept: !!opts?.viaAutoAccept,
+      },
+    }).catch(() => undefined);
+
     // Grading was pull-only: a student had to reopen the assessment to discover a mark.
     // notifyOrRefresh rather than notify, so a re-grade updates the message and shows as
     // unread again instead of being silently swallowed as a duplicate.
@@ -648,7 +1071,7 @@ export class AssessmentsService {
       // Superseded attempts must not shadow the live one in this map.
       const submissions = await this.prisma.assessmentSubmission.findMany({
         where: { assessmentId, status: { not: 'superseded' } },
-        include: { grades: true },
+        include: { grades: { include: { grader: { select: { firstName: true, lastName: true } } } } },
         orderBy: [{ attemptNumber: 'asc' }, { createdAt: 'asc' }],
       });
       const submissionByStudent = new Map(submissions.map(s => [s.studentId, s]));
@@ -669,6 +1092,9 @@ export class AssessmentsService {
           submissionStatus: sub?.status || null,
           mark: overall ? toNum(overall.score) : null,
           maxMark: overall ? toNum(overall.maxScore) : toNum(assessment.totalPoints),
+          submittedAt: sub && sub.status !== 'assigned' ? sub.submittedAt : null,
+          markedBy: overall?.grader ? `${overall.grader.firstName} ${overall.grader.lastName}`.trim() : null,
+          markedAt: overall ? overall.gradedAt : null,
         };
       });
     } catch (err) {

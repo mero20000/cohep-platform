@@ -14,6 +14,7 @@ import {
 const ICONS: Record<StudentNotificationType, typeof Bell> = {
   practice_reviewed: Star,
   assessment_graded: ClipboardCheck,
+  assessment_returned: ClipboardCheck,
   liturgy_verified: Church,
   liturgy_rejected: XCircle,
   liturgy_clearance: Church,

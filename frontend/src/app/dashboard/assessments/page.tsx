@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useLanguage } from '@/lib/use-language'
+import { usePermission } from '@/lib/use-permission'
+import { usePendingReviewCount } from '@/lib/use-pending-review-count'
 import { validateQuestions } from './validation'
 import {
   ClipboardCheck, Plus, Pencil, Trash2, Loader2, ChevronRight, Zap,
@@ -53,6 +55,9 @@ interface StudentRow {
   status: string
   assigned: boolean
   submissionStatus: string | null
+  submittedAt?: string | null
+  markedBy?: string | null
+  markedAt?: string | null
   mark: number | null
   maxMark: number
 }
@@ -135,6 +140,9 @@ const emptyForm = {
 export default function AssessmentsPage() {
   const { toast } = useToast()
   const lang = useLanguage()
+  const { can } = usePermission()
+  const canReview = can('assessment:grade')
+  const pendingReviewCount = usePendingReviewCount(canReview)
 
   const [assessments, setAssessments] = useState<Assessment[]>([])
   const [pagination, setPagination] = useState({ page: 1, limit: 20, total: 0, totalPages: 0 })
@@ -370,8 +378,9 @@ export default function AssessmentsPage() {
   const openStudents = async (a: Assessment, grade?: string) => {
     setSelectedAssessment(a)
     setShowStudents(true)
-    const assessmentGrade = (a.metadata as { grade?: string } | undefined)?.grade || a.grade || ''
-    setStudentGradeFilter(grade || assessmentGrade)
+    // Only filter when the caller asks for a grade. Pre-filtering by the assessment's own
+    // grade silently hid submitted students whose grade differed from it.
+    setStudentGradeFilter(grade || '')
     setStudentsLoading(true)
     let rows: StudentRow[] = []
     try {
@@ -860,6 +869,18 @@ export default function AssessmentsPage() {
               <button className="flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-gray-100" onClick={() => handleExport('pdf')}><FileText className="h-4 w-4 text-red-600" />{lang === 'ar' ? 'تصدير PDF' : 'Export PDF'}</button>
             </div>}
           </div>
+          {canReview && (
+            <a
+              href="/dashboard/assessments/pending-review"
+              className="inline-flex items-center gap-2 rounded-lg border border-indigo-200 px-3 py-1.5 text-sm font-medium text-indigo-700 hover:bg-indigo-50"
+            >
+              <ClipboardCheck className="h-4 w-4" />
+              {lang === 'ar' ? 'بانتظار المراجعة' : 'Pending review'}
+              {pendingReviewCount > 0 && (
+                <span className="rounded-full bg-indigo-600 px-2 py-0.5 text-xs text-white">{pendingReviewCount}</span>
+              )}
+            </a>
+          )}
           <Button onClick={openCreate}>
             <Plus className="h-4 w-4" /> {lang === 'ar' ? 'تقييم جديد' : 'New Assessment'}
           </Button>
@@ -1250,6 +1271,11 @@ export default function AssessmentsPage() {
                             <span className="text-sm font-semibold text-gray-900 min-w-[3rem] text-right">{r.mark ?? '—'}</span>
                             <span className="text-xs text-gray-500">{r.maxMark}</span>
                             <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">{lang === 'ar' ? 'مكتمل' : 'Completed'}</span>
+                            {r.markedBy && (
+                              <span className="text-xs text-gray-500">
+                                {lang === 'ar' ? 'بواسطة' : 'by'} {r.markedBy}
+                              </span>
+                            )}
                               <Button variant="ghost" size="icon" onClick={() => deassignStudent(r.id)}
                                 className="text-red-600 hover:bg-red-50 border border-red-200"
                                 title={lang === 'ar' ? 'إلغاء التعيين' : 'De-assign'}>
@@ -1264,7 +1290,13 @@ export default function AssessmentsPage() {
                       ) : (
                         <>
                           <div className="flex items-center gap-2">
-                            <span className="rounded-full bg-green-50 px-2 py-0.5 text-xs font-medium text-green-600">{lang === 'ar' ? 'تم التعيين' : 'Assigned'}</span>
+                            {r.submissionStatus === 'submitted' ? (
+                              <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">
+                                {lang === 'ar' ? 'تم التسليم — بانتظار التقييم' : 'Submitted — awaiting marking'}
+                              </span>
+                            ) : (
+                              <span className="rounded-full bg-green-50 px-2 py-0.5 text-xs font-medium text-green-600">{lang === 'ar' ? 'تم التعيين' : 'Assigned'}</span>
+                            )}
                               <Button variant="ghost" size="icon" onClick={() => deassignStudent(r.id)}
                                 className="text-red-600 hover:bg-red-50 border border-red-200"
                                 title={lang === 'ar' ? 'إلغاء التعيين' : 'De-assign'}>
@@ -1368,8 +1400,8 @@ export default function AssessmentsPage() {
                           <td data-label={lang === 'ar' ? 'الطالب' : 'Student'} className="px-3 py-2.5 text-sm font-medium text-gray-900">{r.firstName} {r.lastName}</td>
                           <td data-label={lang === 'ar' ? 'الصف' : 'Grade'} className="px-3 py-2.5 text-sm text-gray-600">{r.gradeName || '—'}</td>
                           <td data-label={lang === 'ar' ? 'الحالة' : 'Status'} className="px-3 py-2.5">
-                            <Badge variant={r.submissionStatus === 'completed' ? 'success' : r.submissionStatus === 'assigned' ? 'info' : 'default'} size="sm">
-                              {r.submissionStatus === 'completed' ? (lang === 'ar' ? 'مكتمل' : 'completed') : r.submissionStatus === 'assigned' ? (lang === 'ar' ? 'تم التعيين' : 'assigned') : r.submissionStatus || '—'}
+                            <Badge variant={r.submissionStatus === 'completed' ? 'success' : r.submissionStatus === 'submitted' ? 'warning' : r.submissionStatus === 'assigned' ? 'info' : 'default'} size="sm">
+                              {r.submissionStatus === 'completed' ? (lang === 'ar' ? 'مكتمل' : 'completed') : r.submissionStatus === 'submitted' ? (lang === 'ar' ? 'بانتظار التقييم' : 'awaiting marking') : r.submissionStatus === 'assigned' ? (lang === 'ar' ? 'تم التعيين' : 'assigned') : r.submissionStatus || '—'}
                             </Badge>
                           </td>
                                                     <td data-label={lang === 'ar' ? 'الدرجة' : 'Mark'} className="px-3 py-2.5 text-sm text-right font-medium">{r.mark !== null ? r.mark : '—'}</td>

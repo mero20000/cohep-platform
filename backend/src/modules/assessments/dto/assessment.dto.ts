@@ -243,6 +243,15 @@ export class AssignStudentsDto {
   studentIds: string[];
 }
 
+export class QuestionScoreDto {
+  @IsUUID()
+  questionId: string;
+
+  @IsNumber()
+  @Min(0)
+  score: number;
+}
+
 export class MarkStudentDto {
   @IsNumber()
   @Min(0)
@@ -255,4 +264,23 @@ export class MarkStudentDto {
   @IsOptional()
   @IsString()
   feedback?: string;
+
+  /** Optional per-question scores. When given, the overall score is their sum. */
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => QuestionScoreDto)
+  questionScores?: QuestionScoreDto[];
+}
+
+export class ReturnSubmissionDto {
+  @IsOptional()
+  @IsString()
+  note?: string;
+}
+
+export class AcceptAutoScoresDto {
+  @IsArray()
+  @IsUUID('all', { each: true })
+  submissionIds: string[];
 }

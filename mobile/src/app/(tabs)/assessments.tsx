@@ -8,13 +8,12 @@ type A = PortalData['assessments'][number]
 
 function split(a: A[]) {
   const done = a.filter(x => x.submissionStatus === 'completed')
-  const overdue = a.filter(
-    x => x.submissionStatus !== 'completed' && x.dueDate && new Date(x.dueDate) < new Date(),
-  )
-  const pending = a.filter(
-    x => x.submissionStatus !== 'completed' && !(x.dueDate && new Date(x.dueDate) < new Date()),
-  )
-  return { done, overdue, pending }
+  // Handed in and waiting for a servant to mark it: not overdue and not something to do.
+  const awaiting = a.filter(x => x.submissionStatus === 'submitted')
+  const open = a.filter(x => x.submissionStatus !== 'completed' && x.submissionStatus !== 'submitted')
+  const overdue = open.filter(x => x.dueDate && new Date(x.dueDate) < new Date())
+  const pending = open.filter(x => !(x.dueDate && new Date(x.dueDate) < new Date()))
+  return { done, awaiting, overdue, pending }
 }
 
 function dueLabel(dueDate?: string): string | null {
@@ -31,6 +30,7 @@ function dueLabel(dueDate?: string): string | null {
 const SECTION_STYLES = {
   overdue: { title: 'Overdue — needs attention', tint: 'text-red-400', barLeft: 'border-l-red-400', chip: 'bg-red-400/20' },
   pending: { title: 'Upcoming', tint: 'text-sky-400', barLeft: 'border-l-sky-400', chip: 'bg-sky-400/20' },
+  awaiting: { title: 'Submitted — awaiting marking', tint: 'text-amber-400', barLeft: 'border-l-amber-400', chip: 'bg-amber-400/20' },
   done: { title: 'Completed 🎉', tint: 'text-green-400', barLeft: 'border-l-green-400', chip: 'bg-green-400/20' },
 } as const
 
@@ -81,8 +81,8 @@ export default function Assessments() {
     void load()
   }, [load])
 
-  const { overdue, pending, done } = data ? split(data.assessments) : { overdue: [], pending: [], done: [] }
-  const total = overdue.length + pending.length + done.length
+  const { overdue, pending, awaiting, done } = data ? split(data.assessments) : { overdue: [], pending: [], awaiting: [], done: [] }
+  const total = overdue.length + pending.length + awaiting.length + done.length
   const pct = total ? Math.round((done.length / total) * 100) : 0
 
   return (
@@ -105,8 +105,8 @@ export default function Assessments() {
           </Text>
         </View>
       ) : (
-        (['overdue', 'pending', 'done'] as const).map(kind => {
-          const list = kind === 'overdue' ? overdue : kind === 'pending' ? pending : done
+        (['overdue', 'pending', 'awaiting', 'done'] as const).map(kind => {
+          const list = kind === 'overdue' ? overdue : kind === 'pending' ? pending : kind === 'awaiting' ? awaiting : done
           if (!list.length) return null
           return (
             <View key={kind} className="mt-4">
