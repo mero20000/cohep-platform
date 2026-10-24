@@ -16,6 +16,7 @@ describe('AssessmentsService', () => {
   let prisma: any;
   let resolver: any;
   let audit: any;
+  let notifier: any;
 
   const schoolId = 'school-1';
 
@@ -55,9 +56,15 @@ describe('AssessmentsService', () => {
     },
     user: {
       findFirst: jest.fn(),
+      findUnique: jest.fn(),
+      findMany: jest.fn(),
     },
     student: {
       findMany: jest.fn(),
+      findUnique: jest.fn(),
+    },
+    notification: {
+      upsert: jest.fn(),
     },
     grade: {
       createMany: jest.fn(),
@@ -73,7 +80,7 @@ describe('AssessmentsService', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AssessmentsService,
-        { provide: StudentNotificationsService, useValue: { notify: jest.fn(), notifyOrRefresh: jest.fn() } },
+        { provide: StudentNotificationsService, useValue: { notify: jest.fn().mockResolvedValue(null), notifyOrRefresh: jest.fn().mockResolvedValue(null) } },
         { provide: PrismaService, useValue: prismaMock },
         { provide: SchoolResolver, useValue: { resolve: jest.fn().mockResolvedValue(schoolId) } },
         { provide: AuditService, useValue: { log: jest.fn().mockResolvedValue(undefined) } },
@@ -84,6 +91,7 @@ describe('AssessmentsService', () => {
     prisma = prismaMock;
     resolver = module.get(SchoolResolver);
     audit = module.get(AuditService);
+    notifier = module.get(StudentNotificationsService);
   });
 
   describe('create', () => {
@@ -475,7 +483,10 @@ describe('AssessmentsService', () => {
     });
   });
 
-  describe('getPendingReview', () => {
+  describe('pending review', () => {
+    const admin = { id: 'admin-1', roles: ['super_admin'] };
+    const servant = { id: 'srv-1', roles: ['servant'] };
+
     const row = (over: any = {}) => ({
       id: 'sub-1', submittedAt: new Date('2026-01-01'), isLate: true, attemptNumber: 1,
       submissionContent: JSON.stringify([{ questionId: 'q1', answer: 'B' }]),
@@ -494,34 +505,222 @@ describe('AssessmentsService', () => {
       ...over,
     });
 
-    it('queries only live submitted rows and maps answers, auto score and essay flag', async () => {
-      resolver.resolve.mockResolvedValue(schoolId);
-      prisma.assessmentSubmission.findMany.mockResolvedValue([row()]);
+    describe('getPendingReview', () => {
+      it('gives admins every live submitted row, mapping answers, auto score and essay flag', async () => {
+        prisma.assessmentSubmission.findMany.mockResolvedValue([row()]);
 
-      const result = await service.getPendingReview('school-1');
+        const result = await service.getPendingReview('school-1', admin);
 
-      expect(prisma.assessmentSubmission.findMany).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: expect.objectContaining({ status: 'submitted', assessment: { schoolId, deletedAt: null } }),
-        }),
-      );
-      expect(result).toHaveLength(1);
-      expect(result[0]).toMatchObject({
-        submissionId: 'sub-1', isLate: true, hasEssay: true, autoScore: 5,
-        student: { firstName: 'Robin', groupName: 'Group 1B', gradeName: 'Grade 6' },
-        assessment: { id: 'a1', totalPoints: 10 },
+        expect(prisma.assessmentSubmission.findMany).toHaveBeenCalledWith(
+          expect.objectContaining({
+            where: expect.objectContaining({
+              status: 'submitted',
+              assessment: { schoolId, deletedAt: null },
+              student: { deletedAt: null },
+            }),
+          }),
+        );
+        expect(result[0]).toMatchObject({
+          submissionId: 'sub-1', isLate: true, hasEssay: true, autoScore: 5,
+          student: { firstName: 'Robin', groupName: 'Group 1B', gradeName: 'Grade 6' },
+          assessment: { id: 'a1', totalPoints: 10 },
+        });
+        expect(result[0].answers[0]).toMatchObject({ answer: 'B', awarded: 5, correctAnswer: 'B' });
+        expect(result[0].answers[1]).toMatchObject({ answer: null, awarded: null, correctAnswer: null });
       });
-      expect(result[0].answers[0]).toMatchObject({ answer: 'B', awarded: 5, correctAnswer: 'B' });
-      expect(result[0].answers[1]).toMatchObject({ answer: null, awarded: null, correctAnswer: null });
+
+      it('limits a servant to the group and level on their profile', async () => {
+        prisma.user.findUnique.mockResolvedValue({ metadata: { groupId: 'g1', levelId: 'l1', teachingGender: 'both' } });
+        prisma.assessmentSubmission.findMany.mockResolvedValue([row()]);
+
+        await service.getPendingReview('school-1', servant);
+
+        expect(prisma.assessmentSubmission.findMany).toHaveBeenCalledWith(
+          expect.objectContaining({
+            where: expect.objectContaining({ student: { deletedAt: null, groupId: 'g1', levelId: 'l1' } }),
+          }),
+        );
+      });
+
+      it('shows a non-admin with no group or level nothing rather than everything', async () => {
+        prisma.user.findUnique.mockResolvedValue({ metadata: {} });
+
+        const result = await service.getPendingReview('school-1', servant);
+
+        expect(result).toEqual([]);
+        expect(prisma.assessmentSubmission.findMany).not.toHaveBeenCalled();
+      });
+
+      it('survives unparseable submission content', async () => {
+        prisma.assessmentSubmission.findMany.mockResolvedValue([row({ submissionContent: 'not json' })]);
+
+        const result = await service.getPendingReview('school-1', admin);
+
+        expect(result[0].answers.every((a: any) => a.answer === null)).toBe(true);
+      });
     });
 
-    it('survives unparseable submission content', async () => {
-      resolver.resolve.mockResolvedValue(schoolId);
-      prisma.assessmentSubmission.findMany.mockResolvedValue([row({ submissionContent: 'not json' })]);
+    describe('getPendingReviewCount', () => {
+      it('returns the count and the oldest waiting submission', async () => {
+        prisma.assessmentSubmission.count.mockResolvedValue(3);
+        prisma.assessmentSubmission.findFirst.mockResolvedValue({ submittedAt: new Date('2026-01-01') });
 
-      const result = await service.getPendingReview('school-1');
+        const result = await service.getPendingReviewCount('school-1', admin);
 
-      expect(result[0].answers.every((a: any) => a.answer === null)).toBe(true);
+        expect(result).toEqual({ count: 3, oldestSubmittedAt: new Date('2026-01-01') });
+      });
+
+      it('reports zero for an unscoped non-admin', async () => {
+        prisma.user.findUnique.mockResolvedValue({ metadata: null });
+        expect(await service.getPendingReviewCount('school-1', servant)).toEqual({ count: 0, oldestSubmittedAt: null });
+      });
+    });
+
+    describe('acceptAutoScores', () => {
+      const sub = (over: any = {}) => ({
+        id: 'sub-1', assessmentId: 'a1', studentId: 'stu-1', status: 'submitted',
+        assessment: { id: 'a1', totalPoints: 10, questions: [{ type: 'multiple_choice' }] },
+        grades: [{ questionId: 'q1', score: 4 }, { questionId: 'q2', score: 3 }, { questionId: null, score: 99 }],
+        ...over,
+      });
+
+      it('refuses submissions that contain an essay', async () => {
+        prisma.assessmentSubmission.findFirst.mockResolvedValue(
+          sub({ assessment: { id: 'a1', totalPoints: 10, questions: [{ type: 'essay' }] } }),
+        );
+        const spy = jest.spyOn(service, 'markStudent');
+
+        const result = await service.acceptAutoScores('school-1', ['sub-1'], admin);
+
+        expect(result).toMatchObject({ accepted: 0, failed: 1 });
+        expect(result.results[0].error).toMatch(/essay/);
+        expect(spy).not.toHaveBeenCalled();
+      });
+
+      it('marks with the sum of question grades only, and reports rows no longer awaiting review', async () => {
+        prisma.assessmentSubmission.findFirst
+          .mockResolvedValueOnce(sub())
+          .mockResolvedValueOnce(null);
+        const spy = jest.spyOn(service, 'markStudent').mockResolvedValue({} as any);
+
+        const result = await service.acceptAutoScores('school-1', ['sub-1', 'sub-2'], admin);
+
+        expect(spy).toHaveBeenCalledWith('a1', 'stu-1', 7, 10, undefined, 'admin-1', expect.objectContaining({ viaAutoAccept: true }));
+        expect(result).toMatchObject({ accepted: 1, failed: 1 });
+      });
+    });
+
+    describe('returnSubmission', () => {
+      const assessment = { id: 'a1', schoolId, title: 'Quiz', titleAr: null, deletedAt: null };
+
+      it('reopens a submitted attempt, keeps a history entry and notifies the student', async () => {
+        prisma.assessment.findUnique.mockResolvedValue(assessment);
+        prisma.assessmentSubmission.findFirst.mockResolvedValue({ id: 'sub-1', status: 'submitted', attemptNumber: 1, metadata: null });
+        prisma.assessmentSubmission.update.mockResolvedValue({ id: 'sub-1', status: 'assigned' });
+
+        await service.returnSubmission('a1', 'stu-1', 'Please redo Q2', admin);
+
+        expect(prisma.assessmentSubmission.update).toHaveBeenCalledWith(
+          expect.objectContaining({
+            data: expect.objectContaining({
+              status: 'assigned',
+              metadata: { returns: [expect.objectContaining({ note: 'Please redo Q2', by: 'admin-1' })] },
+            }),
+          }),
+        );
+        expect(notifier.notifyOrRefresh).toHaveBeenCalledWith(
+          expect.objectContaining({ studentId: 'stu-1', type: 'assessment_returned' }),
+        );
+      });
+
+      it('refuses anything that is not awaiting review', async () => {
+        prisma.assessment.findUnique.mockResolvedValue(assessment);
+        prisma.assessmentSubmission.findFirst.mockResolvedValue({ id: 'sub-1', status: 'completed', attemptNumber: 1 });
+
+        await expect(service.returnSubmission('a1', 'stu-1', undefined, admin)).rejects.toThrow(/awaiting review/);
+        expect(prisma.assessmentSubmission.update).not.toHaveBeenCalled();
+      });
+    });
+
+    describe('markStudent with per-question scores', () => {
+      const assessment = {
+        id: 'a1', schoolId, deletedAt: null, totalPoints: 10, lessonId: null, title: 'Quiz', titleAr: null,
+        questions: [{ id: 'q1', points: 4 }, { id: 'q2', points: 6 }],
+      };
+
+      beforeEach(() => {
+        prisma.assessment.findUnique.mockResolvedValue(assessment);
+        prisma.assessmentSubmission.findFirst.mockResolvedValue({ id: 'sub-1', status: 'submitted', attemptNumber: 1 });
+        prisma.assessmentSubmission.update.mockResolvedValue({ id: 'sub-1' });
+        prisma.assessmentSubmission.findUnique.mockResolvedValue({ id: 'sub-1', grades: [], student: null });
+        prisma.grade.findFirst.mockResolvedValue(null);
+        prisma.grade.create.mockResolvedValue({});
+        prisma.xPTransaction = {
+          findFirst: jest.fn().mockResolvedValue(null),
+          aggregate: jest.fn().mockResolvedValue({ _sum: { amount: 0 } }),
+          create: jest.fn(),
+          update: jest.fn(),
+        };
+      });
+
+      it('uses the sum of question scores as the overall mark and stores each question grade', async () => {
+        await service.markStudent('a1', 'stu-1', 999, 10, 'nice', 'admin-1', {
+          questionScores: [{ questionId: 'q1', score: 3 }, { questionId: 'q2', score: 4.5 }],
+          actor: admin,
+        });
+
+        expect(prisma.grade.create).toHaveBeenCalledWith(
+          expect.objectContaining({ data: expect.objectContaining({ questionId: 'q1', score: 3, maxScore: 4 }) }),
+        );
+        expect(prisma.grade.create).toHaveBeenCalledWith(
+          expect.objectContaining({ data: expect.objectContaining({ questionId: null, score: 7.5, maxScore: 10 }) }),
+        );
+        expect(audit.log).toHaveBeenCalledWith(
+          expect.objectContaining({
+            action: 'assessment.mark',
+            userId: 'admin-1',
+            metadata: expect.objectContaining({ markedByAdmin: true }),
+          }),
+        );
+      });
+
+      it('rejects a question score above that question\'s points', async () => {
+        await expect(
+          service.markStudent('a1', 'stu-1', 0, 10, undefined, 'admin-1', { questionScores: [{ questionId: 'q1', score: 5 }] }),
+        ).rejects.toThrow(/cannot exceed its 4 points/);
+      });
+
+      it('rejects an unknown question', async () => {
+        await expect(
+          service.markStudent('a1', 'stu-1', 0, 10, undefined, 'admin-1', { questionScores: [{ questionId: 'nope', score: 1 }] }),
+        ).rejects.toThrow(/Unknown question/);
+      });
+    });
+
+    describe('getReviewStats', () => {
+      it('summarises backlog and turnaround per group and per marker', async () => {
+        const g = { id: 'g1', name: 'Group 1B' };
+        prisma.assessmentSubmission.findMany
+          .mockResolvedValueOnce([
+            { submittedAt: new Date('2026-01-02'), student: { group: g } },
+            { submittedAt: new Date('2026-01-01'), student: { group: g } },
+          ])
+          .mockResolvedValueOnce([
+            {
+              submittedAt: new Date('2026-01-01T00:00:00Z'),
+              student: { group: g },
+              grades: [{ gradedAt: new Date('2026-01-01T10:00:00Z'), grader: { id: 'u1', firstName: 'Mina', lastName: 'S' } }],
+            },
+          ]);
+
+        const stats = await service.getReviewStats('school-1');
+
+        expect(stats.totalPending).toBe(2);
+        expect(stats.groups[0]).toMatchObject({
+          groupName: 'Group 1B', pending: 2, oldestPendingAt: new Date('2026-01-01'), completed: 1, avgTurnaroundHours: 10,
+        });
+        expect(stats.markers[0]).toMatchObject({ name: 'Mina S', completed: 1, avgTurnaroundHours: 10 });
+      });
     });
   });
 

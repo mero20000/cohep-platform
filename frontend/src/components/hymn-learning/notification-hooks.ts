@@ -6,6 +6,7 @@ import { portalGet, portalPatch } from '@/lib/portal-session'
 export type StudentNotificationType =
   | 'practice_reviewed'
   | 'assessment_graded'
+  | 'assessment_returned'
   | 'liturgy_verified'
   | 'liturgy_rejected'
   | 'liturgy_clearance'
