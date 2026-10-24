@@ -17,6 +17,9 @@ vi.mock('@/components/ui/toast', () => ({ useToast: () => ({ toast: mockToast })
 vi.mock('@/lib/use-language', () => ({ useLanguage: () => 'en' }))
 vi.mock('@/lib/school', () => ({ getSchoolId: () => 'school-1' }))
 vi.mock('@/lib/export-pending-review', () => ({ exportPendingReviewXlsx: vi.fn() }))
+vi.mock('@/components/audio-player', () => ({
+  AudioPlayer: ({ src }: any) => <audio data-testid="player" src={src} />,
+}))
 vi.mock('next/link', () => ({ default: ({ children, href }: any) => <a href={href}>{children}</a> }))
 
 const perm = vi.hoisted(() => ({ role: 'super_admin' }))
@@ -35,7 +38,13 @@ const item = (id: string, over: any = {}) => ({
   isLate: false,
   attemptNumber: 1,
   student: { id: `stu-${id}`, firstName: 'Robin', lastName: id, studentCode: 'S1', levelName: 'L1', groupName: 'Group 1B', gradeName: 'Grade 6' },
-  assessment: { id: 'a1', title: 'Quiz', titleAr: null, type: 'quiz', dueDate: null, totalPoints: 10 },
+  assessment: {
+    id: 'a1', title: 'Quiz', titleAr: null, type: 'quiz', dueDate: null, totalPoints: 10,
+    referenceRecordingUrl: null, referenceRecordingName: null,
+  },
+  recording: null,
+  notes: null,
+  extraAnswers: [],
   hasEssay: false,
   autoScore: 7,
   answers: [{ questionId: 'q1', questionText: 'Pick one', type: 'multiple_choice', points: 10, correctAnswer: 'B', answer: 'B', awarded: 7 }],
@@ -80,7 +89,7 @@ describe('PendingReviewPage', () => {
     const essayRow = screen.getByText(/Robin two/).closest('div.p-4') as HTMLElement
     expect((within(essayRow).getByRole('checkbox') as HTMLInputElement).disabled).toBe(true)
 
-    await user.click(screen.getByLabelText(/Select all without essays/))
+    await user.click(screen.getByLabelText(/Select all that can be auto-accepted/))
     await user.click(screen.getByRole('button', { name: /Accept auto scores \(1\)/ }))
     await user.click(screen.getByText('confirm-bulk'))
 
@@ -93,12 +102,79 @@ describe('PendingReviewPage', () => {
     expect(screen.getByText(/Robin two/)).toBeTruthy()
   })
 
+  it('shows the student recording inline, plays the reference alongside, and keeps it out of bulk accept', async () => {
+    const user = userEvent.setup()
+    mocks.get.mockResolvedValue([
+      item('rec', {
+        recording: { url: 'https://cdn/student.webm', type: 'audio/webm', durationSeconds: 30 },
+        notes: 'Noisy room, sorry',
+        assessment: {
+          id: 'a1', title: 'Hymn', titleAr: null, type: 'oral', dueDate: null, totalPoints: 10,
+          referenceRecordingUrl: 'https://cdn/ref.mp3', referenceRecordingName: 'Reference',
+        },
+      }),
+    ])
+    render(<PendingReviewPage />)
+    const row = (await screen.findByText(/Robin rec/)).closest('div.p-4') as HTMLElement
+
+    expect(within(row).getAllByTestId('player').map(p => p.getAttribute('src'))).toEqual(['https://cdn/student.webm'])
+    expect((within(row).getByRole('checkbox') as HTMLInputElement).disabled).toBe(true)
+    expect(within(row).queryByRole('button', { name: /Accept auto score/ })).toBeNull()
+
+    await user.click(within(row).getByRole('button', { name: 'Show answers' }))
+    expect(within(row).getByText('Noisy room, sorry')).toBeTruthy()
+    expect(within(row).getAllByTestId('player').map(p => p.getAttribute('src')))
+      .toEqual(['https://cdn/student.webm', 'https://cdn/student.webm', 'https://cdn/ref.mp3'])
+  })
+
+  it('lets a marker score an oral submission that has no questions in review mode', async () => {
+    const user = userEvent.setup()
+    mocks.get.mockResolvedValue([
+      item('oral', {
+        answers: [],
+        autoScore: 0,
+        recording: { url: 'https://cdn/oral.webm', type: 'audio/webm', durationSeconds: 12 },
+      }),
+    ])
+    render(<PendingReviewPage />)
+    await screen.findByText(/Robin oral/)
+
+    await user.click(screen.getByRole('button', { name: 'Review mode' }))
+    const dialog = await screen.findByRole('dialog')
+    expect(within(dialog).getByTestId('player').getAttribute('src')).toBe('https://cdn/oral.webm')
+
+    const overall = within(dialog).getByLabelText('Recording or overall score')
+    await user.clear(overall)
+    await user.type(overall, '8')
+    await user.click(within(dialog).getByRole('button', { name: 'Save & next' }))
+
+    await waitFor(() => expect(mocks.post).toHaveBeenCalledWith(
+      '/assessments/a1/students/stu-oral/mark',
+      { score: 8, maxScore: 10, feedback: '', extraScore: 8 },
+    ))
+  })
+
+  it('refuses an overall score above what the assessment allows', async () => {
+    const user = userEvent.setup()
+    mocks.get.mockResolvedValue([item('oral', { answers: [], autoScore: 0 })])
+    render(<PendingReviewPage />)
+    await screen.findByText(/Robin oral/)
+    await user.click(screen.getByRole('button', { name: 'Review mode' }))
+    const dialog = await screen.findByRole('dialog')
+
+    const overall = within(dialog).getByLabelText('Recording or overall score')
+    await user.clear(overall)
+    await user.type(overall, '11')
+
+    expect((within(dialog).getByRole('button', { name: 'Save & next' }) as HTMLButtonElement).disabled).toBe(true)
+  })
+
   it('hides bulk actions and the turnaround tab from a servant', async () => {
     perm.role = 'servant'
     render(<PendingReviewPage />)
     await screen.findByText(/Robin one/)
     expect(screen.queryByRole('tab', { name: /Turnaround/ })).toBeNull()
-    expect(screen.queryByLabelText(/Select all without essays/)).toBeNull()
+    expect(screen.queryByLabelText(/Select all that can be auto-accepted/)).toBeNull()
     expect(screen.getByText(/from your group/)).toBeTruthy()
   })
 

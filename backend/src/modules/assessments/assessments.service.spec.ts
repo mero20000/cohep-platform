@@ -466,6 +466,23 @@ describe('AssessmentsService', () => {
       },
     );
 
+    it('keeps the return history when a resubmission carries student notes', async () => {
+      prisma.assessment.findUnique.mockResolvedValue(overdueAssess(true));
+      prisma.assessmentSubmission.findFirst.mockResolvedValue({
+        id: 's1', status: 'assigned', attemptNumber: 1, metadata: { returns: [{ note: 'redo Q2' }] },
+      });
+      prisma.assessmentSubmission.update.mockResolvedValue({ id: 's1' });
+      prisma.assessmentSubmission.findUnique.mockResolvedValue({ id: 's1', grades: [], student: null });
+
+      await service.submit('a1', 'stu-1', { answers: [], notes: 'fixed it' });
+
+      expect(prisma.assessmentSubmission.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ metadata: { returns: [{ note: 'redo Q2' }], notes: 'fixed it' } }),
+        }),
+      );
+    });
+
     it('does not mark a submission late when there is no due date', async () => {
       prisma.assessment.findUnique.mockResolvedValue({
         id: 'a1', schoolId: 'school-1', status: 'published', deletedAt: null,
@@ -551,6 +568,40 @@ describe('AssessmentsService', () => {
         expect(prisma.assessmentSubmission.findMany).not.toHaveBeenCalled();
       });
 
+      it('includes the student recording, notes, the reference recording and answers to since-removed questions', async () => {
+        prisma.assessmentSubmission.findMany.mockResolvedValue([
+          row({
+            fileUrl: 'https://cdn/rec.webm', fileType: 'audio/webm', durationSeconds: 42,
+            metadata: { notes: 'Sorry, noisy room', returns: [] },
+            submissionContent: JSON.stringify([
+              { questionId: 'q1', answer: 'B' },
+              { questionId: 'gone', answer: 'old answer' },
+            ]),
+            assessment: {
+              ...row().assessment,
+              referenceRecordingUrl: 'https://cdn/ref.mp3', referenceRecordingName: 'Reference',
+            },
+          }),
+        ]);
+
+        const [r] = await service.getPendingReview('school-1', admin);
+
+        expect(r.recording).toEqual({ url: 'https://cdn/rec.webm', type: 'audio/webm', durationSeconds: 42 });
+        expect(r.notes).toBe('Sorry, noisy room');
+        expect(r.assessment.referenceRecordingUrl).toBe('https://cdn/ref.mp3');
+        expect(r.extraAnswers).toEqual([{ questionId: 'gone', answer: 'old answer' }]);
+      });
+
+      it('reports no recording or notes for a plain typed submission', async () => {
+        prisma.assessmentSubmission.findMany.mockResolvedValue([row({ fileUrl: null, metadata: null })]);
+
+        const [r] = await service.getPendingReview('school-1', admin);
+
+        expect(r.recording).toBeNull();
+        expect(r.notes).toBeNull();
+        expect(r.extraAnswers).toEqual([]);
+      });
+
       it('survives unparseable submission content', async () => {
         prisma.assessmentSubmission.findMany.mockResolvedValue([row({ submissionContent: 'not json' })]);
 
@@ -594,6 +645,20 @@ describe('AssessmentsService', () => {
 
         expect(result).toMatchObject({ accepted: 0, failed: 1 });
         expect(result.results[0].error).toMatch(/essay/);
+        expect(spy).not.toHaveBeenCalled();
+      });
+
+      it.each([
+        ['a recording', { fileUrl: 'https://cdn/rec.webm' }],
+        ['no questions', { assessment: { id: 'a1', totalPoints: 10, questions: [] } }],
+      ])('refuses a submission with %s', async (_label, over) => {
+        prisma.assessmentSubmission.findFirst.mockResolvedValue(sub(over));
+        const spy = jest.spyOn(service, 'markStudent');
+
+        const result = await service.acceptAutoScores('school-1', ['sub-1'], admin);
+
+        expect(result).toMatchObject({ accepted: 0, failed: 1 });
+        expect(result.results[0].error).toMatch(/manual marking/);
         expect(spy).not.toHaveBeenCalled();
       });
 
@@ -682,6 +747,35 @@ describe('AssessmentsService', () => {
             metadata: expect.objectContaining({ markedByAdmin: true }),
           }),
         );
+      });
+
+      it('adds extraScore (e.g. a recording) to the per-question sum', async () => {
+        await service.markStudent('a1', 'stu-1', 0, 10, undefined, 'admin-1', {
+          questionScores: [{ questionId: 'q1', score: 3 }],
+          extraScore: 2.5,
+          actor: admin,
+        });
+
+        expect(prisma.grade.create).toHaveBeenCalledWith(
+          expect.objectContaining({ data: expect.objectContaining({ questionId: null, score: 5.5, maxScore: 10 }) }),
+        );
+      });
+
+      it('uses extraScore as the whole mark when there are no per-question scores (oral / recording only)', async () => {
+        await service.markStudent('a1', 'stu-1', 0, 10, undefined, 'admin-1', { extraScore: 8, actor: admin });
+
+        expect(prisma.grade.create).toHaveBeenCalledWith(
+          expect.objectContaining({ data: expect.objectContaining({ questionId: null, score: 8, maxScore: 10 }) }),
+        );
+      });
+
+      it('rejects a total that exceeds the maximum once extraScore is added', async () => {
+        await expect(
+          service.markStudent('a1', 'stu-1', 0, 10, undefined, 'admin-1', {
+            questionScores: [{ questionId: 'q2', score: 6 }],
+            extraScore: 5,
+          }),
+        ).rejects.toThrow(/score cannot exceed maxScore/);
       });
 
       it('rejects a question score above that question\'s points', async () => {
