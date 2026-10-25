@@ -1,0 +1,61 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "COHEP Platform Architecture",
+    "output": ".archify/architecture-cohep-platform-20261025-151456/cohep-platform-architecture.html",
+    "quality_profile": "showcase",
+    "repository": {
+      "url": "https://github.com/mero20000/cohep-platform",
+      "provider": "github",
+      "revision": "1a0b88b422ef6d5269709ba6b790e58e8f82c85e"
+    }
+  },
+  "components": [
+    { "id": "users", "type": "external", "label": "Users", "sublabel": "Staff, students, parents", "pos": [40, 220], "size": [120, 60],
+      "sources": [{ "path": "frontend/src/lib/roles.ts", "line": 1, "end_line": 11 }] },
+    { "id": "web", "type": "frontend", "label": "Next.js frontend", "sublabel": "Vercel", "pos": [250, 220], "size": [120, 60],
+      "sources": [{ "path": "frontend/src/lib/http-client.ts", "line": 84, "end_line": 91 }, { "path": "frontend/src/middleware.ts", "line": 14, "end_line": 31 }] },
+    { "id": "api", "type": "backend", "label": "NestJS API", "sublabel": "Render, /api prefix", "pos": [460, 220], "size": [120, 60],
+      "sources": [{ "path": "backend/src/main.ts", "line": 34, "end_line": 86 }] },
+    { "id": "guards", "type": "security", "label": "Global guards", "sublabel": "Throttle, JWT, Roles, Tenant", "pos": [670, 220], "size": [120, 64],
+      "sources": [{ "path": "backend/src/app.module.ts", "line": 82, "end_line": 99 }, { "path": "backend/src/common/guards/tenant-scope.guard.ts", "line": 33, "end_line": 66 }] },
+    { "id": "modules", "type": "backend", "label": "Feature modules", "sublabel": "25 NestJS modules", "pos": [880, 170], "size": [120, 160],
+      "sources": [{ "path": "backend/src/app.module.ts", "line": 55, "end_line": 80 }] },
+    { "id": "db", "type": "database", "label": "PostgreSQL", "sublabel": "Prisma, 62 models", "pos": [880, 40], "size": [120, 60],
+      "sources": [{ "path": "backend/prisma/schema.prisma", "line": 8, "end_line": 11 }, { "path": "backend/src/database/prisma.service.ts", "line": 5, "end_line": 18 }] },
+    { "id": "keepalive", "type": "cloud", "label": "GitHub Actions", "sublabel": "keep-alive cron", "pos": [460, 400], "size": [120, 60],
+      "sources": [{ "path": ".github/workflows/keepalive.yml", "line": 3, "end_line": 8 }] },
+    { "id": "r2", "type": "cloud", "label": "Cloudflare R2", "sublabel": "else local /uploads", "pos": [880, 400], "size": [120, 60],
+      "sources": [{ "path": "backend/src/common/storage/r2.ts", "line": 46, "end_line": 70 }] },
+    { "id": "cloudinary", "type": "cloud", "label": "Cloudinary", "sublabel": "image uploads", "pos": [1090, 100], "size": [130, 60],
+      "sources": [{ "path": "backend/src/common/config/cloudinary.ts", "line": 3, "end_line": 17 }] },
+    { "id": "sendgrid", "type": "external", "label": "SendGrid", "sublabel": "email API", "pos": [1090, 190], "size": [130, 60],
+      "sources": [{ "path": "backend/src/modules/mail/mail.service.ts", "line": 41, "end_line": 59 }] },
+    { "id": "whatsapp", "type": "external", "label": "WhatsApp", "sublabel": "Twilio or Meta", "pos": [1090, 280], "size": [130, 60],
+      "sources": [{ "path": "backend/src/common/whatsapp/whatsapp.service.ts", "line": 21, "end_line": 30 }] },
+    { "id": "gemini", "type": "external", "label": "Gemini API", "sublabel": "announcements AI", "pos": [1090, 370], "size": [130, 60],
+      "sources": [{ "path": "backend/src/modules/announcements/announcements.service.ts", "line": 25, "end_line": 30 }] }
+  ],
+  "boundaries": [
+    { "kind": "region", "label": "Render (oregon)", "wraps": ["api", "guards", "modules", "db"] }
+  ],
+  "connections": [
+    { "id": "users-web", "from": "users", "to": "web", "label": "HTTPS", "variant": "emphasis" },
+    { "id": "web-api", "from": "web", "to": "api", "label": "REST + JWT", "variant": "emphasis" },
+    { "id": "api-guards", "from": "api", "to": "guards", "label": "pipeline" },
+    { "id": "guards-modules", "from": "guards", "to": "modules", "label": "authorized", "variant": "security" },
+    { "id": "modules-db", "from": "modules", "to": "db", "label": "Prisma" },
+    { "id": "modules-r2", "from": "modules", "to": "r2", "label": "audio, photos", "variant": "dashed" },
+    { "id": "modules-cloudinary", "from": "modules", "to": "cloudinary", "variant": "dashed" },
+    { "id": "modules-sendgrid", "from": "modules", "to": "sendgrid", "variant": "dashed" },
+    { "id": "modules-whatsapp", "from": "modules", "to": "whatsapp", "variant": "dashed" },
+    { "id": "modules-gemini", "from": "modules", "to": "gemini", "variant": "dashed" },
+    { "id": "keepalive-api", "from": "keepalive", "to": "api", "label": "GET /health", "variant": "dashed" }
+  ],
+  "cards": [
+    { "dot": "cyan", "title": "Request path", "items": ["Browser calls the API with a Bearer token from localStorage", "Throttler (200/min), JWT, Roles, then tenant-scope guards run on every route", "Tenant guard rejects a school other than the caller's, except super_admin"] },
+    { "dot": "emerald", "title": "Optional integrations", "items": ["R2 falls back to local disk when unset", "Mail, WhatsApp and Gemini are configured by env vars", "Cloudinary is used by the upload controller"] },
+    { "dot": "rose", "title": "Not wired in this revision", "items": ["RedisModule is not imported by AppModule", "Logto callback route is a placeholder", "Mobile app (mobile/) not traced"] }
+  ]
+}
