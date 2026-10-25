@@ -501,6 +501,99 @@ export class AssessmentsService {
     });
   }
 
+  /**
+   * Everything already marked, newest first: who marked it (admin or servant), when, and the
+   * result. Same visibility scope as the pending queue. Capped, with `truncated` set when more exist.
+   */
+  async getMarked(schoolIdentifier: string, actor?: Actor, days = 90) {
+    const schoolId = await this.schoolResolver.resolve(schoolIdentifier);
+    const scope = await this.reviewStudentScope(actor);
+    if (!scope) return { days, truncated: false, items: [] };
+
+    const window = Math.min(Math.max(Math.floor(days) || 90, 1), 365);
+    const since = new Date(Date.now() - window * 86_400_000);
+    const LIMIT = 500;
+    const toNum = (v: any) => (v == null ? 0 : typeof v === 'number' ? v : Number(v.toString()));
+
+    const grades = await this.prisma.grade.findMany({
+      where: {
+        questionId: null,
+        gradedAt: { gte: since },
+        submission: {
+          status: 'completed',
+          assessment: { schoolId, deletedAt: null },
+          student: { deletedAt: null, ...scope },
+        },
+      },
+      orderBy: { gradedAt: 'desc' },
+      take: LIMIT + 1,
+      include: {
+        grader: {
+          select: {
+            id: true, firstName: true, lastName: true,
+            userRoles: { select: { role: { select: { name: true } } } },
+          },
+        },
+        submission: {
+          select: {
+            id: true, submittedAt: true, submissionType: true, isLate: true, fileUrl: true,
+            student: {
+              select: {
+                id: true, firstName: true, lastName: true, studentCode: true,
+                group: { select: { id: true, name: true } },
+                grade: { select: { name: true } },
+              },
+            },
+            assessment: { select: { id: true, title: true, titleAr: true, totalPoints: true } },
+          },
+        },
+      },
+    });
+
+    const truncated = grades.length > LIMIT;
+    const items = grades.slice(0, LIMIT).map((g) => {
+      const sub = g.submission;
+      const score = toNum(g.score);
+      const maxScore = toNum(g.maxScore);
+      const roleNames = (g.grader?.userRoles || []).map((ur: any) => ur.role?.name).filter(Boolean) as string[];
+      return {
+        submissionId: sub.id,
+        markedAt: g.gradedAt,
+        score,
+        maxScore,
+        percentage: maxScore > 0 ? Math.round((score / maxScore) * 100) : null,
+        feedback: g.feedback ?? null,
+        // Submitted by the student, or entered directly by staff without a student submission.
+        submittedAt: sub.submissionType === 'online' ? sub.submittedAt : null,
+        isLate: sub.isLate,
+        hasRecording: !!sub.fileUrl,
+        markedBy: g.grader
+          ? {
+              id: g.grader.id,
+              name: `${g.grader.firstName} ${g.grader.lastName}`.trim(),
+              isAdmin: roleNames.some((r) => ADMIN_ROLES.includes(r)),
+            }
+          : null,
+        student: {
+          id: sub.student.id,
+          firstName: sub.student.firstName,
+          lastName: sub.student.lastName,
+          studentCode: sub.student.studentCode,
+          groupName: sub.student.group?.name ?? null,
+          gradeName: sub.student.grade?.name ?? null,
+        },
+        assessment: {
+          id: sub.assessment.id,
+          title: sub.assessment.title,
+          titleAr: sub.assessment.titleAr,
+          totalPoints: toNum(sub.assessment.totalPoints),
+        },
+      };
+    });
+
+    return { days: window, truncated, items };
+  }
+
   async getPendingReviewCount(schoolIdentifier: string, actor?: Actor) {
     const schoolId = await this.schoolResolver.resolve(schoolIdentifier);
     const scope = await this.reviewStudentScope(actor);

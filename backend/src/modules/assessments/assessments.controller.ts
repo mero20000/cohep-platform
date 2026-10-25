@@ -58,6 +58,16 @@ export class AssessmentsController {
     return this.assessmentsService.getPendingReview(schoolId, req.user);
   }
 
+  @Get('marked')
+  @ApiOperation({ summary: 'Submissions already marked, with who marked them (all for admins, own group for servants)' })
+  async getMarked(
+    @Query('schoolId') schoolId: string = '',
+    @Query('days') days?: string,
+    @Req() req?: any,
+  ) {
+    return this.assessmentsService.getMarked(schoolId, req?.user, days ? parseInt(days, 10) : undefined);
+  }
+
   @Get('pending-review/count')
   @ApiOperation({ summary: 'Count of submissions awaiting marking for the caller' })
   async getPendingReviewCount(@Query('schoolId') schoolId: string = '', @Req() req: any) {

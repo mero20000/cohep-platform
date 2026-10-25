@@ -16,7 +16,7 @@ const mockToast = vi.fn()
 vi.mock('@/components/ui/toast', () => ({ useToast: () => ({ toast: mockToast }) }))
 vi.mock('@/lib/use-language', () => ({ useLanguage: () => 'en' }))
 vi.mock('@/lib/school', () => ({ getSchoolId: () => 'school-1' }))
-vi.mock('@/lib/export-pending-review', () => ({ exportPendingReviewXlsx: vi.fn() }))
+vi.mock('@/lib/export-pending-review', () => ({ exportPendingReviewXlsx: vi.fn(), exportMarkedXlsx: vi.fn() }))
 vi.mock('@/components/audio-player', () => ({
   AudioPlayer: ({ src }: any) => <audio data-testid="player" src={src} />,
 }))
@@ -167,6 +167,89 @@ describe('PendingReviewPage', () => {
     await user.type(overall, '11')
 
     expect((within(dialog).getByRole('button', { name: 'Save & next' }) as HTMLButtonElement).disabled).toBe(true)
+  })
+
+  describe('Marked tab', () => {
+    const marked = (id: string, over: any = {}) => ({
+      submissionId: id,
+      markedAt: '2026-02-01T10:00:00Z',
+      score: 8, maxScore: 10, percentage: 80, feedback: null,
+      submittedAt: '2026-02-01T08:00:00Z', isLate: false, hasRecording: false,
+      markedBy: { id: 'u1', name: 'Mina Servant', isAdmin: false },
+      student: { id: `stu-${id}`, firstName: 'Done', lastName: id, studentCode: 'S9', groupName: 'Group 1B', gradeName: 'Grade 6' },
+      assessment: { id: 'a1', title: 'Quiz', titleAr: null, totalPoints: 10 },
+      ...over,
+    })
+
+    beforeEach(() => {
+      mocks.get.mockImplementation(async (path: string) => {
+        if (path === '/assessments/marked') {
+          return {
+            days: 90,
+            truncated: false,
+            items: [
+              marked('s1'),
+              marked('a1', {
+                markedBy: { id: 'u2', name: 'Amir Admin', isAdmin: true },
+                feedback: 'Marked on behalf', score: 4, percentage: 40,
+              }),
+            ],
+          }
+        }
+        return [item('one')]
+      })
+    })
+
+    it('lists marked work with who marked it and their role', async () => {
+      const user = userEvent.setup()
+      render(<PendingReviewPage />)
+      await screen.findByText(/Robin one/)
+      await user.click(screen.getByRole('tab', { name: /Marked/ }))
+
+      expect(await screen.findByText(/Done s1/)).toBeTruthy()
+      expect(screen.getByText(/Marked by Mina Servant/)).toBeTruthy()
+      expect(screen.getByText(/Marked by Amir Admin/)).toBeTruthy()
+      expect(screen.getByText('Admin')).toBeTruthy()
+      expect(screen.getByText('Servant')).toBeTruthy()
+      expect(screen.getByText('“Marked on behalf”')).toBeTruthy()
+      expect(screen.getByText('8 / 10')).toBeTruthy()
+    })
+
+    it('filters by whether an admin or a servant marked it', async () => {
+      const user = userEvent.setup()
+      render(<PendingReviewPage />)
+      await screen.findByText(/Robin one/)
+      await user.click(screen.getByRole('tab', { name: /Marked/ }))
+      await screen.findByText(/Done s1/)
+
+      await user.selectOptions(screen.getByLabelText('Filter by marker role'), 'admin')
+      expect(screen.queryByText(/Done s1/)).toBeNull()
+      expect(screen.getByText(/Done a1/)).toBeTruthy()
+
+      await user.selectOptions(screen.getByLabelText('Filter by marker role'), 'servant')
+      expect(screen.getByText(/Done s1/)).toBeTruthy()
+      expect(screen.queryByText(/Done a1/)).toBeNull()
+    })
+
+    it('shows an empty state when nothing has been marked yet', async () => {
+      const user = userEvent.setup()
+      mocks.get.mockImplementation(async (path: string) => {
+        if (path === '/assessments/marked') return { days: 90, truncated: false, items: [] }
+        return [item('one')]
+      })
+      render(<PendingReviewPage />)
+      await screen.findByText(/Robin one/)
+      await user.click(screen.getByRole('tab', { name: /Marked/ }))
+      expect(await screen.findByText('Nothing has been marked yet')).toBeTruthy()
+    })
+
+    it('is available to a servant, who still gets no turnaround tab', async () => {
+      perm.role = 'servant'
+      render(<PendingReviewPage />)
+      await screen.findByText(/Robin one/)
+      expect(screen.getByRole('tab', { name: /Marked/ })).toBeTruthy()
+      expect(screen.queryByRole('tab', { name: /Turnaround/ })).toBeNull()
+    })
   })
 
   it('hides bulk actions and the turnaround tab from a servant', async () => {
