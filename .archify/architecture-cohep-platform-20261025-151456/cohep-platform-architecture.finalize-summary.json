@@ -1,0 +1,57 @@
+{
+  "schemaVersion": 1,
+  "ok": false,
+  "command": "finalize",
+  "status": "skipped",
+  "type": "architecture",
+  "quality": "showcase",
+  "specification": {
+    "path": "/home/user/cohep-platform/.archify/architecture-cohep-platform-20261025-151456/candidate.json",
+    "sha256": "77171e8bd79d2e38c7a51e97db2d8f9541fe2b9479e6c9a4d9d54070bc687124",
+    "bytes": 5400
+  },
+  "artifact": {
+    "path": "/home/user/cohep-platform/.archify/architecture-cohep-platform-20261025-151456/cohep-platform-architecture.html",
+    "sha256": "c0d3d77fd0b3baa173d8cf48e3fd448d6d57bb2bcc23a911cdd48c4030a7ebab",
+    "bytes": 854137
+  },
+  "gates": {
+    "validate": "pass",
+    "deliver": "pass",
+    "check": "pass",
+    "browser-check": "skipped"
+  },
+  "failedStage": "browser-check",
+  "diagnostics": [
+    {
+      "code": "viewer/chrome-unavailable",
+      "severity": "warning",
+      "message": "No supported browser found. Install Chrome/Chromium (or Microsoft Edge), or set ARCHIFY_CHROME to its executable path.",
+      "subject": {
+        "artifact": "/home/user/cohep-platform/.archify/architecture-cohep-platform-20261025-151456/cohep-platform-architecture.html"
+      },
+      "evidence": {
+        "executable": null
+      },
+      "supportedFixes": [
+        "set ARCHIFY_CHROME to a Chrome/Chromium executable (or Microsoft Edge) and rerun browser-check"
+      ]
+    }
+  ],
+  "diagnosticSummary": {
+    "total": 1,
+    "shown": 1,
+    "truncated": false
+  },
+  "evidence": {
+    "receipt": "/home/user/cohep-platform/.archify/architecture-cohep-platform-20261025-151456/cohep-platform-architecture.finalize.json",
+    "summaryReceipt": "/home/user/cohep-platform/.archify/architecture-cohep-platform-20261025-151456/cohep-platform-architecture.finalize-summary.json",
+    "browserCheckReceipt": "/home/user/cohep-platform/.archify/architecture-cohep-platform-20261025-151456/cohep-platform-architecture.browser-check.json"
+  },
+  "visualReview": "not-requested",
+  "durationMs": 910,
+  "browserCheck": {
+    "requested": true,
+    "ran": false
+  }
+}

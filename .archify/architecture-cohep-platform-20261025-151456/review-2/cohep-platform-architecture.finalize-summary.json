@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 1,
+  "ok": true,
+  "command": "finalize",
+  "status": "pass",
+  "type": "architecture",
+  "quality": "showcase",
+  "specification": {
+    "path": "/home/user/cohep-platform/.archify/architecture-cohep-platform-20261025-151456/candidate.json",
+    "sha256": "77171e8bd79d2e38c7a51e97db2d8f9541fe2b9479e6c9a4d9d54070bc687124",
+    "bytes": 5400
+  },
+  "artifact": {
+    "path": "/home/user/cohep-platform/.archify/architecture-cohep-platform-20261025-151456/cohep-platform-architecture.html",
+    "sha256": "c0d3d77fd0b3baa173d8cf48e3fd448d6d57bb2bcc23a911cdd48c4030a7ebab",
+    "bytes": 854137
+  },
+  "gates": {
+    "validate": "pass",
+    "deliver": "pass",
+    "check": "pass",
+    "browser-check": "pass"
+  },
+  "diagnostics": [],
+  "diagnosticSummary": {
+    "total": 0,
+    "shown": 0,
+    "truncated": false
+  },
+  "evidence": {
+    "receipt": "/home/user/cohep-platform/.archify/architecture-cohep-platform-20261025-151456/review-2/cohep-platform-architecture.finalize.json",
+    "summaryReceipt": "/home/user/cohep-platform/.archify/architecture-cohep-platform-20261025-151456/review-2/cohep-platform-architecture.finalize-summary.json",
+    "browserCheckReceipt": "/home/user/cohep-platform/.archify/architecture-cohep-platform-20261025-151456/review-2/cohep-platform-architecture.browser-check.json"
+  },
+  "visualReview": "not-requested",
+  "durationMs": 6166,
+  "browserCheck": {
+    "requested": true,
+    "ran": true
+  }
+}

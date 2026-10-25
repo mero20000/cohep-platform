@@ -1,0 +1,383 @@
+{
+  "schemaVersion": 1,
+  "ok": false,
+  "command": "finalize",
+  "status": "skipped",
+  "type": "architecture",
+  "quality": "showcase",
+  "startedAt": "2026-10-25T15:15:48.132Z",
+  "specification": {
+    "path": "/home/user/cohep-platform/.archify/architecture-cohep-platform-20261025-151456/candidate.json",
+    "sha256": "77171e8bd79d2e38c7a51e97db2d8f9541fe2b9479e6c9a4d9d54070bc687124",
+    "bytes": 5400
+  },
+  "artifact": {
+    "path": "/home/user/cohep-platform/.archify/architecture-cohep-platform-20261025-151456/cohep-platform-architecture.html",
+    "sha256": "c0d3d77fd0b3baa173d8cf48e3fd448d6d57bb2bcc23a911cdd48c4030a7ebab",
+    "bytes": 854137
+  },
+  "stages": {
+    "validate": {
+      "status": "pass",
+      "exitCode": 0,
+      "durationMs": null,
+      "execution": "embedded-in-deliver",
+      "command": [
+        "/opt/node22/bin/node",
+        "/root/.claude/skills/archify/bin/archify.mjs",
+        "deliver",
+        "architecture",
+        "/home/user/cohep-platform/.archify/architecture-cohep-platform-20261025-151456/candidate.json",
+        "/home/user/cohep-platform/.archify/architecture-cohep-platform-20261025-151456/cohep-platform-architecture.html",
+        "--quality",
+        "showcase",
+        "--repo-root",
+        "/home/user/cohep-platform",
+        "--json"
+      ],
+      "receipt": {
+        "schemaVersion": 1,
+        "ok": true,
+        "command": "validate",
+        "specification": {
+          "sha256": "77171e8bd79d2e38c7a51e97db2d8f9541fe2b9479e6c9a4d9d54070bc687124",
+          "bytes": 5400
+        },
+        "validation": {
+          "checksPassed": 9,
+          "checkCount": 9,
+          "compositionProfile": "showcase",
+          "compositionStatus": "pass",
+          "errors": 0,
+          "warnings": 0
+        }
+      }
+    },
+    "deliver": {
+      "status": "pass",
+      "exitCode": 0,
+      "durationMs": 560,
+      "command": [
+        "/opt/node22/bin/node",
+        "/root/.claude/skills/archify/bin/archify.mjs",
+        "deliver",
+        "architecture",
+        "/home/user/cohep-platform/.archify/architecture-cohep-platform-20261025-151456/candidate.json",
+        "/home/user/cohep-platform/.archify/architecture-cohep-platform-20261025-151456/cohep-platform-architecture.html",
+        "--quality",
+        "showcase",
+        "--repo-root",
+        "/home/user/cohep-platform",
+        "--json"
+      ],
+      "receipt": {
+        "schemaVersion": 1,
+        "receiptId": "6d258a5e-43ee-482d-8139-f73b01034804",
+        "ok": true,
+        "command": "deliver",
+        "type": "architecture",
+        "input": "/home/user/cohep-platform/.archify/architecture-cohep-platform-20261025-151456/candidate.json",
+        "output": "/home/user/cohep-platform/.archify/architecture-cohep-platform-20261025-151456/cohep-platform-architecture.html",
+        "specification": {
+          "sha256": "77171e8bd79d2e38c7a51e97db2d8f9541fe2b9479e6c9a4d9d54070bc687124",
+          "bytes": 5400
+        },
+        "artifact": {
+          "sha256": "c0d3d77fd0b3baa173d8cf48e3fd448d6d57bb2bcc23a911cdd48c4030a7ebab",
+          "bytes": 854137
+        },
+        "validation": {
+          "checksPassed": 9,
+          "checkCount": 9,
+          "compositionProfile": "showcase",
+          "compositionStatus": "pass",
+          "errors": 0,
+          "warnings": 0
+        },
+        "evidence": {
+          "verified": true,
+          "repository": "https://github.com/mero20000/cohep-platform",
+          "revision": "1a0b88b422ef6d5269709ba6b790e58e8f82c85e",
+          "references": 15
+        },
+        "update": {
+          "status": "unavailable",
+          "installedVersion": null,
+          "availableVersion": null,
+          "releaseNotes": null,
+          "checkedAt": null,
+          "source": null,
+          "noticeRequired": false,
+          "noticeText": null,
+          "reason": "disabled"
+        }
+      }
+    },
+    "check": {
+      "status": "pass",
+      "exitCode": 0,
+      "durationMs": 213,
+      "command": [
+        "/opt/node22/bin/node",
+        "/root/.claude/skills/archify/bin/archify.mjs",
+        "check",
+        "/home/user/cohep-platform/.archify/architecture-cohep-platform-20261025-151456/cohep-platform-architecture.html",
+        "--require-provenance"
+      ],
+      "receipt": {
+        "ok": true,
+        "file": "/home/user/cohep-platform/.archify/architecture-cohep-platform-20261025-151456/cohep-platform-architecture.html",
+        "artifact": {
+          "sha256": "c0d3d77fd0b3baa173d8cf48e3fd448d6d57bb2bcc23a911cdd48c4030a7ebab",
+          "bytes": 854137
+        },
+        "checks": [
+          {
+            "name": "single_svg",
+            "ok": true,
+            "details": [
+              "found 1 <svg> block(s)"
+            ]
+          },
+          {
+            "name": "finite_svg",
+            "ok": true,
+            "details": []
+          },
+          {
+            "name": "orthogonal_arrows",
+            "ok": true,
+            "details": []
+          },
+          {
+            "name": "label_route_clearance",
+            "ok": true,
+            "details": []
+          },
+          {
+            "name": "relationship_crossings",
+            "ok": true,
+            "details": []
+          },
+          {
+            "name": "relationship_corridors",
+            "ok": true,
+            "details": []
+          },
+          {
+            "name": "container_border_runs",
+            "ok": true,
+            "details": []
+          },
+          {
+            "name": "route_rhythm",
+            "ok": true,
+            "details": []
+          },
+          {
+            "name": "legend_clearance",
+            "ok": true,
+            "details": []
+          }
+        ],
+        "composition": {
+          "schemaVersion": 1,
+          "profile": "showcase",
+          "status": "pass",
+          "summary": {
+            "errors": 0,
+            "warnings": 0
+          },
+          "metrics": {
+            "properCrossings": 0,
+            "resolvedCrossovers": 0,
+            "ambiguousCorridors": 0,
+            "arrowheadCollisions": 0,
+            "containerBorderRuns": 0,
+            "labelRouteClearanceIssues": 0,
+            "labelCanvasOverflowIssues": 0,
+            "minLabelRouteClearance": 24.6,
+            "desktopReadabilityIssues": 0,
+            "viewportHeightIssues": 0,
+            "minProjectedNodeTextPx": 6.6,
+            "maxBends": 2,
+            "routesOverSuggestedBends": 0,
+            "maxStretch": 1,
+            "routesOverSuggestedStretch": 0,
+            "minSegmentPx": 23,
+            "minInteriorSegmentPx": 23,
+            "shortSegmentCount": 0,
+            "shortEndpointSegmentCount": 0,
+            "shortInteriorSegmentCount": 0,
+            "microSegmentCount": 0
+          },
+          "suggestedLimits": {
+            "bendsPerRelationship": 2,
+            "stretch": 1.35,
+            "segmentPx": 16,
+            "microSegmentPx": 8
+          },
+          "routeReview": {
+            "crossings": [],
+            "detours": []
+          },
+          "leadingSpace": {
+            "measured": true,
+            "emptyTopPx": 10,
+            "emptyTopRatio": 0.019,
+            "occupiedTop": 10,
+            "viewBoxTop": 0,
+            "canvasHeight": 528,
+            "typicalNodeHeight": 60,
+            "reviewSuggested": false
+          },
+          "desktopReadability": {
+            "budgetBasis": "recognized-declared-wide",
+            "readerContract": "declared-wide-v1",
+            "availableDiagramWidth": 1260,
+            "actualBudgetPx": 1260,
+            "actualReaderWidth": 1290,
+            "desiredReaderWidth": 1290,
+            "viewportCap": 1376,
+            "limit": "source-size",
+            "requestedTargetPx": 7.5,
+            "requestedTargetMet": false,
+            "hardFloorPx": 6,
+            "hardFloorMet": true,
+            "minimumOwner": {
+              "kind": "node",
+              "id": "guards"
+            },
+            "minimumSourceTextPx": 6.6,
+            "minimumProjectedTextPx": 6.6,
+            "semanticTextCount": 32
+          },
+          "issues": []
+        },
+        "provenance": "current",
+        "deliveryReceiptId": "6d258a5e-43ee-482d-8139-f73b01034804"
+      }
+    },
+    "browser-check": {
+      "status": "skipped",
+      "exitCode": 2,
+      "durationMs": 36,
+      "command": [
+        "/opt/node22/bin/node",
+        "/root/.claude/skills/archify/bin/archify.mjs",
+        "browser-check",
+        "/home/user/cohep-platform/.archify/architecture-cohep-platform-20261025-151456/cohep-platform-architecture.html",
+        "--json",
+        "--require-provenance"
+      ],
+      "execution": "in-process",
+      "receipt": {
+        "schemaVersion": 1,
+        "ok": false,
+        "command": "browser-check",
+        "evidenceKind": "automated-browser",
+        "status": "skipped",
+        "visualReview": "not-requested",
+        "provenance": "current",
+        "deliveryReceiptId": "6d258a5e-43ee-482d-8139-f73b01034804",
+        "artifact": {
+          "path": "/home/user/cohep-platform/.archify/architecture-cohep-platform-20261025-151456/cohep-platform-architecture.html",
+          "sha256": "c0d3d77fd0b3baa173d8cf48e3fd448d6d57bb2bcc23a911cdd48c4030a7ebab",
+          "bytes": 854137
+        },
+        "state": {
+          "detail": "read",
+          "motion": "still"
+        },
+        "chrome": {
+          "status": "unavailable",
+          "executable": null
+        },
+        "diagnostics": [
+          {
+            "code": "viewer/chrome-unavailable",
+            "severity": "warning",
+            "message": "No supported browser found. Install Chrome/Chromium (or Microsoft Edge), or set ARCHIFY_CHROME to its executable path.",
+            "subject": {
+              "artifact": "/home/user/cohep-platform/.archify/architecture-cohep-platform-20261025-151456/cohep-platform-architecture.html"
+            },
+            "evidence": {
+              "executable": null
+            },
+            "supportedFixes": [
+              "set ARCHIFY_CHROME to a Chrome/Chromium executable (or Microsoft Edge) and rerun browser-check"
+            ]
+          }
+        ],
+        "containment": {
+          "status": "skipped",
+          "policy": "fit-or-reader-declared-readable-vertical-scroll",
+          "viewports": []
+        },
+        "themeStates": {
+          "status": "skipped",
+          "viewports": []
+        },
+        "readability": {
+          "status": "skipped",
+          "minimumProjectedNodeTextPx": 6,
+          "viewports": []
+        },
+        "viewerChrome": {
+          "status": "skipped",
+          "viewports": []
+        },
+        "captures": {
+          "status": "not-requested",
+          "screenshots": [],
+          "contactSheet": null
+        },
+        "sidecars": {
+          "receipt": "cohep-platform-architecture.browser-check.json",
+          "files": []
+        },
+        "error": "No supported browser found. Install Chrome/Chromium (or Microsoft Edge), or set ARCHIFY_CHROME to its executable path."
+      }
+    }
+  },
+  "browserCheck": {
+    "requested": true,
+    "ran": false
+  },
+  "diagnostics": [
+    {
+      "code": "viewer/chrome-unavailable",
+      "severity": "warning",
+      "message": "No supported browser found. Install Chrome/Chromium (or Microsoft Edge), or set ARCHIFY_CHROME to its executable path.",
+      "subject": {
+        "artifact": "/home/user/cohep-platform/.archify/architecture-cohep-platform-20261025-151456/cohep-platform-architecture.html"
+      },
+      "evidence": {
+        "executable": null
+      },
+      "supportedFixes": [
+        "set ARCHIFY_CHROME to a Chrome/Chromium executable (or Microsoft Edge) and rerun browser-check"
+      ]
+    }
+  ],
+  "evidence": {
+    "receipt": "/home/user/cohep-platform/.archify/architecture-cohep-platform-20261025-151456/cohep-platform-architecture.finalize.json",
+    "summaryReceipt": "/home/user/cohep-platform/.archify/architecture-cohep-platform-20261025-151456/cohep-platform-architecture.finalize-summary.json",
+    "browserCheckReceipt": "/home/user/cohep-platform/.archify/architecture-cohep-platform-20261025-151456/cohep-platform-architecture.browser-check.json"
+  },
+  "visualReview": "not-requested",
+  "failedStage": "browser-check",
+  "finishedAt": "2026-10-25T15:15:49.042Z",
+  "durationMs": 910,
+  "update": {
+    "status": "unavailable",
+    "installedVersion": null,
+    "availableVersion": null,
+    "releaseNotes": null,
+    "checkedAt": null,
+    "source": null,
+    "noticeRequired": false,
+    "noticeText": null,
+    "reason": "check-failed"
+  }
+}
