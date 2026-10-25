@@ -49,6 +49,24 @@ export function needsManualMarking(i: Pick<PendingItem, 'hasEssay' | 'recording'
   return i.hasEssay || !!i.recording || i.answers.length === 0
 }
 
+export interface MarkedItem {
+  submissionId: string
+  markedAt: string
+  score: number
+  maxScore: number
+  percentage: number | null
+  feedback: string | null
+  /** null when staff entered the mark directly without a student submission */
+  submittedAt: string | null
+  isLate: boolean
+  hasRecording: boolean
+  markedBy: { id: string; name: string; isAdmin: boolean } | null
+  student: { id: string; firstName: string; lastName: string; studentCode: string | null; groupName: string | null; gradeName: string | null }
+  assessment: { id: string; title: string; titleAr: string | null; totalPoints: number }
+}
+
+export interface MarkedResponse { days: number; truncated: boolean; items: MarkedItem[] }
+
 export interface QuestionScore { questionId: string; score: number }
 
 export interface ReviewStats {

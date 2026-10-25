@@ -23,6 +23,7 @@ import { ADMIN_ROLES, needsManualMarking, waitingDays, type PendingItem } from '
 import { ReviewMode } from './review-mode'
 import { ReturnModal } from './return-modal'
 import { Turnaround } from './turnaround'
+import { MarkedTab } from './marked-tab'
 import { EvidencePanel } from './evidence-panel'
 
 interface AcceptAutoResult {
@@ -38,7 +39,8 @@ export default function PendingReviewPage() {
   const t = (en: string, ar: string) => (lang === 'ar' ? ar : en)
   const isAdmin = ADMIN_ROLES.includes(role)
 
-  const [tab, setTab] = useState<'queue' | 'turnaround'>('queue')
+  const [tab, setTab] = useState<'queue' | 'marked' | 'turnaround'>('queue')
+  const [markedCount, setMarkedCount] = useState<number | undefined>(undefined)
   const [items, setItems] = useState<PendingItem[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
@@ -169,7 +171,7 @@ export default function PendingReviewPage() {
             <ArrowLeft className="h-4 w-4" />
             {t('Assessments', 'التقييمات')}
           </Link>
-          <h1 className="mt-1 text-xl font-semibold text-gray-900">{t('Pending review', 'بانتظار المراجعة')}</h1>
+          <h1 className="mt-1 text-xl font-semibold text-gray-900">{t('Review', 'المراجعة')}</h1>
           <p className="text-sm text-gray-500">
             {isAdmin
               ? t('Submissions waiting for a mark, school-wide. Marking here acts on behalf of the servant.', 'تسليمات بانتظار الدرجة في كل المدرسة. التقييم هنا يتم نيابةً عن الخادم.')
@@ -181,19 +183,20 @@ export default function PendingReviewPage() {
         </Badge>
       </div>
 
-      {isAdmin && (
-        <Tabs
-          activeTab={tab}
-          onChange={id => setTab(id as 'queue' | 'turnaround')}
-          tabs={[
-            { id: 'queue', label: t('Queue', 'القائمة'), icon: ClipboardCheck },
-            { id: 'turnaround', label: t('Turnaround', 'الإنجاز'), icon: Clock },
-          ]}
-        />
-      )}
+      <Tabs
+        activeTab={tab}
+        onChange={id => setTab(id as 'queue' | 'marked' | 'turnaround')}
+        tabs={[
+          { id: 'queue', label: t('Pending', 'المعلّقة'), icon: ClipboardCheck, count: items.length },
+          { id: 'marked', label: t('Marked', 'تم تقييمها'), icon: CheckCircle, count: markedCount },
+          ...(isAdmin ? [{ id: 'turnaround', label: t('Turnaround', 'الإنجاز'), icon: Clock }] : []),
+        ]}
+      />
 
       {tab === 'turnaround' && isAdmin ? (
         <Turnaround />
+      ) : tab === 'marked' ? (
+        <MarkedTab onCount={setMarkedCount} />
       ) : (
         <>
           <div className="flex flex-wrap items-center gap-3">

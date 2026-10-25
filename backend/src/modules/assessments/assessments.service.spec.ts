@@ -70,6 +70,7 @@ describe('AssessmentsService', () => {
       createMany: jest.fn(),
       deleteMany: jest.fn(),
       findFirst: jest.fn(),
+      findMany: jest.fn(),
       create: jest.fn(),
       update: jest.fn(),
     },
@@ -788,6 +789,85 @@ describe('AssessmentsService', () => {
         await expect(
           service.markStudent('a1', 'stu-1', 0, 10, undefined, 'admin-1', { questionScores: [{ questionId: 'nope', score: 1 }] }),
         ).rejects.toThrow(/Unknown question/);
+      });
+    });
+
+    describe('getMarked', () => {
+      const gradeRow = (over: any = {}) => ({
+        score: 8, maxScore: 10, feedback: 'Well done', gradedAt: new Date('2026-02-01T10:00:00Z'),
+        grader: { id: 'u1', firstName: 'Mina', lastName: 'S', userRoles: [{ role: { name: 'servant' } }] },
+        submission: {
+          id: 'sub-1', submittedAt: new Date('2026-02-01T08:00:00Z'), submissionType: 'online', isLate: false, fileUrl: 'x',
+          student: { id: 'stu-1', firstName: 'Robin', lastName: 'Amir', studentCode: 'S1', group: { id: 'g1', name: 'Group 1B' }, grade: { name: 'Grade 6' } },
+          assessment: { id: 'a1', title: 'Quiz', titleAr: null, totalPoints: 10 },
+        },
+        ...over,
+      });
+
+      it('lists marked work with who marked it and whether that was an admin', async () => {
+        prisma.grade.findMany.mockResolvedValue([
+          gradeRow(),
+          gradeRow({ grader: { id: 'u2', firstName: 'Amir', lastName: 'A', userRoles: [{ role: { name: 'super_admin' } }] } }),
+        ]);
+
+        const res = await service.getMarked('school-1', admin);
+
+        expect(prisma.grade.findMany).toHaveBeenCalledWith(
+          expect.objectContaining({
+            where: expect.objectContaining({
+              questionId: null,
+              submission: expect.objectContaining({ status: 'completed', student: { deletedAt: null } }),
+            }),
+            orderBy: { gradedAt: 'desc' },
+          }),
+        );
+        expect(res.truncated).toBe(false);
+        expect(res.items[0]).toMatchObject({
+          submissionId: 'sub-1', score: 8, maxScore: 10, percentage: 80, feedback: 'Well done',
+          hasRecording: true, markedBy: { name: 'Mina S', isAdmin: false },
+          student: { firstName: 'Robin', groupName: 'Group 1B' },
+        });
+        expect(res.items[1].markedBy).toMatchObject({ name: 'Amir A', isAdmin: true });
+      });
+
+      it('has no submitted time for work staff entered directly, and tolerates a deleted marker', async () => {
+        prisma.grade.findMany.mockResolvedValue([
+          gradeRow({ grader: null, submission: { ...gradeRow().submission, submissionType: 'manual', fileUrl: null } }),
+        ]);
+
+        const [item] = (await service.getMarked('school-1', admin)).items;
+
+        expect(item.submittedAt).toBeNull();
+        expect(item.markedBy).toBeNull();
+        expect(item.hasRecording).toBe(false);
+      });
+
+      it('limits a servant to their own group and shows nothing to an unscoped non-admin', async () => {
+        prisma.user.findUnique.mockResolvedValueOnce({ metadata: { groupId: 'g1', levelId: 'l1' } });
+        prisma.grade.findMany.mockResolvedValue([]);
+        await service.getMarked('school-1', servant);
+        expect(prisma.grade.findMany).toHaveBeenCalledWith(
+          expect.objectContaining({
+            where: expect.objectContaining({
+              submission: expect.objectContaining({ student: { deletedAt: null, groupId: 'g1', levelId: 'l1' } }),
+            }),
+          }),
+        );
+
+        prisma.grade.findMany.mockClear();
+        prisma.user.findUnique.mockResolvedValueOnce({ metadata: {} });
+        expect(await service.getMarked('school-1', servant)).toEqual({ days: 90, truncated: false, items: [] });
+        expect(prisma.grade.findMany).not.toHaveBeenCalled();
+      });
+
+      it('flags truncation when more than the cap exist and clamps the window', async () => {
+        prisma.grade.findMany.mockResolvedValue(Array.from({ length: 501 }, () => gradeRow()));
+
+        const res = await service.getMarked('school-1', admin, 9999);
+
+        expect(res.truncated).toBe(true);
+        expect(res.items).toHaveLength(500);
+        expect(res.days).toBe(365);
       });
     });
 

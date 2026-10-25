@@ -1,4 +1,4 @@
-import type { PendingItem } from '@/app/dashboard/assessments/pending-review/types'
+import type { MarkedItem, PendingItem } from '@/app/dashboard/assessments/pending-review/types'
 import { waitingDays } from '@/app/dashboard/assessments/pending-review/types'
 
 export async function exportPendingReviewXlsx(items: PendingItem[], lang: 'en' | 'ar') {
@@ -30,4 +30,33 @@ export async function exportPendingReviewXlsx(items: PendingItem[], lang: 'en' |
   const wb = XLSX.utils.book_new()
   XLSX.utils.book_append_sheet(wb, ws, isAr ? 'بانتظار المراجعة' : 'Pending review')
   XLSX.writeFile(wb, `${isAr ? 'بانتظار-المراجعة' : 'pending-review'}-${new Date().toISOString().split('T')[0]}.xlsx`)
+}
+
+export async function exportMarkedXlsx(items: MarkedItem[], lang: 'en' | 'ar') {
+  const XLSX = await import('xlsx')
+  const isAr = lang === 'ar'
+  const headers = isAr
+    ? ['كود الطالب', 'اسم الطالب', 'المجموعة', 'الصف', 'التقييم', 'الدرجة', 'الحد الأقصى', 'النسبة %', 'قيّمه', 'دور المُقيِّم', 'تاريخ التقييم', 'ملاحظات']
+    : ['Student Code', 'Student', 'Group', 'Grade', 'Assessment', 'Score', 'Max', 'Percentage', 'Marked by', 'Marker role', 'Marked at', 'Feedback']
+
+  const rows = items.map(i => [
+    i.student.studentCode || '',
+    `${i.student.firstName} ${i.student.lastName}`,
+    i.student.groupName || '',
+    i.student.gradeName || '',
+    isAr && i.assessment.titleAr ? i.assessment.titleAr : i.assessment.title,
+    i.score,
+    i.maxScore,
+    i.percentage ?? '',
+    i.markedBy?.name || '',
+    i.markedBy ? (i.markedBy.isAdmin ? (isAr ? 'مسؤول' : 'Admin') : (isAr ? 'خادم' : 'Servant')) : '',
+    i.markedAt.replace('T', ' ').slice(0, 16),
+    i.feedback || '',
+  ])
+
+  const ws = XLSX.utils.aoa_to_sheet([headers, ...rows])
+  ws['!cols'] = [{ wch: 14 }, { wch: 25 }, { wch: 15 }, { wch: 12 }, { wch: 30 }, { wch: 8 }, { wch: 8 }, { wch: 10 }, { wch: 20 }, { wch: 12 }, { wch: 18 }, { wch: 40 }]
+  const wb = XLSX.utils.book_new()
+  XLSX.utils.book_append_sheet(wb, ws, isAr ? 'تم التقييم' : 'Marked')
+  XLSX.writeFile(wb, `${isAr ? 'تم-التقييم' : 'marked'}-${new Date().toISOString().split('T')[0]}.xlsx`)
 }
