@@ -7,6 +7,7 @@ export type StudentNotificationType =
   | 'practice_reviewed'
   | 'assessment_graded'
   | 'assessment_returned'
+  | 'assessment_reset'
   | 'liturgy_verified'
   | 'liturgy_rejected'
   | 'liturgy_clearance'

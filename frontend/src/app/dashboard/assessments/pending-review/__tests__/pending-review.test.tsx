@@ -8,8 +8,8 @@ vi.mock('@/components/ui/modal', () => ({
 }))
 
 vi.mock('@/components/ui/confirm-dialog', () => ({
-  ConfirmDialog: ({ open, onConfirm, title }: any) =>
-    open ? <div role="dialog" aria-label={title}><button onClick={onConfirm}>confirm-bulk</button></div> : null,
+  ConfirmDialog: ({ open, onConfirm, title, message }: any) =>
+    open ? <div role="dialog" aria-label={title}><p>{message}</p><button onClick={onConfirm}>{`confirm: ${title}`}</button></div> : null,
 }))
 
 const mockToast = vi.fn()
@@ -91,7 +91,7 @@ describe('PendingReviewPage', () => {
 
     await user.click(screen.getByLabelText(/Select all that can be auto-accepted/))
     await user.click(screen.getByRole('button', { name: /Accept auto scores \(1\)/ }))
-    await user.click(screen.getByText('confirm-bulk'))
+    await user.click(screen.getByText('confirm: Accept auto scores?'))
 
     await waitFor(() => expect(mocks.post).toHaveBeenCalledWith(
       '/assessments/pending-review/accept-auto',
@@ -171,40 +171,46 @@ describe('PendingReviewPage', () => {
 
   describe('Marked tab', () => {
     const marked = (id: string, over: any = {}) => ({
+      status: 'marked',
       submissionId: id,
-      markedAt: '2026-02-01T10:00:00Z',
+      at: '2026-02-01T10:00:00Z',
       score: 8, maxScore: 10, percentage: 80, feedback: null,
-      submittedAt: '2026-02-01T08:00:00Z', isLate: false, hasRecording: false,
-      markedBy: { id: 'u1', name: 'Mina Servant', isAdmin: false },
+      submittedAt: '2026-02-01T08:00:00Z', isLate: false,
+      recording: null, notes: null,
+      by: { id: 'u1', name: 'Mina Servant', isAdmin: false },
       student: { id: `stu-${id}`, firstName: 'Done', lastName: id, studentCode: 'S9', groupName: 'Group 1B', gradeName: 'Grade 6' },
       assessment: { id: 'a1', title: 'Quiz', titleAr: null, totalPoints: 10 },
       ...over,
     })
-
-    beforeEach(() => {
-      mocks.get.mockImplementation(async (path: string) => {
-        if (path === '/assessments/marked') {
-          return {
-            days: 90,
-            truncated: false,
-            items: [
-              marked('s1'),
-              marked('a1', {
-                markedBy: { id: 'u2', name: 'Amir Admin', isAdmin: true },
-                feedback: 'Marked on behalf', score: 4, percentage: 40,
-              }),
-            ],
-          }
-        }
-        return [item('one')]
+    const returned = (id: string, over: any = {}) =>
+      marked(id, {
+        status: 'returned', score: null, percentage: null, feedback: 'Please redo question 2',
+        by: { id: 'u2', name: 'Amir Admin', isAdmin: true },
+        recording: { url: 'https://cdn/old.webm', type: 'audio/webm', durationSeconds: 9 },
+        ...over,
       })
-    })
 
-    it('lists marked work with who marked it and their role', async () => {
+    const serve = (items: any[]) =>
+      mocks.get.mockImplementation(async (path: string) =>
+        path === '/assessments/marked' ? { days: 90, truncated: false, items } : [item('one')])
+
+    const openMarked = async () => {
       const user = userEvent.setup()
       render(<PendingReviewPage />)
       await screen.findByText(/Robin one/)
       await user.click(screen.getByRole('tab', { name: /Marked/ }))
+      return user
+    }
+
+    beforeEach(() => {
+      serve([
+        marked('s1'),
+        marked('a1', { by: { id: 'u2', name: 'Amir Admin', isAdmin: true }, feedback: 'Marked on behalf', score: 4, percentage: 40 }),
+      ])
+    })
+
+    it('lists marked work with who marked it and their role', async () => {
+      await openMarked()
 
       expect(await screen.findByText(/Done s1/)).toBeTruthy()
       expect(screen.getByText(/Marked by Mina Servant/)).toBeTruthy()
@@ -215,11 +221,44 @@ describe('PendingReviewPage', () => {
       expect(screen.getByText('8 / 10')).toBeTruthy()
     })
 
+    it('keeps the student recording and notes playable on marked work', async () => {
+      serve([marked('rec', { recording: { url: 'https://cdn/kept.webm', type: 'audio/webm', durationSeconds: 20 }, notes: 'Noisy room' })])
+      await openMarked()
+
+      const row = (await screen.findByText(/Done rec/)).closest('div.p-4') as HTMLElement
+      expect(within(row).getByTestId('player').getAttribute('src')).toBe('https://cdn/kept.webm')
+      expect(within(row).getByText('Noisy room')).toBeTruthy()
+    })
+
+    it('shows returned work with its own status, the reason and the earlier recording, and no score', async () => {
+      serve([marked('s1'), returned('r1')])
+      await openMarked()
+
+      const row = (await screen.findByText(/Done r1/)).closest('div.p-4') as HTMLElement
+      expect(within(row).getByText('Returned')).toBeTruthy()
+      expect(within(row).getByText(/Returned by Amir Admin/)).toBeTruthy()
+      expect(within(row).getByText('Reason: Please redo question 2')).toBeTruthy()
+      expect(within(row).getByText('With student')).toBeTruthy()
+      expect(within(row).queryByText(/\/ 10/)).toBeNull()
+      expect(within(row).getByTestId('player').getAttribute('src')).toBe('https://cdn/old.webm')
+    })
+
+    it('filters between marked and returned work', async () => {
+      serve([marked('s1'), returned('r1')])
+      const user = await openMarked()
+      await screen.findByText(/Done s1/)
+
+      await user.selectOptions(screen.getByLabelText('Filter by status'), 'returned')
+      expect(screen.queryByText(/Done s1/)).toBeNull()
+      expect(screen.getByText(/Done r1/)).toBeTruthy()
+
+      await user.selectOptions(screen.getByLabelText('Filter by status'), 'marked')
+      expect(screen.getByText(/Done s1/)).toBeTruthy()
+      expect(screen.queryByText(/Done r1/)).toBeNull()
+    })
+
     it('filters by whether an admin or a servant marked it', async () => {
-      const user = userEvent.setup()
-      render(<PendingReviewPage />)
-      await screen.findByText(/Robin one/)
-      await user.click(screen.getByRole('tab', { name: /Marked/ }))
+      const user = await openMarked()
       await screen.findByText(/Done s1/)
 
       await user.selectOptions(screen.getByLabelText('Filter by marker role'), 'admin')
@@ -232,14 +271,8 @@ describe('PendingReviewPage', () => {
     })
 
     it('shows an empty state when nothing has been marked yet', async () => {
-      const user = userEvent.setup()
-      mocks.get.mockImplementation(async (path: string) => {
-        if (path === '/assessments/marked') return { days: 90, truncated: false, items: [] }
-        return [item('one')]
-      })
-      render(<PendingReviewPage />)
-      await screen.findByText(/Robin one/)
-      await user.click(screen.getByRole('tab', { name: /Marked/ }))
+      serve([])
+      await openMarked()
       expect(await screen.findByText('Nothing has been marked yet')).toBeTruthy()
     })
 
@@ -249,6 +282,50 @@ describe('PendingReviewPage', () => {
       await screen.findByText(/Robin one/)
       expect(screen.getByRole('tab', { name: /Marked/ })).toBeTruthy()
       expect(screen.queryByRole('tab', { name: /Turnaround/ })).toBeNull()
+    })
+  })
+
+  describe('Delete and reset', () => {
+    it('lets an admin delete a pending submission after confirming, then removes it from the queue', async () => {
+      const user = userEvent.setup()
+      render(<PendingReviewPage />)
+      const row = (await screen.findByText(/Robin one/)).closest('div.p-4') as HTMLElement
+
+      await user.click(within(row).getByRole('button', { name: 'Delete submission and reset' }))
+      expect(await screen.findByText(/removed from the queue and their assessment reset/)).toBeTruthy()
+      expect(mocks.post).not.toHaveBeenCalled()
+
+      await user.click(screen.getByText('confirm: Delete this submission?'))
+
+      await waitFor(() => expect(mocks.post).toHaveBeenCalledWith(
+        '/assessments/pending-review/one/reset',
+        undefined,
+        { schoolId: 'school-1' },
+      ))
+      await waitFor(() => expect(screen.queryByText(/Robin one/)).toBeNull())
+      expect(mockToast).toHaveBeenCalledWith('success', expect.stringMatching(/can submit again/))
+    })
+
+    it('keeps the row and reports an error when the reset fails', async () => {
+      const user = userEvent.setup()
+      mocks.post.mockRejectedValueOnce(new Error('nope'))
+      render(<PendingReviewPage />)
+      const row = (await screen.findByText(/Robin one/)).closest('div.p-4') as HTMLElement
+
+      await user.click(within(row).getByRole('button', { name: 'Delete submission and reset' }))
+      await user.click(screen.getByText('confirm: Delete this submission?'))
+
+      await waitFor(() => expect(mockToast).toHaveBeenCalledWith('error', 'Could not reset the submission'))
+      // The row stays in the queue and the dialog stays open so the admin can retry.
+      expect(document.body.contains(row)).toBe(true)
+      expect(screen.getByText('confirm: Delete this submission?')).toBeTruthy()
+    })
+
+    it('does not offer delete to a servant', async () => {
+      perm.role = 'servant'
+      render(<PendingReviewPage />)
+      await screen.findByText(/Robin one/)
+      expect(screen.queryByRole('button', { name: 'Delete submission and reset' })).toBeNull()
     })
   })
 

@@ -1,10 +1,12 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { CheckCircle, ClipboardCheck, Download, Mic } from 'lucide-react'
+import { CheckCircle, ClipboardCheck, Download, StickyNote, Undo2 } from 'lucide-react'
 import { useLanguage } from '@/lib/use-language'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { AudioPlayer } from '@/components/audio-player'
+import { assetUrl } from '@/lib/asset-url'
 import { EmptyState } from '@/components/ui/empty-state'
 import { TableSkeleton } from '@/components/ui/skeleton'
 import { getSchoolId } from '@/lib/school'
@@ -12,7 +14,7 @@ import { http } from '@/lib/http-client'
 import { exportMarkedXlsx } from '@/lib/export-pending-review'
 import type { MarkedItem, MarkedResponse } from './types'
 
-/** Everything already marked, with who marked it (admin or servant). Read-only. */
+/** Everything already handled: marked work and work returned to the student, with who did it. Read-only. */
 export function MarkedTab({ onCount }: { onCount?: (n: number) => void }) {
   const lang = useLanguage()
   const t = (en: string, ar: string) => (lang === 'ar' ? ar : en)
@@ -25,6 +27,7 @@ export function MarkedTab({ onCount }: { onCount?: (n: number) => void }) {
   const [assessmentFilter, setAssessmentFilter] = useState('')
   const [markerFilter, setMarkerFilter] = useState('')
   const [roleFilter, setRoleFilter] = useState<'' | 'admin' | 'servant'>('')
+  const [statusFilter, setStatusFilter] = useState<'' | 'marked' | 'returned'>('')
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -52,7 +55,7 @@ export function MarkedTab({ onCount }: { onCount?: (n: number) => void }) {
   }, [items])
   const markers = useMemo(() => {
     const m = new Map<string, string>()
-    items.forEach(i => { if (i.markedBy) m.set(i.markedBy.id, i.markedBy.name) })
+    items.forEach(i => { if (i.by) m.set(i.by.id, i.by.name) })
     return Array.from(m.entries())
   }, [items])
 
@@ -61,8 +64,9 @@ export function MarkedTab({ onCount }: { onCount?: (n: number) => void }) {
     (!q || `${i.student.firstName} ${i.student.lastName}`.toLowerCase().includes(q) || (i.student.studentCode || '').toLowerCase().includes(q)) &&
     (!groupFilter || i.student.groupName === groupFilter) &&
     (!assessmentFilter || i.assessment.id === assessmentFilter) &&
-    (!markerFilter || i.markedBy?.id === markerFilter) &&
-    (!roleFilter || (roleFilter === 'admin' ? i.markedBy?.isAdmin === true : i.markedBy?.isAdmin === false)),
+    (!markerFilter || i.by?.id === markerFilter) &&
+    (!statusFilter || i.status === statusFilter) &&
+    (!roleFilter || (roleFilter === 'admin' ? i.by?.isAdmin === true : i.by?.isAdmin === false)),
   )
 
   const select = 'rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm'
@@ -101,6 +105,11 @@ export function MarkedTab({ onCount }: { onCount?: (n: number) => void }) {
           <option value="">{t('Anyone', 'أي شخص')}</option>
           {markers.map(([id, name]) => <option key={id} value={id}>{name}</option>)}
         </select>
+        <select value={statusFilter} onChange={e => setStatusFilter(e.target.value as '' | 'marked' | 'returned')} className={select} aria-label={t('Filter by status', 'تصفية حسب الحالة')}>
+          <option value="">{t('Marked and returned', 'المقيّمة والمُعادة')}</option>
+          <option value="marked">{t('Marked', 'تم تقييمها')}</option>
+          <option value="returned">{t('Returned to student', 'أُعيدت إلى الطالب')}</option>
+        </select>
         <select value={roleFilter} onChange={e => setRoleFilter(e.target.value as '' | 'admin' | 'servant')} className={select} aria-label={t('Filter by marker role', 'تصفية حسب دور المُقيِّم')}>
           <option value="">{t('Admin or servant', 'مسؤول أو خادم')}</option>
           <option value="admin">{t('Marked by admin', 'قيّمه مسؤول')}</option>
@@ -112,7 +121,7 @@ export function MarkedTab({ onCount }: { onCount?: (n: number) => void }) {
       </div>
 
       <p className="text-xs text-gray-500">
-        {t(`Marked in the last ${data?.days ?? 90} days — newest first.`, `تم تقييمها خلال آخر ${data?.days ?? 90} يوماً — الأحدث أولاً.`)}
+        {t(`Marked in the last ${data?.days ?? 90} days — newest first.`, `تم تقييمها أو إعادتها خلال آخر ${data?.days ?? 90} يوماً — الأحدث أولاً.`)}
         {data?.truncated && ` ${t('Showing the latest 500; narrow the filters to see older ones.', 'يتم عرض أحدث 500؛ ضيّق عوامل التصفية لرؤية الأقدم.')}`}
       </p>
 
@@ -125,9 +134,11 @@ export function MarkedTab({ onCount }: { onCount?: (n: number) => void }) {
         <div className="divide-y divide-gray-100 rounded-xl border border-gray-200 bg-white">
           {visible.map((i: MarkedItem) => {
             const title = lang === 'ar' && i.assessment.titleAr ? i.assessment.titleAr : i.assessment.title
+            const returned = i.status === 'returned'
             const pass = i.percentage !== null && i.percentage >= 60
+            const verb = returned ? t('Returned by', 'أعادها') : t('Marked by', 'قيّمه')
             return (
-              <div key={i.submissionId} className="flex flex-wrap items-center gap-3 p-4">
+              <div key={i.submissionId} className="flex flex-wrap items-start gap-3 p-4">
                 <div className="min-w-0 flex-1">
                   <div className="truncate text-sm font-medium text-gray-900">
                     {i.student.firstName} {i.student.lastName}
@@ -139,27 +150,50 @@ export function MarkedTab({ onCount }: { onCount?: (n: number) => void }) {
                     <span>{title}</span>
                     <span>·</span>
                     <span>
-                      {i.markedBy ? `${t('Marked by', 'قيّمه')} ${i.markedBy.name}` : t('Marked by (removed user)', 'قيّمه (مستخدم محذوف)')}
+                      {i.by ? `${verb} ${i.by.name}` : `${verb} (${t('removed user', 'مستخدم محذوف')})`}
                       {' · '}
-                      {new Date(i.markedAt).toLocaleString(lang === 'ar' ? 'ar-EG' : 'en-GB')}
+                      {new Date(i.at).toLocaleString(lang === 'ar' ? 'ar-EG' : 'en-GB')}
                     </span>
-                    {i.markedBy && (
-                      <Badge variant={i.markedBy.isAdmin ? 'info' : 'default'}>
-                        {i.markedBy.isAdmin ? t('Admin', 'مسؤول') : t('Servant', 'خادم')}
+                    {returned && (
+                      <Badge variant="warning">
+                        <span className="inline-flex items-center gap-1"><Undo2 className="h-3 w-3" />{t('Returned', 'مُعادة')}</span>
+                      </Badge>
+                    )}
+                    {i.by && (
+                      <Badge variant={i.by.isAdmin ? 'info' : 'default'}>
+                        {i.by.isAdmin ? t('Admin', 'مسؤول') : t('Servant', 'خادم')}
                       </Badge>
                     )}
                     {i.isLate && <Badge variant="danger">{t('Late', 'متأخر')}</Badge>}
-                    {i.hasRecording && (
-                      <Badge variant="info"><span className="inline-flex items-center gap-1"><Mic className="h-3 w-3" />{t('Recording', 'تسجيل')}</span></Badge>
-                    )}
                   </div>
-                  {i.feedback && <p className="mt-1 text-xs italic text-gray-600">“{i.feedback}”</p>}
+                  {i.feedback && (
+                    <p className={`mt-1 text-xs ${returned ? 'font-medium text-amber-800' : 'italic text-gray-600'}`}>
+                      {returned ? `${t('Reason', 'السبب')}: ${i.feedback}` : `“${i.feedback}”`}
+                    </p>
+                  )}
+                  {i.notes && (
+                    <p className="mt-1 flex items-start gap-1 text-xs text-gray-500">
+                      <StickyNote className="mt-0.5 h-3 w-3 shrink-0" />
+                      <span className="whitespace-pre-wrap">{i.notes}</span>
+                    </p>
+                  )}
+                  {i.recording && (
+                    <div className="mt-2 max-w-sm">
+                      <AudioPlayer src={assetUrl(i.recording.url)} duration={i.recording.durationSeconds ?? undefined} compact />
+                    </div>
+                  )}
                 </div>
                 <div className="text-right">
-                  <div className={`text-sm font-semibold ${pass ? 'text-green-700' : 'text-red-700'}`}>
-                    {i.score} / {i.maxScore}
-                  </div>
-                  {i.percentage !== null && <div className="text-xs text-gray-500">{i.percentage}%</div>}
+                  {returned ? (
+                    <div className="text-sm font-semibold text-amber-700">{t('With student', 'مع الطالب')}</div>
+                  ) : (
+                    <>
+                      <div className={`text-sm font-semibold ${pass ? 'text-green-700' : 'text-red-700'}`}>
+                        {i.score} / {i.maxScore}
+                      </div>
+                      {i.percentage !== null && <div className="text-xs text-gray-500">{i.percentage}%</div>}
+                    </>
+                  )}
                 </div>
               </div>
             )

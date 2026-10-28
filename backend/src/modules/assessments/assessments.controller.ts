@@ -85,6 +85,17 @@ export class AssessmentsController {
     return this.assessmentsService.acceptAutoScores(schoolId, dto.submissionIds, req.user);
   }
 
+  @Post('pending-review/:submissionId/reset')
+  @Roles('super_admin', 'admin', 'principal')
+  @ApiOperation({ summary: 'Discard a pending submission and reset the student to not-yet-submitted (admin)' })
+  async resetPendingSubmission(
+    @Query('schoolId') schoolId: string = '',
+    @Param('submissionId', ParseUUIDPipe) submissionId: string,
+    @Req() req: any,
+  ) {
+    return this.assessmentsService.resetPendingSubmission(schoolId, submissionId, req.user);
+  }
+
   @Get('review-stats')
   @Roles('super_admin', 'admin', 'principal')
   @ApiOperation({ summary: 'Marking backlog and turnaround per group and marker (admin)' })
