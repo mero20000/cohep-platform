@@ -382,6 +382,17 @@ describe('PendingReviewPage', () => {
       expect(screen.queryByLabelText(/Select all that can be fixed/)).toBeNull()
     })
 
+    it('explains a gender mismatch in plain words', async () => {
+      serve([finding({
+        kind: 'not_assigned', reason: 'gender', archive: [], keep: rec('stale'),
+        student: { id: 'stu-32', name: 'Robin Amir', studentCode: 'STU-00032', levelName: 'Level 1', groupName: 'Group 1B', gender: 'male' },
+        assessment: { id: 'a1', title: 'Girls quiz', levelName: 'Level 1', groupName: null, gender: 'female' },
+      })])
+      await openIntegrity()
+
+      expect(await screen.findByText('The assessment is for girls only, but the student is a boy.')).toBeTruthy()
+    })
+
     it('says so when everything is consistent', async () => {
       serve([])
       await openIntegrity()

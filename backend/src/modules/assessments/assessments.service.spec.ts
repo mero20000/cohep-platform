@@ -95,6 +95,130 @@ describe('AssessmentsService', () => {
     notifier = module.get(StudentNotificationsService);
   });
 
+  describe('gender audience', () => {
+    beforeEach(() => {
+      prisma.user.findFirst.mockResolvedValue({ id: 'user-1' });
+      prisma.assessment.create.mockResolvedValue({ id: 'a1' });
+      prisma.assessment.update.mockResolvedValue({ id: 'a1' });
+    });
+
+    it('defaults a new assessment to everyone', async () => {
+      await service.create({ ...baseDto }, 'school-1');
+
+      expect(prisma.assessment.create).toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({ metadata: expect.objectContaining({ gender: 'all' }) }) }),
+      );
+    });
+
+    it('stores a boys-only or girls-only audience alongside the grade', async () => {
+      await service.create({ ...baseDto, gender: 'female', grade: 'Grade 6' }, 'school-1');
+
+      expect(prisma.assessment.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ metadata: expect.objectContaining({ gender: 'female', grade: 'Grade 6' }) }),
+        }),
+      );
+    });
+
+    it('changes the audience on update without losing the rest of the metadata', async () => {
+      prisma.assessment.findUnique.mockResolvedValue({ id: 'a1', deletedAt: null, metadata: { term: 2, grade: 'Grade 6' } });
+
+      await service.update('a1', { totalPoints: 100, passingPoints: 60, gender: 'male' });
+
+      expect(prisma.assessment.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ metadata: { term: 2, grade: 'Grade 6', gender: 'male' } }),
+        }),
+      );
+    });
+
+    it('leaves the audience alone when an update does not mention it', async () => {
+      prisma.assessment.findUnique.mockResolvedValue({ id: 'a1', deletedAt: null, metadata: { gender: 'female' } });
+
+      await service.update('a1', { totalPoints: 100, passingPoints: 60, grade: 'Grade 7' });
+
+      expect(prisma.assessment.update).toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({ metadata: { gender: 'female', grade: 'Grade 7' } }) }),
+      );
+    });
+
+    describe('enforced wherever students are chosen', () => {
+      const girlsOnly = { id: 'a1', schoolId, levelId: 'l1', groupId: 'g1', deletedAt: null, status: 'draft', totalPoints: 10, metadata: { gender: 'female' } };
+
+      it('assignStudents only picks girls for a girls-only assessment', async () => {
+        prisma.assessment.findUnique.mockResolvedValue(girlsOnly);
+        prisma.student.findMany.mockResolvedValue([{ id: 'girl-1' }]);
+        prisma.assessmentSubmission.findMany.mockResolvedValue([]);
+
+        const res = await service.assignStudents('a1', ['girl-1', 'boy-1']);
+
+        expect(prisma.student.findMany).toHaveBeenCalledWith(
+          expect.objectContaining({ where: expect.objectContaining({ levelId: 'l1', groupId: 'g1', gender: 'female' }) }),
+        );
+        expect(prisma.assessmentSubmission.createMany).toHaveBeenCalledWith({
+          data: [expect.objectContaining({ studentId: 'girl-1' })],
+        });
+        expect(res).toMatchObject({ assigned: 1, notEligible: 1 });
+      });
+
+      it('assignStudents does not filter by gender for an everyone assessment', async () => {
+        prisma.assessment.findUnique.mockResolvedValue({ ...girlsOnly, metadata: { gender: 'all' } });
+        prisma.student.findMany.mockResolvedValue([]);
+        prisma.assessmentSubmission.findMany.mockResolvedValue([]);
+
+        await service.assignStudents('a1', ['x']);
+
+        const where = prisma.student.findMany.mock.calls[0][0].where;
+        expect(where).not.toHaveProperty('gender');
+      });
+
+      it('an assessment with no audience recorded (created before this option) still means everyone', async () => {
+        prisma.assessment.findUnique.mockResolvedValue({ ...girlsOnly, metadata: null });
+        prisma.student.findMany.mockResolvedValue([]);
+        prisma.assessmentSubmission.findMany.mockResolvedValue([]);
+
+        await service.assignStudents('a1', ['x']);
+
+        expect(prisma.student.findMany.mock.calls[0][0].where).not.toHaveProperty('gender');
+      });
+
+      it('publishing auto-assigns only the group\'s girls', async () => {
+        prisma.assessment.findUnique.mockResolvedValue(girlsOnly);
+        prisma.assessmentQuestion.findMany.mockResolvedValue([{ id: 'q1' }]);
+        prisma.assessment.update.mockResolvedValue({ id: 'a1', status: 'published' });
+        prisma.student.findMany.mockResolvedValue([{ id: 'girl-1' }]);
+        prisma.assessmentSubmission.findMany.mockResolvedValue([]);
+
+        await service.publishAssessment('a1');
+
+        for (const call of prisma.student.findMany.mock.calls) {
+          expect(call[0].where).toEqual(expect.objectContaining({ gender: 'female' }));
+        }
+      });
+
+      it('the students dialog lists only the intended gender', async () => {
+        prisma.assessment.findUnique.mockResolvedValue({ ...girlsOnly, status: 'published' });
+        prisma.student.findMany.mockResolvedValue([]);
+        prisma.assessmentSubmission.findMany.mockResolvedValue([]);
+
+        await service.getStudentsForAssessment('a1');
+
+        expect(prisma.student.findMany).toHaveBeenCalledWith(
+          expect.objectContaining({ where: expect.objectContaining({ gender: 'female', levelId: 'l1', groupId: 'g1' }) }),
+        );
+      });
+
+      it('a manual mark cannot land on a student of the other gender', async () => {
+        prisma.assessment.findUnique.mockResolvedValue({ ...girlsOnly, status: 'published' });
+        prisma.assessmentSubmission.findFirst.mockResolvedValue(null);
+        prisma.student.findUnique.mockResolvedValue({ levelId: 'l1', groupId: 'g1', schoolId, gender: 'male' });
+
+        await expect(service.markStudent('a1', 'boy-1', 5, 10, undefined, 'admin-1')).rejects.toThrow(/not assigned/);
+        expect(prisma.assessmentSubmission.create).not.toHaveBeenCalled();
+      });
+    });
+  });
+
   describe('create', () => {
     it('persists referenceRecordingUrl on create', async () => {
       prisma.user.findFirst.mockResolvedValue({ id: 'user-1' });
@@ -1178,6 +1302,29 @@ describe('AssessmentsService', () => {
         expect(res.findings.find((f: any) => f.assessmentId === 'ok')).toBeUndefined();
       });
 
+      it('flags an untouched assignment whose audience excludes the student\'s gender, and says which gender it is for', async () => {
+        prisma.assessmentSubmission.findMany.mockResolvedValue([
+          sub({
+            id: 'wrong-gender', assessmentId: 'girls',
+            student: { ...student, gender: 'male' },
+            assessment: assessment({ id: 'girls', title: 'Girls quiz', metadata: { gender: 'female' } }),
+          }),
+          sub({
+            id: 'right-gender', assessmentId: 'girls2',
+            student: { ...student, gender: 'female' },
+            assessment: assessment({ id: 'girls2', metadata: { gender: 'female' } }),
+          }),
+        ]);
+
+        const res = await service.getIntegrityReport('school-1');
+
+        expect(res.findings).toHaveLength(1);
+        expect(res.findings[0]).toMatchObject({
+          kind: 'not_assigned', reason: 'gender', fixable: true,
+          student: { gender: 'male' }, assessment: { gender: 'female' },
+        });
+      });
+
       it('reports nothing for clean data', async () => {
         prisma.assessmentSubmission.findMany.mockResolvedValue([sub()]);
         const res = await service.getIntegrityReport('school-1');
@@ -1211,6 +1358,21 @@ describe('AssessmentsService', () => {
         });
         expect(res).toMatchObject({ fixed: 1, failed: 0 });
         expect(audit.log).toHaveBeenCalledWith(expect.objectContaining({ action: 'assessment.integrity.merge', entityId: 'done' }));
+      });
+
+      it('treats a gender mismatch as not assigned, and a student of the right gender as now eligible', async () => {
+        prisma.assessmentSubmission.findMany
+          .mockResolvedValueOnce([fixRow({ id: 'g1', student: { levelId: 'l1', groupId: 'g1', gender: 'male' }, assessment: { levelId: 'l1', groupId: 'g1', metadata: { gender: 'female' } } })])
+          .mockResolvedValueOnce([fixRow({ id: 'g2', student: { levelId: 'l1', groupId: 'g1', gender: 'female' }, assessment: { levelId: 'l1', groupId: 'g1', metadata: { gender: 'female' } } })]);
+
+        const res = await service.fixIntegrity('school-1', [
+          { kind: 'not_assigned', ...item },
+          { kind: 'not_assigned', assessmentId: 'a2', studentId: 'stu-1' },
+        ], admin);
+
+        expect(res.results[0]).toMatchObject({ ok: true, archived: 1 });
+        expect(res.results[1]).toMatchObject({ ok: false });
+        expect(res.results[1].error).toMatch(/eligible/);
       });
 
       it('removes an untouched not-assigned record but refuses one that carries work', async () => {
@@ -1437,6 +1599,22 @@ describe('AssessmentsService', () => {
 });
 
 describe('DTO validation', () => {
+  describe('gender audience', () => {
+    const make = (gender?: any) => Object.assign(new CreateAssessmentDto(), {
+      title: 'Quiz', levelId: '550e8400-e29b-41d4-a716-446655440000', subjectId: '550e8400-e29b-41d4-a716-446655440001',
+      totalPoints: 10, passingPoints: 6, ...(gender === undefined ? {} : { gender }),
+    });
+
+    it.each([undefined, 'all', 'male', 'female'])('accepts %s', async (g) => {
+      expect(await validate(make(g))).toHaveLength(0);
+    });
+
+    it.each(['boys', 'MALE', 'other', ''])('rejects %p', async (g) => {
+      const errors = await validate(make(g));
+      expect(errors.some((e) => e.property === 'gender')).toBe(true);
+    });
+  });
+
   it('accepts a question with an optional id', async () => {
     const q = new CreateQuestionDto();
     q.id = '550e8400-e29b-41d4-a716-446655440000';

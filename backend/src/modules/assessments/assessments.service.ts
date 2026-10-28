@@ -4,7 +4,7 @@ import { PrismaService } from '../../database/prisma.service';
 import { SchoolResolver } from '../../common/utils/school-resolver';
 import { AuditService } from '../audit/audit.service';
 import { StudentNotificationsService } from '../student-notifications/student-notifications.service';
-import { LIFECYCLE_WHERE, isEligible, liveByKey, pickLive, ineligibleReason, scoreOf } from './assessment-lifecycle';
+import { LIFECYCLE_WHERE, assessmentGender, isEligible, liveByKey, pickLive, ineligibleReason, scoreOf } from './assessment-lifecycle';
 import { CreateAssessmentDto, UpdateAssessmentDto, SubmitAssessmentDto, CreateQuestionDto } from './dto/assessment.dto';
 
 type Actor = { id?: string; roles?: string[]; schoolId?: string };
@@ -109,6 +109,7 @@ export class AssessmentsService {
         academicYearId: dto.academicYearId,
         term: dto.term,
         grade: dto.grade || null,
+        gender: dto.gender ?? 'all',
         durationMinutes: dto.durationMinutes ?? null,
       },
     };
@@ -160,11 +161,12 @@ export class AssessmentsService {
     if (dto.status !== undefined) data.status = dto.status;
     if (dto.type !== undefined) data.type = dto.type;
 
-    if (dto.academicYearId !== undefined || dto.term !== undefined || dto.grade !== undefined || dto.durationMinutes !== undefined) {
+    if (dto.academicYearId !== undefined || dto.term !== undefined || dto.grade !== undefined || dto.gender !== undefined || dto.durationMinutes !== undefined) {
       const metadata = (existing.metadata as any) || {};
       if (dto.academicYearId !== undefined) metadata.academicYearId = dto.academicYearId;
       if (dto.term !== undefined) metadata.term = dto.term;
       if (dto.grade !== undefined) metadata.grade = dto.grade || null;
+      if (dto.gender !== undefined) metadata.gender = dto.gender;
       if (dto.durationMinutes !== undefined) metadata.durationMinutes = dto.durationMinutes;
       data.metadata = metadata;
     }
@@ -241,7 +243,13 @@ export class AssessmentsService {
     let assigned = 0;
     if ((assessment as any).groupId) {
       const students = await this.prisma.student.findMany({
-        where: { groupId: (assessment as any).groupId, deletedAt: null, status: 'active' },
+        where: {
+          groupId: (assessment as any).groupId,
+          deletedAt: null,
+          status: 'active',
+          // Only the students the assessment is meant for.
+          ...(assessmentGender(assessment.metadata) !== 'all' ? { gender: assessmentGender(assessment.metadata) } : {}),
+        },
         select: { id: true },
       });
       if (students.length > 0) {
@@ -992,13 +1000,13 @@ export class AssessmentsService {
         grades: { select: { questionId: true, score: true, maxScore: true } },
         student: {
           select: {
-            id: true, firstName: true, lastName: true, studentCode: true, levelId: true, groupId: true,
+            id: true, firstName: true, lastName: true, studentCode: true, levelId: true, groupId: true, gender: true,
             level: { select: { name: true } }, group: { select: { name: true } },
           },
         },
         assessment: {
           select: {
-            id: true, title: true, levelId: true, groupId: true, totalPoints: true,
+            id: true, title: true, levelId: true, groupId: true, totalPoints: true, metadata: true,
             level: { select: { name: true } }, group: { select: { name: true } },
           },
         },
@@ -1031,11 +1039,11 @@ export class AssessmentsService {
       kind: 'duplicate' | 'not_assigned';
       assessmentId: string;
       studentId: string;
-      student: { id: string; name: string; studentCode: string | null; levelName: string | null; groupName: string | null };
-      assessment: { id: string; title: string; levelName: string | null; groupName: string | null };
+      student: { id: string; name: string; studentCode: string | null; levelName: string | null; groupName: string | null; gender: string | null };
+      assessment: { id: string; title: string; levelName: string | null; groupName: string | null; gender: 'all' | 'male' | 'female' };
       keep: ReturnType<typeof summary>;
       archive: ReturnType<typeof summary>[];
-      reason: 'level' | 'group' | null;
+      reason: 'level' | 'group' | 'gender' | null;
       /** false when the record carries real work and needs a human decision */
       fixable: boolean;
     };
@@ -1053,12 +1061,14 @@ export class AssessmentsService {
           studentCode: live.student.studentCode,
           levelName: live.student.level?.name ?? null,
           groupName: live.student.group?.name ?? null,
+          gender: live.student.gender ?? null,
         },
         assessment: {
           id: live.assessment.id,
           title: live.assessment.title,
           levelName: live.assessment.level?.name ?? null,
           groupName: live.assessment.group?.name ?? null,
+          gender: assessmentGender(live.assessment.metadata),
         },
       };
 
@@ -1066,7 +1076,7 @@ export class AssessmentsService {
         findings.push({ ...base, kind: 'duplicate', keep: summary(live), archive: others.map(summary), reason: null, fixable: true });
       }
 
-      const reason = ineligibleReason(live.student, live.assessment);
+      const reason = ineligibleReason(live.student, { ...live.assessment, gender: assessmentGender(live.assessment.metadata) });
       if (reason) {
         findings.push({
           ...base,
@@ -1120,8 +1130,8 @@ export class AssessmentsService {
           },
           select: {
             id: true, status: true, attemptNumber: true, createdAt: true, metadata: true,
-            student: { select: { levelId: true, groupId: true } },
-            assessment: { select: { levelId: true, groupId: true } },
+            student: { select: { levelId: true, groupId: true, gender: true } },
+            assessment: { select: { levelId: true, groupId: true, metadata: true } },
           },
         });
         if (rows.length === 0) {
@@ -1140,7 +1150,7 @@ export class AssessmentsService {
           }
           note = { mergedInto: live.id, mergedByAdmin: { at, by: actor?.id ?? null } };
         } else {
-          if (isEligible(live.student, live.assessment)) {
+          if (isEligible(live.student, { ...live.assessment, gender: assessmentGender(live.assessment.metadata) })) {
             results.push({ ...result, ok: false, archived: 0, error: 'The student is eligible for this assessment now' });
             continue;
           }
@@ -1257,8 +1267,8 @@ export class AssessmentsService {
       throw new NotFoundException('Assessment not found');
     }
 
-    // Only students the assessment is meant for: same school and level, and the same group when
-    // the assessment is group-specific. Anything else would create a record the student has no
+    // Only students the assessment is meant for: same school and level, the same group when the
+    // assessment is group-specific, and the right gender when it is limited to boys or girls. Anything else would create a record the student has no
     // business seeing (old test data, cross-level leftovers).
     const eligible = await this.prisma.student.findMany({
       where: {
@@ -1267,6 +1277,7 @@ export class AssessmentsService {
         deletedAt: null,
         levelId: assessment.levelId,
         ...((assessment as any).groupId ? { groupId: (assessment as any).groupId } : {}),
+        ...(assessmentGender(assessment.metadata) !== 'all' ? { gender: assessmentGender(assessment.metadata) } : {}),
       },
       select: { id: true },
     });
@@ -1400,12 +1411,16 @@ export class AssessmentsService {
       // assessment's level and group; otherwise the mark lands on someone it was never meant for.
       const student = await this.prisma.student.findUnique({
         where: { id: studentId },
-        select: { levelId: true, groupId: true, schoolId: true },
+        select: { levelId: true, groupId: true, schoolId: true, gender: true },
       });
       if (
         !student ||
         student.schoolId !== assessment.schoolId ||
-        !isEligible(student, { levelId: assessment.levelId, groupId: (assessment as any).groupId ?? null })
+        !isEligible(student, {
+          levelId: assessment.levelId,
+          groupId: (assessment as any).groupId ?? null,
+          gender: assessmentGender(assessment.metadata),
+        })
       ) {
         throw new BadRequestException('This student is not assigned to this assessment');
       }
@@ -1553,6 +1568,7 @@ export class AssessmentsService {
           deletedAt: null,
           levelId: assessment.levelId,
           ...(assessment.groupId ? { groupId: assessment.groupId } : {}),
+          ...(assessmentGender(assessment.metadata) !== 'all' ? { gender: assessmentGender(assessment.metadata) } : {}),
           ...(gradeId ? { gradeId } : {}),
         },
         select: {

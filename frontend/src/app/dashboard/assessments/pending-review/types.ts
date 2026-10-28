@@ -91,11 +91,11 @@ export interface IntegrityFinding {
   kind: 'duplicate' | 'not_assigned'
   assessmentId: string
   studentId: string
-  student: { id: string; name: string; studentCode: string | null; levelName: string | null; groupName: string | null }
-  assessment: { id: string; title: string; levelName: string | null; groupName: string | null }
+  student: { id: string; name: string; studentCode: string | null; levelName: string | null; groupName: string | null; gender: string | null }
+  assessment: { id: string; title: string; levelName: string | null; groupName: string | null; gender: 'all' | 'male' | 'female' }
   keep: IntegrityRecord
   archive: IntegrityRecord[]
-  reason: 'level' | 'group' | null
+  reason: 'level' | 'group' | 'gender' | null
   /** false when the record carries real work and needs a human decision */
   fixable: boolean
 }

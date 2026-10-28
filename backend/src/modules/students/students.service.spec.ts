@@ -179,6 +179,22 @@ systemConfig: {
       expect(out.map((o: any) => o.submissionId).sort()).toEqual(['history', 'mine']);
     });
 
+    it('hides an untouched assignment limited to the other gender, but keeps one for the student\'s own gender and any with work', () => {
+      const girl = { ...me, gender: 'female' }
+      const girlsOnly = { ...sub().assessment, metadata: { gender: 'female' } }
+      const boysOnly = { ...sub().assessment, metadata: { gender: 'male' } }
+      const rows = [
+        sub({ id: 'mine', assessment: { ...girlsOnly, id: 'g' } }),
+        sub({ id: 'other-gender', assessment: { ...boysOnly, id: 'b' } }),
+        sub({ id: 'other-gender-done', status: 'completed', assessment: { ...boysOnly, id: 'b2' } }),
+        sub({ id: 'everyone', assessment: { ...sub().assessment, id: 'e', metadata: null } }),
+      ]
+
+      const out = (service as any).portalAssessments(girl, rows)
+
+      expect(out.map((o: any) => o.submissionId).sort()).toEqual(['everyone', 'mine', 'other-gender-done'])
+    })
+
     it('drops deleted assessments and caps the list at 20, newest first', () => {
       const rows = Array.from({ length: 25 }, (_, i) =>
         sub({ id: `s${i}`, createdAt: new Date(2026, 0, i + 1), assessment: { ...sub().assessment, id: `a${i}` } }),

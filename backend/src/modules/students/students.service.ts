@@ -3,7 +3,7 @@ import { PrismaService } from '../../database/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { SchoolResolver } from '../../common/utils/school-resolver';
 import { AnalyticsService } from '../analytics/analytics.service';
-import { LIFECYCLE_WHERE, isEligible, liveByKey, scoreOf } from '../assessments/assessment-lifecycle';
+import { LIFECYCLE_WHERE, assessmentGender, isEligible, liveByKey, scoreOf } from '../assessments/assessment-lifecycle';
 import { CreateStudentDto } from './dto/create-student.dto';
 import { UpdateStudentDto } from './dto/update-student.dto';
 import { QueryStudentDto } from './dto/query-student.dto';
@@ -972,7 +972,7 @@ async getPortalData(portalAccessKey: string) {
             select: {
               id: true, title: true, titleAr: true, type: true, totalPoints: true,
               passingScore: true, dueDate: true, status: true, deletedAt: true,
-              levelId: true, groupId: true,
+              levelId: true, groupId: true, metadata: true,
               level: { select: { id: true, name: true } },
               subject: { select: { id: true, name: true, nameAr: true } },
             },
@@ -1112,13 +1112,13 @@ async getPortalData(portalAccessKey: string) {
    * An untouched assignment for an assessment that is not for this student's level or group is
    * stale (old test data, a change of group) and is hidden; anything with work on it stays.
    */
-  private portalAssessments(student: { levelId: string; groupId: string | null }, rows: any[]) {
+  private portalAssessments(student: { levelId: string; groupId: string | null; gender?: string | null }, rows: any[]) {
     const live = liveByKey(
       rows.filter((r) => r.assessment && !r.assessment.deletedAt),
       (r) => r.assessment.id,
     );
     return Array.from(live.values())
-      .filter((sub) => sub.status !== 'assigned' || isEligible(student, sub.assessment))
+      .filter((sub) => sub.status !== 'assigned' || isEligible(student, { ...sub.assessment, gender: assessmentGender(sub.assessment.metadata) }))
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
       .slice(0, 20)
       .map((sub) => {

@@ -55,28 +55,32 @@ export function liveByKey<T extends LiveCandidate>(rows: T[], keyOf: (r: T) => s
   return out;
 }
 
-/**
- * Is this assessment actually meant for this student? It must be in the student's level, and in
- * their group when the assessment is group-specific. Used to refuse stray assignments and to find
- * stale ones left behind by old test data or a change of group.
- */
-export function isEligible(
-  student: { levelId: string | null; groupId: string | null },
-  assessment: { levelId: string; groupId: string | null },
-): boolean {
-  if (student.levelId !== assessment.levelId) return false;
-  if (assessment.groupId && student.groupId !== assessment.groupId) return false;
-  return true;
+export type AssessmentGender = 'all' | 'male' | 'female';
+
+/** Who an assessment is for. Stored in metadata like grade and term; absent means everyone. */
+export function assessmentGender(metadata: unknown): AssessmentGender {
+  const g = ((metadata as { gender?: unknown } | null) || {}).gender;
+  return g === 'male' || g === 'female' ? g : 'all';
 }
 
-/** Why a student is not eligible, for the integrity report. */
-export function ineligibleReason(
-  student: { levelId: string | null; groupId: string | null },
-  assessment: { levelId: string; groupId: string | null },
-): 'level' | 'group' | null {
+type StudentFacts = { levelId: string | null; groupId: string | null; gender?: string | null };
+type AssessmentFacts = { levelId: string; groupId: string | null; gender?: AssessmentGender | null };
+
+/**
+ * Why a student is not meant for this assessment, or null when they are. It must be in the
+ * student's level, in their group when the assessment is group-specific, and for their gender
+ * when the assessment is limited to boys or girls. Used to refuse stray assignments and to find
+ * stale ones left behind by old test data, a change of group or an edited audience.
+ */
+export function ineligibleReason(student: StudentFacts, assessment: AssessmentFacts): 'level' | 'group' | 'gender' | null {
   if (student.levelId !== assessment.levelId) return 'level';
   if (assessment.groupId && student.groupId !== assessment.groupId) return 'group';
+  if (assessment.gender && assessment.gender !== 'all' && student.gender !== assessment.gender) return 'gender';
   return null;
+}
+
+export function isEligible(student: StudentFacts, assessment: AssessmentFacts): boolean {
+  return ineligibleReason(student, assessment) === null;
 }
 
 /**
