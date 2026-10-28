@@ -1012,6 +1012,260 @@ describe('AssessmentsService', () => {
     });
   });
 
+  describe('assessment-student integrity', () => {
+    const admin = { id: 'admin-1', roles: ['super_admin'] };
+    const assessmentRow = (over: any = {}) => ({
+      id: 'a1', schoolId, levelId: 'l1', groupId: 'g1', deletedAt: null, totalPoints: 10, title: 'Quiz', ...over,
+    });
+
+    describe('assignStudents', () => {
+      it('assigns only students of the assessment\'s level and group, once each, and reports the rest', async () => {
+        prisma.assessment.findUnique.mockResolvedValue(assessmentRow());
+        prisma.student.findMany.mockResolvedValue([{ id: 'stu-1' }, { id: 'stu-2' }]);
+        prisma.assessmentSubmission.findMany.mockResolvedValue([{ studentId: 'stu-2' }]);
+
+        const res = await service.assignStudents('a1', ['stu-1', 'stu-2', 'stu-3', 'stu-1']);
+
+        expect(prisma.student.findMany).toHaveBeenCalledWith(
+          expect.objectContaining({
+            where: expect.objectContaining({ schoolId, levelId: 'l1', groupId: 'g1', deletedAt: null }),
+          }),
+        );
+        expect(prisma.assessmentSubmission.createMany).toHaveBeenCalledWith({
+          data: [{ assessmentId: 'a1', studentId: 'stu-1', submissionType: 'assigned', status: 'assigned' }],
+        });
+        expect(res).toEqual({ assigned: 1, skipped: 3, notEligible: 1 });
+      });
+
+      it('does not treat an archived or parent-report row as already assigned', async () => {
+        prisma.assessment.findUnique.mockResolvedValue(assessmentRow({ groupId: null }));
+        prisma.student.findMany.mockResolvedValue([{ id: 'stu-1' }]);
+        prisma.assessmentSubmission.findMany.mockResolvedValue([]);
+
+        await service.assignStudents('a1', ['stu-1']);
+
+        expect(prisma.assessmentSubmission.findMany).toHaveBeenCalledWith(
+          expect.objectContaining({
+            where: expect.objectContaining({
+              status: { not: 'superseded' },
+              submissionType: { not: 'parent_report' },
+            }),
+          }),
+        );
+        expect(prisma.assessmentSubmission.createMany).toHaveBeenCalled();
+      });
+
+      it('creates nothing when no student is eligible', async () => {
+        prisma.assessment.findUnique.mockResolvedValue(assessmentRow());
+        prisma.student.findMany.mockResolvedValue([]);
+        prisma.assessmentSubmission.findMany.mockResolvedValue([]);
+
+        const res = await service.assignStudents('a1', ['stu-9']);
+
+        expect(prisma.assessmentSubmission.createMany).not.toHaveBeenCalled();
+        expect(res).toEqual({ assigned: 0, skipped: 1, notEligible: 1 });
+      });
+    });
+
+    describe('unassignStudent', () => {
+      it('removes every live record for the pair so a duplicate cannot be left behind', async () => {
+        prisma.assessment.findUnique.mockResolvedValue(assessmentRow());
+        prisma.assessmentSubmission.findMany.mockResolvedValue([{ id: 's1' }, { id: 's2' }]);
+        prisma.grade.deleteMany = jest.fn();
+        prisma.assessmentSubmission.deleteMany = jest.fn();
+
+        await service.unassignStudent('a1', 'stu-1');
+
+        expect(prisma.grade.deleteMany).toHaveBeenCalledWith({ where: { submissionId: { in: ['s1', 's2'] } } });
+        expect(prisma.assessmentSubmission.deleteMany).toHaveBeenCalledWith({ where: { id: { in: ['s1', 's2'] } } });
+      });
+
+      it('404s when the student has no live record', async () => {
+        prisma.assessment.findUnique.mockResolvedValue(assessmentRow());
+        prisma.assessmentSubmission.findMany.mockResolvedValue([]);
+        await expect(service.unassignStudent('a1', 'stu-1')).rejects.toThrow(/not assigned/);
+      });
+    });
+
+    describe('markStudent for a student with no record', () => {
+      it('refuses to create a manual mark for a student outside the assessment\'s level or group', async () => {
+        prisma.assessment.findUnique.mockResolvedValue(assessmentRow());
+        prisma.assessmentSubmission.findFirst.mockResolvedValue(null);
+        prisma.student.findUnique.mockResolvedValue({ levelId: 'l2', groupId: 'g1', schoolId });
+
+        await expect(service.markStudent('a1', 'stu-1', 5, 10, undefined, 'admin-1')).rejects.toThrow(/not assigned/);
+        expect(prisma.assessmentSubmission.create).not.toHaveBeenCalled();
+      });
+
+      it('refuses a student from another school', async () => {
+        prisma.assessment.findUnique.mockResolvedValue(assessmentRow());
+        prisma.assessmentSubmission.findFirst.mockResolvedValue(null);
+        prisma.student.findUnique.mockResolvedValue({ levelId: 'l1', groupId: 'g1', schoolId: 'other-school' });
+
+        await expect(service.markStudent('a1', 'stu-1', 5, 10, undefined, 'admin-1')).rejects.toThrow(/not assigned/);
+      });
+    });
+
+    describe('getStudentsForAssessment', () => {
+      it('shows the done record, not a newer pending duplicate', async () => {
+        prisma.assessment.findUnique.mockResolvedValue(assessmentRow());
+        prisma.student.findMany.mockResolvedValue([
+          { id: 'stu-1', firstName: 'Robin', lastName: 'Amir', studentCode: 'STU-00032', grade: null, status: 'active' },
+        ]);
+        prisma.assessmentSubmission.findMany.mockResolvedValue([
+          { id: 'done', studentId: 'stu-1', status: 'completed', attemptNumber: 1, createdAt: new Date('2026-01-01'), grades: [{ questionId: null, score: 8, maxScore: 10, gradedAt: new Date(), grader: null }] },
+          { id: 'dupe', studentId: 'stu-1', status: 'assigned', attemptNumber: 1, createdAt: new Date('2026-02-01'), grades: [] },
+        ]);
+
+        const [row] = (await service.getStudentsForAssessment('a1')) as any[];
+
+        expect(row.submissionStatus).toBe('completed');
+        expect(row.mark).toBe(8);
+      });
+    });
+
+    describe('getIntegrityReport', () => {
+      const student = { id: 'stu-1', firstName: 'Robin', lastName: 'Amir', studentCode: 'STU-00032', levelId: 'l1', groupId: 'g1', level: { name: 'L1' }, group: { name: 'G1' } };
+      const assessment = (over: any = {}) => ({ id: 'a1', title: 'Quiz', levelId: 'l1', groupId: 'g1', totalPoints: 10, level: { name: 'L1' }, group: { name: 'G1' }, ...over });
+      const sub = (over: any = {}) => ({
+        id: 's', assessmentId: 'a1', studentId: 'stu-1', status: 'assigned', attemptNumber: 1,
+        createdAt: new Date('2026-01-01'), submittedAt: new Date('2026-01-01'), submissionType: 'assigned', fileUrl: null,
+        grades: [], student, assessment: assessment(), ...over,
+      });
+
+      it('finds the done-and-pending duplicate, proposes keeping the done one, and counts it', async () => {
+        prisma.assessmentSubmission.findMany.mockResolvedValue([
+          sub({ id: 'done', status: 'completed', grades: [{ questionId: null, score: 8, maxScore: 10 }] }),
+          sub({ id: 'pending', createdAt: new Date('2026-02-01') }),
+        ]);
+
+        const res = await service.getIntegrityReport('school-1', 'STU-00032');
+
+        expect(prisma.assessmentSubmission.findMany).toHaveBeenCalledWith(
+          expect.objectContaining({
+            where: expect.objectContaining({
+              status: { not: 'superseded' },
+              submissionType: { not: 'parent_report' },
+              student: { deletedAt: null, studentCode: 'STU-00032' },
+            }),
+          }),
+        );
+        expect(res.counts).toEqual({ duplicate: 1, notAssigned: 0, reviewOnly: 0 });
+        expect(res.findings[0]).toMatchObject({
+          kind: 'duplicate',
+          student: { name: 'Robin Amir', studentCode: 'STU-00032' },
+          keep: { id: 'done', status: 'completed', score: 8, maxScore: 10 },
+          archive: [{ id: 'pending', status: 'assigned' }],
+          fixable: true,
+        });
+      });
+
+      it('flags an untouched assignment for an assessment that is not for the student as fixable, and one with work as review-only', async () => {
+        prisma.assessmentSubmission.findMany.mockResolvedValue([
+          sub({ id: 'stale', assessmentId: 'old', assessment: assessment({ id: 'old', title: 'Old test', levelId: 'l9' }) }),
+          sub({ id: 'worked', assessmentId: 'hist', status: 'completed', assessment: assessment({ id: 'hist', title: 'Last year', groupId: 'g9' }) }),
+          sub({ id: 'fine', assessmentId: 'ok' }),
+        ]);
+
+        const res = await service.getIntegrityReport('school-1');
+
+        expect(res.scanned).toBe(3);
+        expect(res.counts).toEqual({ duplicate: 0, notAssigned: 1, reviewOnly: 1 });
+        const stale = res.findings.find((f: any) => f.assessmentId === 'old');
+        const worked = res.findings.find((f: any) => f.assessmentId === 'hist');
+        expect(stale).toMatchObject({ kind: 'not_assigned', reason: 'level', fixable: true });
+        expect(worked).toMatchObject({ kind: 'not_assigned', reason: 'group', fixable: false });
+        expect(res.findings.find((f: any) => f.assessmentId === 'ok')).toBeUndefined();
+      });
+
+      it('reports nothing for clean data', async () => {
+        prisma.assessmentSubmission.findMany.mockResolvedValue([sub()]);
+        const res = await service.getIntegrityReport('school-1');
+        expect(res.findings).toEqual([]);
+        expect(res.counts).toEqual({ duplicate: 0, notAssigned: 0, reviewOnly: 0 });
+      });
+    });
+
+    describe('fixIntegrity', () => {
+      const fixRow = (over: any = {}) => ({
+        id: 's', status: 'assigned', attemptNumber: 1, createdAt: new Date('2026-01-01'), metadata: null,
+        student: { levelId: 'l1', groupId: 'g1' }, assessment: { levelId: 'l1', groupId: 'g1' }, ...over,
+      });
+      const item = { assessmentId: 'a1', studentId: 'stu-1' };
+
+      it('merges a duplicate by archiving the weaker record into the one it keeps, and audits it', async () => {
+        prisma.assessmentSubmission.findMany.mockResolvedValue([
+          fixRow({ id: 'done', status: 'completed' }),
+          fixRow({ id: 'pending', createdAt: new Date('2026-02-01'), metadata: { notes: 'x' } }),
+        ]);
+
+        const res = await service.fixIntegrity('school-1', [{ kind: 'duplicate', ...item }], admin);
+
+        expect(prisma.assessmentSubmission.update).toHaveBeenCalledTimes(1);
+        expect(prisma.assessmentSubmission.update).toHaveBeenCalledWith({
+          where: { id: 'pending' },
+          data: {
+            status: 'superseded',
+            metadata: { notes: 'x', mergedInto: 'done', mergedByAdmin: { at: expect.any(String), by: 'admin-1' } },
+          },
+        });
+        expect(res).toMatchObject({ fixed: 1, failed: 0 });
+        expect(audit.log).toHaveBeenCalledWith(expect.objectContaining({ action: 'assessment.integrity.merge', entityId: 'done' }));
+      });
+
+      it('removes an untouched not-assigned record but refuses one that carries work', async () => {
+        prisma.assessmentSubmission.findMany
+          .mockResolvedValueOnce([fixRow({ id: 'stale', assessment: { levelId: 'l9', groupId: null } })])
+          .mockResolvedValueOnce([fixRow({ id: 'worked', status: 'completed', assessment: { levelId: 'l9', groupId: null } })]);
+
+        const res = await service.fixIntegrity('school-1', [
+          { kind: 'not_assigned', ...item },
+          { kind: 'not_assigned', assessmentId: 'a2', studentId: 'stu-1' },
+        ], admin);
+
+        expect(prisma.assessmentSubmission.update).toHaveBeenCalledTimes(1);
+        expect(prisma.assessmentSubmission.update).toHaveBeenCalledWith(
+          expect.objectContaining({ where: { id: 'stale' }, data: expect.objectContaining({ status: 'superseded' }) }),
+        );
+        expect(res.results[0]).toMatchObject({ ok: true, archived: 1 });
+        expect(res.results[1]).toMatchObject({ ok: false });
+        expect(res.results[1].error).toMatch(/review it manually/);
+      });
+
+      it('re-checks current data: skips a duplicate that is already clean and a student who is now eligible', async () => {
+        prisma.assessmentSubmission.findMany
+          .mockResolvedValueOnce([fixRow({ id: 'only' })])
+          .mockResolvedValueOnce([fixRow({ id: 'now-ok' })]);
+
+        const res = await service.fixIntegrity('school-1', [
+          { kind: 'duplicate', ...item },
+          { kind: 'not_assigned', assessmentId: 'a2', studentId: 'stu-1' },
+        ], admin);
+
+        expect(prisma.assessmentSubmission.update).not.toHaveBeenCalled();
+        expect(res).toMatchObject({ fixed: 0, failed: 2 });
+        expect(res.results[0].error).toMatch(/Already clean/);
+        expect(res.results[1].error).toMatch(/eligible/);
+      });
+
+      it('reports a missing record and one failing item without stopping the rest', async () => {
+        prisma.assessmentSubmission.findMany
+          .mockResolvedValueOnce([])
+          .mockRejectedValueOnce(new Error('db down'))
+          .mockResolvedValueOnce([fixRow({ id: 'a', status: 'completed' }), fixRow({ id: 'b' })]);
+
+        const res = await service.fixIntegrity('school-1', [
+          { kind: 'duplicate', ...item },
+          { kind: 'duplicate', assessmentId: 'a2', studentId: 'stu-1' },
+          { kind: 'duplicate', assessmentId: 'a3', studentId: 'stu-1' },
+        ], admin);
+
+        expect(res.results.map((r: any) => r.ok)).toEqual([false, false, true]);
+        expect(res.results[1].error).toBe('db down');
+      });
+    });
+  });
+
   describe('prepareRetake', () => {
     const retakeable = (over: any = {}) => ({
       id: 'a1', status: 'published', deletedAt: null, maxAttempts: null,

@@ -22,6 +22,7 @@ import {
   MarkStudentDto,
   ReturnSubmissionDto,
   AcceptAutoScoresDto,
+  FixIntegrityDto,
 } from './dto/assessment.dto';
 
 @ApiTags('assessments')
@@ -94,6 +95,24 @@ export class AssessmentsController {
     @Req() req: any,
   ) {
     return this.assessmentsService.resetPendingSubmission(schoolId, submissionId, req.user);
+  }
+
+  @Get('integrity')
+  @Roles('super_admin', 'admin', 'principal')
+  @ApiOperation({ summary: 'Scan for duplicate or unassigned student-assessment records (admin, read-only)' })
+  async getIntegrityReport(@Query('schoolId') schoolId: string = '', @Query('studentCode') studentCode?: string) {
+    return this.assessmentsService.getIntegrityReport(schoolId, studentCode?.trim() || undefined);
+  }
+
+  @Post('integrity/fix')
+  @Roles('super_admin', 'admin', 'principal')
+  @ApiOperation({ summary: 'Archive duplicate or stale student-assessment records (admin)' })
+  async fixIntegrity(
+    @Query('schoolId') schoolId: string = '',
+    @Body(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true })) dto: FixIntegrityDto,
+    @Req() req: any,
+  ) {
+    return this.assessmentsService.fixIntegrity(schoolId, dto.items, req.user);
   }
 
   @Get('review-stats')

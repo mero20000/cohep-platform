@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import Link from 'next/link'
 import {
-  ArrowLeft, CheckCircle, ChevronDown, ChevronUp, ClipboardCheck, Clock, Download, Loader2, Mic, Trash2, Undo2, Zap,
+  ArrowLeft, CheckCircle, ChevronDown, ChevronUp, ClipboardCheck, Clock, Download, Loader2, Mic, ShieldCheck, Trash2, Undo2, Zap,
 } from 'lucide-react'
 import { useLanguage } from '@/lib/use-language'
 import { usePermission } from '@/lib/use-permission'
@@ -24,6 +24,7 @@ import { ReviewMode } from './review-mode'
 import { ReturnModal } from './return-modal'
 import { Turnaround } from './turnaround'
 import { MarkedTab } from './marked-tab'
+import { IntegrityTab } from './integrity-tab'
 import { EvidencePanel } from './evidence-panel'
 
 interface AcceptAutoResult {
@@ -39,7 +40,8 @@ export default function PendingReviewPage() {
   const t = (en: string, ar: string) => (lang === 'ar' ? ar : en)
   const isAdmin = ADMIN_ROLES.includes(role)
 
-  const [tab, setTab] = useState<'queue' | 'marked' | 'turnaround'>('queue')
+  const [tab, setTab] = useState<'queue' | 'marked' | 'turnaround' | 'integrity'>('queue')
+  const [integrityCount, setIntegrityCount] = useState<number | undefined>(undefined)
   const [markedCount, setMarkedCount] = useState<number | undefined>(undefined)
   const [items, setItems] = useState<PendingItem[]>([])
   const [loading, setLoading] = useState(true)
@@ -204,15 +206,20 @@ export default function PendingReviewPage() {
 
       <Tabs
         activeTab={tab}
-        onChange={id => setTab(id as 'queue' | 'marked' | 'turnaround')}
+        onChange={id => setTab(id as 'queue' | 'marked' | 'turnaround' | 'integrity')}
         tabs={[
           { id: 'queue', label: t('Pending', 'المعلّقة'), icon: ClipboardCheck, count: items.length },
           { id: 'marked', label: t('Marked', 'تم تقييمها'), icon: CheckCircle, count: markedCount },
-          ...(isAdmin ? [{ id: 'turnaround', label: t('Turnaround', 'الإنجاز'), icon: Clock }] : []),
+          ...(isAdmin ? [
+            { id: 'turnaround', label: t('Turnaround', 'الإنجاز'), icon: Clock },
+            { id: 'integrity', label: t('Data check', 'فحص البيانات'), icon: ShieldCheck, count: integrityCount },
+          ] : []),
         ]}
       />
 
-      {tab === 'turnaround' && isAdmin ? (
+      {tab === 'integrity' && isAdmin ? (
+        <IntegrityTab onCount={setIntegrityCount} />
+      ) : tab === 'turnaround' && isAdmin ? (
         <Turnaround />
       ) : tab === 'marked' ? (
         <MarkedTab onCount={setMarkedCount} />

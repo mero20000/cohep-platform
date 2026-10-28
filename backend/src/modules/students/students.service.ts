@@ -3,6 +3,7 @@ import { PrismaService } from '../../database/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { SchoolResolver } from '../../common/utils/school-resolver';
 import { AnalyticsService } from '../analytics/analytics.service';
+import { LIFECYCLE_WHERE, isEligible, liveByKey, scoreOf } from '../assessments/assessment-lifecycle';
 import { CreateStudentDto } from './dto/create-student.dto';
 import { UpdateStudentDto } from './dto/update-student.dto';
 import { QueryStudentDto } from './dto/query-student.dto';
@@ -958,11 +959,12 @@ async getPortalData(portalAccessKey: string) {
         orderBy: { scheduledDate: 'asc' },
         take: 5,
       }),
+      // Every live record, not "the newest 20": the live one per assessment is chosen below by the
+      // same rule the teacher screens use, so the two can never disagree about done vs pending.
       this.prisma.assessmentSubmission.findMany({
         where: {
           studentId: student.id,
-          // A prior attempt archived by a re-take must never surface as the live row.
-          status: { not: 'superseded' },
+          ...LIFECYCLE_WHERE,
           assessment: { status: 'published', deletedAt: null, schoolId: student.schoolId },
         },
         include: {
@@ -970,15 +972,14 @@ async getPortalData(portalAccessKey: string) {
             select: {
               id: true, title: true, titleAr: true, type: true, totalPoints: true,
               passingScore: true, dueDate: true, status: true, deletedAt: true,
+              levelId: true, groupId: true,
               level: { select: { id: true, name: true } },
               subject: { select: { id: true, name: true, nameAr: true } },
             },
           },
-          grades: { select: { score: true, maxScore: true } },
+          grades: { select: { questionId: true, score: true, maxScore: true } },
         },
         orderBy: { createdAt: 'desc' },
-        take: 20,
-        distinct: ['assessmentId'], // Only latest submission per assessment
       }),
       // Liturgy attendance (FamilyLiturgy) — self-reported by student/parent
       this.prisma.familyLiturgy.findMany({
@@ -1102,27 +1103,42 @@ async getPortalData(portalAccessKey: string) {
         time: s.scheduledTime,
       })),
       recentHomework,
-      assessments: assignedAssessments
-        .filter((sub: any) => sub.assessment && !sub.assessment.deletedAt)
-        .map((sub: any) => {
-          const totalScore = sub.grades?.reduce((sum: number, g: any) => sum + Number(g.score || 0), 0) ?? 0;
-          return {
-            id: sub.assessment.id,
-            title: sub.assessment.title,
-            titleAr: sub.assessment.titleAr,
-            type: sub.assessment.type,
-            totalPoints: Number(sub.assessment.totalPoints),
-            passingScore: Number(sub.assessment.passingScore),
-            dueDate: sub.assessment.dueDate,
-            level: sub.assessment.level,
-            subject: sub.assessment.subject,
-            submissionStatus: sub.status,
-            submissionId: sub.id,
-            submittedAt: sub.submittedAt,
-            earnedScore: sub.status === 'completed' ? totalScore : null,
-          };
-        }),
+      assessments: this.portalAssessments(student, assignedAssessments as any[]),
     };
+  }
+
+  /**
+   * The assessments a student sees: one entry per assessment, taken from its live record.
+   * An untouched assignment for an assessment that is not for this student's level or group is
+   * stale (old test data, a change of group) and is hidden; anything with work on it stays.
+   */
+  private portalAssessments(student: { levelId: string; groupId: string | null }, rows: any[]) {
+    const live = liveByKey(
+      rows.filter((r) => r.assessment && !r.assessment.deletedAt),
+      (r) => r.assessment.id,
+    );
+    return Array.from(live.values())
+      .filter((sub) => sub.status !== 'assigned' || isEligible(student, sub.assessment))
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+      .slice(0, 20)
+      .map((sub) => {
+        const mark = scoreOf(sub.grades ?? []);
+        return {
+          id: sub.assessment.id,
+          title: sub.assessment.title,
+          titleAr: sub.assessment.titleAr,
+          type: sub.assessment.type,
+          totalPoints: Number(sub.assessment.totalPoints),
+          passingScore: Number(sub.assessment.passingScore),
+          dueDate: sub.assessment.dueDate,
+          level: sub.assessment.level,
+          subject: sub.assessment.subject,
+          submissionStatus: sub.status,
+          submissionId: sub.id,
+          submittedAt: sub.submittedAt,
+          earnedScore: sub.status === 'completed' ? (mark?.score ?? 0) : null,
+        };
+      });
   }
 
   async getStats(schoolIdentifier: string, filters?: {

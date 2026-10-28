@@ -2,6 +2,7 @@ import { Injectable, NotFoundException, ForbiddenException, HttpException } from
 import { PrismaService } from '../../database/prisma.service';
 import { HymnLearningService } from '../curriculum/hymn-learning.service';
 import { rateFromCounts } from '../attendance/attendance-metrics';
+import { liveByKey, scoreOf } from '../assessments/assessment-lifecycle';
 
 /**
  * Passed in place of a parent's user id when the student themselves is the caller.
@@ -272,17 +273,23 @@ export class ParentsService {
 
   async getChildAssessments(studentId: string, userId: string) {
     await this.verifyParent(userId, studentId);
-    const submissions = await this.prisma.assessmentSubmission.findMany({
-      where: { studentId },
+    const all = await this.prisma.assessmentSubmission.findMany({
+      where: { studentId, status: { not: 'superseded' } },
       include: {
         assessment: { include: { subject: { select: { name: true, nameAr: true } } } },
         grades: true,
       },
       orderBy: { createdAt: 'desc' },
     });
+    // One entry per assessment from its live record (same rule as the student's own view and the
+    // teacher screens), plus the parent's own home-practice reports, which are separate evidence.
+    const reports = all.filter(s => s.submissionType === 'parent_report');
+    const live = Array.from(liveByKey(all.filter(s => s.submissionType !== 'parent_report'), s => s.assessmentId).values());
+    const submissions = [...live, ...reports].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
     return submissions.map(s => {
-      const totalScore = s.grades.reduce((sum, g) => sum + Number(g.score), 0);
-      const maxScore = s.grades.reduce((sum, g) => sum + Number(g.maxScore), 0) || Number(s.assessment.totalPoints);
+      const mark = scoreOf(s.grades);
+      const totalScore = mark?.score ?? 0;
+      const maxScore = mark?.maxScore || Number(s.assessment.totalPoints);
       const percentage = maxScore > 0 ? Math.round((totalScore / maxScore) * 100) : 0;
       return {
         id: s.id,
@@ -1154,9 +1161,14 @@ export class ParentsService {
     await this.verifyParent(userId, studentId);
     const assessment = await this.prisma.assessment.findUnique({
       where: { id: assessmentId },
-      select: { id: true, totalPoints: true, passingScore: true, title: true },
+      select: { id: true, totalPoints: true, passingScore: true, title: true, schoolId: true, status: true, deletedAt: true },
     });
-    if (!assessment) throw new NotFoundException('Assessment not found');
+    // A report can only attach to a real, published assessment in the child's own school; any other
+    // id would tie the child to work that was never theirs.
+    const child = await this.prisma.student.findUnique({ where: { id: studentId }, select: { schoolId: true } });
+    if (!assessment || assessment.deletedAt || assessment.status !== 'published' || !child || assessment.schoolId !== child.schoolId) {
+      throw new NotFoundException('Assessment not found');
+    }
 
     const totalPoints = Number(assessment.totalPoints);
     const maxScore = totalPoints || 100;
