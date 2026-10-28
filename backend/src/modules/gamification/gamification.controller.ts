@@ -1,13 +1,13 @@
 import {
-  Controller, Get, Post, Put, Delete,
-  Body, Param, Query, Req, UseGuards, BadRequestException,
+  Controller, Get, Post, Put, Patch, Delete,
+  Body, Param, Query, Req, UseGuards, BadRequestException, ParseUUIDPipe,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { Roles, STAFF_ROLES } from '../../common/decorators/roles.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { GamificationService } from './gamification.service';
-import { CreateBadgeDto, UpdateBadgeDto, AddXpDto, AmendXpDto, ResetStudentXpDto } from './dto/gamification.dto';
+import { CreateBadgeDto, UpdateBadgeDto, AddXpDto, AmendXpDto, AmendXpTransactionDto, ResetStudentXpDto } from './dto/gamification.dto';
 
 @ApiTags('gamification')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -150,6 +150,45 @@ export class GamificationController {
   @ApiOperation({ summary: 'Amend (adjust) student XP up or down' })
   async amendStudentXp(@Param('id') id: string, @Body() dto: AmendXpDto, @Req() req: any) {
     return this.gamificationService.amendStudentXp(id, dto.amount, dto.reason, req.user?.id);
+  }
+
+  @Get('students/:id/xp-ledger')
+  @Roles('super_admin', 'admin', 'principal')
+  @ApiOperation({ summary: 'Full XP history for a student, with flags on XP from archived assessment attempts (admin)' })
+  async getXpLedger(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Query('skip') skip: string | undefined,
+    @Query('take') take: string | undefined,
+    @Req() req: any,
+  ) {
+    return this.gamificationService.getXpLedger(
+      id, skip ? parseInt(skip, 10) : 0, take ? parseInt(take, 10) : 50, req.user,
+    );
+  }
+
+  @Patch('students/:id/xp/transactions/:transactionId')
+  @Roles('super_admin', 'admin', 'principal')
+  @ApiOperation({ summary: 'Correct the amount of one XP award (admin)' })
+  async amendXpTransaction(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('transactionId', ParseUUIDPipe) transactionId: string,
+    @Body() dto: AmendXpTransactionDto,
+    @Req() req: any,
+  ) {
+    return this.gamificationService.amendXpTransaction(id, transactionId, dto.amount, dto.reason, req.user);
+  }
+
+  @Delete('students/:id/xp/transactions/:transactionId')
+  @Roles('super_admin', 'admin', 'principal')
+  @ApiOperation({ summary: 'Remove one XP award (admin)' })
+  async deleteXpTransaction(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('transactionId', ParseUUIDPipe) transactionId: string,
+    @Query('reason') reason: string | undefined,
+    @Req() req: any,
+  ) {
+    if (!reason || reason.trim().length < 3) throw new BadRequestException('A reason of at least 3 characters is required');
+    return this.gamificationService.deleteXpTransaction(id, transactionId, reason.trim(), req.user);
   }
 
   @Delete('students/:id/xp')

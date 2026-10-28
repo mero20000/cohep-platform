@@ -114,6 +114,17 @@ export class AmendXpDto {
   reason: string;
 }
 
+export class AmendXpTransactionDto {
+  /** The corrected amount for this one award (not an adjustment on top of it). */
+  @IsInt()
+  amount: number;
+
+  @IsString()
+  @IsNotEmpty({ message: 'A reason for the correction is required' })
+  @MinLength(3, { message: 'Reason must be at least 3 characters' })
+  reason: string;
+}
+
 export class ResetStudentXpDto {
   @IsString()
   @IsNotEmpty({ message: 'A confirmation reason is required' })

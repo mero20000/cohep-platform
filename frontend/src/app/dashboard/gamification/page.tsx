@@ -24,6 +24,7 @@ import { CardSkeleton, TableSkeleton, Skeleton } from '@/components/ui/skeleton'
 import { getSchoolId } from '@/lib/school'
 import { http } from '@/lib/http-client'
 import { usePermission } from '@/lib/use-permission'
+import { XpLedger } from './xp-ledger'
 
 // ── Types ───────────────────────────────────────────────────────────────────
 
@@ -764,8 +765,10 @@ function ServantRecognitionPanel({ lang, schoolId }: { lang: string; schoolId: s
 export default function GamificationPage() {
   const { toast } = useToast()
   const lang = useLanguage()
-  const { can } = usePermission()
+  const { can, role } = usePermission()
   const isSuperAdmin = can('gamification:reset')
+  // Entry-by-entry XP correction is for administrators only.
+  const canManageXpHistory = ['super_admin', 'admin', 'principal'].includes(role)
   const t = (en: string, ar: string) => lang === 'ar' ? ar : en
 
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([])
@@ -828,7 +831,7 @@ export default function GamificationPage() {
   const [amendError, setAmendError] = useState('')
   const [amending, setAmending] = useState(false)
   const [resetting, setResetting] = useState(false)
-  const [xpManagementTab, setXpManagementTab] = useState<'info' | 'amend' | 'reset'>('info')
+  const [xpManagementTab, setXpManagementTab] = useState<'info' | 'amend' | 'history' | 'reset'>('info')
 
   // Badge students view
   const [showBadgeStudents, setShowBadgeStudents] = useState(false)
@@ -1441,6 +1444,11 @@ export default function GamificationPage() {
             <button onClick={() => setXpManagementTab('amend')} className={`px-4 py-2 text-sm font-medium border-b-2 ${xpManagementTab === 'amend' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-600 hover:text-gray-900'}`}>
               {t('Adjust', 'تعديل')}
             </button>
+            {canManageXpHistory && (
+              <button onClick={() => setXpManagementTab('history')} className={`px-4 py-2 text-sm font-medium border-b-2 ${xpManagementTab === 'history' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-600 hover:text-gray-900'}`}>
+                {t('History', 'السجل')}
+              </button>
+            )}
             <button onClick={() => setXpManagementTab('reset')} className={`px-4 py-2 text-sm font-medium border-b-2 ${xpManagementTab === 'reset' ? 'border-red-600 text-red-600' : 'border-transparent text-gray-600 hover:text-gray-900'}`}>
               {t('Delete All', 'حذف الكل')}
             </button>
@@ -1522,6 +1530,17 @@ export default function GamificationPage() {
                 </Button>
               </div>
             </div>
+          )}
+
+          {/* History tab: correct or remove a single award */}
+          {xpManagementTab === 'history' && canManageXpHistory && xpManagementStudent && (
+            <XpLedger
+              studentId={xpManagementStudent.id}
+              onChanged={() => {
+                http.get<any>(`/gamification/students/${xpManagementStudent.id}/xp-info`).then(setXpInfo).catch(() => {})
+                fetchLeaderboard(); fetchStats()
+              }}
+            />
           )}
 
           {/* Reset tab */}
