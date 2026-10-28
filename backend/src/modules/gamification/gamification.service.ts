@@ -2,6 +2,7 @@ import { Injectable, NotFoundException, BadRequestException } from '@nestjs/comm
 import { PrismaService } from '../../database/prisma.service';
 import { SchoolResolver } from '../../common/utils/school-resolver';
 import { StudentNotificationsService } from '../student-notifications/student-notifications.service';
+import { AuditService } from '../audit/audit.service';
 import { CreateBadgeDto, UpdateBadgeDto } from './dto/gamification.dto';
 import { GAMIFICATION_CONSTANTS } from './gamification.constants';
 
@@ -17,6 +18,7 @@ export class GamificationService {
     private readonly prisma: PrismaService,
     private schoolResolver: SchoolResolver,
     private readonly studentNotifications: StudentNotificationsService,
+    private readonly audit: AuditService,
   ) {}
 
   async getLeaderboard(schoolIdentifier: string, limit = 20, requestingUser?: any) {
@@ -1512,6 +1514,224 @@ export class GamificationService {
         reason,
       };
     });
+  }
+
+  // ── Per-transaction XP management (admin) ────────────────────────────────
+
+  /**
+   * A student's full XP history, newest first, with who awarded each entry and a flag on XP that
+   * came from an assessment attempt which has since been archived or no longer exists (the
+   * leftover of a duplicate record), so an admin can see what is worth correcting.
+   */
+  async getXpLedger(studentId: string, skip = 0, take = 50, actor?: { schoolId?: string; roles?: string[] }) {
+    const student = await this.prisma.student.findUnique({ where: { id: studentId } });
+    if (!student || !this.canManageStudentXp(student, actor)) throw new NotFoundException('Student not found');
+
+    const limit = Math.min(Math.max(Math.floor(take) || 50, 1), 200);
+    const [agg, items] = await Promise.all([
+      this.prisma.xPTransaction.aggregate({ where: { studentId }, _sum: { amount: true }, _count: true }),
+      this.prisma.xPTransaction.findMany({
+        where: { studentId },
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        skip: Math.max(Math.floor(skip) || 0, 0),
+        take: limit,
+      }),
+    ]);
+
+    const submissionIds = Array.from(
+      new Set(items.filter((i) => i.referenceType === 'submission' && i.referenceId).map((i) => i.referenceId as string)),
+    );
+    const submissions = submissionIds.length
+      ? await this.prisma.assessmentSubmission.findMany({
+          where: { id: { in: submissionIds } },
+          select: { id: true, status: true },
+        })
+      : [];
+    const statusBySubmission = new Map(submissions.map((x) => [x.id, x.status]));
+
+    const creatorIds = Array.from(new Set(items.map((i) => i.createdBy).filter(Boolean))) as string[];
+    const creators = creatorIds.length
+      ? await this.prisma.user.findMany({ where: { id: { in: creatorIds } }, select: { id: true, firstName: true, lastName: true } })
+      : [];
+    const creatorName = new Map(creators.map((u) => [u.id, `${u.firstName} ${u.lastName}`.trim()]));
+
+    const totalXp = agg._sum.amount || 0;
+    return {
+      studentId,
+      firstName: student.firstName,
+      lastName: student.lastName,
+      totalXp,
+      level: Math.floor(Math.max(totalXp, 0) / 100) + 1,
+      total: agg._count,
+      skip,
+      take: limit,
+      items: items.map((i) => {
+        let flag: 'archived_attempt' | 'missing_attempt' | null = null;
+        if (i.referenceType === 'submission' && i.referenceId) {
+          const st = statusBySubmission.get(i.referenceId);
+          if (st === undefined) flag = 'missing_attempt';
+          else if (st === 'superseded') flag = 'archived_attempt';
+        }
+        return {
+          id: i.id,
+          amount: i.amount,
+          balanceAfter: i.balanceAfter,
+          type: i.type,
+          description: i.description,
+          referenceType: i.referenceType,
+          referenceId: i.referenceId,
+          createdAt: i.createdAt,
+          createdByName: i.createdBy ? creatorName.get(i.createdBy) ?? null : null,
+          flag,
+        };
+      }),
+    };
+  }
+
+  /** Correct the size of one XP award. History is kept in the description and the audit log. */
+  async amendXpTransaction(
+    studentId: string,
+    transactionId: string,
+    amount: number,
+    reason: string,
+    actor?: { id?: string; schoolId?: string; roles?: string[] },
+  ) {
+    if (!Number.isInteger(amount) || amount === 0 || Math.abs(amount) > 10000) {
+      throw new BadRequestException('Amount must be a non-zero whole number between -10000 and 10000');
+    }
+
+    const result = await this.prisma.$transaction(async (tx) => {
+      const student = await tx.student.findUnique({ where: { id: studentId } });
+      if (!student || !this.canManageStudentXp(student, actor)) throw new NotFoundException('Student not found');
+      await tx.$queryRawUnsafe('SELECT id FROM students WHERE id = $1 FOR UPDATE', studentId);
+
+      const existing = await tx.xPTransaction.findFirst({ where: { id: transactionId, studentId } });
+      if (!existing) throw new NotFoundException('XP transaction not found');
+
+      const total = await this.xpTotal(tx, studentId);
+      const newTotal = total - existing.amount + amount;
+      this.assertTotalNotLowered(total, newTotal);
+
+      const before = { amount: existing.amount, type: existing.type, description: existing.description };
+      const note = `[amended ${before.amount} → ${amount}: ${reason}]`;
+      await tx.xPTransaction.update({
+        where: { id: transactionId },
+        data: { amount, description: before.description ? `${before.description} ${note}` : note },
+      });
+      const totalXp = await this.rebuildXpBalances(tx, studentId);
+      return { student, existing: before, totalXp };
+    });
+
+    await this.audit.log({
+      schoolId: result.student.schoolId,
+      userId: actor?.id,
+      action: 'xp.transaction.amend',
+      entityType: 'xp_transaction',
+      entityId: transactionId,
+      oldValues: { amount: result.existing.amount },
+      newValues: { amount },
+      metadata: { studentId, reason, type: result.existing.type },
+    }).catch(() => undefined);
+
+    return {
+      transactionId,
+      previousAmount: result.existing.amount,
+      newAmount: amount,
+      totalXp: result.totalXp,
+      level: Math.floor(Math.max(result.totalXp, 0) / 100) + 1,
+    };
+  }
+
+  /**
+   * Remove one XP award (for example one that duplicated another). Badges earned with that XP are
+   * not revoked: that stays a separate, deliberate action.
+   */
+  async deleteXpTransaction(
+    studentId: string,
+    transactionId: string,
+    reason: string,
+    actor?: { id?: string; schoolId?: string; roles?: string[] },
+  ) {
+    const result = await this.prisma.$transaction(async (tx) => {
+      const student = await tx.student.findUnique({ where: { id: studentId } });
+      if (!student || !this.canManageStudentXp(student, actor)) throw new NotFoundException('Student not found');
+      await tx.$queryRawUnsafe('SELECT id FROM students WHERE id = $1 FOR UPDATE', studentId);
+
+      const existing = await tx.xPTransaction.findFirst({ where: { id: transactionId, studentId } });
+      if (!existing) throw new NotFoundException('XP transaction not found');
+
+      const total = await this.xpTotal(tx, studentId);
+      this.assertTotalNotLowered(total, total - existing.amount);
+
+      await tx.xPTransaction.delete({ where: { id: transactionId } });
+      const totalXp = await this.rebuildXpBalances(tx, studentId);
+      return { student, existing, totalXp };
+    });
+
+    await this.audit.log({
+      schoolId: result.student.schoolId,
+      userId: actor?.id,
+      action: 'xp.transaction.delete',
+      entityType: 'xp_transaction',
+      entityId: transactionId,
+      oldValues: {
+        amount: result.existing.amount,
+        type: result.existing.type,
+        description: result.existing.description,
+        referenceType: result.existing.referenceType,
+        referenceId: result.existing.referenceId,
+      },
+      metadata: { studentId, reason },
+    }).catch(() => undefined);
+
+    return {
+      deleted: true,
+      transactionId,
+      removedAmount: result.existing.amount,
+      totalXp: result.totalXp,
+      level: Math.floor(Math.max(result.totalXp, 0) / 100) + 1,
+    };
+  }
+
+  /** Same-school only, except for super admins. */
+  private canManageStudentXp(student: { schoolId: string }, actor?: { schoolId?: string; roles?: string[] }): boolean {
+    if (!actor?.schoolId || (actor.roles || []).includes('super_admin')) return true;
+    return student.schoolId === actor.schoolId;
+  }
+
+  private async xpTotal(tx: any, studentId: string): Promise<number> {
+    const agg = await tx.xPTransaction.aggregate({ where: { studentId }, _sum: { amount: true } });
+    return agg._sum.amount || 0;
+  }
+
+  /** An edit may not push a student's XP below zero, but may always move it back toward zero. */
+  private assertTotalNotLowered(total: number, newTotal: number) {
+    if (newTotal < 0 && newTotal < total) {
+      throw new BadRequestException(
+        'This would take the student below zero XP. Reduce or remove a negative adjustment first.',
+      );
+    }
+  }
+
+  /**
+   * balanceAfter is a running balance stored on every row, so changing or removing an earlier
+   * entry makes every later one stale. Recompute them in order, and keep StudentProgress in step.
+   */
+  private async rebuildXpBalances(tx: any, studentId: string): Promise<number> {
+    const rows = await tx.xPTransaction.findMany({
+      where: { studentId },
+      orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+      select: { id: true, amount: true, balanceAfter: true },
+    });
+    let running = 0;
+    for (const r of rows) {
+      running += r.amount;
+      if (r.balanceAfter !== running) {
+        await tx.xPTransaction.update({ where: { id: r.id }, data: { balanceAfter: running } });
+      }
+    }
+    await tx.studentProgress.updateMany({ where: { studentId }, data: { totalXp: running } }).catch(() => {});
+    return running;
   }
 
   async getStudentXpInfo(studentId: string) {
