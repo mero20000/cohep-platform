@@ -1,4 +1,4 @@
-import { pickLive, liveByKey, isEligible, ineligibleReason, scoreOf, compareLive } from './assessment-lifecycle';
+import { pickLive, liveByKey, isEligible, ineligibleReason, scoreOf, compareLive, assessmentGender } from './assessment-lifecycle';
 
 const row = (over: any = {}) => ({
   id: 'r', status: 'assigned', attemptNumber: 1, createdAt: new Date('2026-01-01'), ...over,
@@ -61,6 +61,35 @@ describe('assessment lifecycle rules', () => {
       expect(ineligibleReason(student, { levelId: 'l2', groupId: null })).toBe('level');
       expect(ineligibleReason(student, { levelId: 'l1', groupId: 'g2' })).toBe('group');
       expect(ineligibleReason(student, { levelId: 'l1', groupId: 'g1' })).toBeNull();
+    });
+  });
+
+  describe('gender audience', () => {
+    it('reads the audience from metadata and treats anything else as everyone', () => {
+      expect(assessmentGender({ gender: 'female' })).toBe('female');
+      expect(assessmentGender({ gender: 'male' })).toBe('male');
+      expect(assessmentGender({ gender: 'all' })).toBe('all');
+      for (const m of [null, undefined, {}, { gender: 'boys' }, { gender: 3 }, 'x']) {
+        expect(assessmentGender(m)).toBe('all');
+      }
+    });
+
+    it('limits a boys-only or girls-only assessment to that gender, on top of level and group', () => {
+      const girl = { levelId: 'l1', groupId: 'g1', gender: 'female' };
+      const boy = { levelId: 'l1', groupId: 'g1', gender: 'male' };
+
+      expect(isEligible(girl, { levelId: 'l1', groupId: 'g1', gender: 'female' })).toBe(true);
+      expect(isEligible(boy, { levelId: 'l1', groupId: 'g1', gender: 'female' })).toBe(false);
+      expect(ineligibleReason(boy, { levelId: 'l1', groupId: 'g1', gender: 'female' })).toBe('gender');
+      expect(isEligible(boy, { levelId: 'l1', groupId: 'g1', gender: 'all' })).toBe(true);
+      expect(isEligible(boy, { levelId: 'l1', groupId: 'g1' })).toBe(true);
+    });
+
+    it('reports level and group before gender, and refuses a student with no gender recorded', () => {
+      const boy = { levelId: 'l1', groupId: 'g1', gender: 'male' };
+      expect(ineligibleReason(boy, { levelId: 'l2', groupId: null, gender: 'female' })).toBe('level');
+      expect(ineligibleReason(boy, { levelId: 'l1', groupId: 'g2', gender: 'female' })).toBe('group');
+      expect(isEligible({ levelId: 'l1', groupId: 'g1', gender: null }, { levelId: 'l1', groupId: null, gender: 'male' })).toBe(false);
     });
   });
 

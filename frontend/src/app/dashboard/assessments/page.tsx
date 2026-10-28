@@ -78,7 +78,7 @@ interface Assessment {
   lessonId?: string
   subjectId: string
   academicYearId?: string
-  metadata?: { term?: number; academicYearId?: string; grade?: string }
+  metadata?: { term?: number; academicYearId?: string; grade?: string; gender?: 'all' | 'male' | 'female' }
   level: { id: string; name: string; number: number }
   group?: { id: string; name: string }
   lesson?: { id: string; title: string }
@@ -124,6 +124,8 @@ const emptyForm = {
   levelId: '',
   groupId: '',
   grade: '',
+  // Who the assessment is for within the level/group/grade: everyone unless narrowed.
+  gender: 'all' as 'all' | 'male' | 'female',
   lessonId: '',
   subjectId: '',
   totalPoints: '',
@@ -333,13 +335,14 @@ export default function AssessmentsPage() {
       if (!a.questions || a.questions.length === 0) {
         detail = await http.get<Assessment>(`/assessments/${a.id}`)
       }
-      const meta = (detail.metadata || {}) as { term?: number; academicYearId?: string; grade?: string }
+      const meta = (detail.metadata || {}) as { term?: number; academicYearId?: string; grade?: string; gender?: string }
       setForm({
         title: detail.title,
         description: detail.description || '',
         levelId: detail.levelId,
         groupId: detail.groupId || '',
         grade: meta.grade || detail.grade || '',
+        gender: meta.gender === 'male' || meta.gender === 'female' ? meta.gender : 'all',
         lessonId: detail.lessonId || '',
         subjectId: detail.subjectId,
         totalPoints: String(detail.totalPoints),
@@ -591,6 +594,7 @@ export default function AssessmentsPage() {
         levelId: form.levelId,
         groupId: form.groupId || undefined,
         grade: form.grade || undefined,
+        gender: form.gender,
         lessonId: form.lessonId || undefined,
         subjectId: form.subjectId,
         totalPoints: parseInt(form.totalPoints, 10),
@@ -668,7 +672,14 @@ export default function AssessmentsPage() {
       key: 'group',
       header: lang === 'ar' ? 'المجموعة' : 'Group',
       render: (a: Assessment) => (
-        <span className="text-sm text-gray-700">{a.group?.name || '—'}</span>
+        <span className="text-sm text-gray-700">
+          {a.group?.name || '—'}
+          {(a.metadata?.gender === 'male' || a.metadata?.gender === 'female') && (
+            <span className="ml-2"><Badge variant="info" size="sm">
+              {a.metadata.gender === 'male' ? (lang === 'ar' ? 'أولاد فقط' : 'Boys only') : (lang === 'ar' ? 'بنات فقط' : 'Girls only')}
+            </Badge></span>
+          )}
+        </span>
       ),
     },
     {
@@ -1022,6 +1033,11 @@ export default function AssessmentsPage() {
             }}>
               <option value="">{lang === 'ar' ? 'جميع الصفوف' : 'All Grades'}</option>
               {gradeOptions.map(g => <option key={g.id} value={g.name}>{g.name}</option>)}
+            </FormField>
+            <FormField label={lang === 'ar' ? 'الفئة' : 'Gender'} as="select" value={form.gender} onChange={e => updateForm({ gender: e.target.value as 'all' | 'male' | 'female' })}>
+              <option value="all">{lang === 'ar' ? 'الجميع (أولاد وبنات)' : 'All (boys and girls)'}</option>
+              <option value="male">{lang === 'ar' ? 'أولاد فقط' : 'Boys only'}</option>
+              <option value="female">{lang === 'ar' ? 'بنات فقط' : 'Girls only'}</option>
             </FormField>
             <FormField label={lang === 'ar' ? 'المادة' : 'Subject'} required as="select" value={form.subjectId} onChange={e => updateForm({ subjectId: e.target.value })}>
               <option value="">{lang === 'ar' ? 'اختر المادة' : 'Select subject'}</option>

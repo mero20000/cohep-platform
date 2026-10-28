@@ -240,7 +240,12 @@ function FindingRow({ f, checked, onToggle }: { f: IntegrityFinding; checked: bo
             <p>
               {f.reason === 'level'
                 ? t(`The assessment is for ${f.assessment.levelName ?? '—'}, but the student is in ${f.student.levelName ?? '—'}.`, `التقييم لـ ${f.assessment.levelName ?? '—'} لكن الطالب في ${f.student.levelName ?? '—'}.`)
-                : t(`The assessment is for ${f.assessment.groupName ?? '—'}, but the student is in ${f.student.groupName ?? '—'}.`, `التقييم لـ ${f.assessment.groupName ?? '—'} لكن الطالب في ${f.student.groupName ?? '—'}.`)}
+                : f.reason === 'gender'
+                  ? t(
+                      `The assessment is for ${f.assessment.gender === 'female' ? 'girls' : 'boys'} only, but the student is ${f.student.gender === 'female' ? 'a girl' : f.student.gender === 'male' ? 'a boy' : 'not recorded as a boy or a girl'}.`,
+                      `التقييم لـ${f.assessment.gender === 'female' ? 'بنات' : 'أولاد'} فقط لكن الطالب ${f.student.gender === 'female' ? 'بنت' : f.student.gender === 'male' ? 'ولد' : 'غير محدد النوع'}.`,
+                    )
+                  : t(`The assessment is for ${f.assessment.groupName ?? '—'}, but the student is in ${f.student.groupName ?? '—'}.`, `التقييم لـ ${f.assessment.groupName ?? '—'} لكن الطالب في ${f.student.groupName ?? '—'}.`)}
             </p>
             <p className={f.fixable ? 'text-gray-500' : 'text-amber-700'}>
               {f.fixable

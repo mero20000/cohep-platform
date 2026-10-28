@@ -64,6 +64,11 @@ export class CreateAssessmentDto {
   @IsString()
   grade?: string;
 
+  /** Limit the assessment to boys or girls within the level/group/grade. Defaults to everyone. */
+  @IsOptional()
+  @IsIn(['all', 'male', 'female'])
+  gender?: 'all' | 'male' | 'female';
+
   @IsOptional()
   @IsUUID()
   lessonId?: string;
@@ -145,6 +150,11 @@ export class UpdateAssessmentDto {
   @IsOptional()
   @IsString()
   grade?: string;
+
+  /** Limit the assessment to boys or girls within the level/group/grade. Defaults to everyone. */
+  @IsOptional()
+  @IsIn(['all', 'male', 'female'])
+  gender?: 'all' | 'male' | 'female';
 
   @IsOptional()
   @IsUUID()
