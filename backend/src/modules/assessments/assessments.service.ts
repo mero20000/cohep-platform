@@ -4,6 +4,7 @@ import { PrismaService } from '../../database/prisma.service';
 import { SchoolResolver } from '../../common/utils/school-resolver';
 import { AuditService } from '../audit/audit.service';
 import { StudentNotificationsService } from '../student-notifications/student-notifications.service';
+import { LIFECYCLE_WHERE, isEligible, liveByKey, pickLive, ineligibleReason, scoreOf } from './assessment-lifecycle';
 import { CreateAssessmentDto, UpdateAssessmentDto, SubmitAssessmentDto, CreateQuestionDto } from './dto/assessment.dto';
 
 type Actor = { id?: string; roles?: string[]; schoolId?: string };
@@ -278,7 +279,7 @@ export class AssessmentsService {
    */
   private liveSubmission(assessmentId: string, studentId: string) {
     return this.prisma.assessmentSubmission.findFirst({
-      where: { assessmentId, studentId, status: { not: 'superseded' } },
+      where: { assessmentId, studentId, ...LIFECYCLE_WHERE },
       orderBy: [{ attemptNumber: 'desc' }, { createdAt: 'desc' }],
     });
   }
@@ -966,6 +967,222 @@ export class AssessmentsService {
     }
   }
 
+  /**
+   * Scan for broken links between students and assessments. Read-only: it reports what it found
+   * and what a fix would do. Two kinds of finding:
+   *  - duplicate: more than one live record for the same student and assessment (e.g. one done,
+   *    one pending). The fix keeps the one chosen by pickLive and archives the rest.
+   *  - not_assigned: the live record belongs to an assessment that is not for this student's
+   *    level or group (old test data, a changed group). Only an untouched 'assigned' record is
+   *    safe to remove; one carrying real work is reported for a human to review.
+   */
+  async getIntegrityReport(schoolIdentifier: string, studentCode?: string) {
+    const schoolId = await this.schoolResolver.resolve(schoolIdentifier);
+    const LIMIT = 500;
+
+    const rows = await this.prisma.assessmentSubmission.findMany({
+      where: {
+        ...LIFECYCLE_WHERE,
+        assessment: { schoolId, deletedAt: null },
+        student: { deletedAt: null, ...(studentCode ? { studentCode } : {}) },
+      },
+      select: {
+        id: true, assessmentId: true, studentId: true, status: true, attemptNumber: true,
+        createdAt: true, submittedAt: true, submissionType: true, fileUrl: true,
+        grades: { select: { questionId: true, score: true, maxScore: true } },
+        student: {
+          select: {
+            id: true, firstName: true, lastName: true, studentCode: true, levelId: true, groupId: true,
+            level: { select: { name: true } }, group: { select: { name: true } },
+          },
+        },
+        assessment: {
+          select: {
+            id: true, title: true, levelId: true, groupId: true, totalPoints: true,
+            level: { select: { name: true } }, group: { select: { name: true } },
+          },
+        },
+      },
+    });
+
+    const summary = (r: (typeof rows)[number]) => {
+      const sc = scoreOf(r.grades);
+      return {
+        id: r.id,
+        status: r.status,
+        attemptNumber: r.attemptNumber,
+        createdAt: r.createdAt,
+        submittedAt: r.status === 'assigned' ? null : r.submittedAt,
+        type: r.submissionType,
+        hasRecording: !!r.fileUrl,
+        score: sc && r.status === 'completed' ? sc.score : null,
+        maxScore: sc && r.status === 'completed' ? sc.maxScore : null,
+      };
+    };
+
+    const byPair = new Map<string, typeof rows>();
+    for (const r of rows) {
+      const k = `${r.assessmentId}:${r.studentId}`;
+      const g = byPair.get(k);
+      if (g) g.push(r); else byPair.set(k, [r]);
+    }
+
+    type Finding = {
+      kind: 'duplicate' | 'not_assigned';
+      assessmentId: string;
+      studentId: string;
+      student: { id: string; name: string; studentCode: string | null; levelName: string | null; groupName: string | null };
+      assessment: { id: string; title: string; levelName: string | null; groupName: string | null };
+      keep: ReturnType<typeof summary>;
+      archive: ReturnType<typeof summary>[];
+      reason: 'level' | 'group' | null;
+      /** false when the record carries real work and needs a human decision */
+      fixable: boolean;
+    };
+    const findings: Finding[] = [];
+
+    for (const group of Array.from(byPair.values())) {
+      const live = pickLive(group)!;
+      const others = group.filter((r) => r.id !== live.id);
+      const base = {
+        assessmentId: live.assessmentId,
+        studentId: live.studentId,
+        student: {
+          id: live.student.id,
+          name: `${live.student.firstName} ${live.student.lastName}`.trim(),
+          studentCode: live.student.studentCode,
+          levelName: live.student.level?.name ?? null,
+          groupName: live.student.group?.name ?? null,
+        },
+        assessment: {
+          id: live.assessment.id,
+          title: live.assessment.title,
+          levelName: live.assessment.level?.name ?? null,
+          groupName: live.assessment.group?.name ?? null,
+        },
+      };
+
+      if (others.length > 0) {
+        findings.push({ ...base, kind: 'duplicate', keep: summary(live), archive: others.map(summary), reason: null, fixable: true });
+      }
+
+      const reason = ineligibleReason(live.student, live.assessment);
+      if (reason) {
+        findings.push({
+          ...base,
+          kind: 'not_assigned',
+          keep: summary(live),
+          archive: [],
+          reason,
+          fixable: live.status === 'assigned',
+        });
+      }
+    }
+
+    const sorted = findings.sort(
+      (a, b) => a.student.name.localeCompare(b.student.name) || a.assessment.title.localeCompare(b.assessment.title),
+    );
+    return {
+      scanned: rows.length,
+      counts: {
+        duplicate: sorted.filter((f) => f.kind === 'duplicate').length,
+        notAssigned: sorted.filter((f) => f.kind === 'not_assigned' && f.fixable).length,
+        reviewOnly: sorted.filter((f) => !f.fixable).length,
+      },
+      truncated: sorted.length > LIMIT,
+      findings: sorted.slice(0, LIMIT),
+    };
+  }
+
+  /**
+   * Apply integrity fixes. Each item is re-checked against the data as it is now, so a stale
+   * report cannot archive the wrong thing, and nothing is hard-deleted: affected records are
+   * archived ('superseded') with a note of why, by whom and (for duplicates) where they merged.
+   */
+  async fixIntegrity(
+    schoolIdentifier: string,
+    items: { kind: 'duplicate' | 'not_assigned'; assessmentId: string; studentId: string }[],
+    actor?: Actor,
+  ) {
+    const schoolId = await this.schoolResolver.resolve(schoolIdentifier);
+    const results: { kind: string; assessmentId: string; studentId: string; ok: boolean; archived: number; error?: string }[] = [];
+    const at = new Date().toISOString();
+
+    for (const item of items.slice(0, 200)) {
+      const result = { kind: item.kind, assessmentId: item.assessmentId, studentId: item.studentId };
+      try {
+        const rows = await this.prisma.assessmentSubmission.findMany({
+          where: {
+            assessmentId: item.assessmentId,
+            studentId: item.studentId,
+            ...LIFECYCLE_WHERE,
+            assessment: { schoolId, deletedAt: null },
+          },
+          select: {
+            id: true, status: true, attemptNumber: true, createdAt: true, metadata: true,
+            student: { select: { levelId: true, groupId: true } },
+            assessment: { select: { levelId: true, groupId: true } },
+          },
+        });
+        if (rows.length === 0) {
+          results.push({ ...result, ok: false, archived: 0, error: 'Nothing to fix — no live record found' });
+          continue;
+        }
+        const live = pickLive(rows)!;
+        let toArchive: typeof rows = [];
+        let note: Prisma.InputJsonObject;
+
+        if (item.kind === 'duplicate') {
+          toArchive = rows.filter((r) => r.id !== live.id);
+          if (toArchive.length === 0) {
+            results.push({ ...result, ok: false, archived: 0, error: 'Already clean' });
+            continue;
+          }
+          note = { mergedInto: live.id, mergedByAdmin: { at, by: actor?.id ?? null } };
+        } else {
+          if (isEligible(live.student, live.assessment)) {
+            results.push({ ...result, ok: false, archived: 0, error: 'The student is eligible for this assessment now' });
+            continue;
+          }
+          if (live.status !== 'assigned') {
+            results.push({ ...result, ok: false, archived: 0, error: 'Has submitted or marked work — review it manually' });
+            continue;
+          }
+          toArchive = rows.filter((r) => r.status === 'assigned');
+          note = { discardedByAdmin: { at, by: actor?.id ?? null, reason: 'not_eligible' } };
+        }
+
+        await this.prisma.$transaction(async (tx) => {
+          for (const r of toArchive) {
+            await tx.assessmentSubmission.update({
+              where: { id: r.id },
+              data: { status: 'superseded', metadata: { ...(((r.metadata as any) || {}) as object), ...note } },
+            });
+          }
+        });
+
+        await this.audit.log({
+          schoolId,
+          userId: actor?.id,
+          action: item.kind === 'duplicate' ? 'assessment.integrity.merge' : 'assessment.integrity.unassign',
+          entityType: 'assessment_submission',
+          entityId: live.id,
+          newValues: { assessmentId: item.assessmentId, studentId: item.studentId, archived: toArchive.map((r) => r.id) },
+        }).catch(() => undefined);
+
+        results.push({ ...result, ok: true, archived: toArchive.length });
+      } catch (err: any) {
+        results.push({ ...result, ok: false, archived: 0, error: err?.message || 'Failed' });
+      }
+    }
+
+    return {
+      fixed: results.filter((r) => r.ok).length,
+      failed: results.filter((r) => !r.ok).length,
+      results,
+    };
+  }
+
   async getSubmissions(assessmentId: string) {
     const assessment = await this.prisma.assessment.findUnique({ where: { id: assessmentId } });
     if (!assessment || assessment.deletedAt) {
@@ -973,7 +1190,7 @@ export class AssessmentsService {
     }
 
     return this.prisma.assessmentSubmission.findMany({
-      where: { assessmentId, status: { not: 'superseded' } },
+      where: { assessmentId, ...LIFECYCLE_WHERE },
       include: {
         student: { select: { id: true, firstName: true, lastName: true, studentCode: true } },
         grades: true,
@@ -1040,15 +1257,32 @@ export class AssessmentsService {
       throw new NotFoundException('Assessment not found');
     }
 
+    // Only students the assessment is meant for: same school and level, and the same group when
+    // the assessment is group-specific. Anything else would create a record the student has no
+    // business seeing (old test data, cross-level leftovers).
+    const eligible = await this.prisma.student.findMany({
+      where: {
+        id: { in: studentIds },
+        schoolId: assessment.schoolId,
+        deletedAt: null,
+        levelId: assessment.levelId,
+        ...((assessment as any).groupId ? { groupId: (assessment as any).groupId } : {}),
+      },
+      select: { id: true },
+    });
+    const eligibleIds = new Set(eligible.map((s) => s.id));
+
+    // A student with a live record already has the assessment; never open a second one.
     const existing = await this.prisma.assessmentSubmission.findMany({
-      where: { assessmentId, studentId: { in: studentIds } },
+      where: { assessmentId, studentId: { in: studentIds }, ...LIFECYCLE_WHERE },
       select: { studentId: true },
     });
-    const existingIds = new Set(existing.map(s => s.studentId));
+    const existingIds = new Set(existing.map((s) => s.studentId));
 
-    const toCreate = studentIds
-      .filter(id => !existingIds.has(id))
-      .map(studentId => ({
+    const unique = Array.from(new Set(studentIds));
+    const toCreate = unique
+      .filter((id) => eligibleIds.has(id) && !existingIds.has(id))
+      .map((studentId) => ({
         assessmentId,
         studentId,
         submissionType: 'assigned',
@@ -1059,7 +1293,12 @@ export class AssessmentsService {
       await this.prisma.assessmentSubmission.createMany({ data: toCreate });
     }
 
-    return { assigned: toCreate.length, skipped: studentIds.length - toCreate.length };
+    const notEligible = unique.filter((id) => !eligibleIds.has(id)).length;
+    return {
+      assigned: toCreate.length,
+      skipped: studentIds.length - toCreate.length,
+      notEligible,
+    };
   }
 
   async unassignStudent(assessmentId: string, studentId: string) {
@@ -1067,14 +1306,17 @@ export class AssessmentsService {
     if (!assessment || assessment.deletedAt) {
       throw new NotFoundException('Assessment not found');
     }
-    const submission = await this.prisma.assessmentSubmission.findFirst({
-      where: { assessmentId, studentId },
+    // Every live record for the pair, so a legacy duplicate cannot be left behind to reappear.
+    const rows = await this.prisma.assessmentSubmission.findMany({
+      where: { assessmentId, studentId, ...LIFECYCLE_WHERE },
+      select: { id: true },
     });
-    if (!submission) {
+    if (rows.length === 0) {
       throw new NotFoundException('Student not assigned to this assessment');
     }
-    await this.prisma.grade.deleteMany({ where: { submissionId: submission.id } });
-    await this.prisma.assessmentSubmission.delete({ where: { id: submission.id } });
+    const ids = rows.map((r) => r.id);
+    await this.prisma.grade.deleteMany({ where: { submissionId: { in: ids } } });
+    await this.prisma.assessmentSubmission.deleteMany({ where: { id: { in: ids } } });
     return { message: 'Student unassigned' };
   }
 
@@ -1083,9 +1325,7 @@ export class AssessmentsService {
     if (!assessment || assessment.deletedAt) {
       throw new NotFoundException('Assessment not found');
     }
-    const submission = await this.prisma.assessmentSubmission.findFirst({
-      where: { assessmentId, studentId },
-    });
+    const submission = await this.liveSubmission(assessmentId, studentId);
     if (!submission) {
       throw new NotFoundException('Student not assigned to this assessment');
     }
@@ -1156,6 +1396,19 @@ export class AssessmentsService {
     let submission = await this.liveSubmission(assessmentId, studentId);
 
     if (!submission) {
+      // A mark with no assignment behind it creates a record, so the student must belong to this
+      // assessment's level and group; otherwise the mark lands on someone it was never meant for.
+      const student = await this.prisma.student.findUnique({
+        where: { id: studentId },
+        select: { levelId: true, groupId: true, schoolId: true },
+      });
+      if (
+        !student ||
+        student.schoolId !== assessment.schoolId ||
+        !isEligible(student, { levelId: assessment.levelId, groupId: (assessment as any).groupId ?? null })
+      ) {
+        throw new BadRequestException('This student is not assigned to this assessment');
+      }
       submission = await this.prisma.assessmentSubmission.create({
         data: { assessmentId, studentId, submissionType: 'manual', status: 'completed' },
       });
@@ -1315,11 +1568,11 @@ export class AssessmentsService {
 
       // Superseded attempts must not shadow the live one in this map.
       const submissions = await this.prisma.assessmentSubmission.findMany({
-        where: { assessmentId, status: { not: 'superseded' } },
+        where: { assessmentId, ...LIFECYCLE_WHERE },
         include: { grades: { include: { grader: { select: { firstName: true, lastName: true } } } } },
-        orderBy: [{ attemptNumber: 'asc' }, { createdAt: 'asc' }],
       });
-      const submissionByStudent = new Map(submissions.map(s => [s.studentId, s]));
+      // One record per student, chosen by the same rule as everywhere else.
+      const submissionByStudent = liveByKey(submissions, (s) => s.studentId);
 
       const toNum = (v: any) => (v == null ? 0 : typeof v === 'number' ? v : Number(v.toString()));
 

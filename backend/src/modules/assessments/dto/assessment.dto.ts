@@ -293,3 +293,21 @@ export class AcceptAutoScoresDto {
   @IsUUID('all', { each: true })
   submissionIds: string[];
 }
+
+export class IntegrityFixItemDto {
+  @IsIn(['duplicate', 'not_assigned'])
+  kind: 'duplicate' | 'not_assigned';
+
+  @IsUUID()
+  assessmentId: string;
+
+  @IsUUID()
+  studentId: string;
+}
+
+export class FixIntegrityDto {
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => IntegrityFixItemDto)
+  items: IntegrityFixItemDto[];
+}

@@ -75,6 +75,47 @@ export interface MarkedItem {
 
 export interface MarkedResponse { days: number; truncated: boolean; items: MarkedItem[] }
 
+export interface IntegrityRecord {
+  id: string
+  status: string
+  attemptNumber: number
+  createdAt: string
+  submittedAt: string | null
+  type: string
+  hasRecording: boolean
+  score: number | null
+  maxScore: number | null
+}
+
+export interface IntegrityFinding {
+  kind: 'duplicate' | 'not_assigned'
+  assessmentId: string
+  studentId: string
+  student: { id: string; name: string; studentCode: string | null; levelName: string | null; groupName: string | null }
+  assessment: { id: string; title: string; levelName: string | null; groupName: string | null }
+  keep: IntegrityRecord
+  archive: IntegrityRecord[]
+  reason: 'level' | 'group' | null
+  /** false when the record carries real work and needs a human decision */
+  fixable: boolean
+}
+
+export interface IntegrityReport {
+  scanned: number
+  counts: { duplicate: number; notAssigned: number; reviewOnly: number }
+  truncated: boolean
+  findings: IntegrityFinding[]
+}
+
+export interface IntegrityFixResult {
+  fixed: number
+  failed: number
+  results: { kind: string; assessmentId: string; studentId: string; ok: boolean; archived: number; error?: string }[]
+}
+
+export const findingKey = (f: Pick<IntegrityFinding, 'kind' | 'assessmentId' | 'studentId'>) =>
+  `${f.kind}:${f.assessmentId}:${f.studentId}`
+
 export interface QuestionScore { questionId: string; score: number }
 
 export interface ReviewStats {

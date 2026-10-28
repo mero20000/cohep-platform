@@ -285,6 +285,131 @@ describe('PendingReviewPage', () => {
     })
   })
 
+  describe('Data check tab', () => {
+    const rec = (id: string, over: any = {}) => ({
+      id, status: 'assigned', attemptNumber: 1, createdAt: '2026-01-01T00:00:00Z', submittedAt: null,
+      type: 'assigned', hasRecording: false, score: null, maxScore: null, ...over,
+    })
+    const finding = (over: any = {}) => ({
+      kind: 'duplicate', assessmentId: 'a1', studentId: 'stu-32',
+      student: { id: 'stu-32', name: 'Robin Amir', studentCode: 'STU-00032', levelName: 'Level 1', groupName: 'Group 1B' },
+      assessment: { id: 'a1', title: 'Hymn quiz', levelName: 'Level 1', groupName: null },
+      keep: rec('done', { status: 'completed', score: 8, maxScore: 10 }),
+      archive: [rec('pending', { createdAt: '2026-02-01T00:00:00Z' })],
+      reason: null, fixable: true, ...over,
+    })
+    const report = (findings: any[]) => ({
+      scanned: 12,
+      counts: {
+        duplicate: findings.filter(f => f.kind === 'duplicate').length,
+        notAssigned: findings.filter(f => f.kind === 'not_assigned' && f.fixable).length,
+        reviewOnly: findings.filter(f => !f.fixable).length,
+      },
+      truncated: false,
+      findings,
+    })
+    const serve = (findings: any[]) =>
+      mocks.get.mockImplementation(async (path: string) =>
+        path === '/assessments/integrity' ? report(findings) : [item('one')])
+
+    const openIntegrity = async () => {
+      const user = userEvent.setup()
+      render(<PendingReviewPage />)
+      await screen.findByText(/Robin one/)
+      await user.click(screen.getByRole('tab', { name: /Data check/ }))
+      return user
+    }
+
+    it('shows a student who has the same assessment done and pending, and what a fix would keep and archive', async () => {
+      serve([finding()])
+      await openIntegrity()
+
+      expect(await screen.findByText('Hymn quiz')).toBeTruthy()
+      expect(screen.getByText('Duplicate')).toBeTruthy()
+      expect(screen.getByText(/Keep: Completed 8\/10/)).toBeTruthy()
+      expect(screen.getByText(/Archive: Pending \(not started\)/)).toBeTruthy()
+      expect(screen.getByText('12 records scanned')).toBeTruthy()
+    })
+
+    it('scans one student by code', async () => {
+      serve([finding()])
+      const user = await openIntegrity()
+      await screen.findByText('Hymn quiz')
+
+      await user.type(screen.getByLabelText('Student code'), 'STU-00032')
+      await user.click(screen.getByRole('button', { name: 'Scan' }))
+
+      await waitFor(() => expect(mocks.get).toHaveBeenCalledWith(
+        '/assessments/integrity',
+        { schoolId: 'school-1', studentCode: 'STU-00032' },
+      ))
+    })
+
+    it('fixes the selected findings after confirming, then scans again', async () => {
+      const notAssigned = finding({
+        kind: 'not_assigned', assessmentId: 'old', assessment: { id: 'old', title: 'Old test', levelName: 'Level 9', groupName: null },
+        keep: rec('stale'), archive: [], reason: 'level',
+      })
+      serve([finding(), notAssigned])
+      mocks.post.mockResolvedValue({ fixed: 2, failed: 0, results: [] })
+      const user = await openIntegrity()
+      await screen.findByText('Hymn quiz')
+      expect(screen.getByText(/The assessment is for Level 9, but the student is in Level 1/)).toBeTruthy()
+
+      await user.click(screen.getByLabelText(/Select all that can be fixed/))
+      await user.click(screen.getByRole('button', { name: /Fix selected \(2\)/ }))
+      await user.click(screen.getByText('confirm: Fix selected records?'))
+
+      await waitFor(() => expect(mocks.post).toHaveBeenCalledWith(
+        '/assessments/integrity/fix',
+        { items: [
+          { kind: 'duplicate', assessmentId: 'a1', studentId: 'stu-32' },
+          { kind: 'not_assigned', assessmentId: 'old', studentId: 'stu-32' },
+        ] },
+        { schoolId: 'school-1' },
+      ))
+      await waitFor(() => expect(mockToast).toHaveBeenCalledWith('success', 'Fixed 2'))
+      const scans = mocks.get.mock.calls.filter((c: any[]) => c[0] === '/assessments/integrity')
+      expect(scans.length).toBeGreaterThanOrEqual(2)
+    })
+
+    it('does not offer to fix a record that carries real work', async () => {
+      serve([finding({ kind: 'not_assigned', fixable: false, reason: 'group', archive: [], keep: rec('worked', { status: 'completed', score: 5, maxScore: 10 }) })])
+      await openIntegrity()
+
+      expect(await screen.findByText('Needs manual review')).toBeTruthy()
+      expect(screen.queryByRole('checkbox')).toBeNull()
+      expect(screen.queryByLabelText(/Select all that can be fixed/)).toBeNull()
+    })
+
+    it('says so when everything is consistent', async () => {
+      serve([])
+      await openIntegrity()
+      expect(await screen.findByText('No problems found')).toBeTruthy()
+    })
+
+    it('reports a failed fix without leaving the page', async () => {
+      serve([finding()])
+      mocks.post.mockRejectedValueOnce(new Error('nope'))
+      const user = await openIntegrity()
+      await screen.findByText('Hymn quiz')
+
+      await user.click(screen.getByLabelText(/Select all that can be fixed/))
+      await user.click(screen.getByRole('button', { name: /Fix selected/ }))
+      await user.click(screen.getByText('confirm: Fix selected records?'))
+
+      await waitFor(() => expect(mockToast).toHaveBeenCalledWith('error', 'The fix failed'))
+      expect(screen.getByText('Hymn quiz')).toBeTruthy()
+    })
+
+    it('is admin only', async () => {
+      perm.role = 'servant'
+      render(<PendingReviewPage />)
+      await screen.findByText(/Robin one/)
+      expect(screen.queryByRole('tab', { name: /Data check/ })).toBeNull()
+    })
+  })
+
   describe('Delete and reset', () => {
     it('lets an admin delete a pending submission after confirming, then removes it from the queue', async () => {
       const user = userEvent.setup()

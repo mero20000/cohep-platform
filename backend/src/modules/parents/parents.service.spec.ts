@@ -182,3 +182,99 @@ describe('ParentsService.logLiturgy re-filing after a rejection', () => {
     expect(prisma.studentParent.findUnique).not.toHaveBeenCalled();
   });
 });
+
+describe('ParentsService assessments integrity', () => {
+  let service: ParentsService;
+
+  const prismaMock = {
+    assessmentSubmission: { findMany: jest.fn(), create: jest.fn() },
+    assessment: { findUnique: jest.fn() },
+    student: { findUnique: jest.fn() },
+    grade: { create: jest.fn() },
+    $transaction: jest.fn(async (fn: any) => fn(prismaMock)),
+  };
+
+  beforeEach(async () => {
+    jest.clearAllMocks();
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        ParentsService,
+        { provide: PrismaService, useValue: prismaMock },
+        { provide: HymnLearningService, useValue: {} },
+      ],
+    }).compile();
+    service = module.get(ParentsService);
+    jest.spyOn(service as any, 'verifyParent').mockResolvedValue(undefined);
+  });
+
+  const submission = (over: any = {}) => ({
+    id: 's', assessmentId: 'a1', status: 'assigned', submissionType: 'assigned', attemptNumber: 1,
+    createdAt: new Date('2026-01-01'),
+    assessment: { id: 'a1', title: 'Quiz', titleAr: null, totalPoints: 10, passingScore: 6, subject: null },
+    grades: [], ...over,
+  });
+
+  describe('getChildAssessments', () => {
+    it('lists one entry per assessment, preferring the finished record, and scores it from the overall grade', async () => {
+      prismaMock.assessmentSubmission.findMany.mockResolvedValue([
+        submission({ id: 'pending', createdAt: new Date('2026-03-01') }),
+        submission({
+          id: 'done', status: 'completed',
+          grades: [
+            { questionId: 'q1', score: 4, maxScore: 5, gradedAt: new Date() },
+            { questionId: null, score: 8, maxScore: 10, gradedAt: new Date() },
+          ],
+        }),
+      ]);
+
+      const out = await service.getChildAssessments('stu-1', 'parent-1');
+
+      expect(prismaMock.assessmentSubmission.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { studentId: 'stu-1', status: { not: 'superseded' } } }),
+      );
+      expect(out).toHaveLength(1);
+      expect(out[0]).toMatchObject({ id: 'done', status: 'completed', score: 8, maxScore: 10, percentage: 80, passed: true });
+    });
+
+    it('keeps the parent\'s own home-practice reports as separate entries instead of competing with the assignment', async () => {
+      prismaMock.assessmentSubmission.findMany.mockResolvedValue([
+        submission({ id: 'report', status: 'graded', submissionType: 'parent_report', createdAt: new Date('2026-04-01'), grades: [{ questionId: null, score: 5, maxScore: 10 }] }),
+        submission({ id: 'assignment', status: 'assigned' }),
+      ]);
+
+      const out = await service.getChildAssessments('stu-1', 'parent-1');
+
+      expect(out.map((o: any) => o.id)).toEqual(['report', 'assignment']);
+    });
+  });
+
+  describe('reportHomeAssessment', () => {
+    const published = { id: 'a1', totalPoints: 10, passingScore: 6, title: 'Quiz', schoolId: 'school-1', status: 'published', deletedAt: null };
+
+    it.each([
+      ['an assessment from another school', { ...published, schoolId: 'other' }],
+      ['an unpublished assessment', { ...published, status: 'draft' }],
+      ['a deleted assessment', { ...published, deletedAt: new Date() }],
+      ['an assessment that does not exist', null],
+    ])('refuses %s', async (_label, assessment) => {
+      prismaMock.assessment.findUnique.mockResolvedValue(assessment);
+      prismaMock.student.findUnique.mockResolvedValue({ schoolId: 'school-1' });
+
+      await expect(service.reportHomeAssessment('stu-1', 'a1', 5, undefined, 'parent-1')).rejects.toThrow('Assessment not found');
+      expect(prismaMock.assessmentSubmission.create).not.toHaveBeenCalled();
+    });
+
+    it('records a report for a published assessment in the child\'s school', async () => {
+      prismaMock.assessment.findUnique.mockResolvedValue(published);
+      prismaMock.student.findUnique.mockResolvedValue({ schoolId: 'school-1' });
+      prismaMock.assessmentSubmission.create.mockResolvedValue({ id: 'new' });
+
+      const res = await service.reportHomeAssessment('stu-1', 'a1', 7, 'went well', 'parent-1');
+
+      expect(prismaMock.assessmentSubmission.create).toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({ submissionType: 'parent_report', status: 'graded' }) }),
+      );
+      expect(res).toMatchObject({ id: 'new', score: 7, percentage: 70, passed: true });
+    });
+  });
+});

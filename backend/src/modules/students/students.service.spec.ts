@@ -126,6 +126,73 @@ systemConfig: {
     prisma.level.findFirst.mockResolvedValue({ id: 'level-1' });
   });
 
+  // ===== student portal assessments =====
+  describe('portalAssessments', () => {
+    const me = { levelId: 'level-1', groupId: 'group-1' };
+    const sub = (over: any = {}) => ({
+      id: 's', status: 'assigned', attemptNumber: 1, createdAt: new Date('2026-01-01'), submittedAt: null,
+      grades: [],
+      assessment: {
+        id: 'a1', title: 'Quiz', titleAr: null, type: 'quiz', totalPoints: 10, passingScore: 6, dueDate: null,
+        deletedAt: null, levelId: 'level-1', groupId: null, level: { id: 'level-1', name: 'L1' }, subject: null,
+      },
+      ...over,
+    });
+
+    it('shows one entry per assessment and prefers the finished record over a newer pending duplicate', () => {
+      const rows = [
+        sub({ id: 'pending', createdAt: new Date('2026-03-01') }),
+        sub({ id: 'done', status: 'completed', createdAt: new Date('2026-01-01'), grades: [{ questionId: null, score: 8, maxScore: 10 }] }),
+      ];
+
+      const out = (service as any).portalAssessments(me, rows);
+
+      expect(out).toHaveLength(1);
+      expect(out[0]).toMatchObject({ submissionId: 'done', submissionStatus: 'completed', earnedScore: 8 });
+    });
+
+    it('does not double-count: the overall grade is the earned score, not the sum of every grade row', () => {
+      const out = (service as any).portalAssessments(me, [
+        sub({
+          status: 'completed',
+          grades: [
+            { questionId: 'q1', score: 4, maxScore: 5 },
+            { questionId: 'q2', score: 3, maxScore: 5 },
+            { questionId: null, score: 7, maxScore: 10 },
+          ],
+        }),
+      ]);
+      expect(out[0].earnedScore).toBe(7);
+    });
+
+    it('hides an untouched assignment for an assessment that is not for the student, but keeps one with work', () => {
+      const elsewhere = { levelId: 'level-9', groupId: null };
+      const rows = [
+        sub({ id: 'stale', assessment: { ...sub().assessment, id: 'old', ...elsewhere } }),
+        sub({ id: 'history', status: 'completed', assessment: { ...sub().assessment, id: 'hist', ...elsewhere } }),
+        sub({ id: 'group-mismatch', assessment: { ...sub().assessment, id: 'g', groupId: 'group-9' } }),
+        sub({ id: 'mine', assessment: { ...sub().assessment, id: 'mine' } }),
+      ];
+
+      const out = (service as any).portalAssessments(me, rows);
+
+      expect(out.map((o: any) => o.submissionId).sort()).toEqual(['history', 'mine']);
+    });
+
+    it('drops deleted assessments and caps the list at 20, newest first', () => {
+      const rows = Array.from({ length: 25 }, (_, i) =>
+        sub({ id: `s${i}`, createdAt: new Date(2026, 0, i + 1), assessment: { ...sub().assessment, id: `a${i}` } }),
+      );
+      rows.push(sub({ id: 'gone', assessment: { ...sub().assessment, id: 'del', deletedAt: new Date() } }));
+
+      const out = (service as any).portalAssessments(me, rows);
+
+      expect(out).toHaveLength(20);
+      expect(out[0].submissionId).toBe('s24');
+      expect(out.some((o: any) => o.submissionId === 'gone')).toBe(false);
+    });
+  });
+
   // ===== findAll =====
   describe('findAll', () => {
     it('returns paginated students', async () => {
