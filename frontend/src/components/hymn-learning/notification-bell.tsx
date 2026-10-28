@@ -15,6 +15,7 @@ const ICONS: Record<StudentNotificationType, typeof Bell> = {
   practice_reviewed: Star,
   assessment_graded: ClipboardCheck,
   assessment_returned: ClipboardCheck,
+  assessment_reset: ClipboardCheck,
   liturgy_verified: Church,
   liturgy_rejected: XCircle,
   liturgy_clearance: Church,

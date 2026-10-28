@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import Link from 'next/link'
 import {
-  ArrowLeft, CheckCircle, ChevronDown, ChevronUp, ClipboardCheck, Clock, Download, Loader2, Mic, Undo2, Zap,
+  ArrowLeft, CheckCircle, ChevronDown, ChevronUp, ClipboardCheck, Clock, Download, Loader2, Mic, Trash2, Undo2, Zap,
 } from 'lucide-react'
 import { useLanguage } from '@/lib/use-language'
 import { usePermission } from '@/lib/use-permission'
@@ -55,6 +55,8 @@ export default function PendingReviewPage() {
   const [bulkBusy, setBulkBusy] = useState(false)
   const [reviewIndex, setReviewIndex] = useState<number | null>(null)
   const [returning, setReturning] = useState<PendingItem | null>(null)
+  const [resetting, setResetting] = useState<PendingItem | null>(null)
+  const [resetBusy, setResetBusy] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -149,6 +151,23 @@ export default function PendingReviewPage() {
     }
     setBulkBusy(false)
     setConfirmBulk(false)
+  }
+
+  const resetSubmission = async () => {
+    if (!resetting) return
+    setResetBusy(true)
+    try {
+      await http.post(`/assessments/pending-review/${resetting.submissionId}/reset`, undefined, { schoolId: getSchoolId() })
+      removeItems([resetting.submissionId])
+      toast('success', t(
+        `${resetting.student.firstName} ${resetting.student.lastName} can submit again`,
+        `يمكن لـ ${resetting.student.firstName} ${resetting.student.lastName} التسليم مرة أخرى`,
+      ))
+      setResetting(null)
+    } catch {
+      toast('error', t('Could not reset the submission', 'تعذرت إعادة ضبط التسليم'))
+    }
+    setResetBusy(false)
   }
 
   if (role !== 'guest' && !can('assessment:grade') && !isAdmin) {
@@ -343,6 +362,19 @@ export default function PendingReviewPage() {
                         <Button size="sm" variant="ghost" disabled={busy} onClick={() => setReviewIndex(idx)}>
                           {t('Review', 'مراجعة')}
                         </Button>
+                        {isAdmin && (
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            disabled={busy}
+                            aria-label={t('Delete submission and reset', 'حذف التسليم وإعادة الضبط')}
+                            title={t('Delete this submission and let the student start again', 'احذف هذا التسليم واسمح للطالب بالبدء من جديد')}
+                            onClick={() => setResetting(item)}
+                            className="text-red-600 hover:bg-red-50"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        )}
                         <Button
                           size="icon"
                           variant="ghost"
@@ -406,6 +438,20 @@ export default function PendingReviewPage() {
         item={returning}
         onClose={() => setReturning(null)}
         onReturned={id => { removeItems([id]); setReturning(null) }}
+      />
+
+      <ConfirmDialog
+        open={!!resetting}
+        onClose={() => setResetting(null)}
+        onConfirm={resetSubmission}
+        loading={resetBusy}
+        title={t('Delete this submission?', 'حذف هذا التسليم؟')}
+        message={resetting ? t(
+          `${resetting.student.firstName} ${resetting.student.lastName}'s submission for "${resetting.assessment.title}" will be removed from the queue and their assessment reset to not submitted. They are notified and can submit again. The old answers and recording are archived, not erased.`,
+          `سيتم إزالة تسليم ${resetting.student.firstName} ${resetting.student.lastName} لتقييم "${resetting.assessment.title}" من القائمة وإعادة التقييم إلى "لم يُسلَّم". سيتم إشعاره ويمكنه التسليم مرة أخرى. تُؤرشف الإجابات والتسجيل القديمان ولا تُمحى.`,
+        ) : ''}
+        confirmLabel={t('Delete and reset', 'حذف وإعادة ضبط')}
+        cancelLabel={t('Cancel', 'إلغاء')}
       />
 
       <ConfirmDialog

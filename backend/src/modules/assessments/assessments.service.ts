@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../database/prisma.service';
 import { SchoolResolver } from '../../common/utils/school-resolver';
 import { AuditService } from '../audit/audit.service';
@@ -502,8 +503,10 @@ export class AssessmentsService {
   }
 
   /**
-   * Everything already marked, newest first: who marked it (admin or servant), when, and the
-   * result. Same visibility scope as the pending queue. Capped, with `truncated` set when more exist.
+   * Everything already handled, newest first: marked work (who marked it and the result) and
+   * work returned to the student to redo (who returned it and why). Both keep the student's
+   * recording and notes so a reviewer can still refer back to them. Same visibility scope
+   * as the pending queue. Capped, with `truncated` set when more exist.
    */
   async getMarked(schoolIdentifier: string, actor?: Actor, days = 90) {
     const schoolId = await this.schoolResolver.resolve(schoolIdentifier);
@@ -515,50 +518,83 @@ export class AssessmentsService {
     const LIMIT = 500;
     const toNum = (v: any) => (v == null ? 0 : typeof v === 'number' ? v : Number(v.toString()));
 
-    const grades = await this.prisma.grade.findMany({
-      where: {
-        questionId: null,
-        gradedAt: { gte: since },
-        submission: {
-          status: 'completed',
+    const studentSelect = {
+      id: true, firstName: true, lastName: true, studentCode: true,
+      group: { select: { id: true, name: true } },
+      grade: { select: { name: true } },
+    } as const;
+    const assessmentSelect = { id: true, title: true, titleAr: true, totalPoints: true } as const;
+
+    const [grades, returnedRows] = await Promise.all([
+      this.prisma.grade.findMany({
+        where: {
+          questionId: null,
+          gradedAt: { gte: since },
+          submission: {
+            status: 'completed',
+            assessment: { schoolId, deletedAt: null },
+            student: { deletedAt: null, ...scope },
+          },
+        },
+        orderBy: { gradedAt: 'desc' },
+        take: LIMIT + 1,
+        include: {
+          grader: {
+            select: {
+              id: true, firstName: true, lastName: true,
+              userRoles: { select: { role: { select: { name: true } } } },
+            },
+          },
+          submission: {
+            select: {
+              id: true, submittedAt: true, submissionType: true, isLate: true,
+              fileUrl: true, fileType: true, durationSeconds: true, metadata: true,
+              student: { select: studentSelect },
+              assessment: { select: assessmentSelect },
+            },
+          },
+        },
+      }),
+      // A returned attempt is back with the student ('assigned') carrying a return history.
+      this.prisma.assessmentSubmission.findMany({
+        where: {
+          status: 'assigned',
+          metadata: { not: Prisma.DbNull },
           assessment: { schoolId, deletedAt: null },
           student: { deletedAt: null, ...scope },
         },
-      },
-      orderBy: { gradedAt: 'desc' },
-      take: LIMIT + 1,
-      include: {
-        grader: {
-          select: {
-            id: true, firstName: true, lastName: true,
-            userRoles: { select: { role: { select: { name: true } } } },
-          },
+        select: {
+          id: true, isLate: true, fileUrl: true, fileType: true, durationSeconds: true, metadata: true,
+          submittedAt: true,
+          student: { select: studentSelect },
+          assessment: { select: assessmentSelect },
         },
-        submission: {
-          select: {
-            id: true, submittedAt: true, submissionType: true, isLate: true, fileUrl: true,
-            student: {
-              select: {
-                id: true, firstName: true, lastName: true, studentCode: true,
-                group: { select: { id: true, name: true } },
-                grade: { select: { name: true } },
-              },
-            },
-            assessment: { select: { id: true, title: true, titleAr: true, totalPoints: true } },
-          },
-        },
-      },
+      }),
+    ]);
+
+    const recordingOf = (sub: { fileUrl: string | null; fileType: string | null; durationSeconds: number | null }) =>
+      sub.fileUrl ? { url: sub.fileUrl, type: sub.fileType ?? null, durationSeconds: sub.durationSeconds ?? null } : null;
+    const notesOf = (metadata: unknown) => {
+      const n = ((metadata as any) || {}).notes;
+      return typeof n === 'string' && n ? n : null;
+    };
+    const studentOut = (st: any) => ({
+      id: st.id, firstName: st.firstName, lastName: st.lastName, studentCode: st.studentCode,
+      groupName: st.group?.name ?? null, gradeName: st.grade?.name ?? null,
+    });
+    const assessmentOut = (a: any) => ({
+      id: a.id, title: a.title, titleAr: a.titleAr, totalPoints: toNum(a.totalPoints),
     });
 
-    const truncated = grades.length > LIMIT;
-    const items = grades.slice(0, LIMIT).map((g) => {
+    const marked = grades.map((g) => {
       const sub = g.submission;
       const score = toNum(g.score);
       const maxScore = toNum(g.maxScore);
       const roleNames = (g.grader?.userRoles || []).map((ur: any) => ur.role?.name).filter(Boolean) as string[];
       return {
+        status: 'marked' as const,
         submissionId: sub.id,
-        markedAt: g.gradedAt,
+        at: g.gradedAt,
         score,
         maxScore,
         percentage: maxScore > 0 ? Math.round((score / maxScore) * 100) : null,
@@ -566,32 +602,125 @@ export class AssessmentsService {
         // Submitted by the student, or entered directly by staff without a student submission.
         submittedAt: sub.submissionType === 'online' ? sub.submittedAt : null,
         isLate: sub.isLate,
-        hasRecording: !!sub.fileUrl,
-        markedBy: g.grader
+        recording: recordingOf(sub),
+        notes: notesOf(sub.metadata),
+        by: g.grader
           ? {
               id: g.grader.id,
               name: `${g.grader.firstName} ${g.grader.lastName}`.trim(),
               isAdmin: roleNames.some((r) => ADMIN_ROLES.includes(r)),
             }
           : null,
-        student: {
-          id: sub.student.id,
-          firstName: sub.student.firstName,
-          lastName: sub.student.lastName,
-          studentCode: sub.student.studentCode,
-          groupName: sub.student.group?.name ?? null,
-          gradeName: sub.student.grade?.name ?? null,
-        },
-        assessment: {
-          id: sub.assessment.id,
-          title: sub.assessment.title,
-          titleAr: sub.assessment.titleAr,
-          totalPoints: toNum(sub.assessment.totalPoints),
-        },
+        student: studentOut(sub.student),
+        assessment: assessmentOut(sub.assessment),
       };
     });
 
-    return { days: window, truncated, items };
+    // The latest return entry per attempt; older ones stay in metadata as history.
+    const returned = returnedRows
+      .map((r) => {
+        const history = Array.isArray(((r.metadata as any) || {}).returns) ? ((r.metadata as any).returns as any[]) : [];
+        const last = history[history.length - 1];
+        return last && last.at ? { r, last } : null;
+      })
+      .filter((x): x is { r: (typeof returnedRows)[number]; last: any } => !!x && new Date(x.last.at) >= since);
+
+    const returnerIds = Array.from(new Set(returned.map((x) => x.last.by).filter(Boolean))) as string[];
+    const returners = returnerIds.length
+      ? await this.prisma.user.findMany({
+          where: { id: { in: returnerIds } },
+          select: {
+            id: true, firstName: true, lastName: true,
+            userRoles: { select: { role: { select: { name: true } } } },
+          },
+        })
+      : [];
+    const returnerById = new Map(returners.map((u) => [u.id, u]));
+
+    const returnedItems = returned.map(({ r, last }) => {
+      const u = last.by ? returnerById.get(last.by) : undefined;
+      const roleNames = (u?.userRoles || []).map((ur: any) => ur.role?.name).filter(Boolean) as string[];
+      return {
+        status: 'returned' as const,
+        submissionId: r.id,
+        at: new Date(last.at),
+        score: null as number | null,
+        maxScore: toNum(r.assessment.totalPoints),
+        percentage: null as number | null,
+        feedback: (last.note as string | null) ?? null,
+        submittedAt: r.submittedAt,
+        isLate: r.isLate,
+        recording: recordingOf(r),
+        notes: notesOf(r.metadata),
+        by: u
+          ? { id: u.id, name: `${u.firstName} ${u.lastName}`.trim(), isAdmin: roleNames.some((x) => ADMIN_ROLES.includes(x)) }
+          : null,
+        student: studentOut(r.student),
+        assessment: assessmentOut(r.assessment),
+      };
+    });
+
+    const all = [...marked, ...returnedItems].sort((x, y) => y.at.getTime() - x.at.getTime());
+    return { days: window, truncated: all.length > LIMIT, items: all.slice(0, LIMIT) };
+  }
+
+  /**
+   * Admin: discard a pending submission and put the student back to "not yet submitted".
+   * Nothing is hard-deleted: the discarded attempt is archived (status 'superseded', flagged
+   * as admin-discarded) so it never counts against the student's attempts, and a fresh open
+   * attempt replaces it. Only a submission still awaiting review can be reset.
+   */
+  async resetPendingSubmission(schoolIdentifier: string, submissionId: string, actor?: Actor) {
+    const schoolId = await this.schoolResolver.resolve(schoolIdentifier);
+    const sub = await this.prisma.assessmentSubmission.findFirst({
+      where: { id: submissionId, status: 'submitted', assessment: { schoolId, deletedAt: null } },
+      include: { assessment: { select: { id: true, title: true, titleAr: true, schoolId: true } } },
+    });
+    if (!sub) throw new BadRequestException('This submission is no longer awaiting review');
+
+    const meta = ((sub.metadata as any) || {}) as Record<string, any>;
+    const fresh = await this.prisma.$transaction(async (tx) => {
+      await tx.assessmentSubmission.update({
+        where: { id: sub.id },
+        data: {
+          status: 'superseded',
+          metadata: { ...meta, discardedByAdmin: { at: new Date().toISOString(), by: actor?.id ?? null } },
+        },
+      });
+      return tx.assessmentSubmission.create({
+        data: {
+          assessmentId: sub.assessmentId,
+          studentId: sub.studentId,
+          submissionType: 'online',
+          status: 'assigned',
+          attemptNumber: sub.attemptNumber,
+        },
+      });
+    });
+
+    await this.audit.log({
+      schoolId: sub.assessment.schoolId,
+      userId: actor?.id,
+      action: 'assessment.reset',
+      entityType: 'assessment_submission',
+      entityId: sub.id,
+      oldValues: { status: 'submitted' },
+      newValues: { status: 'assigned', newSubmissionId: fresh.id, assessmentId: sub.assessmentId, studentId: sub.studentId },
+    }).catch(() => undefined);
+
+    await this.studentNotifications.notifyOrRefresh({
+      studentId: sub.studentId,
+      type: 'assessment_reset',
+      title: 'Your assessment was reset',
+      titleAr: 'تمت إعادة ضبط تقييمك',
+      body: `${sub.assessment.title} — please submit it again`,
+      bodyAr: `${sub.assessment.titleAr ?? sub.assessment.title} — يرجى تسليمه مرة أخرى`,
+      linkPath: '?tab=assessments',
+      referenceType: 'assessment_submission',
+      referenceId: fresh.id,
+    }).catch(() => undefined);
+
+    return { reset: true, newSubmissionId: fresh.id };
   }
 
   async getPendingReviewCount(schoolIdentifier: string, actor?: Actor) {
@@ -1376,9 +1505,12 @@ export class AssessmentsService {
       };
     }
 
-    const attemptsUsed = await this.prisma.assessmentSubmission.count({
+    // An attempt an admin discarded was never the student's to use, so it must not count.
+    const priorAttempts = await this.prisma.assessmentSubmission.findMany({
       where: { assessmentId, studentId },
+      select: { metadata: true },
     });
+    const attemptsUsed = priorAttempts.filter((a) => !((a.metadata as any) || {}).discardedByAdmin).length;
     if (assessment.maxAttempts !== null && attemptsUsed >= assessment.maxAttempts) {
       throw new BadRequestException(
         `No attempts remaining — this assessment allows ${assessment.maxAttempts}.`,

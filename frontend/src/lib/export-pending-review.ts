@@ -36,8 +36,10 @@ export async function exportMarkedXlsx(items: MarkedItem[], lang: 'en' | 'ar') {
   const XLSX = await import('xlsx')
   const isAr = lang === 'ar'
   const headers = isAr
-    ? ['كود الطالب', 'اسم الطالب', 'المجموعة', 'الصف', 'التقييم', 'الدرجة', 'الحد الأقصى', 'النسبة %', 'قيّمه', 'دور المُقيِّم', 'تاريخ التقييم', 'ملاحظات']
-    : ['Student Code', 'Student', 'Group', 'Grade', 'Assessment', 'Score', 'Max', 'Percentage', 'Marked by', 'Marker role', 'Marked at', 'Feedback']
+    ? ['كود الطالب', 'اسم الطالب', 'المجموعة', 'الصف', 'التقييم', 'الحالة', 'الدرجة', 'الحد الأقصى', 'النسبة %', 'بواسطة', 'دور المنفذ', 'التاريخ', 'ملاحظات / سبب الإعادة', 'تسجيل صوتي']
+    : ['Student Code', 'Student', 'Group', 'Grade', 'Assessment', 'Status', 'Score', 'Max', 'Percentage', 'By', 'Role', 'Date', 'Feedback / return reason', 'Has recording']
+  const yes = isAr ? 'نعم' : 'Yes'
+  const no = isAr ? 'لا' : 'No'
 
   const rows = items.map(i => [
     i.student.studentCode || '',
@@ -45,18 +47,20 @@ export async function exportMarkedXlsx(items: MarkedItem[], lang: 'en' | 'ar') {
     i.student.groupName || '',
     i.student.gradeName || '',
     isAr && i.assessment.titleAr ? i.assessment.titleAr : i.assessment.title,
-    i.score,
+    i.status === 'returned' ? (isAr ? 'مُعادة' : 'Returned') : (isAr ? 'تم التقييم' : 'Marked'),
+    i.score ?? '',
     i.maxScore,
     i.percentage ?? '',
-    i.markedBy?.name || '',
-    i.markedBy ? (i.markedBy.isAdmin ? (isAr ? 'مسؤول' : 'Admin') : (isAr ? 'خادم' : 'Servant')) : '',
-    i.markedAt.replace('T', ' ').slice(0, 16),
+    i.by?.name || '',
+    i.by ? (i.by.isAdmin ? (isAr ? 'مسؤول' : 'Admin') : (isAr ? 'خادم' : 'Servant')) : '',
+    i.at.replace('T', ' ').slice(0, 16),
     i.feedback || '',
+    i.recording ? yes : no,
   ])
 
   const ws = XLSX.utils.aoa_to_sheet([headers, ...rows])
-  ws['!cols'] = [{ wch: 14 }, { wch: 25 }, { wch: 15 }, { wch: 12 }, { wch: 30 }, { wch: 8 }, { wch: 8 }, { wch: 10 }, { wch: 20 }, { wch: 12 }, { wch: 18 }, { wch: 40 }]
+  ws['!cols'] = [{ wch: 14 }, { wch: 25 }, { wch: 15 }, { wch: 12 }, { wch: 30 }, { wch: 12 }, { wch: 8 }, { wch: 8 }, { wch: 10 }, { wch: 20 }, { wch: 12 }, { wch: 18 }, { wch: 40 }, { wch: 12 }]
   const wb = XLSX.utils.book_new()
-  XLSX.utils.book_append_sheet(wb, ws, isAr ? 'تم التقييم' : 'Marked')
-  XLSX.writeFile(wb, `${isAr ? 'تم-التقييم' : 'marked'}-${new Date().toISOString().split('T')[0]}.xlsx`)
+  XLSX.utils.book_append_sheet(wb, ws, isAr ? 'المقيّمة' : 'Marked')
+  XLSX.writeFile(wb, `${isAr ? 'المقيّمة' : 'marked'}-${new Date().toISOString().split('T')[0]}.xlsx`)
 }

@@ -797,14 +797,30 @@ describe('AssessmentsService', () => {
         score: 8, maxScore: 10, feedback: 'Well done', gradedAt: new Date('2026-02-01T10:00:00Z'),
         grader: { id: 'u1', firstName: 'Mina', lastName: 'S', userRoles: [{ role: { name: 'servant' } }] },
         submission: {
-          id: 'sub-1', submittedAt: new Date('2026-02-01T08:00:00Z'), submissionType: 'online', isLate: false, fileUrl: 'x',
+          id: 'sub-1', submittedAt: new Date('2026-02-01T08:00:00Z'), submissionType: 'online', isLate: false,
+          fileUrl: 'https://cdn/rec.webm', fileType: 'audio/webm', durationSeconds: 30, metadata: { notes: 'Noisy room' },
           student: { id: 'stu-1', firstName: 'Robin', lastName: 'Amir', studentCode: 'S1', group: { id: 'g1', name: 'Group 1B' }, grade: { name: 'Grade 6' } },
           assessment: { id: 'a1', title: 'Quiz', titleAr: null, totalPoints: 10 },
         },
         ...over,
       });
 
-      it('lists marked work with who marked it and whether that was an admin', async () => {
+      const returnedRow = (over: any = {}) => ({
+        id: 'sub-r', isLate: false, submittedAt: new Date('2026-02-02T08:00:00Z'),
+        fileUrl: 'https://cdn/old.webm', fileType: 'audio/webm', durationSeconds: 12,
+        metadata: { notes: 'first try', returns: [{ at: '2026-02-03T09:00:00Z', by: 'u2', note: 'Please redo Q2' }] },
+        student: { id: 'stu-2', firstName: 'Mina', lastName: 'Youssef', studentCode: 'S2', group: { id: 'g1', name: 'Group 1B' }, grade: { name: 'Grade 6' } },
+        assessment: { id: 'a1', title: 'Quiz', titleAr: null, totalPoints: 10 },
+        ...over,
+      });
+
+      beforeEach(() => {
+        prisma.grade.findMany.mockResolvedValue([]);
+        prisma.assessmentSubmission.findMany.mockResolvedValue([]);
+        prisma.user.findMany.mockResolvedValue([]);
+      });
+
+      it('lists marked work with who marked it, whether that was an admin, and keeps the recording and notes', async () => {
         prisma.grade.findMany.mockResolvedValue([
           gradeRow(),
           gradeRow({ grader: { id: 'u2', firstName: 'Amir', lastName: 'A', userRoles: [{ role: { name: 'super_admin' } }] } }),
@@ -823,28 +839,79 @@ describe('AssessmentsService', () => {
         );
         expect(res.truncated).toBe(false);
         expect(res.items[0]).toMatchObject({
-          submissionId: 'sub-1', score: 8, maxScore: 10, percentage: 80, feedback: 'Well done',
-          hasRecording: true, markedBy: { name: 'Mina S', isAdmin: false },
+          status: 'marked', submissionId: 'sub-1', score: 8, maxScore: 10, percentage: 80, feedback: 'Well done',
+          recording: { url: 'https://cdn/rec.webm', type: 'audio/webm', durationSeconds: 30 },
+          notes: 'Noisy room',
+          by: { name: 'Mina S', isAdmin: false },
           student: { firstName: 'Robin', groupName: 'Group 1B' },
         });
-        expect(res.items[1].markedBy).toMatchObject({ name: 'Amir A', isAdmin: true });
+        expect(res.items[1].by).toMatchObject({ name: 'Amir A', isAdmin: true });
+      });
+
+      it('lists work returned to the student as a separate status with the return comment and old recording', async () => {
+        prisma.assessmentSubmission.findMany.mockResolvedValue([returnedRow()]);
+        prisma.user.findMany.mockResolvedValue([
+          { id: 'u2', firstName: 'Amir', lastName: 'A', userRoles: [{ role: { name: 'admin' } }] },
+        ]);
+
+        const res = await service.getMarked('school-1', admin, 365);
+
+        expect(prisma.assessmentSubmission.findMany).toHaveBeenCalledWith(
+          expect.objectContaining({ where: expect.objectContaining({ status: 'assigned' }) }),
+        );
+        expect(res.items).toHaveLength(1);
+        expect(res.items[0]).toMatchObject({
+          status: 'returned', submissionId: 'sub-r', score: null, percentage: null, maxScore: 10,
+          feedback: 'Please redo Q2',
+          recording: { url: 'https://cdn/old.webm' },
+          notes: 'first try',
+          by: { id: 'u2', name: 'Amir A', isAdmin: true },
+          at: new Date('2026-02-03T09:00:00Z'),
+        });
+      });
+
+      it('shows the latest return only, ignores assigned rows with no return history, and drops returns outside the window', async () => {
+        const old = new Date(Date.now() - 400 * 86_400_000).toISOString();
+        prisma.assessmentSubmission.findMany.mockResolvedValue([
+          returnedRow({
+            id: 'multi',
+            metadata: { returns: [{ at: new Date().toISOString(), by: 'u2', note: 'first' }, { at: new Date().toISOString(), by: 'u2', note: 'second' }] },
+          }),
+          returnedRow({ id: 'no-returns', metadata: { notes: 'just notes' } }),
+          returnedRow({ id: 'stale', metadata: { returns: [{ at: old, by: 'u2', note: 'ancient' }] } }),
+        ]);
+
+        const res = await service.getMarked('school-1', admin);
+
+        expect(res.items.map((i: any) => i.submissionId)).toEqual(['multi']);
+        expect(res.items[0].feedback).toBe('second');
+        expect(res.items[0].by).toBeNull();
+      });
+
+      it('interleaves marked and returned work newest first', async () => {
+        prisma.grade.findMany.mockResolvedValue([gradeRow()]);
+        prisma.assessmentSubmission.findMany.mockResolvedValue([returnedRow()]);
+
+        const res = await service.getMarked('school-1', admin, 365);
+
+        expect(res.items.map((i: any) => i.status)).toEqual(['returned', 'marked']);
       });
 
       it('has no submitted time for work staff entered directly, and tolerates a deleted marker', async () => {
         prisma.grade.findMany.mockResolvedValue([
-          gradeRow({ grader: null, submission: { ...gradeRow().submission, submissionType: 'manual', fileUrl: null } }),
+          gradeRow({ grader: null, submission: { ...gradeRow().submission, submissionType: 'manual', fileUrl: null, metadata: null } }),
         ]);
 
         const [item] = (await service.getMarked('school-1', admin)).items;
 
         expect(item.submittedAt).toBeNull();
-        expect(item.markedBy).toBeNull();
-        expect(item.hasRecording).toBe(false);
+        expect(item.by).toBeNull();
+        expect(item.recording).toBeNull();
+        expect(item.notes).toBeNull();
       });
 
       it('limits a servant to their own group and shows nothing to an unscoped non-admin', async () => {
         prisma.user.findUnique.mockResolvedValueOnce({ metadata: { groupId: 'g1', levelId: 'l1' } });
-        prisma.grade.findMany.mockResolvedValue([]);
         await service.getMarked('school-1', servant);
         expect(prisma.grade.findMany).toHaveBeenCalledWith(
           expect.objectContaining({
@@ -868,6 +935,53 @@ describe('AssessmentsService', () => {
         expect(res.truncated).toBe(true);
         expect(res.items).toHaveLength(500);
         expect(res.days).toBe(365);
+      });
+    });
+
+    describe('resetPendingSubmission', () => {
+      const pending = (over: any = {}) => ({
+        id: 'sub-1', assessmentId: 'a1', studentId: 'stu-1', status: 'submitted', attemptNumber: 2,
+        metadata: { notes: 'hi' },
+        assessment: { id: 'a1', title: 'Quiz', titleAr: null, schoolId },
+        ...over,
+      });
+
+      it('archives the pending attempt as admin-discarded, opens a fresh one with the same attempt number, audits and notifies', async () => {
+        prisma.assessmentSubmission.findFirst.mockResolvedValue(pending());
+        prisma.assessmentSubmission.create.mockResolvedValue({ id: 'sub-new' });
+
+        const res = await service.resetPendingSubmission('school-1', 'sub-1', admin);
+
+        expect(prisma.assessmentSubmission.findFirst).toHaveBeenCalledWith(
+          expect.objectContaining({
+            where: expect.objectContaining({ id: 'sub-1', status: 'submitted', assessment: { schoolId, deletedAt: null } }),
+          }),
+        );
+        expect(prisma.assessmentSubmission.update).toHaveBeenCalledWith({
+          where: { id: 'sub-1' },
+          data: {
+            status: 'superseded',
+            metadata: { notes: 'hi', discardedByAdmin: { at: expect.any(String), by: 'admin-1' } },
+          },
+        });
+        expect(prisma.assessmentSubmission.create).toHaveBeenCalledWith({
+          data: { assessmentId: 'a1', studentId: 'stu-1', submissionType: 'online', status: 'assigned', attemptNumber: 2 },
+        });
+        expect(res).toEqual({ reset: true, newSubmissionId: 'sub-new' });
+        expect(audit.log).toHaveBeenCalledWith(
+          expect.objectContaining({ action: 'assessment.reset', userId: 'admin-1', entityId: 'sub-1' }),
+        );
+        expect(notifier.notifyOrRefresh).toHaveBeenCalledWith(
+          expect.objectContaining({ studentId: 'stu-1', type: 'assessment_reset', referenceId: 'sub-new' }),
+        );
+      });
+
+      it('refuses a submission that is not awaiting review (already marked, returned, or another school)', async () => {
+        prisma.assessmentSubmission.findFirst.mockResolvedValue(null);
+
+        await expect(service.resetPendingSubmission('school-1', 'sub-1', admin)).rejects.toThrow(/no longer awaiting review/);
+        expect(prisma.assessmentSubmission.update).not.toHaveBeenCalled();
+        expect(prisma.assessmentSubmission.create).not.toHaveBeenCalled();
       });
     });
 
@@ -929,7 +1043,7 @@ describe('AssessmentsService', () => {
     it('archives the prior attempt and increments the attempt number', async () => {
       prisma.assessment.findUnique.mockResolvedValue(retakeable());
       prisma.assessmentSubmission.findFirst.mockResolvedValue({ id: 's1', status: 'completed', attemptNumber: 1 });
-      prisma.assessmentSubmission.count.mockResolvedValue(1);
+      prisma.assessmentSubmission.findMany.mockResolvedValue([{ metadata: null }]);
       prisma.assessmentSubmission.create.mockResolvedValue({ id: 's2', attemptNumber: 2 });
 
       const res = await service.prepareRetake('a1', 'stu-1');
@@ -949,7 +1063,7 @@ describe('AssessmentsService', () => {
     it('refuses a retake once maxAttempts is used up', async () => {
       prisma.assessment.findUnique.mockResolvedValue(retakeable({ maxAttempts: 2 }));
       prisma.assessmentSubmission.findFirst.mockResolvedValue({ id: 's2', status: 'completed', attemptNumber: 2 });
-      prisma.assessmentSubmission.count.mockResolvedValue(2);
+      prisma.assessmentSubmission.findMany.mockResolvedValue([{ metadata: null }, { metadata: { notes: 'x' } }]);
 
       await expect(service.prepareRetake('a1', 'stu-1')).rejects.toThrow(
         /No attempts remaining/,
@@ -959,12 +1073,24 @@ describe('AssessmentsService', () => {
     it('reports remaining attempts when a cap is set', async () => {
       prisma.assessment.findUnique.mockResolvedValue(retakeable({ maxAttempts: 3 }));
       prisma.assessmentSubmission.findFirst.mockResolvedValue({ id: 's1', status: 'completed', attemptNumber: 1 });
-      prisma.assessmentSubmission.count.mockResolvedValue(1);
+      prisma.assessmentSubmission.findMany.mockResolvedValue([{ metadata: null }]);
       prisma.assessmentSubmission.create.mockResolvedValue({ id: 's2', attemptNumber: 2 });
 
       const res = await service.prepareRetake('a1', 'stu-1');
 
       expect(res.attemptsRemaining).toBe(1);
+    });
+
+    it('does not count an attempt an admin discarded against maxAttempts', async () => {
+      prisma.assessment.findUnique.mockResolvedValue(retakeable({ maxAttempts: 2 }));
+      prisma.assessmentSubmission.findFirst.mockResolvedValue({ id: 's2', status: 'completed', attemptNumber: 1 });
+      prisma.assessmentSubmission.findMany.mockResolvedValue([
+        { metadata: { discardedByAdmin: { at: 'x', by: 'admin-1' } } },
+        { metadata: null },
+      ]);
+      prisma.assessmentSubmission.create.mockResolvedValue({ id: 's3', attemptNumber: 2 });
+
+      await expect(service.prepareRetake('a1', 'stu-1')).resolves.toMatchObject({ attemptNumber: 2 });
     });
   });
 

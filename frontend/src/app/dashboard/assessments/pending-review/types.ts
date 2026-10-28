@@ -49,18 +49,26 @@ export function needsManualMarking(i: Pick<PendingItem, 'hasEssay' | 'recording'
   return i.hasEssay || !!i.recording || i.answers.length === 0
 }
 
+/** One row of the Marked tab: either work a marker scored, or work returned to the student to redo. */
 export interface MarkedItem {
+  status: 'marked' | 'returned'
   submissionId: string
-  markedAt: string
-  score: number
+  /** When it was marked, or when it was returned */
+  at: string
+  /** null for returned work: nothing has been scored */
+  score: number | null
   maxScore: number
   percentage: number | null
+  /** The marker's feedback, or the reason it was returned */
   feedback: string | null
   /** null when staff entered the mark directly without a student submission */
   submittedAt: string | null
   isLate: boolean
-  hasRecording: boolean
-  markedBy: { id: string; name: string; isAdmin: boolean } | null
+  /** Kept after marking so the reviewer can refer back to it */
+  recording: { url: string; type: string | null; durationSeconds: number | null } | null
+  notes: string | null
+  /** Who marked it, or who returned it */
+  by: { id: string; name: string; isAdmin: boolean } | null
   student: { id: string; firstName: string; lastName: string; studentCode: string | null; groupName: string | null; gradeName: string | null }
   assessment: { id: string; title: string; titleAr: string | null; totalPoints: number }
 }
