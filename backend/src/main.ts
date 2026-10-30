@@ -33,6 +33,13 @@ async function bootstrap() {
 
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
+  // Render terminates TLS and forwards requests through one proxy. Without this, req.ip is the
+  // proxy's address for every visitor, so the per-IP throttles (200/min globally, 5/min on login)
+  // are one shared bucket for everyone. A hop count (not `true`) means a client cannot choose its
+  // own address by sending X-Forwarded-For. Set TRUST_PROXY_HOPS if the deployment changes.
+  const hops = Number.parseInt(process.env.TRUST_PROXY_HOPS ?? '1', 10);
+  app.set('trust proxy', Number.isInteger(hops) && hops >= 0 ? hops : 1);
+
   // Global prefix (health stays at the bare /health path for load balancers).
   app.setGlobalPrefix('api', { exclude: ['health'] });
 
