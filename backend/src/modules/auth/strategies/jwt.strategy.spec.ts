@@ -32,8 +32,8 @@ describe('JwtStrategy', () => {
   });
 
   it('validates a real user via AuthService', async () => {
-    const user = await (strategy as any).validate({ sub: 'user-1', email: 'user@example.com' });
-    expect(validateUserSpy).toHaveBeenCalledWith('user-1');
+    const user = await (strategy as any).validate({ sub: 'user-1', email: 'user@example.com', typ: 'access', iat: 1_752_000_000 });
+    expect(validateUserSpy).toHaveBeenCalledWith('user-1', 1_752_000_000);
     expect(user.id).toBe('user-1');
   });
 
@@ -59,12 +59,21 @@ describe('JwtStrategy', () => {
   });
 
   it('falls through to DB when demo flag is false', async () => {
-    await (strategy as any).validate({ sub: 'user-1', role: 'demo_viewer', demo: false, schoolId: 'demo-school-id' });
-    expect(validateUserSpy).toHaveBeenCalledWith('user-1');
+    await (strategy as any).validate({ sub: 'user-1', role: 'demo_viewer', demo: false, schoolId: 'demo-school-id', typ: 'access', iat: 5 });
+    expect(validateUserSpy).toHaveBeenCalledWith('user-1', 5);
   });
 
   it('falls through to DB when role is not demo_viewer', async () => {
-    await (strategy as any).validate({ sub: 'user-1', role: 'admin', demo: true, schoolId: 'demo-school-id' });
-    expect(validateUserSpy).toHaveBeenCalledWith('user-1');
+    await (strategy as any).validate({ sub: 'user-1', role: 'admin', demo: true, schoolId: 'demo-school-id', typ: 'access', iat: 5 });
+    expect(validateUserSpy).toHaveBeenCalledWith('user-1', 5);
+  });
+
+  it.each([
+    ['a refresh token', { sub: 'user-1', typ: 'refresh' }],
+    ['a reset token', { sub: 'user-1', typ: 'reset', purpose: 'password-reset' }],
+    ['a token with no type (issued before types existed)', { sub: 'user-1' }],
+  ])('refuses %s as a Bearer token without touching the database', async (_label, payload) => {
+    await expect((strategy as any).validate(payload)).rejects.toThrow('Invalid token');
+    expect(validateUserSpy).not.toHaveBeenCalled();
   });
 });
