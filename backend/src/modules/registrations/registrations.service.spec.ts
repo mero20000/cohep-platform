@@ -5,6 +5,12 @@ import { PrismaService } from '../../database/prisma.service';
 import { MailService } from '../mail/mail.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { ConfigService } from '@nestjs/config';
+import { uploadRecording } from '../../common/storage/r2';
+
+jest.mock('../../common/storage/r2', () => ({
+  ...jest.requireActual('../../common/storage/r2'),
+  uploadRecording: jest.fn().mockResolvedValue('/uploads/audio/stored.webm'),
+}));
 
 describe('RegistrationsService', () => {
   let service: RegistrationsService;
@@ -372,6 +378,62 @@ describe('RegistrationsService', () => {
       prismaMock.academicYear.findFirst.mockResolvedValue(null);
 
       await expect(service.approve('app-1', user)).rejects.toThrow(NotFoundException);
+    });
+  });
+  // ---------------------------------------------------------------------------
+  // create: public upload validation
+  // ---------------------------------------------------------------------------
+  describe('create (public upload validation)', () => {
+    const studentData = { name: 'Mina', dateOfBirth: '2015-03-02', parentEmail: 'p@example.com' };
+    const file = (mimetype: string, size = 1000, fieldname = 'photoFile') =>
+      ({ fieldname, mimetype, size, buffer: Buffer.from('x'), originalname: 'f' }) as Express.Multer.File;
+
+    beforeEach(() => {
+      prismaMock.school.findFirst.mockResolvedValue(mockSchool);
+      (uploadRecording as jest.Mock).mockClear();
+    });
+
+    it.each(['text/html', 'image/svg+xml', 'application/octet-stream'])(
+      'refuses a photo sent as %s and uploads nothing',
+      async (mimetype) => {
+        await expect(
+          service.create(schoolSlug, { studentData }, { photoFile: [file(mimetype)], voiceFile: [file('audio/webm', 100, 'voiceFile')] }),
+        ).rejects.toThrow(BadRequestException);
+
+        expect(uploadRecording).not.toHaveBeenCalled();
+      },
+    );
+
+    it('refuses a photo over 5 MB', async () => {
+      await expect(
+        service.create(schoolSlug, { studentData }, { photoFile: [file('image/jpeg', 6 * 1024 * 1024)] }),
+      ).rejects.toThrow(/5 MB/);
+      expect(uploadRecording).not.toHaveBeenCalled();
+    });
+
+    it('refuses a voiceRecordingUrl that is not on this platform', async () => {
+      await expect(
+        service.create(schoolSlug, { studentData, voiceRecordingUrl: 'https://evil.example.com/a.mp3' }),
+      ).rejects.toThrow(/Invalid recording URL/);
+    });
+
+    it('refuses a photoUrl in studentData that is not on this platform', async () => {
+      await expect(
+        service.create(schoolSlug, { studentData: { ...studentData, photoUrl: 'https://evil.example.com/p.png' } }),
+      ).rejects.toThrow(/Invalid photo URL/);
+    });
+
+    it('stores a JPEG photo with a .jpg key chosen by the server', async () => {
+      prismaMock.registrationApplication.create.mockResolvedValue({ id: 'r1' });
+      prismaMock.user.findMany.mockResolvedValue([]);
+
+      await service.create(schoolSlug, { studentData }, { photoFile: [file('image/jpeg')] }).catch(() => undefined);
+
+      expect(uploadRecording).toHaveBeenCalledWith(
+        expect.any(Buffer),
+        expect.stringMatching(/^student-photos\/registrations\/st-mark\/\d+-[a-z0-9]+\.jpg$/),
+        'image/jpeg',
+      );
     });
   });
 });

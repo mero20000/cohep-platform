@@ -1,3 +1,4 @@
+import { BadRequestException } from '@nestjs/common';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import { writeFile, mkdir } from 'fs/promises';
 import { join } from 'path';
@@ -12,6 +13,37 @@ const PUBLIC_URL = process.env.CLOUDFLARE_R2_PUBLIC_URL;
 export const isR2Configured = !!(
   ACCOUNT_ID && BUCKET && ACCESS_KEY && SECRET_KEY && PUBLIC_URL
 );
+
+/**
+ * What may be stored, and the content type each extension is served with. The type used to
+ * come from the uploader's claimed MIME type, so an object named x.mp3 uploaded as text/html
+ * was later served as a web page from the API origin. The extension is the only input the
+ * server can trust here, so it alone decides the type and anything else is refused.
+ */
+const AUDIO_CONTENT_TYPES: Record<string, string> = {
+  '.mp3': 'audio/mpeg',
+  '.m4a': 'audio/mp4',
+  '.mp4': 'audio/mp4',
+  '.ogg': 'audio/ogg',
+  '.webm': 'audio/webm',
+};
+const IMAGE_CONTENT_TYPES: Record<string, string> = {
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.png': 'image/png',
+  '.webp': 'image/webp',
+};
+
+/** Audio content type for a key or URL path, or undefined when it is not a known audio extension. */
+export function audioContentTypeForKey(key: string): string | undefined {
+  return AUDIO_CONTENT_TYPES[extname(key).toLowerCase()];
+}
+
+/** Content type for any storable key (audio or image), or undefined when it may not be stored. */
+export function storableContentTypeForKey(key: string): string | undefined {
+  const ext = extname(key).toLowerCase();
+  return AUDIO_CONTENT_TYPES[ext] ?? IMAGE_CONTENT_TYPES[ext];
+}
 
 function getClient(): S3Client {
   return new S3Client({
@@ -43,11 +75,20 @@ export function isOwnedRecordingUrl(url: string): boolean {
   return /^[A-Za-z0-9/._-]+$/.test(key) && !key.includes('..');
 }
 
+/**
+ * Store a file and return its URL. The content type is derived from the key's extension;
+ * the third argument is accepted so existing callers compile, but it is ignored because it
+ * is whatever the client claimed. A key with an extension that is not on the allowlist is refused.
+ */
 export async function uploadRecording(
   buffer: Buffer,
   key: string,
-  contentType: string,
+  _declaredContentType?: string,
 ): Promise<string> {
+  const contentType = storableContentTypeForKey(key);
+  if (!contentType) {
+    throw new BadRequestException('Unsupported file type');
+  }
   if (!isR2Configured) {
     const dir = join(process.cwd(), 'uploads', 'audio');
     await mkdir(dir, { recursive: true });
