@@ -49,7 +49,12 @@ export class GamificationController {
     @Query('schoolId') querySchoolId: string = '',
     @Body() dto: CreateBadgeDto,
   ) {
-    const schoolId = dto.schoolId || querySchoolId || req.user?.schoolId || '';
+    // Only a super admin may create a badge for a school other than their own. For
+    // everyone else the body/query school is ignored rather than trusted.
+    const isSuperAdmin = req.user?.roles?.includes('super_admin');
+    const schoolId = isSuperAdmin
+      ? dto.schoolId || querySchoolId || req.user?.schoolId || ''
+      : req.user?.schoolId || '';
     return this.gamificationService.createBadge({ ...dto, schoolId });
   }
 

@@ -122,8 +122,12 @@ export class AttendanceController {
   @ApiOperation({ summary: 'Reset auto-seed-like records to unmarked (dry run unless confirmed)' })
   async resetAutoSeedSuspects(
     @Body() body: { schoolId?: string; from?: string; to?: string; limit?: number; dryRun?: boolean; confirm?: boolean },
+    @Req() req: any,
   ) {
-    return this.attendanceService.resetSuspectAutoSeeds(body.schoolId || '', {
+    // This route writes. A non-super-admin always acts on their own school, whatever the body says.
+    const isSuperAdmin = req.user?.roles?.includes('super_admin');
+    const schoolId = isSuperAdmin ? body.schoolId || '' : req.user?.schoolId || '';
+    return this.attendanceService.resetSuspectAutoSeeds(schoolId, {
       from: body.from,
       to: body.to,
       limit: body.limit,
