@@ -217,4 +217,82 @@ describe('UsersService roles', () => {
       ).resolves.toEqual({ success: true });
     });
   });
+  describe('granting privileged roles', () => {
+    const principal = { id: 'p1', schoolId: 'school-1', roles: ['principal'] };
+    const superAdmin = { id: 's1', schoolId: 'school-1', roles: ['super_admin'] };
+    const existingUser = { id: 'u-existing', email: 'a@x.org', schoolId: 'school-1' };
+
+    beforeEach(() => {
+      prisma.role.findFirst.mockImplementation(({ where }: any) => Promise.resolve({ id: `role-${where.name}`, name: where.name }));
+      prisma.userRole.findUnique.mockResolvedValue(null);
+      prisma.userRole.create.mockResolvedValue({});
+      prisma.user.findFirst.mockResolvedValue(null);
+      prisma.user.create.mockResolvedValue({ id: 'u-new' });
+    });
+
+    const row = (roleName: string, email = 'a@x.org') => ({
+      email, firstName: 'A', lastName: 'B', gender: 'male', password: 'Aaaaaaa1', roleName,
+    });
+
+    describe('bulkImportUsers', () => {
+      it.each(['super_admin', 'admin'])('refuses %s for an existing user when the caller is a principal', async (roleName) => {
+        prisma.user.findFirst.mockResolvedValue(existingUser);
+
+        const result = await service.bulkImportUsers(principal, undefined, [row(roleName)]);
+
+        expect(result.failed).toBe(1);
+        expect(result.created).toBe(0);
+        expect(result.errors[0].reason).toBe('Insufficient permissions for role');
+        expect(prisma.userRole.create).not.toHaveBeenCalled();
+      });
+
+      it('refuses super_admin for a new user and creates no user row', async () => {
+        const result = await service.bulkImportUsers(principal, undefined, [row('super_admin')]);
+
+        expect(result.failed).toBe(1);
+        expect(prisma.user.create).not.toHaveBeenCalled();
+        expect(prisma.userRole.create).not.toHaveBeenCalled();
+      });
+
+      it('still lets a principal attach an ordinary role to an existing user', async () => {
+        prisma.user.findFirst.mockResolvedValue(existingUser);
+
+        const result = await service.bulkImportUsers(principal, undefined, [row('servant')]);
+
+        expect(result.failed).toBe(0);
+        expect(prisma.userRole.create).toHaveBeenCalledWith({
+          data: { userId: 'u-existing', roleId: 'role-servant', assignedBy: 'p1' },
+        });
+      });
+
+      it('lets a super admin attach super_admin to an existing user', async () => {
+        prisma.user.findFirst.mockResolvedValue(existingUser);
+        prisma.school = { findFirst: jest.fn().mockResolvedValue({ id: 'school-1' }) };
+
+        const result = await service.bulkImportUsers(superAdmin, 'school-1', [row('super_admin')]);
+
+        expect(result.failed).toBe(0);
+        expect(prisma.userRole.create).toHaveBeenCalledTimes(1);
+      });
+    });
+
+    describe('createUser', () => {
+      it('rejects a privileged role before any user row is written', async () => {
+        await expect(
+          service.createUser(principal, undefined, { email: 'n@x.org', firstName: 'N', lastName: 'M', gender: 'male', roleName: 'admin' }),
+        ).rejects.toThrow(BadRequestException);
+
+        expect(prisma.user.create).not.toHaveBeenCalled();
+      });
+    });
+
+    describe('assignRole', () => {
+      it('rejects super_admin when the caller is a principal', async () => {
+        prisma.user.findUnique.mockResolvedValue(existingUser);
+
+        await expect(service.assignRole('u-existing', 'super_admin', principal)).rejects.toThrow(BadRequestException);
+        expect(prisma.userRole.create).not.toHaveBeenCalled();
+      });
+    });
+  });
 });
