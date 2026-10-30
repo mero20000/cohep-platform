@@ -120,8 +120,9 @@ describe('CurriculumService - subject item recording', () => {
   });
 
   it('setItemRecording stores url and meta', async () => {
+    prisma.subjectItem.findUnique = jest.fn().mockResolvedValue({ id: 'i1', subject: { schoolId: 'school-1' } });
     prisma.subjectItem.update = jest.fn().mockResolvedValue({ id: 'i1', recordingUrl: 'u', recordingMeta: { a: 1 } });
-    const res = await svc.setItemRecording('i1', 'u', { a: 1 });
+    const res = await svc.setItemRecording('i1', 'u', { a: 1 }, 'school-1');
     expect(prisma.subjectItem.update).toHaveBeenCalledWith({ where: { id: 'i1' }, data: { recordingUrl: 'u', recordingMeta: { a: 1 } } });
     expect(res.recordingUrl).toBe('u');
   });
@@ -170,6 +171,8 @@ describe('CurriculumService.createSubjectItem - item flags', () => {
 
   beforeEach(async () => {
     const prismaMock = {
+      // The subject must belong to the school before an item is created under it.
+      subject: { findFirst: jest.fn().mockResolvedValue({ id: 'subj-1' }) },
       subjectItem: { count: jest.fn().mockResolvedValue(0), create: jest.fn().mockImplementation(({ data }: any) => Promise.resolve({ id: 'si-1', ...data })) },
     };
     const module: TestingModule = await Test.createTestingModule({
