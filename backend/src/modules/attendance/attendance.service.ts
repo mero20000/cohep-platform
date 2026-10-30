@@ -416,12 +416,16 @@ export class AttendanceService {
     return { passed: true, studentId, subjectItemId: subjectItem.id, whatsappSent, whatsappLink };
   }
 
-  async createSession(dto: CreateAttendanceSessionDto, user?: { id: string; schoolId?: string }) {
+  async createSession(dto: CreateAttendanceSessionDto, user?: { id: string; schoolId?: string; roles?: string[] }) {
     const type = dto.type ?? 'class';
     if (!isSessionType(type)) throw new BadRequestException('type must be class, liturgy or event');
     if (type !== 'class') return this.createTypedSession(dto, type, user);
 
-    const schoolId = await this.schoolResolver.resolve(dto.schoolId || '');
+    const schoolId = await this.schoolResolver.resolve(dto.schoolId || user?.schoolId || '');
+    // Same rule createTypedSession applies: only a super admin may act on another school.
+    if (user?.schoolId && schoolId !== user.schoolId && !user.roles?.includes('super_admin')) {
+      throw new ForbiddenException('Access to the requested school is not permitted');
+    }
     const scheduledDate = new Date(dto.scheduledDate);
     if (!dto.servantId) dto.servantId = user?.id;
     if (!dto.servantId) throw new BadRequestException('servantId is required');

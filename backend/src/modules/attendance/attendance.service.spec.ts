@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException } from '@nestjs/common';
 import { AttendanceService } from './attendance.service';
 import { PrismaService } from '../../database/prisma.service';
 import { SchoolResolver } from '../../common/utils/school-resolver';
@@ -318,6 +318,32 @@ describe('AttendanceService', () => {
 
       expect(result.id).toBe('sess-2');
       expect(prisma.attendanceSession.create).toHaveBeenCalled();
+    });
+
+    it('refuses to create a class session in another school', async () => {
+      jest.spyOn((service as any).schoolResolver, 'resolve').mockResolvedValueOnce('school-2');
+
+      await expect(
+        service.createSession(
+          { schoolId: 'school-2', servantId: 'u1', groupId: 'group-1', scheduledDate: '2026-01-05' } as any,
+          { id: 'u1', schoolId, roles: ['servant'] },
+        ),
+      ).rejects.toThrow(ForbiddenException);
+      expect(prisma.attendanceSession.create).not.toHaveBeenCalled();
+    });
+
+    it('lets a super admin create a class session in another school', async () => {
+      jest.spyOn((service as any).schoolResolver, 'resolve').mockResolvedValueOnce('school-2');
+      prisma.attendanceSession.findMany.mockResolvedValue([]);
+      prisma.attendanceSession.create.mockResolvedValue({ id: 'sess-9', groupId: 'group-1' });
+      prisma.student.findMany.mockResolvedValue([]);
+
+      const result = await service.createSession(
+        { schoolId: 'school-2', servantId: 'u1', groupId: 'group-1', scheduledDate: '2026-01-05' } as any,
+        { id: 'u1', schoolId, roles: ['super_admin'] },
+      );
+
+      expect(result.id).toBe('sess-9');
     });
 
     it('creates a session when none exists for the group on the date', async () => {
