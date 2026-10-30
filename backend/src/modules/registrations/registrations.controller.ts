@@ -9,6 +9,18 @@ import { RolesGuard } from '../auth/guards/roles.guard';
 import { RegistrationsService } from './registrations.service';
 import { CreateRegistrationDto, UpdateRegistrationDto, ReviewDto } from './dto/registration.dto';
 
+// Public endpoint, so the limits live here: files are buffered in memory.
+const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
+const PHOTO_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+
+function registrationFileFilter(_req: any, file: Express.Multer.File, cb: (error: Error | null, accept: boolean) => void) {
+  const ok = file.fieldname === 'photoFile'
+    ? PHOTO_MIME_TYPES.includes(file.mimetype)
+    : file.mimetype.startsWith('audio/') || file.mimetype === 'video/webm';
+  if (ok) cb(null, true);
+  else cb(new BadRequestException('Unsupported file type'), false);
+}
+
 @ApiTags('registrations')
 @Controller('registrations')
 export class RegistrationsController {
@@ -29,7 +41,7 @@ export class RegistrationsController {
     { name: 'voice_shafaat', maxCount: 1 },
     { name: 'voiceFile', maxCount: 1 },
     { name: 'photoFile', maxCount: 1 },
-  ]))
+  ], { limits: { fileSize: MAX_UPLOAD_BYTES, files: 4 }, fileFilter: registrationFileFilter }))
   @ApiOperation({ summary: 'Public: submit registration (per school)' })
   async create(
     @Param('schoolSlug') schoolSlug: string,

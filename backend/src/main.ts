@@ -10,7 +10,7 @@ import helmet from 'helmet';
 import cookieParser = require('cookie-parser');
 import * as Sentry from '@sentry/node';
 import { setDefaultResultOrder } from 'node:dns';
-import { join } from 'path';
+import { extname, join } from 'path';
 import { AppModule } from './app.module';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import { requestIdMiddleware } from './common/middleware/request-id.middleware';
@@ -37,7 +37,18 @@ async function bootstrap() {
   app.setGlobalPrefix('api', { exclude: ['health'] });
 
   // Serve static uploads
-  app.useStaticAssets(join(__dirname, '..', 'uploads'), { prefix: '/uploads' });
+  // Files here are served from the API origin, so never let a browser guess a type, and make
+  // anything that could run as a page download instead.
+  const RENDERABLE_UPLOAD_EXTENSIONS = ['.html', '.htm', '.xhtml', '.svg', '.xml', '.js', '.mjs'];
+  app.useStaticAssets(join(__dirname, '..', 'uploads'), {
+    prefix: '/uploads',
+    setHeaders: (res, filePath) => {
+      res.setHeader('X-Content-Type-Options', 'nosniff');
+      if (RENDERABLE_UPLOAD_EXTENSIONS.includes(extname(filePath).toLowerCase())) {
+        res.setHeader('Content-Disposition', 'attachment');
+      }
+    },
+  });
 
   app.use(cookieParser());
 
