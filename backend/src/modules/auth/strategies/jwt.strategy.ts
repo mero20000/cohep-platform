@@ -1,8 +1,9 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { ForbiddenException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { ConfigService } from '@nestjs/config';
 import { AuthService } from '../auth.service';
+import { getAllowedOrigins } from '../../../common/config/cors-origins';
 
 function cookieExtractor(req: any): string | null {
   const cookieHeader = req?.headers?.cookie;
@@ -12,6 +13,24 @@ function cookieExtractor(req: any): string | null {
     .map((part: string) => part.trim())
     .find((part: string) => part.startsWith('token='));
   return token ? decodeURIComponent(token.slice('token='.length)) : null;
+}
+
+const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
+const bearerExtractor = ExtractJwt.fromAuthHeaderAsBearerToken();
+
+/**
+ * The auth cookie is SameSite=None in production, so a page on another site can make the browser send it
+ * with a form POST (no CORS preflight). CORS only stops that page reading the reply, not the request
+ * taking effect. A request authenticated by the cookie alone must therefore come from an allowed origin
+ * when it can change data. Bearer requests are not affected: a foreign page cannot set that header.
+ */
+function assertCookieRequestFromAllowedOrigin(req: any) {
+  if (bearerExtractor(req)) return;
+  if (SAFE_METHODS.has(String(req?.method ?? 'GET').toUpperCase())) return;
+  const origin = req?.headers?.origin;
+  if (typeof origin !== 'string' || !getAllowedOrigins().includes(origin)) {
+    throw new ForbiddenException('Cross-site request blocked');
+  }
 }
 
 @Injectable()
@@ -27,10 +46,12 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       ]),
       ignoreExpiration: false,
       secretOrKey: configService.get('JWT_SECRET'),
+      passReqToCallback: true,
     });
   }
 
-  async validate(payload: any) {
+  async validate(req: any, payload: any) {
+    assertCookieRequestFromAllowedOrigin(req);
     if (payload?.demo === true && payload?.role === 'demo_viewer') {
       // TenantScopeGuard skips checks when schoolId is falsy — a demo token
       // without a school would silently escape tenant scoping. Reject it.

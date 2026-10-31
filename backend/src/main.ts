@@ -12,6 +12,7 @@ import * as Sentry from '@sentry/node';
 import { setDefaultResultOrder } from 'node:dns';
 import { extname, join } from 'path';
 import { AppModule } from './app.module';
+import { getAllowedOrigins } from './common/config/cors-origins';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import { requestIdMiddleware } from './common/middleware/request-id.middleware';
 import { requestLoggerMiddleware } from './common/middleware/request-logger.middleware';
@@ -64,14 +65,7 @@ async function bootstrap() {
   app.use(requestLoggerMiddleware);
 
   // CORS — explicit allowlist only. No wildcards, no null-origin passthrough.
-  const allowedOrigins = [
-    'http://localhost:3000',
-    'http://localhost:3001',
-    process.env.FRONTEND_URL,
-    process.env.FRONTEND_URL_2,
-  ]
-    .filter((o): o is string => !!o)
-    .map((o) => o.replace(/\/$/, ''));
+  const allowedOrigins = getAllowedOrigins();
 
   app.enableCors({
     origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
