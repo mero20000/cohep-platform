@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback, useMemo, useRef, useId } from 'react'
+import { StudentAvatar } from '@/components/ui/student-avatar'
 import { useLanguage } from '@/lib/use-language'
 import { toTelHref, toWhatsAppDigits } from '@/lib/phone'
 import Image from 'next/image'
@@ -926,9 +927,7 @@ function RecentGradesSection({ stats, loading }: { stats: DashboardData | null; 
         className="hover:bg-linear-to-r hover:from-blue-50/20 hover:to-transparent transition-all duration-200">
         <td className="px-5 py-3">
          <div className="flex items-center gap-2.5">
-          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-linear-to-br from-blue-100 to-blue-50 text-xs font-bold text-blue-700 shadow-xs">
-           {g.studentName.split(' ').map(n => n[0]).join('')}
-          </div>
+          <StudentAvatar name={g.studentName} photoUrl={g.studentPhotoUrl} size={32} />
           <span className="font-medium text-gray-900">{g.studentName}</span>
          </div>
         </td>
@@ -955,9 +954,7 @@ function RecentGradesSection({ stats, loading }: { stats: DashboardData | null; 
      <div key={g.id} className="px-4 py-3 space-y-1.5">
       <div className="flex items-center justify-between">
        <div className="flex items-center gap-2 min-w-0">
-        <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-linear-to-br from-blue-100 to-blue-50 text-xs font-bold text-blue-700">
-         {g.studentName.split(' ').map(n => n[0]).join('')}
-        </div>
+        <StudentAvatar name={g.studentName} photoUrl={g.studentPhotoUrl} size={28} />
         <span className="text-sm font-medium text-gray-900 truncate">{g.studentName}</span>
        </div>
        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold border shrink-0 ${

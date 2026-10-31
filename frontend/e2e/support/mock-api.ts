@@ -16,9 +16,19 @@ const NAMES = [
   'George Medhat', 'Rita Shady', 'Moses Anwar', 'Sandra Hossam', 'Daniel Rafik', 'Martha Essam',
 ]
 
+// Photos: every third student has one that loads, a few point at a file that 404s (the fallback must cope),
+// the rest have none. /icons/icon-192x192.png is a real file served by the app itself.
+// assetUrl() only passes absolute URLs and /uploads/... straight through (anything else goes to the recordings proxy),
+// so the working photo is an absolute URL back to the app under test.
+const APP_ORIGIN = `http://localhost:${process.env.E2E_PORT || 3100}`
+export const PHOTO_OK = `${APP_ORIGIN}/icons/icon-192x192.png`
+export const PHOTO_BROKEN = '/uploads/student-photos/missing.png'
+const photoFor = (i: number) => (i % 3 === 0 ? PHOTO_OK : i % 7 === 1 ? PHOTO_BROKEN : null)
+
 const student = (i: number) => {
   const [firstName, lastName] = NAMES[i].split(' ')
   return {
+    photoUrl: photoFor(i),
     id: `stu-${i + 1}`, firstName, lastName, status: 'active', schoolId: SCHOOL_ID,
     gender: i % 2 ? 'female' : 'male', groupId: 'grp-1', group: { id: 'grp-1', name: 'Group A' },
     gradeId: 'gr-1', grade: { id: 'gr-1', name: 'Grade 3' },
@@ -41,7 +51,11 @@ const school = {
 
 const stats = {
   school, totalChurches: 4, activeStudents: 186, attendanceRate: 82, totalLevels: 6, publishedAssessments: 12,
-  assessmentStats: { passRate: 76 }, upcomingSessions: [], recentGrades: [], leaderboard: [], activity: [],
+  assessmentStats: { passRate: 76 }, upcomingSessions: [], leaderboard: [], activity: [],
+  recentGrades: [
+    { id: 'g1', studentName: 'Mina Girgis', studentPhotoUrl: PHOTO_OK, assessmentTitle: 'Hymn of the Cherubim quiz', assessmentId: 'as-1', score: 18, maxScore: 20, passed: true, gradedAt: '2026-10-25T10:00:00Z' },
+    { id: 'g2', studentName: 'Marina Samir', studentPhotoUrl: null, assessmentTitle: 'Hymn of the Cherubim quiz', assessmentId: 'as-1', score: 9, maxScore: 20, passed: false, gradedAt: '2026-10-25T10:05:00Z' },
+  ],
 }
 
 const portal = {

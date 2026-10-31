@@ -6,6 +6,7 @@ import { CheckCircle2, Clock, XCircle, AlertCircle, Search, X, Settings2 } from 
 import { useLanguage } from '@/lib/use-language'
 import { useToast } from '@/components/ui/toast'
 import { Button } from '@/components/ui/button'
+import { StudentAvatar } from '@/components/ui/student-avatar'
 import { http } from '@/lib/http-client'
 import { EmptyState } from '@/components/ui/empty-state'
 import { useMarkingState } from '../lib/use-marking-state'
@@ -756,7 +757,10 @@ export function MarkClient() {
               onKeyDown={(e) => handleRecordKeyDown(e, r)}
               className="rounded-xl border border-gray-200 bg-white p-2.5 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-gold-500"
             >
-              <div className="mb-1.5 truncate text-[15px] font-medium">{r.student?.firstName} {r.student?.lastName}</div>
+              <div className="mb-1.5 flex items-center gap-2.5">
+                <StudentAvatar name={studentName} photoUrl={r.student?.photoUrl} size={36} />
+                <div className="min-w-0 truncate text-[15px] font-medium">{r.student?.firstName} {r.student?.lastName}</div>
+              </div>
               {readOnly ? (
                 <div role="group" aria-label={lang === 'ar' ? `الحالة - ${studentName} (نهائية)` : `Status - ${studentName} (finalized)`} className="grid grid-cols-2 gap-2">
                   {readonlyStatuses.map(({ key, en, ar, Icon, active }) => {
