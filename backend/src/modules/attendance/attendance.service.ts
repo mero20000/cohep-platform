@@ -13,6 +13,7 @@ import { MarkAttendanceDto, FinalizeAttendanceDto } from './dto/mark-attendance.
 import { CLASS_SESSION_FILTER, preciseRateFromCounts } from './attendance-metrics';
 import { classTargetFor, isSessionType, normalizeGender, rosterFragments, SessionType, TargetInput } from './attendance-targets';
 import { Actor, canCreateMultiGroup, canCreateType, isAdminActor, isGroupStaffActor, isLevelLeaderActor } from './attendance-permissions';
+import { buildStudentSearchClauses } from '../../common/utils/search';
 
 interface StatusTally { present: number; late: number; absent: number; excused: number; unmarked: number }
 const emptyTally = (): StatusTally => ({ present: 0, late: 0, absent: 0, excused: 0, unmarked: 0 });
@@ -1776,13 +1777,7 @@ export class AttendanceService {
       where: {
         schoolId,
         deletedAt: null,
-        OR: [
-          { studentCode: { contains: q, mode: 'insensitive' } },
-          { firstName: { contains: q, mode: 'insensitive' } },
-          { lastName: { contains: q, mode: 'insensitive' } },
-          { firstNameAr: { contains: q, mode: 'insensitive' } },
-          { lastNameAr: { contains: q, mode: 'insensitive' } },
-        ],
+        AND: buildStudentSearchClauses(q),
       },
       select: { id: true, studentCode: true, firstName: true, lastName: true, firstNameAr: true, lastNameAr: true },
       take: 20,

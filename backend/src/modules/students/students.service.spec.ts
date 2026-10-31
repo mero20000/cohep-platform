@@ -247,7 +247,25 @@ systemConfig: {
       await service.findAll({ page: 1, limit: 20, search: '0100' }, schoolId);
 
       const where = prisma.student.findMany.mock.calls[0][0].where;
-      expect(where.OR).toContainEqual({ metadata: { path: ['phone'], string_contains: '0100' } });
+      expect(where.AND).toHaveLength(1);
+      expect(where.AND[0].OR).toContainEqual({ metadata: { path: ['phone'], string_contains: '0100' } });
+    });
+
+    it('searches phone numbers typed with spaces or dashes', async () => {
+      prisma.student.findMany.mockResolvedValue([]);
+      prisma.student.count.mockResolvedValue(0);
+
+      await service.findAll({ page: 1, limit: 20, search: '0100 123-4567' }, schoolId);
+
+      const where = prisma.student.findMany.mock.calls[0][0].where;
+      expect(where.AND).toHaveLength(1);
+      expect(where.AND[0].OR).toEqual(
+        expect.arrayContaining([
+          { metadata: { path: ['phone'], string_contains: '0100 123-4567' } },
+          { metadata: { path: ['phone'], string_contains: '01001234567' } },
+          { studentParents: { some: { parent: { phone: { contains: '01001234567' } } } } },
+        ]),
+      );
     });
 
     it('applies search filter', async () => {
@@ -256,25 +274,29 @@ systemConfig: {
 
       await service.findAll({ search: 'Malak', page: 1, limit: 20 }, schoolId);
 
-      expect(prisma.student.findMany).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: expect.objectContaining({
-            OR: [
-              { firstName: { contains: 'Malak', mode: 'insensitive' } },
-              { lastName: { contains: 'Malak', mode: 'insensitive' } },
-              { firstNameAr: { contains: 'Malak', mode: 'insensitive' } },
-              { lastNameAr: { contains: 'Malak', mode: 'insensitive' } },
-              { studentCode: { contains: 'Malak', mode: 'insensitive' } },
-              { parentEmail: { contains: 'Malak', mode: 'insensitive' } },
-              { churchName: { contains: 'Malak', mode: 'insensitive' } },
-              { metadata: { path: ['phone'], string_contains: 'Malak' } },
-              { metadata: { path: ['studentPhone'], string_contains: 'Malak' } },
-              { studentParents: { some: { parent: { phone: { contains: 'Malak', mode: 'insensitive' } } } } },
-              { studentParents: { some: { parent: { email: { contains: 'Malak', mode: 'insensitive' } } } } },
-            ],
-          }),
-        }),
+      const where = prisma.student.findMany.mock.calls[0][0].where;
+      expect(where.AND).toHaveLength(1);
+      expect(where.AND[0].OR).toEqual(
+        expect.arrayContaining([
+          { firstName: { contains: 'Malak', mode: 'insensitive' } },
+          { lastName: { contains: 'Malak', mode: 'insensitive' } },
+          { firstNameAr: { contains: 'Malak', mode: 'insensitive' } },
+          { studentCode: { contains: 'Malak', mode: 'insensitive' } },
+          { studentParents: { some: { parent: { email: { contains: 'Malak', mode: 'insensitive' } } } } },
+        ]),
       );
+    });
+
+    it('matches "first last" name searches by requiring each word separately', async () => {
+      prisma.student.findMany.mockResolvedValue([]);
+      prisma.student.count.mockResolvedValue(0);
+
+      await service.findAll({ search: 'Malak Samir', page: 1, limit: 20 }, schoolId);
+
+      const where = prisma.student.findMany.mock.calls[0][0].where;
+      expect(where.AND).toHaveLength(2);
+      expect(where.AND[0].OR).toContainEqual({ firstName: { contains: 'Malak', mode: 'insensitive' } });
+      expect(where.AND[1].OR).toContainEqual({ lastName: { contains: 'Samir', mode: 'insensitive' } });
     });
 
     it('applies level and group filters', async () => {
