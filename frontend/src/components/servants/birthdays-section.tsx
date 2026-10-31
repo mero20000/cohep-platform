@@ -21,6 +21,10 @@ interface Birthday {
   firstNameAr?: string | null
   lastNameAr?: string | null
   photoUrl?: string | null
+  levelId?: string | null
+  levelName?: string | null
+  groupId?: string | null
+  groupName?: string | null
   birthdayDate: string
   daysAway: number
   turningAge: number
@@ -29,7 +33,7 @@ interface Birthday {
   missedThreeWeeks: boolean
   sessionsAttended: number
   hymnsLearned: number
-  greeted: { note: string | null; at: string } | null
+  greeted: { note: string | null; at: string; by?: string | null } | null
 }
 
 interface BirthdaysResponse {
@@ -47,39 +51,78 @@ function whenLabel(daysAway: number, dateStr: string, lang: 'en' | 'ar'): string
   return date
 }
 
-export function BirthdaysSection({ lang }: { lang: 'en' | 'ar' }) {
+const SCHOOL_LIST_LIMIT = 8
+
+interface BirthdaysSectionProps {
+  lang: 'en' | 'ar'
+  /** 'school' lists every student (school-wide roles only; the server ignores it for anyone else). */
+  scope?: 'class' | 'school'
+  /** Outer spacing; the briefing uses the default, dashboards pass their own. */
+  className?: string
+}
+
+export function BirthdaysSection({ lang, scope = 'class', className = 'mt-6' }: BirthdaysSectionProps) {
   const t = (en: string, ar: string) => (lang === 'ar' ? ar : en)
   const [data, setData] = useState<BirthdaysResponse | null>(null)
   const [open, setOpen] = useState<string | null>(null)
+  const [level, setLevel] = useState<string>('all')
+  const [showAll, setShowAll] = useState(false)
+  const params = scope === 'school' ? { scope: 'school' } : undefined
 
   useEffect(() => {
     let cancelled = false
-    http.get<BirthdaysResponse>('/dashboard/birthdays')
+    // `Promise.resolve().then` so even a synchronous failure is swallowed: a birthday card must never break its page.
+    Promise.resolve()
+      .then(() => http.get<BirthdaysResponse>('/dashboard/birthdays', params))
       .then((res) => { if (!cancelled && Array.isArray(res?.birthdays)) setData(res) })
-      .catch(() => { /* a failed birthday card must never break the briefing */ })
+      .catch(() => { /* ignore */ })
     return () => { cancelled = true }
-  }, [])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scope])
 
   const update = useCallback((studentId: string, greeted: Birthday['greeted']) => {
     setData((prev) => prev && ({ ...prev, birthdays: prev.birthdays.map((b) => (b.studentId === studentId ? { ...b, greeted } : b)) }))
   }, [])
 
   // Past birthdays only matter while they are still ungreeted.
-  const visible = useMemo(
+  const eligible = useMemo(
     () => (data?.birthdays ?? []).filter((b) => b.daysAway >= 0 || !b.greeted),
     [data],
   )
-  if (!data || visible.length === 0) return null
+  const levels = useMemo(() => {
+    const seen = new Map<string, string>()
+    for (const b of eligible) if (b.levelId && b.levelName) seen.set(b.levelId, b.levelName)
+    return [...seen.entries()].map(([id, name]) => ({ id, name }))
+  }, [eligible])
+  const filtered = level === 'all' ? eligible : eligible.filter((b) => b.levelId === level)
+  const limited = scope === 'school' && !showAll && filtered.length > SCHOOL_LIST_LIMIT
+  const visible = limited ? filtered.slice(0, SCHOOL_LIST_LIMIT) : filtered
+  if (!data || eligible.length === 0) return null
 
   return (
-    <section className="mt-6" aria-labelledby="birthdays-heading">
+    <section className={className} aria-labelledby="birthdays-heading">
       <h3 id="birthdays-heading" className="flex items-center gap-1.5 text-sm font-semibold text-gray-700">
         <Cake className="h-4 w-4 text-pink-500" />
         {t('Birthdays', 'أعياد الميلاد')}
         <span className="text-xs font-normal text-gray-500">
-          {t(`${visible.filter(b => b.greeted).length} of ${visible.length} greeted`, `${visible.filter(b => b.greeted).length} من ${visible.length} تمت التهنئة`)}
+          {t(`${eligible.filter(b => b.greeted).length} of ${eligible.length} greeted`, `${eligible.filter(b => b.greeted).length} من ${eligible.length} تمت التهنئة`)}
         </span>
       </h3>
+      {scope === 'school' && levels.length > 1 && (
+        <div className="mt-2 flex flex-wrap gap-1.5" role="group" aria-label={t('Filter by level', 'تصفية حسب المستوى')}>
+          {[{ id: 'all', name: t('All levels', 'كل المستويات') }, ...levels].map((l) => (
+            <button
+              key={l.id}
+              type="button"
+              aria-pressed={level === l.id}
+              onClick={() => setLevel(l.id)}
+              className={`min-h-[36px] rounded-full border px-3 text-xs font-medium ${level === l.id ? 'border-pink-400 bg-pink-50 text-pink-700' : 'border-gray-200 text-gray-600'}`}
+            >
+              {l.name}
+            </button>
+          ))}
+        </div>
+      )}
       <div className="mt-2 space-y-2">
         {visible.map((b) => (
           <BirthdayRow
@@ -90,20 +133,31 @@ export function BirthdaysSection({ lang }: { lang: 'en' | 'ar' }) {
             open={open === b.studentId}
             onToggle={() => setOpen(open === b.studentId ? null : b.studentId)}
             onGreeted={update}
+            params={params}
           />
         ))}
       </div>
+      {scope === 'school' && filtered.length > SCHOOL_LIST_LIMIT && (
+        <button
+          type="button"
+          onClick={() => setShowAll((v) => !v)}
+          className="mt-2 min-h-[44px] w-full rounded-lg border border-gray-200 text-sm font-medium text-gray-600 hover:bg-gray-50"
+        >
+          {showAll ? t('Show fewer', 'عرض أقل') : t(`Show all ${filtered.length}`, `عرض الكل (${filtered.length})`)}
+        </button>
+      )}
     </section>
   )
 }
 
-function BirthdayRow({ b, signoff, lang, open, onToggle, onGreeted }: {
+function BirthdayRow({ b, signoff, lang, open, onToggle, onGreeted, params }: {
   b: Birthday
   signoff: BirthdaysResponse['signoff']
   lang: 'en' | 'ar'
   open: boolean
   onToggle: () => void
   onGreeted: (studentId: string, greeted: Birthday['greeted']) => void
+  params?: Record<string, string>
 }) {
   const t = (en: string, ar: string) => (lang === 'ar' ? ar : en)
   const personalOk = isPersonalAvailable(b)
@@ -126,7 +180,7 @@ function BirthdayRow({ b, signoff, lang, open, onToggle, onGreeted }: {
     setSaving(true)
     setFailed(false)
     try {
-      const res = await http.put<{ greeted: Birthday['greeted'] }>(`/dashboard/birthdays/${b.studentId}/greeted`, body)
+      const res = await http.put<{ greeted: Birthday['greeted'] }>(`/dashboard/birthdays/${b.studentId}/greeted`, body, params)
       onGreeted(b.studentId, res.greeted)
     } catch {
       setFailed(true)
@@ -162,9 +216,11 @@ function BirthdayRow({ b, signoff, lang, open, onToggle, onGreeted }: {
             )}
             {b.greeted && (
               <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 font-medium text-emerald-700">
-                <CheckCircle2 className="h-3 w-3" />{t('Greeted', 'تمت التهنئة')}
+                <CheckCircle2 className="h-3 w-3" />
+                {b.greeted.by ? t(`Greeted by ${b.greeted.by}`, `هنأه ${b.greeted.by}`) : t('Greeted', 'تمت التهنئة')}
               </span>
             )}
+            {b.groupName && <span className="text-gray-400">{[b.levelName, b.groupName].filter(Boolean).join(' · ')}</span>}
           </div>
         </div>
         <ChevronDown className={`h-4 w-4 text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`} />
@@ -172,6 +228,13 @@ function BirthdayRow({ b, signoff, lang, open, onToggle, onGreeted }: {
 
       {open && (
         <div className="border-t border-gray-100 px-3 py-3">
+          {b.greeted && (
+            <p role="note" className="mb-3 rounded-lg bg-emerald-50 p-2 text-xs text-emerald-800">
+              {b.greeted.by
+                ? t(`${b.greeted.by} already greeted ${b.firstName}. You can still send another.`, `${b.greeted.by} هنأ ${b.firstName} بالفعل. يمكنك إرسال تهنئة أخرى.`)
+                : t(`${b.firstName} has already been greeted. You can still send another.`, `تمت تهنئة ${b.firstName} بالفعل. يمكنك إرسال تهنئة أخرى.`)}
+            </p>
+          )}
           <div className="flex flex-wrap gap-1.5" role="group" aria-label={t('Message style', 'نمط الرسالة')}>
             {BIRTHDAY_VARIANTS.map((v) => {
               const disabled = v.id === 'personal' && !personalOk

@@ -8,6 +8,9 @@ import { attendanceRate as calcAttendanceRate, rateFromCounts } from '../attenda
 /** How long a ticked follow-up stays ticked before the student resurfaces. */
 const FOLLOW_UP_DONE_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
 
+/** Roles that may see and greet the whole school's birthdays. */
+const BIRTHDAY_SCHOOL_ROLES = ['super_admin', 'admin', 'principal'];
+
 /** Birthdays shown from this many days ago to this many days ahead. */
 const BIRTHDAY_WINDOW_DAYS = 7;
 
@@ -1181,9 +1184,28 @@ export class DashboardService {
    * servant needs to greet them: who to message (the student's own number, else the
    * parent's), the sign-off, and the facts behind the personal message variant.
    */
-  async getBirthdays(user: any, schoolIdentifier: string) {
-    const schoolId = await this.schoolResolver.resolve(schoolIdentifier);
+  /**
+   * Which students' birthdays this user may see: their own class by default, or the whole school
+   * when they ask for scope 'school' and hold a school-wide role. Returns a student `where`, or null
+   * when they have no class.
+   */
+  private async birthdayStudentFilter(user: any, schoolId: string, scope: 'class' | 'school'): Promise<Record<string, any> | null> {
+    const roles: string[] = Array.isArray(user?.roles) ? user.roles : [];
+    if (scope === 'school' && roles.some((r) => BIRTHDAY_SCHOOL_ROLES.includes(r))) {
+      return { schoolId, deletedAt: null };
+    }
     const { studentIds } = await this.resolveServantClass(user.id, schoolId);
+    return studentIds.length === 0 ? null : { id: { in: studentIds }, deletedAt: null };
+  }
+
+  /**
+   * Birthdays from a week ago to a week ahead, with everything needed to greet them: who to message
+   * (the student's own number, else the parent's), the sign-off, and the facts behind the personal
+   * message. Servants get their class; admins can ask for the whole school.
+   */
+  async getBirthdays(user: any, schoolIdentifier: string, scope: 'class' | 'school' = 'class') {
+    const schoolId = await this.schoolResolver.resolve(schoolIdentifier);
+    const studentFilter = await this.birthdayStudentFilter(user, schoolId, scope);
 
     const [school, servant] = await Promise.all([
       this.prisma.school.findUnique({
@@ -1198,13 +1220,16 @@ export class DashboardService {
       school: school?.name ?? '',
       church: school?.church?.name ?? '',
     };
-    if (studentIds.length === 0) return { today: today.toISOString().slice(0, 10), signoff, birthdays: [] };
+    if (!studentFilter) return { today: today.toISOString().slice(0, 10), signoff, birthdays: [] };
 
     const students = await this.prisma.student.findMany({
-      where: { id: { in: studentIds }, deletedAt: null },
+      where: studentFilter,
       select: {
         id: true, firstName: true, lastName: true, firstNameAr: true, lastNameAr: true,
         photoUrl: true, dateOfBirth: true, metadata: true,
+        levelId: true, groupId: true,
+        level: { select: { name: true, number: true } },
+        group: { select: { name: true } },
       },
     });
 
@@ -1216,7 +1241,10 @@ export class DashboardService {
 
     const greetings = await this.prisma.studentBirthdayGreeting.findMany({
       where: { studentId: { in: due.map(({ st }) => st.id) } },
-      select: { studentId: true, year: true, note: true, greetedAt: true },
+      select: {
+        studentId: true, year: true, note: true, greetedAt: true,
+        servant: { select: { firstName: true, lastName: true } },
+      },
     });
 
     const birthdays = await Promise.all(due.map(async ({ st, bday }) => {
@@ -1247,6 +1275,11 @@ export class DashboardService {
         firstNameAr: st.firstNameAr,
         lastNameAr: st.lastNameAr,
         photoUrl: st.photoUrl,
+        levelId: st.levelId ?? null,
+        levelName: st.level?.name ?? null,
+        levelNumber: st.level?.number ?? null,
+        groupId: st.groupId ?? null,
+        groupName: st.group?.name ?? null,
         birthdayDate: bday.date.toISOString().slice(0, 10),
         daysAway: bday.daysAway,
         turningAge: bday.turningAge,
@@ -1255,7 +1288,13 @@ export class DashboardService {
         missedThreeWeeks: lastThree.length >= 3 && lastThree.every((r: any) => r.status === 'absent'),
         sessionsAttended,
         hymnsLearned,
-        greeted: greeting ? { note: greeting.note ?? null, at: greeting.greetedAt } : null,
+        greeted: greeting
+          ? {
+              note: greeting.note ?? null,
+              at: greeting.greetedAt,
+              by: greeting.servant ? `${greeting.servant.firstName} ${greeting.servant.lastName}`.trim() : null,
+            }
+          : null,
       };
     }));
 
@@ -1265,10 +1304,16 @@ export class DashboardService {
   }
 
   /** Mark a student's current birthday as greeted (or undo it), with an optional private note. */
-  async setBirthdayGreeted(user: any, schoolIdentifier: string, studentId: string, dto: { done?: boolean; note?: string }) {
+  async setBirthdayGreeted(
+    user: any, schoolIdentifier: string, studentId: string,
+    dto: { done?: boolean; note?: string }, scope: 'class' | 'school' = 'class',
+  ) {
     const schoolId = await this.schoolResolver.resolve(schoolIdentifier);
-    const { studentIds } = await this.resolveServantClass(user.id, schoolId);
-    if (!studentIds.includes(studentId)) throw new NotFoundException('Student not found in your class');
+    const studentFilter = await this.birthdayStudentFilter(user, schoolId, scope);
+    const allowed = studentFilter
+      ? await this.prisma.student.findFirst({ where: { ...studentFilter, id: studentId }, select: { id: true } })
+      : null;
+    if (!allowed) throw new NotFoundException('Student not found in your class');
 
     const [student, school] = await Promise.all([
       this.prisma.student.findUnique({ where: { id: studentId }, select: { dateOfBirth: true } }),
@@ -1289,7 +1334,9 @@ export class DashboardService {
       create: { schoolId, studentId, servantId: user.id, year: bday.year, note: note ?? null },
       update: { servantId: user.id, ...(note !== undefined ? { note } : {}) },
     });
-    return { greeted: { note: saved.note ?? null, at: saved.greetedAt } };
+    const sender = await this.prisma.user.findUnique({ where: { id: user.id }, select: { firstName: true, lastName: true } });
+    const by = sender ? `${sender.firstName} ${sender.lastName}`.trim() : null;
+    return { greeted: { note: saved.note ?? null, at: saved.greetedAt, by } };
   }
 
   /** A 'done' follow-up only counts for a week; after that the student is open again if still flagged. */

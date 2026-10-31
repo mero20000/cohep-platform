@@ -31,6 +31,7 @@ import { useActiveRole, roleCategory } from '@/lib/use-active-role'
 import DashboardHero from './hero'
 import { PhoneLink } from '@/app/dashboard/students/_components/phone-link'
 import { ServantJourneyCard } from '@/components/dashboard/servant-journey-card'
+import { BirthdaysSection } from '@/components/servants/birthdays-section'
 import { useAcademicYearsQuery, useAllAllocationsQuery, useLessonsQuery, useLevelsQuery } from '@/components/curriculum/hooks'
 import type { Allocation, Level } from '@/components/curriculum/types'
 import { parseISO, isSameDay, startOfDay, startOfWeek, addDays, format } from 'date-fns'
@@ -2487,6 +2488,12 @@ export function MinistryDashboard({ data, loading, error, onRetry }: { data: any
         </motion.div>
       )}
 
+      {/* Birthdays this week — own class, with one-tap greeting */}
+      {/* (no wrapper: it renders nothing in weeks without birthdays, so it must not leave a spacing gap) */}
+      {SERVANT_ROLES.includes(d.role || '') && (
+        <BirthdaysSection lang={lang === 'ar' ? 'ar' : 'en'} className="" />
+      )}
+
       {/* Servant Journey Card */}
       {SERVANT_ROLES.includes(d.role || '') && (
         <motion.div variants={fadeUp}>
@@ -3252,6 +3259,9 @@ export default function DashboardPage() {
       <NextSessionCard lang={lang} />
      </motion.div>
     </ErrorBoundary>
+
+    {/* Birthdays this week — whole school, with one-tap greeting */}
+    <BirthdaysSection lang={lang === 'ar' ? 'ar' : 'en'} scope="school" className="" />
 
     {/* Quick Actions */}
     <motion.div variants={fadeUp} className="grid grid-cols-2 sm:grid-cols-5 gap-3">
