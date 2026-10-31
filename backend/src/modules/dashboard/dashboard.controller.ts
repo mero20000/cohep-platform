@@ -99,12 +99,14 @@ export class DashboardController {
 
   @Get('birthdays')
   @Roles(...STAFF_ROLES)
-  @ApiOperation({ summary: 'Birthdays in your class (past week to next week) with message recipient and sign-off' })
+  @ApiOperation({ summary: 'Birthdays in your class (or the whole school with scope=school for school-wide roles), past week to next week, with message recipient and sign-off' })
   async getBirthdays(
     @CurrentUser() user: any,
     @Query('schoolId') schoolId: string = '',
+    @Query('scope') scope?: string,
   ) {
-    return this.service.getBirthdays(user, schoolId);
+    // 'school' only takes effect for school-wide roles; everyone else keeps their own class.
+    return this.service.getBirthdays(user, schoolId, scope === 'school' ? 'school' : 'class');
   }
 
   @Put('birthdays/:studentId/greeted')
@@ -115,8 +117,9 @@ export class DashboardController {
     @Param('studentId') studentId: string,
     @Body() dto: SetBirthdayGreetedDto,
     @Query('schoolId') schoolId: string = '',
+    @Query('scope') scope?: string,
   ) {
-    return this.service.setBirthdayGreeted(user, schoolId, studentId, dto);
+    return this.service.setBirthdayGreeted(user, schoolId, studentId, dto, scope === 'school' ? 'school' : 'class');
   }
 
   @Get('weekly-briefing')

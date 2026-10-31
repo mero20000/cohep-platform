@@ -100,7 +100,7 @@ describe('BirthdaysSection', () => {
     render(<BirthdaysSection lang="en" />)
     fireEvent.click(await screen.findByText('Mina Adel'))
     fireEvent.click(screen.getByRole('checkbox'))
-    await waitFor(() => expect(mockPut).toHaveBeenCalledWith('/dashboard/birthdays/s1/greeted', { done: true }))
+    await waitFor(() => expect(mockPut).toHaveBeenCalledWith('/dashboard/birthdays/s1/greeted', { done: true }, undefined))
     expect(await screen.findByText('1 of 1 greeted')).toBeInTheDocument()
   })
 
@@ -119,5 +119,76 @@ describe('BirthdaysSection', () => {
     fireEvent.click(await screen.findByText('Mina Adel'))
     expect(screen.getByText(/No phone number saved/)).toBeInTheDocument()
     expect(screen.queryByRole('link', { name: /Call/ })).toBeNull()
+  })
+
+  describe('dashboard use', () => {
+    const many = (n: number) => Array.from({ length: n }, (_, i) => b({
+      studentId: `s${i}`, firstName: `Kid${i}`, daysAway: 1, birthdayDate: '2026-11-02',
+      levelId: i % 2 ? 'l2' : 'l1', levelName: i % 2 ? 'Level 2' : 'Level 1',
+    }))
+
+    it('asks for the whole school only when told to, and sends the scope when greeting', async () => {
+      mockGet.mockResolvedValue({ signoff, birthdays: [b()] })
+      mockPut.mockResolvedValue({ greeted: { note: null, at: 'x', by: 'Amir Adly' } })
+      render(<BirthdaysSection lang="en" scope="school" className="" />)
+      fireEvent.click(await screen.findByText('Mina Adel'))
+      expect(mockGet).toHaveBeenCalledWith('/dashboard/birthdays', { scope: 'school' })
+      fireEvent.click(screen.getByRole('checkbox'))
+      await waitFor(() => expect(mockPut).toHaveBeenCalledWith('/dashboard/birthdays/s1/greeted', { done: true }, { scope: 'school' }))
+      expect(await screen.findByText('Greeted by Amir Adly')).toBeInTheDocument()
+    })
+
+    it('class scope sends no scope parameter', async () => {
+      mockGet.mockResolvedValue({ signoff, birthdays: [b()] })
+      render(<BirthdaysSection lang="en" />)
+      await screen.findByText('Mina Adel')
+      expect(mockGet).toHaveBeenCalledWith('/dashboard/birthdays', undefined)
+    })
+
+    it('limits a long school list to 8 and expands on request', async () => {
+      mockGet.mockResolvedValue({ signoff, birthdays: many(12) })
+      render(<BirthdaysSection lang="en" scope="school" />)
+      await screen.findByText('Kid0 Adel')
+      expect(screen.queryByText('Kid11 Adel')).toBeNull()
+      fireEvent.click(screen.getByRole('button', { name: 'Show all 12' }))
+      expect(screen.getByText('Kid11 Adel')).toBeInTheDocument()
+      fireEvent.click(screen.getByRole('button', { name: 'Show fewer' }))
+      expect(screen.queryByText('Kid11 Adel')).toBeNull()
+    })
+
+    it('filters the school list by level', async () => {
+      mockGet.mockResolvedValue({ signoff, birthdays: many(4) })
+      render(<BirthdaysSection lang="en" scope="school" />)
+      await screen.findByText('Kid0 Adel')
+      fireEvent.click(screen.getByRole('button', { name: 'Level 2' }))
+      expect(screen.queryByText('Kid0 Adel')).toBeNull()
+      expect(screen.getByText('Kid1 Adel')).toBeInTheDocument()
+      expect(screen.getByText('Kid3 Adel')).toBeInTheDocument()
+      fireEvent.click(screen.getByRole('button', { name: 'All levels' }))
+      expect(screen.getByText('Kid0 Adel')).toBeInTheDocument()
+    })
+
+    it('does not show level filters in the class view', async () => {
+      mockGet.mockResolvedValue({ signoff, birthdays: many(4) })
+      render(<BirthdaysSection lang="en" />)
+      await screen.findByText('Kid0 Adel')
+      expect(screen.queryByRole('button', { name: 'All levels' })).toBeNull()
+    })
+
+    it('warns when someone already greeted the student, but still allows sending', async () => {
+      mockGet.mockResolvedValue({ signoff, birthdays: [b({ greeted: { note: null, at: 'x', by: 'Mariam Samir' } })] })
+      render(<BirthdaysSection lang="en" />)
+      expect(await screen.findByText('Greeted by Mariam Samir')).toBeInTheDocument()
+      fireEvent.click(screen.getByText('Mina Adel'))
+      expect(screen.getByRole('note').textContent).toBe('Mariam Samir already greeted Mina. You can still send another.')
+      expect(screen.getByRole('link', { name: /Open WhatsApp/ })).toBeInTheDocument()
+    })
+
+    it('renders nothing (no gap) when the request returns nothing usable', async () => {
+      mockGet.mockResolvedValue(undefined)
+      const { container } = render(<BirthdaysSection lang="en" scope="school" />)
+      await waitFor(() => expect(mockGet).toHaveBeenCalled())
+      expect(container.textContent).toBe('')
+    })
   })
 })

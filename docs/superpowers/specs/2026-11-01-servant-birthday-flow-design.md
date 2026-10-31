@@ -20,3 +20,12 @@
 - The notification reaches servants whose profile has a group (or level) matching the student; servants whose class is derived only from sessions are covered by the briefing section, not the notification.
 - Feb 29 birthdays are celebrated on Feb 28 in non-leap years.
 - School and church names come from `School.name` and `School.church.name`.
+
+## Addendum — "Birthdays this week" on the dashboards (2026-11-01)
+- The same card (`BirthdaysSection`) now sits on the **servant dashboard** (own class) and the **admin dashboard** (whole school: admin, principal, super admin), with the same WhatsApp / call / mark-greeted actions and message sheet as the briefing.
+- **Admins can send greetings**, signed with their own name plus school and church.
+- `GET /dashboard/birthdays?scope=school` and `PUT /dashboard/birthdays/:id/greeted?scope=school` widen to the whole school only for school-wide roles; anyone else keeps their class.
+- School view: level filter chips, first 8 shown with "Show all".
+- **Double greetings:** a row shows "Greeted by {name}"; opening an already-greeted student shows a notice but still allows sending.
+- The card renders nothing in weeks without birthdays (mounted without a wrapper so it leaves no gap). Admins get no morning notification.
+- No migration; the response gains level/group names and `greeted.by`.

@@ -24,7 +24,7 @@ describe('servant birthday flow', () => {
     prisma = {
       user: { findUnique: jest.fn() },
       school: { findUnique: jest.fn() },
-      student: { findMany: jest.fn(), findUnique: jest.fn() },
+      student: { findMany: jest.fn(), findUnique: jest.fn(), findFirst: jest.fn() },
       attendanceSession: { findMany: jest.fn().mockResolvedValue([]) },
       attendanceRecord: { findMany: jest.fn().mockResolvedValue([]), count: jest.fn().mockResolvedValue(0) },
       lessonProgress: { count: jest.fn().mockResolvedValue(0) },
@@ -49,6 +49,9 @@ describe('servant birthday flow', () => {
   function classOf(students: any[]) {
     prisma.student.findMany.mockImplementation(async (a: any) =>
       a.select?.dateOfBirth ? students : students.map((s) => ({ id: s.id })));
+    // membership check used by setBirthdayGreeted
+    prisma.student.findFirst.mockImplementation(async (a: any) =>
+      students.find((s) => s.id === a.where.id) ? { id: a.where.id } : null);
   }
 
   describe('getBirthdays', () => {
@@ -100,6 +103,58 @@ describe('servant birthday flow', () => {
     it('returns an empty list when the servant has no class', async () => {
       classOf([]);
       expect((await service.getBirthdays(user, schoolId)).birthdays).toEqual([]);
+    });
+  });
+
+  describe('school-wide scope for admins', () => {
+    const admin = { id: 'admin-1', roles: ['admin'] };
+
+    it('lists every student in the school for an admin, with level, group and who greeted', async () => {
+      prisma.student.findMany.mockResolvedValue([
+        { ...mk('a', '2016-11-01'), levelId: 'l1', groupId: 'g9', level: { name: 'Level 3', number: 3 }, group: { name: 'Group B' } },
+      ]);
+      prisma.studentBirthdayGreeting.findMany.mockResolvedValue([
+        { studentId: 'a', year: 2026, note: null, greetedAt: new Date(), servant: { firstName: 'Mariam', lastName: 'Samir' } },
+      ]);
+      const res = await service.getBirthdays(admin, schoolId, 'school');
+      const where = prisma.student.findMany.mock.calls[0][0].where;
+      expect(where).toEqual({ schoolId, deletedAt: null });
+      expect(res.birthdays[0]).toMatchObject({
+        levelName: 'Level 3', levelNumber: 3, groupId: 'g9', groupName: 'Group B',
+        greeted: { by: 'Mariam Samir' },
+      });
+    });
+
+    it('does not widen scope for a servant who asks for the whole school', async () => {
+      classOf([mk('a', '2016-11-01')]);
+      await service.getBirthdays({ id: 'servant-1', roles: ['servant'] }, schoolId, 'school');
+      const where = prisma.student.findMany.mock.calls.find((c: any) => c[0].select?.dateOfBirth)![0].where;
+      expect(where).toEqual({ id: { in: ['a'] }, deletedAt: null });
+    });
+
+    it('keeps an admin on their own class unless they ask for the school', async () => {
+      classOf([mk('a', '2016-11-01')]);
+      await service.getBirthdays(admin, schoolId);
+      const where = prisma.student.findMany.mock.calls.find((c: any) => c[0].select?.dateOfBirth)![0].where;
+      expect(where).toEqual({ id: { in: ['a'] }, deletedAt: null });
+    });
+
+    it('lets an admin greet any student in the school, and reports who did', async () => {
+      prisma.student.findFirst.mockResolvedValue({ id: 'far-away-student' });
+      prisma.student.findUnique.mockResolvedValue({ dateOfBirth: new Date('2016-11-01T00:00:00Z') });
+      prisma.studentBirthdayGreeting.upsert.mockImplementation(async ({ create }: any) => ({ ...create, greetedAt: new Date() }));
+      prisma.user.findUnique.mockResolvedValue({ firstName: 'Amir', lastName: 'Adly' });
+      const res = await service.setBirthdayGreeted(admin, schoolId, 'far-away-student', { done: true }, 'school');
+      expect(prisma.student.findFirst).toHaveBeenCalledWith(expect.objectContaining({
+        where: { schoolId, deletedAt: null, id: 'far-away-student' },
+      }));
+      expect(res.greeted?.by).toBe('Amir Adly');
+    });
+
+    it('still refuses a servant who tries to greet outside their class with scope=school', async () => {
+      classOf([mk('a', '2016-11-01')]);
+      await expect(service.setBirthdayGreeted({ id: 'servant-1', roles: ['servant'] }, schoolId, 'stranger', { done: true }, 'school'))
+        .rejects.toThrow('not found');
     });
   });
 
