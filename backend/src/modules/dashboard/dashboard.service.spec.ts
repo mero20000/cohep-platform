@@ -24,6 +24,7 @@ describe('DashboardService', () => {
     subjectItem: { findMany: jest.fn() },
     lessonProgress: { findMany: jest.fn() },
     assessmentSubmission: { findMany: jest.fn() },
+    servantFollowUp: { findMany: jest.fn().mockResolvedValue([]), upsert: jest.fn() },
   };
 
   beforeEach(async () => {
@@ -38,6 +39,7 @@ describe('DashboardService', () => {
     service = module.get<DashboardService>(DashboardService);
     prisma = module.get(PrismaService);
     jest.clearAllMocks();
+    (prisma.servantFollowUp.findMany as jest.Mock).mockResolvedValue([]);
   });
 
   function mockMinistryBaseline() {
@@ -628,6 +630,61 @@ describe('DashboardService', () => {
       const result = await service.getWeeklyBriefing(user, schoolId);
       expect(result.nextSession).not.toBeNull();
       expect(result.nextLesson).toBeNull();
+    });
+  });
+
+  describe('follow-up checklist', () => {
+    function classWith(studentIds: string[]) {
+      (prisma.user.findUnique as jest.Mock).mockResolvedValue({ metadata: { groupId: 'g1' } });
+      (prisma.student.findMany as jest.Mock).mockResolvedValue(studentIds.map((id) => ({ id })));
+    }
+
+    it('rejects a student outside the servant class', async () => {
+      classWith(['s1']);
+      await expect(service.setFollowUp(user, schoolId, 'other', { done: true })).rejects.toThrow('Student not found');
+      expect(prisma.servantFollowUp.upsert).not.toHaveBeenCalled();
+    });
+
+    it('persists a tick with completedAt and the note', async () => {
+      classWith(['s1']);
+      (prisma.servantFollowUp.upsert as jest.Mock).mockImplementation(({ create }: any) => Promise.resolve(create));
+      const res = await service.setFollowUp(user, schoolId, 's1', { done: true, note: '  Called mum  ' });
+      const arg = (prisma.servantFollowUp.upsert as jest.Mock).mock.calls[0][0];
+      expect(arg.where).toEqual({ servantId_studentId: { servantId: 'user-1', studentId: 's1' } });
+      expect(arg.update.status).toBe('done');
+      expect(arg.update.note).toBe('Called mum');
+      expect(res).toMatchObject({ done: true, note: 'Called mum' });
+    });
+
+    it('unticking clears completedAt and keeps the note untouched when none is sent', async () => {
+      classWith(['s1']);
+      (prisma.servantFollowUp.upsert as jest.Mock).mockImplementation(({ create }: any) => Promise.resolve(create));
+      const res = await service.setFollowUp(user, schoolId, 's1', { done: false });
+      const arg = (prisma.servantFollowUp.upsert as jest.Mock).mock.calls[0][0];
+      expect(arg.update).toEqual({ status: 'open', completedAt: null });
+      expect(res?.done).toBe(false);
+    });
+
+    it('roster shows a recent done follow-up as done and a stale one as open', async () => {
+      (prisma.user.findUnique as jest.Mock).mockResolvedValue({ metadata: { groupId: 'g1' } });
+      (prisma.student.findMany as jest.Mock).mockResolvedValue([
+        { id: 's1', firstName: 'A', lastName: 'A', firstNameAr: null, lastNameAr: null, photoUrl: null },
+        { id: 's2', firstName: 'B', lastName: 'B', firstNameAr: null, lastNameAr: null, photoUrl: null },
+      ]);
+      (prisma.attendanceSession.findFirst as jest.Mock).mockResolvedValue(null);
+      (prisma.curriculumAllocation.findFirst as jest.Mock).mockResolvedValue(null);
+      (prisma.attendanceRecord.findMany as jest.Mock).mockResolvedValue([]);
+      (prisma.lessonProgress.findMany as jest.Mock).mockResolvedValue([]);
+      (prisma.assessmentSubmission.findMany as jest.Mock).mockResolvedValue([]);
+      const day = 24 * 60 * 60 * 1000;
+      (prisma.servantFollowUp.findMany as jest.Mock).mockResolvedValue([
+        { studentId: 's1', status: 'done', note: 'ok', completedAt: new Date(Date.now() - 2 * day) },
+        { studentId: 's2', status: 'done', note: null, completedAt: new Date(Date.now() - 9 * day) },
+      ]);
+      const result = await service.getClassOverview(user, schoolId);
+      const byId = Object.fromEntries(result.roster.map((r: any) => [r.studentId, r.followUp]));
+      expect(byId.s1).toMatchObject({ done: true, note: 'ok' });
+      expect(byId.s2).toMatchObject({ done: false });
     });
   });
 });

@@ -25,6 +25,7 @@ export class ReportsController {
   }
 
   @Get('servant-contributions')
+  @Roles('super_admin', 'admin', 'principal')
   @ApiOperation({ summary: 'Servant contribution report — appreciation-framed, not performance-review. Excludes zero-activity (seed/QA) accounts unless includeAll=true.' })
   async getServantContributions(
     @Query('schoolId') schoolId: string = '',

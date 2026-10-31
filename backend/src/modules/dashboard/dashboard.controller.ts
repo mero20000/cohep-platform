@@ -1,4 +1,5 @@
-import { Controller, Get, Post, Query, Body, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Put, Param, Query, Body, UseGuards } from '@nestjs/common';
+import { IsBoolean, IsOptional, IsString, MaxLength } from 'class-validator';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { Roles, STAFF_ROLES } from '../../common/decorators/roles.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -6,6 +7,11 @@ import { RolesGuard } from '../auth/guards/roles.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { DashboardService } from './dashboard.service';
 import { NotificationsService } from '../notifications/notifications.service';
+
+class SetFollowUpDto {
+  @IsOptional() @IsBoolean() done?: boolean;
+  @IsOptional() @IsString() @MaxLength(500) note?: string;
+}
 
 @ApiTags('dashboard')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -72,6 +78,18 @@ export class DashboardController {
     @Query('schoolId') schoolId: string = '',
   ) {
     return this.service.getClassOverview(user, schoolId);
+  }
+
+  @Put('follow-ups/:studentId')
+  @Roles(...STAFF_ROLES)
+  @ApiOperation({ summary: 'Tick/untick a student on your follow-up checklist, with an optional note' })
+  async setFollowUp(
+    @CurrentUser() user: any,
+    @Param('studentId') studentId: string,
+    @Body() dto: SetFollowUpDto,
+    @Query('schoolId') schoolId: string = '',
+  ) {
+    return this.service.setFollowUp(user, schoolId, studentId, dto);
   }
 
   @Get('weekly-briefing')

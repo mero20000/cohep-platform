@@ -3,6 +3,7 @@ import { ServantsService } from './servants.service';
 import { PrismaService } from '../../database/prisma.service';
 import { GamificationService } from '../gamification/gamification.service';
 import { StudentNotificationsService } from '../student-notifications/student-notifications.service';
+import { NotificationsService } from '../notifications/notifications.service';
 
 describe('ServantsService.listServants', () => {
   let service: ServantsService;
@@ -30,6 +31,7 @@ describe('ServantsService.listServants', () => {
       providers: [
         ServantsService,
         { provide: StudentNotificationsService, useValue: { notify: jest.fn(), notifyOrRefresh: jest.fn() } },
+        { provide: NotificationsService, useValue: { createNotification: jest.fn() } },
         { provide: PrismaService, useValue: prismaMock },
         { provide: GamificationService, useValue: { addXp: jest.fn(), awardBadge: jest.fn() } },
       ],
@@ -123,6 +125,7 @@ describe('getGroupMates', () => {
       providers: [
         ServantsService,
         { provide: StudentNotificationsService, useValue: { notify: jest.fn(), notifyOrRefresh: jest.fn() } },
+        { provide: NotificationsService, useValue: { createNotification: jest.fn() } },
         { provide: PrismaService, useValue: prismaMock },
         { provide: GamificationService, useValue: { addXp: jest.fn(), awardBadge: jest.fn() } },
       ],
@@ -204,6 +207,7 @@ describe('getServantProfile', () => {
   const mockViewerSameSchool = {
     id: 'viewer-1',
     schoolId: 'school-1',
+    userRoles: [{ role: { name: 'admin' } }],
   };
 
   const mockViewerDifferentSchool = {
@@ -221,6 +225,7 @@ describe('getServantProfile', () => {
       providers: [
         ServantsService,
         { provide: StudentNotificationsService, useValue: { notify: jest.fn(), notifyOrRefresh: jest.fn() } },
+        { provide: NotificationsService, useValue: { createNotification: jest.fn() } },
         { provide: PrismaService, useValue: prismaMock },
         { provide: GamificationService, useValue: { addXp: jest.fn(), awardBadge: jest.fn() } },
       ],
@@ -249,10 +254,41 @@ describe('getServantProfile', () => {
     expect(result?.teachingSubjects).toEqual(['coptic_hymns']);
   });
 
+  it('hides a servant profile from a fellow servant in the same school', async () => {
+    prisma.user.findUnique.mockImplementation(async (args) => {
+      if (args.where.id === 'servant-1') return mockUser;
+      if (args.where.id === 'peer-1') return { id: 'peer-1', schoolId: 'school-1', userRoles: [{ role: { name: 'servant' } }] };
+      return null;
+    });
+    expect(await service.getServantProfile('servant-1', 'peer-1')).toBeNull();
+  });
+
+  it('lets a level leader open a servant profile but without pending milestones', async () => {
+    prisma.user.findUnique.mockImplementation(async (args) => {
+      if (args.where.id === 'servant-1') return mockUser;
+      if (args.where.id === 'll-1') return { id: 'll-1', schoolId: 'school-1', userRoles: [{ role: { name: 'level_leader' } }] };
+      return null;
+    });
+    const result = await service.getServantProfile('servant-1', 'll-1');
+    expect(result?.userId).toBe('servant-1');
+    expect(result?.newMilestones).toBeUndefined();
+  });
+
+  it('gives the servant their own profile with unseen milestones and the next milestone', async () => {
+    prisma.user.findUnique.mockImplementation(async (args) => (args.where.id === 'servant-1' ? { ...mockUser, userRoles: [{ role: { name: 'servant' } }] } : null));
+    prisma.servantMilestone = { findMany: jest.fn().mockResolvedValue([{ type: 'students_taught', threshold: 50, label: '50th student taught', reachedAt: new Date() }]) };
+    const result = await service.getServantProfile('servant-1', 'servant-1');
+    expect(prisma.servantMilestone.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: { userId: 'servant-1', seenAt: null } }));
+    expect(result?.newMilestones?.[0]).toMatchObject({ threshold: 50, labelAr: 'الطالب رقم 50' });
+    // 5y/50 students/100 sessions/25 hymns: closest next target is sessions 250? no — hymns 50 (50%), students 100 (50%), sessions 250 (40%), years 10 (50%)
+    expect(result?.nextMilestone).toBeTruthy();
+    expect(result?.nextMilestone?.remaining).toBe(result!.nextMilestone!.target - result!.nextMilestone!.current);
+  });
+
   it('should return null for different-school viewer', async () => {
     prisma.user.findUnique.mockImplementation(async (args) => {
       if (args.where.id === 'servant-1') return mockUser;
-      if (args.where.id === 'viewer-other') return mockViewerDifferentSchool;
+      if (args.where.id === 'viewer-other') return { ...mockViewerDifferentSchool, userRoles: [{ role: { name: 'admin' } }] };
       return null;
     });
 
@@ -321,6 +357,7 @@ describe('computeServantStats totalHymns', () => {
       providers: [
         ServantsService,
         { provide: StudentNotificationsService, useValue: { notify: jest.fn(), notifyOrRefresh: jest.fn() } },
+        { provide: NotificationsService, useValue: { createNotification: jest.fn() } },
         { provide: PrismaService, useValue: prismaMock },
         { provide: GamificationService, useValue: { addXp: jest.fn(), awardBadge: jest.fn() } },
       ],
@@ -372,6 +409,7 @@ describe('getServantTimeline', () => {
       providers: [
         ServantsService,
         { provide: StudentNotificationsService, useValue: { notify: jest.fn(), notifyOrRefresh: jest.fn() } },
+        { provide: NotificationsService, useValue: { createNotification: jest.fn() } },
         { provide: PrismaService, useValue: prismaMock },
         { provide: GamificationService, useValue: { addXp: jest.fn(), awardBadge: jest.fn() } },
       ],
@@ -411,24 +449,30 @@ describe('getServantTimeline', () => {
 describe('checkAndLogMilestones', () => {
   let service: ServantsService;
   let prisma: any;
+  let notifications: any;
 
   beforeEach(async () => {
     const prismaMock = {
       servantMilestone: {
+        findMany: jest.fn().mockResolvedValue([]),
         upsert: jest.fn(),
+        updateMany: jest.fn(),
       },
     };
     const module = await Test.createTestingModule({
       providers: [
         ServantsService,
         { provide: StudentNotificationsService, useValue: { notify: jest.fn(), notifyOrRefresh: jest.fn() } },
+        { provide: NotificationsService, useValue: { createNotification: jest.fn() } },
         { provide: PrismaService, useValue: prismaMock },
         { provide: GamificationService, useValue: { addXp: jest.fn(), awardBadge: jest.fn() } },
       ],
     }).compile();
     service = module.get<ServantsService>(ServantsService);
     prisma = module.get(PrismaService);
+    notifications = module.get(NotificationsService);
     jest.clearAllMocks();
+    prisma.servantMilestone.findMany.mockResolvedValue([]);
   });
 
   it('should create milestones when thresholds are crossed', async () => {
@@ -484,6 +528,48 @@ describe('checkAndLogMilestones', () => {
       expect.arrayContaining(['years_of_service', 'students_taught', 'sessions_taught', 'hymns_covered']),
     );
   });
+
+  const stats = { yearsOfService: 1, totalStudents: 10, totalSessions: 25, totalHymns: 10 };
+
+  it('notifies the servant about each newly reached milestone, with a link to the profile', async () => {
+    await (service as any).checkAndLogMilestones('profile-1', 'servant-1', stats, { schoolId: 'school-1' });
+    expect(notifications.createNotification).toHaveBeenCalledTimes(4);
+    expect(notifications.createNotification).toHaveBeenCalledWith(expect.objectContaining({
+      schoolId: 'school-1', userId: 'servant-1', type: 'servant_milestone',
+      linkPath: '/dashboard/servants/servant-1/profile', bodyAr: expect.stringContaining('سنة'),
+    }));
+    expect(prisma.servantMilestone.upsert.mock.calls[0][0].create.seenAt).toBeNull();
+  });
+
+  it('does not re-create or re-notify milestones that already exist', async () => {
+    prisma.servantMilestone.findMany.mockResolvedValue([
+      { type: 'years_of_service', threshold: 1 }, { type: 'students_taught', threshold: 10 },
+    ]);
+    await (service as any).checkAndLogMilestones('profile-1', 'servant-1', stats, { schoolId: 'school-1' });
+    expect(prisma.servantMilestone.upsert).toHaveBeenCalledTimes(2);
+    expect(notifications.createNotification).toHaveBeenCalledTimes(2);
+  });
+
+  it('backfills silently on a first run: already seen, no notifications', async () => {
+    await (service as any).checkAndLogMilestones('profile-1', 'servant-1', stats, { schoolId: 'school-1', silent: true });
+    expect(prisma.servantMilestone.upsert).toHaveBeenCalledTimes(4);
+    expect(prisma.servantMilestone.upsert.mock.calls[0][0].create.seenAt).toBeInstanceOf(Date);
+    expect(notifications.createNotification).not.toHaveBeenCalled();
+  });
+
+  it('uses correct English ordinals', async () => {
+    await (service as any).checkAndLogMilestones('profile-1', 'servant-1', { ...stats, totalStudents: 250 }, { silent: true });
+    const labels = prisma.servantMilestone.upsert.mock.calls.map((c: any) => c[0].create.label);
+    expect(labels).toEqual(expect.arrayContaining(['10th student taught', '50th student taught', '100th student taught', '250th student taught']));
+  });
+
+  it('markMilestonesSeen only touches unseen rows of that servant', async () => {
+    prisma.servantMilestone.updateMany.mockResolvedValue({ count: 2 });
+    expect(await service.markMilestonesSeen('servant-1')).toEqual({ marked: 2 });
+    expect(prisma.servantMilestone.updateMany).toHaveBeenCalledWith({
+      where: { userId: 'servant-1', seenAt: null }, data: { seenAt: expect.any(Date) },
+    });
+  });
 });
 
 describe('getSchoolServantSummary', () => {
@@ -497,6 +583,7 @@ describe('getSchoolServantSummary', () => {
       providers: [
         ServantsService,
         { provide: StudentNotificationsService, useValue: { notify: jest.fn(), notifyOrRefresh: jest.fn() } },
+        { provide: NotificationsService, useValue: { createNotification: jest.fn() } },
         { provide: PrismaService, useValue: prismaMock },
         { provide: GamificationService, useValue: { addXp: jest.fn(), awardBadge: jest.fn() } },
       ],
@@ -557,6 +644,7 @@ describe('ServantsService.rejectLiturgy', () => {
       providers: [
         ServantsService,
         { provide: StudentNotificationsService, useValue: { notify: jest.fn(), notifyOrRefresh: jest.fn() } },
+        { provide: NotificationsService, useValue: { createNotification: jest.fn() } },
         { provide: PrismaService, useValue: prismaMock },
         { provide: GamificationService, useValue: { addXp: jest.fn(), awardBadge: jest.fn() } },
       ],
@@ -627,6 +715,7 @@ describe('toggleActive', () => {
       providers: [
         ServantsService,
         { provide: StudentNotificationsService, useValue: { notify: jest.fn() } },
+        { provide: NotificationsService, useValue: { createNotification: jest.fn() } },
         { provide: PrismaService, useValue: prismaMock },
         { provide: GamificationService, useValue: { addXp: jest.fn(), awardBadge: jest.fn() } },
       ],

@@ -5,6 +5,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { useServantProfile, useServantTimeline } from '@/components/servants/hooks'
 import { MinistryTimeline } from '@/components/servants/ministry-timeline'
+import { MilestoneCelebration, NextMilestoneBar } from '@/components/servants/milestone-celebration'
 import { ArrowLeft, Cross, Loader2, LayoutGrid, Users, Calendar, Church, Sun } from 'lucide-react'
 
 const API_ORIGIN = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api').replace('/api', '')
@@ -105,6 +106,8 @@ export default function ServantProfilePage() {
         ))}
       </div>
 
+        <MilestoneCelebration milestones={profile.newMilestones ?? []} />
+
         {/* Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
           {[
@@ -122,6 +125,7 @@ export default function ServantProfilePage() {
 
         {/* Timeline */}
         <div className="bg-white rounded-xl border border-gray-200 p-6">
+          <NextMilestoneBar next={profile.nextMilestone} />
           <h2 className="text-sm font-semibold text-gray-900 mb-4">Ministry Timeline</h2>
           <MinistryTimeline milestones={timeline || []} isLoading={timelineLoading} />
         </div>

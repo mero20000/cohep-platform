@@ -3,8 +3,12 @@ import { Cron } from '@nestjs/schedule';
 import { PrismaService } from '../../database/prisma.service';
 import { GamificationService } from '../gamification/gamification.service';
 import { StudentNotificationsService } from '../student-notifications/student-notifications.service';
+import { NotificationsService } from '../notifications/notifications.service';
 
 const SERVANT_ROLE_NAMES = ['servant', 'group_leader', 'level_leader'] as const;
+
+// Roles (besides the servant themselves) that may open another servant's profile.
+const PROFILE_VIEWER_ROLES = ['super_admin', 'admin', 'principal', 'level_leader'];
 
 export interface ServantProfileData {
   userId: string
@@ -22,13 +26,26 @@ export interface ServantProfileData {
   totalHymns: number
   totalReviews: number
   lastCalculatedAt: Date
+  nextMilestone: NextMilestone | null
+  /** Milestones the servant has not yet seen. Only populated when viewing your own profile. */
+  newMilestones?: ServantMilestoneData[]
 }
 
 export interface ServantMilestoneData {
   type: string
   threshold: number
   label: string
+  labelAr?: string | null
   reachedAt: Date
+}
+
+export interface NextMilestone {
+  type: string
+  current: number
+  target: number
+  remaining: number
+  label: string
+  labelAr: string
 }
 
 export interface GroupMate {
@@ -42,10 +59,61 @@ export interface GroupMate {
 }
 
 const MILESTONE_THRESHOLDS = {
-  years_of_service: [1, 3, 5, 10, 15, 20],
-  students_taught: [10, 50, 100, 500],
-  sessions_taught: [25, 50, 100, 250, 500],
-  hymns_covered: [10, 25, 50, 100],
+  years_of_service: [1, 3, 5, 10, 15, 20, 25, 30],
+  students_taught: [10, 50, 100, 250, 500, 1000],
+  sessions_taught: [25, 50, 100, 250, 500, 1000],
+  hymns_covered: [10, 25, 50, 100, 150, 200],
+}
+
+type MilestoneMetric = keyof typeof MILESTONE_THRESHOLDS
+
+function ordinal(n: number): string {
+  const mod100 = n % 100
+  if (mod100 >= 11 && mod100 <= 13) return `${n}th`
+  const suffix = { 1: 'st', 2: 'nd', 3: 'rd' }[n % 10] ?? 'th'
+  return `${n}${suffix}`
+}
+
+const MILESTONE_LABELS: Record<MilestoneMetric, { en: (t: number) => string; ar: (t: number) => string }> = {
+  years_of_service: {
+    en: (t) => `${t} year${t > 1 ? 's' : ''} of service`,
+    ar: (t) => `${t} ${t === 1 ? 'سنة' : t === 2 ? 'سنتان' : t <= 10 ? 'سنوات' : 'سنة'} من الخدمة`,
+  },
+  students_taught: { en: (t) => `${ordinal(t)} student taught`, ar: (t) => `الطالب رقم ${t}` },
+  sessions_taught: { en: (t) => `${ordinal(t)} session taught`, ar: (t) => `الحصة رقم ${t}` },
+  hymns_covered: { en: (t) => `${ordinal(t)} hymn covered`, ar: (t) => `التسبحة رقم ${t}` },
+}
+
+const MILESTONE_VALUE_KEY: Record<MilestoneMetric, 'yearsOfService' | 'totalStudents' | 'totalSessions' | 'totalHymns'> = {
+  years_of_service: 'yearsOfService',
+  students_taught: 'totalStudents',
+  sessions_taught: 'totalSessions',
+  hymns_covered: 'totalHymns',
+}
+
+/** Arabic label for a threshold milestone; null for types without a template (e.g. role_change). */
+function milestoneLabelAr(type: string, threshold: number): string | null {
+  return MILESTONE_LABELS[type as MilestoneMetric]?.ar(threshold) ?? null
+}
+
+/** The milestone the servant is closest to (highest progress toward the next threshold). */
+function computeNextMilestone(stats: { yearsOfService: number; totalStudents: number; totalSessions: number; totalHymns: number }): NextMilestone | null {
+  let best: (NextMilestone & { progress: number }) | null = null
+  for (const type of Object.keys(MILESTONE_THRESHOLDS) as MilestoneMetric[]) {
+    const current = stats[MILESTONE_VALUE_KEY[type]]
+    const target = MILESTONE_THRESHOLDS[type].find((t) => t > current)
+    if (target === undefined) continue
+    const progress = current / target
+    if (!best || progress > best.progress) {
+      best = {
+        type, current, target, remaining: target - current, progress,
+        label: MILESTONE_LABELS[type].en(target), labelAr: MILESTONE_LABELS[type].ar(target),
+      }
+    }
+  }
+  if (!best) return null
+  const { progress: _progress, ...next } = best
+  return next
 }
 
 @Injectable()
@@ -56,6 +124,7 @@ export class ServantsService {
     private readonly prisma: PrismaService,
     private readonly gamification: GamificationService,
     private readonly studentNotifications: StudentNotificationsService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   async listServants(
@@ -400,16 +469,29 @@ export class ServantsService {
     })
     if (!user || user.deletedAt) return null
 
-    // Check viewer is in same school
-    const viewer = await this.prisma.user.findUnique({ where: { id: viewerId } })
+    // A ministry profile is private: the servant themselves, school leadership, and level
+    // leaders (who oversee servants via My Servants) may open it, always within one school.
+    const viewer = await this.prisma.user.findUnique({
+      where: { id: viewerId },
+      include: { userRoles: { include: { role: true } } },
+    })
     if (!viewer || viewer.schoolId !== user.schoolId) return null
+    const isSelf = viewerId === userId
+    const viewerRoles = (viewer.userRoles ?? []).map((ur: any) => ur.role.name)
+    if (!isSelf && !viewerRoles.some((r: string) => PROFILE_VIEWER_ROLES.includes(r))) return null
 
     const roles = user.userRoles.map(ur => ur.role.name)
     const metadata = (user.metadata as any) || {}
 
     const profile = user.servantProfile
+    const stats = {
+      yearsOfService: profile?.yearsOfService || 0,
+      totalStudents: profile?.totalStudents || 0,
+      totalSessions: profile?.totalSessions || 0,
+      totalHymns: profile?.totalHymns || 0,
+    }
 
-    return {
+    const result: ServantProfileData = {
       userId: user.id,
       name: `${user.firstName} ${user.lastName}`,
       photoUrl: user.avatarUrl,
@@ -418,14 +500,32 @@ export class ServantsService {
       assignedGroup: profile?.currentGroupName || null,
       teachingSubjects: metadata.teachingSubjects || [],
       teachingGender: metadata.teachingGender || null,
-      yearsOfService: profile?.yearsOfService || 0,
+      ...stats,
       dateJoined: metadata.dateJoined || user.createdAt.toISOString(),
-      totalStudents: profile?.totalStudents || 0,
-      totalSessions: profile?.totalSessions || 0,
-      totalHymns: profile?.totalHymns || 0,
       totalReviews: profile?.totalReviews || 0,
       lastCalculatedAt: profile?.lastCalculatedAt || new Date(0),
+      nextMilestone: computeNextMilestone(stats),
     }
+
+    if (isSelf) {
+      const unseen = await this.prisma.servantMilestone.findMany({
+        where: { userId, seenAt: null },
+        orderBy: { reachedAt: 'asc' },
+        select: { type: true, threshold: true, label: true, reachedAt: true },
+      })
+      result.newMilestones = unseen.map((m) => ({ ...m, labelAr: milestoneLabelAr(m.type, m.threshold) }))
+    }
+
+    return result
+  }
+
+  /** Marks every pending milestone as celebrated so the banner stops showing. */
+  async markMilestonesSeen(userId: string) {
+    const { count } = await this.prisma.servantMilestone.updateMany({
+      where: { userId, seenAt: null },
+      data: { seenAt: new Date() },
+    })
+    return { marked: count }
   }
 
   async getServantTimeline(userId: string, viewerId: string): Promise<ServantMilestoneData[]> {
@@ -443,7 +543,7 @@ export class ServantsService {
       },
     })
 
-    return milestones
+    return milestones.map((m) => ({ ...m, labelAr: milestoneLabelAr(m.type, m.threshold) }))
   }
 
   async getMyServantProfile(userId: string): Promise<ServantProfileData | null> {
@@ -484,6 +584,12 @@ export class ServantsService {
         totalHymns: profile?.totalHymns || 0,
         totalReviews: profile?.totalReviews || 0,
         lastCalculatedAt: profile?.lastCalculatedAt || new Date(0),
+        nextMilestone: computeNextMilestone({
+          yearsOfService: profile?.yearsOfService || 0,
+          totalStudents: profile?.totalStudents || 0,
+          totalSessions: profile?.totalSessions || 0,
+          totalHymns: profile?.totalHymns || 0,
+        }),
       }
     })
   }
@@ -566,35 +672,50 @@ export class ServantsService {
     }
   }
 
-  private async checkAndLogMilestones(profileId: string, userId: string, stats: {
-    yearsOfService: number
-    totalStudents: number
-    totalSessions: number
-    totalHymns: number
-  }) {
-    const checks = [
-      { type: 'years_of_service', value: stats.yearsOfService, labelFn: (t: number) => `${t} year${t > 1 ? 's' : ''} of service` },
-      { type: 'students_taught', value: stats.totalStudents, labelFn: (t: number) => `${t}th student taught` },
-      { type: 'sessions_taught', value: stats.totalSessions, labelFn: (t: number) => `${t}th session taught` },
-      { type: 'hymns_covered', value: stats.totalHymns, labelFn: (t: number) => `${t}th hymn covered` },
-    ]
+  /**
+   * Logs every newly crossed milestone. A first-ever run for a servant is a silent
+   * backfill (already seen, no notification) so history doesn't arrive as a flood.
+   */
+  private async checkAndLogMilestones(
+    profileId: string,
+    userId: string,
+    stats: {
+      yearsOfService: number
+      totalStudents: number
+      totalSessions: number
+      totalHymns: number
+    },
+    opts: { schoolId?: string; silent?: boolean } = {},
+  ) {
+    const existing = await this.prisma.servantMilestone.findMany({
+      where: { userId },
+      select: { type: true, threshold: true },
+    })
+    const known = new Set(existing.map((m) => `${m.type}:${m.threshold}`))
 
-    for (const check of checks) {
-      const thresholds = MILESTONE_THRESHOLDS[check.type as keyof typeof MILESTONE_THRESHOLDS] || []
-      for (const threshold of thresholds) {
-        if (check.value >= threshold) {
-          await this.prisma.servantMilestone.upsert({
-            where: {
-              userId_type_threshold: { userId, type: check.type, threshold },
-            },
-            create: {
-              userId,
-              profileId,
-              type: check.type,
-              threshold,
-              label: check.labelFn(threshold),
-            },
-            update: {},
+    for (const type of Object.keys(MILESTONE_THRESHOLDS) as MilestoneMetric[]) {
+      const value = stats[MILESTONE_VALUE_KEY[type]]
+      for (const threshold of MILESTONE_THRESHOLDS[type]) {
+        if (value < threshold || known.has(`${type}:${threshold}`)) continue
+
+        const label = MILESTONE_LABELS[type].en(threshold)
+        await this.prisma.servantMilestone.upsert({
+          where: { userId_type_threshold: { userId, type, threshold } },
+          create: { userId, profileId, type, threshold, label, seenAt: opts.silent ? new Date() : null },
+          update: {},
+        })
+
+        if (!opts.silent && opts.schoolId) {
+          await this.notifications.createNotification({
+            schoolId: opts.schoolId,
+            userId,
+            type: 'servant_milestone',
+            title: 'A milestone in your ministry',
+            titleAr: 'محطة جديدة في خدمتك',
+            body: `${label} — thank you for your service.`,
+            bodyAr: `${MILESTONE_LABELS[type].ar(threshold)} — شكراً لخدمتك.`,
+            linkPath: `/dashboard/servants/${userId}/profile`,
+            referenceType: 'servant_milestone',
           })
         }
       }
@@ -629,6 +750,11 @@ export class ServantsService {
         const stats = await this.computeServantStats(servant.id, servant.schoolId)
         if (!stats) continue
 
+        const isFirstRun = !(await this.prisma.servantProfile.findUnique({
+          where: { userId: servant.id },
+          select: { id: true },
+        }))
+
         const profile = await this.prisma.servantProfile.upsert({
           where: { userId: servant.id },
           create: {
@@ -643,7 +769,7 @@ export class ServantsService {
           },
         })
 
-        await this.checkAndLogMilestones(profile.id, servant.id, stats)
+        await this.checkAndLogMilestones(profile.id, servant.id, stats, { schoolId: servant.schoolId, silent: isFirstRun })
 
         // Role change detection
         const roles = await this.prisma.userRole.findMany({
@@ -674,6 +800,7 @@ export class ServantsService {
                   type: 'role_change',
                   threshold: ROLE_HIERARCHY.indexOf(newRole),
                   label: ROLE_LABELS[newRole],
+                  seenAt: isFirstRun ? new Date() : null,
                 },
               })
             }

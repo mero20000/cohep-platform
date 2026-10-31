@@ -10,6 +10,7 @@ import { TableSkeleton } from '@/components/ui/skeleton'
 import { EmptyState } from '@/components/ui/empty-state'
 import { Button } from '@/components/ui/button'
 import { useToast } from '@/components/ui/toast'
+import { FollowUpControl, FollowUpDoneBadge, type FollowUpState } from '@/components/servants/follow-up-control'
 
 interface Note { category?: string; note?: string; isPrivate: boolean; createdAt: string }
 interface RosterStudent {
@@ -25,6 +26,7 @@ interface RosterStudent {
   needsFollowUp: boolean
   followUpReasons: string[]
   notes: Note[]
+  followUp?: FollowUpState | null
 }
 interface ClassOverview {
   servant: { id: string; firstName?: string; lastName?: string }
@@ -283,7 +285,9 @@ export default function MyClassPage() {
             {s.likelyAbsent && (
               <span className="rounded-full bg-red-100 px-2 py-0.5 text-[11px] font-medium text-red-700">{t('Likely absent', 'غائب غالباً')}</span>
             )}
-            {s.needsFollowUp && (
+            {s.followUp?.done ? (
+              <FollowUpDoneBadge lang={lang} />
+            ) : s.needsFollowUp && (
               <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[11px] font-medium text-blue-700">{t('Follow up', 'متابعة')}</span>
             )}
             <ChevronDown className={`h-4 w-4 text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`} />
@@ -321,6 +325,17 @@ export default function MyClassPage() {
               </ul>
             ) : (
               <p className="mt-3 text-xs text-gray-400">{t('No notes.', 'لا توجد ملاحظات.')}</p>
+            )}
+            {(s.needsFollowUp || s.likelyAbsent || s.followUp) && (
+              <FollowUpControl
+                studentId={s.studentId}
+                followUp={s.followUp}
+                lang={lang}
+                onChange={(next) => setData(prev => prev && ({
+                  ...prev,
+                  roster: prev.roster.map(r => r.studentId === s.studentId ? { ...r, followUp: next } : r),
+                }))}
+              />
             )}
             <div className="mt-4 flex gap-2">
               <Button

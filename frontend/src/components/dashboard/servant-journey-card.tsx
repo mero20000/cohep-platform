@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { useMyServantProfile } from '@/components/servants/hooks'
 import { Cross, ArrowRight } from 'lucide-react'
+import { MilestoneCelebration, NextMilestoneBar } from '@/components/servants/milestone-celebration'
 
 export function ServantJourneyCard() {
   const { data: profile, isLoading } = useMyServantProfile()
@@ -33,6 +34,8 @@ export function ServantJourneyCard() {
         <h3 className="text-sm font-semibold text-gray-900">Your Ministry Journey</h3>
       </div>
 
+      <MilestoneCelebration milestones={profile.newMilestones ?? []} />
+
       <div className="flex items-center gap-8 mb-4">
         <div className="text-center">
           <div className="text-2xl font-bold text-gray-900">{yearsOfService}</div>
@@ -47,6 +50,8 @@ export function ServantJourneyCard() {
           <div className="text-xs text-gray-500">hymns</div>
         </div>
       </div>
+
+      <NextMilestoneBar next={profile.nextMilestone} />
 
       <Link
         href={`/dashboard/servants/${profile.userId}/profile`}

@@ -58,6 +58,9 @@ export class NotificationsService {
     body: string;
     bodyAr?: string;
     channel?: string;
+    linkPath?: string;
+    referenceType?: string;
+    referenceId?: string;
   }) {
     const channel = data.channel || 'in_app';
     const notification = await this.prisma.notification.create({
@@ -70,6 +73,9 @@ export class NotificationsService {
         body: data.body,
         bodyAr: data.bodyAr,
         channel,
+        linkPath: data.linkPath,
+        referenceType: data.referenceType,
+        referenceId: data.referenceId,
         sentAt: new Date(),
         deliveredAt: new Date(),
       },

@@ -9,6 +9,7 @@ import { assetUrl } from '@/lib/asset-url'
 import { TableSkeleton } from '@/components/ui/skeleton'
 import { EmptyState } from '@/components/ui/empty-state'
 import { AudioPlayer } from '@/components/audio-player'
+import { FollowUpControl, FollowUpDoneBadge, type FollowUpState } from '@/components/servants/follow-up-control'
 
 interface Note { category?: string; note?: string; isPrivate: boolean; createdAt: string }
 interface RosterStudent {
@@ -16,6 +17,7 @@ interface RosterStudent {
   firstNameAr?: string; lastNameAr?: string; photoUrl?: string
   attendanceRate: number; lastAttendanceStatus: string | null
   likelyAbsent: boolean; needsFollowUp: boolean; followUpReasons: string[]; notes: Note[]
+  followUp?: FollowUpState | null
 }
 interface WeeklyBriefing {
   generatedAt: string
@@ -115,7 +117,11 @@ export default function BriefingPage() {
     )
   }
 
-  const flagged = (data?.roster ?? []).filter(s => s.likelyAbsent || s.needsFollowUp)
+  // Students still to follow up come first; ticked ones sink to the bottom.
+  const flagged = (data?.roster ?? [])
+    .filter(s => s.likelyAbsent || s.needsFollowUp || s.followUp?.done)
+    .sort((a, b) => Number(a.followUp?.done ?? false) - Number(b.followUp?.done ?? false))
+  const doneCount = flagged.filter(s => s.followUp?.done).length
   const copticLabel = data?.coptic
     ? lang === 'ar'
       ? `${data.coptic.coptic.day} ${data.coptic.coptic.monthNameAr} ${data.coptic.coptic.year}`
@@ -299,6 +305,11 @@ export default function BriefingPage() {
         <h3 className="flex items-center gap-1.5 text-sm font-semibold text-gray-700">
           <AlertTriangle className="h-4 w-4 text-amber-500" />
           {t('Follow up before Sunday', 'متابعة قبل الأحد')}
+          {flagged.length > 0 && (
+            <span className="text-xs font-normal text-gray-500">
+              {t(`${doneCount} of ${flagged.length} done`, `${doneCount} من ${flagged.length} تمت`)}
+            </span>
+          )}
         </h3>
         <Link href="/dashboard/my-class" className="text-xs font-medium text-blue-700 hover:text-blue-800">
           {t('View full class →', 'عرض الفصل كاملاً →')}
@@ -317,7 +328,7 @@ export default function BriefingPage() {
           {flagged.map(s => {
             const open = openStudent === s.studentId
             return (
-              <div key={s.studentId} className="rounded-xl border border-amber-200 bg-white">
+              <div key={s.studentId} className={`rounded-xl border bg-white ${s.followUp?.done ? 'border-emerald-200 opacity-75' : 'border-amber-200'}`}>
                 <button type="button" onClick={() => setOpenStudent(open ? null : s.studentId)} className="flex w-full items-center gap-3 p-3 text-start">
                   <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-gray-100 text-gray-500">
                     {s.photoUrl ? (
@@ -337,9 +348,10 @@ export default function BriefingPage() {
                           {REASON_LABEL[r] ? (lang === 'ar' ? REASON_LABEL[r].ar : REASON_LABEL[r].en) : r}
                         </span>
                       ))}
-                      {s.likelyAbsent && (
+                      {s.likelyAbsent && !s.followUp?.done && (
                         <span className="rounded-full bg-red-100 px-2 py-0.5 text-[11px] font-medium text-red-700">{t('Likely absent', 'غائب غالباً')}</span>
                       )}
+                      {s.followUp?.done && <FollowUpDoneBadge lang={lang} />}
                     </div>
                   </div>
                   <ChevronDown className={`h-4 w-4 text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`} />
@@ -357,6 +369,15 @@ export default function BriefingPage() {
                     ) : (
                       <p className="text-xs text-gray-400">{t('No notes.', 'لا توجد ملاحظات.')}</p>
                     )}
+                    <FollowUpControl
+                      studentId={s.studentId}
+                      followUp={s.followUp}
+                      lang={lang}
+                      onChange={(next) => setData(prev => prev && ({
+                        ...prev,
+                        roster: prev.roster.map(r => r.studentId === s.studentId ? { ...r, followUp: next } : r),
+                      }))}
+                    />
                   </div>
                 )}
               </div>

@@ -505,12 +505,21 @@ export default function ReportsPage() {
   const t = (en: string, ar: string) => lang === 'ar' ? ar : en
   const schoolId = getSchoolId()
   const [activeTab, setActiveTab] = useState<'pulse' | 'liturgical' | 'servants'>('pulse')
+  // The servant report profiles other servants' activity, so it is leadership-only (the API enforces it too).
+  const [canSeeServantReport, setCanSeeServantReport] = useState(false)
+  useEffect(() => {
+    try {
+      const roles: string[] = JSON.parse(localStorage.getItem('user') || '{}').roles || []
+      setCanSeeServantReport(roles.some(r => ['super_admin', 'admin', 'principal'].includes(r)))
+    } catch {}
+  }, [])
 
-  const tabs = [
+  const allTabs = [
     { id: 'pulse' as const,      label: t('Priest Pulse', 'نبض الكاهن'),      icon: Church,    description: t('30-second school health overview', 'نظرة سريعة على صحة المدرسة') },
     { id: 'liturgical' as const, label: t('Liturgical Seasons', 'المواسم الليتورجية'), icon: Calendar,  description: t('Engagement overlaid on the Coptic calendar', 'المشاركة على التقويم القبطي') },
     { id: 'servants' as const,   label: t('Servant Report', 'تقرير الخدام'),   icon: Award,     description: t('Appreciation-framed contributions', 'مساهمات معروضة بتقدير') },
   ]
+  const tabs = allTabs.filter(tab => tab.id !== 'servants' || canSeeServantReport)
 
   return (
     <div className="space-y-6">
@@ -553,7 +562,7 @@ export default function ReportsPage() {
       {/* Tab content */}
       {activeTab === 'pulse' && <PriestPulseSection schoolId={schoolId} lang={lang} />}
       {activeTab === 'liturgical' && <LiturgicalEngagementSection schoolId={schoolId} lang={lang} />}
-      {activeTab === 'servants' && <ServantContributionsSection schoolId={schoolId} lang={lang} />}
+      {activeTab === 'servants' && canSeeServantReport && <ServantContributionsSection schoolId={schoolId} lang={lang} />}
     </div>
   )
 }
