@@ -9,8 +9,10 @@ import { mockApi, type MockApi } from '../support/mock-api'
 
 const TAP_MIN = 44
 
+// Animations are fast-forwarded and carets hidden so the same screen gives the same pixels run to run
+// (a menu caught mid-slide made screenshot comparisons useless).
 const shot = (page: Page, project: string, name: string) =>
-  page.screenshot({ path: `e2e/screenshots/${project}/${name}.png`, fullPage: false })
+  page.screenshot({ path: `e2e/screenshots/${project}/${name}.png`, fullPage: false, animations: 'disabled', caret: 'hide' })
 
 /** The page must never scroll sideways. */
 async function expectNoHorizontalOverflow(page: Page) {
@@ -113,7 +115,7 @@ for (const lang of ['en', 'ar'] as const) {
         await expectNoHorizontalOverflow(page)
 
         // Scroll to the middle of the list, where the sticky bar used to slide under the nav.
-        await page.evaluate(() => window.scrollTo(0, Math.max(0, document.body.scrollHeight / 2)))
+        await page.evaluate(() => window.scrollTo(0, 1500))
         await page.waitForTimeout(300)
 
         const save = page.getByRole('button', { name: /^(save|حفظ)$/i })

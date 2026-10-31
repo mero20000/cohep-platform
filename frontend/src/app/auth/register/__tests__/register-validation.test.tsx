@@ -8,7 +8,7 @@ vi.mock('@/lib/use-language', () => ({ useLanguage: () => lang.current }))
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }) }))
 vi.mock('next/image', () => ({
   default: ({ alt = '', ...rest }: Record<string, unknown>) => (
-    // eslint-disable-next-line @next/next/no-img-element, jsx-a11y/alt-text
+    // eslint-disable-next-line @next/next/no-img-element
     <img alt={alt as string} {...rest} />
   ),
 }))
