@@ -1,3 +1,6 @@
+import { loadAttendanceTrend } from '../attendance/attendance-trend';
+import { findAtRiskStudents } from '../attendance/absence-risk';
+import { computeHealthScore } from './health-score';
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 import { SchoolResolver } from '../../common/utils/school-resolver';
@@ -16,46 +19,19 @@ export class ReportsService {
     const schoolId = await this.schoolResolver.resolve(schoolIdentifier);
     const today = new Date();
     const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
-    const twoWeeksAgo = new Date(today.getTime() - 14 * 24 * 60 * 60 * 1000);
 
-    const calcRate = (sessions: any[]) => {
-      const all = sessions.flatMap((s: any) => s.attendanceRecords);
-      if (!all.length) return 0;
-      return attendanceRate(all);
-    };
-
-    const [thisWeekSessions, lastWeekSessions] = await Promise.all([
-      this.prisma.attendanceSession.findMany({
-        where: { schoolId, type: 'class', scheduledDate: { gte: weekAgo }, deletedAt: null },
-        include: { attendanceRecords: { select: { status: true } } },
-      }),
-      this.prisma.attendanceSession.findMany({
-        where: { schoolId, type: 'class', scheduledDate: { gte: twoWeeksAgo, lt: weekAgo }, deletedAt: null },
-        include: { attendanceRecords: { select: { status: true } } },
-      }),
+    // Attendance and "at risk" come from the same shared code as the dashboard headline and the servant alerts,
+    // so every screen agrees. A null rate means no class was held in that window (not 0%).
+    const [trend, atRiskMap, totalActiveStudents] = await Promise.all([
+      loadAttendanceTrend(this.prisma, schoolId),
+      findAtRiskStudents(this.prisma, schoolId),
+      this.prisma.student.count({ where: { schoolId, deletedAt: null, status: 'active' } }),
     ]);
-
-    const attendanceThisWeek = calcRate(thisWeekSessions);
-    const attendanceLastWeek = calcRate(lastWeekSessions);
-
-    // Students at risk: 3+ consecutive absences
-    const allStudents = await this.prisma.student.findMany({
-      where: { schoolId, deletedAt: null },
-      select: { id: true, firstName: true, lastName: true, firstNameAr: true, lastNameAr: true },
-    });
-
-    let atRiskCount = 0;
-    for (const student of allStudents) {
-      const last3 = await this.prisma.attendanceRecord.findMany({
-        where: { studentId: student.id },
-        orderBy: { createdAt: 'desc' },
-        take: 3,
-        select: { status: true },
-      });
-      if (last3.length >= 3 && last3.every((r: any) => r.status === 'absent')) {
-        atRiskCount++;
-      }
-    }
+    const attendanceThisWeek = trend[trend.length - 1].rate;
+    const attendanceLastWeek = trend[trend.length - 2].rate;
+    const attendanceDelta =
+      attendanceThisWeek !== null && attendanceLastWeek !== null ? attendanceThisWeek - attendanceLastWeek : null;
+    const atRiskCount = atRiskMap.size;
 
     // Assessments pending grading
     const pendingGrading = await this.prisma.assessmentSubmission.count({
@@ -88,12 +64,12 @@ export class ReportsService {
       },
     });
 
-    const healthScore = Math.min(100, Math.round(
-      (attendanceThisWeek * 0.5) +
-      (pendingGrading === 0 ? 20 : Math.max(0, 20 - pendingGrading * 2)) +
-      (atRiskCount === 0 ? 20 : Math.max(0, 20 - atRiskCount * 4)) +
-      (familyPractice > 0 ? 10 : 0),
-    ));
+    const health = computeHealthScore({
+      attendanceRate: attendanceThisWeek,
+      pendingGrading,
+      studentsAtRisk: atRiskCount,
+      familiesPracticedThisWeek: familyPractice,
+    });
 
     const signals: any[] = [];
     if (atRiskCount > 0) {
@@ -110,11 +86,11 @@ export class ReportsService {
         messageAr: pendingGrading + ' تقييم' + (pendingGrading > 1 ? ' ينتظران' : ' ينتظر') + ' التصحيح.',
       });
     }
-    if (attendanceThisWeek - attendanceLastWeek >= 5) {
+    if (attendanceDelta !== null && attendanceDelta >= 5) {
       signals.push({
         type: 'success',
-        messageEn: 'Attendance improved ' + (attendanceThisWeek - attendanceLastWeek) + '% this week — a great sign.',
-        messageAr: 'تحسّن الحضور ' + (attendanceThisWeek - attendanceLastWeek) + '٪ هذا الأسبوع — علامة رائعة.',
+        messageEn: 'Attendance improved ' + attendanceDelta + '% this week — a great sign.',
+        messageAr: 'تحسّن الحضور ' + attendanceDelta + '٪ هذا الأسبوع — علامة رائعة.',
       });
     }
     if (familyPractice > 0) {
@@ -131,14 +107,16 @@ export class ReportsService {
       pulse: {
         attendanceThisWeek,
         attendanceLastWeek,
-        attendanceTrend: attendanceThisWeek - attendanceLastWeek,
+        attendanceTrend: attendanceDelta,
+        attendanceTrendPoints: trend,
         studentsAtRisk: atRiskCount,
         pendingGrading,
         xpEarnedThisWeek: xpThisWeek,
         familyPracticeThisWeek: familyPractice,
-        totalStudents: allStudents.length,
+        totalStudents: totalActiveStudents,
         activeStudentsThisWeek: activeThisWeek.length,
-        healthScore,
+        healthScore: health.score,
+        healthBreakdown: health.components,
       },
       signals,
     };

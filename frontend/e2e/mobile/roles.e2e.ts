@@ -182,6 +182,107 @@ for (const lang of ['en', 'ar'] as const) {
       await expect(noPhoto.locator('img')).toHaveCount(0)
     })
 
+    test.describe('KPI headline numbers', () => {
+      const admin = () => ROLES.find((r) => r.key === 'admin')!
+      const tile = (page: Page, name: RegExp) => page.getByRole('listitem').filter({ hasText: name })
+
+      test('Admin: attendance is the last 7 days with the change from the previous 7', async ({ page }) => {
+        await setLanguage(page, lang)
+        await mockApi(page, admin())
+        await openDashboard(page)
+
+        const attendance = tile(page, /Attendance · 7 days|الحضور · 7 أيام/)
+        await expect(attendance).toContainText('82%')
+        // 82% now vs 78% before: +4 points, stated as a change, not as a bare number.
+        await expect(attendance).toContainText(lang === 'ar' ? '▲ 4 عن الأسبوع السابق' : '▲ 4 vs previous 7 days')
+      })
+
+      test('Admin: a week with no class shows a dash, never 0%', async ({ page }) => {
+        await setLanguage(page, lang)
+        await mockApi(page, admin(), {
+          stats: {
+            attendanceRate: null, attendancePrevRate: null,
+            attendanceTrend: Array.from({ length: 8 }, (_, i) => ({ weekStart: `2026-09-${String(6 + i).padStart(2, '0')}`, rate: null, decided: 0 })),
+          },
+        })
+        await openDashboard(page)
+
+        const attendance = tile(page, /Attendance · 7 days|الحضور · 7 أيام/)
+        await expect(attendance).toContainText('—')
+        await expect(attendance).toContainText(lang === 'ar' ? 'لا حصص هذا الأسبوع' : 'No class this week')
+        await expect(attendance).not.toContainText('0%')
+        // The trend card says so too, instead of drawing empty bars.
+        await expect(page.getByText(lang === 'ar' ? 'لم يُسجَّل حضور في آخر 8 أسابيع' : 'No attendance recorded in the last 8 weeks')).toBeVisible()
+      })
+
+      test('Admin: the at-risk tile opens exactly the students it counts, and can be cleared', async ({ page }) => {
+        await setLanguage(page, lang)
+        const api = await mockApi(page, admin())
+        await openDashboard(page)
+
+        const atRisk = page.getByRole('link', { name: /At risk|في خطر/ })
+        // A real link whose accessible name carries the number, so it is announced as "At risk: 3. Missed 3+ in a row".
+        await expect(atRisk).toHaveAttribute('aria-label', /3/)
+        await expect(atRisk).toHaveAttribute('href', '/dashboard/students?engagement=at_risk')
+
+        const narrowed = page.waitForRequest((r) => r.url().includes('/api/students?') && r.url().includes('engagementStatus=at_risk'))
+        await atRisk.click()
+        await narrowed
+        const banner = page.getByRole('status').filter({ hasText: lang === 'ar' ? 'طلاب في خطر' : 'Students at risk' })
+        await expect(banner).toBeVisible()
+
+        // Clearing returns to the whole school, and the request no longer carries the filter.
+        const widened = page.waitForRequest((r) => r.url().includes('/api/students?') && !r.url().includes('engagementStatus'))
+        await banner.getByRole('button', { name: lang === 'ar' ? 'عرض كل الطلاب' : 'Show all students' }).click()
+        await widened
+        await expect(banner).toHaveCount(0)
+        expect(api.errors, 'uncaught runtime errors').toEqual([])
+      })
+
+      test('Admin: the trend chart shows rates, with the latest week called out', async ({ page }, info) => {
+        await setLanguage(page, lang)
+        await mockApi(page, admin())
+        await openDashboard(page)
+
+        const chart = page.getByRole('img', { name: lang === 'ar' ? /نسبة الحضور لآخر 8 أسابيع/ : /Attendance rate for the last 8 weeks/ })
+        await chart.scrollIntoViewIfNeeded()
+        await expect(chart).toBeVisible()
+        await expect(chart).toHaveAttribute('aria-label', lang === 'ar' ? /82٪/ : /82%/)
+        await shot(page, info.project.name, `${lang}-admin-attendance-trend`)
+      })
+
+      test('Reports: the school health score shows its working', async ({ page }, info) => {
+        await setLanguage(page, lang)
+        await mockApi(page, admin())
+        await page.goto('/dashboard/reports')
+        await expect(page.getByText('77', { exact: true }).first()).toBeVisible()
+
+        await page.getByText(lang === 'ar' ? 'كيف تُحسب؟' : 'How is this calculated?').click()
+        const breakdown = page.locator('details li')
+        await expect(breakdown).toHaveCount(5) // four components and the explanation
+        await expect(breakdown.nth(0)).toContainText('41/50')
+        await expect(breakdown.nth(2)).toContainText('8/20')
+        await shot(page, info.project.name, `${lang}-admin-health-breakdown`)
+
+        // The at-risk card opens the list it counts.
+        const card = page.getByRole('link', { name: lang === 'ar' ? /طلاب في خطر/ : /Students At Risk/ })
+        await expect(card).toHaveAttribute('href', '/dashboard/students?engagement=at_risk')
+      })
+    })
+
+    test('Admin: a student opens from the list with the keyboard (the name is the button)', async ({ page }) => {
+      await setLanguage(page, lang)
+      await mockApi(page, ROLES.find((r) => r.key === 'admin')!)
+      await page.goto('/dashboard/students')
+
+      const name = page.getByRole('button', { name: 'Mina Girgis', exact: true }).first()
+      await expect(name).toBeVisible()
+      await name.focus()
+      await expect(name).toBeFocused()
+      await page.keyboard.press('Enter')
+      await expect(page.getByRole('dialog')).toBeVisible()
+    })
+
     test('Parent: sees only Dashboard and My Children in the bottom nav', async ({ page }) => {
       await setLanguage(page, lang)
       await mockApi(page, ROLES.find((r) => r.key === 'parent')!)

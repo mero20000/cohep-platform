@@ -43,26 +43,28 @@ import { AnimatedChartTooltip } from '@/components/ui/animated-chart-tooltip'
 interface GradeDistItem { grade: string; count: number }
 interface StudentsPerLevel { levelName: string; count: number }
 interface StudentsByStatus { status: string; count: number }
-interface AssessmentStatItem { gradedCount: number; passCount: number; passRate: number; avgGradeScore: number }
+interface AssessmentStatItem { gradedCount: number; passCount: number; passRate: number; avgGradeScore: number; recent: { windowDays: number; gradedCount: number; passRate: number | null } }
 interface AssessmentsByStatus { status: string; count: number }
 interface RecentGrade { id: string; studentName: string; studentPhotoUrl: string | null; assessmentTitle: string; assessmentId: string; score: number; maxScore: number; passed: boolean; gradedAt: string }
 
+interface AttendanceTrendPoint { weekStart: string; rate: number | null; decided: number }
 interface DashboardData {
  totalStudents: number; totalLevels: number; totalLessons: number; totalAllocations: number;
  totalChurches: number; totalUsers: number; totalBadges: number; activeStudents: number;
- publishedAssessments: number; totalAssessments: number; attendanceRate: number;
+ publishedAssessments: number; totalAssessments: number;
+ /** Last 7 days; null = no class was held (shown as a dash, never 0%). */
+ attendanceRate: number | null; attendancePrevRate: number | null; attendanceTrend: AttendanceTrendPoint[]; studentsAtRisk: number;
  completedSessions: number; gradeDistribution: GradeDistItem[]; studentsPerLevel: StudentsPerLevel[];
  studentsByStatus: StudentsByStatus[]; studentsWithoutGrade: number;
  assessmentsByStatus: AssessmentsByStatus[]; assessmentStats: AssessmentStatItem;
  recentGrades: RecentGrade[]; recentActivity: ActivityItem[];
- upcomingSessions: UpcomingSession[]; topStudents: TopStudent[]; weeklyStats: WeeklyStat[];
+ upcomingSessions: UpcomingSession[]; topStudents: TopStudent[];
  school: { name: string; nameAr: string; logoUrl: string | null } | null
 }
 
 interface ActivityItem { id: string; action: string; entityType: string; createdAt: string; user?: { firstName: string; lastName: string } | null }
 interface UpcomingSession { id: string; scheduledDate: string; status: string; level: { name: string; number?: number } | null; group: { id: string; name: string } | null; servant: { firstName: string; lastName: string } | null }
 interface TopStudent { rank: number; id: string; firstName: string; lastName: string; photoUrl: string | null; level: number; levelName: string; xp: number; badgeCount: number }
-interface WeeklyStat { scheduledDate: string; status: string; _count: { attendanceRecords: number } }
 
 interface PrimaryData {
   stats: DashboardData
@@ -91,12 +93,12 @@ interface GroupMate {
 const EMPTY_STATS: DashboardData = {
  totalStudents: 0, totalLevels: 0, totalLessons: 0, totalAllocations: 0,
  totalChurches: 0, totalUsers: 0, totalBadges: 0, activeStudents: 0,
- publishedAssessments: 0, totalAssessments: 0, attendanceRate: 0,
+ publishedAssessments: 0, totalAssessments: 0, attendanceRate: null, attendancePrevRate: null, attendanceTrend: [], studentsAtRisk: 0,
  completedSessions: 0, gradeDistribution: [], studentsPerLevel: [],
  studentsByStatus: [], studentsWithoutGrade: 0, assessmentsByStatus: [],
- assessmentStats: { gradedCount: 0, passCount: 0, passRate: 0, avgGradeScore: 0 },
+ assessmentStats: { gradedCount: 0, passCount: 0, passRate: 0, avgGradeScore: 0, recent: { windowDays: 90, gradedCount: 0, passRate: null } },
  recentGrades: [], recentActivity: [], upcomingSessions: [], topStudents: [],
- weeklyStats: [], school: null,
+ school: null,
 }
 
 function formatDate(dateStr: string, locale = 'en-GB') { return new Date(dateStr).toLocaleDateString(locale, { day: '2-digit', month: 'short', year: 'numeric' }) }
@@ -275,6 +277,12 @@ function ServantSectionFallback() {
 
 // ── Section components ─────────────────────────────────────────────
 
+interface HeroTile {
+  label: string; labelAr: string; value: number | null; suffix?: string; icon: React.ComponentType<{ className?: string }>
+  /** Change versus the previous period, in points. */
+  delta?: number | null; note?: string; noteAr?: string; href?: string
+}
+
 function HeroSection({ stats, churchLogo, churchName, loading }: { stats: DashboardData | null; churchLogo: string | null; churchName: string; loading: boolean }) {
   const lang = useLanguage()
   const { effectiveRole, isSuperAdmin } = useActiveRole()
@@ -330,37 +338,81 @@ function HeroSection({ stats, churchLogo, churchName, loading }: { stats: Dashbo
   const nextSession = s.upcomingSessions?.[0] || null
   const nextLabel = nextSession ? new Date(nextSession.scheduledDate).toLocaleDateString(isRTL ? 'ar-EG' : 'en-GB', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : ''
 
-  const heroStats = isSuperAdmin
-    ? ([
+  // Attendance is the last 7 days (not just today) and says so; a week with no class is a dash, never 0%.
+  const attendanceDelta = s.attendanceRate != null && s.attendancePrevRate != null ? s.attendanceRate - s.attendancePrevRate : null
+  const attendanceTile: HeroTile = {
+    label: 'Attendance · 7 days', labelAr: 'الحضور · 7 أيام', value: s.attendanceRate ?? null, suffix: '%', icon: UserCheck,
+    delta: attendanceDelta,
+    note: s.attendanceRate == null ? 'No class this week' : undefined, noteAr: s.attendanceRate == null ? 'لا حصص هذا الأسبوع' : undefined,
+  }
+  // The at-risk count opens the students it counts.
+  const atRiskTile: HeroTile = {
+    label: 'At risk', labelAr: 'في خطر', value: s.studentsAtRisk ?? 0, icon: AlertTriangle,
+    note: 'Missed 3+ in a row', noteAr: 'غابوا 3+ متتالية', href: '/dashboard/students?engagement=at_risk',
+  }
+  // Recent pass rate (last 90 days); an old weak term no longer drags a good one down.
+  const passTile: HeroTile = {
+    label: 'Pass rate · 90 days', labelAr: 'النجاح · 90 يوماً', value: s.assessmentStats?.recent?.passRate ?? null, suffix: '%', icon: TrendingUp,
+    note: s.assessmentStats?.recent?.passRate == null ? 'Nothing graded lately' : undefined, noteAr: s.assessmentStats?.recent?.passRate == null ? 'لا تصحيح مؤخراً' : undefined,
+  }
+  const heroStats: HeroTile[] = isSuperAdmin
+    ? [
         { label: 'Churches', labelAr: 'الكنائس', value: s.totalChurches ?? 0, icon: Church },
         { label: 'Active Students', labelAr: 'الطلاب النشطون', value: s.activeStudents ?? 0, icon: Users },
-        { label: 'Attendance', labelAr: 'الحضور', value: s.attendanceRate ?? 0, suffix: '%', icon: UserCheck },
-        { label: 'Assessments', labelAr: 'التقييمات', value: s.publishedAssessments ?? 0, icon: ClipboardCheck },
-        { label: 'Pass Rate', labelAr: 'نسبة النجاح', value: s.assessmentStats?.passRate ?? 0, suffix: '%', icon: TrendingUp },
-      ] as const)
-    : ([
+        attendanceTile,
+        atRiskTile,
+        passTile,
+      ]
+    : [
         { label: 'Active Students', labelAr: 'الطلاب النشطون', value: s.activeStudents ?? 0, icon: Users },
-        { label: 'Attendance', labelAr: 'الحضور', value: s.attendanceRate ?? 0, suffix: '%', icon: UserCheck },
-        { label: 'Levels', labelAr: 'المستويات', value: s.totalLevels ?? 0, icon: Layers },
+        attendanceTile,
+        atRiskTile,
         { label: 'Assessments', labelAr: 'التقييمات', value: s.publishedAssessments ?? 0, icon: ClipboardCheck },
-        { label: 'Pass Rate', labelAr: 'نسبة النجاح', value: s.assessmentStats?.passRate ?? 0, suffix: '%', icon: TrendingUp },
-      ] as const)
+        passTile,
+      ]
   const statsGrid = (
     <div className="grid grid-cols-2 gap-2.5 sm:gap-3 sm:grid-cols-5" role="list">
-      {heroStats.map((item, idx) => (
-        <div key={item.label} role="listitem" tabIndex={0} className={`group relative overflow-hidden rounded-2xl bg-white/6 border border-white/10 backdrop-blur-xs px-3.5 py-3 sm:px-4 sm:py-3 hover:bg-white/9 hover:border-white/15 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-gold-400/40 focus-visible:ring-offset-0 transition-all duration-300 ${idx === 4 ? 'col-span-2 sm:col-span-1' : ''}`}>
-          <div className="absolute inset-x-0 top-0 h-px bg-linear-to-r from-transparent via-gold-400/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-          <div className="flex items-center gap-1.5 mb-1.5">
-            <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-white/10 border border-white/10">
-              <item.icon className="h-3.5 w-3.5 text-gold-200" />
-            </span>
-            <span className="text-xs sm:text-xs font-medium text-white/75 tracking-wide">{lang === 'ar' ? (item as any).labelAr : item.label}</span>
+      {heroStats.map((item, idx) => {
+        const body = (
+          <>
+            <div className="absolute inset-x-0 top-0 h-px bg-linear-to-r from-transparent via-gold-400/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+            <div className="flex items-center gap-1.5 mb-1.5">
+              <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-white/10 border border-white/10">
+                <item.icon className="h-3.5 w-3.5 text-gold-200" aria-hidden="true" />
+              </span>
+              <span className="text-xs sm:text-xs font-medium text-white/75 tracking-wide">{lang === 'ar' ? item.labelAr : item.label}</span>
+            </div>
+            <div className="text-xl sm:text-xl font-bold text-white tracking-tight">
+              {item.value === null
+                ? <span aria-label={lang === 'ar' ? 'لا توجد بيانات' : 'No data'}>—</span>
+                : <AnimatedCounter value={item.value} suffix={item.suffix ?? ''} />}
+            </div>
+            {item.delta != null && item.delta !== 0 && (
+              <div className={`mt-0.5 text-xs font-medium ${item.delta > 0 ? 'text-emerald-300' : 'text-red-300'}`}>
+                {item.delta > 0 ? '▲' : '▼'} {Math.abs(item.delta)} {lang === 'ar' ? 'عن الأسبوع السابق' : 'vs previous 7 days'}
+              </div>
+            )}
+            {item.note && <div className="mt-0.5 text-xs text-white/70">{lang === 'ar' ? item.noteAr : item.note}</div>}
+          </>
+        )
+        const cls = `group relative overflow-hidden rounded-2xl bg-white/6 border border-white/10 backdrop-blur-xs px-3.5 py-3 sm:px-4 sm:py-3 hover:bg-white/9 hover:border-white/15 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-gold-400/40 focus-visible:ring-offset-0 transition-all duration-300 ${idx === 4 ? 'col-span-2 sm:col-span-1' : ''}`
+        // A tile that goes somewhere keeps its list-item role and carries a stretched overlay link, so assistive
+        // technology still announces a link (an <a role="listitem"> would stop being one).
+        const label = lang === 'ar' ? item.labelAr : item.label
+        const note = lang === 'ar' ? item.noteAr : item.note
+        return (
+          <div key={item.label} role="listitem" tabIndex={item.href ? undefined : 0} className={cls}>
+            {body}
+            {item.href && (
+              <Link
+                href={item.href}
+                aria-label={`${label}: ${item.value ?? '—'}${note ? `. ${note}` : ''}`}
+                className="absolute inset-0 z-10 rounded-2xl focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-gold-400/70"
+              />
+            )}
           </div>
-          <div className="text-xl sm:text-xl font-bold text-white tracking-tight">
-            <AnimatedCounter value={item.value} suffix={'suffix' in item ? (item as any).suffix || '' : ''} />
-          </div>
-        </div>
-      ))}
+        )
+      })}
     </div>
   )
 
@@ -444,12 +496,12 @@ function StatsSection({ stats, loading }: { stats: DashboardData | null; loading
       subtitle={lang === 'ar' ? `${s.activeStudents ?? 0} نشط · ${s.studentsByStatus?.find(x => x.status === 'inactive')?.count ?? 0} غير نشط` : `${s.activeStudents ?? 0} active · ${s.studentsByStatus?.find(x => x.status === 'inactive')?.count ?? 0} inactive`} />
     </motion.div>
     <motion.div whileHover={reduce ? undefined : { y: -4, transition: { duration: 0.2 } }} whileTap={reduce ? undefined : { y: -2 }}>
-     <StatCard delay={reduce ? 0 : 0.05} label={lang === 'ar' ? 'الحضور' : 'Attendance'} value={`${s.attendanceRate ?? 0}%`} icon={UserCheck} iconBg="bg-linear-to-br from-emerald-50 to-emerald-100" iconColor="text-emerald-600"
+     <StatCard delay={reduce ? 0 : 0.05} label={lang === 'ar' ? 'الحضور (7 أيام)' : 'Attendance (7 days)'} value={s.attendanceRate == null ? '—' : `${s.attendanceRate}%`} icon={UserCheck} iconBg="bg-linear-to-br from-emerald-50 to-emerald-100" iconColor="text-emerald-600"
       subtitle={lang === 'ar' ? `${s.completedSessions ?? 0} جلسة مكتملة` : `${s.completedSessions ?? 0} sessions completed`} />
     </motion.div>
     <motion.div whileHover={reduce ? undefined : { y: -4, transition: { duration: 0.2 } }} whileTap={reduce ? undefined : { y: -2 }}>
-     <StatCard delay={reduce ? 0 : 0.1} label={lang === 'ar' ? 'نسبة النجاح' : 'Pass Rate'} value={`${s.assessmentStats?.passRate ?? 0}%`} icon={TrendingUp} iconBg="bg-linear-to-br from-purple-50 to-purple-100" iconColor="text-purple-600"
-      subtitle={lang === 'ar' ? `${s.assessmentStats?.gradedCount ?? 0} مصحح` : `${s.assessmentStats?.gradedCount ?? 0} graded`} />
+     <StatCard delay={reduce ? 0 : 0.1} label={lang === 'ar' ? 'نسبة النجاح (90 يوماً)' : 'Pass Rate (90 days)'} value={s.assessmentStats?.recent?.passRate == null ? '—' : `${s.assessmentStats.recent.passRate}%`} icon={TrendingUp} iconBg="bg-linear-to-br from-purple-50 to-purple-100" iconColor="text-purple-600"
+      subtitle={lang === 'ar' ? `${s.assessmentStats?.recent?.gradedCount ?? 0} مصحح · ${s.assessmentStats?.gradedCount ?? 0} إجمالاً` : `${s.assessmentStats?.recent?.gradedCount ?? 0} graded · ${s.assessmentStats?.gradedCount ?? 0} all time`} />
     </motion.div>
     <motion.div whileHover={reduce ? undefined : { y: -4, transition: { duration: 0.2 } }} whileTap={reduce ? undefined : { y: -2 }}>
      <StatCard delay={reduce ? 0 : 0.15} label={lang === 'ar' ? 'الشارات المكتسبة' : 'Badges Earned'} value={s.totalBadges ?? 0} icon={Award} iconBg="bg-linear-to-br from-amber-50 to-amber-100" iconColor="text-amber-600"
@@ -459,76 +511,72 @@ function StatsSection({ stats, loading }: { stats: DashboardData | null; loading
  )
 }
 
+function TrendTooltip({ active, payload, lang }: { active?: boolean; payload?: Array<{ payload: { label: string; rate: number | null; decided: number } }>; lang: string }) {
+  const point = active && payload && payload.length > 0 ? payload[0].payload : null
+  if (!point || point.rate === null) return null
+  return (
+    <div className="rounded-lg border border-gray-200 bg-white px-3 py-2 shadow-lg">
+      <p className="text-xs font-medium text-gray-500 mb-1">{lang === 'ar' ? `7 أيام تبدأ ${point.label}` : `7 days from ${point.label}`}</p>
+      <p className="text-sm font-semibold text-gray-900">{point.rate}%</p>
+      <p className="text-xs text-gray-500">{lang === 'ar' ? `${point.decided} سجل حضور` : `${point.decided} marked`}</p>
+    </div>
+  )
+}
+
+/** Attendance rate for each of the last 8 rolling 7-day windows (not record counts). */
 function AttendanceChartSection({ stats, loading }: { stats: DashboardData | null; loading: boolean }) {
   const lang = useLanguage()
   const reduce = useReducedMotion()
-  const [hoveredBar, setHoveredBar] = useState<number | null>(null)
   if (loading && !stats) return <SectionFallback />
   const s = stats ?? EMPTY_STATS
-  const weeklyStatsKey = JSON.stringify(s.weeklyStats)
-  if (!s.weeklyStats?.length) return null
+  const trend = s.attendanceTrend ?? []
+  const hasData = trend.some(p => p.rate !== null)
+  if (!hasData) {
+    return (
+      <div className="p-5">
+        <EmptyState size="sm" title={lang === 'ar' ? 'لم يُسجَّل حضور في آخر 8 أسابيع' : 'No attendance recorded in the last 8 weeks'} />
+      </div>
+    )
+  }
 
-const dayLocale = lang === 'ar' ? 'ar-EG' : 'en-GB'
-  const dayMap = new Map<string, number>()
-  s.weeklyStats.forEach(item => {
-    const d = new Date(item.scheduledDate).toLocaleDateString(dayLocale, { weekday: 'short' })
-    dayMap.set(d, (dayMap.get(d) || 0) + item._count.attendanceRecords)
-  })
-  const data = Array.from(dayMap.keys()).map(day => ({ day, count: dayMap.get(day) || 0 }))
-  const total = s.weeklyStats.reduce((a, item) => a + item._count.attendanceRecords, 0)
-  const completed = s.weeklyStats.filter(item => item.status === 'completed').length
-
+  const dayLocale = lang === 'ar' ? 'ar-EG' : 'en-GB'
+  const data = trend.map(p => ({
+    label: new Date(`${p.weekStart}T12:00:00`).toLocaleDateString(dayLocale, { day: 'numeric', month: 'short' }),
+    rate: p.rate,
+    decided: p.decided,
+  }))
+  const latest = trend[trend.length - 1]
+  const previous = trend[trend.length - 2]
+  const change = latest.rate !== null && previous.rate !== null ? latest.rate - previous.rate : null
   const GOLD = '#c9a030'
-  const BLUE = '#3b82f6'
+  const BLUE = '#93c5fd'
 
   return (
     <div className="p-5">
-      <div className="h-64">
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={weeklyStatsKey}
-            initial={reduce ? false : { opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={reduce ? undefined : { opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            className="h-full"
-          >
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart key={`attendance-${weeklyStatsKey}`} data={data} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
-                <XAxis dataKey="day" tick={{ fontSize: 12, fill: '#6b7280' }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 12, fill: '#6b7280' }} axisLine={false} tickLine={false} allowDecimals={false} />
-                <Tooltip
-                  cursor={{ fill: 'rgba(59,130,246,0.08)' }}
-                  content={<AnimatedChartTooltip />}
-                />
-                <Bar
-                  dataKey="count"
-                  name={lang === 'ar' ? 'السجلات' : 'records'}
-                  radius={[8, 8, 0, 0]}
-                  isAnimationActive={!reduce}
-                  animationDuration={800}
-                  animationEasing="ease-out"
-                  onMouseEnter={reduce ? undefined : (_: any, index: number) => setHoveredBar(index)}
-                  onMouseLeave={reduce ? undefined : () => setHoveredBar(null)}
-                >
-                  {data.map((_, i) => (
-                    <Cell
-                      key={i}
-                      fill={i % 2 === 0 ? GOLD : BLUE}
-                      opacity={hoveredBar === null || hoveredBar === i ? 1 : 0.5}
-                      style={{ transition: 'opacity 0.2s ease-out' }}
-                    />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </motion.div>
-        </AnimatePresence>
+      <div className="h-64" role="img" aria-label={lang === 'ar'
+        ? `نسبة الحضور لآخر 8 أسابيع. الأحدث: ${latest.rate === null ? 'لا بيانات' : latest.rate + '٪'}`
+        : `Attendance rate for the last 8 weeks. Latest: ${latest.rate === null ? 'no data' : latest.rate + '%'}`}>
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart data={data} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
+            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
+            <XAxis dataKey="label" tick={{ fontSize: 12, fill: '#6b7280' }} axisLine={false} tickLine={false} />
+            <YAxis domain={[0, 100]} ticks={[0, 25, 50, 75, 100]} tickFormatter={(v: number) => `${v}%`} tick={{ fontSize: 12, fill: '#6b7280' }} axisLine={false} tickLine={false} />
+            <Tooltip cursor={{ fill: 'rgba(59,130,246,0.08)' }} content={<TrendTooltip lang={lang} />} />
+            <Bar dataKey="rate" radius={[8, 8, 0, 0]} isAnimationActive={!reduce} animationDuration={800} animationEasing="ease-out">
+              {data.map((_, i) => <Cell key={i} fill={i === data.length - 1 ? GOLD : BLUE} />)}
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
       </div>
-      <div className="mt-4 flex items-center justify-between text-xs text-gray-500 border-t border-gray-100 pt-3">
-        <span className="flex items-center gap-1"><Zap className="h-3 w-3 text-gold-400" />{lang === 'ar' ? 'إجمالي السجلات:' : 'Total records:'} {total}</span>
-        <span className="bg-blue-50 text-blue-700 font-semibold px-2 py-0.5 rounded-full">{completed} {lang === 'ar' ? 'جلسات' : 'sessions'}</span>
+      <div className="mt-4 flex items-center justify-between text-xs text-gray-600 border-t border-gray-100 pt-3">
+        <span className="flex items-center gap-1"><Zap className="h-3 w-3 text-gold-400" aria-hidden="true" />
+          {lang === 'ar' ? 'آخر 7 أيام:' : 'Last 7 days:'} <strong className="text-gray-900">{latest.rate === null ? '—' : `${latest.rate}%`}</strong>
+        </span>
+        {change !== null && change !== 0 && (
+          <span className={`font-semibold px-2 py-0.5 rounded-full ${change > 0 ? 'bg-emerald-50 text-emerald-800' : 'bg-red-50 text-red-800'}`}>
+            {change > 0 ? '▲' : '▼'} {Math.abs(change)} {lang === 'ar' ? 'عن الأسبوع السابق' : 'vs previous 7 days'}
+          </span>
+        )}
       </div>
     </div>
   )
@@ -3310,9 +3358,9 @@ export default function DashboardPage() {
          <div className="flex h-7 w-7 items-center justify-center rounded-full bg-(--hymn-surface-header) text-blue-700 ring-1 ring-gold-200/50">
           <BarChart3 className="h-4 w-4" />
          </div>
-         <h2 className="font-semibold text-gray-900">{lang === 'ar' ? 'الحضور هذا الأسبوع' : 'Weekly Attendance'}</h2>
+         <h2 className="font-semibold text-gray-900">{lang === 'ar' ? 'اتجاه الحضور' : 'Attendance trend'}</h2>
         </div>
-        <span className="text-xs text-gray-500 bg-gray-50 px-2 py-1 rounded-full">{lang === 'ar' ? 'نظرة عامة على 7 أيام' : '7-day overview'}</span>
+        <span className="text-xs text-gray-500 bg-gray-50 px-2 py-1 rounded-full">{lang === 'ar' ? 'آخر 8 أسابيع' : 'Last 8 weeks'}</span>
        </div>
        <ErrorBoundary onRetry={handleRetry}>
         <AttendanceChartSection stats={primary.data?.stats ?? null} loading={primary.loading} />

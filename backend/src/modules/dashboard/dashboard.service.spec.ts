@@ -93,6 +93,185 @@ describe('DashboardService', () => {
     });
   });
 
+  describe('getStats — headline numbers', () => {
+    const day = (n: number) => new Date(Date.now() - n * 24 * 60 * 60 * 1000);
+
+    function mockStatsBaseline() {
+      prisma.student.count.mockResolvedValue(0);
+      prisma.attendanceSession.count.mockResolvedValue(0);
+      prisma.attendanceRecord.findMany.mockResolvedValue([]);
+      (prisma as any).level = { count: jest.fn().mockResolvedValue(0), findMany: jest.fn().mockResolvedValue([]) };
+      (prisma as any).lesson = { count: jest.fn().mockResolvedValue(0) };
+      (prisma as any).church = { count: jest.fn().mockResolvedValue(0) };
+      (prisma as any).user = { count: jest.fn().mockResolvedValue(0), findUnique: jest.fn().mockResolvedValue(null) };
+      (prisma as any).studentBadge = { count: jest.fn().mockResolvedValue(0) };
+      (prisma as any).assessment = { count: jest.fn().mockResolvedValue(0), groupBy: jest.fn().mockResolvedValue([]) };
+      (prisma as any).schoolGrade = { findMany: jest.fn().mockResolvedValue([]) };
+      prisma.student.groupBy = jest.fn().mockResolvedValue([]);
+      (prisma as any).assessmentSubmission = { findMany: jest.fn().mockResolvedValue([]) };
+      prisma.curriculumAllocation.count = jest.fn().mockResolvedValue(0);
+      (prisma as any).grade = { findMany: jest.fn().mockResolvedValue([]) };
+      (prisma as any).auditLog = { findMany: jest.fn().mockResolvedValue([]) };
+      (prisma as any).xPTransaction = { groupBy: jest.fn().mockResolvedValue([]) };
+    }
+
+    /** attendanceRecord.findMany serves the attendance trend and the at-risk lookup; only the latter has an upper date bound. */
+    function mockAttendance({ trend = [] as any[], risk = [] as any[] } = {}) {
+      prisma.attendanceRecord.findMany.mockImplementation((args: any) =>
+        Promise.resolve('lte' in args.where.attendanceSession.scheduledDate ? risk : trend),
+      );
+    }
+
+    it('reports null attendance (not 0%) when no class was held in the last 7 days', async () => {
+      mockStatsBaseline();
+      mockAttendance();
+
+      const result: any = await (service as any).getStats(schoolId);
+
+      expect(result.attendanceRate).toBeNull();
+      expect(result.attendancePrevRate).toBeNull();
+      expect(result.attendanceTrend).toHaveLength(8);
+      expect(result.attendanceTrend.every((p: any) => p.rate === null)).toBe(true);
+    });
+
+    it('uses the last 7 days against the 7 before, not just today', async () => {
+      mockStatsBaseline();
+      mockAttendance({
+        trend: [
+          { status: 'present', attendanceSession: { scheduledDate: day(3) } }, // three days ago, NOT today
+          { status: 'present', attendanceSession: { scheduledDate: day(3) } },
+          { status: 'absent', attendanceSession: { scheduledDate: day(3) } },
+          { status: 'present', attendanceSession: { scheduledDate: day(10) } },
+          { status: 'absent', attendanceSession: { scheduledDate: day(10) } },
+        ],
+      });
+
+      const result: any = await (service as any).getStats(schoolId);
+
+      expect(result.attendanceRate).toBe(67);
+      expect(result.attendancePrevRate).toBe(50);
+    });
+
+    it('counts students at risk with the shared rule and returns the 8-week trend oldest-first', async () => {
+      mockStatsBaseline();
+      mockAttendance({
+        risk: [
+          { studentId: 'a', status: 'absent', attendanceSession: { scheduledDate: day(5) } },
+          { studentId: 'a', status: 'absent', attendanceSession: { scheduledDate: day(12) } },
+          { studentId: 'a', status: 'absent', attendanceSession: { scheduledDate: day(19) } },
+          { studentId: 'b', status: 'absent', attendanceSession: { scheduledDate: day(5) } },
+        ],
+      });
+
+      const result: any = await (service as any).getStats(schoolId);
+
+      expect(result.studentsAtRisk).toBe(1);
+      const starts = result.attendanceTrend.map((p: any) => p.weekStart);
+      expect([...starts].sort()).toEqual(starts);
+    });
+
+    it('no longer returns the old record-count chart data', async () => {
+      mockStatsBaseline();
+      mockAttendance();
+      const result: any = await (service as any).getStats(schoolId);
+      expect(result).not.toHaveProperty('weeklyStats');
+    });
+
+    it('headlines the pass rate over the last 90 days, with the all-time figure kept alongside', async () => {
+      mockStatsBaseline();
+      mockAttendance();
+      const submission = (score: number, gradedDaysAgo: number) => ({
+        grades: [{ score, createdAt: day(gradedDaysAgo) }],
+        assessment: { passingScore: 10, title: 'Quiz' },
+        student: { id: 's', firstName: 'A', lastName: 'B', photoUrl: null },
+      });
+      (prisma as any).assessmentSubmission.findMany.mockResolvedValue([
+        submission(5, 200), submission(5, 150), submission(5, 120), // old fails
+        submission(15, 10), submission(15, 20), submission(5, 30), // recent: 2 of 3 pass
+      ]);
+
+      const result: any = await (service as any).getStats(schoolId);
+
+      expect(result.assessmentStats.passRate).toBe(33); // all time: 2 of 6
+      expect(result.assessmentStats.recent).toEqual({ windowDays: 90, gradedCount: 3, passRate: 67 });
+    });
+
+    it('recent pass rate is null when nothing was graded in the window', async () => {
+      mockStatsBaseline();
+      mockAttendance();
+      (prisma as any).assessmentSubmission.findMany.mockResolvedValue([
+        { grades: [{ score: 15, createdAt: day(200) }], assessment: { passingScore: 10, title: 'Q' }, student: { id: 's', firstName: 'A', lastName: 'B', photoUrl: null } },
+      ]);
+      const result: any = await (service as any).getStats(schoolId);
+      expect(result.assessmentStats.recent.passRate).toBeNull();
+    });
+  });
+
+  describe('getServantDigest — absence alerts', () => {
+    const day = (n: number) => new Date(Date.now() - n * 24 * 60 * 60 * 1000);
+
+    /** A database where every query returns an empty/neutral result unless the test overrides it. */
+    function permissiveDb(overrides: Record<string, any> = {}) {
+      const defaults: Record<string, any> = { findMany: [], count: 0, findUnique: null, findFirst: null, groupBy: [], aggregate: { _sum: {} } };
+      const model = (name: string) =>
+        new Proxy({}, {
+          get: (_t, method: string) => overrides[`${name}.${method}`] ?? jest.fn().mockResolvedValue(defaults[method] ?? null),
+        });
+      return new Proxy({}, { get: (_t, name: string) => model(name) });
+    }
+
+    function digestService(db: any, studentIds: string[]) {
+      const svc = new DashboardService(db, { resolve: jest.fn().mockResolvedValue(schoolId) } as any);
+      jest.spyOn(svc as any, 'resolveServantClass').mockResolvedValue({ groupIds: ['g1'], levelIds: ['l1'], studentIds });
+      return svc;
+    }
+
+    const risk = (studentId: string, status: string, n: number) => ({ studentId, status, attendanceSession: { scheduledDate: day(n) } });
+
+    it('alerts for students on the shared at-risk definition, with their real streak', async () => {
+      const recordsFindMany = jest.fn().mockImplementation((args: any) => {
+        const sd = args?.where?.attendanceSession?.scheduledDate;
+        // The at-risk lookup is the query with a bounded lookback window (has an upper date bound).
+        return Promise.resolve(sd && 'lte' in sd ? [
+          risk('s1', 'absent', 5), risk('s1', 'absent', 12), risk('s1', 'absent', 19), risk('s1', 'absent', 26),
+          risk('s2', 'absent', 5), risk('s2', 'present', 12),
+        ] : []);
+      });
+      const studentFindMany = jest.fn().mockResolvedValue([{ id: 's1', firstName: 'Mina', lastName: 'K', firstNameAr: null, lastNameAr: null }]);
+      const db = permissiveDb({ 'attendanceRecord.findMany': recordsFindMany, 'student.findMany': studentFindMany });
+
+      const digest: any = await digestService(db, ['s1', 's2']).getServantDigest({ id: 'u1', roles: ['servant'] }, schoolId);
+
+      expect(digest.absenceAlerts).toHaveLength(1);
+      expect(digest.absenceAlerts[0]).toMatchObject({ studentId: 's1', consecutiveAbsences: 4 });
+      expect(digest.absenceAlerts[0].messageEn).toContain('last 4 sessions');
+      // Names are fetched in ONE query for the students that need an alert, not one per student.
+      expect(studentFindMany).toHaveBeenCalledTimes(1);
+      expect(studentFindMany.mock.calls[0][0].where).toEqual({ id: { in: ['s1'] } });
+    });
+
+    it('only alerts for the servant\'s own students', async () => {
+      const recordsFindMany = jest.fn().mockImplementation((args: any) => {
+        const sd = args?.where?.attendanceSession?.scheduledDate;
+        return Promise.resolve(sd && 'lte' in sd
+          ? ['other', 'mine'].flatMap((id) => [risk(id, 'absent', 5), risk(id, 'absent', 12), risk(id, 'absent', 19)])
+          : []);
+      });
+      const studentFindMany = jest.fn().mockResolvedValue([{ id: 'mine', firstName: 'A', lastName: 'B', firstNameAr: null, lastNameAr: null }]);
+      const db = permissiveDb({ 'attendanceRecord.findMany': recordsFindMany, 'student.findMany': studentFindMany });
+
+      const digest: any = await digestService(db, ['mine']).getServantDigest({ id: 'u1', roles: ['servant'] }, schoolId);
+
+      expect(digest.absenceAlerts.map((a: any) => a.studentId)).toEqual(['mine']);
+    });
+
+    it('has no alerts when nobody is at risk', async () => {
+      const db = permissiveDb();
+      const digest: any = await digestService(db, ['s1']).getServantDigest({ id: 'u1', roles: ['servant'] }, schoolId);
+      expect(digest.absenceAlerts).toEqual([]);
+    });
+  });
+
   describe('getMine ministry view — student scope', () => {
     it('counts only active students (excludes inactive and graduated)', async () => {
       mockMinistryBaseline();

@@ -229,6 +229,54 @@ systemConfig: {
       );
     });
 
+    describe('engagementStatus=at_risk', () => {
+      const day = (n: number) => new Date(Date.now() - n * 24 * 60 * 60 * 1000);
+      const rec = (studentId: string, status: string, n: number) => ({ studentId, status, attendanceSession: { scheduledDate: day(n) } });
+
+      beforeEach(() => {
+        prisma.student.findMany.mockResolvedValue([]);
+        prisma.student.count.mockResolvedValue(0);
+      });
+
+      it('narrows the list to students at risk, by the shared 3-absences-in-a-row rule', async () => {
+        prisma.attendanceRecord.findMany.mockResolvedValue([
+          rec('stu-risk', 'absent', 5), rec('stu-risk', 'absent', 12), rec('stu-risk', 'absent', 19),
+          rec('stu-ok', 'absent', 5), rec('stu-ok', 'present', 12), rec('stu-ok', 'absent', 19),
+        ]);
+
+        await service.findAll({ page: 1, limit: 20, engagementStatus: 'at_risk' }, schoolId);
+
+        const where = prisma.student.findMany.mock.calls[0][0].where;
+        expect(where.AND).toContainEqual({ id: { in: ['stu-risk'] } });
+        expect(where.schoolId).toBe(schoolId);
+      });
+
+      it('returns nobody (not everybody) when no student is at risk', async () => {
+        prisma.attendanceRecord.findMany.mockResolvedValue([rec('stu-ok', 'present', 5)]);
+
+        await service.findAll({ page: 1, limit: 20, engagementStatus: 'at_risk' }, schoolId);
+
+        expect(prisma.student.findMany.mock.calls[0][0].where.AND).toContainEqual({ id: { in: [] } });
+      });
+
+      it('keeps the search filter and narrows on top of it', async () => {
+        prisma.attendanceRecord.findMany.mockResolvedValue([
+          rec('stu-risk', 'absent', 5), rec('stu-risk', 'absent', 12), rec('stu-risk', 'absent', 19),
+        ]);
+
+        await service.findAll({ page: 1, limit: 20, search: 'Malak', engagementStatus: 'at_risk' }, schoolId);
+
+        const and = prisma.student.findMany.mock.calls[0][0].where.AND;
+        expect(and.length).toBeGreaterThan(1);
+        expect(and).toContainEqual({ id: { in: ['stu-risk'] } });
+      });
+
+      it('does not touch attendance at all when the filter is not requested', async () => {
+        await service.findAll({ page: 1, limit: 20 }, schoolId);
+        expect(prisma.attendanceRecord.findMany).not.toHaveBeenCalled();
+      });
+    });
+
     it('restricts the list to the given ids (favorites)', async () => {
       prisma.student.findMany.mockResolvedValue([]);
       prisma.student.count.mockResolvedValue(0);
