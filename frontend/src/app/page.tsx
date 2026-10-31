@@ -839,7 +839,7 @@ export default function Home() {
       <header className={`sticky top-[env(safe-area-inset-top)] z-50 border-b transition-all duration-300 ${scrolled ? 'border-gray-200 bg-white/95 backdrop-blur-sm shadow-xs' : 'border-transparent bg-white/80 backdrop-blur-sm'}`}>
         <div className="mx-auto flex h-16 sm:h-20 max-w-7xl items-center justify-between px-3 sm:px-6 lg:px-8">
           <Link href="/" className="flex items-center gap-2 sm:gap-3 shrink-0">
-            <Image src="/cohep-logo.png" alt="COHEP" width={72} height={72} className="h-14 sm:h-[72px] w-14 sm:w-[72px] rounded-lg sm:rounded-xl object-contain shadow-md sm:shadow-lg shadow-gold-200/50" />
+            <Image src="/cohep-logo.png" alt="COHEP" width={72} height={72} priority className="h-14 sm:h-[72px] w-14 sm:w-[72px] rounded-lg sm:rounded-xl object-contain shadow-md sm:shadow-lg shadow-gold-200/50" />
             <span className="text-base sm:text-lg font-bold tracking-tight text-gray-900 hidden sm:block">COHEP</span>
           </Link>
 

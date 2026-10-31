@@ -24,7 +24,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
   }))
 
   useEffect(() => {
-    // eslint-disable-next-line no-console
+     
     console.info(`[COHEP build ${BUILD_SHA}]`)
     startAnalytics()
     const onHide = () => endAnalytics()

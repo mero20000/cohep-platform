@@ -54,7 +54,7 @@ export function AppearanceTab() {
           <h2 className="text-lg font-semibold text-gray-900">Appearance</h2>
           <p className="mt-1 text-sm text-gray-500">Customize the look and feel of the platform</p>
         </div>
-        <Button onClick={handleSave} aria-label="Save appearance settings" className="bg-gold-500 hover:bg-gold-600">
+        <Button onClick={handleSave} className="bg-gold-500 hover:bg-gold-600">
           <Save className="h-4 w-4" /> <span aria-live="polite">{saved ? 'Saved!' : 'Save Appearance'}</span>
         </Button>
       </div>
