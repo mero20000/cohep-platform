@@ -127,7 +127,7 @@ export function DashboardHeader({
 
   return (
     <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b border-gray-200 bg-white px-4 sm:px-6 lg:px-8">
-      <Button variant="ghost" size="icon" onClick={() => onSetSidebarOpen(true)} aria-label={language === 'ar' ? 'فتح القائمة' : 'Open menu'} aria-expanded={sidebarOpen} aria-controls="sidebar" className="lg:hidden h-11 w-11 sm:h-9 sm:w-9 text-gray-500 hover:text-gray-700">
+      <Button variant="ghost" size="icon" onClick={() => onSetSidebarOpen(true)} aria-label={language === 'ar' ? 'فتح القائمة' : 'Open menu'} aria-expanded={sidebarOpen} aria-controls="sidebar" className="lg:hidden h-11 w-11 shrink-0 sm:h-9 sm:w-9 text-gray-500 hover:text-gray-700">
         <Menu className="h-5 w-5" />
       </Button>
 
@@ -259,7 +259,7 @@ export function DashboardHeader({
 
       <div className="flex items-center gap-1">
         <Button variant="ghost" size="icon" onClick={onToggleLanguage}
-          className="h-11 w-11 sm:h-9 sm:w-9 text-gray-500 hover:text-gray-700"
+          className="h-11 w-11 shrink-0 sm:h-9 sm:w-9 text-gray-500 hover:text-gray-700"
           title={language === 'ar' ? 'Switch to English' : 'التبديل إلى العربية'}>
           <Globe className="h-4 w-4" />
         </Button>
@@ -267,7 +267,7 @@ export function DashboardHeader({
         <div ref={notiRef} className="relative">
           <Button variant="ghost" size="icon" onClick={() => { onSetShowNotiPanel(!showNotiPanel); onSetShowUserMenu(false) }}
             aria-label={language === 'ar' ? 'الإشعارات' : 'Notifications'}
-            className="relative h-11 w-11 sm:h-9 sm:w-9 text-gray-500 hover:text-gray-700">
+            className="relative h-11 w-11 shrink-0 sm:h-9 sm:w-9 text-gray-500 hover:text-gray-700">
             <Bell className="h-4 w-4" />
             {unreadCount > 0 && (
               <span className={`absolute -top-0.5 ${language === 'ar' ? '-left-0.5' : '-right-0.5'} flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-xs font-bold text-white`}>
