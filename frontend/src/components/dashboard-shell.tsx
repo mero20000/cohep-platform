@@ -60,6 +60,20 @@ const secondaryNav = [
   { name: 'Settings', nameAr: 'الإعدادات', href: '/dashboard/settings', icon: Settings },
 ]
 
+// Bottom-nav shortlist, most useful first. Roles only see the entries they are permitted.
+const MOBILE_NAV_PRIORITY = [
+  '/dashboard',
+  '/dashboard/attendance/mark',
+  '/dashboard/my-class',
+  '/dashboard/students',
+  '/dashboard/assessments',
+  '/dashboard/briefing',
+  '/dashboard/parents',
+]
+const MOBILE_ACTIVE_PREFIX: Record<string, string> = {
+  '/dashboard/attendance/mark': '/dashboard/attendance',
+}
+
 const parentsNav = { name: 'My Children', nameAr: 'أولادي', href: '/dashboard/parents', icon: Baby }
 
 const ROLE_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -120,6 +134,10 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
         if (item.href === '/dashboard/assessments' && pendingReviewCount > 0) return { ...item, badge: pendingReviewCount }
         return item
       })
+  const mobileNav = [
+    ...MOBILE_NAV_PRIORITY.flatMap((href) => mainNav.filter((n) => n.href === href)),
+    ...mainNav.filter((n) => !MOBILE_NAV_PRIORITY.includes(n.href)),
+  ]
   const [notifications, setNotifications] = useState<NotificationItem[]>([])
   const [notiLoading, setNotiLoading] = useState(false)
   const notiRef = useRef<HTMLDivElement>(null)
@@ -558,18 +576,21 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
         </DashboardMainContent>
       </div>
 
-      {/* Mobile bottom navigation — top 5 nav items */}
+      {/* Mobile bottom navigation: a role-aware shortlist plus "More" for the rest */}
       <MobileBottomNav
-        items={mainNav.slice(0, 5).map((item: any) => ({
+        items={mobileNav.map((item: any) => ({
           href: item.href,
           name: item.name,
           nameAr: item.nameAr || item.name,
           icon: item.icon,
+          badge: item.badge,
+          activePrefix: MOBILE_ACTIVE_PREFIX[item.href],
         }))}
         lang={language as 'en' | 'ar'}
+        onMore={mainNav.length > 5 ? () => setSidebarOpen(true) : undefined}
       />
-      {/* Bottom padding so content isn't hidden behind mobile bottom nav */}
-      <div className="h-16 lg:hidden pb-[env(safe-area-inset-bottom)]" aria-hidden="true" />
+      {/* Reserve space for the fixed bottom nav, including the device safe area */}
+      <div className="h-[calc(4rem+env(safe-area-inset-bottom))] lg:hidden" aria-hidden="true" />
 
       <HelpButton />
     </div>

@@ -352,7 +352,7 @@ function HeroSection({ stats, churchLogo, churchName, loading }: { stats: Dashbo
             <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-white/10 border border-white/10">
               <item.icon className="h-3.5 w-3.5 text-gold-200" />
             </span>
-            <span className="text-[11px] sm:text-xs font-medium text-white/75 tracking-wide">{lang === 'ar' ? (item as any).labelAr : item.label}</span>
+            <span className="text-xs sm:text-xs font-medium text-white/75 tracking-wide">{lang === 'ar' ? (item as any).labelAr : item.label}</span>
           </div>
           <div className="text-xl sm:text-xl font-bold text-white tracking-tight">
             <AnimatedCounter value={item.value} suffix={'suffix' in item ? (item as any).suffix || '' : ''} />
@@ -673,7 +673,7 @@ function AnalyticsSection({ stats, loading }: { stats: DashboardData | null; loa
                   initial={reduce ? false : { opacity: 0, y: 8 }}
                   animate={reduce ? undefined : { opacity: 1, y: 0 }}
                   transition={reduce ? undefined : { delay: 0.4 + i * 0.04, duration: 0.3 }}
-                  className="flex items-center gap-1.5 text-[11px] text-gray-500"
+                  className="flex items-center gap-1.5 text-xs text-gray-500"
                 >
                   <span className="h-2 w-2 rounded-full" style={{ backgroundColor: PALETTE[i % PALETTE.length] }} />
                   {g.name} ({g.value})
@@ -719,7 +719,7 @@ function LeaderboardSection({ stats, loading }: { stats: DashboardData | null; l
        </div>
        <div className="text-right">
         <div className="text-sm font-bold text-gray-900">{student.xp.toLocaleString('en-GB')}</div>
-        <div className="text-[10px] text-gray-400 font-medium">{lang === 'ar' ? 'نقاط' : 'XP'}</div>
+        <div className="text-xs text-gray-400 font-medium">{lang === 'ar' ? 'نقاط' : 'XP'}</div>
        </div>
       </div>
       <div className="mt-2 h-1.5 w-full rounded-full bg-gray-100 overflow-hidden">
@@ -830,7 +830,7 @@ function ActivitySection({ stats, loading }: { stats: DashboardData | null; load
      <button key={t.key} role="tab" aria-selected={activeTab === t.key} onClick={() => setActiveTab(t.key)}
       className={`inline-flex min-h-[44px] items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium border transition-colors ${activeTab === t.key ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'}`}>
       {lang === 'ar' ? t.labelAr : t.label}
-      <span className={`rounded-full px-1.5 py-0 text-[10px] leading-none ${activeTab === t.key ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-600'}`}>{t.count}</span>
+      <span className={`rounded-full px-1.5 py-0 text-xs leading-none ${activeTab === t.key ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-600'}`}>{t.count}</span>
      </button>
     ))}
    </div>
@@ -856,7 +856,7 @@ function ActivitySection({ stats, loading }: { stats: DashboardData | null; load
         </div>
         <div className="text-xs text-gray-500 truncate">{(lang === 'ar' ? ACTION_LABELS[a.action] : ACTION_LABELS_EN[a.action]) || a.action} — {a.entityType}</div>
        </div>
-        <time dateTime={a.createdAt ?? undefined} className="text-[11px] text-gray-400 shrink-0 bg-gray-50 px-2 py-0.5 rounded-full">{relativeTime(a.createdAt, lang === 'ar' ? 'ar' : 'en')}</time>
+        <time dateTime={a.createdAt ?? undefined} className="text-xs text-gray-400 shrink-0 bg-gray-50 px-2 py-0.5 rounded-full">{relativeTime(a.createdAt, lang === 'ar' ? 'ar' : 'en')}</time>
       </motion.div>
      )
     })}
@@ -885,7 +885,7 @@ function UpcomingSection({ stats, loading }: { stats: DashboardData | null; load
       <div className="flex items-center gap-2">
        <span className="text-sm font-semibold text-gray-900">{sess.group?.name ?? (lang === 'ar' ? 'بدون مجموعة' : 'No group')}</span>
        {sess.level?.name && <span className="text-xs text-gray-500">· {sess.level.name}</span>}
-       <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 uppercase border border-emerald-200">{sess.status}</span>
+       <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-700 uppercase border border-emerald-200">{sess.status}</span>
       </div>
       <div className="text-xs text-gray-500 mt-0.5 flex items-center gap-1">
        <User className="h-3 w-3 inline" /> {sess.servant ? `${sess.servant.firstName} ${sess.servant.lastName}` : (lang === 'ar' ? 'غير معين' : 'Unassigned')} · {formatDate(sess.scheduledDate, lang === 'ar' ? 'ar-EG' : 'en-GB')} <span className="text-gold-700 font-medium">{formatTime(sess.scheduledDate, lang === 'ar' ? 'ar-EG' : 'en-GB')}</span>
@@ -954,12 +954,12 @@ function RecentGradesSection({ stats, loading }: { stats: DashboardData | null; 
      <div key={g.id} className="px-4 py-3 space-y-1.5">
       <div className="flex items-center justify-between">
        <div className="flex items-center gap-2 min-w-0">
-        <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-blue-100 to-blue-50 text-[10px] font-bold text-blue-700">
+        <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-blue-100 to-blue-50 text-xs font-bold text-blue-700">
          {g.studentName.split(' ').map(n => n[0]).join('')}
         </div>
         <span className="text-sm font-medium text-gray-900 truncate">{g.studentName}</span>
        </div>
-       <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold border shrink-0 ${
+       <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold border shrink-0 ${
         g.passed ? 'bg-green-50 text-green-700 border-green-200' : 'bg-red-50 text-red-700 border-red-200'
        }`}>
         {g.score}/{g.maxScore} · {lang === 'ar' ? (g.passed ? 'ناجح' : 'راسب') : (g.passed ? 'Passed' : 'Failed')}
@@ -1587,7 +1587,7 @@ export function NextSessionCard({ lang, assigned, groups, sessions }: { lang: st
                 <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
                   {lesson?.subject?.name && (
                     <span
-                      className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium"
+                      className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium"
                       style={{ backgroundColor: `${theme}14`, color: theme }}
                     >
                       <span
@@ -1598,17 +1598,17 @@ export function NextSessionCard({ lang, assigned, groups, sessions }: { lang: st
                     </span>
                   )}
                   {showLevelBadge && a.level?.name && (
-                    <span className="rounded-full bg-purple-50 px-2 py-0.5 text-[11px] font-medium text-purple-700">
+                    <span className="rounded-full bg-purple-50 px-2 py-0.5 text-xs font-medium text-purple-700">
                       {a.level.name}
                     </span>
                   )}
                   {item?.optional && (
-                    <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-medium text-gray-600">
+                    <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600">
                       {lang === 'ar' ? 'اختياري' : 'Optional'}
                     </span>
                   )}
                   {lesson?.estimatedDurationMinutes ? (
-                    <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-700">
+                    <span className="rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700">
                       {lesson.estimatedDurationMinutes} {lang === 'ar' ? 'دقيقة' : 'min'}
                     </span>
                   ) : null}
@@ -1648,7 +1648,7 @@ function NextSessionHeader({ lang, dateLabel, scope }: { lang: string; dateLabel
       </div>
       <div className="flex items-center gap-2">
         {dateLabel && (
-          <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-medium text-blue-700">
+          <span className="rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700">
             {scopeLabel ? `${scopeLabel} · ${dateLabel}` : dateLabel}
           </span>
         )}
@@ -1692,7 +1692,7 @@ export function WeekSummaryCard({ thisWeek, lang }: { thisWeek?: any; lang: stri
             <div key={it.key} className="rounded-lg border border-gray-100 bg-gray-50 px-3 py-2.5">
               <div className="flex items-center gap-1.5 mb-1">
                 <span className={`h-2 w-2 rounded-full ${it.dot}`} />
-                <span className="text-[11px] text-gray-500">{it.label}</span>
+                <span className="text-xs text-gray-500">{it.label}</span>
               </div>
               <div className="text-xl font-bold text-gray-900">{it.count}</div>
             </div>
@@ -2043,7 +2043,7 @@ function LiturgyHeatmapCard({ lang }: { lang: string }) {
           <div className="flex h-7 w-7 items-center justify-center rounded-full bg-amber-50 text-amber-700"><Church className="h-4 w-4" /></div>
           <h2 className="font-semibold text-gray-900">{lang === 'ar' ? 'خريطة القداسات الحرارية' : 'Liturgy Heatmap'}</h2>
         </div>
-        <div className="flex items-center gap-3 text-[11px]">
+        <div className="flex items-center gap-3 text-xs">
           <span className="flex items-center gap-1"><span className="h-2.5 w-2.5 rounded bg-green-500" />{lang === 'ar' ? 'قداس+حضور' : 'Liturgy+Class'}</span>
           <span className="flex items-center gap-1"><span className="h-2.5 w-2.5 rounded bg-amber-400" />{lang === 'ar' ? 'حضور فقط' : 'Class only'}</span>
           <span className="flex items-center gap-1"><span className="h-2.5 w-2.5 rounded bg-red-300" />{lang === 'ar' ? 'غائب' : 'Absent'}</span>
@@ -2205,7 +2205,7 @@ function ServantWellbeingPanel({ lang, schoolId }: { lang: string; schoolId: str
                   {t('Start Class', 'ابدأ الفصل')}
                 </button>
               </div>
-              <p className="relative mt-2 text-[10px] text-emerald-200">
+              <p className="relative mt-2 text-xs text-emerald-200">
                 {t('Attendance opens pre-filled with all present — fix exceptions only.', 'الحضور يُفتح مع تسجيل الجميع حاضرين — صحّح الغائبين فقط.')}
               </p>
             </div>
@@ -2217,7 +2217,7 @@ function ServantWellbeingPanel({ lang, schoolId }: { lang: string; schoolId: str
             <div className="rounded-xl border border-purple-100 bg-purple-50 p-4">
               <div className="flex items-center gap-1.5 mb-2">
                 <Music className="h-3.5 w-3.5 text-purple-600" />
-                <span className="text-[10px] font-bold uppercase tracking-wider text-purple-600">
+                <span className="text-xs font-bold uppercase tracking-wider text-purple-600">
                   {t('Student Story', 'قصة الطالب')}
                 </span>
               </div>
@@ -2242,7 +2242,7 @@ function ServantWellbeingPanel({ lang, schoolId }: { lang: string; schoolId: str
             <div className="rounded-xl border border-blue-100 bg-blue-50 p-4">
               <div className="flex items-center gap-1.5 mb-2">
                 <TrendingUp className="h-3.5 w-3.5 text-blue-600" />
-                <span className="text-[10px] font-bold uppercase tracking-wider text-blue-600">
+                <span className="text-xs font-bold uppercase tracking-wider text-blue-600">
                   {t('Class Trend', 'اتجاه الفصل')}
                 </span>
               </div>
@@ -2253,15 +2253,15 @@ function ServantWellbeingPanel({ lang, schoolId }: { lang: string; schoolId: str
                   </p>
                   <div className="mt-2 flex items-center gap-1.5">
                     {digest.classTrend.improvement > 0 ? (
-                      <span className="inline-flex items-center gap-0.5 rounded-full bg-green-100 px-2 py-0.5 text-[10px] font-bold text-green-700">
+                      <span className="inline-flex items-center gap-0.5 rounded-full bg-green-100 px-2 py-0.5 text-xs font-bold text-green-700">
                         <ArrowUp className="h-2.5 w-2.5" />+{digest.classTrend.improvement}%
                       </span>
                     ) : digest.classTrend.improvement < 0 ? (
-                      <span className="inline-flex items-center gap-0.5 rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-bold text-red-600">
+                      <span className="inline-flex items-center gap-0.5 rounded-full bg-red-100 px-2 py-0.5 text-xs font-bold text-red-600">
                         <ArrowDown className="h-2.5 w-2.5" />{digest.classTrend.improvement}%
                       </span>
                     ) : (
-                      <span className="inline-flex items-center gap-0.5 rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-bold text-gray-500">
+                      <span className="inline-flex items-center gap-0.5 rounded-full bg-gray-100 px-2 py-0.5 text-xs font-bold text-gray-500">
                         <Minus className="h-2.5 w-2.5" />0%
                       </span>
                     )}
@@ -2276,7 +2276,7 @@ function ServantWellbeingPanel({ lang, schoolId }: { lang: string; schoolId: str
             <div className={`rounded-xl border p-4 ${digest.milestone?.isFresh ? 'border-amber-200 bg-amber-50' : 'border-gray-200 bg-gray-50'}`}>
               <div className="flex items-center gap-1.5 mb-2">
                 <Trophy className={`h-3.5 w-3.5 ${digest.milestone?.isFresh ? 'text-amber-600' : 'text-gray-500'}`} />
-                <span className={`text-[10px] font-bold uppercase tracking-wider ${digest.milestone?.isFresh ? 'text-amber-600' : 'text-gray-500'}`}>
+                <span className={`text-xs font-bold uppercase tracking-wider ${digest.milestone?.isFresh ? 'text-amber-600' : 'text-gray-500'}`}>
                   {t('Your Milestone', 'إنجازك')}
                 </span>
               </div>
@@ -2290,7 +2290,7 @@ function ServantWellbeingPanel({ lang, schoolId }: { lang: string; schoolId: str
                   </p>
                   {!digest.milestone.isFresh && digest.milestone.nextMilestone && (
                     <div className="mt-2">
-                      <div className="flex justify-between text-[10px] text-gray-400 mb-1">
+                      <div className="flex justify-between text-xs text-gray-400 mb-1">
                         <span>{digest.milestone.totalSessions}</span>
                         <span>{digest.milestone.nextMilestone}</span>
                       </div>
@@ -2317,14 +2317,14 @@ function ServantWellbeingPanel({ lang, schoolId }: { lang: string; schoolId: str
                 <h3 className="text-sm font-semibold text-amber-800">
                   {t('Students to check in on', 'طلاب يستحقون متابعة')}
                 </h3>
-                <span className="ml-auto rounded-full bg-amber-200 px-2 py-0.5 text-[10px] font-bold text-amber-800">
+                <span className="ml-auto rounded-full bg-amber-200 px-2 py-0.5 text-xs font-bold text-amber-800">
                   {digest.absenceAlerts.length}
                 </span>
               </div>
               <div className="space-y-2">
                 {digest.absenceAlerts.map(alert => (
                   <div key={alert.studentId} className="flex items-start gap-3 rounded-lg bg-white border border-amber-100 px-3 py-2.5">
-                    <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-amber-100 text-[11px] font-bold text-amber-700">
+                    <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-amber-100 text-xs font-bold text-amber-700">
                       {alert.firstName[0]}{alert.lastName[0]}
                     </div>
                     <p className="text-xs text-gray-700 leading-relaxed flex-1">
@@ -2333,7 +2333,7 @@ function ServantWellbeingPanel({ lang, schoolId }: { lang: string; schoolId: str
                   </div>
                 ))}
               </div>
-              <p className="mt-2 text-[10px] text-amber-600 italic">
+              <p className="mt-2 text-xs text-amber-600 italic">
                 {t('Parents have been notified automatically. No action required.', 'تم إبلاغ الأهالي تلقائياً. لا حاجة لأي إجراء.')}
               </p>
             </div>
@@ -2415,7 +2415,7 @@ export function MinistryDashboard({ data, loading, error, onRetry }: { data: any
     <div key={item.label} className="rounded-xl bg-white/5 border border-white/10 px-4 py-3">
      <div className="flex items-center gap-2 mb-1">
       <item.icon className="h-3.5 w-3.5 text-gold-400" />
-      <span className="text-[11px] text-white/80">{lang === 'ar' ? (item as any).labelAr : item.label}</span>
+      <span className="text-xs text-white/80">{lang === 'ar' ? (item as any).labelAr : item.label}</span>
      </div>
      <div className="text-xl font-bold text-white tracking-wider">
       <AnimatedCounter value={item.value} suffix={'suffix' in item ? (item as any).suffix || '' : ''} />
@@ -2575,7 +2575,7 @@ export function MinistryDashboard({ data, loading, error, onRetry }: { data: any
         <Link key={g.id} href={`/dashboard/students?groupId=${g.id}`} className="block rounded-xl border border-[var(--hymn-border)] bg-[var(--hymn-surface)] p-4 hover:border-blue-200 hover:shadow-md transition-all group">
          <div className="flex items-center justify-between">
           <h3 className="font-semibold text-gray-900">{g.name}</h3>
-          <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-medium text-blue-700">{g.levelName}</span>
+          <span className="rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700">{g.levelName}</span>
          </div>
          <div className="mt-3 flex items-center gap-2 text-sm text-gray-500">
           <Users className="h-4 w-4" /><span>{g.studentCount} {lang === 'ar' ? 'طالب' : 'students'}</span>
@@ -2651,7 +2651,7 @@ function ServantDigestCard({ lang }: { lang: string }) {
           <div className="flex h-7 w-7 items-center justify-center rounded-full bg-amber-50 text-amber-700"><BookMarked className="h-4 w-4" /></div>
           <h2 className="font-semibold text-gray-900">{lang === 'ar' ? 'ملخص الخدمة' : 'Servant Digest'}</h2>
         </div>
-        <span className="text-[11px] text-gray-400">{lang === 'ar' ? 'نظرة سريعة على خدمتك' : 'Your ministry at a glance'}</span>
+        <span className="text-xs text-gray-400">{lang === 'ar' ? 'نظرة سريعة على خدمتك' : 'Your ministry at a glance'}</span>
       </div>
       <div className="divide-y divide-gray-100">
         {/* Student Story */}
@@ -2772,7 +2772,7 @@ function PracticeCountersSection({ lang }: { lang: string }) {
           <div className="flex h-7 w-7 items-center justify-center rounded-full bg-indigo-50 text-indigo-600"><BookOpen className="h-4 w-4" /></div>
           <h2 className="font-semibold text-gray-900">{lang === 'ar' ? 'الممارسة العائلية هذا الأسبوع' : 'Weekly Practice'}</h2>
         </div>
-        <span className="text-[11px] text-gray-400">
+        <span className="text-xs text-gray-400">
           {hasPractice}/{data.students.length} {lang === 'ar' ? 'مارسوا' : 'practiced'}
         </span>
       </div>
@@ -2862,11 +2862,11 @@ function ChildCard({ child, lang }: { child: any; lang: string }) {
      <div className="min-w-0">
       <h3 className="text-lg font-bold text-[#1A2744] truncate">{child.firstName} {child.lastName}</h3>
       <div className="mt-1 flex flex-wrap items-center gap-1.5">
-       {gradePill && <span className="rounded-full bg-indigo-100 px-2 py-0.5 text-[11px] font-semibold text-indigo-700">{gradePill}</span>}
-       {child.levelName && <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[11px] font-semibold text-blue-700">{child.levelName}</span>}
-       {child.groupName && <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-medium text-gray-600">{child.groupName}</span>}
+       {gradePill && <span className="rounded-full bg-indigo-100 px-2 py-0.5 text-xs font-semibold text-indigo-700">{gradePill}</span>}
+       {child.levelName && <span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-semibold text-blue-700">{child.levelName}</span>}
+       {child.groupName && <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600">{child.groupName}</span>}
        {streakNudge && (
-        <span className="rounded-full bg-orange-100 px-2 py-0.5 text-[11px] font-semibold text-orange-700">
+        <span className="rounded-full bg-orange-100 px-2 py-0.5 text-xs font-semibold text-orange-700">
          🔥 {lang === 'ar' ? 'سلسلة {p.currentStreak}' : `Streak ${p.currentStreak}`}
         </span>
        )}
@@ -2880,7 +2880,7 @@ function ChildCard({ child, lang }: { child: any; lang: string }) {
     </div>
     {p && (
      <div className="mt-4">
-      <div className="mb-1 flex items-center justify-between text-[11px] font-medium text-gray-500">
+      <div className="mb-1 flex items-center justify-between text-xs font-medium text-gray-500">
        <span>{lang === 'ar' ? 'التقدم العام' : 'Overall Progress'}</span>
        <span>{p.completedLessons}/{p.totalLessons} {lang === 'ar' ? 'درس' : 'lessons'}</span>
       </div>
@@ -2893,7 +2893,7 @@ function ChildCard({ child, lang }: { child: any; lang: string }) {
     {curLesson && (
      <div className="mt-3 flex items-center gap-2 rounded-lg bg-indigo-50 px-3 py-2">
       <BookOpen className="h-3.5 w-3.5 text-indigo-500 shrink-0" />
-      <span className="text-[11px] font-medium text-indigo-700 truncate">
+      <span className="text-xs font-medium text-indigo-700 truncate">
        {lang === 'ar' ? 'يتعلم الآن:' : 'Now learning:'} {lang === 'ar' && curLesson.titleAr ? curLesson.titleAr : curLesson.title}
       </span>
      </div>
@@ -2905,7 +2905,7 @@ function ChildCard({ child, lang }: { child: any; lang: string }) {
      <div key={t.label} className="rounded-xl border border-gray-100 bg-gradient-to-b from-white to-gray-50 p-3 text-center">
       <div className={`mx-auto mb-1.5 flex h-9 w-9 items-center justify-center rounded-xl ${t.bg} ${t.color}`}><t.icon className="h-4 w-4" /></div>
       <div className="text-base font-bold text-gray-900">{t.value}</div>
-      <div className="text-[11px] text-gray-400">{t.label}</div>
+      <div className="text-xs text-gray-400">{t.label}</div>
       {t.bar != null && (
        <div className="mt-1.5 h-1 w-full rounded-full bg-gray-100 overflow-hidden">
         <div className={`h-full rounded-full bg-gradient-to-r ${t.barColor}`} style={{ width: `${Math.min(100, t.bar)}%` }} />
@@ -2921,20 +2921,20 @@ function ChildCard({ child, lang }: { child: any; lang: string }) {
       <div key={t.label} className="rounded-xl border border-gray-100 bg-gradient-to-b from-white to-gray-50 p-3 text-center">
        <div className={`mx-auto mb-1.5 flex h-9 w-9 items-center justify-center rounded-xl ${t.bg} ${t.color}`}><t.icon className="h-4 w-4" /></div>
        <div className="text-base font-bold text-gray-900">{t.value}</div>
-       <div className="text-[11px] text-gray-400">{t.label}</div>
+       <div className="text-xs text-gray-400">{t.label}</div>
       </div>
      ))}
     </div>
    )}
     <Button variant="ghost" size="sm" onClick={() => setShowMore(!showMore)}
-     className="w-full justify-center gap-1 py-4 text-[11px] font-medium text-blue-700 hover:text-blue-800 hover:bg-blue-50/30 transition-colors border-t border-gray-100 rounded-b-xl">
+     className="w-full justify-center gap-1 py-4 text-xs font-medium text-blue-700 hover:text-blue-800 hover:bg-blue-50/30 transition-colors border-t border-gray-100 rounded-b-xl">
      {showMore ? (lang === 'ar' ? 'عرض أقل' : 'Show less') : (lang === 'ar' ? 'عرض المزيد' : `Show more (${secondaryTiles.length} more)`)}
      <ChevronDown className={`h-3 w-3 transition-transform ${showMore ? 'rotate-180' : ''}`} />
     </Button>
    {/* Weekly comparison + recent badges */}
    <div className="px-5 pb-3 flex flex-wrap items-center gap-3">
     {wc.xpThisWeek != null && (
-     <div className={`flex items-center gap-1 text-[11px] font-medium ${xpChange >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+     <div className={`flex items-center gap-1 text-xs font-medium ${xpChange >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
       <Zap className="h-3 w-3" />
       <span>{lang === 'ar' ? 'نقاط هذا الأسبوع:' : 'XP this week:'} {wc.xpThisWeek}</span>
       {xpChange > 0 && <ArrowUpRight className="h-3 w-3" />}
@@ -2942,7 +2942,7 @@ function ChildCard({ child, lang }: { child: any; lang: string }) {
      </div>
     )}
     {wc.attendanceThisWeek != null && (
-     <div className={`flex items-center gap-1 text-[11px] font-medium ${attChange >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+     <div className={`flex items-center gap-1 text-xs font-medium ${attChange >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
       <UserCheck className="h-3 w-3" />
       <span>{lang === 'ar' ? 'حضور هذا الأسبوع:' : 'Att this week:'} {wc.attendanceThisWeek}%</span>
       {attChange > 0 && <ArrowUpRight className="h-3 w-3" />}
@@ -2953,7 +2953,7 @@ function ChildCard({ child, lang }: { child: any; lang: string }) {
     {child.recentBadges?.length > 0 && (
      <div className="flex flex-wrap items-center gap-1.5">
       {child.recentBadges.map((b: any) => (
-       <span key={b.id} className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-medium text-blue-700 border border-gold-100">
+       <span key={b.id} className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700 border border-gold-100">
         <span className="text-xs">{b.iconUrl || '🏅'}</span>
         {b.name}
        </span>
@@ -2964,10 +2964,10 @@ function ChildCard({ child, lang }: { child: any; lang: string }) {
    {/* Upcoming sessions */}
    {child.upcomingSessions?.length > 0 && (
     <div className="px-5 pb-3">
-     <h5 className="text-[11px] font-semibold text-gray-500 mb-1.5">{lang === 'ar' ? 'الجلسات القادمة' : 'Upcoming Sessions'}</h5>
+     <h5 className="text-xs font-semibold text-gray-500 mb-1.5">{lang === 'ar' ? 'الجلسات القادمة' : 'Upcoming Sessions'}</h5>
      <div className="flex flex-wrap gap-2">
       {child.upcomingSessions.map((sess: any) => (
-       <div key={sess.id} className="flex items-center gap-1.5 rounded-lg bg-gray-50 px-2.5 py-1.5 text-[11px] text-gray-600 border border-gray-100">
+       <div key={sess.id} className="flex items-center gap-1.5 rounded-lg bg-gray-50 px-2.5 py-1.5 text-xs text-gray-600 border border-gray-100">
         <Calendar className="h-3 w-3 text-gray-400" />
         <span>{new Date(sess.scheduledDate).toLocaleDateString(lang === 'ar' ? 'ar-EG' : 'en-GB')}</span>
         {sess.title && <span className="text-gray-400">· {sess.title}</span>}
@@ -3072,7 +3072,7 @@ function ParentDashboard({ data, loading, error, onRetry }: { data: any; loading
         <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${s.bg} ${s.color}`}><s.icon className="h-5 w-5" /></div>
         <div>
          <h3 className="text-lg font-bold text-gray-900 leading-none">{s.value}</h3>
-         <div className="text-[11px] text-gray-400 mt-1">{s.label}</div>
+         <div className="text-xs text-gray-400 mt-1">{s.label}</div>
         </div>
        </motion.div>
       ))}
@@ -3140,15 +3140,15 @@ function ParentDashboard({ data, loading, error, onRetry }: { data: any; loading
          <Trophy className="h-5 w-5 text-blue-700" />
          <h2 className="font-semibold text-gray-900">{lang === 'ar' ? 'لوحة الشرف' : 'Leaderboard'}</h2>
        </div>
-       <span className="text-[11px] text-gray-400">{lang === 'ar' ? 'أفضل الطلاب' : 'Top Students'}</span>
+       <span className="text-xs text-gray-400">{lang === 'ar' ? 'أفضل الطلاب' : 'Top Students'}</span>
       </div>
       <div className="divide-y divide-gray-50">
        {leaderboard.map((s: any, i: number) => (
         <div key={s.studentId} className="flex items-center gap-3 px-5 py-2.5 hover:bg-gray-50 active:bg-gray-100 transition-colors">
-          <div className={`flex h-7 w-7 items-center justify-center rounded-full text-[11px] font-bold ${i < 3 ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600'}`}>{s.rank}</div>
+          <div className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold ${i < 3 ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600'}`}>{s.rank}</div>
          <div className="min-w-0 flex-1">
           <div className="text-sm font-medium text-gray-900 truncate">{s.firstName} {s.lastName}</div>
-          <div className="text-[10px] text-gray-400">{s.gradeName || s.levelName || ''}</div>
+          <div className="text-xs text-gray-400">{s.gradeName || s.levelName || ''}</div>
          </div>
          <div className="flex items-center gap-1 text-sm font-semibold text-amber-600">
           <Zap className="h-3.5 w-3.5" />{s.totalXp}
@@ -3266,7 +3266,7 @@ export default function DashboardPage() {
         </div>
         <div className="relative">
          <div className="text-sm font-semibold text-gray-900 group-hover:text-blue-700 transition-colors">{lang === 'ar' ? a.labelAr : a.label}</div>
-         <div className="text-[11px] text-gray-400 flex items-center gap-0.5">
+         <div className="text-xs text-gray-400 flex items-center gap-0.5">
           {lang === 'ar' ? 'فتح' : 'Open'} <ArrowUpRight className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-all duration-300 group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
          </div>
         </div>

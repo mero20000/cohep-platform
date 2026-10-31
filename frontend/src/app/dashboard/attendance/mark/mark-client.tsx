@@ -831,16 +831,16 @@ export function MarkClient() {
         })
       })()}
       {!readOnly && !isBinary && (
-        <p className="text-xs text-gray-500">{lang === 'ar' ? 'P/L/A/E للحالة · 1-5 للسلوك · ↑↓ للتنقل · Ctrl+S للحفظ' : 'P/L/A/E status · 1-5 behavior · ↑↓ move · Ctrl+S save'}</p>
+        <p className="hidden text-xs text-gray-500 lg:block">{lang === 'ar' ? 'P/L/A/E للحالة · 1-5 للسلوك · ↑↓ للتنقل · Ctrl+S للحفظ' : 'P/L/A/E status · 1-5 behavior · ↑↓ move · Ctrl+S save'}</p>
       )}
       {notYet || isCancelled ? null : isCompleted ? (
-        <div className="sticky bottom-0 bg-white p-3">
+        <div className="sticky bottom-[calc(4rem+env(safe-area-inset-bottom))] z-30 border-t border-gray-100 bg-white p-3 lg:bottom-0">
           <Button onClick={() => { void reopen() }} disabled={reopening} className="min-h-[44px] w-full bg-amber-500 text-white hover:bg-amber-600">
             {lang === 'ar' ? 'إعادة فتح الحضور' : 'Re-open Attendance'}
           </Button>
         </div>
       ) : (
-        <div className="sticky bottom-0 bg-white p-3">
+        <div className="sticky bottom-[calc(4rem+env(safe-area-inset-bottom))] z-30 border-t border-gray-100 bg-white p-3 lg:bottom-0">
           {marking.dirty && <p className="text-center text-xs text-amber-600 mb-1">{saving ? (lang === 'ar' ? 'جاري الحفظ التلقائي...' : 'Auto-saving...') : (lang === 'ar' ? 'سيتم الحفظ تلقائياً' : 'Auto-save in a moment...')}</p>}
           <div className="flex gap-2">
             <Button onClick={() => save(false)} disabled={saving} className="min-h-[44px] flex-1">{lang === 'ar' ? 'حفظ' : 'Save'}</Button>
