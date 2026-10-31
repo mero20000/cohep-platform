@@ -1,8 +1,11 @@
-import { Injectable, ForbiddenException } from '@nestjs/common';
+import { Injectable, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 import { SchoolResolver } from '../../common/utils/school-resolver';
 import { getCopticContext } from '../../common/utils/coptic-calendar';
 import { attendanceRate as calcAttendanceRate, rateFromCounts } from '../attendance/attendance-metrics';
+
+/** How long a ticked follow-up stays ticked before the student resurfaces. */
+const FOLLOW_UP_DONE_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
 
 @Injectable()
 export class DashboardService {
@@ -1151,7 +1154,7 @@ export class DashboardService {
     }
 
     const nextWeekday = nextSession ? new Date(nextSession.scheduledDate).getDay() : null;
-    const roster = await this.buildClassRoster(studentIds, todayLesson ? todayLesson.lessonId : null, nextWeekday);
+    const roster = await this.buildClassRoster(studentIds, todayLesson ? todayLesson.lessonId : null, nextWeekday, user.id);
 
     return {
       servant: { id: user.id, firstName: user.firstName, lastName: user.lastName },
@@ -1169,13 +1172,50 @@ export class DashboardService {
     };
   }
 
+  /** A 'done' follow-up only counts for a week; after that the student is open again if still flagged. */
+  private toFollowUpView(f: any, doneSince: number) {
+    if (!f) return null;
+    const isDone = f.status === 'done' && !!f.completedAt && new Date(f.completedAt).getTime() >= doneSince;
+    return { done: isDone, note: f.note ?? null, completedAt: isDone ? f.completedAt : null };
+  }
+
+  /** Tick (or untick) a student on the servant's follow-up checklist, optionally with a note. */
+  async setFollowUp(user: any, schoolIdentifier: string, studentId: string, dto: { done?: boolean; note?: string }) {
+    const schoolId = await this.schoolResolver.resolve(schoolIdentifier);
+    const { studentIds } = await this.resolveServantClass(user.id, schoolId);
+    if (!studentIds.includes(studentId)) throw new NotFoundException('Student not found in your class');
+
+    const note = dto.note === undefined ? undefined : dto.note.trim() || null;
+    const data: any = {};
+    if (dto.done !== undefined) {
+      data.status = dto.done ? 'done' : 'open';
+      data.completedAt = dto.done ? new Date() : null;
+    }
+    if (note !== undefined) data.note = note;
+
+    const saved = await this.prisma.servantFollowUp.upsert({
+      where: { servantId_studentId: { servantId: user.id, studentId } },
+      create: { schoolId, servantId: user.id, studentId, status: 'open', ...data },
+      update: data,
+    });
+    return this.toFollowUpView(saved, Date.now() - FOLLOW_UP_DONE_WINDOW_MS);
+  }
+
   private async buildClassRoster(
     studentIds: string[],
     followUpLessonId: string | null,
     nextSessionWeekday: number | null,
+    servantId: string,
   ): Promise<any[]> {
     const roster: any[] = [];
     if (studentIds.length === 0) return roster;
+
+    const followUps = await this.prisma.servantFollowUp.findMany({
+      where: { servantId, studentId: { in: studentIds } },
+      select: { studentId: true, status: true, note: true, completedAt: true },
+    });
+    const followUpByStudent = Object.fromEntries(followUps.map((f: any) => [f.studentId, f]));
+    const doneSince = Date.now() - FOLLOW_UP_DONE_WINDOW_MS;
 
     const students = await this.prisma.student.findMany({
       where: { id: { in: studentIds }, deletedAt: null },
@@ -1255,6 +1295,7 @@ export class DashboardService {
         needsFollowUp: reasons.length > 0,
         followUpReasons: reasons,
         notes,
+        followUp: this.toFollowUpView(followUpByStudent[student.id], doneSince),
       });
     }
 
@@ -1416,7 +1457,7 @@ export class DashboardService {
     const upcomingLessons = await this.findUpcomingLessons(levelIds, schoolId, nextSession ? new Date(nextSession.scheduledDate) : null);
     const nextLesson = upcomingLessons[0] || null;
     const nextSessionWeekday = nextSession ? new Date(nextSession.scheduledDate).getDay() : null;
-    const roster = await this.buildClassRoster(studentIds, nextLesson ? nextLesson.lessonId : null, nextSessionWeekday);
+    const roster = await this.buildClassRoster(studentIds, nextLesson ? nextLesson.lessonId : null, nextSessionWeekday, user.id);
 
     return {
       generatedAt: new Date(),

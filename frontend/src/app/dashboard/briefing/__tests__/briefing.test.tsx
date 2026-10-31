@@ -3,6 +3,7 @@ import { it, expect, vi, beforeEach } from 'vitest'
 import BriefingPage from '../page'
 
 const mockGet = vi.fn()
+const mockPut = vi.fn()
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: vi.fn() }),
@@ -10,7 +11,7 @@ vi.mock('next/navigation', () => ({
 }))
 
 vi.mock('@/lib/http-client', () => ({
-  http: { get: (...args: any[]) => mockGet(...args) },
+  http: { get: (...args: any[]) => mockGet(...args), put: (...args: any[]) => mockPut(...args) },
 }))
 
 vi.mock('@/lib/use-language', () => ({
@@ -23,6 +24,7 @@ describe('BriefingPage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockGet.mockReset()
+    mockPut.mockReset()
   })
 
   it('renders coptic banner, next session, next lesson, and follow-up checklist', async () => {
@@ -54,6 +56,30 @@ describe('BriefingPage', () => {
     expect(screen.getByText(/Group A/)).toBeInTheDocument()
     expect(screen.getByText('Mina A')).toBeInTheDocument()
     expect(screen.getByText('Missed 3+')).toBeInTheDocument()
+  })
+
+  it('shows persisted follow-ups as done, sinks them below open ones, and saves a new tick', async () => {
+    const base = { attendanceRate: 40, lastAttendanceStatus: 'absent', likelyAbsent: true, needsFollowUp: true, followUpReasons: [], notes: [] }
+    mockGet.mockResolvedValue({
+      generatedAt: new Date().toISOString(),
+      coptic: { coptic: { month: 4, day: 5, year: 1742, monthName: 'Kiahk', monthNameAr: 'كيهك' }, season: 'kiahk', seasonLabel: { en: 'Kiahk', ar: 'كيهك' }, feastFast: null },
+      nextSession: null, nextLesson: null,
+      roster: [
+        { ...base, studentId: 's1', firstName: 'Done', lastName: 'Kid', followUp: { done: true, note: 'Called', completedAt: new Date().toISOString() } },
+        { ...base, studentId: 's2', firstName: 'Open', lastName: 'Kid', followUp: null },
+      ],
+    })
+    mockPut.mockResolvedValue({ done: true, note: null, completedAt: new Date().toISOString() })
+    render(<BriefingPage />)
+
+    expect(await screen.findByText('1 of 2 done')).toBeInTheDocument()
+    const names = screen.getAllByText(/Kid$/).map(n => n.textContent)
+    expect(names).toEqual(['Open Kid', 'Done Kid'])
+
+    fireEvent.click(screen.getByText('Open Kid'))
+    fireEvent.click(screen.getByRole('checkbox'))
+    expect(mockPut).toHaveBeenCalledWith('/dashboard/follow-ups/s2', { done: true })
+    expect(await screen.findByText('2 of 2 done')).toBeInTheDocument()
   })
 
   it('renders every allocated lesson of the coming class, not just the first', async () => {

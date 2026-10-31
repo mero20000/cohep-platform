@@ -70,7 +70,7 @@ describe('recordLiturgyAttendance', () => {
 
 describe('toggleActive', () => {
   const controller = new ServantsController(
-    new ServantsService(prismaMock as any, {} as any, {} as any),
+    new ServantsService(prismaMock as any, {} as any, {} as any, {} as any),
     prismaMock as any,
   );
   const admin = { id: 'a1', schoolId: 's1', roles: ['admin'] };

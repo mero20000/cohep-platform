@@ -1,5 +1,6 @@
 'use client'
 
+import { useLanguage } from '@/lib/use-language'
 import { ServantMilestoneData } from './hooks'
 
 interface MinistryTimelineProps {
@@ -16,6 +17,7 @@ const TYPE_ICONS: Record<string, string> = {
 }
 
 export function MinistryTimeline({ milestones, isLoading }: MinistryTimelineProps) {
+  const lang = useLanguage()
   if (isLoading) {
     return (
       <div className="space-y-4">
@@ -49,9 +51,9 @@ export function MinistryTimeline({ milestones, isLoading }: MinistryTimelineProp
             </div>
 
             <div className="flex-1 min-w-0">
-              <div className="text-sm text-gray-900">{milestone.label}</div>
+              <div className="text-sm text-gray-900">{lang === 'ar' && milestone.labelAr ? milestone.labelAr : milestone.label}</div>
               <div className="text-xs text-gray-500 mt-0.5">
-                {new Date(milestone.reachedAt).toLocaleDateString('en-GB', {
+                {new Date(milestone.reachedAt).toLocaleDateString(lang === 'ar' ? 'ar-EG' : 'en-GB', {
                   month: 'short',
                   year: 'numeric',
                 })}
