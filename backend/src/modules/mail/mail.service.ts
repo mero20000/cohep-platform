@@ -6,6 +6,7 @@ import {
   emailParagraph,
   emailDivider,
   emailHighlightBox,
+  escapeHtml,
 } from "./email-template";
 
 const SENDGRID_API_URL = "https://api.sendgrid.com/v3/mail/send";
@@ -122,8 +123,8 @@ export class MailService {
       content: `
         ${emailParagraph("A new church has submitted a registration request. Please review the details below:")}
         ${emailHighlightBox(`
-          <p style="margin:0;font-size:14px;color:#92400e;"><strong>${data.churchName}</strong></p>
-          <p style="margin:4px 0 0;font-size:13px;color:#a16207;">${data.city}, ${data.country}</p>
+          <p style="margin:0;font-size:14px;color:#92400e;"><strong>${escapeHtml(data.churchName)}</strong></p>
+          <p style="margin:4px 0 0;font-size:13px;color:#a16207;">${escapeHtml(data.city)}, ${escapeHtml(data.country)}</p>
         `, 'gold')}
         <table style="width:100%;border-collapse:collapse;font-size:14px;margin:8px 0;">
           ${emailKeyValueRow("Contact Person", `${data.firstName} ${data.lastName}`)}
@@ -152,16 +153,19 @@ export class MailService {
     studentNameAr: string,
     groupName: string,
   ) {
+    const safeName = escapeHtml(studentName);
+    const safeNameAr = escapeHtml(studentNameAr || studentName);
+    const safeGroup = escapeHtml(groupName);
     const html = emailTemplate({
       title: "We Miss Your Child in Class",
       variant: "red",
       content: `
         ${emailHighlightBox(`
-          <p style="margin:0;font-size:14px;color:#991b1b;"><strong>${studentName}</strong></p>
-          <p style="margin:4px 0 0;font-size:13px;color:#b91c1c;">${groupName}</p>
+          <p style="margin:0;font-size:14px;color:#991b1b;"><strong>${safeName}</strong></p>
+          <p style="margin:4px 0 0;font-size:13px;color:#b91c1c;">${safeGroup}</p>
         `, 'red')}
-        ${emailParagraph(`We've noticed that <strong>${studentName}</strong> hasn't attended <strong>${groupName}</strong> for the past 3 weeks. We miss them and hope everything is okay!`)}
-        ${emailParagraph(`لاحظنا أن <strong>${studentNameAr || studentName}</strong> لم يحضر <strong>${groupName}</strong> خلال الأسابيع الثلاثة الماضية. نحن نفتقدهم ونأمل أن يكون كل شيء على ما يرام!`)}
+        ${emailParagraph(`We've noticed that <strong>${safeName}</strong> hasn't attended <strong>${safeGroup}</strong> for the past 3 weeks. We miss them and hope everything is okay!`)}
+        ${emailParagraph(`لاحظنا أن <strong>${safeNameAr}</strong> لم يحضر <strong>${safeGroup}</strong> خلال الأسابيع الثلاثة الماضية. نحن نفتقدهم ونأمل أن يكون كل شيء على ما يرام!`)}
         ${emailDivider()}
         ${emailParagraph("If there is anything we can help with, please don't hesitate to reach out to your child's servant or group leader.")}
       `,

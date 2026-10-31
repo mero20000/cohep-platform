@@ -137,6 +137,7 @@ export default function ParentsPage() {
   const [loading, setLoading] = useState(true)
   const [schoolIdentity, setSchoolIdentity] = useState<{ name: string; nameAr?: string; churchName?: string; logoUrl?: string | null; churchLogoUrl?: string | null } | null>(null)
   const [code, setCode] = useState('')
+  const [dob, setDob] = useState('')
   const [rel, setRel] = useState('father')
   const [linking, setLinking] = useState(false)
   const [unlinking, setUnlinking] = useState<string | null>(null)
@@ -167,13 +168,14 @@ export default function ParentsPage() {
 
   const link = async () => {
     const value = code.trim()
-    if (!value) return
+    if (!value || !dob) return
     setLinking(true)
     setError(null)
     try {
-      const d = await http.post<LinkedChild[]>('/parents/me/children/link', { studentCode: value, relationship: rel })
+      const d = await http.post<LinkedChild[]>('/parents/me/children/link', { studentCode: value, dateOfBirth: dob, relationship: rel })
       setChildren(d || [])
       setCode('')
+      setDob('')
       toast('success', lang === 'ar' ? 'تم ربط الطالب بحسابك' : 'Child linked to your account')
     } catch (e: any) {
       const msg = e?.message || (lang === 'ar' ? 'تعذر الربط' : 'Failed to link child')
@@ -264,6 +266,13 @@ export default function ParentsPage() {
               className="w-full rounded-lg border border-gray-200 bg-white pl-10 pr-4 py-3 text-sm shadow-sm focus:border-gold-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
             />
           </div>
+          <input
+            type="date"
+            value={dob}
+            onChange={(e) => setDob(e.target.value)}
+            aria-label={lang === 'ar' ? 'تاريخ ميلاد الطالب' : "Child's date of birth"}
+            className="rounded-lg border border-gray-200 bg-white px-4 py-3 text-sm shadow-sm focus:border-gold-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+          />
           <select
             value={rel}
             onChange={(e) => setRel(e.target.value)}
@@ -275,7 +284,7 @@ export default function ParentsPage() {
           </select>
           <Button
             onClick={link}
-            disabled={linking || !code.trim()}
+            disabled={linking || !code.trim() || !dob}
           >
             <Link2 className="h-4 w-4" />
             {linking ? (lang === 'ar' ? 'جارٍ الربط…' : 'Linking…') : (lang === 'ar' ? 'ربط' : 'Link')}

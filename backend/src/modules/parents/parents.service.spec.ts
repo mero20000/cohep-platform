@@ -2,6 +2,8 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { ParentsService, STUDENT_SELF } from './parents.service';
 import { PrismaService } from '../../database/prisma.service';
 import { HymnLearningService } from '../curriculum/hymn-learning.service';
+import { AuditService } from '../audit/audit.service';
+import { ChildLinkThrottleService } from './child-link-throttle.service';
 
 describe('ParentsService getCurrentLesson', () => {
   let service: ParentsService;
@@ -49,6 +51,8 @@ describe('ParentsService getCurrentLesson', () => {
       providers: [
         ParentsService,
         { provide: PrismaService, useValue: prismaMock },
+        { provide: AuditService, useValue: { log: jest.fn() } },
+        ChildLinkThrottleService,
         {
           provide: HymnLearningService,
           useValue: {
@@ -113,6 +117,8 @@ describe('ParentsService.logLiturgy re-filing after a rejection', () => {
       providers: [
         ParentsService,
         { provide: PrismaService, useValue: prismaMock },
+        { provide: AuditService, useValue: { log: jest.fn() } },
+        ChildLinkThrottleService,
         { provide: HymnLearningService, useValue: {} },
       ],
     }).compile();
@@ -200,6 +206,8 @@ describe('ParentsService assessments integrity', () => {
       providers: [
         ParentsService,
         { provide: PrismaService, useValue: prismaMock },
+        { provide: AuditService, useValue: { log: jest.fn() } },
+        ChildLinkThrottleService,
         { provide: HymnLearningService, useValue: {} },
       ],
     }).compile();

@@ -15,6 +15,7 @@ jest.mock('../../common/storage/r2', () => ({
 describe('RegistrationsService', () => {
   let service: RegistrationsService;
   let prisma: any;
+  let mail: { sendMail: jest.Mock };
 
   const schoolId = 'school-1';
   const schoolSlug = 'st-mark';
@@ -60,6 +61,7 @@ describe('RegistrationsService', () => {
 
     service = module.get<RegistrationsService>(RegistrationsService);
     prisma = module.get(PrismaService);
+    mail = module.get(MailService) as any;
     jest.clearAllMocks();
   });
 
@@ -434,6 +436,31 @@ describe('RegistrationsService', () => {
         expect.stringMatching(/^student-photos\/registrations\/st-mark\/\d+-[a-z0-9]+\.jpg$/),
         'image/jpeg',
       );
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // email escaping
+  // ---------------------------------------------------------------------------
+  describe('emails built from applicant input', () => {
+    const PAYLOAD = '<img src=x onerror=alert(1)>';
+
+    it('escapes the applicant name and the reason in the rejection email', async () => {
+      prismaMock.registrationApplication.findUnique.mockResolvedValue({
+        id: 'r1',
+        schoolId,
+        status: 'pending',
+        submittedByEmail: 'parent@example.com',
+        studentData: { name: PAYLOAD },
+      });
+      prismaMock.registrationApplication.update.mockResolvedValue({ id: 'r1' });
+
+      await service.reject('r1', { id: 'admin-1', schoolId, roles: ['admin'] }, PAYLOAD);
+
+      expect(mail.sendMail).toHaveBeenCalledTimes(1);
+      const html: string = mail.sendMail.mock.calls[0][2];
+      expect(html).not.toMatch(/<img\b/i);
+      expect(html).toContain('&lt;img src=x onerror=alert(1)&gt;');
     });
   });
 });

@@ -62,6 +62,7 @@ export default function PortalPage() {
   const [schoolIdentity, setSchoolIdentity] = useState<{ name: string; nameAr?: string; churchName?: string; logoUrl?: string | null; churchLogoUrl?: string | null } | null>(null)
 
   const [studentCode, setStudentCode] = useState('')
+  const [dateOfBirth, setDateOfBirth] = useState('')
   const [relationship, setRelationship] = useState('father')
   const [linking, setLinking] = useState(false)
   const [linkError, setLinkError] = useState('')
@@ -98,8 +99,9 @@ export default function PortalPage() {
     setLinkError('')
     setLinkSuccess('')
     try {
-      await http.post('/parents/me/children/link', { studentCode: studentCode.trim(), relationship })
+      await http.post('/parents/me/children/link', { studentCode: studentCode.trim(), dateOfBirth, relationship })
       setStudentCode('')
+      setDateOfBirth('')
       setRelationship('father')
       setLinkSuccess(t('Child linked successfully', 'تم ربط الطالب بنجاح'))
       await refresh()
@@ -207,7 +209,7 @@ export default function PortalPage() {
       {/* Link form */}
       <form id="link-child" onSubmit={handleLink} className="rounded-xl border border-blue-200 bg-blue-50 p-5">
         <h2 className="text-sm font-semibold text-blue-800 mb-1">{t('Link a child', 'ربط طالب')}</h2>
-        <p className="text-xs text-blue-700/80 mb-3">{t("Enter the student code from your child's enrollment card to connect their account.", 'أدخل كود الطالب الموجود ببطاقة التسجيل لربط حسابه.')}</p>
+        <p className="text-xs text-blue-700/80 mb-3">{t("Enter the student code from your child's enrollment card and their date of birth to connect their account.", 'أدخل كود الطالب الموجود ببطاقة التسجيل مع تاريخ ميلاده لربط حسابه.')}</p>
         <div className="flex flex-col gap-3 sm:flex-row">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -218,6 +220,14 @@ export default function PortalPage() {
               className="w-full rounded-lg border border-gray-300 bg-white pl-10 pr-3 py-2.5 text-sm focus:border-gold-400 focus:outline-none focus:ring-2 focus:ring-gold-200"
             />
           </div>
+          <input
+            type="date"
+            required
+            value={dateOfBirth}
+            onChange={e => setDateOfBirth(e.target.value)}
+            aria-label={t('Date of birth', 'تاريخ الميلاد')}
+            className="rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm focus:border-gold-400 focus:outline-none focus:ring-2 focus:ring-gold-200 sm:w-44"
+          />
           <select
             value={relationship}
             onChange={e => setRelationship(e.target.value)}
@@ -230,7 +240,7 @@ export default function PortalPage() {
           </select>
           <Button
             type="submit"
-            disabled={linking || !studentCode.trim()}
+            disabled={linking || !studentCode.trim() || !dateOfBirth}
           >
             {linking ? <Loader2 className="h-4 w-4 animate-spin" /> : <Link2 className="h-4 w-4" />}
             {t('Link child', 'ربط')}
