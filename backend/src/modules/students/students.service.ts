@@ -2,6 +2,7 @@ import { Injectable, NotFoundException, ForbiddenException, BadRequestException 
 import { PrismaService } from '../../database/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { SchoolResolver } from '../../common/utils/school-resolver';
+import { buildStudentSearchClauses } from '../../common/utils/search';
 import { localToday, studentBirthdayWindow } from '../../common/utils/birthday';
 import { AnalyticsService } from '../analytics/analytics.service';
 import { LIFECYCLE_WHERE, assessmentGender, isEligible, liveByKey, scoreOf } from '../assessments/assessment-lifecycle';
@@ -57,21 +58,8 @@ export class StudentsService {
       };
     }
 
-    if (search) {
-      where.OR = [
-        { firstName: { contains: search, mode: 'insensitive' } },
-        { lastName: { contains: search, mode: 'insensitive' } },
-        { firstNameAr: { contains: search, mode: 'insensitive' } },
-        { lastNameAr: { contains: search, mode: 'insensitive' } },
-        { studentCode: { contains: search, mode: 'insensitive' } },
-        { parentEmail: { contains: search, mode: 'insensitive' } },
-        { churchName: { contains: search, mode: 'insensitive' } },
-        { metadata: { path: ['phone'], string_contains: search } },
-        { metadata: { path: ['studentPhone'], string_contains: search } },
-        { studentParents: { some: { parent: { phone: { contains: search, mode: 'insensitive' } } } } },
-        { studentParents: { some: { parent: { email: { contains: search, mode: 'insensitive' } } } } },
-      ];
-    }
+    const searchClauses = buildStudentSearchClauses(search);
+    if (searchClauses.length) where.AND = searchClauses;
 
     const dir = sortDir === 'desc' ? 'desc' : 'asc';
     const orderMap: Record<string, any> = {
@@ -1180,20 +1168,8 @@ async getPortalData(portalAccessKey: string) {
       };
     }
 
-    if (filters?.search) {
-      where.OR = [
-        { firstName: { contains: filters.search, mode: 'insensitive' } },
-        { lastName: { contains: filters.search, mode: 'insensitive' } },
-        { firstNameAr: { contains: filters.search, mode: 'insensitive' } },
-        { lastNameAr: { contains: filters.search, mode: 'insensitive' } },
-        { studentCode: { contains: filters.search, mode: 'insensitive' } },
-        { parentEmail: { contains: filters.search, mode: 'insensitive' } },
-        { churchName: { contains: filters.search, mode: 'insensitive' } },
-        { metadata: { path: ['parentPhone'], string_contains: filters.search } },
-        { studentParents: { some: { parent: { phone: { contains: filters.search, mode: 'insensitive' } } } } },
-        { studentParents: { some: { parent: { email: { contains: filters.search, mode: 'insensitive' } } } } },
-      ];
-    }
+    const searchClauses = buildStudentSearchClauses(filters?.search);
+    if (searchClauses.length) where.AND = searchClauses;
 
     const [total, active, inactive, graduated, male, female] = await Promise.all([
       this.prisma.student.count({ where }),

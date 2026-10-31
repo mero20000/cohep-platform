@@ -4,6 +4,7 @@ import { PrismaService } from '../../database/prisma.service';
 import { GamificationService } from '../gamification/gamification.service';
 import { StudentNotificationsService } from '../student-notifications/student-notifications.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { buildUserSearchClauses } from '../../common/utils/search';
 
 const SERVANT_ROLE_NAMES = ['servant', 'group_leader', 'level_leader'] as const;
 
@@ -145,13 +146,8 @@ export class ServantsService {
     };
     if (!isSuperAdmin && user.schoolId) where.schoolId = user.schoolId;
 
-    if (query.search) {
-      where.OR = [
-        { firstName: { contains: query.search, mode: 'insensitive' } },
-        { lastName: { contains: query.search, mode: 'insensitive' } },
-        { email: { contains: query.search, mode: 'insensitive' } },
-      ];
-    }
+    const searchClauses = buildUserSearchClauses(query.search);
+    if (searchClauses.length) where.AND = searchClauses;
     if (query.role) {
       where.userRoles = {
         some: {
