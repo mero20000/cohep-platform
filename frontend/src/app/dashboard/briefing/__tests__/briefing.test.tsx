@@ -158,6 +158,8 @@ describe('BriefingPage', () => {
       nextLesson: null,
       roster: [],
     })
+    // The birthdays card makes its own request once the briefing renders.
+    mockGet.mockResolvedValue({ signoff: {}, birthdays: [] })
     fireEvent.click(screen.getByText('Retry'))
     expect(await screen.findByText('All caught up')).toBeInTheDocument()
   })

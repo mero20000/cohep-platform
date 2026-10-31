@@ -9,6 +9,7 @@ import { assetUrl } from '@/lib/asset-url'
 import { TableSkeleton } from '@/components/ui/skeleton'
 import { EmptyState } from '@/components/ui/empty-state'
 import { AudioPlayer } from '@/components/audio-player'
+import { BirthdaysSection } from '@/components/servants/birthdays-section'
 import { FollowUpControl, FollowUpDoneBadge, type FollowUpState } from '@/components/servants/follow-up-control'
 
 interface Note { category?: string; note?: string; isPrivate: boolean; createdAt: string }
@@ -300,6 +301,8 @@ export default function BriefingPage() {
           );
         })()}
       </div>
+
+      <BirthdaysSection lang={lang} />
 
       <div className="mt-6 flex items-center justify-between">
         <h3 className="flex items-center gap-1.5 text-sm font-semibold text-gray-700">

@@ -13,6 +13,11 @@ class SetFollowUpDto {
   @IsOptional() @IsString() @MaxLength(500) note?: string;
 }
 
+class SetBirthdayGreetedDto {
+  @IsOptional() @IsBoolean() done?: boolean;
+  @IsOptional() @IsString() @MaxLength(500) note?: string;
+}
+
 @ApiTags('dashboard')
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles(...STAFF_ROLES)
@@ -90,6 +95,28 @@ export class DashboardController {
     @Query('schoolId') schoolId: string = '',
   ) {
     return this.service.setFollowUp(user, schoolId, studentId, dto);
+  }
+
+  @Get('birthdays')
+  @Roles(...STAFF_ROLES)
+  @ApiOperation({ summary: 'Birthdays in your class (past week to next week) with message recipient and sign-off' })
+  async getBirthdays(
+    @CurrentUser() user: any,
+    @Query('schoolId') schoolId: string = '',
+  ) {
+    return this.service.getBirthdays(user, schoolId);
+  }
+
+  @Put('birthdays/:studentId/greeted')
+  @Roles(...STAFF_ROLES)
+  @ApiOperation({ summary: 'Mark a student\'s birthday as greeted (or undo), with an optional private note' })
+  async setBirthdayGreeted(
+    @CurrentUser() user: any,
+    @Param('studentId') studentId: string,
+    @Body() dto: SetBirthdayGreetedDto,
+    @Query('schoolId') schoolId: string = '',
+  ) {
+    return this.service.setBirthdayGreeted(user, schoolId, studentId, dto);
   }
 
   @Get('weekly-briefing')

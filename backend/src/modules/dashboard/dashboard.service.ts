@@ -1,11 +1,15 @@
-import { Injectable, ForbiddenException, NotFoundException } from '@nestjs/common';
+import { Injectable, ForbiddenException, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 import { SchoolResolver } from '../../common/utils/school-resolver';
 import { getCopticContext } from '../../common/utils/coptic-calendar';
+import { localToday, nearestBirthday } from '../../common/utils/birthday';
 import { attendanceRate as calcAttendanceRate, rateFromCounts } from '../attendance/attendance-metrics';
 
 /** How long a ticked follow-up stays ticked before the student resurfaces. */
 const FOLLOW_UP_DONE_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
+
+/** Birthdays shown from this many days ago to this many days ahead. */
+const BIRTHDAY_WINDOW_DAYS = 7;
 
 @Injectable()
 export class DashboardService {
@@ -1170,6 +1174,121 @@ export class DashboardService {
       todayLesson,
       roster,
     };
+  }
+
+  /**
+   * Birthdays in the servant's class from a week ago to a week ahead, with everything the
+   * servant needs to greet them: who to message (the student's own number, else the
+   * parent's), the sign-off, and the facts behind the personal message variant.
+   */
+  async getBirthdays(user: any, schoolIdentifier: string) {
+    const schoolId = await this.schoolResolver.resolve(schoolIdentifier);
+    const { studentIds } = await this.resolveServantClass(user.id, schoolId);
+
+    const [school, servant] = await Promise.all([
+      this.prisma.school.findUnique({
+        where: { id: schoolId },
+        select: { name: true, timezone: true, church: { select: { name: true } } },
+      }),
+      this.prisma.user.findUnique({ where: { id: user.id }, select: { firstName: true, lastName: true } }),
+    ]);
+    const today = localToday(new Date(), school?.timezone || 'UTC');
+    const signoff = {
+      servantName: servant ? `${servant.firstName} ${servant.lastName}`.trim() : '',
+      school: school?.name ?? '',
+      church: school?.church?.name ?? '',
+    };
+    if (studentIds.length === 0) return { today: today.toISOString().slice(0, 10), signoff, birthdays: [] };
+
+    const students = await this.prisma.student.findMany({
+      where: { id: { in: studentIds }, deletedAt: null },
+      select: {
+        id: true, firstName: true, lastName: true, firstNameAr: true, lastNameAr: true,
+        photoUrl: true, dateOfBirth: true, metadata: true,
+      },
+    });
+
+    const due = students
+      .map((st: any) => ({ st, bday: nearestBirthday(new Date(st.dateOfBirth), today) }))
+      .filter(({ bday }) => bday.daysAway >= -BIRTHDAY_WINDOW_DAYS && bday.daysAway <= BIRTHDAY_WINDOW_DAYS);
+    if (due.length === 0) return { today: today.toISOString().slice(0, 10), signoff, birthdays: [] };
+
+    const greetings = await this.prisma.studentBirthdayGreeting.findMany({
+      where: { studentId: { in: due.map(({ st }) => st.id) } },
+      select: { studentId: true, year: true, note: true, greetedAt: true },
+    });
+
+    const birthdays = await Promise.all(due.map(async ({ st, bday }) => {
+      const previousBirthday = new Date(Date.UTC(
+        bday.date.getUTCFullYear() - 1, bday.date.getUTCMonth(), bday.date.getUTCDate(),
+      ));
+      const [lastThree, sessionsAttended, hymnsLearned] = await Promise.all([
+        this.prisma.attendanceRecord.findMany({
+          where: { studentId: st.id }, orderBy: { recordedAt: 'desc' }, take: 3, select: { status: true },
+        }),
+        this.prisma.attendanceRecord.count({
+          where: { studentId: st.id, status: { in: ['present', 'late'] }, recordedAt: { gte: previousBirthday } },
+        }),
+        this.prisma.lessonProgress.count({
+          where: { studentId: st.id, masteryStatus: { in: ['known', 'mastered'] }, updatedAt: { gte: previousBirthday } },
+        }),
+      ]);
+
+      const meta = (st.metadata as any) || {};
+      const studentPhone: string | undefined = meta.studentPhone || undefined;
+      const parentPhone: string | undefined = meta.parentPhone || meta.parentWhatsApp || meta.phone || undefined;
+      const greeting = greetings.find((g: any) => g.studentId === st.id && g.year === bday.year);
+
+      return {
+        studentId: st.id,
+        firstName: st.firstName,
+        lastName: st.lastName,
+        firstNameAr: st.firstNameAr,
+        lastNameAr: st.lastNameAr,
+        photoUrl: st.photoUrl,
+        birthdayDate: bday.date.toISOString().slice(0, 10),
+        daysAway: bday.daysAway,
+        turningAge: bday.turningAge,
+        recipientPhone: studentPhone || parentPhone || null,
+        recipientKind: studentPhone ? 'student' : parentPhone ? 'parent' : null,
+        missedThreeWeeks: lastThree.length >= 3 && lastThree.every((r: any) => r.status === 'absent'),
+        sessionsAttended,
+        hymnsLearned,
+        greeted: greeting ? { note: greeting.note ?? null, at: greeting.greetedAt } : null,
+      };
+    }));
+
+    // Nearest first; on a tie the upcoming birthday outranks the one that already passed.
+    birthdays.sort((a, b) => Math.abs(a.daysAway) - Math.abs(b.daysAway) || b.daysAway - a.daysAway);
+    return { today: today.toISOString().slice(0, 10), signoff, birthdays };
+  }
+
+  /** Mark a student's current birthday as greeted (or undo it), with an optional private note. */
+  async setBirthdayGreeted(user: any, schoolIdentifier: string, studentId: string, dto: { done?: boolean; note?: string }) {
+    const schoolId = await this.schoolResolver.resolve(schoolIdentifier);
+    const { studentIds } = await this.resolveServantClass(user.id, schoolId);
+    if (!studentIds.includes(studentId)) throw new NotFoundException('Student not found in your class');
+
+    const [student, school] = await Promise.all([
+      this.prisma.student.findUnique({ where: { id: studentId }, select: { dateOfBirth: true } }),
+      this.prisma.school.findUnique({ where: { id: schoolId }, select: { timezone: true } }),
+    ]);
+    if (!student) throw new NotFoundException('Student not found');
+    const bday = nearestBirthday(new Date(student.dateOfBirth), localToday(new Date(), school?.timezone || 'UTC'));
+    if (Math.abs(bday.daysAway) > BIRTHDAY_WINDOW_DAYS) throw new BadRequestException('This student has no birthday this week');
+
+    const where = { studentId_year: { studentId, year: bday.year } };
+    if (dto.done === false) {
+      await this.prisma.studentBirthdayGreeting.deleteMany({ where: { studentId, year: bday.year } });
+      return { greeted: null };
+    }
+    const note = dto.note === undefined ? undefined : dto.note.trim() || null;
+    const saved = await this.prisma.studentBirthdayGreeting.upsert({
+      where,
+      create: { schoolId, studentId, servantId: user.id, year: bday.year, note: note ?? null },
+      update: { servantId: user.id, ...(note !== undefined ? { note } : {}) },
+    });
+    return { greeted: { note: saved.note ?? null, at: saved.greetedAt } };
   }
 
   /** A 'done' follow-up only counts for a week; after that the student is open again if still flagged. */
