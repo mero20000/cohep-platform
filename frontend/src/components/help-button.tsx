@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { usePathname } from 'next/navigation'
 import { HelpCircle, X, Keyboard, ChevronRight } from 'lucide-react'
 import { useLanguage } from '@/lib/use-language'
 
@@ -17,13 +18,16 @@ const SHORTCUTS = [
 export function HelpButton() {
   const lang = useLanguage()
   const [open, setOpen] = useState(false)
+  // Screens with their own sticky action bar (attendance marking) need the button lifted above it,
+  // otherwise it sits on top of the bar's right-hand button on phones.
+  const hasActionBar = usePathname()?.startsWith('/dashboard/attendance/mark') ?? false
 
   return (
     <>
       <button
         id="help-button"
         onClick={() => setOpen(true)}
-        className="fixed bottom-[calc(5rem+env(safe-area-inset-bottom))] lg:bottom-6 end-4 sm:end-6 z-40 flex h-12 w-12 items-center justify-center rounded-full bg-gray-800 text-white shadow-lg shadow-gray-400/30 hover:bg-gray-700 hover:scale-105 active:scale-95 transition-transform"
+        className={`fixed ${hasActionBar ? 'bottom-[calc(9.5rem+env(safe-area-inset-bottom))]' : 'bottom-[calc(5rem+env(safe-area-inset-bottom))]'} lg:bottom-6 end-4 sm:end-6 z-40 flex h-12 w-12 items-center justify-center rounded-full bg-gray-800 text-white shadow-lg shadow-gray-400/30 hover:bg-gray-700 hover:scale-105 active:scale-95 transition-transform`}
         aria-label={lang === 'ar' ? 'مساعدة' : 'Help'}
         title={lang === 'ar' ? 'مساعدة' : 'Help'}
       >
