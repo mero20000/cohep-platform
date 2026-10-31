@@ -156,13 +156,15 @@ export function StudentTable({ students, loading, fetchError, selectedIds, allSe
           return (
           <div key={s.id} className={`flex items-start gap-1 ps-1 pe-1 py-2 border-s-4 ${STATUS_STYLE[s.status]?.bar || 'border-s-transparent'} ${selectedIds.has(s.id) ? 'bg-gold-50/40' : ''}`}>
             <RowCheckbox checked={selectedIds.has(s.id)} onChange={e => toggleId(s.id,(e.nativeEvent as MouseEvent).shiftKey)} ariaLabel={t(`Select ${s.firstName} ${s.lastName}`,`تحديد ${s.firstName} ${s.lastName}`)} />
-            <div role="button" tabIndex={0} onClick={() => onView(s)}
-              onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onView(s) } }}
-              className="flex min-w-0 flex-1 cursor-pointer items-start gap-3 rounded-lg py-1 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-blue-500">
+            {/* Clicking anywhere on the row opens the student for mouse and touch. The student's NAME is the real button
+                for keyboard and assistive technology: the row itself holds other controls (photo, call, portal), and
+                a button may not contain other interactive elements. */}
+            <div onClick={() => onView(s)} className="flex min-w-0 flex-1 cursor-pointer items-start gap-3 rounded-lg py-1">
               <span onClick={e => e.stopPropagation()}><AvatarCell s={s} size={44} onPreview={onPreviewPhoto} lang={lang} /></span>
               <div className="min-w-0 flex-1">
                 <div className="flex items-start gap-1.5">
-                  <span className="line-clamp-2 wrap-break-word text-[15px] font-semibold leading-snug text-gray-900">{s.firstName} {s.lastName}</span>
+                  <button type="button" onClick={e => { e.stopPropagation(); onView(s) }}
+                    className="line-clamp-2 wrap-break-word rounded-sm text-start text-[15px] font-semibold leading-snug text-gray-900 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-blue-500">{s.firstName} {s.lastName}</button>
                   <CompletenessIndicator student={s} lang={lang} />
                 </div>
                 <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1">

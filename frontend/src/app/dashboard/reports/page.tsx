@@ -18,12 +18,19 @@ import { EmptyState } from '@/components/ui/empty-state'
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
+interface HealthComponent {
+  key: string; labelEn: string; labelAr: string; points: number; max: number; counted: boolean
+  detailEn: string; detailAr: string
+}
+
 interface PriestPulse {
   generatedAt: string
   pulse: {
-    attendanceThisWeek: number; attendanceLastWeek: number; attendanceTrend: number
+    /** Last 7 days; null = no class was held (not 0%). */
+    attendanceThisWeek: number | null; attendanceLastWeek: number | null; attendanceTrend: number | null
     studentsAtRisk: number; pendingGrading: number; xpEarnedThisWeek: number
     familyPracticeThisWeek: number; totalStudents: number; activeStudentsThisWeek: number; healthScore: number
+    healthBreakdown: HealthComponent[]
   }
   signals: Array<{ type: 'warning' | 'info' | 'success'; messageEn: string; messageAr: string }>
 }
@@ -120,18 +127,20 @@ function PriestPulseSection({ schoolId, lang }: { schoolId: string; lang: string
   const cards = [
     {
       label: t('Attendance', 'الحضور'),
-      value: pulse.attendanceThisWeek + '%',
-      sub: t('This week', 'هذا الأسبوع'),
-      trend: pulse.attendanceTrend,
+      value: pulse.attendanceThisWeek === null ? '—' : pulse.attendanceThisWeek + '%',
+      sub: pulse.attendanceThisWeek === null ? t('No class in the last 7 days', 'لا حصص في آخر 7 أيام') : t('Last 7 days', 'آخر 7 أيام'),
+      // Only claim a change when both weeks had a class to compare.
+      trend: pulse.attendanceTrend ?? undefined,
       suffix: '%',
       icon: Users,
       iconBg: 'bg-blue-50', iconColor: 'text-blue-600',
-      alert: pulse.attendanceThisWeek < 60,
+      alert: pulse.attendanceThisWeek !== null && pulse.attendanceThisWeek < 60,
     },
     {
       label: t('Students At Risk', 'طلاب في خطر'),
       value: String(pulse.studentsAtRisk),
-      sub: t('Missed 3+ sessions', 'غابوا عن 3+ جلسات'),
+      sub: t('Missed 3+ in a row · view list', 'غابوا 3+ متتالية · عرض القائمة'),
+      href: '/dashboard/students?engagement=at_risk',
       icon: AlertTriangle,
       iconBg: pulse.studentsAtRisk > 0 ? 'bg-red-50' : 'bg-green-50',
       iconColor: pulse.studentsAtRisk > 0 ? 'text-red-500' : 'text-green-600',
@@ -199,6 +208,25 @@ function PriestPulseSection({ schoolId, lang }: { schoolId: string; lang: string
             <Church className={`h-8 w-8 ${healthColor}`} />
           </div>
         </div>
+        <details className="mt-3 group">
+          <summary className="cursor-pointer text-xs font-semibold text-gray-700 hover:text-gray-900 min-h-[44px] sm:min-h-0 flex items-center">
+            {t('How is this calculated?', 'كيف تُحسب؟')}
+          </summary>
+          <ul className="mt-2 space-y-1.5 rounded-xl bg-white/70 p-3 text-xs text-gray-700">
+            {pulse.healthBreakdown.map(c => (
+              <li key={c.key} className="flex items-start justify-between gap-3">
+                <span>
+                  <span className="font-semibold text-gray-900">{lang === 'ar' ? c.labelAr : c.labelEn}</span>
+                  <span className="block text-gray-600">{lang === 'ar' ? c.detailAr : c.detailEn}</span>
+                </span>
+                <span className="shrink-0 font-bold tabular-nums text-gray-900">{c.counted ? `${c.points}/${c.max}` : '—'}</span>
+              </li>
+            ))}
+            <li className="border-t border-gray-200 pt-1.5 text-gray-600">
+              {t('Score = points earned ÷ points possible. A week with no class is left out rather than scored as zero.', 'الدرجة = النقاط المكتسبة ÷ النقاط الممكنة. الأسبوع بلا حصص يُستبعد ولا يُحسب صفراً.')}
+            </li>
+          </ul>
+        </details>
         <div className="mt-3 text-[11px] text-gray-500">
           {t('Generated', 'تم التوليد')} {new Date(data.generatedAt).toLocaleTimeString(lang === 'ar' ? 'ar-EG' : 'en-GB', { hour: '2-digit', minute: '2-digit' })}
           <button onClick={refresh} className="ml-3 inline-flex items-center gap-1 text-gray-500 hover:text-gray-600 transition-colors">
@@ -231,8 +259,10 @@ function PriestPulseSection({ schoolId, lang }: { schoolId: string; lang: string
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {cards.map(card => {
           const Icon = card.icon
-          return (
-            <div key={card.label} className={`rounded-xl border bg-white p-4 ${card.alert ? 'border-red-200 ring-1 ring-red-100' : 'border-gray-200'}`}>
+          const cardClass = `rounded-xl border bg-white p-4 ${card.alert ? 'border-red-200 ring-1 ring-red-100' : 'border-gray-200'}`
+          const href = (card as { href?: string }).href
+          const content = (
+            <>
               <div className="flex items-start justify-between gap-2">
                 <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${card.iconBg}`}>
                   <Icon className={`h-4.5 w-4.5 ${card.iconColor}`} />
@@ -244,8 +274,11 @@ function PriestPulseSection({ schoolId, lang }: { schoolId: string; lang: string
                 <div className="text-xs text-gray-500 mt-0.5">{card.label}</div>
                 <div className="text-[11px] text-gray-500 mt-0.5">{card.sub}</div>
               </div>
-            </div>
+            </>
           )
+          return href
+            ? <Link key={card.label} href={href} className={`${cardClass} block hover:border-gold-400 hover:shadow-xs transition`}>{content}</Link>
+            : <div key={card.label} className={cardClass}>{content}</div>
         })}
       </div>
     </motion.div>

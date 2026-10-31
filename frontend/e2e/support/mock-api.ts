@@ -50,8 +50,13 @@ const school = {
 }
 
 const stats = {
-  school, totalChurches: 4, activeStudents: 186, attendanceRate: 82, totalLevels: 6, publishedAssessments: 12,
-  assessmentStats: { passRate: 76 }, upcomingSessions: [], leaderboard: [], activity: [],
+  school, totalChurches: 4, activeStudents: 186, totalLevels: 6, publishedAssessments: 12,
+  // Last 7 days vs the 7 before, an 8-week trend, and the at-risk count: the same shape as the real API.
+  attendanceRate: 82, attendancePrevRate: 78, studentsAtRisk: 3,
+  attendanceTrend: [70, 74, null, 79, 81, 77, 78, 82].map((rate, i) => ({
+    weekStart: new Date(Date.UTC(2026, 8, 6 + i * 7)).toISOString().slice(0, 10), rate, decided: rate === null ? 0 : 40,
+  })),
+  assessmentStats: { passRate: 76, gradedCount: 40, passCount: 30, avgGradeScore: 14, recent: { windowDays: 90, gradedCount: 12, passRate: 83 } }, upcomingSessions: [], leaderboard: [], activity: [],
   recentGrades: [
     { id: 'g1', studentName: 'Mina Girgis', studentPhotoUrl: PHOTO_OK, assessmentTitle: 'Hymn of the Cherubim quiz', assessmentId: 'as-1', score: 18, maxScore: 20, passed: true, gradedAt: '2026-10-25T10:00:00Z' },
     { id: 'g2', studentName: 'Marina Samir', studentPhotoUrl: null, assessmentTitle: 'Hymn of the Cherubim quiz', assessmentId: 'as-1', score: 9, maxScore: 20, passed: false, gradedAt: '2026-10-25T10:05:00Z' },
@@ -87,11 +92,16 @@ const mineFor = (role: string) => ({
     : undefined,
 })
 
-type Handler = (url: URL, method: string, role: RoleFixture) => unknown | undefined
+export interface MockOptions {
+  /** Merged over the school-wide dashboard stats, to test a particular situation (e.g. no class this week). */
+  stats?: Record<string, unknown>
+}
+
+type Handler = (url: URL, method: string, role: RoleFixture, opts: MockOptions) => unknown | undefined
 
 const handlers: Array<[RegExp, Handler]> = [
   [/^\/api\/auth\/me$/, (_u, _m, r) => ({ ...r.user })],
-  [/^\/api\/dashboard\/stats$/, () => stats],
+  [/^\/api\/dashboard\/stats$/, (_u, _m, _r, o) => ({ ...stats, ...(o.stats ?? {}) })],
   [/^\/api\/dashboard\/mine$/, (u, _m, r) => mineFor(u.searchParams.get('viewRole') || r.user.roles[0])],
   [/^\/api\/dashboard\/servant-digest$/, (_u, _m, r) => ({
     generatedAt: new Date().toISOString(),
@@ -107,7 +117,29 @@ const handlers: Array<[RegExp, Handler]> = [
   [/^\/api\/assessments\/pending-review\/count$/, () => ({ count: 12 })],
   [/^\/api\/notifications$/, () => []],
   [/^\/api\/announcements$/, () => []],
-  [/^\/api\/students$/, () => ({ data: students, total: students.length, page: 1, limit: 20 })],
+  [/^\/api\/students$/, (u) => {
+    const rows = u.searchParams.get('engagementStatus') === 'at_risk' ? students.slice(0, 3) : students
+    return { data: rows, pagination: { page: 1, limit: 20, total: rows.length, totalPages: 1 } }
+  }],
+  [/^\/api\/reports\/priest-pulse$/, () => ({
+    generatedAt: new Date().toISOString(),
+    pulse: {
+      attendanceThisWeek: 82, attendanceLastWeek: 78, attendanceTrend: 4, attendanceTrendPoints: [],
+      studentsAtRisk: 3, pendingGrading: 2, xpEarnedThisWeek: 1200, familyPracticeThisWeek: 5,
+      totalStudents: 186, activeStudentsThisWeek: 150, healthScore: 77,
+      healthBreakdown: [
+        { key: 'attendance', labelEn: 'Attendance', labelAr: 'الحضور', points: 41, max: 50, counted: true, detailEn: '82% in the last 7 days', detailAr: '82٪ في آخر 7 أيام' },
+        { key: 'grading', labelEn: 'Grading backlog', labelAr: 'تقييمات معلقة', points: 16, max: 20, counted: true, detailEn: '2 waiting (−2 each)', detailAr: '2 بانتظار التصحيح (−2 لكل واحد)' },
+        { key: 'atRisk', labelEn: 'Students at risk', labelAr: 'طلاب في خطر', points: 8, max: 20, counted: true, detailEn: '3 students (−4 each)', detailAr: '3 من الطلاب (−4 لكل طالب)' },
+        { key: 'homePractice', labelEn: 'Home practice', labelAr: 'الممارسة المنزلية', points: 10, max: 10, counted: true, detailEn: '5 families practised (full marks if any)', detailAr: '5 عائلة مارست (الدرجة كاملة إن مارست أي عائلة)' },
+      ],
+    },
+    signals: [{ type: 'warning', messageEn: '3 students have missed 3+ sessions in a row.', messageAr: '3 طالب غابوا عن 3 جلسات متتالية أو أكثر.' }],
+  })],
+  // Student detail dialog: all three return lists.
+  [/^\/api\/students\/[^/]+\/activity$/, () => []],
+  [/^\/api\/gamification\/badges$/, () => []],
+  [/^\/api\/gamification\/students\/[^/]+\/badges$/, () => []],
   [/^\/api\/students\/stats$/, () => ({ total: students.length, active: students.length })],
   [/^\/api\/students\/groups\/all$/, () => [{ id: 'grp-1', name: 'Group A', status: 'active' }]],
   [/^\/api\/students\/levels\/all$/, () => [{ id: 'lvl-1', name: 'Level 2', number: 2 }]],
@@ -125,7 +157,7 @@ const handlers: Array<[RegExp, Handler]> = [
 
 export interface MockApi { unhandled: string[]; errors: string[] }
 
-export async function mockApi(page: Page, role: RoleFixture): Promise<MockApi> {
+export async function mockApi(page: Page, role: RoleFixture, opts: MockOptions = {}): Promise<MockApi> {
   const unhandled: string[] = []
   const errors: string[] = []
 
@@ -167,7 +199,7 @@ export async function mockApi(page: Page, role: RoleFixture): Promise<MockApi> {
     }
     for (const [pattern, handle] of handlers) {
       if (pattern.test(url.pathname)) {
-        const body = handle(url, req.method(), role)
+        const body = handle(url, req.method(), role, opts)
         if (body !== undefined) return json(body)
       }
     }

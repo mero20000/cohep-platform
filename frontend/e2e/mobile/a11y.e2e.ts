@@ -30,6 +30,8 @@ const SCREENS: Screen[] = [
   { role: 'servant', path: '/dashboard/attendance/mark?sessionId=sess-1', name: 'attendance-mark' },
   { role: 'admin', path: '/dashboard/students', name: 'students' },
   { role: 'admin', path: '/dashboard/settings', name: 'settings' },
+  { role: 'admin', path: '/dashboard/reports', name: 'reports' },
+  { role: 'admin', path: '/dashboard/students?engagement=at_risk', name: 'students-at-risk' },
   { role: 'student', path: '/student-portal/login', name: 'login' },
   { role: 'student', path: `/student-portal/${STUDENT_CODE}`, name: 'dashboard' },
 ]

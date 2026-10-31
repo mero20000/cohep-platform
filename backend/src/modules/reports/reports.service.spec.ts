@@ -61,78 +61,60 @@ describe('ReportsService', () => {
   // ── getPriestPulse ──────────────────────────────────────────────────────
 
   describe('getPriestPulse', () => {
+    /**
+     * attendanceRecord.findMany serves two queries: the 8-week attendance trend and the at-risk lookup.
+     * Tell them apart by the date window: only the at-risk query has an upper bound.
+     */
+    function mockAttendanceRecords({ trend = [] as any[], risk = [] as any[] } = {}) {
+      prismaMock.attendanceRecord.findMany.mockImplementation((args: any) =>
+        Promise.resolve('lte' in args.where.attendanceSession.scheduledDate ? risk : trend),
+      );
+    }
+    const daysAgo = (n: number) => new Date(Date.now() - n * 24 * 60 * 60 * 1000);
+    const trendRow = (status: string, n: number) => ({ status, attendanceSession: { scheduledDate: daysAgo(n) } });
+    const riskRow = (studentId: string, status: string, n: number) => ({ studentId, status, attendanceSession: { scheduledDate: daysAgo(n) } });
+
     it('returns health score, attendance rates, and signals', async () => {
       setDefaults();
-
-      // This-week sessions: 1 session with 2 records (1 present, 1 absent) => 50%
-      prismaMock.attendanceSession.findMany
-        .mockResolvedValueOnce([
-          { id: 'sess-1', attendanceRecords: [{ status: 'present' }, { status: 'absent' }] },
-        ])
-        // Last-week sessions: empty
-        .mockResolvedValueOnce([]);
-
-      // No students (so no at-risk loop)
-      prismaMock.student.findMany.mockResolvedValue([]);
-
-      // Pending grading
-      prismaMock.assessmentSubmission.count.mockResolvedValue(0);
-
-      // XP this week
+      // Last 7 days: 1 present + 1 absent => 50%. The 7 days before: no class at all.
+      mockAttendanceRecords({ trend: [trendRow('present', 1), trendRow('absent', 1)] });
+      prismaMock.student.count.mockResolvedValue(10);
       prismaMock.xPTransaction.aggregate.mockResolvedValue({ _sum: { amount: 100 } });
-
-      // Family practice
       prismaMock.xPTransaction.count.mockResolvedValue(5);
-
-      // Active students this week
       prismaMock.attendanceRecord.groupBy.mockResolvedValue([{ studentId: 's1' }]);
 
       const result = await service.getPriestPulse('school-slug');
 
       expect(result.schoolId).toBe(schoolId);
-      expect(result.pulse).toBeDefined();
       expect(result.pulse.attendanceThisWeek).toBe(50);
-      expect(result.pulse.attendanceLastWeek).toBe(0);
-      expect(result.pulse.attendanceTrend).toBe(50);
+      // No class the week before: there is nothing to compare with, so no change is claimed (not "+50").
+      expect(result.pulse.attendanceLastWeek).toBeNull();
+      expect(result.pulse.attendanceTrend).toBeNull();
       expect(result.pulse.studentsAtRisk).toBe(0);
       expect(result.pulse.pendingGrading).toBe(0);
       expect(result.pulse.xpEarnedThisWeek).toBe(100);
       expect(result.pulse.familyPracticeThisWeek).toBe(5);
       expect(result.pulse.activeStudentsThisWeek).toBe(1);
-      expect(result.pulse.totalStudents).toBe(0);
-      expect(typeof result.pulse.healthScore).toBe('number');
+      expect(result.pulse.totalStudents).toBe(10);
       expect(result.pulse.healthScore).toBeGreaterThan(0);
       expect(result.pulse.healthScore).toBeLessThanOrEqual(100);
-      expect(result.signals).toEqual(expect.arrayContaining([
-        expect.objectContaining({ type: 'success' }),
-      ]));
+      // The score shows its working, and the working adds up to the score.
+      expect(result.pulse.healthBreakdown).toHaveLength(4);
+      expect(result.pulse.healthBreakdown.reduce((a: number, c: any) => a + c.points, 0)).toBe(result.pulse.healthScore);
+      expect(result.signals).toEqual(expect.arrayContaining([expect.objectContaining({ type: 'success' })]));
       expect(result.generatedAt).toBeInstanceOf(Date);
     });
 
     it('counts at-risk students with 3 consecutive absences and emits warning signal', async () => {
       setDefaults();
-
-      // Sessions (this week / last week)
-      prismaMock.attendanceSession.findMany
-        .mockResolvedValueOnce([])  // this week
-        .mockResolvedValueOnce([]); // last week
-
-      // Two students: one at-risk, one not
-      prismaMock.student.findMany.mockResolvedValue([
-        { id: 's1', firstName: 'Mina', lastName: 'K', firstNameAr: null, lastNameAr: null },
-        { id: 's2', firstName: 'Sara', lastName: 'A', firstNameAr: null, lastNameAr: null },
-      ]);
-
-      // s1: 3 consecutive absences => at-risk
-      // s2: 2 absences then present => not at-risk
-      prismaMock.attendanceRecord.findMany
-        .mockResolvedValueOnce([{ status: 'absent' }, { status: 'absent' }, { status: 'absent' }])
-        .mockResolvedValueOnce([{ status: 'absent' }, { status: 'absent' }, { status: 'present' }]);
-
-      prismaMock.assessmentSubmission.count.mockResolvedValue(0);
-      prismaMock.xPTransaction.aggregate.mockResolvedValue({ _sum: { amount: 0 } });
-      prismaMock.xPTransaction.count.mockResolvedValue(0);
-      prismaMock.attendanceRecord.groupBy.mockResolvedValue([]);
+      mockAttendanceRecords({
+        risk: [
+          // s1: three absences in a row => at risk
+          riskRow('s1', 'absent', 5), riskRow('s1', 'absent', 12), riskRow('s1', 'absent', 19),
+          // s2: absent, absent, then present (older) => the newest run is only 2
+          riskRow('s2', 'absent', 5), riskRow('s2', 'absent', 12), riskRow('s2', 'present', 19),
+        ],
+      });
 
       const result = await service.getPriestPulse(schoolId);
 
@@ -140,6 +122,43 @@ describe('ReportsService', () => {
       const warningSignal = result.signals.find((s: any) => s.type === 'warning');
       expect(warningSignal).toBeDefined();
       expect(warningSignal.messageEn).toContain('1 student has missed 3+ sessions');
+    });
+
+    it('does not query once per student: the at-risk lookup is the same size for 3 or 3,000 students', async () => {
+      setDefaults();
+      mockAttendanceRecords({});
+      prismaMock.student.count.mockResolvedValue(3000);
+
+      await service.getPriestPulse(schoolId);
+
+      // trend + at-risk, nothing per student
+      expect(prismaMock.attendanceRecord.findMany).toHaveBeenCalledTimes(2);
+      expect(prismaMock.student.findMany).not.toHaveBeenCalled();
+    });
+
+    it('counts only ACTIVE students, and only class sessions, as at risk', async () => {
+      setDefaults();
+      mockAttendanceRecords({});
+
+      await service.getPriestPulse(schoolId);
+
+      const riskCall = prismaMock.attendanceRecord.findMany.mock.calls
+        .map((c: any[]) => c[0])
+        .find((a: any) => 'lte' in a.where.attendanceSession.scheduledDate);
+      expect(riskCall.where.student).toMatchObject({ status: 'active', deletedAt: null });
+      expect(riskCall.where.attendanceSession.AND[0]).toMatchObject({ type: 'class' });
+    });
+
+    it('a week with no class is "no data", not 0%, and does not lower the health score', async () => {
+      setDefaults();
+      mockAttendanceRecords({});
+      prismaMock.xPTransaction.count.mockResolvedValue(1);
+
+      const result = await service.getPriestPulse(schoolId);
+
+      expect(result.pulse.attendanceThisWeek).toBeNull();
+      expect(result.pulse.healthScore).toBe(100);
+      expect(result.pulse.healthBreakdown.find((c: any) => c.key === 'attendance')!.counted).toBe(false);
     });
 
     it('emits info signal when there are pending gradings', async () => {
@@ -164,25 +183,15 @@ describe('ReportsService', () => {
 
     it('emits attendance-improved signal when this week is 5%+ above last week', async () => {
       setDefaults();
-
-      // This week: 100% attendance
-      prismaMock.attendanceSession.findMany
-        .mockResolvedValueOnce([
-          { id: 'sess-1', attendanceRecords: [{ status: 'present' }, { status: 'present' }] },
-        ])
-        // Last week: 50% attendance
-        .mockResolvedValueOnce([
-          { id: 'sess-2', attendanceRecords: [{ status: 'present' }, { status: 'absent' }] },
-        ]);
-
-      prismaMock.student.findMany.mockResolvedValue([]);
-      prismaMock.assessmentSubmission.count.mockResolvedValue(0);
-      prismaMock.xPTransaction.aggregate.mockResolvedValue({ _sum: { amount: 0 } });
-      prismaMock.xPTransaction.count.mockResolvedValue(0);
-      prismaMock.attendanceRecord.groupBy.mockResolvedValue([]);
+      // Last 7 days: 100%. The 7 days before: 50%.
+      mockAttendanceRecords({
+        trend: [trendRow('present', 1), trendRow('present', 2), trendRow('present', 9), trendRow('absent', 9)],
+      });
 
       const result = await service.getPriestPulse(schoolId);
 
+      expect(result.pulse.attendanceThisWeek).toBe(100);
+      expect(result.pulse.attendanceLastWeek).toBe(50);
       expect(result.pulse.attendanceTrend).toBe(50);
       const successSignal = result.signals.find(
         (s: any) => s.type === 'success' && s.messageEn.includes('Attendance improved'),

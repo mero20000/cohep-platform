@@ -1,3 +1,4 @@
+import { findAtRiskStudents } from '../attendance/absence-risk';
 import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 import { AuditService } from '../audit/audit.service';
@@ -61,6 +62,13 @@ export class StudentsService {
 
     const searchClauses = buildStudentSearchClauses(search);
     if (searchClauses.length) where.AND = searchClauses;
+
+    // "At risk" uses the platform's single definition (see attendance/absence-risk). Applied last, as an extra
+    // AND, so it can only narrow what the caller's assignment scope already allows, never widen it.
+    if (engagementStatus === 'at_risk') {
+      const atRisk = await findAtRiskStudents(this.prisma, schoolId);
+      where.AND = [...(where.AND || []), { id: { in: [...atRisk.keys()] } }];
+    }
 
     const dir = sortDir === 'desc' ? 'desc' : 'asc';
     const orderMap: Record<string, any> = {

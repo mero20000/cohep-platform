@@ -1,4 +1,4 @@
-import { IsOptional, IsString, IsUUID, IsInt, Min } from 'class-validator';
+import { IsIn, IsOptional, IsString, IsUUID, IsInt, Min } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 
@@ -71,10 +71,10 @@ export class QueryStudentDto {
   @IsOptional()
   assignedServantId?: string;
 
-  @ApiPropertyOptional({ description: 'Filter by engagement status (active/inactive/at_risk)' })
-  @IsString()
+  @ApiPropertyOptional({ description: 'Only students at risk: 3+ class absences in a row (see attendance/absence-risk)', enum: ['at_risk'] })
+  @IsIn(['at_risk'])
   @IsOptional()
-  engagementStatus?: string;
+  engagementStatus?: 'at_risk';
 
   @ApiPropertyOptional({ description: 'Comma-separated student IDs to restrict the list to (max 200)' })
   @IsString()
