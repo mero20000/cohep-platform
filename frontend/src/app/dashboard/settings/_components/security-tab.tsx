@@ -49,7 +49,7 @@ export function SecurityTab() {
           <div className="relative mt-1.5">
             <input type={showCurrent ? 'text' : 'password'} value={form.currentPassword}
               onChange={e => setForm({ ...form, currentPassword: e.target.value })}
-              className="block w-full rounded-lg border border-gray-300 bg-white px-3.5 py-2.5 pr-10 text-sm focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-blue-500" />
+              className="block w-full rounded-lg border border-gray-300 bg-white px-3.5 py-2.5 pr-10 text-sm focus:border-gold-500 focus:outline-hidden focus:ring-1 focus:ring-blue-500" />
             <Button type="button" variant="ghost" size="icon" onClick={() => setShowCurrent(!showCurrent)} aria-label={showCurrent ? 'Hide current password' : 'Show current password'}
               className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
               {showCurrent ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -61,7 +61,7 @@ export function SecurityTab() {
           <div className="relative mt-1.5">
             <input type={showNew ? 'text' : 'password'} value={form.newPassword}
               onChange={e => setForm({ ...form, newPassword: e.target.value })}
-              className="block w-full rounded-lg border border-gray-300 bg-white px-3.5 py-2.5 pr-10 text-sm focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-blue-500" />
+              className="block w-full rounded-lg border border-gray-300 bg-white px-3.5 py-2.5 pr-10 text-sm focus:border-gold-500 focus:outline-hidden focus:ring-1 focus:ring-blue-500" />
             <Button type="button" variant="ghost" size="icon" onClick={() => setShowNew(!showNew)} aria-label={showNew ? 'Hide new password' : 'Show new password'}
               className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
               {showNew ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}

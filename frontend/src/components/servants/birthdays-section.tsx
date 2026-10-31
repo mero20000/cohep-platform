@@ -262,7 +262,7 @@ function BirthdayRow({ b, signoff, lang, open, onToggle, onGreeted, params }: {
             rows={7}
             value={message}
             onChange={(e) => setMessage(e.target.value)}
-            className="mt-1 w-full rounded-lg border border-gray-200 p-2 text-sm text-gray-900 focus:border-pink-400 focus:outline-none"
+            className="mt-1 w-full rounded-lg border border-gray-200 p-2 text-sm text-gray-900 focus:border-pink-400 focus:outline-hidden"
           />
 
           <p className="mt-1 text-xs text-gray-500">
@@ -310,7 +310,7 @@ function BirthdayRow({ b, signoff, lang, open, onToggle, onGreeted, params }: {
               value={note}
               onChange={(e) => setNote(e.target.value)}
               onBlur={() => { if (b.greeted && note !== (b.greeted.note ?? '')) save({ note }) }}
-              className="mt-1 w-full rounded-lg border border-gray-200 p-2 text-sm focus:border-pink-400 focus:outline-none"
+              className="mt-1 w-full rounded-lg border border-gray-200 p-2 text-sm focus:border-pink-400 focus:outline-hidden"
             />
             {failed && <p role="alert" className="mt-1 text-xs text-red-600">{t('Could not save. Try again.', 'تعذر الحفظ. حاول مرة أخرى.')}</p>}
           </div>

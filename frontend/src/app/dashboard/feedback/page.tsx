@@ -96,7 +96,7 @@ export default function ServantFeedbackDashboard() {
             placeholder={t('Enter lesson ID or name', 'أدخل معرف الدرس أو الاسم')}
             value={selectedLessonId || ''}
             onChange={(e) => setSelectedLessonId(e.target.value || null)}
-            className="w-full rounded-lg border border-gray-200 px-4 py-2 focus:border-blue-500 focus:outline-none"
+            className="w-full rounded-lg border border-gray-200 px-4 py-2 focus:border-blue-500 focus:outline-hidden"
           />
         </div>
 
@@ -110,7 +110,7 @@ export default function ServantFeedbackDashboard() {
         {/* Error */}
         {error && (
           <div className="rounded-lg border border-red-200 bg-red-50 p-4 flex gap-3">
-            <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
+            <AlertCircle className="h-5 w-5 text-red-600 shrink-0 mt-0.5" />
             <p className="text-sm text-red-700">{t('Failed to load submissions', 'فشل تحميل الملفات')}</p>
           </div>
         )}
@@ -208,7 +208,7 @@ export default function ServantFeedbackDashboard() {
                           'Enter your feedback (max 200 chars)',
                           'أدخل تعليقاتك (200 حرف كحد أقصى)',
                         )}
-                        className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none resize-none"
+                        className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-blue-500 focus:outline-hidden resize-none"
                         rows={3}
                       />
                       <div className="flex items-center justify-between">

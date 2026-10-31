@@ -17,7 +17,7 @@ export function StatusSegment({ value, onChange, lang, studentName, compact = fa
         const pressed = value===key
         return (
           <button key={key} type="button" onClick={()=>onChange(key)} aria-pressed={pressed} aria-label={`${label} - ${studentName}`} title={label}
-            className={`flex min-h-[44px] items-center justify-center rounded-lg py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500 focus-visible:ring-offset-1 ${compact ? 'min-w-0 flex-1 flex-col gap-0.5 px-1' : 'min-w-[44px] gap-2 px-3'} ${pressed ? active : 'bg-gray-50 text-gray-600 hover:bg-gray-100'}`}>
+            className={`flex min-h-[44px] items-center justify-center rounded-lg py-2 text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-gold-500 focus-visible:ring-offset-1 ${compact ? 'min-w-0 flex-1 flex-col gap-0.5 px-1' : 'min-w-[44px] gap-2 px-3'} ${pressed ? active : 'bg-gray-50 text-gray-600 hover:bg-gray-100'}`}>
             <Icon className="h-5 w-5 shrink-0" aria-hidden="true" />
             <span className={compact ? 'text-xs leading-tight' : ''}>{label}</span>
           </button>

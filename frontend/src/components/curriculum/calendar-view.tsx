@@ -506,13 +506,13 @@ export function CalendarView({
           <div className="flex items-center gap-2">
             <select value={selectedLevelId} onChange={e => setSelectedLevelId(e.target.value)}
               aria-label={lang === 'ar' ? 'المستوى' : 'Level'}
-              className="rounded-lg border border-gray-300 px-2.5 py-1.5 text-xs min-h-[40px] focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
+              className="rounded-lg border border-gray-300 px-2.5 py-1.5 text-xs min-h-[40px] focus:border-gold-500 focus:outline-hidden focus:ring-1 focus:ring-blue-500">
               <option value="">{lang === 'ar' ? 'جميع المستويات' : 'All Levels'}</option>
               {sortedLevels.map(l => <option key={l.id} value={l.id}>{l.name} (L{l.number})</option>)}
             </select>
             <select value={selectedGroup} onChange={e => setSelectedGroup(Number(e.target.value))}
               aria-label={lang === 'ar' ? 'المجموعة' : 'Group'}
-              className="rounded-lg border border-gray-300 px-2.5 py-1.5 text-xs min-h-[40px] focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
+              className="rounded-lg border border-gray-300 px-2.5 py-1.5 text-xs min-h-[40px] focus:border-gold-500 focus:outline-hidden focus:ring-1 focus:ring-blue-500">
               {groupOptions.map(o => (
                 <option key={o.id} value={o.groupNumber}>{lang === 'ar' ? o.labelAr : o.label}</option>
               ))}
@@ -569,7 +569,7 @@ export function CalendarView({
           <div className="flex items-center gap-2">
             <select value={selectedLevelId} onChange={e => setSelectedLevelId(e.target.value)}
               aria-label={lang === 'ar' ? 'المستوى' : 'Level'}
-              className="rounded-lg border border-gray-300 px-2.5 py-1.5 text-xs min-h-[40px] focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
+              className="rounded-lg border border-gray-300 px-2.5 py-1.5 text-xs min-h-[40px] focus:border-gold-500 focus:outline-hidden focus:ring-1 focus:ring-blue-500">
               <option value="">{lang === 'ar' ? 'جميع المستويات' : 'All Levels'}</option>
               {sortedLevels.map(l => <option key={l.id} value={l.id}>{l.name} (L{l.number})</option>)}
             </select>
@@ -578,7 +578,7 @@ export function CalendarView({
             )}
             <select value={selectedGroup} onChange={e => setSelectedGroup(Number(e.target.value))}
               aria-label={lang === 'ar' ? 'المجموعة' : 'Group'}
-              className="rounded-lg border border-gray-300 px-2.5 py-1.5 text-xs min-h-[40px] focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
+              className="rounded-lg border border-gray-300 px-2.5 py-1.5 text-xs min-h-[40px] focus:border-gold-500 focus:outline-hidden focus:ring-1 focus:ring-blue-500">
               {groupOptions.map(o => (
                 <option key={o.id} value={o.groupNumber}>{lang === 'ar' ? o.labelAr : o.label}</option>
               ))}
@@ -586,18 +586,18 @@ export function CalendarView({
             <span className="mx-1 text-xs text-gray-300">|</span>
             {[1, 2, 3].map(t => (
               <button key={t} onClick={() => jumpToTerm(t)}
-                className={`px-2.5 py-1 text-xs font-medium rounded transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${selectedTerm === t ? 'bg-blue-100 text-blue-700 font-semibold' : 'text-gray-500 hover:bg-gray-100'}`}>
+                className={`px-2.5 py-1 text-xs font-medium rounded transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-blue-500 ${selectedTerm === t ? 'bg-blue-100 text-blue-700 font-semibold' : 'text-gray-500 hover:bg-gray-100'}`}>
                 {TERM_SHORT[t]}
               </button>
             ))}
           </div>
           <div className="flex items-center gap-2">
             <button onClick={() => onClearAllocations('all')} disabled={!selectedYear}
-              className="flex items-center gap-1 rounded-lg border border-red-200 px-2.5 py-1 text-xs font-medium text-red-600 hover:bg-red-50 disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-300">
+              className="flex items-center gap-1 rounded-lg border border-red-200 px-2.5 py-1 text-xs font-medium text-red-600 hover:bg-red-50 disabled:opacity-40 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-red-300">
               <Trash2 className="h-3 w-3" />{lang === 'ar' ? 'مسح' : 'Clear'}
             </button>
             <button onClick={() => setViewMode('month')}
-              className="flex items-center gap-1 rounded-lg border border-gray-200 px-2.5 py-1 text-xs font-medium text-gray-500 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">
+              className="flex items-center gap-1 rounded-lg border border-gray-200 px-2.5 py-1 text-xs font-medium text-gray-500 hover:bg-gray-50 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-blue-500">
               <CalendarDays className="h-3 w-3" />{lang === 'ar' ? 'شهري' : 'Month'}
             </button>
           </div>
@@ -701,13 +701,13 @@ export function CalendarView({
                                 className={`group text-[11px] px-2 py-1.5 rounded-lg mb-1 cursor-grab active:cursor-grabbing border transition-all ${
                                   style.bg} ${style.text} ${style.border} ${
                                   draggedAllocation?.id === a.id ? 'opacity-50 ring-2 ring-gold-400' : ''
-                                } ${spanWeeks > 1 ? 'shadow-sm' : ''}`}
+                                } ${spanWeeks > 1 ? 'shadow-xs' : ''}`}
                                 style={spanWeeks > 1 ? { borderLeftWidth: '3px' } : {}}
                                 title={`${isReview ? 'Review' : isAssessment ? 'Finalize Assessment' : a.lesson.title} - L${a.level.number}`}>
                                 <div className="flex items-center gap-1.5">
-                                  {isReview && <RotateCcw className="h-3 w-3 flex-shrink-0" />}
-                                  {isAssessment && <ClipboardCheck className="h-3 w-3 flex-shrink-0" />}
-                                  {!isReview && !isAssessment && <span className={`w-1.5 h-1.5 rounded-full ${style.dot} flex-shrink-0`} />}
+                                  {isReview && <RotateCcw className="h-3 w-3 shrink-0" />}
+                                  {isAssessment && <ClipboardCheck className="h-3 w-3 shrink-0" />}
+                                  {!isReview && !isAssessment && <span className={`w-1.5 h-1.5 rounded-full ${style.dot} shrink-0`} />}
                                   <span className="font-medium">L{a.level.number}</span>
                                   <span className="truncate flex-1 min-w-0">
                                     {isReview ? (lang === 'ar' ? 'مراجعة' : 'Review')
@@ -715,16 +715,16 @@ export function CalendarView({
                                       : a.lesson.title}
                                   </span>
                                   {spanWeeks > 1 && (
-                                    <span className="text-[11px] opacity-60 flex-shrink-0">{spanWeeks}{lang === 'ar' ? 'ج' : 'w'}</span>
+                                    <span className="text-[11px] opacity-60 shrink-0">{spanWeeks}{lang === 'ar' ? 'ج' : 'w'}</span>
                                   )}
                                   <button onClick={e => { e.stopPropagation(); setMoveModal({ allocation: a, date: a.scheduledDate || '' }); setMoveDate(a.scheduledDate || '') }}
-                                    className="flex-shrink-0 opacity-0 group-hover:opacity-100 focus:opacity-100 hover:bg-black/10 rounded transition-opacity ms-auto"
+                                    className="shrink-0 opacity-0 group-hover:opacity-100 focus:opacity-100 hover:bg-black/10 rounded transition-opacity ms-auto"
                                     style={{ minWidth: '20px', minHeight: '20px' }}
                                     aria-label={lang === 'ar' ? 'نقل' : 'Move'}>
                                     <ChevronRight className="h-3 w-3 rotate-90" />
                                   </button>
                                   <button onClick={e => { e.stopPropagation(); setDeleteAllocTarget(a) }}
-                                    className="flex-shrink-0 opacity-0 group-hover:opacity-100 focus:opacity-100 hover:bg-black/10 rounded transition-opacity"
+                                    className="shrink-0 opacity-0 group-hover:opacity-100 focus:opacity-100 hover:bg-black/10 rounded transition-opacity"
                                     style={{ minWidth: '20px', minHeight: '20px' }}
                                     aria-label={lang === 'ar' ? 'إلغاء' : 'Unallocate'}>
                                     <X className="h-3 w-3" />
@@ -766,18 +766,18 @@ export function CalendarView({
   return (
     <div role="tabpanel" id="panel-calendar" aria-labelledby="tab-calendar" className="flex flex-col gap-4 lg:h-[calc(100vh-260px)] lg:flex-row">
       {/* Sidebar — Unallocated Hymns */}
-      <div className="w-full max-h-[18rem] flex-shrink-0 bg-white rounded-xl border border-gray-200 flex flex-col overflow-hidden lg:w-72 lg:max-h-none">
+      <div className="w-full max-h-72 shrink-0 bg-white rounded-xl border border-gray-200 flex flex-col overflow-hidden lg:w-72 lg:max-h-none">
         <div className="px-4 py-3 border-b border-gray-200 space-y-2">
           <h3 className="font-semibold text-gray-900 text-sm">{lang === 'ar' ? 'العناصر غير الموزعة' : 'Unallocated Items'}</h3>
           <select value={calendarSidebarLevel} onChange={e => setCalendarSidebarLevel(e.target.value)}
             aria-label={lang === 'ar' ? 'المستوى' : 'Level'}
-            className="w-full rounded-lg border border-gray-300 px-2.5 py-1.5 text-xs min-h-[40px] focus:border-gold-500 focus:ring-1 focus:ring-blue-500 focus:outline-none">
+            className="w-full rounded-lg border border-gray-300 px-2.5 py-1.5 text-xs min-h-[40px] focus:border-gold-500 focus:ring-1 focus:ring-blue-500 focus:outline-hidden">
             <option value="">{lang === 'ar' ? 'جميع المستويات' : 'All Levels'}</option>
             {levels.map(l => <option key={l.id} value={l.number.toString()}>{lang === 'ar' ? 'المستوى' : 'Level'} {l.number} - {l.name}</option>)}
           </select>
           <select value={selectedSubject} onChange={e => setSelectedSubject(e.target.value)}
             aria-label={lang === 'ar' ? 'المادة' : 'Subject'}
-            className="w-full rounded-lg border border-gray-300 px-2.5 py-1.5 text-xs min-h-[40px] focus:border-gold-500 focus:ring-1 focus:ring-blue-500 focus:outline-none">
+            className="w-full rounded-lg border border-gray-300 px-2.5 py-1.5 text-xs min-h-[40px] focus:border-gold-500 focus:ring-1 focus:ring-blue-500 focus:outline-hidden">
             <option value="all">{lang === 'ar' ? 'جميع المواد' : 'All Subjects'}</option>
             {subjects.map(s => (
               <option key={s.id} value={s.id}>{lang === 'ar' ? (s.nameAr || s.name) : s.name}</option>
@@ -785,7 +785,7 @@ export function CalendarView({
           </select>
           <select value={selectedGroup} onChange={e => setSelectedGroup(Number(e.target.value))}
             aria-label={lang === 'ar' ? 'المجموعة' : 'Group'}
-            className="w-full rounded-lg border border-gray-300 px-2.5 py-1.5 text-xs min-h-[40px] focus:border-gold-500 focus:ring-1 focus:ring-blue-500 focus:outline-none">
+            className="w-full rounded-lg border border-gray-300 px-2.5 py-1.5 text-xs min-h-[40px] focus:border-gold-500 focus:ring-1 focus:ring-blue-500 focus:outline-hidden">
             {groupOptions.map(o => (
               <option key={o.id} value={o.groupNumber}>{lang === 'ar' ? o.labelAr : o.label}</option>
             ))}
@@ -832,7 +832,7 @@ export function CalendarView({
                       'bg-gray-50 border-gray-100 hover:border-blue-200 hover:bg-blue-50/30'
                     }`}
                     title={`${item.name} - ${lang === 'ar' ? 'اسحب إلى التقويم' : 'drag to calendar'}`}>
-                    <GripVertical className={`h-3.5 w-3.5 mt-0.5 flex-shrink-0 ${relatedLesson ? 'text-gray-300 group-hover:text-gold-400' : 'text-gray-200'}`} />
+                    <GripVertical className={`h-3.5 w-3.5 mt-0.5 shrink-0 ${relatedLesson ? 'text-gray-300 group-hover:text-gold-400' : 'text-gray-200'}`} />
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-1.5 flex-wrap">
                           <span className={`inline-flex items-center rounded px-1.5 py-0.5 font-medium text-[11px] ${style.bg} ${style.text} border ${style.border}`}>
@@ -872,7 +872,7 @@ export function CalendarView({
                   : 'bg-teal-50/50 border-teal-200 hover:border-teal-400 hover:bg-teal-50'
               }`}
               title={lang === 'ar' ? 'اسحب إلى أسبوع في التقويم' : 'Drag to a week on the calendar'}>
-              <RotateCcw className="h-3.5 w-3.5 text-teal-500 flex-shrink-0" />
+              <RotateCcw className="h-3.5 w-3.5 text-teal-500 shrink-0" />
               <div className="min-w-0 flex-1">
                 <div className="font-semibold text-teal-700">{lang === 'ar' ? 'جلسة مراجعة' : 'Review Session'}</div>
                 <div className="text-[11px] text-teal-500 mt-0.5">{lang === 'ar' ? 'راجع ما تم تسديده في الأسبوع' : 'Review past delivered content'}</div>
@@ -893,7 +893,7 @@ export function CalendarView({
                   : 'bg-violet-50/50 border-violet-200 hover:border-violet-400 hover:bg-violet-50'
               }`}
               title={lang === 'ar' ? 'اسحب إلى أسبوع في التقويم' : 'Drag to a week on the calendar'}>
-              <ClipboardCheck className="h-3.5 w-3.5 text-violet-500 flex-shrink-0" />
+              <ClipboardCheck className="h-3.5 w-3.5 text-violet-500 shrink-0" />
               <div className="min-w-0 flex-1">
                 <div className="font-semibold text-violet-700">{lang === 'ar' ? 'تقييم نهائي الفصل' : 'Finalize Term Assessment'}</div>
                 <div className="text-[11px] text-violet-500 mt-0.5">{lang === 'ar' ? 'أضف تقييماً نهائياً للأسبوع' : 'Add a term-end assessment'}</div>

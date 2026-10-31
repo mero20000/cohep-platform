@@ -112,7 +112,7 @@ export function StreakDots({ days }: { days: Array<{ day: string; done: boolean;
             className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-semibold border
               ${d.done
                 ? 'bg-[rgb(var(--gold-500))] border-transparent text-[rgb(var(--gold-900))]'
-                : 'bg-transparent border-[var(--hymn-border)] text-gray-400'}`}
+                : 'bg-transparent border-(--hymn-border) text-gray-400'}`}
           >
             {d.done ? '✓' : d.day.slice(0, 1)}
             <span className="sr-only">{d.done ? ` — practiced` : ''}</span>

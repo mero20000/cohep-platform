@@ -25,7 +25,7 @@ it('unticks an already-done follow-up', async () => {
   await waitFor(() => expect(mockPut).toHaveBeenCalledWith('/dashboard/follow-ups/s1', { done: false }))
 })
 
-it('saves the note on blur only when it changed', async () => {
+it('saves the note on blur-sm only when it changed', async () => {
   mockPut.mockResolvedValue({ done: false, note: 'Called mum', completedAt: null })
   render(<FollowUpControl studentId="s1" followUp={null} lang="en" onChange={vi.fn()} />)
   const box = screen.getByLabelText(/What happened/)

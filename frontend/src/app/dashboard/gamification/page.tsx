@@ -306,7 +306,7 @@ function GrowthMirrorPanel({ entry, lang }: { entry: LeaderboardEntry; lang: str
                 <span className="text-[10px] text-gray-500 w-12 shrink-0">{m.month.slice(5)}</span>
                 <div className="flex-1 h-5 rounded-md bg-gray-100 overflow-hidden relative">
                   <div
-                    className="h-full rounded-md bg-gradient-to-r from-gold-400 to-blue-500 transition-all duration-700"
+                    className="h-full rounded-md bg-linear-to-r from-gold-400 to-blue-500 transition-all duration-700"
                     style={{ width: `${Math.max(4, m.xp / maxMonthlyXp * 100)}%` }}
                   />
                   <span className="absolute right-1.5 top-0.5 text-[10px] font-semibold text-gray-600">{m.xp}</span>
@@ -428,7 +428,7 @@ function SeasonalBadgePanel({ lang, schoolId, onToast }: { lang: string; schoolI
   return (
     <div className="space-y-5">
       {/* Active season banner */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-indigo-900 via-purple-900 to-indigo-900 p-6 text-white">
+      <div className="relative overflow-hidden rounded-2xl bg-linear-to-br from-indigo-900 via-purple-900 to-indigo-900 p-6 text-white">
         <div className="absolute inset-0 pointer-events-none">
           <div className="absolute top-0 right-0 w-48 h-48 bg-indigo-400/20 rounded-full blur-3xl" />
           <div className="absolute bottom-0 left-0 w-32 h-32 bg-purple-400/10 rounded-full blur-2xl" />
@@ -544,7 +544,7 @@ function GroupTrophyPanel({ lang, schoolId }: { lang: string; schoolId: string }
       {trophy && !loading && (
         <div className="space-y-4">
           {/* Header */}
-          <div className={`rounded-2xl border p-5 ${trophy.allMilestonesComplete ? 'bg-gradient-to-br from-amber-50 to-yellow-50 border-amber-200' : 'bg-white border-gray-200'}`}>
+          <div className={`rounded-2xl border p-5 ${trophy.allMilestonesComplete ? 'bg-linear-to-br from-amber-50 to-yellow-50 border-amber-200' : 'bg-white border-gray-200'}`}>
             <div className="flex items-start justify-between gap-3 mb-4">
               <div>
                 <div className="flex items-center gap-2">
@@ -1125,7 +1125,7 @@ export default function GamificationPage() {
                     value={leaderboardSearch}
                     onChange={e => setLeaderboardSearch(e.target.value)}
                     placeholder={t('Search student...', 'ابحث عن طالب...')}
-                    className="flex-1 text-sm bg-transparent focus:outline-none"
+                    className="flex-1 text-sm bg-transparent focus:outline-hidden"
                   />
                 </div>
                 {leaderboardLoading ? (
@@ -1208,7 +1208,7 @@ export default function GamificationPage() {
             <div className="relative flex-1 max-w-xs min-w-[180px]">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500" />
               <input value={badgeSearch} onChange={e => setBadgeSearch(e.target.value)} placeholder={t('Search badges...', 'ابحث عن شارة...')}
-                className="w-full rounded-lg border border-gray-200 bg-white pl-9 pr-3 py-2 text-sm focus:border-gold-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
+                className="w-full rounded-lg border border-gray-200 bg-white pl-9 pr-3 py-2 text-sm focus:border-gold-500 focus:outline-hidden focus:ring-2 focus:ring-blue-500/20" />
             </div>
             <div className="flex items-center gap-2">
               <Button variant="outline" onClick={() => { setAwardError(''); setShowAwardModal(true) }}>
@@ -1515,12 +1515,12 @@ export default function GamificationPage() {
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1.5">{t('Amount', 'المبلغ')} *</label>
                 <input type="number" value={amendAmount} onChange={e => setAmendAmount(e.target.value)} placeholder={t('e.g., 50 or -25', 'مثال: 50 أو -25')}
-                  className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
+                  className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:outline-hidden focus:ring-2 focus:ring-blue-500/20" />
               </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1.5">{t('Reason', 'السبب')} *</label>
                 <textarea value={amendReason} onChange={e => setAmendReason(e.target.value)} placeholder={t('Why is this adjustment being made?', 'لماذا يتم هذا التعديل؟')}
-                  className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 min-h-20" />
+                  className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:outline-hidden focus:ring-2 focus:ring-blue-500/20 min-h-20" />
               </div>
               <div className="flex gap-2 justify-end">
                 <Button variant="outline" onClick={() => setXpManagementTab('info')}>{t('Back', 'رجوع')}</Button>
@@ -1553,7 +1553,7 @@ export default function GamificationPage() {
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1.5">{t('Confirmation Reason', 'سبب التأكيد')} *</label>
                 <textarea value={resetReason} onChange={e => setResetReason(e.target.value)} placeholder={t('Why is all XP being deleted?', 'لماذا يتم حذف جميع نقاط الخبرة؟')}
-                  className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-500/20 min-h-20" />
+                  className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:border-red-500 focus:outline-hidden focus:ring-2 focus:ring-red-500/20 min-h-20" />
               </div>
               <div className="flex gap-2 justify-end">
                 <Button variant="outline" onClick={() => setXpManagementTab('info')}>{t('Cancel', 'إلغاء')}</Button>
@@ -1570,7 +1570,7 @@ export default function GamificationPage() {
       {/* Reset confirm */}
       <ConfirmDialog open={showResetConfirm} onClose={() => { setShowResetConfirm(false); setResetConfirmText('') }}
         onConfirm={handleResetLeaderboard} title={t('Reset Leaderboard', 'إعادة تعيين')}
-        message={<div className="space-y-3"><p className="text-sm text-gray-600">{t('This permanently deletes all XP transactions for all students. Cannot be undone.', 'سيحذف جميع معاملات نقاط الخبرة نهائياً.')}</p><input value={resetConfirmText} onChange={e => setResetConfirmText(e.target.value)} placeholder="RESET" className="block w-full rounded-lg border border-red-300 bg-white px-3 py-2 text-sm focus:outline-none" autoFocus /></div>}
+        message={<div className="space-y-3"><p className="text-sm text-gray-600">{t('This permanently deletes all XP transactions for all students. Cannot be undone.', 'سيحذف جميع معاملات نقاط الخبرة نهائياً.')}</p><input value={resetConfirmText} onChange={e => setResetConfirmText(e.target.value)} placeholder="RESET" className="block w-full rounded-lg border border-red-300 bg-white px-3 py-2 text-sm focus:outline-hidden" autoFocus /></div>}
         confirmLabel={t('Reset', 'إعادة تعيين')} confirmDisabled={resetConfirmText !== 'RESET'} loading={resettingLeaderboard} variant="danger" />
 
       <ConfirmDialog open={showDeleteBadge} onClose={() => setShowDeleteBadge(false)} onConfirm={handleDeleteBadge}
@@ -1586,7 +1586,7 @@ export default function GamificationPage() {
             <label className="block text-sm font-semibold text-gray-700 mb-1.5">{t('Student', 'الطالب')} *</label>
             <div className="relative mb-2">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-              <input value={awardSearch} onChange={e => setAwardSearch(e.target.value)} placeholder={t('Search student...', 'ابحث عن طالب...')} className="w-full rounded-lg border border-gray-200 bg-white pl-9 pr-3 py-2 text-sm focus:border-gold-500 focus:outline-none" />
+              <input value={awardSearch} onChange={e => setAwardSearch(e.target.value)} placeholder={t('Search student...', 'ابحث عن طالب...')} className="w-full rounded-lg border border-gray-200 bg-white pl-9 pr-3 py-2 text-sm focus:border-gold-500 focus:outline-hidden" />
             </div>
             <div className="max-h-40 overflow-y-auto rounded-lg border border-gray-200 divide-y divide-gray-100 bg-white">
               {(awardSearch.trim() ? leaderboard.filter(s => `${s.firstName} ${s.lastName}`.toLowerCase().includes(awardSearch.toLowerCase())) : leaderboard).slice(0, 30).map(s => (
@@ -1600,7 +1600,7 @@ export default function GamificationPage() {
           </div>
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-1.5">{t('Badge', 'الشارة')} *</label>
-            <select value={awardBadgeId} onChange={e => setAwardBadgeId(e.target.value)} className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:border-gold-500 focus:outline-none">
+            <select value={awardBadgeId} onChange={e => setAwardBadgeId(e.target.value)} className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:border-gold-500 focus:outline-hidden">
               <option value="">{t('Select badge...', 'اختر شارة...')}</option>
               {badges.map(b => <option key={b.id} value={b.id}>{b.name} — {b.points} pts ({categoryLabel(b.category)})</option>)}
             </select>
@@ -1616,7 +1616,7 @@ export default function GamificationPage() {
         ) : badgeStudentsData ? (
           <div className="space-y-4">
             {/* Badge info */}
-            <div className="rounded-lg bg-gradient-to-br from-blue-50 to-purple-50 border border-blue-100 p-4">
+            <div className="rounded-lg bg-linear-to-br from-blue-50 to-purple-50 border border-blue-100 p-4">
               <div className="flex items-start gap-4">
                 <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-white border border-blue-200">
                   {(() => {

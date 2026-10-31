@@ -132,7 +132,7 @@ export default function AnnouncementsPage() {
                   <tr key={a.id} className="hover:bg-gray-50/50 transition-colors">
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
-                        <span className={`h-2 w-2 rounded-full flex-shrink-0 ${ps.dot}`} />
+                        <span className={`h-2 w-2 rounded-full shrink-0 ${ps.dot}`} />
                         <div className="min-w-0">
                           <div className="text-sm font-medium text-gray-900 truncate">{lang === 'ar' ? (a.titleAr || a.title) : a.title}</div>
                           <div className="text-xs text-gray-400 truncate max-w-[200px]">{lang === 'ar' ? (a.bodyAr || a.body) : a.body}</div>

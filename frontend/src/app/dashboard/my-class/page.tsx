@@ -220,7 +220,7 @@ export default function MyClassPage() {
               value={noteText}
               onChange={(e) => setNoteText(e.target.value)}
               placeholder={t('Write your note...', 'اكتب ملاحظتك...')}
-              className="w-full rounded-lg border border-gray-200 p-3 text-sm placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="w-full rounded-lg border border-gray-200 p-3 text-sm placeholder:text-gray-400 focus:border-blue-500 focus:outline-hidden focus:ring-1 focus:ring-blue-500"
               rows={4}
             />
             <div className="mt-4 flex gap-2 justify-end">

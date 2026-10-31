@@ -247,10 +247,10 @@ export default function TakeAssessment({ assessmentId, mode, accessKey, studentI
     return (
       <div className="mx-auto max-w-2xl px-4 py-8">
         {/* Success Card */}
-        <div className="rounded-2xl border border-green-200 bg-gradient-to-br from-green-50 to-emerald-50 p-8 text-center">
+        <div className="rounded-2xl border border-green-200 bg-linear-to-br from-green-50 to-emerald-50 p-8 text-center">
           <div className="flex justify-center">
             <div className="relative">
-              <div className="absolute inset-0 animate-pulse rounded-full bg-green-200 opacity-75 blur"></div>
+              <div className="absolute inset-0 animate-pulse rounded-full bg-green-200 opacity-75 blur-sm"></div>
               <CheckCircle2 className="relative h-12 w-12 text-green-600" />
             </div>
           </div>
@@ -314,10 +314,10 @@ export default function TakeAssessment({ assessmentId, mode, accessKey, studentI
             {payload.questions.map((q, i) => {
               const r = res.items[i]
               return (
-                <div key={q.id} className="rounded-lg border border-gray-200 bg-white p-4 hover:shadow-sm transition-shadow">
+                <div key={q.id} className="rounded-lg border border-gray-200 bg-white p-4 hover:shadow-xs transition-shadow">
                   <div className="flex items-start justify-between gap-3">
                     <p className="text-sm font-medium text-gray-900">{q.text}</p>
-                    <div className="flex-shrink-0">
+                    <div className="shrink-0">
                       {r.status === 'correct' && <CheckCircle2 className="h-5 w-5 text-green-600" />}
                       {r.status === 'incorrect' && <XCircle className="h-5 w-5 text-red-500" />}
                       {r.status === 'pending' && <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">{lang === 'ar' ? 'بانتظار' : 'Pending'}</span>}
@@ -442,7 +442,7 @@ export default function TakeAssessment({ assessmentId, mode, accessKey, studentI
             onChange={(e) => setNotes(e.target.value)}
             rows={3}
             placeholder={lang === 'ar' ? 'أي ملاحظات تريد إرفاقها بتسليمك؟' : 'Anything you want to attach with your submission?'}
-            className="mt-2 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gold-500 focus:outline-none"
+            className="mt-2 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gold-500 focus:outline-hidden"
           />
         </div>
 

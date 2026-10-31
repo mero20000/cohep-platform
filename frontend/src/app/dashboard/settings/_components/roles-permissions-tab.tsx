@@ -153,7 +153,7 @@ export function RolesPermissionsTab() {
                 const cc = catColors[role.category] || catColors.management
 
                 return (
-                  <div key={role.value} className={`rounded-xl border ${cc.border} overflow-hidden transition-shadow hover:shadow-sm`}>
+                  <div key={role.value} className={`rounded-xl border ${cc.border} overflow-hidden transition-shadow hover:shadow-xs`}>
                     <button type="button" onClick={() => { setExpanded(isOpen ? null : role.value); setEditing(null) }}
                       className={`w-full flex items-center justify-between px-4 py-3 ${cc.bg} hover:brightness-95 transition-all`}>
                       <div className="flex items-center gap-3">

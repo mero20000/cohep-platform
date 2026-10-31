@@ -23,7 +23,7 @@ interface Props {
   lang: 'en' | 'ar'
 }
 
-const sel = 'w-full sm:w-auto rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gold-500 focus:border-gold-500'
+const sel = 'w-full sm:w-auto rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:outline-hidden focus:ring-2 focus:ring-gold-500 focus:border-gold-500'
 
 export function StudentFilters(p: Props) {
   const t = (en: string, ar: string) => p.lang === 'ar' ? ar : en
@@ -37,16 +37,16 @@ export function StudentFilters(p: Props) {
       {/* Primary filters - always visible */}
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative w-full sm:flex-1">
-          <Search className="absolute start-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+          <Search className="absolute inset-s-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
           <input
             type="text"
             aria-label={t('Search students','بحث عن الطلاب')}
             placeholder={t('Search by name, code, phone, or email...','البحث بالاسم، الرمز، الهاتف، أو البريد...')}
             value={p.search}
             onChange={e => p.onSearchChange(e.target.value)}
-            className="w-full rounded-lg border border-gray-200 bg-white ps-10 pe-4 py-3 text-base placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-gold-500 focus:border-gold-500 min-h-[48px] sm:text-sm sm:py-2 sm:min-h-0 landscape:text-sm landscape:py-2 landscape:min-h-0"
+            className="w-full rounded-lg border border-gray-200 bg-white ps-10 pe-4 py-3 text-base placeholder:text-gray-400 focus:outline-hidden focus:ring-2 focus:ring-gold-500 focus:border-gold-500 min-h-[48px] sm:text-sm sm:py-2 sm:min-h-0 landscape:text-sm landscape:py-2 landscape:min-h-0"
           />
-          {p.isSearching && <Loader2 className="absolute end-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gold-700 animate-spin" />}
+          {p.isSearching && <Loader2 className="absolute inset-e-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gold-700 animate-spin" />}
         </div>
 
         <div className="flex gap-2 flex-wrap sm:flex-nowrap">

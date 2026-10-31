@@ -52,7 +52,7 @@ export function MobileBottomNav({ items, lang, onMore }: MobileBottomNavProps) {
                 <Icon className="h-5 w-5" />
                 {badge > 0 && (
                   <span
-                    className="absolute -top-1.5 -end-2.5 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-500 px-1 text-xs font-bold leading-none text-white"
+                    className="absolute -top-1.5 -inset-e-2.5 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-500 px-1 text-xs font-bold leading-none text-white"
                     aria-label={lang === 'ar' ? `${badge} عناصر معلقة` : `${badge} pending`}
                   >
                     {badge > 9 ? '9+' : badge}

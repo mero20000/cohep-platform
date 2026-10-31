@@ -141,7 +141,7 @@ export default function HymnReviewPage() {
           <button
             onClick={() => setTab('pending')}
             className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
-              tab === 'pending' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+              tab === 'pending' ? 'bg-white text-gray-900 shadow-xs' : 'text-gray-500 hover:text-gray-700'
             }`}
           >
             <ClipboardList className="h-4 w-4" />
@@ -153,7 +153,7 @@ export default function HymnReviewPage() {
           <button
             onClick={() => setTab('reviewed')}
             className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
-              tab === 'reviewed' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+              tab === 'reviewed' ? 'bg-white text-gray-900 shadow-xs' : 'text-gray-500 hover:text-gray-700'
             }`}
           >
             <CheckCircle2 className="h-4 w-4" />
@@ -162,13 +162,13 @@ export default function HymnReviewPage() {
         </div>
 
         <div className="relative flex-1">
-          <Search className="absolute start-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+          <Search className="absolute inset-s-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
           <input
             type="text"
             placeholder={t('Search by student or hymn...', 'البحث بالطالب أو الترنيمة...')}
             value={search}
             onChange={e => setSearch(e.target.value)}
-            className="w-full rounded-lg border border-gray-200 bg-white ps-10 pe-4 py-2 text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-gold-500 focus:border-gold-500"
+            className="w-full rounded-lg border border-gray-200 bg-white ps-10 pe-4 py-2 text-sm placeholder:text-gray-400 focus:outline-hidden focus:ring-2 focus:ring-gold-500 focus:border-gold-500"
           />
         </div>
       </div>
@@ -365,7 +365,7 @@ export default function HymnReviewPage() {
                 onChange={e => setNote(e.target.value)}
                 rows={3}
                 placeholder={t('e.g. Mina is close, needs help with the opening syllable.', 'مثال: مينا قريب من الإتقان، يحتاج مساعدة في المقطع الأول.')}
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-gold-500"
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gold-500 focus:outline-hidden focus:ring-1 focus:ring-gold-500"
               />
             </div>
           </div>

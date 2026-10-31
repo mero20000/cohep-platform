@@ -75,7 +75,7 @@ describe('register form validation', () => {
     })
   })
 
-  it('reports a bad email format on blur', async () => {
+  it('reports a bad email format on blur-sm', async () => {
     const user = userEvent.setup()
     render(<RegisterPage />)
 

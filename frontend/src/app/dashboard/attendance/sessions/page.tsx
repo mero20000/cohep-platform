@@ -142,7 +142,7 @@ function SessionFormModal({
         className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[85vh] flex flex-col"
         onClick={e => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 flex-shrink-0">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 shrink-0">
           <h3 id="session-form-title" className="font-semibold text-gray-900">{title}</h3>
           <Button variant="ghost" size="icon" onClick={onClose} aria-label={lang === 'ar' ? 'إغلاق' : 'Close dialog'} className="p-1 hover:bg-gray-100 rounded">
             <X className="h-5 w-5" />
@@ -314,7 +314,7 @@ function SessionFormModal({
             className="min-h-[80px]"
           />
         </div>
-        <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-100 flex-shrink-0">
+        <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-100 shrink-0">
           <Button variant="outline" onClick={onClose}>{lang === 'ar' ? 'إلغاء' : 'Cancel'}</Button>
           <Button onClick={handleSubmit} disabled={saving}>
             {saving && <Loader2 className="h-4 w-4 animate-spin" />}{submitLabel}
@@ -724,11 +724,11 @@ export default function SessionsPage() {
         <div>
           <h1 className="text-2xl font-bold text-gray-900">{lang === 'ar' ? 'إدارة الجلسات' : 'Manage sessions'}</h1>
           <p className="text-sm text-gray-500">
-            <Link href="/dashboard/attendance/mark" className="text-blue-700 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500 rounded">
+            <Link href="/dashboard/attendance/mark" className="text-blue-700 hover:underline focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-gold-500 rounded">
               {lang === 'ar' ? 'تسجيل الحضور' : 'Mark attendance'}
             </Link>
             {' · '}
-            <Link href="/dashboard/attendance/insights" className="text-blue-700 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500 rounded">
+            <Link href="/dashboard/attendance/insights" className="text-blue-700 hover:underline focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-gold-500 rounded">
               {lang === 'ar' ? 'الإحصائيات' : 'Insights'}
             </Link>
             {' · '}
@@ -774,14 +774,14 @@ export default function SessionsPage() {
 
       <div className="rounded-xl border border-gray-200 bg-white px-5 py-3">
         <div className="relative">
-          <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" aria-hidden="true" />
+          <Search className="pointer-events-none absolute inset-s-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" aria-hidden="true" />
           <input
             type="search"
             value={studentQuery}
             onChange={e => setStudentQuery(e.target.value)}
             placeholder={lang === 'ar' ? 'بحث عن طالب بالاسم أو الكود…' : 'Find a student by name or code…'}
             aria-label={lang === 'ar' ? 'بحث عن طالب' : 'Find a student'}
-            className="min-h-[44px] w-full rounded-lg border border-gray-300 py-2 pe-3 ps-9 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500"
+            className="min-h-[44px] w-full rounded-lg border border-gray-300 py-2 pe-3 ps-9 text-sm focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-gold-500"
           />
         </div>
         {studentSearching && (
@@ -813,14 +813,14 @@ export default function SessionsPage() {
                   {sess?.id && (
                     <Link
                       href={`/dashboard/attendance/mark?sessionId=${sess.id}`}
-                      className="inline-flex min-h-[44px] items-center rounded-lg bg-emerald-600 px-3 text-sm font-medium text-white hover:bg-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500"
+                      className="inline-flex min-h-[44px] items-center rounded-lg bg-emerald-600 px-3 text-sm font-medium text-white hover:bg-emerald-700 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-gold-500"
                     >
                       {lang === 'ar' ? 'تسجيل' : 'Mark'}
                     </Link>
                   )}
                   <Link
                     href={`/dashboard/students?studentId=${hit.student.id}`}
-                    className="inline-flex min-h-[44px] items-center rounded-lg border border-gray-300 px-3 text-sm font-medium text-gray-700 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500"
+                    className="inline-flex min-h-[44px] items-center rounded-lg border border-gray-300 px-3 text-sm font-medium text-gray-700 hover:bg-gray-50 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-gold-500"
                   >
                     {lang === 'ar' ? 'الملف' : 'File'}
                   </Link>
@@ -840,7 +840,7 @@ export default function SessionsPage() {
           { key: 'event', label: typeLabel('event', lang as 'en' | 'ar'), Icon: PartyPopper },
         ] as const).map(({ key, label, Icon }) => (
           <button key={key} role="tab" aria-selected={typeTab === key} onClick={() => { setTypeTab(key as '' | SessionType); setStatusTab(''); setSelectedSessionIds(new Set()) }}
-            className={`flex-1 flex items-center justify-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-all min-h-[40px] ${typeTab === key ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
+            className={`flex-1 flex items-center justify-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-all min-h-[40px] ${typeTab === key ? 'bg-white text-gray-900 shadow-xs' : 'text-gray-500 hover:text-gray-700'}`}>
             <Icon className="h-4 w-4" aria-hidden="true" />
             {label}
             <span className="rounded-full bg-gray-200 px-2 py-0.5 text-xs">{typeCounts[key as '' | SessionType]}</span>
@@ -861,7 +861,7 @@ export default function SessionsPage() {
           const Icon = 'icon' in tab ? tab.icon : null
           return (
             <button key={tab.key} onClick={() => setStatusTab(tab.key as any)}
-              className={`flex items-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-all ${statusTab === tab.key ? 'bg-white border border-gray-200 shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'}`}>
+              className={`flex items-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-all ${statusTab === tab.key ? 'bg-white border border-gray-200 shadow-xs text-gray-900' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'}`}>
               {Icon && <Icon className={`h-3.5 w-3.5 ${'color' in tab ? tab.color : ''}`} />}
               {tab.label}
               {tab.count > 0 && <span className="text-xs text-gray-400">({tab.count})</span>}
@@ -889,19 +889,19 @@ export default function SessionsPage() {
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:flex lg:flex-wrap items-center gap-2">
             <select value={filterLevel} onChange={e => { setFilterLevel(e.target.value); setFilterGroup('') }}
               aria-label={lang === 'ar' ? 'تصفية حسب المستوى' : 'Filter by level'}
-              className="rounded-lg border border-gray-300 px-2 py-1.5 text-xs min-h-[40px] focus:border-gold-500 focus:outline-none w-full lg:w-auto">
+              className="rounded-lg border border-gray-300 px-2 py-1.5 text-xs min-h-[40px] focus:border-gold-500 focus:outline-hidden w-full lg:w-auto">
               <option value="">{lang === 'ar' ? 'جميع المستويات' : 'All Levels'}</option>
               {levels.map(l => <option key={l.id} value={l.id}>{lang === 'ar' ? `المستوى ${l.number}` : `Level ${l.number}`}</option>)}
             </select>
             <select value={filterGroup} onChange={e => setFilterGroup(e.target.value)}
               aria-label={lang === 'ar' ? 'تصفية حسب المجموعة' : 'Filter by group'}
-              className="rounded-lg border border-gray-300 px-2 py-1.5 text-xs min-h-[40px] focus:border-gold-500 focus:outline-none w-full lg:w-auto">
+              className="rounded-lg border border-gray-300 px-2 py-1.5 text-xs min-h-[40px] focus:border-gold-500 focus:outline-hidden w-full lg:w-auto">
               <option value="">{lang === 'ar' ? 'جميع المجموعات' : 'All Groups'}</option>
               {groups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
             </select>
             <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)}
               aria-label={lang === 'ar' ? 'تصفية حسب الحالة' : 'Filter by status'}
-              className="rounded-lg border border-gray-300 px-2 py-1.5 text-xs min-h-[40px] focus:border-gold-500 focus:outline-none w-full lg:w-auto">
+              className="rounded-lg border border-gray-300 px-2 py-1.5 text-xs min-h-[40px] focus:border-gold-500 focus:outline-hidden w-full lg:w-auto">
               <option value="">{lang === 'ar' ? 'جميع الحالات' : 'All Status'}</option>
               <option value="scheduled">{lang === 'ar' ? 'مجدول' : 'Scheduled'}</option>
               <option value="in_progress">{lang === 'ar' ? 'قيد التنفيذ' : 'In Progress'}</option>
@@ -916,7 +916,7 @@ export default function SessionsPage() {
               return servants.length > 1 ? (
                 <select value={filterServant} onChange={e => setFilterServant(e.target.value)}
                   aria-label={lang === 'ar' ? 'تصفية حسب الخادم' : 'Filter by servant'}
-                  className="rounded-lg border border-gray-300 px-2 py-1.5 text-xs min-h-[40px] focus:border-gold-500 focus:outline-none w-full lg:w-auto">
+                  className="rounded-lg border border-gray-300 px-2 py-1.5 text-xs min-h-[40px] focus:border-gold-500 focus:outline-hidden w-full lg:w-auto">
                   <option value="">{lang === 'ar' ? 'جميع الخدام' : 'All Servants'}</option>
                   {servants.map(sv => <option key={sv.id} value={sv.id}>{sv.firstName} {sv.lastName}</option>)}
                 </select>
@@ -925,16 +925,16 @@ export default function SessionsPage() {
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto_1fr_1fr] items-center gap-2">
             <DatePicker value={filterDateFrom} onChange={setFilterDateFrom}
-              className="rounded-lg border border-gray-300 px-2 py-1.5 text-xs min-h-[40px] focus:border-gold-500 focus:outline-none w-full" />
+              className="rounded-lg border border-gray-300 px-2 py-1.5 text-xs min-h-[40px] focus:border-gold-500 focus:outline-hidden w-full" />
             <span className="text-xs text-gray-500 text-center hidden sm:block">{lang === 'ar' ? 'إلى' : 'to'}</span>
             <DatePicker value={filterDateTo} onChange={setFilterDateTo}
-              className="rounded-lg border border-gray-300 px-2 py-1.5 text-xs min-h-[40px] focus:border-gold-500 focus:outline-none w-full" />
+              className="rounded-lg border border-gray-300 px-2 py-1.5 text-xs min-h-[40px] focus:border-gold-500 focus:outline-hidden w-full" />
             <div className="relative">
-              <Search className="absolute start-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
+              <Search className="absolute inset-s-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
               <input type="text" value={search} onChange={e => setSearch(e.target.value)}
                 placeholder={lang === 'ar' ? 'بحث...' : 'Search...'}
                 aria-label={lang === 'ar' ? 'بحث في الجلسات' : 'Search sessions'}
-                className="w-full rounded-lg border border-gray-300 ps-8 pe-2 py-1.5 text-xs min-h-[40px] focus:border-gold-500 focus:outline-none" />
+                className="w-full rounded-lg border border-gray-300 ps-8 pe-2 py-1.5 text-xs min-h-[40px] focus:border-gold-500 focus:outline-hidden" />
             </div>
           </div>
           {activeFilterCount > 0 && (
@@ -943,7 +943,7 @@ export default function SessionsPage() {
               <button
                 type="button"
                 onClick={clearAllFilters}
-                className="rounded px-1 font-semibold underline hover:text-blue-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500"
+                className="rounded px-1 font-semibold underline hover:text-blue-900 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-gold-500"
               >
                 {lang === 'ar' ? 'مسح الكل' : 'Clear All'}
               </button>
@@ -952,7 +952,7 @@ export default function SessionsPage() {
         </div>
         {/* Session stats summary (super_admin only) */}
         {isSuperAdmin && filteredSessions.length > 0 && (
-          <div className="flex items-center gap-3 px-5 py-2.5 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-white overflow-x-auto">
+          <div className="flex items-center gap-3 px-5 py-2.5 border-b border-gray-100 bg-linear-to-r from-gray-50 to-white overflow-x-auto">
             <BarChart3 className="h-4 w-4 text-gray-400" />
             {[
               { key: 'scheduled', icon: Clock, color: 'text-blue-600 bg-blue-50', label: lang === 'ar' ? 'مجدول' : 'Scheduled' },
@@ -1049,7 +1049,7 @@ export default function SessionsPage() {
                       )}
                       <button onClick={() => openEditSession(s)}
                         aria-label={lang === 'ar' ? `تعديل جلسة ${rowTitle || s.id}` : `Edit session ${rowTitle || s.id}`}
-                        className="flex-1 flex items-start gap-3 text-start min-w-0 transition-colors rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500">
+                        className="flex-1 flex items-start gap-3 text-start min-w-0 transition-colors rounded focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-gold-500">
                         <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${
                           isFinal ? 'bg-green-100 text-green-600' : s.status === 'scheduled' ? 'bg-blue-100 text-blue-600' : s.status === 'cancelled' ? 'bg-red-100 text-red-600' : s.status === 'postponed' ? 'bg-gray-100 text-gray-600' : 'bg-amber-100 text-amber-600'
                         }`}>
@@ -1103,7 +1103,7 @@ export default function SessionsPage() {
                               fetchSessions()
                             } catch (err: any) { toast('error', err?.message || 'Failed') }
                           }}
-                          className="rounded-md border border-gray-200 bg-white px-2 py-1 text-xs font-medium focus:outline-none focus:ring-1 focus:ring-gold-500"
+                          className="rounded-md border border-gray-200 bg-white px-2 py-1 text-xs font-medium focus:outline-hidden focus:ring-1 focus:ring-gold-500"
                           aria-label={lang === 'ar' ? 'تغيير الحالة' : 'Change status'}
                         >
                           <option value="scheduled">{lang === 'ar' ? 'مجدول' : 'Scheduled'}</option>
@@ -1129,7 +1129,7 @@ export default function SessionsPage() {
                         </span>
                       ) : (
                         <Link href={`/dashboard/attendance/mark?sessionId=${s.id}`}
-                          className="inline-flex items-center justify-center rounded-lg px-3 py-1.5 text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500 min-h-[36px]"
+                          className="inline-flex items-center justify-center rounded-lg px-3 py-1.5 text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-gold-500 min-h-[36px]"
                           title={lang === 'ar' ? `تسجيل الحضور` : `Record Attendance`}>
                           {lang === 'ar' ? 'تسجيل' : 'Record'}
                         </Link>

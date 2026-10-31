@@ -72,7 +72,7 @@ export function PointSystemTab() {
             <div className="text-xs text-gray-500">{lang === 'ar' ? 'نقاط ثابتة لكل طالب حضوره مسجل كـ "حاضر"' : 'Fixed points per student marked Present'}</div>
           </div>
           <input type="number" min={0} max={100} value={rules.presentPoints} onChange={e => setRules({ ...rules, presentPoints: Math.max(0, parseInt(e.target.value) || 0) })}
-            className="w-20 rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-center focus:border-gold-500 focus:outline-none" />
+            className="w-20 rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-center focus:border-gold-500 focus:outline-hidden" />
         </div>
 
         {/* Late */}
@@ -82,7 +82,7 @@ export function PointSystemTab() {
             <div className="text-xs text-gray-500">{lang === 'ar' ? 'نقاط ثابتة للطالب المتأخر — أفضل من الغياب' : 'Fixed points for a late student — better than absent'}</div>
           </div>
           <input type="number" min={0} max={100} value={rules.latePoints} onChange={e => setRules({ ...rules, latePoints: Math.max(0, parseInt(e.target.value) || 0) })}
-            className="w-20 rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-center focus:border-gold-500 focus:outline-none" />
+            className="w-20 rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-center focus:border-gold-500 focus:outline-hidden" />
         </div>
 
         {/* Excused */}
@@ -92,7 +92,7 @@ export function PointSystemTab() {
             <div className="text-xs text-gray-500">{lang === 'ar' ? 'نقاط ثابتة للعذر المقبول — لا يُعاقب الطالب' : 'Fixed points for a valid excuse — student not penalized'}</div>
           </div>
           <input type="number" min={0} max={100} value={rules.excusedPoints} onChange={e => setRules({ ...rules, excusedPoints: Math.max(0, parseInt(e.target.value) || 0) })}
-            className="w-20 rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-center focus:border-gold-500 focus:outline-none" />
+            className="w-20 rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-center focus:border-gold-500 focus:outline-hidden" />
         </div>
 
         {/* Behavior */}
@@ -104,7 +104,7 @@ export function PointSystemTab() {
           <div className="flex items-center gap-1.5">
             <span className="text-xs text-gray-400">×</span>
             <input type="number" min={1} max={10} value={rules.behaviorMultiplier} onChange={e => setRules({ ...rules, behaviorMultiplier: Math.max(1, parseInt(e.target.value) || 1) })}
-              className="w-20 rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-center focus:border-gold-500 focus:outline-none" />
+              className="w-20 rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-center focus:border-gold-500 focus:outline-hidden" />
           </div>
         </div>
 
@@ -117,7 +117,7 @@ export function PointSystemTab() {
           <div className="flex items-center gap-1.5">
             <span className="text-xs text-gray-400">×</span>
             <input type="number" min={1} max={10} value={rules.participationMultiplier} onChange={e => setRules({ ...rules, participationMultiplier: Math.max(1, parseInt(e.target.value) || 1) })}
-              className="w-20 rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-center focus:border-gold-500 focus:outline-none" />
+              className="w-20 rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-center focus:border-gold-500 focus:outline-hidden" />
           </div>
         </div>
 
@@ -128,7 +128,7 @@ export function PointSystemTab() {
             <div className="text-xs text-gray-500">{lang === 'ar' ? 'نقاط ثابتة عند حضور القداس' : 'Fixed points when liturgy is attended'}</div>
           </div>
           <input type="number" min={0} max={100} value={rules.liturgyPoints} onChange={e => setRules({ ...rules, liturgyPoints: Math.max(0, parseInt(e.target.value) || 0) })}
-            className="w-20 rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-center focus:border-gold-500 focus:outline-none" />
+            className="w-20 rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-center focus:border-gold-500 focus:outline-hidden" />
         </div>
       </div>
 

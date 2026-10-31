@@ -164,7 +164,7 @@ export function ProfileTab() {
                 variant="destructive"
                 size="icon"
                 onClick={removeAvatar}
-                className="absolute -top-1 -right-1 flex h-6 w-6 items-center justify-center rounded-full bg-red-500 text-white shadow hover:bg-red-600 transition-colors"
+                className="absolute -top-1 -right-1 flex h-6 w-6 items-center justify-center rounded-full bg-red-500 text-white shadow-sm hover:bg-red-600 transition-colors"
                 title={lang === 'ar' ? 'إزالة الصورة' : 'Remove photo'}
               >
                 <X className="h-3 w-3" />

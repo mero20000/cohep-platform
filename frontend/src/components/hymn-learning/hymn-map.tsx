@@ -56,7 +56,7 @@ export function HymnMap({ hymns, onSelect, lang, maxLevel = null }: Props) {
         <div className="relative flex-1 min-w-[200px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
           <input type="text" placeholder={t('Search hymns...', 'ابحث عن تسبيحة...')} value={search} onChange={e => setSearch(e.target.value)}
-            className="w-full rounded-lg border border-gray-200 bg-white pl-10 pr-4 py-2 text-sm focus:border-gold-500 focus:outline-none" />
+            className="w-full rounded-lg border border-gray-200 bg-white pl-10 pr-4 py-2 text-sm focus:border-gold-500 focus:outline-hidden" />
         </div>
         <div className="flex items-center gap-1 flex-wrap">
           {FILTERS.map(f => (
@@ -100,12 +100,12 @@ export function HymnMap({ hymns, onSelect, lang, maxLevel = null }: Props) {
                   return (
                     <button key={hymn.id} onClick={() => onSelect(hymn)}
                       className="flex items-center gap-3 w-full px-4 py-3 text-left hover:bg-gray-50 transition-colors">
-                      <div className="h-2.5 w-2.5 rounded-full flex-shrink-0" style={{ background: meta.dot }} aria-hidden="true" />
+                      <div className="h-2.5 w-2.5 rounded-full shrink-0" style={{ background: meta.dot }} aria-hidden="true" />
                       <div className="flex-1 min-w-0">
                         <div className="text-sm text-gray-900 truncate">{hymn.title}</div>
                         {hymn.titleCoptic && <div className="text-xs text-gray-400 truncate font-coptic mt-0.5">{hymn.titleCoptic}</div>}
                       </div>
-                      <div className="flex items-center gap-2 flex-shrink-0">
+                      <div className="flex items-center gap-2 shrink-0">
                         {hasAudio && <span className="text-xs text-blue-400" aria-label={t('Has audio', 'صوت متاح')}>♪</span>}
                         {hymn.estimatedDurationMinutes && <span className="text-xs text-gray-400">{hymn.estimatedDurationMinutes}m</span>}
                         <span className={`text-xs px-2 py-0.5 rounded-full ${meta.bg} ${meta.color} ${meta.border} border`}>

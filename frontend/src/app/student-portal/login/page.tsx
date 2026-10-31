@@ -42,10 +42,10 @@ export default function StudentLoginPage() {
 
   return (
     <div className="min-h-screen flex bg-gray-50">
-      <div className="hidden lg:flex w-1/2 bg-gradient-to-br from-blue-800 via-indigo-800 to-purple-900 items-center justify-center p-12 relative overflow-hidden">
+      <div className="hidden lg:flex w-1/2 bg-linear-to-br from-blue-800 via-indigo-800 to-purple-900 items-center justify-center p-12 relative overflow-hidden">
         <div className="absolute inset-0 bg-[url('/grid.svg')] opacity-10" />
         <div className="relative text-center">
-          <div className="mx-auto mb-6 flex h-[136px] w-[136px] items-center justify-center rounded-2xl bg-white/15 backdrop-blur-sm">
+          <div className="mx-auto mb-6 flex h-[136px] w-[136px] items-center justify-center rounded-2xl bg-white/15 backdrop-blur-xs">
             <Image src="/cohep-logo.png" alt="COHEP" width={120} height={120} className="h-[120px] w-[120px] object-contain" />
           </div>
           <h1 className="text-3xl font-bold text-white mb-2">Student Portal</h1>
@@ -75,7 +75,7 @@ export default function StudentLoginPage() {
                   value={code}
                   onChange={e => setCode(e.target.value)}
                   placeholder="e.g. a1b2c3d4-e5f6-7890-abcd-ef1234567890"
-                  className="w-full rounded-lg border border-gray-300 pl-10 pr-3 py-2.5 text-sm focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-gold-500"
+                  className="w-full rounded-lg border border-gray-300 pl-10 pr-3 py-2.5 text-sm focus:border-gold-500 focus:outline-hidden focus:ring-1 focus:ring-gold-500"
                   autoFocus
                 />
               </div>

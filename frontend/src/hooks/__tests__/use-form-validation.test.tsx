@@ -81,7 +81,7 @@ describe('useFormValidation', () => {
     expect(screen.getByLabelText(/Email/)).not.toHaveAttribute('aria-invalid')
   })
 
-  it('reports an error on blur and wires it to the control', async () => {
+  it('reports an error on blur-sm and wires it to the control', async () => {
     const user = userEvent.setup()
     render(<Harness />)
 

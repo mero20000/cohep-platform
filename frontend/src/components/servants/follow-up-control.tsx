@@ -63,7 +63,7 @@ export function FollowUpControl({ studentId, followUp, lang, onChange }: FollowU
         rows={2}
         onChange={(e) => setNote(e.target.value)}
         onBlur={() => { if (note !== (followUp?.note ?? '')) save({ note }) }}
-        className="mt-1 w-full rounded-lg border border-gray-200 p-2 text-sm text-gray-900 focus:border-blue-400 focus:outline-none"
+        className="mt-1 w-full rounded-lg border border-gray-200 p-2 text-sm text-gray-900 focus:border-blue-400 focus:outline-hidden"
         placeholder={t('e.g. Called his mother, back next week', 'مثال: اتصلت بوالدته، سيحضر الأسبوع القادم')}
       />
       {failed && <p role="alert" className="mt-1 text-xs text-red-600">{t('Could not save. Try again.', 'تعذر الحفظ. حاول مرة أخرى.')}</p>}

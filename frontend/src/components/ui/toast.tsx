@@ -68,7 +68,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   return (
     <ToastContext value={{ toast: addToast }}>
       {children}
-      <div aria-live="polite" className="fixed top-4 right-4 z-[100] flex flex-col gap-2 max-w-[calc(100vw-2rem)] sm:max-w-sm w-full pointer-events-none" style={{ top: 'max(1rem, env(safe-area-inset-top))', right: 'max(1rem, env(safe-area-inset-right))', left: 'max(1rem, env(safe-area-inset-left))' }}>
+      <div aria-live="polite" className="fixed top-4 right-4 z-100 flex flex-col gap-2 max-w-[calc(100vw-2rem)] sm:max-w-sm w-full pointer-events-none" style={{ top: 'max(1rem, env(safe-area-inset-top))', right: 'max(1rem, env(safe-area-inset-right))', left: 'max(1rem, env(safe-area-inset-left))' }}>
         <AnimatePresence mode="popLayout">
           {toasts.map(t => {
             const Icon = icons[t.type]
@@ -84,12 +84,12 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
                 transition={{ type: 'spring', stiffness: 400, damping: 30 }}
                 className={`pointer-events-auto ${c.bg} ${c.border} border rounded-xl p-4 shadow-lg`}>
                 <div className="flex items-start gap-3">
-                  <Icon className={`h-5 w-5 flex-shrink-0 mt-0.5 ${c.icon}`} />
+                  <Icon className={`h-5 w-5 shrink-0 mt-0.5 ${c.icon}`} />
                   <div className="flex-1 min-w-0">
                     <p className={`text-sm font-medium ${c.text}`}>{t.title}</p>
                     {t.description && <p className="mt-1 text-sm opacity-80">{t.description}</p>}
                   </div>
-                  <button onClick={() => removeToast(t.id)} aria-label="Dismiss" className="flex-shrink-0 p-0.5 rounded hover:bg-black/5 transition-colors">
+                  <button onClick={() => removeToast(t.id)} aria-label="Dismiss" className="shrink-0 p-0.5 rounded hover:bg-black/5 transition-colors">
                     <X className="h-4 w-4 opacity-50" />
                   </button>
                 </div>

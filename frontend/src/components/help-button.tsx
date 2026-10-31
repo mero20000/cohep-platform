@@ -27,7 +27,7 @@ export function HelpButton() {
       <button
         id="help-button"
         onClick={() => setOpen(true)}
-        className={`fixed ${hasActionBar ? 'bottom-[calc(9.5rem+env(safe-area-inset-bottom))]' : 'bottom-[calc(5rem+env(safe-area-inset-bottom))]'} lg:bottom-6 end-4 sm:end-6 z-40 flex h-12 w-12 items-center justify-center rounded-full bg-gray-800 text-white shadow-lg shadow-gray-400/30 hover:bg-gray-700 hover:scale-105 active:scale-95 transition-transform`}
+        className={`fixed ${hasActionBar ? 'bottom-[calc(9.5rem+env(safe-area-inset-bottom))]' : 'bottom-[calc(5rem+env(safe-area-inset-bottom))]'} lg:bottom-6 inset-e-4 sm:inset-e-6 z-40 flex h-12 w-12 items-center justify-center rounded-full bg-gray-800 text-white shadow-lg shadow-gray-400/30 hover:bg-gray-700 hover:scale-105 active:scale-95 transition-transform`}
         aria-label={lang === 'ar' ? 'مساعدة' : 'Help'}
         title={lang === 'ar' ? 'مساعدة' : 'Help'}
       >
@@ -36,7 +36,7 @@ export function HelpButton() {
 
       {open && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
-          <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={() => setOpen(false)} />
+          <div className="absolute inset-0 bg-black/30 backdrop-blur-xs" onClick={() => setOpen(false)} />
           <div className="relative w-full max-w-md rounded-t-2xl sm:rounded-2xl bg-white shadow-2xl border border-gray-200 overflow-hidden max-h-[80dvh] flex flex-col">
             <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
               <h2 className="text-lg font-bold text-gray-900">
@@ -56,7 +56,7 @@ export function HelpButton() {
                 <div className="space-y-2">
                   {SHORTCUTS.map(s => (
                     <div key={s.key} className="flex items-center justify-between">
-                      <kbd className="inline-flex items-center justify-center rounded-md border border-gray-200 bg-gray-50 px-2 py-0.5 text-[11px] font-mono font-bold text-gray-600 min-w-[2.5rem]">
+                      <kbd className="inline-flex items-center justify-center rounded-md border border-gray-200 bg-gray-50 px-2 py-0.5 text-[11px] font-mono font-bold text-gray-600 min-w-10">
                         {s.key}
                       </kbd>
                       <span className="text-xs text-gray-600">{lang === 'ar' ? s.ar : s.en}</span>

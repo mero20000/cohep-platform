@@ -150,7 +150,7 @@ export function ChildrenTab() {
               onChange={e => setLinkCode(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter') handleLink() }}
               placeholder={t('Student code (e.g. STU-0001)', 'كود الطالب (مثال STU-0001)')}
-              className="w-full rounded-lg border border-gray-300 bg-white pl-10 pr-3 py-2.5 text-sm focus:border-gold-400 focus:outline-none focus:ring-2 focus:ring-gold-200"
+              className="w-full rounded-lg border border-gray-300 bg-white pl-10 pr-3 py-2.5 text-sm focus:border-gold-400 focus:outline-hidden focus:ring-2 focus:ring-gold-200"
             />
           </div>
           <input
@@ -158,12 +158,12 @@ export function ChildrenTab() {
             value={linkDob}
             onChange={e => setLinkDob(e.target.value)}
             aria-label={t('Date of birth', 'تاريخ الميلاد')}
-            className="rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm focus:border-gold-400 focus:outline-none focus:ring-2 focus:ring-gold-200 sm:w-44"
+            className="rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm focus:border-gold-400 focus:outline-hidden focus:ring-2 focus:ring-gold-200 sm:w-44"
           />
           <select
             value={linkRel}
             onChange={e => setLinkRel(e.target.value)}
-            className="rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm focus:border-gold-400 focus:outline-none focus:ring-2 focus:ring-gold-200"
+            className="rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm focus:border-gold-400 focus:outline-hidden focus:ring-2 focus:ring-gold-200"
           >
             {RELATIONSHIPS.map(r => (
               <option key={r.value} value={r.value}>{t(r.en, r.ar)}</option>
@@ -225,7 +225,7 @@ export function ChildrenTab() {
                     <select
                       value={editingRel.relationship}
                       onChange={e => setEditingRel({ ...editingRel, relationship: e.target.value })}
-                      className="rounded-lg border border-gray-300 bg-white px-2 py-1.5 text-xs focus:border-gold-400 focus:outline-none"
+                      className="rounded-lg border border-gray-300 bg-white px-2 py-1.5 text-xs focus:border-gold-400 focus:outline-hidden"
                       autoFocus
                     >
                       {RELATIONSHIPS.map(r => (
