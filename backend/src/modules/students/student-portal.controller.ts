@@ -19,6 +19,7 @@ import { StudentLoginDto } from './dto/student-login.dto';
 import { LogPracticeDto } from './dto/log-practice.dto';
 import { LogLiturgyDto } from './dto/log-liturgy.dto';
 import { StudentNotificationsService } from '../student-notifications/student-notifications.service';
+import { GamificationService } from '../gamification/gamification.service';
 import { Public } from '../../common/decorators/public.decorator';
 import { StudentPortalAuthGuard, SKIP_PORTAL_AUTH } from './student-portal-auth.guard';
 import { createCloudinaryStorage, isCloudinaryConfigured } from '../../common/config/cloudinary';
@@ -34,6 +35,7 @@ export class StudentPortalController {
     private readonly assessmentsService: AssessmentsService,
     private readonly parentsService: ParentsService,
     private readonly studentNotifications: StudentNotificationsService,
+    private readonly gamification: GamificationService,
     private readonly jwt: JwtService,
   ) {}
 
@@ -201,6 +203,15 @@ export class StudentPortalController {
   async getHistory(@Param('code') code: string, @Param('lessonId') lessonId: string) {
     const student = await this.resolveStudent(code);
     return this.hymnLearning.getHymnHistory(student.id, lessonId);
+  }
+
+  @Post(':code/birthday/claim')
+  @HttpCode(200)
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  @ApiOperation({ summary: 'Open the birthday gift (yearly badge + XP); safe to repeat' })
+  async claimBirthdayGift(@Param('code') code: string) {
+    const student = await this.resolveStudent(code);
+    return this.gamification.claimBirthdayGift(student.id);
   }
 
   @Post(':code/practice')

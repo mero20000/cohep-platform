@@ -20,3 +20,13 @@
 - No screen exists yet to set the family opt-out flag; it can be set on the student's metadata.
 - The banner label is bilingual; the card itself is English only.
 - Known data issue: students imported without a date of birth got "the import date" as their birthday. The age guard hides the first years of these, but they will eventually look plausible; the real fix is to fix the import default and clean the data.
+
+## Addendum — the birthday gift (2026-11-01)
+- **Decision:** the card has an "Open your gift 🎁" button (a tap, not automatic). It gives **+50 XP** and a **"Birthday Blessing {year}"** badge, once per birthday year, claimable from the birthday until 7 days after. The badge is from the school and church (no servant attribution).
+- `POST /student-portal/:code/birthday/claim` → `GamificationService.claimBirthdayGift`. The XP rides on the badge (`xpReward = BIRTHDAY_GIFT_XP`), so badge and XP are paid in one transaction by the existing `awardBadge` (which also notifies the student). Repeats return `claimed: false` and pay nothing; `student_badges` is unique per student and badge, which also covers a racing double tap.
+- The yearly badge is created per school on first claim (`category: 'birthday'`, `criteria.rule: 'birthday'`).
+- **Grant-only rule:** a `birthday` badge is never auto-awarded and is skipped by the "recheck" that revokes badges a student no longer qualifies for, so it and its XP can't be clawed back after an unrelated attendance change.
+- The portal birthday signal gains `giftClaimed`; the card then shows "Your gift is already opened".
+- Portal data refreshes quietly after the gift so XP and badges update behind the card.
+- Also fixed: the card crashed on `null` when a student hides their name (now "Happy birthday, friend!"), and a symbolic badge icon (`cake`, seed icons like `footprints`) could throw in `next/image`; a tolerant `BadgeIcon` now renders those as emoji.
+- Not changed: seasonal badges (`rule: 'seasonal'`) look exposed to the same recheck revocation; worth a separate look.

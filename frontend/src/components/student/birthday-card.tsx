@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { portalPost } from '@/lib/portal-session'
 import { assetUrl } from '@/lib/asset-url'
 import { useLanguage } from '@/lib/use-language'
 import { studentBirthdayCopy } from '@/lib/student-birthday-message'
@@ -10,12 +11,24 @@ export interface StudentBirthday {
   daysSince: number
   turningAge: number
   year: number
+  /** True once this year's gift has been opened. */
+  giftClaimed?: boolean
+}
+
+interface GiftResult {
+  claimed: boolean
+  xp: number
+  badge: { name: string; nameAr?: string | null; iconUrl?: string | null }
 }
 
 interface BirthdayCardProps {
   birthday: StudentBirthday | null | undefined
   studentId: string
-  firstName: string
+  /** The portal access key, used to open the gift. */
+  code: string
+  firstName: string | null | undefined
+  /** Called after the gift is opened so the portal can refresh XP and badges. */
+  onGiftOpened?: () => void
   school: { name: string; logoUrl?: string | null; churchName?: string | null; churchLogoUrl?: string | null } | null
 }
 
@@ -32,10 +45,13 @@ function writeSeen(key: string) {
  * Opens itself once on the birthday, and stays reachable as a banner for the week after.
  * "Seen" lives on this device only.
  */
-export function StudentBirthdayCard({ birthday, studentId, firstName, school }: BirthdayCardProps) {
+export function StudentBirthdayCard({ birthday, studentId, code, firstName, school, onGiftOpened }: BirthdayCardProps) {
   const lang = useLanguage()
   const [open, setOpen] = useState(false)
   const closeRef = useRef<HTMLButtonElement>(null)
+  const [gift, setGift] = useState<GiftResult | null>(null)
+  const [opening, setOpening] = useState(false)
+  const [giftError, setGiftError] = useState(false)
   const year = birthday?.year
   const daysSince = birthday?.daysSince
 
@@ -43,6 +59,20 @@ export function StudentBirthdayCard({ birthday, studentId, firstName, school }: 
     if (year === undefined || daysSince !== 0) return
     if (!readSeen(seenKey(studentId, year))) setOpen(true)
   }, [studentId, year, daysSince])
+
+  const openGift = useCallback(async () => {
+    setOpening(true)
+    setGiftError(false)
+    try {
+      const res = await portalPost<GiftResult>(code, `/student-portal/${encodeURIComponent(code)}/birthday/claim`)
+      setGift(res)
+      onGiftOpened?.()
+    } catch {
+      setGiftError(true)
+    } finally {
+      setOpening(false)
+    }
+  }, [code, onGiftOpened])
 
   const close = useCallback(() => {
     if (year !== undefined) writeSeen(seenKey(studentId, year))
@@ -116,11 +146,39 @@ export function StudentBirthdayCard({ birthday, studentId, firstName, school }: 
               {school?.churchName && <p className="text-gray-600">{school.churchName}</p>}
             </div>
 
+            {/* The gift: one tap, once a year. Already-opened gifts just say so. */}
+            {gift ? (
+              <div role="status" className="mt-5 rounded-xl border border-gold-200 bg-gold-50 p-3 text-sm text-gold-900">
+                {gift.claimed ? (
+                  <>
+                    <p className="font-semibold">🎉 +{gift.xp} XP</p>
+                    <p className="mt-0.5">You earned the “{gift.badge.name}” badge.</p>
+                  </>
+                ) : (
+                  <p className="font-semibold">Your gift is already opened 🎁</p>
+                )}
+              </div>
+            ) : birthday.giftClaimed ? (
+              <p role="status" className="mt-5 text-sm font-semibold text-gold-700">Your gift is already opened 🎁</p>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  onClick={openGift}
+                  disabled={opening}
+                  className="mt-5 min-h-[48px] w-full rounded-xl border-2 border-gold-400 bg-gold-50 px-4 text-sm font-semibold text-gold-800 hover:bg-gold-100 disabled:opacity-60"
+                >
+                  {opening ? 'Opening…' : 'Open your gift 🎁'}
+                </button>
+                {giftError && <p role="alert" className="mt-2 text-xs text-red-600">We couldn’t open your gift. Please try again.</p>}
+              </>
+            )}
+
             <button
               ref={closeRef}
               type="button"
               onClick={close}
-              className="mt-5 min-h-[48px] w-full rounded-xl bg-gold-600 px-4 text-sm font-semibold text-white hover:bg-gold-700"
+              className="mt-3 min-h-[48px] w-full rounded-xl bg-gold-600 px-4 text-sm font-semibold text-white hover:bg-gold-700"
             >
               {lang === 'ar' ? 'شكراً' : 'Thank you'}
             </button>

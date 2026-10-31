@@ -4,7 +4,8 @@ import { SchoolResolver } from '../../common/utils/school-resolver';
 import { StudentNotificationsService } from '../student-notifications/student-notifications.service';
 import { AuditService } from '../audit/audit.service';
 import { CreateBadgeDto, UpdateBadgeDto } from './dto/gamification.dto';
-import { GAMIFICATION_CONSTANTS } from './gamification.constants';
+import { GAMIFICATION_CONSTANTS, BIRTHDAY_BADGE_RULE, birthdayBadgeName } from './gamification.constants';
+import { localToday, studentBirthdayWindow } from '../../common/utils/birthday';
 
 interface BadgeCheckResult {
   badgeId: string
@@ -199,6 +200,62 @@ export class GamificationService {
     return this.prisma.badge.delete({ where: { id } });
   }
 
+  /**
+   * A student opens their birthday gift: this year's "Birthday Blessing" badge, which carries the XP
+   * (so XP and badge are paid in one transaction). Allowed from the birthday until a week after it,
+   * once per birthday year. Safe to call repeatedly: later calls report claimed:false and pay nothing.
+   */
+  async claimBirthdayGift(studentId: string) {
+    const student = await this.prisma.student.findUnique({
+      where: { id: studentId },
+      select: { id: true, schoolId: true, dateOfBirth: true, metadata: true, school: { select: { timezone: true } } },
+    });
+    if (!student) throw new NotFoundException('Student not found');
+    if ((student.metadata as any)?.birthdayOptOut === true) {
+      throw new BadRequestException('Birthday gifts are turned off for this student');
+    }
+
+    const window = studentBirthdayWindow(new Date(student.dateOfBirth), localToday(new Date(), student.school?.timezone || 'UTC'));
+    if (!window || window.daysAway > 0 || window.daysAway < -7) {
+      throw new BadRequestException('There is no birthday gift to open right now');
+    }
+
+    const name = birthdayBadgeName(window.year);
+    let badge = await this.prisma.badge.findFirst({
+      where: { schoolId: student.schoolId, name, criteria: { path: ['rule'], equals: BIRTHDAY_BADGE_RULE } },
+    });
+    if (!badge) {
+      badge = await this.prisma.badge.create({
+        data: {
+          schoolId: student.schoolId,
+          name,
+          nameAr: `بركة عيد الميلاد ${window.year}`,
+          description: 'A birthday blessing from your school and church.',
+          descriptionAr: 'بركة عيد ميلاد من مدرستك وكنيستك.',
+          iconUrl: 'cake',
+          category: 'birthday',
+          xpReward: GAMIFICATION_CONSTANTS.BIRTHDAY_GIFT_XP,
+          isActive: true,
+          isSecret: false,
+          criteria: { rule: BIRTHDAY_BADGE_RULE, year: window.year },
+        },
+      });
+    }
+
+    const summary = { name: badge.name, nameAr: badge.nameAr, iconUrl: badge.iconUrl };
+    const alreadyOwned = await this.prisma.studentBadge.findFirst({ where: { studentId, badgeId: badge.id } });
+    if (alreadyOwned) return { claimed: false, xp: 0, badge: summary };
+
+    try {
+      await this.awardBadge(studentId, badge.id);
+    } catch (err: any) {
+      // A second tap racing the first: the badge is already theirs, nothing more to pay.
+      if (err instanceof BadRequestException || err?.code === 'P2002') return { claimed: false, xp: 0, badge: summary };
+      throw err;
+    }
+    return { claimed: true, xp: badge.xpReward, badge: summary };
+  }
+
   async awardBadge(studentId: string, badgeId: string, awardedBy?: string) {
     const student = await this.prisma.student.findUnique({ where: { id: studentId } });
     if (!student) throw new NotFoundException('Student not found');
@@ -306,6 +363,8 @@ export class GamificationService {
       for (const sb of owned) {
         const badge = await this.prisma.badge.findUnique({ where: { id: sb.badgeId } });
         if (!badge) continue;
+        // Birthday badges are granted by opening the gift, not earned by criteria: never revoke them here.
+        if ((badge.criteria as any)?.rule === BIRTHDAY_BADGE_RULE) continue;
         const result = await this.checkBadgeCriterion(student, badge);
         if (!result.earned) {
           await this.prisma.$transaction(async (tx) => {
@@ -374,6 +433,9 @@ export class GamificationService {
     }
 
     switch (rule) {
+      case BIRTHDAY_BADGE_RULE:
+        // Granted only by claimBirthdayGift; never auto-awarded.
+        return { badgeId: badge.id, earned: false };
       case 'perfect_week':
         return this.checkPerfectWeek(student);
       case 'perfect_month':
