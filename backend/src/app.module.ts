@@ -16,6 +16,7 @@ import { DatabaseModule } from './database/database.module';
 import { CommonModule } from './common/common.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
+import { PushModule } from './modules/push/push.module';
 import { ParentsModule } from './modules/parents/parents.module';
 import { AuditModule } from './modules/audit/audit.module';
 import { MailModule } from './modules/mail/mail.module';
@@ -65,6 +66,7 @@ import { TenantScopeGuard } from './common/guards/tenant-scope.guard';
     UploadModule,
     DashboardModule,
     NotificationsModule,
+    PushModule,
     ParentsModule,
     AuditModule,
     MailModule,

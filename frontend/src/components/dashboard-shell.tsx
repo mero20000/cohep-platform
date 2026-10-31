@@ -28,6 +28,8 @@ import { useIdleTimeout } from '@/hooks/use-idle-timeout'
 import { SessionExpiryModal } from './session-expiry-modal'
 
 import { MobileBottomNav } from './dashboard/mobile-bottom-nav'
+import { setAppBadge } from '@/lib/app-badge'
+import { syncPushSubscription } from '@/lib/push'
 
 interface NotificationItem {
   id: string; type: string; title: string; titleAr?: string; body: string; bodyAr?: string;
@@ -403,6 +405,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
     }).catch(() => {})
     localStorage.removeItem('user')
     localStorage.removeItem('niangelos_active_school')
+    setAppBadge(0)
     router.push('/auth/login')
   }
 
@@ -414,6 +417,9 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
   const initials = user ? `${user.firstName?.[0] || ''}${user.lastName?.[0] || ''}` : 'AU'
   const displayName = user ? `${user.firstName || ''} ${user.lastName || ''}` : 'Admin User'
   const unreadCount = notifications.filter(n => !n.isRead).length
+  // Unread total on the installed app's icon; re-registers an existing push subscription (never prompts).
+  useEffect(() => { setAppBadge(unreadCount) }, [unreadCount])
+  useEffect(() => { if (user) void syncPushSubscription() }, [user])
   const sidebarVisible = !autoHide || sidebarHover
   useDashboardHotkeys()
 
