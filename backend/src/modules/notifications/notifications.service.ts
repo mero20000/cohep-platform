@@ -1,12 +1,14 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 import { SchoolResolver } from '../../common/utils/school-resolver';
+import { PushService } from '../push/push.service';
 
 @Injectable()
 export class NotificationsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly schoolResolver: SchoolResolver,
+    private readonly push: PushService,
   ) {}
 
   async findUserNotifications(schoolIdentifier: string, userId: string, page = 1, limit = 20) {
@@ -81,6 +83,25 @@ export class NotificationsService {
       },
     });
 
+    // In-app notifications are also pushed to the user's devices. Not awaited: delivery is best effort.
+    if (channel === 'in_app') this.pushToDevices(data.userId, data).catch(() => undefined);
+
     return notification;
+  }
+
+  private async pushToDevices(
+    userId: string,
+    n: { schoolId: string; title: string; body: string; linkPath?: string; type: string },
+  ) {
+    const unread = await this.prisma.notification
+      .count({ where: { schoolId: n.schoolId, userId, isRead: false } })
+      .catch(() => undefined);
+    await this.push.sendToUser(userId, {
+      title: n.title,
+      body: n.body,
+      url: n.linkPath,
+      unread,
+      tag: n.type,
+    });
   }
 }

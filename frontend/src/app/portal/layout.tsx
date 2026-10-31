@@ -9,6 +9,8 @@ import { useLanguage } from '@/lib/use-language'
 import { http } from '@/lib/http-client'
 import { getSchoolId } from '@/lib/school'
 import { track } from '@/lib/analytics'
+import { setAppBadge } from '@/lib/app-badge'
+import { syncPushSubscription } from '@/lib/push'
 import { Button } from '@/components/ui/button'
 import { AudioPlayer } from '@/components/audio-player'
 
@@ -118,6 +120,7 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
     void fetch((process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api') + '/auth/logout', {
       method: 'POST', credentials: 'include',
     }).catch(() => {})
+    setAppBadge(0)
     localStorage.removeItem('user')
     router.push('/portal/login')
   }
@@ -165,29 +168,11 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
     return () => clearInterval(interval)
   }, [fetchNotifications, isLoginPage])
 
+  // Re-registers an existing push subscription with the server. Turning notifications on is an explicit
+  // choice in Settings (browsers refuse permission prompts that don't follow a click).
   useEffect(() => {
     if (isLoginPage || !user) return
-    const sub = async () => {
-      try {
-        const reg = await navigator.serviceWorker.ready
-        const existing = await reg.pushManager.getSubscription()
-        if (existing) return
-        const res = await fetch((process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api') + '/vapid-public-key')
-        const { key } = await res.json()
-        const sub = await reg.pushManager.subscribe({
-          userVisibleOnly: true,
-          applicationServerKey: key,
-        })
-        const json = sub.toJSON()
-        const token = localStorage.getItem('niangelos_token')
-        await fetch((process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api') + '/push/subscribe', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-          body: JSON.stringify({ endpoint: json.endpoint, p256dh: json.keys!.p256dh, auth: json.keys!.auth }),
-        })
-      } catch {}
-    }
-    if ('serviceWorker' in navigator && 'PushManager' in window) sub()
+    void syncPushSubscription()
   }, [isLoginPage, user])
 
   useEffect(() => {
@@ -213,6 +198,7 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
   const initials = user ? `${user.firstName?.[0] || ''}${user.lastName?.[0] || ''}` : 'P'
   const displayName = user ? `${user.firstName || ''} ${user.lastName || ''}` : 'Parent'
   const unreadCount = notifications.filter(n => !n.isRead).length
+  useEffect(() => { setAppBadge(unreadCount) }, [unreadCount])
 
   const t = (en: string, ar: string) => (lang === 'ar' ? ar : en)
 

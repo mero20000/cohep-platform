@@ -255,7 +255,7 @@ export default function StudentsClient() {
     http.get<Student>(`/students/${deepStudentId}`,{schoolId:getSchoolId()})
       .then(s=>{if(s?.id){deepOpenedRef.current=deepStudentId;openDetail(s)}})
       .catch(()=>{})
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   },[deepStudentId,students,loading])
   const handleDelete = async()=>{
     if(!selectedStudent)return

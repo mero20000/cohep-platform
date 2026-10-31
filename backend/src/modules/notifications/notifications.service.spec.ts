@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { NotificationsService } from './notifications.service';
 import { PrismaService } from '../../database/prisma.service';
 import { SchoolResolver } from '../../common/utils/school-resolver';
+import { PushService } from '../push/push.service';
 
 describe('NotificationsService', () => {
   let service: NotificationsService;
@@ -19,11 +20,14 @@ describe('NotificationsService', () => {
     },
   };
 
+  const pushMock = { sendToUser: jest.fn().mockResolvedValue(undefined) };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         NotificationsService,
         { provide: PrismaService, useValue: prismaMock },
+        { provide: PushService, useValue: pushMock },
         { provide: SchoolResolver, useValue: { resolve: jest.fn().mockResolvedValue(schoolId) } },
       ],
     }).compile();
@@ -237,6 +241,38 @@ describe('NotificationsService', () => {
       });
 
       expect(result).toEqual(created);
+    });
+
+    it('pushes an in-app notification to the user\'s devices with the unread total', async () => {
+      prisma.notification.create.mockResolvedValue({ id: 'n-4' });
+      prisma.notification.count.mockResolvedValue(5);
+
+      await service.createNotification({
+        schoolId, userId, type: 'assessment', title: 'Graded', body: 'Your quiz was marked', linkPath: '/dashboard/assessments',
+      });
+      await new Promise((r) => setImmediate(r));
+
+      expect(pushMock.sendToUser).toHaveBeenCalledWith(userId, {
+        title: 'Graded', body: 'Your quiz was marked', url: '/dashboard/assessments', unread: 5, tag: 'assessment',
+      });
+    });
+
+    it('does not push notifications sent on another channel', async () => {
+      prisma.notification.create.mockResolvedValue({ id: 'n-5' });
+
+      await service.createNotification({ schoolId, userId, type: 'x', title: 't', body: 'b', channel: 'whatsapp' });
+      await new Promise((r) => setImmediate(r));
+
+      expect(pushMock.sendToUser).not.toHaveBeenCalled();
+    });
+
+    it('still returns the notification if the push fails', async () => {
+      prisma.notification.create.mockResolvedValue({ id: 'n-6' });
+      pushMock.sendToUser.mockRejectedValueOnce(new Error('push down'));
+
+      await expect(service.createNotification({ schoolId, userId, type: 'x', title: 't', body: 'b' }))
+        .resolves.toEqual({ id: 'n-6' });
+      await new Promise((r) => setImmediate(r));
     });
   });
 });

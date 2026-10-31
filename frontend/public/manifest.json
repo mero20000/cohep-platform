@@ -1,8 +1,10 @@
 {
+  "id": "/",
   "name": "COHEP",
   "short_name": "COHEP",
   "description": "Coptic Orthodox Hymn Education Platform",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
   "orientation": "portrait",
   "theme_color": "#C89B3C",
@@ -12,7 +14,42 @@
     { "src": "/icons/icon-512x512.png", "sizes": "512x512", "type": "image/png" },
     { "src": "/icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
   ],
+  "shortcuts": [
+    {
+      "name": "Mark attendance",
+      "short_name": "Attendance",
+      "description": "Start or continue today's class attendance",
+      "url": "/dashboard/attendance/mark",
+      "icons": [{ "src": "/icons/icon-192x192.png", "sizes": "192x192", "type": "image/png" }]
+    },
+    {
+      "name": "This Sunday",
+      "short_name": "This Sunday",
+      "description": "Briefing for this Sunday's class",
+      "url": "/dashboard/briefing",
+      "icons": [{ "src": "/icons/icon-192x192.png", "sizes": "192x192", "type": "image/png" }]
+    },
+    {
+      "name": "Notifications",
+      "short_name": "Notifications",
+      "description": "See what needs your attention",
+      "url": "/dashboard/notifications",
+      "icons": [{ "src": "/icons/icon-192x192.png", "sizes": "192x192", "type": "image/png" }]
+    },
+    {
+      "name": "My children",
+      "short_name": "My children",
+      "description": "Progress and attendance of your children",
+      "url": "/dashboard/parents",
+      "icons": [{ "src": "/icons/icon-192x192.png", "sizes": "192x192", "type": "image/png" }]
+    }
+  ],
+  "screenshots": [
+    { "src": "/screenshots/servant-home.png", "sizes": "780x1688", "type": "image/png", "form_factor": "narrow", "label": "Today's class and your group at a glance" },
+    { "src": "/screenshots/attendance.png", "sizes": "780x1688", "type": "image/png", "form_factor": "narrow", "label": "Mark attendance with one tap per student" },
+    { "src": "/screenshots/parent-home.png", "sizes": "780x1688", "type": "image/png", "form_factor": "narrow", "label": "Parents follow their children's progress" }
+  ],
   "categories": ["education", "religion"],
   "lang": "en",
-  "dir": "ltr"
+  "dir": "auto"
 }

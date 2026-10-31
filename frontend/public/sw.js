@@ -1,4 +1,4 @@
-const CACHE = 'cohep-v6'
+const CACHE = 'cohep-v7'
 const STATIC = [
   '/',
   '/manifest.json',
@@ -79,29 +79,45 @@ self.addEventListener('fetch', (event) => {
   )
 })
 
+// Notification links come from our own server, but only same-origin paths are ever opened.
+function safePath(url) {
+  return typeof url === 'string' && url.startsWith('/') && !url.startsWith('//') ? url : '/dashboard'
+}
+
 self.addEventListener('push', (event) => {
   let data = { title: 'COHEP', body: '' }
-  try { data = event.data?.json() || data } catch {}
+  try { data = { ...data, ...(event.data?.json() || {}) } } catch {}
 
-  event.waitUntil(
+  const tasks = [
     self.registration.showNotification(data.title, {
       body: data.body,
       icon: '/icons/icon-192x192.png',
       badge: '/icons/icon-192x192.png',
       vibrate: [200, 100, 200],
-      data: data.url ? { url: data.url } : {},
-    })
-  )
+      // Same tag replaces the previous notification instead of stacking a pile on the lock screen.
+      ...(data.tag ? { tag: data.tag, renotify: true } : {}),
+      dir: 'auto',
+      data: { url: safePath(data.url) },
+    }),
+  ]
+  // App-icon badge: the server sends the unread total with each push.
+  if (typeof data.unread === 'number' && self.navigator && self.navigator.setAppBadge) {
+    tasks.push(Promise.resolve(self.navigator.setAppBadge(data.unread)).catch(() => {}))
+  }
+  event.waitUntil(Promise.all(tasks))
 })
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close()
-  const url = event.notification.data?.url || '/dashboard'
+  const url = safePath(event.notification.data && event.notification.data.url)
   event.waitUntil(
-    clients.matchAll({ type: 'window' }).then((windowClients) => {
-      const existing = windowClients.find((c) => c.url.includes(url))
-      if (existing) { existing.focus(); return }
-      clients.openWindow(url)
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
+      const existing = windowClients.find((c) => new URL(c.url).pathname === url)
+      if (existing) return existing.focus()
+      // Reuse an open app window rather than piling up tabs.
+      const open = windowClients[0]
+      if (open && 'navigate' in open) return open.navigate(url).then((c) => c && c.focus())
+      return clients.openWindow(url)
     })
   )
 })

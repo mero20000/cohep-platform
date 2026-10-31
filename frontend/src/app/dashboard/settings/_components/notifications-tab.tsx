@@ -5,6 +5,7 @@ import { Save, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { http } from '@/lib/http-client'
 import { getSchoolId } from '@/lib/school'
+import { PushToggle } from '@/components/pwa/push-toggle'
 
 interface NotificationPrefs {
   attendance: boolean; enrollments: boolean; curriculum: boolean; systemUpdates: boolean
@@ -48,6 +49,8 @@ export function NotificationsTab() {
   ]
 
   return (
+    <div className="space-y-6">
+    <PushToggle />
     <div className="rounded-xl border border-gray-200 bg-white p-6">
       <div className="flex items-center justify-between">
         <div>
@@ -72,6 +75,7 @@ export function NotificationsTab() {
           </label>
         ))}
       </div>
+    </div>
     </div>
   )
 }
