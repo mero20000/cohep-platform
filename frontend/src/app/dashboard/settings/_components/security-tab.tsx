@@ -21,9 +21,13 @@ export function SecurityTab() {
     if (form.newPassword !== form.confirmPassword) { setError('Passwords do not match'); return }
     setSaving(true)
     try {
-      await http.post('/auth/change-password', {
+      const res = await http.post<{ accessToken?: string; refreshToken?: string }>('/auth/change-password', {
         currentPassword: form.currentPassword, newPassword: form.newPassword,
       })
+      // Changing the password ends every older session. The server gives this device fresh
+      // tokens so the person who just changed it stays signed in.
+      if (res?.accessToken) localStorage.setItem('niangelos_token', res.accessToken)
+      if (res?.refreshToken) localStorage.setItem('niangelos_refresh_token', res.refreshToken)
       setSaved(true)
       setForm({ currentPassword: '', newPassword: '', confirmPassword: '' })
       setTimeout(() => setSaved(false), 2000)

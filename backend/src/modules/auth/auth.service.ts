@@ -2,6 +2,7 @@ import { Injectable, UnauthorizedException, ConflictException, NotFoundException
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
+import { createHash } from 'crypto';
 import { v4 as uuid } from 'uuid';
 import { PrismaService } from '../../database/prisma.service';
 import { MailService } from '../mail/mail.service';
@@ -9,6 +10,23 @@ import { LoginThrottleService } from './login-throttle.service';
 import { PasswordResetThrottleService } from './password-reset-throttle.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
+
+/**
+ * Every JWT this service signs says what it is for. The JWT strategy accepts only 'access',
+ * /auth/refresh only 'refresh' and the reset flow only 'reset'. Before this, all three shared
+ * one secret and one shape, so a reset token or a refresh token worked as a Bearer token, and
+ * an access token worked as a refresh token.
+ */
+export type TokenType = 'access' | 'refresh' | 'reset';
+
+// A refresh token is stored as a SHA-256 of the whole token. It used to be a bcrypt hash of the
+// JWT, and bcrypt only reads the first 72 bytes, which for a JWT are its header plus the start of
+// the payload, identical for one user's access and refresh tokens.
+const hashToken = (token: string) => createHash('sha256').update(token).digest('hex');
+
+// Two tabs can refresh with the same cookie within moments of each other. The loser of that race
+// is refused, but only a token reused after this window is treated as theft.
+const REFRESH_REUSE_GRACE_MS = 15_000;
 
 @Injectable()
 export class AuthService {
@@ -208,7 +226,11 @@ export class AuthService {
     };
   }
 
-  async validateUser(userId: string) {
+  /**
+   * `issuedAtSec` is the token's `iat`. A token issued before the user's last password change is
+   * refused, so changing or resetting a password ends every older session at once.
+   */
+  async validateUser(userId: string, issuedAtSec?: number) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
       select: {
@@ -219,6 +241,8 @@ export class AuthService {
         avatarUrl: true,
         schoolId: true,
         isActive: true,
+        deletedAt: true,
+        passwordChangedAt: true,
         metadata: true,
         userRoles: {
           include: {
@@ -228,12 +252,21 @@ export class AuthService {
       },
     });
 
-    if (!user || !user.isActive) {
+    // deleteUser only sets deletedAt, so isActive alone let a deleted user keep working.
+    if (!user || !user.isActive || user.deletedAt) {
       throw new UnauthorizedException('User not found or inactive');
     }
+    if (
+      issuedAtSec !== undefined &&
+      user.passwordChangedAt &&
+      Math.floor(user.passwordChangedAt.getTime() / 1000) > issuedAtSec
+    ) {
+      throw new UnauthorizedException('Session expired, please sign in again');
+    }
 
+    const { deletedAt: _deletedAt, passwordChangedAt: _passwordChangedAt, ...safe } = user;
     return {
-      ...user,
+      ...safe,
       roles: user.userRoles.map((ur) => ur.role.name),
     };
   }
@@ -244,32 +277,39 @@ export class AuthService {
       const payload = this.jwtService.verify(refreshToken, {
         secret: this.configService.get('JWT_SECRET'),
       });
+      if (payload?.typ !== 'refresh' || !payload.sub) {
+        throw new UnauthorizedException('Invalid refresh token');
+      }
 
-      const tokenHash = await bcrypt.hash(refreshToken, 10);
       const stored = await this.prisma.refreshToken.findFirst({
-        where: { userId: payload.sub, revokedAt: null, expiresAt: { gte: new Date() } },
-        orderBy: { createdAt: 'desc' },
+        where: { tokenHash: hashToken(refreshToken), userId: payload.sub },
       });
+      if (!stored || stored.expiresAt < new Date()) {
+        throw new UnauthorizedException('Invalid refresh token');
+      }
 
-      if (!stored) {
+      if (stored.revokedAt) {
+        // A token that was already used or revoked is being presented again. Right after
+        // rotation that is two tabs racing; later it means the token leaked, so end every session.
+        if (Date.now() - stored.revokedAt.getTime() > REFRESH_REUSE_GRACE_MS) {
+          await this.prisma.refreshToken.updateMany({
+            where: { userId: payload.sub, revokedAt: null },
+            data: { revokedAt: new Date() },
+          });
+        }
         throw new UnauthorizedException('Refresh token has been revoked');
       }
 
-      const isValid = await bcrypt.compare(refreshToken, stored.tokenHash);
-      if (!isValid) {
-        await this.prisma.refreshToken.updateMany({
-          where: { userId: payload.sub, revokedAt: null },
-          data: { revokedAt: new Date() },
-        });
-        throw new UnauthorizedException('Refresh token has been revoked');
-      }
-
-      await this.prisma.refreshToken.update({
-        where: { id: stored.id },
+      // Claim the token atomically: only one of two simultaneous requests can win.
+      const claimed = await this.prisma.refreshToken.updateMany({
+        where: { id: stored.id, revokedAt: null },
         data: { revokedAt: new Date() },
       });
+      if (claimed.count !== 1) {
+        throw new UnauthorizedException('Refresh token has been revoked');
+      }
 
-      const user = await this.validateUser(payload.sub);
+      const user = await this.validateUser(payload.sub, payload.iat);
       const tokens = await this.generateTokens(user.id, user.email, user.schoolId);
       await this.storeRefreshToken(user.id, tokens.refreshToken);
 
@@ -294,7 +334,7 @@ export class AuthService {
       const payload = this.jwtService.verify(refreshToken, {
         secret: this.configService.get('JWT_SECRET'),
       });
-      await this.logout(payload.sub);
+      if (payload?.typ === 'refresh' && payload.sub) await this.logout(payload.sub);
     } catch {
       // Cookie clearing should still succeed when the refresh token is expired or malformed.
     }
@@ -347,7 +387,20 @@ export class AuthService {
     if (!valid) throw new UnauthorizedException('Current password is incorrect');
     const passwordHash = await bcrypt.hash(newPassword, 12);
     await this.prisma.user.update({ where: { id: userId }, data: { passwordHash, passwordChangedAt: new Date() } });
-    return { success: true };
+    // Every other session ends: the old refresh tokens are revoked here, and access tokens issued
+    // before passwordChangedAt are refused by validateUser. This device is given fresh tokens so
+    // the person who just changed their password is not signed out.
+    await this.revokeAllRefreshTokens(userId);
+    const tokens = await this.generateTokens(user.id, user.email, user.schoolId);
+    await this.storeRefreshToken(user.id, tokens.refreshToken);
+    return { success: true, ...tokens };
+  }
+
+  private async revokeAllRefreshTokens(userId: string) {
+    await this.prisma.refreshToken.updateMany({
+      where: { userId, revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
   }
 
   private static readonly RESET_TOKEN_TTL = '1h';
@@ -389,7 +442,7 @@ export class AuthService {
     }
 
     if (user && user.isActive) {
-      const payload = { sub: user.id, email: user.email, purpose: 'password-reset' };
+      const payload = { sub: user.id, email: user.email, purpose: 'password-reset', typ: 'reset' as TokenType };
       const token = await this.jwtService.signAsync(payload, {
         secret: this.configService.get('JWT_SECRET'),
         expiresIn: AuthService.RESET_TOKEN_TTL,
@@ -434,6 +487,8 @@ export class AuthService {
       where: { id: user.id },
       data: { passwordHash, passwordChangedAt: new Date() },
     });
+    // Whoever reset the password may not be the person who was signed in: end every session.
+    await this.revokeAllRefreshTokens(user.id);
     return { message: 'Password reset successfully. You can now sign in with your new password.' };
   }
 
@@ -446,7 +501,7 @@ export class AuthService {
     } catch {
       throw new BadRequestException('Invalid or expired reset link');
     }
-    if (payload.purpose !== 'password-reset' || !payload.sub) {
+    if (payload.typ !== 'reset' || payload.purpose !== 'password-reset' || !payload.sub) {
       throw new BadRequestException('Invalid or expired reset link');
     }
     return { sub: payload.sub, iat: payload.iat ?? 0 };
@@ -511,7 +566,7 @@ export class AuthService {
   private async storeRefreshToken(userId: string, refreshToken: string) {
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + 7);
-    const tokenHash = await bcrypt.hash(refreshToken, 10);
+    const tokenHash = hashToken(refreshToken);
     await this.prisma.refreshToken.create({
       data: { userId, tokenHash, expiresAt },
     });
@@ -521,10 +576,11 @@ export class AuthService {
     const payload = { sub: userId, email, schoolId };
 
     const [accessToken, refreshToken] = await Promise.all([
-      this.jwtService.signAsync(payload, {
+      this.jwtService.signAsync({ ...payload, typ: 'access' as TokenType }, {
         expiresIn: this.configService.get('JWT_EXPIRATION', '15m'),
       }),
-      this.jwtService.signAsync(payload, {
+      // jti makes every refresh token unique, even two issued for one user in the same second.
+      this.jwtService.signAsync({ ...payload, typ: 'refresh' as TokenType, jti: uuid() }, {
         expiresIn: this.configService.get('JWT_REFRESH_EXPIRATION', '7d'),
       }),
     ]);
@@ -632,7 +688,7 @@ export class AuthService {
       include: { role: { select: { name: true } } },
     })
     const roles = userRoles.map((r: any) => r.role.name)
-    const payload = { sub: user.id, email: user.email, schoolId: user.schoolId, roles }
+    const payload = { sub: user.id, email: user.email, schoolId: user.schoolId, roles, typ: 'access' as TokenType }
 
     const accessToken = this.jwtService.sign(payload, { expiresIn: '2h' })
 

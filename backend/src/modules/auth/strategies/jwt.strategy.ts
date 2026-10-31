@@ -46,8 +46,14 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
         isActive: true,
       };
     }
+    // Only access tokens authenticate a request. Refresh and reset tokens are signed with the same
+    // secret and used to pass as access tokens; so did a token with no type, which now means one
+    // issued before types existed.
+    if (payload?.typ !== 'access') {
+      throw new UnauthorizedException('Invalid token');
+    }
     try {
-      const user = await this.authService.validateUser(payload.sub);
+      const user = await this.authService.validateUser(payload.sub, payload.iat);
       return user;
     } catch (error) {
       throw new UnauthorizedException('Invalid token');
