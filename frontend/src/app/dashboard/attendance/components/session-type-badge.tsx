@@ -13,7 +13,7 @@ export function SessionTypeBadge({ type, lang }: { type?: string | null; lang: '
   const t = sessionType({ type })
   const Icon = ICON[t]
   return (
-    <span className={`inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-medium leading-none ${STYLE[t]}`}>
+    <span className={`inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-xs font-medium leading-none ${STYLE[t]}`}>
       <Icon className="h-2.5 w-2.5" aria-hidden="true" />
       {typeLabel(t, lang)}
     </span>

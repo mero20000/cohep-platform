@@ -107,7 +107,7 @@ export function Modal({ open, onClose, title, description, children, footer, siz
     <AnimatePresence>
       {open && (
         <motion.div key="modal-overlay" ref={overlayRef}
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-center sm:p-4"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -122,25 +122,25 @@ export function Modal({ open, onClose, title, description, children, footer, siz
             role="dialog" aria-modal="true"
             aria-labelledby={title ? titleId : undefined}
             aria-describedby={description ? descId : undefined}
-            className={`w-full ${sizeMap[size]} rounded-2xl bg-white shadow-xl max-h-[95vh] flex flex-col outline-none`}
+            className={`w-full ${sizeMap[size]} rounded-t-2xl sm:rounded-2xl bg-white shadow-xl max-h-[92dvh] sm:max-h-[95dvh] flex flex-col outline-none`}
             initial={{ opacity: 0, ...(reduce ? {} : { scale: 0.95 }) }}
             animate={{ opacity: 1, ...(reduce ? {} : { scale: 1 }) }}
             exit={{ opacity: 0, ...(reduce ? {} : { scale: 0.95 }) }}
             transition={{ duration: reduce ? 0.15 : 0.25, ease: [0.23, 1, 0.32, 1] }}
             onClick={e => e.stopPropagation()}>
             {(title || description) && (
-              <div className="flex items-start justify-between px-6 py-4 border-b border-gray-100">
+              <div className="flex items-start justify-between px-4 sm:px-6 py-4 border-b border-gray-100">
                 <div>
                   {title && <h2 id={titleId} className="text-lg font-semibold text-gray-900">{title}</h2>}
                   {description && <p id={descId} className="mt-1 text-sm text-gray-500">{description}</p>}
                 </div>
-                <button onClick={onClose} aria-label="Close" className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors">
+                <button onClick={onClose} aria-label="Close" className="-m-1 flex h-11 w-11 items-center justify-center rounded-lg text-gray-500 sm:m-0 sm:h-9 sm:w-9 hover:bg-gray-100 hover:text-gray-600 transition-colors">
                   <X className="h-5 w-5" />
                 </button>
               </div>
             )}
-            <div className="flex-1 overflow-y-auto px-6 py-5">{children}</div>
-            {footer && <div className="flex flex-wrap items-center justify-end gap-3 border-t border-gray-100 px-6 py-4 pb-[max(1rem,env(safe-area-inset-bottom))]">{footer}</div>}
+            <div className="flex-1 overflow-y-auto px-4 py-5 sm:px-6">{children}</div>
+            {footer && <div className="flex flex-wrap items-center justify-end gap-3 border-t border-gray-100 px-4 sm:px-6 py-4 pb-[max(1rem,env(safe-area-inset-bottom))]">{footer}</div>}
           </motion.div>
         </motion.div>
       )}
