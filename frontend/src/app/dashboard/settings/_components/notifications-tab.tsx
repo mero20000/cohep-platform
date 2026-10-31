@@ -57,7 +57,7 @@ export function NotificationsTab() {
           <h2 className="text-lg font-semibold text-gray-900">Notification Preferences</h2>
           <p className="mt-1 text-sm text-gray-500">Configure how you receive notifications</p>
         </div>
-        <Button onClick={handleSave} disabled={saving} aria-label="Save notification preferences">
+        <Button onClick={handleSave} disabled={saving}>
           {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
           <span aria-live="polite">{saved ? 'Saved!' : 'Save Preferences'}</span>
         </Button>

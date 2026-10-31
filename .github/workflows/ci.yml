@@ -94,3 +94,33 @@ jobs:
             frontend/e2e/.report
             frontend/e2e/.results
           if-no-files-found: ignore
+
+  lighthouse:
+    name: Lighthouse (public pages, mobile profile)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install dependencies
+        run: npm ci
+      - name: Build
+        run: npm run build
+        env:
+          NEXT_PUBLIC_API_URL: http://localhost:3001/api
+      # Serves the build, runs Lighthouse 3x per page and asserts the thresholds in lighthouserc.cjs.
+      - name: Run Lighthouse CI
+        run: npx lhci autorun
+      - name: Upload Lighthouse reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lighthouse-reports
+          path: frontend/.lighthouseci
+          if-no-files-found: ignore

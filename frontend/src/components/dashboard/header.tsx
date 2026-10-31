@@ -131,7 +131,7 @@ export function DashboardHeader({
         <Menu className="h-5 w-5" />
       </Button>
 
-      <Link href="/dashboard" className="flex items-center gap-2.5 flex-shrink-0 hover:opacity-80 transition-opacity">
+      <Link href="/dashboard" aria-label={language === 'ar' && schoolNameAr ? schoolNameAr : schoolName} className="flex items-center gap-2.5 flex-shrink-0 hover:opacity-80 transition-opacity">
         {schoolLogo ? (
           <Image src={schoolLogo} alt={language === 'ar' && schoolNameAr ? schoolNameAr : schoolName} width={72} height={72} className="h-9 w-9 sm:h-[72px] sm:w-[72px] rounded-lg sm:rounded-xl object-cover border border-gray-200 flex-shrink-0" priority />
         ) : (
@@ -165,6 +165,7 @@ export function DashboardHeader({
       {canSwitchSchool && (
         <div ref={switchRef} className="relative">
           <Button variant="outline" size="sm" onClick={() => onSetSwitchOpen(!switchOpen)}
+            aria-label={language === 'ar' ? 'تبديل المدرسة' : 'Switch school'} aria-expanded={switchOpen} aria-haspopup="menu"
             className="h-auto gap-1.5 p-1.5 md:px-3 md:py-1.5">
             <Building2 className="h-4 w-4 md:h-3.5 md:w-3.5 text-gold-700" />
             <span className="hidden md:inline max-w-[140px] truncate">
@@ -206,6 +207,7 @@ export function DashboardHeader({
       {isSuperAdmin && (
         <div ref={roleRef} className="relative">
           <Button variant={isViewingAs ? "default" : "outline"} size="sm" onClick={() => onSetRoleOpen(!roleOpen)}
+            aria-label={language === 'ar' ? 'عرض كدور آخر' : 'View as another role'} aria-expanded={roleOpen} aria-haspopup="menu"
             className="h-auto gap-1.5 p-1.5 md:px-3 md:py-1.5">
             <Crown className="h-4 w-4 md:h-3.5 md:w-3.5 text-gold-700" />
             <span className="hidden md:inline max-w-[140px] truncate">
@@ -343,7 +345,7 @@ export function DashboardHeader({
 
         <div ref={userMenuRef} className="relative">
           <Button variant="ghost" onClick={() => { onSetShowUserMenu(!showUserMenu); onSetShowNotiPanel(false) }}
-            aria-label={language === 'ar' ? 'قائمة المستخدم' : 'User menu'}
+            aria-label={`${initials} — ${language === 'ar' ? 'قائمة المستخدم' : 'User menu'}`} aria-expanded={showUserMenu} aria-haspopup="menu"
             className="gap-1.5 px-1.5 h-auto hover:bg-gray-100">
             <div className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-100 overflow-hidden">
               {user?.avatarUrl && !avatarError ? (
