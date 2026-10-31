@@ -49,7 +49,8 @@ export default function StudentsClient() {
   // Filters
   const [search, setSearch]           = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
-  const [filterLevel, setFilterLevel] = useState('')
+  // Deep link: ?levelId=<id> (from the Reports level/group comparison).
+  const [filterLevel, setFilterLevel] = useState(useSearchParams()?.get('levelId') ?? '')
   const [filterGroup, setFilterGroup] = useState('')
   const [filterStatus, setFilterStatus] = useState('')
   const [filterChurch, setFilterChurch] = useState('')
@@ -174,6 +175,7 @@ export default function StudentsClient() {
   // Deep link: ?groupId=<id> (e.g. from the servant dashboard My Groups)
   // wins once on init; later level changes reset the group as before.
   const urlGroupId = useSearchParams()?.get('groupId') ?? null
+  const urlLevelId = useSearchParams()?.get('levelId') ?? null
   const urlGroupConsumed = useRef(false)
   useEffect(()=>{
     if(urlGroupId && !urlGroupConsumed.current){urlGroupConsumed.current=true;return}
@@ -197,7 +199,7 @@ export default function StudentsClient() {
         const u=JSON.parse(stored)
         setCurrentUserId(u.id)
         const isServant=u.roles?.some((r:string)=>SERVANT_ROLES.includes(r))
-        if(urlGroupId){setFilterGroup(urlGroupId)}
+        if(urlGroupId||urlLevelId){if(urlGroupId)setFilterGroup(urlGroupId)}
         else if(isServant&&u.metadata){
           if(u.metadata.levelId)setFilterLevel(u.metadata.levelId)
           if(u.metadata.groupId)setFilterGroup(u.metadata.groupId)

@@ -136,6 +136,16 @@ const handlers: Array<[RegExp, Handler]> = [
     },
     signals: [{ type: 'warning', messageEn: '3 students have missed 3+ sessions in a row.', messageAr: '3 طالب غابوا عن 3 جلسات متتالية أو أكثر.' }],
   })],
+  [/^\/api\/reports\/level-group-overview$/, (u) => {
+    const days = Number(u.searchParams.get('days') ?? 30)
+    const unit = (id: string, name: string, students: number, attendanceRate: number | null, prev: number | null, atRisk: number, passRate: number | null) =>
+      ({ id, name, nameAr: null, students, attendanceRate, prevAttendanceRate: prev, atRisk, passRate, gradedCount: passRate === null ? 0 : 12 })
+    return {
+      generatedAt: new Date().toISOString(), windowDays: days,
+      levels: [unit('lvl-1', 'Level 1', 40, 91, 88, 0, 85), unit('lvl-2', 'Level 2', 35, 54, 66, 6, 48), unit('lvl-3', 'Level 3', 28, null, null, 0, null)],
+      groups: [unit('grp-1', 'Group A', 30, 72, 70, 2, 75), unit('grp-2', 'Group B', 25, 58, 61, 4, 60)],
+    }
+  }],
   // Student detail dialog: all three return lists.
   [/^\/api\/students\/[^/]+\/activity$/, () => []],
   [/^\/api\/gamification\/badges$/, () => []],
