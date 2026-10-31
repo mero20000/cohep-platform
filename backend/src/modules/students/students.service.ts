@@ -1,3 +1,4 @@
+import { dataGapWhere } from './data-gaps';
 import { findAtRiskStudents } from '../attendance/absence-risk';
 import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
@@ -33,7 +34,7 @@ export class StudentsService {
 
   async findAll(queryDto: QueryStudentDto, schoolIdentifier: string, user?: any) {
     const schoolId = await this.schoolResolver.resolve(schoolIdentifier);
-    const { levelId, groupId, status, churchName, gradeId, gender, search, page = 1, limit: rawLimit = 20, sortBy, sortDir, assignedServantId, engagementStatus, ids: rawIds } = queryDto;
+    const { levelId, groupId, status, churchName, gradeId, gender, search, page = 1, limit: rawLimit = 20, sortBy, sortDir, assignedServantId, engagementStatus, dataGap, ids: rawIds } = queryDto;
     const ids = rawIds ? rawIds.split(',').map(i => i.trim()).filter(Boolean).slice(0, 200) : undefined;
     const limit = Math.min(rawLimit, 100);
 
@@ -69,6 +70,9 @@ export class StudentsService {
       const atRisk = await findAtRiskStudents(this.prisma, schoolId);
       where.AND = [...(where.AND || []), { id: { in: [...atRisk.keys()] } }];
     }
+
+    // Same narrowing-only rule: a data-gap filter is an extra AND on top of the caller's scope.
+    if (dataGap) where.AND = [...(where.AND || []), dataGapWhere(dataGap)];
 
     const dir = sortDir === 'desc' ? 'desc' : 'asc';
     const orderMap: Record<string, any> = {

@@ -37,7 +37,7 @@ import { useAcademicYearsQuery, useAllAllocationsQuery, useLessonsQuery, useLeve
 import type { Allocation, Level } from '@/components/curriculum/types'
 import { parseISO, isSameDay, startOfDay, startOfWeek, addDays, format } from 'date-fns'
 import { enGB, ar } from 'date-fns/locale'
-import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, Cell, PieChart, Pie, Sector } from 'recharts'
+import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, Cell, PieChart, Pie, Sector, ReferenceLine } from 'recharts'
 import { AnimatedChartTooltip } from '@/components/ui/animated-chart-tooltip'
 
 interface GradeDistItem { grade: string; count: number }
@@ -53,7 +53,7 @@ interface DashboardData {
  totalChurches: number; totalUsers: number; totalBadges: number; activeStudents: number;
  publishedAssessments: number; totalAssessments: number;
  /** Last 7 days; null = no class was held (shown as a dash, never 0%). */
- attendanceRate: number | null; attendancePrevRate: number | null; attendanceTrend: AttendanceTrendPoint[]; studentsAtRisk: number;
+ attendanceRate: number | null; attendancePrevRate: number | null; attendanceTarget?: number; attendanceTrend: AttendanceTrendPoint[]; studentsAtRisk: number;
  completedSessions: number; gradeDistribution: GradeDistItem[]; studentsPerLevel: StudentsPerLevel[];
  studentsByStatus: StudentsByStatus[]; studentsWithoutGrade: number;
  assessmentsByStatus: AssessmentsByStatus[]; assessmentStats: AssessmentStatItem;
@@ -343,7 +343,8 @@ function HeroSection({ stats, churchLogo, churchName, loading }: { stats: Dashbo
   const attendanceTile: HeroTile = {
     label: 'Attendance · 7 days', labelAr: 'الحضور · 7 أيام', value: s.attendanceRate ?? null, suffix: '%', icon: UserCheck,
     delta: attendanceDelta,
-    note: s.attendanceRate == null ? 'No class this week' : undefined, noteAr: s.attendanceRate == null ? 'لا حصص هذا الأسبوع' : undefined,
+    note: s.attendanceRate == null ? 'No class this week' : `Target ${s.attendanceTarget ?? 80}%`,
+    noteAr: s.attendanceRate == null ? 'لا حصص هذا الأسبوع' : `الهدف ${s.attendanceTarget ?? 80}٪`,
   }
   // The at-risk count opens the students it counts.
   const atRiskTile: HeroTile = {
@@ -545,6 +546,7 @@ function AttendanceChartSection({ stats, loading }: { stats: DashboardData | nul
     rate: p.rate,
     decided: p.decided,
   }))
+  const target = s.attendanceTarget ?? 80
   const latest = trend[trend.length - 1]
   const previous = trend[trend.length - 2]
   const change = latest.rate !== null && previous.rate !== null ? latest.rate - previous.rate : null
@@ -562,6 +564,7 @@ function AttendanceChartSection({ stats, loading }: { stats: DashboardData | nul
             <XAxis dataKey="label" tick={{ fontSize: 12, fill: '#6b7280' }} axisLine={false} tickLine={false} />
             <YAxis domain={[0, 100]} ticks={[0, 25, 50, 75, 100]} tickFormatter={(v: number) => `${v}%`} tick={{ fontSize: 12, fill: '#6b7280' }} axisLine={false} tickLine={false} />
             <Tooltip cursor={{ fill: 'rgba(59,130,246,0.08)' }} content={<TrendTooltip lang={lang} />} />
+            <ReferenceLine y={target} stroke="#059669" strokeDasharray="4 4" ifOverflow="extendDomain" />
             <Bar dataKey="rate" radius={[8, 8, 0, 0]} isAnimationActive={!reduce} animationDuration={800} animationEasing="ease-out">
               {data.map((_, i) => <Cell key={i} fill={i === data.length - 1 ? GOLD : BLUE} />)}
             </Bar>
@@ -571,6 +574,7 @@ function AttendanceChartSection({ stats, loading }: { stats: DashboardData | nul
       <div className="mt-4 flex items-center justify-between text-xs text-gray-600 border-t border-gray-100 pt-3">
         <span className="flex items-center gap-1"><Zap className="h-3 w-3 text-gold-400" aria-hidden="true" />
           {lang === 'ar' ? 'آخر 7 أيام:' : 'Last 7 days:'} <strong className="text-gray-900">{latest.rate === null ? '—' : `${latest.rate}%`}</strong>
+          <span className="text-gray-500">· {lang === 'ar' ? `الهدف ${target}٪ (الخط المتقطع)` : `target ${target}% (dashed line)`}</span>
         </span>
         {change !== null && change !== 0 && (
           <span className={`font-semibold px-2 py-0.5 rounded-full ${change > 0 ? 'bg-emerald-50 text-emerald-800' : 'bg-red-50 text-red-800'}`}>

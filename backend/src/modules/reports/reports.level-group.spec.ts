@@ -8,6 +8,7 @@ describe('ReportsService.getLevelGroupOverview', () => {
       group: { findMany: jest.fn().mockResolvedValue([{ id: 'G1', name: 'A', nameAr: null, orderIndex: 1 }]) },
       student: { findMany: jest.fn().mockResolvedValue([{ id: 's1', levelId: 'L1', groupId: 'G1' }, { id: 's2', levelId: 'L1', groupId: 'G1' }]) },
       attendanceRecord: { findMany: jest.fn() },
+      systemConfig: { findUnique: jest.fn().mockResolvedValue({ value: 75 }) },
       assessmentSubmission: { findMany: jest.fn().mockResolvedValue([
         { studentId: 's1', assessment: { passingScore: 60 }, grades: [{ score: 80 }] },
         { studentId: 's2', assessment: { passingScore: 60 }, grades: [{ score: 40 }] },
@@ -31,6 +32,7 @@ describe('ReportsService.getLevelGroupOverview', () => {
     });
     const r = await svc.getLevelGroupOverview('x', 30);
     expect(r.windowDays).toBe(30);
+    expect(r.attendanceTarget).toBe(75);
     expect(r.levels[0]).toMatchObject({ students: 2, attendanceRate: 50, prevAttendanceRate: 100, passRate: 50, gradedCount: 2, atRisk: 0 });
     expect(r.groups[0].students).toBe(2);
     // 2 attendance queries (window data + at-risk), no per-student queries
@@ -44,5 +46,28 @@ describe('ReportsService.getLevelGroupOverview', () => {
     expect((await svc.getLevelGroupOverview('x', 9999)).windowDays).toBe(180);
     expect((await svc.getLevelGroupOverview('x', 1)).windowDays).toBe(7);
     expect((await svc.getLevelGroupOverview('x', NaN)).windowDays).toBe(30);
+  });
+});
+
+describe('ReportsService.getDataQuality', () => {
+  it('counts active students per gap with the same where-clause the students filter uses', async () => {
+    const count = jest.fn().mockImplementation(async (args: any) => {
+      const w = JSON.stringify(args.where);
+      if (w.includes('photoUrl')) return 12;
+      if (w.includes('studentParents')) return 7;
+      if (w.includes('gradeId')) return 3;
+      return 100;
+    });
+    const prisma: any = { student: { count } };
+    const svc = new ReportsService(prisma, { resolve: jest.fn().mockResolvedValue('school-1') } as any);
+
+    const r = await svc.getDataQuality('x');
+
+    expect(r.totalActiveStudents).toBe(100);
+    expect(r.gaps).toEqual([{ key: 'photo', missing: 12 }, { key: 'parent', missing: 7 }, { key: 'grade', missing: 3 }]);
+    for (const [args] of count.mock.calls) {
+      expect(args.where).toMatchObject({ schoolId: 'school-1', deletedAt: null, status: 'active' });
+    }
+    expect(count).toHaveBeenCalledTimes(4);
   });
 });

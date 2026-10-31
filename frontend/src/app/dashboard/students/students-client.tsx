@@ -58,6 +58,8 @@ export default function StudentsClient() {
   const [filterGender, setFilterGender] = useState('')
   // Deep link: ?engagement=at_risk (from the dashboard / Priest Pulse "students at risk" cards).
   const [filterEngagement, setFilterEngagement] = useState<''|'at_risk'>(useSearchParams()?.get('engagement')==='at_risk'?'at_risk':'')
+  // Deep link: ?dataGap=photo|parent|grade (from Reports > Data quality).
+  const [filterDataGap, setFilterDataGap] = useState<''|'photo'|'parent'|'grade'>(((g)=>g==='photo'||g==='parent'||g==='grade'?g:'')(useSearchParams()?.get('dataGap')))
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false)
   const [showMyStudentsOnly, setShowMyStudentsOnly] = useState(false)
   const [showIncompleteOnly, setShowIncompleteOnly] = useState(false)
@@ -96,7 +98,7 @@ export default function StudentsClient() {
   // Derived
   const activeLevels     = useMemo(()=>levels.filter(l=>l.status!=='inactive'),[levels])
   const filterGroups     = allGroups
-  const hasActiveFilters = !!(filterEngagement||search||filterLevel||filterGroup||filterStatus||(filterChurch&&filterChurch!==defaultChurch?.name)||filterGrade||filterGender||showFavoritesOnly||showMyStudentsOnly||showIncompleteOnly)
+  const hasActiveFilters = !!(filterEngagement||search||filterLevel||filterGroup||filterStatus||(filterChurch&&filterChurch!==defaultChurch?.name)||filterGrade||filterGender||showFavoritesOnly||showMyStudentsOnly||showIncompleteOnly||filterDataGap)
   const levelNameMap     = useMemo(()=>{const m:Record<string,string>={};for(const l of activeLevels)m[l.id]=l.name;return m},[activeLevels])
   // Favorites / Incomplete are applied in fetchStudents so totals and paging stay truthful.
   const sortedStudents   = optimisticStudents
@@ -109,8 +111,9 @@ export default function StudentsClient() {
     if(showMyStudentsOnly && currentUserId) params.assignedServantId = currentUserId
     if(showFavoritesOnly) params.ids = activeFavoritesKey
     if(filterEngagement) params.engagementStatus = filterEngagement
+    if(filterDataGap) params.dataGap = filterDataGap
     return params
-  },[debouncedSearch,filterLevel,filterGroup,filterStatus,filterChurch,filterGrade,filterGender,sortKey,sortDir,showMyStudentsOnly,currentUserId,showFavoritesOnly,activeFavoritesKey,filterEngagement])
+  },[debouncedSearch,filterLevel,filterGroup,filterStatus,filterChurch,filterGrade,filterGender,sortKey,sortDir,showMyStudentsOnly,currentUserId,showFavoritesOnly,activeFavoritesKey,filterEngagement,filterDataGap])
 
   // Every page of the current filter set (used by export and by the Incomplete filter, which the API can't express).
   const fetchEveryPage = useCallback(async(params:Record<string,string>)=>{
@@ -171,7 +174,7 @@ export default function StudentsClient() {
   useEffect(()=>{const t=setTimeout(()=>setDebouncedSearch(search),300);return ()=>clearTimeout(t)},[search])
   useEffect(()=>{fetchStudents(1)},[fetchStudents])
   useEffect(()=>{fetchStats()},[fetchStats])
-  useEffect(()=>{setSelectedIds(new Set())},[debouncedSearch,filterLevel,filterGroup,filterStatus,filterChurch,filterGrade,filterGender,showFavoritesOnly,showMyStudentsOnly,showIncompleteOnly,filterEngagement,sortKey,sortDir,pageSize])
+  useEffect(()=>{setSelectedIds(new Set())},[debouncedSearch,filterLevel,filterGroup,filterStatus,filterChurch,filterGrade,filterGender,showFavoritesOnly,showMyStudentsOnly,showIncompleteOnly,filterEngagement,filterDataGap,sortKey,sortDir,pageSize])
   // Deep link: ?groupId=<id> (e.g. from the servant dashboard My Groups)
   // wins once on init; later level changes reset the group as before.
   const urlGroupId = useSearchParams()?.get('groupId') ?? null
@@ -235,7 +238,7 @@ export default function StudentsClient() {
     window.addEventListener('keydown',fn); return ()=>window.removeEventListener('keydown',fn)
   },[showForm,showDetail,showDelete,showImport,showAssignServant,showDuplicates,bulkOpen,previewPhotoUrl,selectedIds,optimisticStudents,can])
 
-  const clearFilters = ()=>{setSearch('');setFilterLevel('');setFilterGroup('');setFilterStatus('');setFilterChurch('');setFilterGrade('');setFilterGender('');setShowFavoritesOnly(false);setShowMyStudentsOnly(false);setShowIncompleteOnly(false);setFilterEngagement('')}
+  const clearFilters = ()=>{setSearch('');setFilterLevel('');setFilterGroup('');setFilterStatus('');setFilterChurch('');setFilterGrade('');setFilterGender('');setShowFavoritesOnly(false);setShowMyStudentsOnly(false);setShowIncompleteOnly(false);setFilterEngagement('');setFilterDataGap('')}
   const toggleSort   = (k:string)=>{if(k==='phone')return;if(sortKey===k)setSortDir(d=>d==='asc'?'desc':'asc');else{setSortKey(k);setSortDir('asc')}}
   const toggleAll    = ()=>setSelectedIds(allSelected?new Set():new Set(sortedStudents.map(s=>s.id)))
   const toggleId     = (id:string,shiftKey?:boolean)=>{
@@ -326,6 +329,13 @@ export default function StudentsClient() {
         <div role="status" className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-900">
           <span><strong>{lang==='ar'?'طلاب في خطر':'Students at risk'}</strong>{' · '}{lang==='ar'?'غابوا عن 3 حصص متتالية أو أكثر':'missed 3 or more class sessions in a row'}</span>
           <button type="button" onClick={()=>setFilterEngagement('')} className="min-h-[44px] rounded-lg px-3 font-medium underline hover:bg-red-100 sm:min-h-0 sm:py-1">{lang==='ar'?'عرض كل الطلاب':'Show all students'}</button>
+        </div>
+      )}
+
+      {filterDataGap&&(
+        <div role="status" className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          <span><strong>{lang==='ar'?'بيانات ناقصة':'Missing details'}</strong>{' · '}{filterDataGap==='photo'?(lang==='ar'?'بدون صورة':'no photo'):filterDataGap==='parent'?(lang==='ar'?'بدون وسيلة اتصال بولي الأمر':'no parent contact'):(lang==='ar'?'بدون صف دراسي':'no school grade')}</span>
+          <button type="button" onClick={()=>setFilterDataGap('')} className="min-h-[44px] rounded-lg px-3 font-medium underline hover:bg-amber-100 sm:min-h-0 sm:py-1">{lang==='ar'?'عرض كل الطلاب':'Show all students'}</button>
         </div>
       )}
 
