@@ -27,7 +27,7 @@ export function StatTile({
         ? 'text-red-700'
         : 'text-gray-500'
   return (
-    <div className="bg-white dark:bg-[var(--hymn-surface-header)] border border-[var(--hymn-border)]
+    <div className="bg-white dark:bg-(--hymn-surface-header) border border-(--hymn-border)
       rounded-2xl p-4 min-h-20">
       <div className="flex items-center gap-1.5 mb-1">
         {icon}
@@ -78,7 +78,7 @@ export function ScoreChip({
   const cls = `inline-flex items-center justify-center gap-1.5 rounded-xl border font-semibold capitalize
     ${size === 'lg' ? 'min-h-14 px-4 text-sm' : 'min-h-8 px-2.5 text-xs'}
     ${t.cls}
-    ${active ? 'ring-2 ring-[rgb(var(--gold-500))] ring-offset-2 ring-offset-white dark:ring-offset-[var(--hymn-surface)]' : ''}`
+    ${active ? 'ring-2 ring-[rgb(var(--gold-500))] ring-offset-2 ring-offset-white dark:ring-offset-(--hymn-surface)' : ''}`
   if (!onClick) {
     return (
       <span className={cls}>

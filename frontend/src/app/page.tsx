@@ -485,8 +485,8 @@ function useRevealOnScroll() {
   }, [])
 }
 
-const focusRingDark = 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-950'
-const ctaPrimaryClass = `flex items-center justify-center gap-2 px-8 py-3.5 bg-gradient-to-r from-gold-500 to-gold-600 hover:from-gold-400 hover:to-gold-500 text-gray-950 font-semibold rounded-xl shadow-xl shadow-gold-500/25 transition-all text-sm ${focusRingDark}`
+const focusRingDark = 'focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-gold-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-950'
+const ctaPrimaryClass = `flex items-center justify-center gap-2 px-8 py-3.5 bg-linear-to-r from-gold-500 to-gold-600 hover:from-gold-400 hover:to-gold-500 text-gray-950 font-semibold rounded-xl shadow-xl shadow-gold-500/25 transition-all text-sm ${focusRingDark}`
 const ctaSecondaryClass = `px-8 py-3.5 border border-gray-700 text-gray-300 hover:bg-gray-800 hover:text-white font-medium rounded-xl transition-all text-sm ${focusRingDark}`
 
 function Eyebrow({ children, light = false }: { children: React.ReactNode; light?: boolean }) {
@@ -541,7 +541,7 @@ function PreviewCarousel({ isAr }: { isAr: boolean }) {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, ease: [0.23, 1, 0.32, 1] }}
-          className="rounded-[14px] bg-gradient-to-br from-gray-800 to-gray-900 p-2 sm:p-3 shadow-2xl shadow-gray-900/50 border border-gray-700/50"
+          className="rounded-[14px] bg-linear-to-br from-gray-800 to-gray-900 p-2 sm:p-3 shadow-2xl shadow-gray-900/50 border border-gray-700/50"
         >
           <div className="flex items-center justify-center mb-2 sm:mb-3 relative">
             <div className="hidden sm:flex absolute left-3 items-center gap-1.5">
@@ -564,7 +564,7 @@ function PreviewCarousel({ isAr }: { isAr: boolean }) {
             <motion.div
               animate={{ opacity: [0.8, 1, 0.8] }}
               transition={{ duration: 1.5, repeat: Infinity }}
-              className="flex items-center gap-2 rounded-full bg-gray-700/80 backdrop-blur-sm px-4 py-1 border border-gray-600/30"
+              className="flex items-center gap-2 rounded-full bg-gray-700/80 backdrop-blur-xs px-4 py-1 border border-gray-600/30"
             >
               <motion.div
                 animate={{ scale: [1, 1.2, 1] }}
@@ -574,7 +574,7 @@ function PreviewCarousel({ isAr }: { isAr: boolean }) {
               <span className="text-[10px] text-gray-400 font-medium">cohep.church</span>
             </motion.div>
           </div>
-          <div className="relative aspect-[4/5] sm:aspect-[16/10] overflow-hidden rounded-lg bg-white shadow-inner">
+          <div className="relative aspect-4/5 sm:aspect-16/10 overflow-hidden rounded-lg bg-white shadow-inner">
             <AnimatePresence mode="wait">
               <motion.div
                 key={activeTab}
@@ -602,7 +602,7 @@ function PreviewCarousel({ isAr }: { isAr: boolean }) {
                 activeTab === i
                   ? 'bg-gold-500 text-gray-950 shadow-lg shadow-gold-200/50 hover:shadow-xl hover:shadow-gold-200/70'
                   : 'border border-gray-200 bg-white text-gray-600 hover:border-gold-400 hover:text-gold-700 hover:bg-gold-50/50'
-              } focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500 focus-visible:ring-offset-2 cursor-pointer`}
+              } focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-gold-500 focus-visible:ring-offset-2 cursor-pointer`}
             >
               {tab.label}
             </motion.button>
@@ -831,14 +831,14 @@ export default function Home() {
 
   return (
     <div className={`min-h-screen bg-white ${isAr ? 'rtl' : 'ltr'}`} dir={isAr ? 'rtl' : 'ltr'}>
-      <a href="#main-content" className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-[100] focus:rounded-lg focus:bg-gold-500 focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-gray-950 focus:shadow-lg">
+      <a href="#main-content" className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-100 focus:rounded-lg focus:bg-gold-500 focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-gray-950 focus:shadow-lg">
         {isAr ? 'تخطي إلى المحتوى' : 'Skip to content'}
       </a>
 
       {/* ── NAVBAR ──────────────────────────────────────────────────────── */}
-      <header className={`sticky [top:env(safe-area-inset-top)] z-50 border-b transition-all duration-300 ${scrolled ? 'border-gray-200 bg-white/95 backdrop-blur shadow-sm' : 'border-transparent bg-white/80 backdrop-blur'}`}>
+      <header className={`sticky top-[env(safe-area-inset-top)] z-50 border-b transition-all duration-300 ${scrolled ? 'border-gray-200 bg-white/95 backdrop-blur-sm shadow-xs' : 'border-transparent bg-white/80 backdrop-blur-sm'}`}>
         <div className="mx-auto flex h-16 sm:h-20 max-w-7xl items-center justify-between px-3 sm:px-6 lg:px-8">
-          <Link href="/" className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
+          <Link href="/" className="flex items-center gap-2 sm:gap-3 shrink-0">
             <Image src="/cohep-logo.png" alt="COHEP" width={72} height={72} priority className="h-14 sm:h-[72px] w-14 sm:w-[72px] rounded-lg sm:rounded-xl object-contain shadow-md sm:shadow-lg shadow-gold-200/50" />
             <span className="text-base sm:text-lg font-bold tracking-tight text-gray-900 hidden sm:block">COHEP</span>
           </Link>
@@ -925,7 +925,7 @@ export default function Home() {
       <main id="main-content">
 
         {/* ── HERO ──────────────────────────────────────────────────────── */}
-        <section className="relative overflow-hidden bg-gradient-to-b from-gray-950 via-gray-900 to-gray-900 min-h-[90dvh] flex items-center">
+        <section className="relative overflow-hidden bg-linear-to-b from-gray-950 via-gray-900 to-gray-900 min-h-[90dvh] flex items-center">
           <div className="hidden lg:block">
             <HeroAlpha />
             <HeroCross3D />
@@ -978,7 +978,7 @@ export default function Home() {
                   href="/auth/register"
                   whileHover={reduce ? {} : { scale: 1.02 }}
                   whileTap={reduce ? {} : { scale: 0.98 }}
-                  className="flex items-center justify-center gap-2 px-6 sm:px-8 py-3 sm:py-3.5 bg-gradient-to-r from-gold-500 to-gold-600 hover:from-gold-400 hover:to-gold-500 text-gray-950 font-semibold rounded-xl shadow-xl shadow-gold-500/25 transition-all text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-950 h-12 sm:h-auto"
+                  className="flex items-center justify-center gap-2 px-6 sm:px-8 py-3 sm:py-3.5 bg-linear-to-r from-gold-500 to-gold-600 hover:from-gold-400 hover:to-gold-500 text-gray-950 font-semibold rounded-xl shadow-xl shadow-gold-500/25 transition-all text-sm focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-gold-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-950 h-12 sm:h-auto"
                 >
                   {t.hero.cta1} <ArrowRight className="h-4 w-4 rtl-flip" />
                 </motion.a>
@@ -986,7 +986,7 @@ export default function Home() {
                   href="/auth/login?demo=1"
                   whileHover={reduce ? {} : { scale: 1.02 }}
                   whileTap={reduce ? {} : { scale: 0.98 }}
-                  className="flex items-center justify-center gap-2 px-6 sm:px-8 py-3 sm:py-3.5 bg-burgundy-500 hover:bg-burgundy-600 text-white font-semibold rounded-xl shadow-xl shadow-burgundy-500/25 transition-all text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-burgundy-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-950 h-12 sm:h-auto"
+                  className="flex items-center justify-center gap-2 px-6 sm:px-8 py-3 sm:py-3.5 bg-burgundy-500 hover:bg-burgundy-600 text-white font-semibold rounded-xl shadow-xl shadow-burgundy-500/25 transition-all text-sm focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-burgundy-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-950 h-12 sm:h-auto"
                 >
                   🎵 {t.hero.cta2}
                 </motion.a>
@@ -994,7 +994,7 @@ export default function Home() {
                   href="#platform-preview"
                   whileHover={reduce ? {} : { scale: 1.02 }}
                   whileTap={reduce ? {} : { scale: 0.98 }}
-                  className="flex items-center justify-center gap-2 px-6 sm:px-8 py-3 sm:py-3.5 border border-white/15 text-white/70 hover:text-white hover:border-white/30 font-medium rounded-xl transition-all text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-950 h-12 sm:h-auto"
+                  className="flex items-center justify-center gap-2 px-6 sm:px-8 py-3 sm:py-3.5 border border-white/15 text-white/70 hover:text-white hover:border-white/30 font-medium rounded-xl transition-all text-sm focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-gold-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-950 h-12 sm:h-auto"
                 >
                   {t.hero.cta3} <ArrowRight className="h-4 w-4 rtl-flip" />
                 </motion.a>
@@ -1004,7 +1004,7 @@ export default function Home() {
         </section>
 
         {/* ── WHY ───────────────────────────────────────────────────────── */}
-        <section id="why" aria-labelledby="why-heading" className="py-24 sm:py-32 relative bg-gradient-to-b from-gray-950 to-gray-900 overflow-hidden">
+        <section id="why" aria-labelledby="why-heading" className="py-24 sm:py-32 relative bg-linear-to-b from-gray-950 to-gray-900 overflow-hidden">
           <CrossPatternBg className="text-gold-700" />
           <GradientOrbs />
           <div className="relative mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
@@ -1022,7 +1022,7 @@ export default function Home() {
                     <motion.span
                       whileHover={reduce ? {} : { scale: 1.15, boxShadow: '0 0 20px 10px rgba(201, 160, 48, 0.3)' }}
                       transition={{ type: 'spring', stiffness: 300, damping: 15 }}
-                      className="absolute -start-4 top-0.5 flex h-8 w-8 items-center justify-center rounded-full bg-gold-500 text-xs font-bold text-white shadow-lg shadow-gold-500/30 group-hover:bg-gold-400 transition-colors cursor-pointer"
+                      className="absolute -inset-s-4 top-0.5 flex h-8 w-8 items-center justify-center rounded-full bg-gold-500 text-xs font-bold text-white shadow-lg shadow-gold-500/30 group-hover:bg-gold-400 transition-colors cursor-pointer"
                     >
                       {beat.num}
                     </motion.span>
@@ -1059,7 +1059,7 @@ export default function Home() {
                   <motion.div
                     whileHover={reduce ? {} : { y: -2, scale: 1.02 }}
                     transition={{ type: 'spring', stiffness: 400, damping: 20 }}
-                    className="rounded-lg p-4 transition-colors hover:bg-white hover:shadow-sm"
+                    className="rounded-lg p-4 transition-colors hover:bg-white hover:shadow-xs"
                   >
                     <motion.div
                       whileHover={reduce ? {} : { scale: 1.15, rotate: 5 }}
@@ -1083,7 +1083,7 @@ export default function Home() {
           <FadeIn>
             <a
               href="#audience-heading"
-              className="inline-flex items-center gap-2 px-4 py-2 text-xs sm:text-sm font-medium text-burgundy-900 bg-burgundy-100 hover:bg-burgundy-200 rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-burgundy-500 focus-visible:ring-offset-2"
+              className="inline-flex items-center gap-2 px-4 py-2 text-xs sm:text-sm font-medium text-burgundy-900 bg-burgundy-100 hover:bg-burgundy-200 rounded-lg transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-burgundy-500 focus-visible:ring-offset-2"
             >
               {isAr ? 'اكتشف من يخدمه COHEP' : 'Meet the people COHEP serves'}
               <ArrowRight className="h-4 w-4" />
@@ -1105,7 +1105,7 @@ export default function Home() {
                       <motion.div
                         whileHover={reduce ? {} : { scale: 1.1, rotate: -5 }}
                         transition={{ type: 'spring', stiffness: 300, damping: 20 }}
-                        className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-gold-400 to-gold-600 text-white shadow-lg shadow-gold-200/50 cursor-pointer"
+                        className="flex h-14 w-14 items-center justify-center rounded-2xl bg-linear-to-br from-gold-400 to-gold-600 text-white shadow-lg shadow-gold-200/50 cursor-pointer"
                       >
                         <card.icon className="h-7 w-7" />
                       </motion.div>
@@ -1127,7 +1127,7 @@ export default function Home() {
                             transition={{ delay: j * 0.05, duration: 0.3 }}
                             className="flex items-start gap-3 text-sm sm:text-base text-gray-700"
                           >
-                            <CheckCircle2 className="h-5 w-5 text-gold-700 flex-shrink-0 mt-0.5" />
+                            <CheckCircle2 className="h-5 w-5 text-gold-700 shrink-0 mt-0.5" />
                             {f}
                           </motion.li>
                         ))}
@@ -1163,7 +1163,7 @@ export default function Home() {
           <FadeIn>
             <a
               href="#curriculum"
-              className="inline-flex items-center gap-2 px-4 py-2 text-xs sm:text-sm font-medium text-burgundy-900 bg-burgundy-100 hover:bg-burgundy-200 rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-burgundy-500 focus-visible:ring-offset-2"
+              className="inline-flex items-center gap-2 px-4 py-2 text-xs sm:text-sm font-medium text-burgundy-900 bg-burgundy-100 hover:bg-burgundy-200 rounded-lg transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-burgundy-500 focus-visible:ring-offset-2"
             >
               {isAr ? 'استكشف منهجنا الشامل' : 'Explore our complete curriculum'}
               <ArrowRight className="h-4 w-4" />
@@ -1172,7 +1172,7 @@ export default function Home() {
         </section>
 
         {/* ── CURRICULUM ────────────────────────────────────────────────── */}
-        <section id="curriculum" aria-labelledby="curriculum-heading" className="py-20 sm:py-28 relative bg-gradient-to-b from-gray-950 to-gray-900 overflow-hidden">
+        <section id="curriculum" aria-labelledby="curriculum-heading" className="py-20 sm:py-28 relative bg-linear-to-b from-gray-950 to-gray-900 overflow-hidden">
           <CrossPatternBg className="text-gold-700" />
           <GradientOrbs />
           <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -1224,14 +1224,14 @@ export default function Home() {
                     transition={{ type: 'spring', stiffness: 300, damping: 20 }}
                     className={`h-full rounded-2xl border flex flex-col cursor-pointer group hover:shadow-lg transition-all ${
                       i === 0
-                        ? 'border-gold-500/30 bg-gradient-to-br from-gold-500/15 via-gray-800/60 to-gray-800/60 p-8 hover:border-gold-500/50'
+                        ? 'border-gold-500/30 bg-linear-to-br from-gold-500/15 via-gray-800/60 to-gray-800/60 p-8 hover:border-gold-500/50'
                         : 'border-gray-700 bg-gray-800/60 p-7 hover:border-gold-600'
                     }`}
                   >
                     <motion.div
                       whileHover={reduce ? {} : { scale: 1.15, rotate: 5 }}
                       transition={{ type: 'spring', stiffness: 300, damping: 15 }}
-                      className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-gold-400 to-gold-600 text-white shadow-lg shadow-gold-500/20 mb-4"
+                      className="flex h-12 w-12 items-center justify-center rounded-xl bg-linear-to-br from-gold-400 to-gold-600 text-white shadow-lg shadow-gold-500/20 mb-4"
                     >
                       <p.icon className="h-6 w-6" />
                     </motion.div>
@@ -1240,7 +1240,7 @@ export default function Home() {
                     <ul className={`mt-4 space-y-1.5 ${i === 0 ? '' : 'flex flex-wrap gap-x-6 gap-y-1.5'}`}>
                       {p.list.map(item => (
                         <li key={item} className="flex items-center gap-2 text-xs text-gray-400 group-hover:text-gray-300 transition-colors">
-                          <CheckCircle2 className="h-3.5 w-3.5 text-gold-700 flex-shrink-0" />
+                          <CheckCircle2 className="h-3.5 w-3.5 text-gold-700 shrink-0" />
                           {item}
                         </li>
                       ))}
@@ -1296,7 +1296,7 @@ export default function Home() {
                       {step.num}
                     </span>
                     <div className="relative flex min-h-[48dvh] sm:min-h-[55dvh] flex-col justify-center p-8 sm:p-12">
-                      <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-gold-400 to-gold-600 text-white shadow-lg shadow-gold-200/50">
+                      <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-linear-to-br from-gold-400 to-gold-600 text-white shadow-lg shadow-gold-200/50">
                         <step.icon className="h-7 w-7" />
                       </div>
                       <h3 className="mt-6 text-2xl sm:text-3xl font-bold tracking-tight text-gray-900">{step.title}</h3>
@@ -1314,7 +1314,7 @@ export default function Home() {
           <FadeIn>
             <a
               href="#open-source"
-              className="inline-flex items-center gap-2 px-4 py-2 text-xs sm:text-sm font-medium text-burgundy-900 bg-burgundy-100 hover:bg-burgundy-200 rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-burgundy-500 focus-visible:ring-offset-2"
+              className="inline-flex items-center gap-2 px-4 py-2 text-xs sm:text-sm font-medium text-burgundy-900 bg-burgundy-100 hover:bg-burgundy-200 rounded-lg transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-burgundy-500 focus-visible:ring-offset-2"
             >
               {isAr ? 'COHEP مفتوح المصدر وآمن' : 'Built open-source, built to last'}
               <ArrowRight className="h-4 w-4" />
@@ -1323,7 +1323,7 @@ export default function Home() {
         </section>
 
         {/* ── OPEN SOURCE ───────────────────────────────────────────────── */}
-        <section id="open-source" aria-labelledby="oss-heading" className="py-20 sm:py-28 relative bg-gradient-to-b from-gray-950 to-gray-900">
+        <section id="open-source" aria-labelledby="oss-heading" className="py-20 sm:py-28 relative bg-linear-to-b from-gray-950 to-gray-900">
           <CrossPatternBg className="text-gold-700" />
           <GradientOrbs />
           <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -1343,7 +1343,7 @@ export default function Home() {
                       whileHover={reduce ? {} : { scale: 1.15, rotate: 5 }}
                       transition={{ type: 'spring', stiffness: 300, damping: 15 }}
                     >
-                      <item.icon className="h-6 w-6 text-gold-400 flex-shrink-0 mt-0.5" />
+                      <item.icon className="h-6 w-6 text-gold-400 shrink-0 mt-0.5" />
                     </motion.div>
                     <div>
                       <h3 className="text-sm font-bold text-white group-hover:text-gold-300 transition-colors">{item.title}</h3>
@@ -1361,7 +1361,7 @@ export default function Home() {
                 href="https://github.com/mero20000/cohep-platform"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 rounded-xl border border-gold-500/30 px-6 py-3 text-sm font-medium text-gold-400 hover:bg-gold-500/10 hover:border-gold-500/50 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-950 cursor-pointer"
+                className="inline-flex items-center gap-2 rounded-xl border border-gold-500/30 px-6 py-3 text-sm font-medium text-gold-400 hover:bg-gold-500/10 hover:border-gold-500/50 transition-all focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-gold-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-950 cursor-pointer"
               >
                 <GitBranch className="h-4 w-4" />
                 {t.openSource.cta}
@@ -1383,13 +1383,13 @@ export default function Home() {
                   <motion.div
                     whileHover={reduce ? {} : { y: -4, scale: 1.01 }}
                     transition={{ type: 'spring', stiffness: 300, damping: 20 }}
-                    className="group h-full rounded-2xl border border-gray-200 bg-white p-6 shadow-sm hover:shadow-lg hover:border-gold-300 flex flex-col cursor-pointer transition-all"
+                    className="group h-full rounded-2xl border border-gray-200 bg-white p-6 shadow-xs hover:shadow-lg hover:border-gold-300 flex flex-col cursor-pointer transition-all"
                   >
                     <div className="flex items-center gap-3 mb-5">
                       <motion.div
                         whileHover={reduce ? {} : { scale: 1.15, rotate: 10 }}
                         transition={{ type: 'spring', stiffness: 300, damping: 15 }}
-                        className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-gold-400 to-gold-600 text-white shadow-md shadow-gold-200/50"
+                        className="flex h-10 w-10 items-center justify-center rounded-xl bg-linear-to-br from-gold-400 to-gold-600 text-white shadow-md shadow-gold-200/50"
                       >
                         <group.icon className="h-5 w-5" />
                       </motion.div>
@@ -1404,7 +1404,7 @@ export default function Home() {
                           transition={{ duration: 0.2 }}
                           className="flex items-start gap-2.5 text-sm text-gray-600 group-hover:text-gray-700 transition-colors"
                         >
-                          <CheckCircle2 className="h-4 w-4 text-gold-700 flex-shrink-0 mt-0.5" />
+                          <CheckCircle2 className="h-4 w-4 text-gold-700 shrink-0 mt-0.5" />
                           {item}
                         </motion.li>
                       ))}
@@ -1431,7 +1431,7 @@ export default function Home() {
                   placeholder={isAr ? 'ابحث عن سؤال...' : 'Search questions...'}
                   value={faqSearch}
                   onChange={(e) => setFaqSearch(e.target.value)}
-                  className="w-full px-4 sm:px-6 py-3 sm:py-4 rounded-xl border-2 border-gray-200 bg-white text-gray-900 placeholder:text-gray-500 focus:border-gold-500 focus:outline-none focus:ring-2 focus:ring-gold-500/20 transition-all"
+                  className="w-full px-4 sm:px-6 py-3 sm:py-4 rounded-xl border-2 border-gray-200 bg-white text-gray-900 placeholder:text-gray-500 focus:border-gold-500 focus:outline-hidden focus:ring-2 focus:ring-gold-500/20 transition-all"
                   aria-label={isAr ? 'ابحث عن أسئلة شائعة' : 'Search FAQ'}
                 />
                 <SearchIcon className="absolute right-4 sm:right-5 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400 pointer-events-none" />
@@ -1451,12 +1451,12 @@ export default function Home() {
                       <button
                         id={`faq-q-${i}`}
                         onClick={() => setOpenFaq(openFaq === i ? null : i)}
-                        className="flex w-full items-center justify-between p-5 text-sm font-semibold text-gray-900 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500 focus-visible:ring-offset-2 hover:bg-gold-50/50 transition-colors"
+                        className="flex w-full items-center justify-between p-5 text-sm font-semibold text-gray-900 text-left focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-gold-500 focus-visible:ring-offset-2 hover:bg-gold-50/50 transition-colors"
                         aria-expanded={openFaq === i}
                         aria-controls={`faq-panel-${i}`}
                       >
                         <span>{item.q}</span>
-                        <ChevronRight className={`h-4 w-4 text-gray-500 flex-shrink-0 transition-transform duration-200 rtl-flip ml-3 ${openFaq === i ? 'rotate-90' : ''}`} aria-hidden="true" />
+                        <ChevronRight className={`h-4 w-4 text-gray-500 shrink-0 transition-transform duration-200 rtl-flip ml-3 ${openFaq === i ? 'rotate-90' : ''}`} aria-hidden="true" />
                       </button>
                       <AnimatePresence initial={false}>
                         {openFaq === i && (
@@ -1525,7 +1525,7 @@ export default function Home() {
                   <motion.div
                     whileHover={reduce ? {} : { y: -4 }}
                     transition={{ type: 'spring', stiffness: 300, damping: 20 }}
-                    className="h-full rounded-2xl border border-gray-200 bg-white p-8 shadow-sm hover:shadow-lg transition-shadow"
+                    className="h-full rounded-2xl border border-gray-200 bg-white p-8 shadow-xs hover:shadow-lg transition-shadow"
                   >
                     <div className="mb-4 flex gap-1">
                       {[...Array(5)].map((_, i) => (
@@ -1555,7 +1555,7 @@ export default function Home() {
           <FadeIn>
             <a
               href="#cta-heading"
-              className="inline-flex items-center gap-2 px-4 py-2 text-xs sm:text-sm font-medium text-burgundy-900 bg-burgundy-100 hover:bg-burgundy-200 rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-burgundy-500 focus-visible:ring-offset-2"
+              className="inline-flex items-center gap-2 px-4 py-2 text-xs sm:text-sm font-medium text-burgundy-900 bg-burgundy-100 hover:bg-burgundy-200 rounded-lg transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-burgundy-500 focus-visible:ring-offset-2"
             >
               {isAr ? 'جاهز للبدء؟' : 'Ready to get started?'}
               <ArrowRight className="h-4 w-4" />
@@ -1564,7 +1564,7 @@ export default function Home() {
         </section>
 
         {/* ── CTA ───────────────────────────────────────────────────────── */}
-        <section aria-labelledby="cta-heading" className="py-20 sm:py-28 relative bg-gradient-to-b from-gray-950 to-gray-900">
+        <section aria-labelledby="cta-heading" className="py-20 sm:py-28 relative bg-linear-to-b from-gray-950 to-gray-900">
           <CrossPatternBg className="text-gold-700" />
           <GradientOrbs />
           <div className="relative mx-auto max-w-3xl px-4 sm:px-6 lg:px-8 text-center">
@@ -1586,7 +1586,7 @@ export default function Home() {
                   href="https://github.com/mero20000/cohep-platform"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="px-8 py-3.5 text-gray-400 hover:text-gray-200 font-medium rounded-xl transition-all text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-950"
+                  className="px-8 py-3.5 text-gray-400 hover:text-gray-200 font-medium rounded-xl transition-all text-sm focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-gold-500 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-950"
                 >
                   {t.cta.btn3}
                 </a>
@@ -1645,7 +1645,7 @@ export default function Home() {
                   type="email"
                   required
                   placeholder={t.footer.emailPlaceholder}
-                  className="min-w-0 flex-1 rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-900 placeholder:text-gray-500 focus:border-gold-500 focus:outline-none focus:ring-2 focus:ring-gold-500/20"
+                  className="min-w-0 flex-1 rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-900 placeholder:text-gray-500 focus:border-gold-500 focus:outline-hidden focus:ring-2 focus:ring-gold-500/20"
                 />
                 <button type="submit" disabled={subscribeStatus === 'loading'} className="shrink-0 rounded-lg bg-gold-500 hover:bg-gold-400 px-3 py-2.5 text-sm font-medium text-gray-950 transition-colors disabled:opacity-50">
                   {subscribeStatus === 'loading' ? '…' : subscribeStatus === 'success' ? '✓' : t.footer.subscribeBtn}

@@ -292,19 +292,19 @@ export function MarkClient() {
           </Button>
           <div className="flex flex-wrap justify-center gap-2">
             <Link href="/dashboard/attendance/sessions?new=liturgy"
-              className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500 min-h-[40px]">
+              className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-gold-500 min-h-[40px]">
               {lang === 'ar' ? 'بدء قداس' : 'Start Liturgy'}
             </Link>
             {canMulti && (
               <Link href="/dashboard/attendance/sessions?new=event"
-                className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500 min-h-[40px]">
+                className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-gold-500 min-h-[40px]">
                 {lang === 'ar' ? 'بدء فعالية' : 'Start Event'}
               </Link>
             )}
           </div>
           {isSuperAdmin && (
             <Link href="/dashboard/attendance/sessions"
-              className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500 min-h-[40px]">
+              className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-gold-500 min-h-[40px]">
               <Settings2 className="h-3.5 w-3.5" />{lang === 'ar' ? 'إدارة الجلسات' : 'Manage Sessions'}
             </Link>
           )}
@@ -321,7 +321,7 @@ export function MarkClient() {
           <Button onClick={() => { void load() }} className="min-h-[44px]">{lang === 'ar' ? 'إعادة المحاولة' : 'Retry'}</Button>
           {isSuperAdmin && (
             <Link href="/dashboard/attendance/sessions"
-              className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500 min-h-[40px]">
+              className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-gold-500 min-h-[40px]">
               <Settings2 className="h-3.5 w-3.5" />{lang === 'ar' ? 'إدارة الجلسات' : 'Manage Sessions'}
             </Link>
           )}
@@ -372,7 +372,7 @@ export function MarkClient() {
                         }
                       }
                     }}
-                    className="w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-start font-medium text-gray-900 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500"
+                    className="w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-start font-medium text-gray-900 hover:bg-gray-50 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-gold-500"
                   >
                     {group.name}
                   </button>
@@ -404,7 +404,7 @@ export function MarkClient() {
                         setPickerStep('gender')
                       }
                     }}
-                    className="w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-start font-medium text-gray-900 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500"
+                    className="w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-start font-medium text-gray-900 hover:bg-gray-50 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-gold-500"
                   >
                     {level.name}
                   </button>
@@ -421,7 +421,7 @@ export function MarkClient() {
                     setPickerStep('gender')
                   }
                 }}
-                className="w-full rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 px-4 py-3 text-center font-medium text-gray-600 hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500 mb-2"
+                className="w-full rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 px-4 py-3 text-center font-medium text-gray-600 hover:bg-gray-100 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-gold-500 mb-2"
               >
                 {lang === 'ar' ? 'تخطّي — كل المراحل' : 'Skip — All Levels'}
               </button>
@@ -447,7 +447,7 @@ export function MarkClient() {
                     key={grade.id}
                     type="button"
                     onClick={() => { setPickedGradeId(grade.id); setPickerStep('gender') }}
-                    className="w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-start font-medium text-gray-900 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500"
+                    className="w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-start font-medium text-gray-900 hover:bg-gray-50 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-gold-500"
                   >
                     {grade.name}
                   </button>
@@ -456,7 +456,7 @@ export function MarkClient() {
               <button
                 type="button"
                 onClick={() => setPickerStep('gender')}
-                className="w-full rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 px-4 py-3 text-center font-medium text-gray-600 hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500 mb-2"
+                className="w-full rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 px-4 py-3 text-center font-medium text-gray-600 hover:bg-gray-100 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-gold-500 mb-2"
               >
                 {lang === 'ar' ? 'تخطّي — كل الصفوف' : 'Skip — All Grades'}
               </button>
@@ -479,16 +479,16 @@ export function MarkClient() {
               </p>
               <div className="mb-4 space-y-2">
                 <button type="button" onClick={() => finishPicker(pickedGroupId!, pickedLevelId ?? undefined, pickedGradeId ?? undefined, 'male')}
-                  className="w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-start font-medium text-gray-900 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500">
+                  className="w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-start font-medium text-gray-900 hover:bg-gray-50 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-gold-500">
                   {lang === 'ar' ? 'ذكور' : 'Male'}
                 </button>
                 <button type="button" onClick={() => finishPicker(pickedGroupId!, pickedLevelId ?? undefined, pickedGradeId ?? undefined, 'female')}
-                  className="w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-start font-medium text-gray-900 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500">
+                  className="w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-start font-medium text-gray-900 hover:bg-gray-50 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-gold-500">
                   {lang === 'ar' ? 'إناث' : 'Female'}
                 </button>
               </div>
               <button type="button" onClick={() => finishPicker(pickedGroupId!, pickedLevelId ?? undefined, pickedGradeId ?? undefined)}
-                className="w-full rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 px-4 py-3 text-center font-medium text-gray-600 hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500 mb-2">
+                className="w-full rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 px-4 py-3 text-center font-medium text-gray-600 hover:bg-gray-100 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-gold-500 mb-2">
                 {lang === 'ar' ? 'تخطّي — الكل (تلقائي)' : 'Skip — All (auto)'}
               </button>
               <Button variant="outline" onClick={() => {
@@ -596,7 +596,7 @@ export function MarkClient() {
           </div>
           {isSuperAdmin && (
             <Link href="/dashboard/attendance/sessions"
-              className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500 min-h-[40px] shrink-0">
+              className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-gold-500 min-h-[40px] shrink-0">
               <Settings2 className="h-3.5 w-3.5" />{lang === 'ar' ? 'إدارة الجلسات' : 'Manage Sessions'}
             </Link>
           )}
@@ -635,7 +635,7 @@ export function MarkClient() {
             type="button"
             onClick={() => void startSession()}
             disabled={starting}
-            className="mt-2 flex min-h-[44px] items-center gap-2 rounded-lg bg-gold-500 px-4 py-2 text-sm font-medium text-gray-950 hover:bg-gold-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500 disabled:opacity-50"
+            className="mt-2 flex min-h-[44px] items-center gap-2 rounded-lg bg-gold-500 px-4 py-2 text-sm font-medium text-gray-950 hover:bg-gold-400 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-gold-500 disabled:opacity-50"
           >
             {starting
               ? (lang === 'ar' ? 'جاري البدء…' : 'Starting…')
@@ -645,35 +645,35 @@ export function MarkClient() {
           </button>
         )}
         <p className="mt-1 text-sm text-gray-500">
-          <Link href="/dashboard/attendance/sessions" className="rounded text-blue-700 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500">
+          <Link href="/dashboard/attendance/sessions" className="rounded text-blue-700 hover:underline focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-gold-500">
             {lang === 'ar' ? 'إدارة الجلسات' : 'Manage sessions'}
           </Link>
           {' · '}
-          <Link href="/dashboard/attendance/insights" className="rounded text-blue-700 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500">
+          <Link href="/dashboard/attendance/insights" className="rounded text-blue-700 hover:underline focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-gold-500">
             {lang === 'ar' ? 'الإحصائيات' : 'Insights'}
           </Link>
         </p>
       </div>
-      <div className="sticky top-0 z-10 space-y-2 bg-white/95 py-2 backdrop-blur">
+      <div className="sticky top-0 z-10 space-y-2 bg-white/95 py-2 backdrop-blur-sm">
         <MarkSummaryBar {...counts} binary={isBinary} dirty={marking.dirty} error={saveError} onRetry={() => save(false)} lang={lang} />
         {!readOnly && (
           <div className="flex items-center gap-2">
             <div className="relative flex-1">
-              <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" aria-hidden="true" />
+              <Search className="pointer-events-none absolute inset-s-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" aria-hidden="true" />
               <input
                 type="search"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder={lang === 'ar' ? 'بحث باسم الطالب…' : 'Search student name…'}
                 aria-label={lang === 'ar' ? 'بحث باسم الطالب' : 'Search student name'}
-                className="min-h-[44px] w-full rounded-lg border border-gray-300 py-2 pe-9 ps-9 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500"
+                className="min-h-[44px] w-full rounded-lg border border-gray-300 py-2 pe-9 ps-9 text-sm focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-gold-500"
               />
               {query && (
                 <button
                   type="button"
                   onClick={() => setQuery('')}
                   aria-label={lang === 'ar' ? 'مسح البحث' : 'Clear search'}
-                  className="absolute end-1 top-1/2 flex min-h-[44px] min-w-[44px] -translate-y-1/2 items-center justify-center rounded-lg text-gray-400 hover:text-gray-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500"
+                  className="absolute inset-e-1 top-1/2 flex min-h-[44px] min-w-[44px] -translate-y-1/2 items-center justify-center rounded-lg text-gray-400 hover:text-gray-600 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-gold-500"
                 >
                   <X className="h-4 w-4" aria-hidden="true" />
                 </button>
@@ -683,7 +683,7 @@ export function MarkClient() {
               type="button"
               onClick={() => setUnmarkedOnly(v => !v)}
               aria-pressed={unmarkedOnly}
-              className={`min-h-[44px] shrink-0 rounded-lg px-3 text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500 ${unmarkedOnly ? 'bg-gold-100 text-gold-800' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+              className={`min-h-[44px] shrink-0 rounded-lg px-3 text-sm font-medium focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-gold-500 ${unmarkedOnly ? 'bg-gold-100 text-gold-800' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
             >
               {lang === 'ar' ? `غير المسجل (${unmarkedCount})` : `Unmarked (${unmarkedCount})`}
             </button>
@@ -696,12 +696,12 @@ export function MarkClient() {
           {showGroupChips && (
             <div className="flex gap-1.5 overflow-x-auto pb-1" role="group" aria-label={t('Groups', 'المجموعات')}>
               <button type="button" aria-pressed={!groupFilter} onClick={() => { setGroupFilter(''); setGradeFilter('') }}
-                className={`min-h-[40px] shrink-0 rounded-full px-3 text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500 ${!groupFilter ? 'bg-gold-100 text-gold-800' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+                className={`min-h-[40px] shrink-0 rounded-full px-3 text-sm font-medium focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-gold-500 ${!groupFilter ? 'bg-gold-100 text-gold-800' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
                 {t('All groups', 'كل المجموعات')} ({counts.marked}/{counts.total})
               </button>
               {groupChips.map(g => (
                 <button key={g.id} type="button" aria-pressed={groupFilter === g.id} onClick={() => { setGroupFilter(groupFilter === g.id ? '' : g.id); setGradeFilter('') }}
-                  className={`min-h-[40px] shrink-0 rounded-full px-3 text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500 ${groupFilter === g.id ? 'bg-gold-100 text-gold-800' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+                  className={`min-h-[40px] shrink-0 rounded-full px-3 text-sm font-medium focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-gold-500 ${groupFilter === g.id ? 'bg-gold-100 text-gold-800' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
                   {g.name} ({g.marked}/{g.total})
                 </button>
               ))}
@@ -710,12 +710,12 @@ export function MarkClient() {
           {showGradeChips && (
             <div className="flex gap-1.5 overflow-x-auto pb-1" role="group" aria-label={t('Grades', 'الصفوف')}>
               <button type="button" aria-pressed={!gradeFilter} onClick={() => setGradeFilter('')}
-                className={`min-h-[36px] shrink-0 rounded-full px-3 text-xs font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500 ${!gradeFilter ? 'bg-gold-100 text-gold-800' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+                className={`min-h-[36px] shrink-0 rounded-full px-3 text-xs font-medium focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-gold-500 ${!gradeFilter ? 'bg-gold-100 text-gold-800' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
                 {t('All grades', 'كل الصفوف')}
               </button>
               {gradeChips.map(g => (
                 <button key={g.id} type="button" aria-pressed={gradeFilter === g.id} onClick={() => setGradeFilter(gradeFilter === g.id ? '' : g.id)}
-                  className={`min-h-[36px] shrink-0 rounded-full px-3 text-xs font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500 ${gradeFilter === g.id ? 'bg-gold-100 text-gold-800' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+                  className={`min-h-[36px] shrink-0 rounded-full px-3 text-xs font-medium focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-gold-500 ${gradeFilter === g.id ? 'bg-gold-100 text-gold-800' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
                   {g.name} ({g.marked}/{g.total})
                 </button>
               ))}
@@ -754,7 +754,7 @@ export function MarkClient() {
               data-student-id={r.student?.id}
               tabIndex={0}
               onKeyDown={(e) => handleRecordKeyDown(e, r)}
-              className="rounded-xl border border-gray-200 bg-white p-2.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500"
+              className="rounded-xl border border-gray-200 bg-white p-2.5 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-gold-500"
             >
               <div className="mb-1.5 truncate text-[15px] font-medium">{r.student?.firstName} {r.student?.lastName}</div>
               {readOnly ? (
@@ -819,7 +819,7 @@ export function MarkClient() {
                   type="button"
                   aria-expanded={!collapsed}
                   onClick={() => setCollapsedGroups(c => ({ ...c, [sec.id]: !c[sec.id] }))}
-                  className="flex min-h-[44px] w-full items-center justify-between rounded-lg bg-gray-100 px-3 text-sm font-semibold text-gray-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500"
+                  className="flex min-h-[44px] w-full items-center justify-between rounded-lg bg-gray-100 px-3 text-sm font-semibold text-gray-700 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-gold-500"
                 >
                   <span>{sec.name || t('Other', 'أخرى')}</span>
                   <span className="text-xs font-medium text-gray-500">{stat ? `${stat.marked}/${stat.total}` : sec.recs.length} {collapsed ? '▸' : '▾'}</span>
@@ -909,7 +909,7 @@ export function MarkClient() {
                 <div className="mb-4 space-y-2 max-h-96 overflow-y-auto">
                   {availableGroups.map(group => (
                     <button key={group.id} type="button" onClick={() => afterGroup(group.id)}
-                      className="w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-start font-medium text-gray-900 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500">
+                      className="w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-start font-medium text-gray-900 hover:bg-gray-50 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-gold-500">
                       {group.name}
                     </button>
                   ))}
@@ -927,12 +927,12 @@ export function MarkClient() {
                 </p>
                 <div className="mb-4 space-y-2 max-h-96 overflow-y-auto">
                   <button type="button" onClick={() => afterLevel(undefined)}
-                    className="w-full rounded-lg border border-dashed border-gray-300 bg-gray-50 px-4 py-3 text-start font-medium text-gray-500 hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500">
+                    className="w-full rounded-lg border border-dashed border-gray-300 bg-gray-50 px-4 py-3 text-start font-medium text-gray-500 hover:bg-gray-100 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-gold-500">
                     {lang === 'ar' ? 'تخطي — جميع المراحل' : 'Skip — All Levels'}
                   </button>
                   {availableLevels.map(level => (
                     <button key={level.id} type="button" onClick={() => afterLevel(level.id)}
-                      className="w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-start font-medium text-gray-900 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500">
+                      className="w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-start font-medium text-gray-900 hover:bg-gray-50 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-gold-500">
                       {level.name}
                     </button>
                   ))}
@@ -954,12 +954,12 @@ export function MarkClient() {
                 </p>
                 <div className="mb-4 space-y-2 max-h-96 overflow-y-auto">
                   <button type="button" onClick={() => afterGrade(undefined)}
-                    className="w-full rounded-lg border border-dashed border-gray-300 bg-gray-50 px-4 py-3 text-start font-medium text-gray-500 hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500">
+                    className="w-full rounded-lg border border-dashed border-gray-300 bg-gray-50 px-4 py-3 text-start font-medium text-gray-500 hover:bg-gray-100 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-gold-500">
                     {lang === 'ar' ? 'تخطي — جميع الصفوف' : 'Skip — All Grades'}
                   </button>
                   {groupGrades.map(grade => (
                     <button key={grade.id} type="button" onClick={() => afterGrade(grade.id)}
-                      className="w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-start font-medium text-gray-900 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500">
+                      className="w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-start font-medium text-gray-900 hover:bg-gray-50 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-gold-500">
                       {grade.name}
                     </button>
                   ))}
@@ -982,16 +982,16 @@ export function MarkClient() {
                 </p>
                 <div className="mb-4 space-y-2">
                   <button type="button" onClick={() => finishPicker2(pickedGroupId!, pickedLevelId || undefined, pickedGradeId || undefined, 'male')}
-                    className="w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-start font-medium text-gray-900 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500">
+                    className="w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-start font-medium text-gray-900 hover:bg-gray-50 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-gold-500">
                     {lang === 'ar' ? 'ذكور' : 'Male'}
                   </button>
                   <button type="button" onClick={() => finishPicker2(pickedGroupId!, pickedLevelId || undefined, pickedGradeId || undefined, 'female')}
-                    className="w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-start font-medium text-gray-900 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500">
+                    className="w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-start font-medium text-gray-900 hover:bg-gray-50 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-gold-500">
                     {lang === 'ar' ? 'إناث' : 'Female'}
                   </button>
                 </div>
                 <button type="button" onClick={() => finishPicker2(pickedGroupId!, pickedLevelId || undefined, pickedGradeId || undefined)}
-                  className="w-full rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 px-4 py-3 text-center font-medium text-gray-600 hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500 mb-2">
+                  className="w-full rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 px-4 py-3 text-center font-medium text-gray-600 hover:bg-gray-100 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-gold-500 mb-2">
                   {lang === 'ar' ? 'تخطّي — الكل (تلقائي)' : 'Skip — All (auto)'}
                 </button>
                 <Button variant="outline" onClick={() => {

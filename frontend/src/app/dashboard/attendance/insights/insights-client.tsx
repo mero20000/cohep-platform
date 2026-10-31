@@ -363,7 +363,7 @@ export function InsightsClient() {
               onKeyDown={e => { if (e.key === 'Enter') runStudentSearch(searchQuery) }}
               placeholder={lang === 'ar' ? 'بحث بالاسم أو الكود...' : 'Search by name, code...'}
               aria-label={lang === 'ar' ? 'بحث عن طالب' : 'Search student'}
-              className="rounded-lg border border-gray-300 px-3 py-2 text-sm flex-1 focus:border-gold-500 focus:outline-none" />
+              className="rounded-lg border border-gray-300 px-3 py-2 text-sm flex-1 focus:border-gold-500 focus:outline-hidden" />
             <Button id="search-student-btn" onClick={() => runStudentSearch(searchQuery)} aria-label={lang === 'ar' ? 'بحث عن طالب' : 'Search student'} className="px-4" disabled={searching || !searchQuery.trim()}>
               {searching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
             </Button>

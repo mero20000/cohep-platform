@@ -95,7 +95,7 @@ function LiturgySection({ childId, language }: { childId: string; language: stri
   const threshold = 10
 
   return (
-    <div className="rounded-xl border border-amber-100 bg-gradient-to-br from-amber-50 to-white p-5 mb-6">
+    <div className="rounded-xl border border-amber-100 bg-linear-to-br from-amber-50 to-white p-5 mb-6">
       <div className="flex items-center gap-2 mb-4">
         <Church className="w-5 h-5 text-amber-700" />
         <h3 className="font-semibold text-lg text-gray-900">{t('Liturgy Attendance', 'حضور القداسات')}</h3>
@@ -195,7 +195,7 @@ function MilestonesSection({ childId, language }: { childId: string; language: s
   }
 
   return (
-    <div className="rounded-xl border border-purple-100 bg-gradient-to-br from-purple-50 to-white p-5 mb-6">
+    <div className="rounded-xl border border-purple-100 bg-linear-to-br from-purple-50 to-white p-5 mb-6">
       <div className="flex items-center gap-2 mb-4">
         <Sprout className="w-5 h-5 text-purple-700" />
         <h3 className="font-semibold text-lg text-gray-900">{t('Spiritual Milestones', 'محطات النمو الروحي')}</h3>
@@ -284,7 +284,7 @@ function PracticeTogetherCard({ childId, language }: { childId: string; language
   const limitReached = summary && summary.weeklyCount >= summary.weeklyLimit
 
   return (
-    <div className="rounded-xl border border-indigo-100 bg-gradient-to-br from-indigo-50 to-white p-5 mb-6">
+    <div className="rounded-xl border border-indigo-100 bg-linear-to-br from-indigo-50 to-white p-5 mb-6">
       <div className="flex items-center gap-2 mb-4">
         <Music className="w-5 h-5 text-indigo-600" />
         <h3 className="font-semibold text-lg text-gray-900">{t('Practice Together', 'تدرب معًا')}</h3>
@@ -458,7 +458,7 @@ function PracticePanel({ childId, lang }: { childId: string; lang: string }) {
   return (
     <div className="space-y-4">
       {/* Header card */}
-      <div className="rounded-xl border border-blue-200 bg-gradient-to-r from-blue-50 to-amber-50 p-5">
+      <div className="rounded-xl border border-blue-200 bg-linear-to-r from-blue-50 to-amber-50 p-5">
         <div className="flex items-center gap-2 mb-3">
           <Headphones className="h-5 w-5 text-blue-600" />
           <h3 className="font-semibold text-blue-800">
@@ -724,11 +724,11 @@ export default function ChildDetailPage() {
             )
           })()}
           <div className="flex flex-wrap items-center gap-2">
-            <button onClick={() => setShowReportModal(true)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-white/10 border border-white/15 text-white hover:bg-white/15 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50">
+            <button onClick={() => setShowReportModal(true)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-white/10 border border-white/15 text-white hover:bg-white/15 transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-white/50">
               <FileText className="w-3.5 h-3.5" />
               {t('Term Report', 'تقرير الفصل')}
             </button>
-            <button onClick={() => setShowArchive(true)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-white/10 border border-white/15 text-white hover:bg-white/15 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50">
+            <button onClick={() => setShowArchive(true)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-white/10 border border-white/15 text-white hover:bg-white/15 transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-white/50">
               <FileText className="w-3.5 h-3.5" />
               {t('Formation Archive', 'أرشيف التكوين')}
             </button>
@@ -738,7 +738,7 @@ export default function ChildDetailPage() {
 
       {/* Gamification bar */}
       {gamification && (gamification.rank != null || gamification.totalPoints != null || gamification.badges != null) && (
-        <div className="rounded-xl border border-blue-200 bg-gradient-to-r from-blue-50 to-amber-50 p-5">
+        <div className="rounded-xl border border-blue-200 bg-linear-to-r from-blue-50 to-amber-50 p-5">
           <div className="flex items-center gap-2 mb-3">
             <Award className="h-5 w-5 text-blue-600" />
             <h3 className="font-semibold text-blue-800">{t('Gamification', 'الألعاب التحفيزية')}</h3>
@@ -758,7 +758,7 @@ export default function ChildDetailPage() {
                 <div className="text-xs text-gray-500 mt-0.5">XP</div>
                 {gamification.xpToNextLevel != null && (
                   <div className="mt-1 h-1.5 rounded-full bg-gold-200/50 overflow-hidden">
-                    <div className="h-full rounded-full bg-gradient-to-r from-gold-400 to-blue-500" style={{ width: `${Math.min(100, ((gamification.totalPoints || 0) % 1000) / 10)}%` }} />
+                    <div className="h-full rounded-full bg-linear-to-r from-gold-400 to-blue-500" style={{ width: `${Math.min(100, ((gamification.totalPoints || 0) % 1000) / 10)}%` }} />
                   </div>
                 )}
               </button>
@@ -779,11 +779,11 @@ export default function ChildDetailPage() {
 
       {/* How Points Work — collapsible guide for parents */}
       {gamification && (
-        <details className="rounded-xl border border-indigo-200 bg-gradient-to-r from-indigo-50 to-blue-50 group">
+        <details className="rounded-xl border border-indigo-200 bg-linear-to-r from-indigo-50 to-blue-50 group">
           <summary className="flex items-center gap-2 px-5 py-3 cursor-pointer select-none text-sm font-semibold text-indigo-800 hover:bg-indigo-50/50 transition-colors">
             <Star className="h-4 w-4 text-indigo-600" />
             {t('How Points & XP Work', 'كيف تعمل النقاط والخبرة')}
-            <ChevronRight className="h-4 w-4 text-indigo-400 ml-auto transition-transform group-open:rotate-90 rtl:rotate-180 rtl:group-open:rotate-90" />
+            <ChevronRight className="h-4 w-4 text-indigo-400 ml-auto transition-transform group-open:rotate-90 rtl:rotate-180 group-open:rtl:rotate-90" />
           </summary>
           <div className="px-5 pb-4 space-y-3 text-sm text-gray-700">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

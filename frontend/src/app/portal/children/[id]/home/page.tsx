@@ -86,7 +86,7 @@ function XpBar({ inLevel, toNext, level }: { inLevel: number; toNext: number; le
       </div>
       <div className="h-3 rounded-full bg-white/20 overflow-hidden">
         <div
-          className="h-full rounded-full bg-gradient-to-r from-amber-300 to-yellow-400 transition-all duration-1000 ease-out shadow-inner"
+          className="h-full rounded-full bg-linear-to-r from-amber-300 to-yellow-400 transition-all duration-1000 ease-out shadow-inner"
           style={{ width: `${width}%` }}
         />
       </div>
@@ -101,15 +101,15 @@ function XpBar({ inLevel, toNext, level }: { inLevel: number; toNext: number; le
 function StreakBadge({ streak, lang = 'en' }: { streak: number; lang?: 'en' | 'ar' }) {
   const t = (en: string, ar: string) => (lang === 'ar' ? ar : en)
   if (streak === 0) return (
-    <div className="flex flex-col items-center gap-1 rounded-2xl bg-white/10 px-5 py-4 text-center max-w-[9rem]">
+    <div className="flex flex-col items-center gap-1 rounded-2xl bg-white/10 px-5 py-4 text-center max-w-36">
       <Flame className="h-8 w-8 text-gold-300/70" aria-hidden="true" />
       <div className="text-sm font-semibold text-white/90 leading-snug">{t('A fresh week', 'أسبوع جديد')}</div>
       <div className="text-[11px] text-white/50 leading-snug">{t('Sing one hymn to begin your rhythm.', 'رنّم ترنيمة واحدة لتبدأ إيقاعك.')}</div>
     </div>
   )
   return (
-    <div className="flex flex-col items-center gap-1 rounded-2xl bg-gradient-to-b from-orange-400/30 to-red-500/20 border border-orange-300/20 px-5 py-4 text-center animate-pulse-slow">
-      <Flame className={`h-8 w-8 ${streak >= 7 ? 'text-orange-300' : 'text-orange-400/80'} drop-shadow`} aria-hidden="true" />
+    <div className="flex flex-col items-center gap-1 rounded-2xl bg-linear-to-b from-orange-400/30 to-red-500/20 border border-orange-300/20 px-5 py-4 text-center animate-pulse-slow">
+      <Flame className={`h-8 w-8 ${streak >= 7 ? 'text-orange-300' : 'text-orange-400/80'} drop-shadow-sm`} aria-hidden="true" />
       <div className="text-2xl font-black text-white">{streak}</div>
       <div className="text-xs text-orange-200 font-medium">{t('day rhythm', 'يوم إيقاع')}</div>
     </div>
@@ -127,7 +127,7 @@ function JourneyNode({ item, index, isLast }: { item: HomeData['journey'][0]; in
       <div className="flex flex-col items-center shrink-0">
         <div className={`relative flex h-11 w-11 items-center justify-center rounded-full border-2 shadow-lg transition-all ${
           isCompleted ? 'bg-green-400 border-green-300 shadow-green-400/40' :
-          isCurrent   ? 'bg-gradient-to-br from-amber-400 to-orange-400 border-amber-300 shadow-amber-400/40 ring-4 ring-amber-300/30 animate-bounce-slow' :
+          isCurrent   ? 'bg-linear-to-br from-amber-400 to-orange-400 border-amber-300 shadow-amber-400/40 ring-4 ring-amber-300/30 animate-bounce-slow' :
                         'bg-white/10 border-white/20'
         }`}>
           {isCompleted ? (
@@ -150,7 +150,7 @@ function JourneyNode({ item, index, isLast }: { item: HomeData['journey'][0]; in
       <div className={`pb-5 flex-1 min-w-0 ${isCurrent ? 'mb-2' : ''}`}>
         <div className={`rounded-xl p-3.5 transition-all ${
           isCompleted ? 'bg-green-500/10 border border-green-400/20' :
-          isCurrent   ? 'bg-gradient-to-br from-amber-500/20 to-orange-500/10 border border-amber-400/30 shadow-lg shadow-amber-500/10' :
+          isCurrent   ? 'bg-linear-to-br from-amber-500/20 to-orange-500/10 border border-amber-400/30 shadow-lg shadow-amber-500/10' :
                         'bg-white/5 border border-white/10'
         }`}>
           <div className="flex items-start justify-between gap-2">
@@ -202,7 +202,7 @@ export default function StudentHomePage() {
   }, [id])
 
   if (loading) return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-indigo-950 to-purple-950">
+    <div className="min-h-screen flex items-center justify-center bg-linear-to-b from-indigo-950 to-purple-950">
       <div className="flex flex-col items-center gap-4">
         <div className="flex h-16 w-16 items-center justify-center rounded-full bg-white/10 animate-pulse">
           <Music className="h-8 w-8 text-amber-300" />
@@ -213,7 +213,7 @@ export default function StudentHomePage() {
   )
 
   if (error || !data) return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-indigo-950 to-purple-950">
+    <div className="min-h-screen flex items-center justify-center bg-linear-to-b from-indigo-950 to-purple-950">
       <div className="text-center">
         <p className="text-red-300 text-sm mb-4">{error || 'No data'}</p>
         <Link href={`/portal/children/${id}`} className="text-white/60 text-sm underline">
@@ -229,7 +229,7 @@ export default function StudentHomePage() {
   const currentHymn = journey.find(j => j.status === 'current')
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-indigo-950 via-purple-950 to-indigo-950" dir={lang === 'ar' ? 'rtl' : 'ltr'}>
+    <div className="min-h-screen bg-linear-to-b from-indigo-950 via-purple-950 to-indigo-950" dir={lang === 'ar' ? 'rtl' : 'ltr'}>
 
       {/* ── HERO HEADER ─────────────────────────────────────────────── */}
       <div ref={headerRef} className="relative overflow-hidden px-4 pt-6 pb-8">
@@ -243,7 +243,7 @@ export default function StudentHomePage() {
           {/* Back + school micro-pill */}
           <div className="flex items-center justify-between gap-2 mb-6">
             <Link href={`/portal/children/${id}`}
-              className="inline-flex items-center gap-1.5 text-white/50 hover:text-white/80 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40 rounded-full px-2 py-1 -ml-2">
+              className="inline-flex items-center gap-1.5 text-white/50 hover:text-white/80 text-sm transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-white/40 rounded-full px-2 py-1 -ml-2">
               <ArrowLeft className="h-4 w-4 rtl:rotate-180" />
               {t('Back', 'رجوع')}
             </Link>
@@ -257,7 +257,7 @@ export default function StudentHomePage() {
           {/* Student identity */}
           <div className="flex items-center gap-4 mb-6">
             <div className="relative">
-              <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-400 to-orange-500 text-white text-xl font-black shadow-lg shadow-amber-500/30 overflow-hidden flex-shrink-0">
+              <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-linear-to-br from-amber-400 to-orange-500 text-white text-xl font-black shadow-lg shadow-amber-500/30 overflow-hidden shrink-0">
                 {student.photoUrl ? (
                   <Image src={student.photoUrl.startsWith('http') ? student.photoUrl : API_ORIGIN + student.photoUrl} alt="" width={64} height={64} className="h-full w-full object-cover" />
                 ) : (
@@ -306,7 +306,7 @@ export default function StudentHomePage() {
 
       {/* ── SEASONAL CHALLENGE ──────────────────────────────────────── */}
       <div className="px-4 mb-6">
-        <div className="max-w-xl mx-auto rounded-2xl bg-gradient-to-br from-amber-500/20 to-orange-500/10 border border-amber-400/20 p-4">
+        <div className="max-w-xl mx-auto rounded-2xl bg-linear-to-br from-amber-500/20 to-orange-500/10 border border-amber-400/20 p-4">
           <div className="flex items-start gap-3">
             <div className="text-3xl">{challenge.icon}</div>
             <div className="flex-1 min-w-0">
@@ -334,7 +334,7 @@ export default function StudentHomePage() {
             <p className="text-xs font-bold uppercase tracking-wider text-white/30 mb-2 px-1">
               {t('Now Learning', 'تتعلم الآن')}
             </p>
-            <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-purple-600/30 to-indigo-600/20 border border-purple-400/20 p-5">
+            <div className="relative overflow-hidden rounded-2xl bg-linear-to-br from-purple-600/30 to-indigo-600/20 border border-purple-400/20 p-5">
               <div className="absolute top-0 right-0 h-32 w-32 bg-purple-400/10 rounded-full blur-2xl" />
               <div className="relative flex items-center gap-4">
                 <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-purple-500/20 border border-purple-400/20">
@@ -359,7 +359,7 @@ export default function StudentHomePage() {
                 </div>
                 <div className="h-1.5 rounded-full bg-white/10 overflow-hidden">
                   <div
-                    className="h-full rounded-full bg-gradient-to-r from-purple-400 to-indigo-400 transition-all duration-1000"
+                    className="h-full rounded-full bg-linear-to-r from-purple-400 to-indigo-400 transition-all duration-1000"
                     style={{ width: `${(completedHymns / Math.max(journey.length, 1)) * 100}%` }}
                   />
                 </div>
@@ -371,20 +371,20 @@ export default function StudentHomePage() {
 
       {/* ── HOW POINTS WORK — student-friendly guide ───────────────── */}
       <div className="px-4 mb-4">
-        <details className="max-w-xl mx-auto rounded-2xl bg-white/[0.06] border border-white/10 group">
+        <details className="max-w-xl mx-auto rounded-2xl bg-white/6 border border-white/10 group">
           <summary className="flex items-center gap-2 px-4 py-3 cursor-pointer select-none text-sm font-semibold text-white/80 hover:text-white transition-colors">
             <Sparkles className="h-4 w-4 text-amber-400" />
             {t('How do I earn points & XP?', 'كيف أحصل على النقاط والخبرة؟')}
-            <ChevronRight className="h-4 w-4 text-white/40 ml-auto transition-transform group-open:rotate-90 rtl:rotate-180 rtl:group-open:rotate-90" />
+            <ChevronRight className="h-4 w-4 text-white/40 ml-auto transition-transform group-open:rotate-90 rtl:rotate-180 group-open:rtl:rotate-90" />
           </summary>
           <div className="px-4 pb-4 space-y-2 text-xs text-white/60">
-            <div className="rounded-xl bg-white/[0.05] border border-white/10 p-3 space-y-1.5">
+            <div className="rounded-xl bg-white/5 border border-white/10 p-3 space-y-1.5">
               <p className="font-semibold text-white/90">{t('Every session earns points:', 'كل حصة تكسبك نقاطاً:')}</p>
               <p>{t('Present = 5 pts · Late = 2 pts · Excused = 1 pt', 'حاضر = 5 نقاط · متأخر = 2 · معذور = 1')}</p>
               <p>{t('Good behavior & participation = bonus points (up to 10 each)', 'السلوك الجيد والمشاركة = نقاط إضافية (حتى 10 لكل)')}</p>
               <p>{t('Liturgy attendance = 3 bonus pts', 'حضور القداس = 3 نقاط إضافية')}</p>
             </div>
-            <div className="rounded-xl bg-white/[0.05] border border-white/10 p-3 space-y-1.5">
+            <div className="rounded-xl bg-white/5 border border-white/10 p-3 space-y-1.5">
               <p className="font-semibold text-white/90">{t('XP levels you up:', 'الخبرة ترفع مستواك:')}</p>
               <p>{t('Present = +10 XP · Late = +5 XP · Practice = +10 XP', 'حاضر = +10 خبرة · متأخر = +5 · التمرين = +10')}</p>
               <p>{t('3+ weeks streak = +5 XP bonus · Every 100 XP = 1 Level!', 'سلسلة 3+ أسابيع = +5 خبرة · كل 100 خبرة = مستوى جديد!')}</p>
@@ -404,7 +404,7 @@ export default function StudentHomePage() {
               <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-1.5 flex-1 justify-center rounded-xl px-3 py-2.5 text-xs font-semibold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40 ${
+              className={`flex items-center gap-1.5 flex-1 justify-center rounded-xl px-3 py-2.5 text-xs font-semibold transition-all focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-white/40 ${
                 activeTab === tab.id
                   ? 'bg-white/15 text-white border border-white/20 shadow-inner'
                   : 'text-white/60 hover:text-white/80 hover:bg-white/5'
@@ -438,7 +438,7 @@ export default function StudentHomePage() {
                             <span className="text-white/50 tabular-nums">{sub.learned}/{sub.total} {t('mastered', 'متقن')}</span>
                           </div>
                           <div className="h-2 rounded-full bg-white/10 overflow-hidden">
-                            <div className="h-full rounded-full bg-gradient-to-r from-gold-400 to-gold-600" style={{ width: `${pct}%` }} />
+                            <div className="h-full rounded-full bg-linear-to-r from-gold-400 to-gold-600" style={{ width: `${pct}%` }} />
                           </div>
                         </div>
                       )

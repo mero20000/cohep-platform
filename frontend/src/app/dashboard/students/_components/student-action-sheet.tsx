@@ -37,7 +37,7 @@ export function StudentActionSheet({ student: s, lang, isFavorite, onClose, onVi
       <div ref={ref} tabIndex={-1} role="dialog" aria-modal="true" aria-label={`${s.firstName} ${s.lastName}`}
         onClick={e => e.stopPropagation()}
         onKeyDown={e => { if (e.key === 'Escape') onClose() }}
-        className="w-full rounded-t-2xl bg-white p-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] shadow-xl outline-none animate-slideUp">
+        className="w-full rounded-t-2xl bg-white p-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] shadow-xl outline-hidden animate-slideUp">
         <div className="mx-auto mb-1 mt-1 h-1 w-10 rounded-full bg-gray-300" aria-hidden="true" />
         <div className="flex items-center justify-between px-3 py-2">
           <div className="min-w-0">

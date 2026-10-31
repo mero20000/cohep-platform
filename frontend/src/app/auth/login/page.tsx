@@ -27,7 +27,7 @@ const features = [
 ]
 
 const INPUT_CLASS =
-  "block w-full rounded-lg border border-gray-200 bg-white px-4 py-3 min-h-[48px] text-base sm:text-sm shadow-sm placeholder:text-gray-500 focus:border-gold-500 focus:outline-none focus:ring-2 focus:ring-gold-500/20 transition-all"
+  "block w-full rounded-lg border border-gray-200 bg-white px-4 py-3 min-h-[48px] text-base sm:text-sm shadow-xs placeholder:text-gray-500 focus:border-gold-500 focus:outline-hidden focus:ring-2 focus:ring-gold-500/20 transition-all"
 
 export default function LoginPage() {
   const { login } = useAuth()
@@ -211,7 +211,7 @@ export default function LoginPage() {
 
   if (showSuccess) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-white via-gray-50 to-blue-50/30" dir={isAr ? 'rtl' : 'ltr'}>
+      <div className="min-h-screen flex items-center justify-center bg-linear-to-br from-white via-gray-50 to-blue-50/30" dir={isAr ? 'rtl' : 'ltr'}>
         <div className="text-center animate-in fade-in zoom-in duration-300">
           <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-green-100">
             <CheckCircle2 className="h-8 w-8 text-green-600" />
@@ -226,7 +226,7 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen flex" dir={isAr ? 'rtl' : 'ltr'}>
       {/* Left panel - branding & features */}
-      <div className="hidden lg:flex lg:w-[55%] bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 relative overflow-hidden">
+      <div className="hidden lg:flex lg:w-[55%] bg-linear-to-br from-gray-900 via-gray-800 to-gray-900 relative overflow-hidden">
         {/* Background effects */}
         <div className="absolute inset-0">
           <div className="absolute top-0 left-0 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl -translate-x-1/2 -translate-y-1/2" />
@@ -239,7 +239,7 @@ export default function LoginPage() {
 
         <div className="relative flex flex-col justify-between px-12 xl:px-16 py-12">
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500 rounded-lg">
+          <Link href="/" className="flex items-center gap-4 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-gold-500 rounded-lg">
             <Image src="/cohep-logo.png" alt="COHEP" width={80} height={80} className="h-20 w-20 rounded-xl object-contain shadow-lg shadow-gold-500/30" />
           </Link>
 
@@ -251,7 +251,7 @@ export default function LoginPage() {
             </div>
             <h1 className="text-4xl xl:text-5xl font-bold text-white leading-tight">
               {isAr ? 'واصل رحلتك في' : 'Continue Your'}{' '}
-              <span className="bg-gradient-to-r from-gold-400 to-blue-500 bg-clip-text text-transparent">
+              <span className="bg-linear-to-r from-gold-400 to-blue-500 bg-clip-text text-transparent">
                 {isAr ? 'التّرانيم القبطية' : 'Hymn Journey'}
               </span>
             </h1>
@@ -264,7 +264,7 @@ export default function LoginPage() {
             {/* Feature pills */}
             <div className="mt-8 grid grid-cols-2 gap-3">
               {features.map((f) => (
-                <div key={f.text} className="flex items-center gap-3 rounded-xl bg-white/5 border border-white/10 px-4 py-3 backdrop-blur-sm">
+                <div key={f.text} className="flex items-center gap-3 rounded-xl bg-white/5 border border-white/10 px-4 py-3 backdrop-blur-xs">
                   <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-500/10 text-gold-400">
                     <f.icon className="h-4 w-4" />
                   </div>
@@ -290,10 +290,10 @@ export default function LoginPage() {
       </div>
 
       {/* Right panel - form */}
-      <div className="flex flex-1 flex-col justify-center px-6 py-12 sm:px-12 lg:px-16 xl:px-20 bg-gradient-to-br from-white via-gray-50 to-blue-50/30 overflow-y-auto">
+      <div className="flex flex-1 flex-col justify-center px-6 py-12 sm:px-12 lg:px-16 xl:px-20 bg-linear-to-br from-white via-gray-50 to-blue-50/30 overflow-y-auto">
         <div className="mx-auto w-full max-w-sm">
           {/* Mobile logo */}
-          <Link href="/" className="flex items-center gap-3 mb-8 lg:hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500 rounded-lg">
+          <Link href="/" className="flex items-center gap-3 mb-8 lg:hidden focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-gold-500 rounded-lg">
             <Image src="/cohep-logo.png" alt="COHEP" width={64} height={64} className="h-16 w-16 rounded-lg object-contain" />
           </Link>
 
@@ -309,14 +309,14 @@ export default function LoginPage() {
             </p>
           </div>
 
-          <div className="rounded-2xl border border-gray-200 bg-white p-6 sm:p-8 shadow-sm">
+          <div className="rounded-2xl border border-gray-200 bg-white p-6 sm:p-8 shadow-xs">
             <form onSubmit={handleSubmit} noValidate className="space-y-5">
               {demoExpiredNotice && (
                 <div
                   role="status"
                   className="rounded-xl bg-blue-50 border border-blue-200 px-4 py-3 text-sm text-blue-700 flex items-start gap-3"
                 >
-                  <div className="flex h-5 w-5 items-center justify-center rounded-full bg-blue-100 flex-shrink-0 mt-0.5">
+                  <div className="flex h-5 w-5 items-center justify-center rounded-full bg-blue-100 shrink-0 mt-0.5">
                     <span className="text-xs font-bold text-blue-600">i</span>
                   </div>
                   <span>
@@ -334,7 +334,7 @@ export default function LoginPage() {
                   role="alert"
                   className="rounded-xl bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700 flex items-start gap-3"
                 >
-                  <div className="flex h-5 w-5 items-center justify-center rounded-full bg-red-100 flex-shrink-0 mt-0.5">
+                  <div className="flex h-5 w-5 items-center justify-center rounded-full bg-red-100 shrink-0 mt-0.5">
                     <span className="text-xs font-bold text-red-600">!</span>
                   </div>
                   <span>{error}</span>
@@ -384,7 +384,7 @@ export default function LoginPage() {
                     onClick={() => setShowPassword(!showPassword)}
                     aria-label={showPassword ? (isAr ? 'إخفاء كلمة المرور' : 'Hide password') : (isAr ? 'إظهار كلمة المرور' : 'Show password')}
                     aria-pressed={showPassword}
-                    className="absolute end-2 top-[38px] flex h-11 w-11 items-center justify-center text-gray-500 hover:text-gray-700 transition-colors rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500"
+                    className="absolute inset-e-2 top-[38px] flex h-11 w-11 items-center justify-center text-gray-500 hover:text-gray-700 transition-colors rounded-lg focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-gold-500"
                   >
                     {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
@@ -412,7 +412,7 @@ export default function LoginPage() {
                     className={INPUT_CLASS + " pe-9"}
                     placeholder={isAr ? 'ابحث باسم الكنيسة…' : 'Search by church name…'}
                   />
-                  <div className="absolute end-3 top-1/2 -translate-y-1/2 pointer-events-none">
+                  <div className="absolute inset-e-3 top-1/2 -translate-y-1/2 pointer-events-none">
                     {schoolSearchLoading
                       ? <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
                       : <Search className="h-4 w-4 text-gray-300" />}

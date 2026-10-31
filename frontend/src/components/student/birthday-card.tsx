@@ -105,7 +105,7 @@ export function StudentBirthdayCard({ birthday, studentId, code, firstName, scho
       )}
 
       {open && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-[rgb(var(--hymn-navy))]/95 p-6">
+        <div className="fixed inset-0 z-60 flex items-center justify-center bg-[rgb(var(--hymn-navy))]/95 p-6">
           <div className="absolute inset-0 overflow-hidden" aria-hidden="true">
             {[...Array(18)].map((_, i) => (
               <span

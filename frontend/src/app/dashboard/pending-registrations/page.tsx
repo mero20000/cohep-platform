@@ -60,7 +60,7 @@ export default function PendingRegistrationsPage() {
           <button key={tb.id} role="tab" aria-selected={entity === tb.id}
             onClick={() => setEntity(tb.id)}
             className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-all ${
-              entity === tb.id ? 'bg-white text-gray-900 shadow-sm border border-gray-200' : 'text-gray-500 hover:text-gray-700'
+              entity === tb.id ? 'bg-white text-gray-900 shadow-xs border border-gray-200' : 'text-gray-500 hover:text-gray-700'
             }`}>
             <tb.icon className="h-4 w-4" />
             {tb.label}
@@ -185,9 +185,9 @@ function StudentsPanel() {
               return (
                 <div key={app.id} className={`rounded-2xl border bg-white p-5 hover:shadow-md transition-shadow ${app.status === 'approved' ? 'border-green-200' : app.status === 'rejected' ? 'border-red-200' : 'border-gray-200'}`}>
                   <div className="flex items-start gap-4">
-                    <div className="relative h-14 w-14 rounded-full bg-gray-100 overflow-hidden flex-shrink-0">
+                    <div className="relative h-14 w-14 rounded-full bg-gray-100 overflow-hidden shrink-0">
                       <div className="absolute inset-0 flex items-center justify-center text-gray-400 font-bold">{(sd.name || '?')[0]}</div>
-                      {sd.photoUrl ? <div role="button" tabIndex={0} onClick={() => setPreviewPhoto(assetUrl(sd.photoUrl))} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setPreviewPhoto(assetUrl(sd.photoUrl)) } }} aria-label={t('View photo', 'عرض الصورة')} title={t('View larger', 'عرض بحجم أكبر')} className="absolute inset-0 cursor-zoom-in group/thumb touch-manipulation">{/* eslint-disable-line @next/next/no-img-element -- thumb uses raw img to avoid optimizer rejection of future storage hosts */}<img src={assetUrl(sd.photoUrl)} alt="" className="h-full w-full object-cover" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none' }} /><span className="absolute bottom-0 end-0 rounded-tl-lg bg-black/50 p-0.5 opacity-0 group-hover/thumb:opacity-100 transition-opacity"><ZoomIn className="h-3 w-3 text-white" /></span></div> : null}
+                      {sd.photoUrl ? <div role="button" tabIndex={0} onClick={() => setPreviewPhoto(assetUrl(sd.photoUrl))} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setPreviewPhoto(assetUrl(sd.photoUrl)) } }} aria-label={t('View photo', 'عرض الصورة')} title={t('View larger', 'عرض بحجم أكبر')} className="absolute inset-0 cursor-zoom-in group/thumb touch-manipulation">{/* eslint-disable-line @next/next/no-img-element -- thumb uses raw img to avoid optimizer rejection of future storage hosts */}<img src={assetUrl(sd.photoUrl)} alt="" className="h-full w-full object-cover" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none' }} /><span className="absolute bottom-0 inset-e-0 rounded-tl-lg bg-black/50 p-0.5 opacity-0 group-hover/thumb:opacity-100 transition-opacity"><ZoomIn className="h-3 w-3 text-white" /></span></div> : null}
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="font-bold text-gray-900 truncate">{sd.name || sd.firstName}</div>
@@ -269,7 +269,7 @@ function StudentsPanel() {
               const initial = ((sd.name || sd.firstName || '?') as string).trim()?.[0] || '?'
               return (
                 <div className="flex items-center gap-3">
-                  <div className="relative h-20 w-20 rounded-full bg-gray-100 overflow-hidden flex-shrink-0">
+                  <div className="relative h-20 w-20 rounded-full bg-gray-100 overflow-hidden shrink-0">
                     <div className="absolute inset-0 flex items-center justify-center text-xl font-bold text-gray-400">{initial}</div>
                     {sd.photoUrl ? (
                       <button
@@ -287,7 +287,7 @@ function StudentsPanel() {
                           className="absolute inset-0 h-full w-full object-cover"
                           onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none' }}
                         />
-                        <span className="absolute bottom-1 end-1 rounded-full bg-black/55 p-1 opacity-0 group-hover/photo:opacity-100 transition-opacity">
+                        <span className="absolute bottom-1 inset-e-1 rounded-full bg-black/55 p-1 opacity-0 group-hover/photo:opacity-100 transition-opacity">
                           <ZoomIn className="h-3.5 w-3.5 text-white" />
                         </span>
                       </button>
@@ -363,11 +363,11 @@ function StudentsPanel() {
         )}
       </Modal>
       {previewPhoto && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/70 p-4" onClick={() => setPreviewPhoto('')} onKeyDown={e => { if (e.key === 'Escape') setPreviewPhoto('') }} role="presentation">
-          <div role="dialog" aria-modal="true" aria-label={t('Applicant photo', 'صورة المتقدم')} className="relative max-w-lg max-h-[80vh] outline-none" onClick={e => e.stopPropagation()} tabIndex={-1} autoFocus>
+        <div className="fixed inset-0 z-70 flex items-center justify-center bg-black/70 p-4" onClick={() => setPreviewPhoto('')} onKeyDown={e => { if (e.key === 'Escape') setPreviewPhoto('') }} role="presentation">
+          <div role="dialog" aria-modal="true" aria-label={t('Applicant photo', 'صورة المتقدم')} className="relative max-w-lg max-h-[80vh] outline-hidden" onClick={e => e.stopPropagation()} tabIndex={-1} autoFocus>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={previewPhoto} alt={t('Applicant photo', 'صورة المتقدم')} className="max-w-full max-h-[75vh] rounded-2xl shadow-2xl object-contain" />
-            <Button variant="ghost" size="icon" onClick={() => setPreviewPhoto('')} className="absolute -top-3 -end-3 rounded-full bg-white p-1.5 shadow-lg hover:bg-gray-100" aria-label={t('Close photo', 'إغلاق الصورة')}><X className="h-4 w-4 text-gray-600" /></Button>
+            <Button variant="ghost" size="icon" onClick={() => setPreviewPhoto('')} className="absolute -top-3 -inset-e-3 rounded-full bg-white p-1.5 shadow-lg hover:bg-gray-100" aria-label={t('Close photo', 'إغلاق الصورة')}><X className="h-4 w-4 text-gray-600" /></Button>
           </div>
         </div>
       )}
@@ -517,7 +517,7 @@ function ChurchesPanel() {
             const badge = STATUS_BADGE[reg.registrationStatus]
             const busy = processing === reg.id
             return (
-              <div key={reg.id} className={`rounded-xl border bg-white shadow-sm hover:shadow-md transition-shadow ${reg.registrationStatus === 'approved' ? 'border-green-200' : reg.registrationStatus === 'rejected' ? 'border-red-200' : 'border-gray-200'}`}>
+              <div key={reg.id} className={`rounded-xl border bg-white shadow-xs hover:shadow-md transition-shadow ${reg.registrationStatus === 'approved' ? 'border-green-200' : reg.registrationStatus === 'rejected' ? 'border-red-200' : 'border-gray-200'}`}>
                 <div className="p-6">
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex items-center gap-3">

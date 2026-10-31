@@ -93,7 +93,7 @@ export function NotificationBell({
 
       {open && (
         <div
-          className="absolute end-0 z-50 mt-2 w-80 max-w-[calc(100vw-2rem)] overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-xl"
+          className="absolute inset-e-0 z-50 mt-2 w-80 max-w-[calc(100vw-2rem)] overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-xl"
           role="dialog"
           aria-label={t('Notifications', 'الإشعارات')}
         >

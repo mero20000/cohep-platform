@@ -233,7 +233,7 @@ export default function RegisterPage() {
 
   if (success) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-[#0f1f3d] via-[#1A2744] to-[#0f1f3d] flex items-center justify-center p-4" dir={isAr ? 'rtl' : 'ltr'}>
+      <div className="min-h-screen bg-linear-to-b from-[#0f1f3d] via-[#1A2744] to-[#0f1f3d] flex items-center justify-center p-4" dir={isAr ? 'rtl' : 'ltr'}>
         <div className="w-full max-w-lg rounded-[24px] bg-white p-8 text-center shadow-2xl">
           <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-green-100 mb-4">
             <CheckCircle2 className="h-8 w-8 text-green-600" />
@@ -271,10 +271,10 @@ export default function RegisterPage() {
 
       {/* ── HERO — Church + School identity ── */}
       <div className="relative overflow-hidden bg-[#0f1f3d] px-4 pt-10 pb-14 sm:px-6">
-        <div className="absolute inset-0 bg-gradient-to-b from-[#1A2744]/60 via-transparent to-[#0f1f3d]" />
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_rgba(200,155,60,0.22),_transparent_55%)]" />
-        <div className="absolute inset-0 opacity-[0.05] bg-[radial-gradient(circle_at_center,_white_1px,_transparent_1px)] bg-[length:22px_22px]" />
-        <div className="absolute bottom-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-gold-400/60 to-transparent" />
+        <div className="absolute inset-0 bg-linear-to-b from-[#1A2744]/60 via-transparent to-[#0f1f3d]" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(200,155,60,0.22),transparent_55%)]" />
+        <div className="absolute inset-0 opacity-[0.05] bg-[radial-gradient(circle_at_center,white_1px,transparent_1px)] bg-size-[22px_22px]" />
+        <div className="absolute bottom-0 inset-x-0 h-px bg-linear-to-r from-transparent via-gold-400/60 to-transparent" />
 
         <div className="relative mx-auto max-w-3xl text-center">
 
@@ -282,7 +282,7 @@ export default function RegisterPage() {
           <div className="flex items-center justify-center gap-4 sm:gap-6">
 
             <div className="flex flex-col items-center gap-2">
-              <div className="flex h-16 w-16 sm:h-20 sm:w-20 items-center justify-center rounded-2xl bg-white/10 border-2 border-gold-400/40 shadow-xl overflow-hidden backdrop-blur">
+              <div className="flex h-16 w-16 sm:h-20 sm:w-20 items-center justify-center rounded-2xl bg-white/10 border-2 border-gold-400/40 shadow-xl overflow-hidden backdrop-blur-sm">
                 {churchLogo ? (
                   <Image src={abs(churchLogo)} alt={meta?.church?.name || ''} width={80} height={80} className="h-full w-full object-cover" priority />
                 ) : (
@@ -296,15 +296,15 @@ export default function RegisterPage() {
             </div>
 
             <div className="flex flex-col items-center pt-4 sm:pt-6" aria-hidden="true">
-              <span className="h-px w-8 sm:w-14 bg-gradient-to-r from-gold-400/10 via-gold-400/70 to-gold-400/10" />
+              <span className="h-px w-8 sm:w-14 bg-linear-to-r from-gold-400/10 via-gold-400/70 to-gold-400/10" />
               <span className="my-1 flex h-8 w-8 items-center justify-center rounded-full bg-gold-500 shadow-lg shadow-gold-500/30 ring-4 ring-gold-500/20">
                 <Music className="h-4 w-4 text-[#0f1f3d]" />
               </span>
-              <span className="h-px w-8 sm:w-14 bg-gradient-to-r from-gold-400/10 via-gold-400/70 to-gold-400/10" />
+              <span className="h-px w-8 sm:w-14 bg-linear-to-r from-gold-400/10 via-gold-400/70 to-gold-400/10" />
             </div>
 
             <div className="flex flex-col items-center gap-2">
-              <div className="flex h-16 w-16 sm:h-20 sm:w-20 items-center justify-center rounded-2xl bg-white/10 border-2 border-white/25 shadow-xl overflow-hidden backdrop-blur">
+              <div className="flex h-16 w-16 sm:h-20 sm:w-20 items-center justify-center rounded-2xl bg-white/10 border-2 border-white/25 shadow-xl overflow-hidden backdrop-blur-sm">
                 {schoolLogo ? (
                   <Image src={abs(schoolLogo)} alt={meta?.school?.name || ''} width={80} height={80} className="h-full w-full object-cover" priority />
                 ) : (
@@ -340,7 +340,7 @@ export default function RegisterPage() {
         <div className="rounded-[24px] bg-white shadow-xl border border-gray-100 overflow-hidden">
 
           {/* ── STEPS navigator ── */}
-          <div className="border-b border-gray-100 bg-gradient-to-b from-gray-50 to-white px-6 pt-6 pb-5">
+          <div className="border-b border-gray-100 bg-linear-to-b from-gray-50 to-white px-6 pt-6 pb-5">
             <div className="mb-4 flex items-center justify-between">
               <span className="text-xs font-semibold text-gray-500 uppercase">{t('Step', 'الخطوة')} {step} of 4</span>
               <span className="text-xs text-gray-400">{STEPS[step - 1]?.time}</span>
@@ -406,7 +406,7 @@ export default function RegisterPage() {
                         <User className="h-8 w-8 text-gray-400" />
                       </div>
                     )}
-                    <label className="absolute -bottom-1 -end-1 flex h-7 w-7 items-center justify-center rounded-full bg-gold-500 text-white shadow cursor-pointer hover:bg-gold-600">
+                    <label className="absolute -bottom-1 -inset-e-1 flex h-7 w-7 items-center justify-center rounded-full bg-gold-500 text-white shadow-sm cursor-pointer hover:bg-gold-600">
                       <input type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={e => handlePhoto(e.target.files?.[0] || null)} />
                       <span className="text-xs">+</span>
                     </label>
@@ -434,7 +434,7 @@ export default function RegisterPage() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700">{t('Full name (English) *', 'الاسم الكامل (إنجليزي) *')}</label>
-                  <input value={form.name} onChange={e => update('name', e.target.value)} placeholder="e.g. Mina George" className="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2.5 text-base sm:text-sm focus:border-gold-400 focus:ring-2 focus:ring-gold-100 outline-none" />
+                  <input value={form.name} onChange={e => update('name', e.target.value)} placeholder="e.g. Mina George" className="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2.5 text-base sm:text-sm focus:border-gold-400 focus:ring-2 focus:ring-gold-100 outline-hidden" />
                   <p className="mt-1 text-xs text-gray-500">{t('First and last name as it appears in records', 'الاسم الأول والأخير كما يظهر في السجلات')}</p>
                 </div>
 
@@ -450,11 +450,11 @@ export default function RegisterPage() {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
                       <label className="block text-sm font-medium text-gray-700">{t('First name (Arabic)', 'الاسم الأول (عربي)')}</label>
-                      <input value={form.firstNameAr} onChange={e => update('firstNameAr', e.target.value)} placeholder={t('e.g. مينا', 'e.g. مينا')} className="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2.5 text-base sm:text-sm focus:border-gold-400 focus:ring-2 focus:ring-gold-100 outline-none" dir="rtl" />
+                      <input value={form.firstNameAr} onChange={e => update('firstNameAr', e.target.value)} placeholder={t('e.g. مينا', 'e.g. مينا')} className="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2.5 text-base sm:text-sm focus:border-gold-400 focus:ring-2 focus:ring-gold-100 outline-hidden" dir="rtl" />
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700">{t('Last name (Arabic)', 'الاسم الأخير (عربي)')}</label>
-                      <input value={form.lastNameAr} onChange={e => update('lastNameAr', e.target.value)} placeholder={t('e.g. جرجس', 'e.g. جرجس')} className="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2.5 text-base sm:text-sm focus:border-gold-400 focus:ring-2 focus:ring-gold-100 outline-none" dir="rtl" />
+                      <input value={form.lastNameAr} onChange={e => update('lastNameAr', e.target.value)} placeholder={t('e.g. جرجس', 'e.g. جرجس')} className="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2.5 text-base sm:text-sm focus:border-gold-400 focus:ring-2 focus:ring-gold-100 outline-hidden" dir="rtl" />
                     </div>
                   </div>
                 )}
@@ -472,7 +472,7 @@ export default function RegisterPage() {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700">{t('Gender *', 'الجنس *')}</label>
-                    <select value={form.gender} onChange={e => update('gender', e.target.value)} className="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2.5 text-base sm:text-sm bg-white focus:border-gold-400 focus:outline-none">
+                    <select value={form.gender} onChange={e => update('gender', e.target.value)} className="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2.5 text-base sm:text-sm bg-white focus:border-gold-400 focus:outline-hidden">
                       <option value="male">{t('Male', 'ذكر')}</option>
                       <option value="female">{t('Female', 'أنثى')}</option>
                     </select>
@@ -482,12 +482,12 @@ export default function RegisterPage() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="block text-sm font-medium text-gray-700">{t('Church', 'الكنيسة')}</label>
-                    <input value={form.churchName} readOnly aria-readonly="true" className="mt-1 w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-base sm:text-sm text-gray-600 cursor-default focus:outline-none" />
+                    <input value={form.churchName} readOnly aria-readonly="true" className="mt-1 w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-base sm:text-sm text-gray-600 cursor-default focus:outline-hidden" />
                     <p className="mt-1 text-xs text-gray-500">{t('Auto-set by your school', 'محدد تلقائياً من مدرستك')}</p>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700">{t('Grade & Weekday (A = Saturday, B = Sunday)', 'المرحلة واليوم (أ = السبت، ب = الأحد)')}</label>
-                    <select value={form.gradeId} onChange={e => update('gradeId', e.target.value)} disabled={metaLoading && !metaError} className="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2.5 text-base sm:text-sm bg-white focus:border-gold-400 focus:outline-none disabled:bg-gray-50 disabled:text-gray-400">
+                    <select value={form.gradeId} onChange={e => update('gradeId', e.target.value)} disabled={metaLoading && !metaError} className="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2.5 text-base sm:text-sm bg-white focus:border-gold-400 focus:outline-hidden disabled:bg-gray-50 disabled:text-gray-400">
                       <option value="">{metaLoading ? t('Loading grades…', 'جارٍ تحميل المراحل…') : t('Select a grade...', 'اختر المرحلة...')}</option>
                       {Object.entries(getGroupedGrades()).map(([group, grades]) => (
                         <optgroup key={group} label={t(group === 'Primary' ? 'Primary (Grades 4-6)' : group === 'Secondary' ? 'Secondary (Grades 7-9)' : group === 'Preparatory' ? 'Preparatory (Grades 10-13)' : 'Other', group === 'Primary' ? 'الابتدائي (المراحل 4-6)' : group === 'Secondary' ? 'الإعدادي (المراحل 7-9)' : group === 'Preparatory' ? 'الثانوي (المراحل 10-13)' : 'أخرى')}>
@@ -521,11 +521,11 @@ export default function RegisterPage() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="col-span-2">
                     <label className="block text-sm font-medium text-gray-700">{t('Parent / Guardian full name *', 'اسم ولي الأمر *')}</label>
-                    <input value={form.parentName} onChange={e => update('parentName', e.target.value)} placeholder="e.g. John Smith" className="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2.5 text-base sm:text-sm focus:border-gold-400 focus:ring-2 focus:ring-gold-100 outline-none" />
+                    <input value={form.parentName} onChange={e => update('parentName', e.target.value)} placeholder="e.g. John Smith" className="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2.5 text-base sm:text-sm focus:border-gold-400 focus:ring-2 focus:ring-gold-100 outline-hidden" />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700">{t('Relationship *', 'صلة القرابة *')}</label>
-                    <select value={form.relationship} onChange={e => update('relationship', e.target.value)} className="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2.5 text-base sm:text-sm bg-white focus:border-gold-400 focus:outline-none">
+                    <select value={form.relationship} onChange={e => update('relationship', e.target.value)} className="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2.5 text-base sm:text-sm bg-white focus:border-gold-400 focus:outline-hidden">
                       <option value="father">{t('Father', 'أب')}</option>
                       <option value="mother">{t('Mother', 'أم')}</option>
                       <option value="guardian">{t('Guardian', 'ولي أمر')}</option>
@@ -533,29 +533,29 @@ export default function RegisterPage() {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700">{t('Phone *', 'الهاتف *')}</label>
-                    <input value={form.phone} onChange={e => update('phone', e.target.value)} placeholder="+971 5••••••••" className="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2.5 text-base sm:text-sm focus:border-gold-400 focus:ring-2 focus:ring-gold-100 outline-none" />
+                    <input value={form.phone} onChange={e => update('phone', e.target.value)} placeholder="+971 5••••••••" className="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2.5 text-base sm:text-sm focus:border-gold-400 focus:ring-2 focus:ring-gold-100 outline-hidden" />
                   </div>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="block text-sm font-medium text-gray-700">{t('Email (for updates) *', 'البريد الإلكتروني *')}</label>
-                    <input type="email" value={form.parentEmail} onChange={e => update('parentEmail', e.target.value)} placeholder="parent@email.com" className="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2.5 text-base sm:text-sm focus:border-gold-400 focus:ring-2 focus:ring-gold-100 outline-none" />
+                    <input type="email" value={form.parentEmail} onChange={e => update('parentEmail', e.target.value)} placeholder="parent@email.com" className="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2.5 text-base sm:text-sm focus:border-gold-400 focus:ring-2 focus:ring-gold-100 outline-hidden" />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700">{t('Student email (optional)', 'بريد الطالب (اختياري)')}</label>
-                    <input type="email" value={form.email} onChange={e => update('email', e.target.value)} placeholder="student@email.com" className="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2.5 text-base sm:text-sm focus:border-gold-400 focus:ring-2 focus:ring-gold-100 outline-none" />
+                    <input type="email" value={form.email} onChange={e => update('email', e.target.value)} placeholder="student@email.com" className="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2.5 text-base sm:text-sm focus:border-gold-400 focus:ring-2 focus:ring-gold-100 outline-hidden" />
                   </div>
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700">{t('Address', 'العنوان')}</label>
-                  <input value={form.address} onChange={e => update('address', e.target.value)} placeholder="Street, City, Country" className="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2.5 text-base sm:text-sm focus:border-gold-400 focus:ring-2 focus:ring-gold-100 outline-none" />
+                  <input value={form.address} onChange={e => update('address', e.target.value)} placeholder="Street, City, Country" className="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2.5 text-base sm:text-sm focus:border-gold-400 focus:ring-2 focus:ring-gold-100 outline-hidden" />
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700">{t('Notes (allergies, medical, special needs)', 'ملاحظات (حساسية، طبية، احتياجات)')}</label>
-                  <textarea value={form.notes} onChange={e => update('notes', e.target.value)} rows={2} placeholder="Let us know about any special considerations..." className="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2.5 text-base sm:text-sm focus:border-gold-400 focus:ring-2 focus:ring-gold-100 outline-none" />
+                  <textarea value={form.notes} onChange={e => update('notes', e.target.value)} rows={2} placeholder="Let us know about any special considerations..." className="mt-1 w-full rounded-xl border border-gray-300 px-3 py-2.5 text-base sm:text-sm focus:border-gold-400 focus:ring-2 focus:ring-gold-100 outline-hidden" />
                   <p className="mt-1 text-xs text-gray-500">{t('Optional but helpful for our servants', 'اختياري لكن مفيد للخدام')}</p>
                 </div>
 
@@ -594,7 +594,7 @@ export default function RegisterPage() {
 
                 <div className="space-y-4">
                   {HYMNS.map((h, i) => (
-                    <div key={h.id} className="rounded-2xl border border-gray-200 bg-gradient-to-b from-gray-50 to-white overflow-hidden">
+                    <div key={h.id} className="rounded-2xl border border-gray-200 bg-linear-to-b from-gray-50 to-white overflow-hidden">
                       <div className="flex items-center gap-3 px-4 pt-4 pb-3">
                         <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gold-500 text-white text-sm font-bold">{i + 1}</span>
                         <div className="min-w-0">

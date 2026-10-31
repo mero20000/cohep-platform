@@ -177,7 +177,7 @@ function PriestPulseSection({ schoolId, lang }: { schoolId: string; lang: string
       className="space-y-4"
     >
       {/* Health score hero */}
-      <div className={`rounded-2xl border bg-gradient-to-br ${healthBg} p-5`}>
+      <div className={`rounded-2xl border bg-linear-to-br ${healthBg} p-5`}>
         <div className="flex items-start justify-between gap-4">
           <div>
             <p className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-1">
@@ -195,7 +195,7 @@ function PriestPulseSection({ schoolId, lang }: { schoolId: string; lang: string
                 : t('Some areas need attention this week.', 'بعض المجالات تحتاج اهتماماً هذا الأسبوع.')}
             </p>
           </div>
-          <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-white/60 border border-white/80 shadow-sm">
+          <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-white/60 border border-white/80 shadow-xs">
             <Church className={`h-8 w-8 ${healthColor}`} />
           </div>
         </div>
@@ -407,7 +407,7 @@ function ServantContributionsSection({ schoolId, lang }: { schoolId: string; lan
     >
       {/* Summary */}
       {data.summary.mostActiveThisMonth && (
-        <div className="rounded-xl border border-purple-100 bg-gradient-to-r from-purple-50 to-indigo-50 p-4">
+        <div className="rounded-xl border border-purple-100 bg-linear-to-r from-purple-50 to-indigo-50 p-4">
           <div className="flex items-center gap-3">
             <Crown className="h-5 w-5 text-purple-500 shrink-0" />
             <div>
@@ -543,7 +543,7 @@ export default function ReportsPage() {
               onClick={() => setActiveTab(tab.id)}
               className={`flex items-start gap-3 rounded-xl border p-4 text-left flex-1 transition-all ${
                 activeTab === tab.id
-                  ? 'border-gold-400 bg-gold-50 shadow-sm'
+                  ? 'border-gold-400 bg-gold-50 shadow-xs'
                   : 'border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50'
               }`}
             >

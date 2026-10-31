@@ -11,7 +11,7 @@ export function MarkSummaryBar({ present, late, absent, excused, marked, total, 
       <span className="text-red-700" title={t.absent}>● {absent} <span className="sr-only">{t.absent}</span></span>
       {!binary && <span className="text-gray-600" title={t.excused}>● {excused} <span className="sr-only">{t.excused}</span></span>}
       {dirty && <span className="text-xs text-amber-700">{lang==='ar' ? 'تغييرات غير محفوظة' : 'Unsaved'}</span>}
-      {error && <button type="button" onClick={onRetry} className="min-h-[44px] rounded-lg bg-red-50 px-3 text-sm font-medium text-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500">{lang==='ar' ? 'إعادة المحاولة' : 'Retry'}</button>}
+      {error && <button type="button" onClick={onRetry} className="min-h-[44px] rounded-lg bg-red-50 px-3 text-sm font-medium text-red-700 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-gold-500">{lang==='ar' ? 'إعادة المحاولة' : 'Retry'}</button>}
     </div>
   )
 }

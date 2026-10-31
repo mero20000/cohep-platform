@@ -291,23 +291,23 @@ export default function StudentDashboard() {
       <header className="relative overflow-hidden rounded-b-[28px] sm:rounded-b-2xl px-5 pt-6 pb-7 sm:px-6 sm:py-8" style={{ backgroundColor: 'var(--hymn-navy)' }}>
         <div className="absolute top-0 left-1/4 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl" aria-hidden="true" />
         <div className="absolute bottom-0 right-1/4 w-48 h-48 bg-indigo-500/10 rounded-full blur-3xl" aria-hidden="true" />
-        <div className="absolute inset-0 opacity-[0.04] bg-[radial-gradient(circle_at_center,_white_1px,_transparent_1px)] bg-[length:18px_18px]" aria-hidden="true" />
-        <div className="absolute bottom-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-gold-400/40 to-transparent" />
+        <div className="absolute inset-0 opacity-[0.04] bg-[radial-gradient(circle_at_center,white_1px,transparent_1px)] bg-size-[18px_18px]" aria-hidden="true" />
+        <div className="absolute bottom-0 inset-x-0 h-px bg-linear-to-r from-transparent via-gold-400/40 to-transparent" />
         <div className="relative max-w-3xl mx-auto">
           <div className="flex items-center justify-between mb-4">
             <Link
               href="/student-portal/login"
               onClick={() => { try { sessionStorage.removeItem('student_portal_token') } catch {} }}
-              className="inline-flex items-center gap-1.5 text-white/70 hover:text-white text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40 rounded-full px-2 py-3 -ms-2"
+              className="inline-flex items-center gap-1.5 text-white/70 hover:text-white text-xs focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-white/40 rounded-full px-2 py-3 -ms-2"
             >
               <ArrowLeft className="h-3.5 w-3.5 rtl:rotate-180" />
               {lang === 'ar' ? 'خروج' : 'Sign Out'}
             </Link>
-            <button onClick={toggleLanguage} aria-label={lang === 'ar' ? 'Switch to English' : 'Switch to Arabic'} className="flex h-11 w-11 items-center justify-center rounded-full bg-white/10 border border-white/15 text-white hover:bg-white/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40 text-xs font-bold">
+            <button onClick={toggleLanguage} aria-label={lang === 'ar' ? 'Switch to English' : 'Switch to Arabic'} className="flex h-11 w-11 items-center justify-center rounded-full bg-white/10 border border-white/15 text-white hover:bg-white/15 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-white/40 text-xs font-bold">
               {lang === 'ar' ? 'EN' : 'AR'}
             </button>
             <div ref={menuRef} className="relative">
-              <button onClick={() => setMenuOpen(o => !o)} aria-label="Menu" aria-expanded={menuOpen} className="flex h-11 w-11 items-center justify-center rounded-full bg-white/10 border border-white/15 text-white hover:bg-white/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40">
+              <button onClick={() => setMenuOpen(o => !o)} aria-label="Menu" aria-expanded={menuOpen} className="flex h-11 w-11 items-center justify-center rounded-full bg-white/10 border border-white/15 text-white hover:bg-white/15 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-white/40">
                 <MoreVertical className="h-4 w-4" />
               </button>
               {menuOpen && (
@@ -325,11 +325,11 @@ export default function StudentDashboard() {
           </div>
           {/* Church & School identity — the anchor of belonging */}
           {school && (
-            <div className="mb-5 rounded-2xl bg-white/[0.06] border border-white/10 backdrop-blur-sm px-4 py-3.5">
+            <div className="mb-5 rounded-2xl bg-white/6 border border-white/10 backdrop-blur-xs px-4 py-3.5">
               <div className="flex items-center gap-3">
                 {/* Church logo */}
                 <div className="relative shrink-0">
-                  <div className="absolute -inset-0.5 rounded-xl bg-gold-400/30 blur-sm" aria-hidden="true" />
+                  <div className="absolute -inset-0.5 rounded-xl bg-gold-400/30 blur-xs" aria-hidden="true" />
                   <div className="relative flex h-14 w-14 items-center justify-center rounded-xl overflow-hidden bg-white/10 border border-gold-300/40">
                     {school.churchLogoUrl ? (
                       <Image src={school.churchLogoUrl.startsWith('http') ? school.churchLogoUrl : `${API_ORIGIN}${school.churchLogoUrl}`}
@@ -349,11 +349,11 @@ export default function StudentDashboard() {
                       {lang === 'ar' && school.nameAr ? school.nameAr : school.name}
                     </p>
                   )}
-                  <span className="inline-block mt-1 h-px w-16 bg-gradient-to-r from-transparent via-gold-400/60 to-transparent" aria-hidden="true" />
+                  <span className="inline-block mt-1 h-px w-16 bg-linear-to-r from-transparent via-gold-400/60 to-transparent" aria-hidden="true" />
                 </div>
                 {/* School logo (falls back to church mark if none) */}
                 <div className="relative shrink-0">
-                  <div className="absolute -inset-0.5 rounded-xl bg-gold-400/30 blur-sm" aria-hidden="true" />
+                  <div className="absolute -inset-0.5 rounded-xl bg-gold-400/30 blur-xs" aria-hidden="true" />
                   <div className="relative flex h-14 w-14 items-center justify-center rounded-xl overflow-hidden bg-white/10 border border-white/20">
                     {school.logoUrl ? (
                       <Image src={school.logoUrl.startsWith('http') ? school.logoUrl : `${API_ORIGIN}${school.logoUrl}`}
@@ -367,7 +367,7 @@ export default function StudentDashboard() {
             </div>
           )}
           <div className="flex items-center gap-4">
-            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-white/10 border border-white/15 backdrop-blur-sm text-2xl font-bold overflow-hidden shadow-lg shadow-black/20 shrink-0">
+            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-white/10 border border-white/15 backdrop-blur-xs text-2xl font-bold overflow-hidden shadow-lg shadow-black/20 shrink-0">
               {photoSrc ? (
                 <Image src={photoSrc} alt="" width={64} height={64} className="h-full w-full object-cover" />
               ) : (
@@ -416,9 +416,9 @@ export default function StudentDashboard() {
                 <span className="font-semibold text-white/90 flex items-center gap-1.5"><Trophy className="h-3.5 w-3.5 text-gold-300" /> {totalXp} XP</span>
                 <span className="text-white/60">{badges.length} {lang === 'ar' ? 'شارات' : 'badges'}</span>
               </div>
-              <div className="h-2 rounded-full bg-white/15 overflow-hidden"><div className="h-full rounded-full bg-gradient-to-r from-gold-400 to-amber-500 transition-all duration-700" style={{ width: `${xpPct}%` }} /></div>
+              <div className="h-2 rounded-full bg-white/15 overflow-hidden"><div className="h-full rounded-full bg-linear-to-r from-gold-400 to-amber-500 transition-all duration-700" style={{ width: `${xpPct}%` }} /></div>
             </div>
-            <button onClick={() => setActiveTab('practice')} className="inline-flex items-center justify-center gap-2 rounded-full bg-gold-500 hover:bg-gold-400 text-white px-6 py-3 text-base font-bold shadow-lg shadow-black/15 active:motion-safe:scale-[0.95] motion-safe:transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60">
+            <button onClick={() => setActiveTab('practice')} className="inline-flex items-center justify-center gap-2 rounded-full bg-gold-500 hover:bg-gold-400 text-white px-6 py-3 text-base font-bold shadow-lg shadow-black/15 motion-safe:active:scale-[0.95] motion-safe:transition-all focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-white/60">
               <Play className="h-4 w-4 fill-white" /> {lang === 'ar' ? 'تدرّب الآن' : 'Practice Now'}
             </button>
           </div>
@@ -492,9 +492,9 @@ export default function StudentDashboard() {
                     if (!last) return null
                     return (
                       <button onClick={() => setPracticeLesson(last)}
-                        className={`w-full text-left rounded-2xl border border-gold-300 bg-gradient-to-r from-gold-neutral-50 to-white p-4 hover:shadow-md active:motion-safe:scale-[0.98] motion-safe:transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--gold-500))]`}>
+                        className={`w-full text-left rounded-2xl border border-gold-300 bg-linear-to-r from-gold-neutral-50 to-white p-4 hover:shadow-md motion-safe:active:scale-[0.98] motion-safe:transition-all focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[rgb(var(--gold-500))]`}>
                         <div className="flex items-center gap-3">
-                          <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[rgb(var(--gold-500))] text-white shadow-sm">
+                          <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[rgb(var(--gold-500))] text-white shadow-xs">
                             <Play className="h-5 w-5 fill-white" />
                           </span>
                           <div className="min-w-0 flex-1">
@@ -512,8 +512,8 @@ export default function StudentDashboard() {
 
                   {/* Next class encouragement — because the subject items are included */}
                   {nextSession && (
-                    <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-emerald-600 to-teal-700 p-4 text-white shadow-lg shadow-emerald-900/10">
-                      <div className="absolute inset-0 opacity-10 bg-[radial-gradient(circle_at_top_right,_white_1px,_transparent_1px)] bg-[length:16px_16px]" aria-hidden="true" />
+                    <div className="relative overflow-hidden rounded-2xl bg-linear-to-br from-emerald-600 to-teal-700 p-4 text-white shadow-lg shadow-emerald-900/10">
+                      <div className="absolute inset-0 opacity-10 bg-[radial-gradient(circle_at_top_right,white_1px,transparent_1px)] bg-size-[16px_16px]" aria-hidden="true" />
                       <div className="relative">
                         <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-emerald-100">
                           <Calendar className="h-3.5 w-3.5" />
@@ -531,7 +531,7 @@ export default function StudentDashboard() {
                             : (lang === 'ar' ? 'حضّر نفسك للجلسة القادمة!' : 'Get ready for your next class!')}
                         </p>
                         <button onClick={() => setActiveTab('practice')}
-                          className="mt-3 inline-flex items-center gap-2 rounded-full bg-white text-emerald-800 px-5 py-2.5 min-h-12 text-sm font-bold hover:bg-emerald-50 active:motion-safe:scale-[0.96] motion-safe:transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white">
+                          className="mt-3 inline-flex items-center gap-2 rounded-full bg-white text-emerald-800 px-5 py-2.5 min-h-12 text-sm font-bold hover:bg-emerald-50 motion-safe:active:scale-[0.96] motion-safe:transition-all focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-white">
                           <Play className="h-4 w-4 fill-emerald-700" />{lang === 'ar' ? 'تدرّب الآن' : 'Practice now'}
                         </button>
                       </div>
@@ -595,7 +595,7 @@ export default function StudentDashboard() {
                       <Church className="h-4 w-4 text-amber-600" />
                       {lang === 'ar' ? 'حضور القداس' : 'Liturgy Attendance'}
                     </h2>
-                    <div className="rounded-2xl bg-gradient-to-br from-amber-50 to-gold-neutral-50 border border-[var(--hymn-border)] p-4">
+                    <div className="rounded-2xl bg-linear-to-br from-amber-50 to-gold-neutral-50 border border-(--hymn-border) p-4">
                       <div className="flex items-center gap-4">
                         <div className="text-center shrink-0">
                           <div className="text-3xl font-black text-amber-700 tabular-nums">{liturgy.verifiedCount}</div>
@@ -616,7 +616,7 @@ export default function StudentDashboard() {
                         </div>
                       </div>
                       {liturgy.recent.length > 0 && (
-                        <ul className="mt-3 space-y-1.5 border-t border-[var(--hymn-border)] pt-3">
+                        <ul className="mt-3 space-y-1.5 border-t border-(--hymn-border) pt-3">
                           {liturgy.recent.slice(0, 3).map((l, i) => (
                             <li key={i} className="flex items-center justify-between gap-2 text-xs">
                               <span className="text-gray-600">
@@ -672,12 +672,12 @@ export default function StudentDashboard() {
                     ] as const).map(tile => (
                       <button key={tile.key} onClick={() => setDrill(tile.key as any)}
                         aria-label={`${tile.label}`}
-                        className={`rounded-xl bg-white border border-gray-200 p-4 text-center min-h-20 active:motion-safe:scale-[0.97] motion-safe:transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--gold-500))] ${tile.hover}`}>
+                        className={`rounded-xl bg-white border border-gray-200 p-4 text-center min-h-20 motion-safe:active:scale-[0.97] motion-safe:transition-all focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[rgb(var(--gold-500))] ${tile.hover}`}>
                         <tile.icon className={`h-5 w-5 mx-auto mb-1 ${tile.tint}`} />
                         <div className="text-xl font-bold text-gray-900 tabular-nums">{tile.value}</div>
                         <div className="text-xs text-gray-500">{tile.label}</div>
                         {'ring' in tile && (
-                          <div className="mt-1.5 h-1 rounded-full bg-gray-100 overflow-hidden"><div className={`h-full rounded-full bg-gradient-to-r ${tile.ringCls}`} style={{ width: `${tile.ring}%` }} /></div>
+                          <div className="mt-1.5 h-1 rounded-full bg-gray-100 overflow-hidden"><div className={`h-full rounded-full bg-linear-to-r ${tile.ringCls}`} style={{ width: `${tile.ring}%` }} /></div>
                         )}
                         <div className="mt-1 text-xs font-medium text-blue-600">{lang === 'ar' ? 'التفاصيل ←' : 'See all →'}</div>
                       </button>
@@ -731,7 +731,7 @@ export default function StudentDashboard() {
                               : "Your class learned something new — practice your hymns now so you're ready for next week."}
                           </p>
                           <button onClick={() => setActiveTab('practice')}
-                            className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-sky-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-sky-700 active:motion-safe:scale-[0.97] motion-safe:transition-all">
+                            className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-sky-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-sky-700 motion-safe:active:scale-[0.97] motion-safe:transition-all">
                             <Play className="h-3 w-3 fill-white" />{lang === 'ar' ? 'تدرّب الآن' : 'Practice now'}
                           </button>
                         </div>
@@ -845,11 +845,11 @@ export default function StudentDashboard() {
             )}
 
             {/* ── How Points & XP Work — student guide ── */}
-            <details className="rounded-xl border border-indigo-200 bg-gradient-to-r from-indigo-50 to-purple-50 group">
+            <details className="rounded-xl border border-indigo-200 bg-linear-to-r from-indigo-50 to-purple-50 group">
               <summary className="flex items-center gap-2 px-4 py-3 cursor-pointer select-none text-sm font-semibold text-indigo-800 hover:bg-indigo-50/50 transition-colors">
                 <Sparkles className="h-4 w-4 text-indigo-500" />
                 {lang === 'ar' ? 'كيف أحصل على النقاط والخبرة؟' : 'How do I earn points & XP?'}
-                <ChevronRight className="h-4 w-4 text-indigo-400 ml-auto transition-transform group-open:rotate-90 rtl:rotate-180 rtl:group-open:rotate-90" />
+                <ChevronRight className="h-4 w-4 text-indigo-400 ml-auto transition-transform group-open:rotate-90 rtl:rotate-180 group-open:rtl:rotate-90" />
               </summary>
               <div className="px-4 pb-4 space-y-2 text-xs text-gray-700">
                 <div className="rounded-lg bg-white/80 border border-gray-100 p-3 space-y-1.5">
@@ -895,7 +895,7 @@ export default function StudentDashboard() {
               }
               const mastery = stats ? (['known', 'mastered'] as const).map(k => stats[k] || 0) : null
               return (
-                <section aria-label={t('My Hymn Journey', 'رحلتي في الترانيم')} className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-indigo-950 via-purple-950 to-indigo-950 p-5 text-white">
+                <section aria-label={t('My Hymn Journey', 'رحلتي في الترانيم')} className="relative overflow-hidden rounded-2xl bg-linear-to-br from-indigo-950 via-purple-950 to-indigo-950 p-5 text-white">
                   <div className="absolute inset-0 pointer-events-none" aria-hidden="true">
                     <div className="absolute -top-10 -right-10 w-40 h-40 bg-purple-500/20 rounded-full blur-3xl" />
                     <div className="absolute -bottom-10 -left-10 w-32 h-32 bg-indigo-400/10 rounded-full blur-3xl" />
@@ -913,7 +913,7 @@ export default function StudentDashboard() {
                       </p>
                     </div>
                     <div className="h-2.5 rounded-full bg-white/15 overflow-hidden" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100}>
-                      <div className="h-full rounded-full bg-gradient-to-r from-amber-300 to-gold-500 transition-all duration-700" style={{ width: `${pct}%` }} />
+                      <div className="h-full rounded-full bg-linear-to-r from-amber-300 to-gold-500 transition-all duration-700" style={{ width: `${pct}%` }} />
                     </div>
                     <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs">
                       <span className="flex items-center gap-1 font-semibold text-emerald-300">
@@ -940,7 +940,7 @@ export default function StudentDashboard() {
                     {nextUp && passed.length > 0 && (
                       <button
                         onClick={() => setActiveTab('practice')}
-                        className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-white/10 border border-white/20 px-3 py-1.5 text-xs font-semibold text-white hover:bg-white/20 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300"
+                        className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-white/10 border border-white/20 px-3 py-1.5 text-xs font-semibold text-white hover:bg-white/20 transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-amber-300"
                       >
                         <Music className="h-3.5 w-3.5" aria-hidden="true" />
                         {t(`Next up: ${nextName}`, `التالي: ${nextName}`)}
@@ -968,7 +968,7 @@ export default function StudentDashboard() {
                       const name = lang === 'ar' && i.subjectItem.nameAr ? i.subjectItem.nameAr : i.subjectItem.name
                       return (
                         <div key={i.subjectItem.id} className="flex items-center gap-3 rounded-xl bg-white border border-gray-200 px-4 py-3">
-                          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-green-50 text-green-600 flex-shrink-0">
+                          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-green-50 text-green-600 shrink-0">
                             <CheckCircle2 className="h-4 w-4" />
                           </div>
                           <div className="flex-1 min-w-0">
@@ -979,7 +979,7 @@ export default function StudentDashboard() {
                               </div>
                             )}
                           </div>
-                          <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2.5 py-1 text-xs font-medium text-green-700 flex-shrink-0">
+                          <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2.5 py-1 text-xs font-medium text-green-700 shrink-0">
                             ✓ {lang === 'ar' ? 'مجتاز' : 'Passed'}
                           </span>
                         </div>
@@ -991,7 +991,7 @@ export default function StudentDashboard() {
                       const lastDate = (lastPass as any)?.passedAt ?? (lastPass as any)?.date
                       return (
                         <div key={i.subjectItem.id} className="flex items-center gap-3 rounded-xl bg-gray-50 border border-gray-200 px-4 py-3 opacity-70">
-                          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gray-100 text-gray-400 flex-shrink-0">
+                          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gray-100 text-gray-400 shrink-0">
                             <Music className="h-4 w-4" />
                           </div>
                           <div className="flex-1 min-w-0">
@@ -1002,7 +1002,7 @@ export default function StudentDashboard() {
                               </div>
                             )}
                           </div>
-                          <span className="inline-flex items-center gap-1 rounded-full bg-gray-200 px-2.5 py-1 text-xs font-medium text-gray-600 flex-shrink-0">
+                          <span className="inline-flex items-center gap-1 rounded-full bg-gray-200 px-2.5 py-1 text-xs font-medium text-gray-600 shrink-0">
                             {lang === 'ar' ? 'ملغى' : 'Revoked'}
                           </span>
                         </div>
@@ -1110,7 +1110,7 @@ export default function StudentDashboard() {
                     /* ── Empty state — encouraging ── */
                     <div className="rounded-2xl border-2 border-dashed border-indigo-200 bg-indigo-50/50 p-10 text-center mt-4">
                       <div className="flex justify-center mb-3">
-                        <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-white border border-indigo-100 shadow-sm">
+                        <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-white border border-indigo-100 shadow-xs">
                           <ClipboardCheck className="h-8 w-8 text-indigo-400" />
                         </div>
                       </div>
@@ -1139,7 +1139,7 @@ export default function StudentDashboard() {
                               const days = a.dueDate ? Math.abs(daysLeft(a.dueDate)) : 0
                               return (
                                 <Link key={a.id} href={`/student-portal/${code}/assessment/${a.id}/take`}
-                                  className={`block rounded-2xl border-2 border-red-300 bg-white p-4 transition-all hover:shadow-md active:motion-safe:scale-[0.98]`}>
+                                  className={`block rounded-2xl border-2 border-red-300 bg-white p-4 transition-all hover:shadow-md motion-safe:active:scale-[0.98]`}>
                                   <div className="flex items-start gap-3">
                                     <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-red-100">
                                       <AlertCircle className="h-5 w-5 text-red-500" />
@@ -1183,7 +1183,7 @@ export default function StudentDashboard() {
                               const urgent = days !== null && days <= 3
                               return (
                                 <Link key={a.id} href={`/student-portal/${code}/assessment/${a.id}/take`}
-                                  className={`block rounded-2xl border-2 bg-white p-4 transition-all hover:shadow-md active:motion-safe:scale-[0.98]`}
+                                  className={`block rounded-2xl border-2 bg-white p-4 transition-all hover:shadow-md motion-safe:active:scale-[0.98]`}
                                   style={{ borderColor: ss.accent.replace('border-l-', '').replace('-400', '-300') }}>
                                   <div className="flex items-start gap-3">
                                     <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${ss.bg}`}>
@@ -1210,7 +1210,7 @@ export default function StudentDashboard() {
                                       </div>
                                       {a.dueDate && (
                                         <div className="mt-2 h-1 rounded-full bg-gray-100 overflow-hidden">
-                                          <div className="h-full rounded-full bg-gradient-to-r from-blue-400 to-indigo-500 transition-all"
+                                          <div className="h-full rounded-full bg-linear-to-r from-blue-400 to-indigo-500 transition-all"
                                             style={{ width: `${Math.max(5, 100 - (days !== null ? days * 10 : 50))}%` }} />
                                         </div>
                                       )}
@@ -1239,7 +1239,7 @@ export default function StudentDashboard() {
                               return (
                                 <Link key={a.id}
                                   href={`/student-portal/${code}/assessment/${a.id}/submission/${a.submissionId}`}
-                                  className="block rounded-2xl border-2 border-amber-300 bg-white p-4 transition-all hover:shadow-md active:motion-safe:scale-[0.98]">
+                                  className="block rounded-2xl border-2 border-amber-300 bg-white p-4 transition-all hover:shadow-md motion-safe:active:scale-[0.98]">
                                   <div className="flex items-start gap-3">
                                     <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-100">
                                       <Clock className="h-5 w-5 text-amber-600" />
@@ -1283,7 +1283,7 @@ export default function StudentDashboard() {
                               return (
                                 <Link key={a.id}
                                   href={`/student-portal/${code}/assessment/${a.id}/submission/${a.submissionId}`}
-                                  className="rounded-2xl border-2 border-green-300 bg-white p-4 transition-all hover:shadow-md active:motion-safe:scale-[0.98] cursor-pointer">
+                                  className="rounded-2xl border-2 border-green-300 bg-white p-4 transition-all hover:shadow-md motion-safe:active:scale-[0.98] cursor-pointer">
                                   <div className="flex items-start gap-3">
                                     <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-green-100">
                                       <CheckCircle2 className="h-5 w-5 text-green-500" />
@@ -1374,7 +1374,7 @@ export default function StudentDashboard() {
                           <div className="text-sm font-medium text-gray-900">{item.lesson.title}</div>
                           {item.lesson.titleCoptic && <div className="text-xs text-gray-500 mt-0.5">{item.lesson.titleCoptic}</div>}
                         </div>
-                        <div className="flex items-center gap-2 flex-shrink-0">
+                        <div className="flex items-center gap-2 shrink-0">
                           <span className="text-xs text-amber-700 font-medium">{item.overdueDays}d overdue</span>
                           <span className={`text-xs px-2 py-0.5 rounded-full ${meta.bg} ${meta.color}`}>
                             {lang === 'ar' ? meta.labelAr : meta.label}
@@ -1402,10 +1402,10 @@ export default function StudentDashboard() {
                   <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
                   <input type="text" value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
                     placeholder="Search hymns..."
-                    className="w-full rounded-xl border border-gray-200 bg-white pl-9 pr-3 py-2.5 text-base focus:border-gold-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--gold-500))]" />
+                    className="w-full rounded-xl border border-gray-200 bg-white pl-9 pr-3 py-2.5 text-base focus:border-gold-500 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-[rgb(var(--gold-500))]" />
                 </div>
                 <select value={filterMastery} onChange={e => setFilterMastery(e.target.value)}
-                  className="rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-xs focus:border-blue-500 focus:outline-none">
+                  className="rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-xs focus:border-blue-500 focus:outline-hidden">
                   <option value="">All Status</option>
                   {(['not_started', 'introduced', 'practicing', 'known', 'mastered'] as const).map(s => (
                     <option key={s} value={s}>{lang === 'ar' ? MASTERY_META[s].labelAr : MASTERY_META[s].label}</option>
@@ -1445,7 +1445,7 @@ export default function StudentDashboard() {
                               const isKnown = mastery === 'known' || mastery === 'mastered'
                               return (
                                 <button key={hymn.id} onClick={() => setPracticeLesson(hymn)}
-                                  className={`group text-left rounded-2xl border overflow-hidden bg-white hover:shadow-md active:motion-safe:scale-[0.97] motion-safe:transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--gold-500))] ${isKnown ? 'border-gold-300' : 'border-gray-200'}`}>
+                                  className={`group text-left rounded-2xl border overflow-hidden bg-white hover:shadow-md motion-safe:active:scale-[0.97] motion-safe:transition-all focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[rgb(var(--gold-500))] ${isKnown ? 'border-gold-300' : 'border-gray-200'}`}>
                                   {/* Color-art header — pickable by color before reading */}
                                   <div className="relative h-16 flex items-end p-2"
                                     style={{ background: `linear-gradient(135deg, ${hymn.subject?.color || '#3b82f6'}22, ${hymn.subject?.color || '#3b82f6'}55)` }}>
@@ -1490,7 +1490,7 @@ export default function StudentDashboard() {
 
       {/* ─── STAT DRILL-DOWN ────────────────────────────────────────── */}
       {drill && (
-        <div className="fixed inset-0 z-[55] flex items-end sm:items-center justify-center bg-black/50 p-0 sm:p-4" onClick={() => setDrill(null)}>
+        <div className="fixed inset-0 z-55 flex items-end sm:items-center justify-center bg-black/50 p-0 sm:p-4" onClick={() => setDrill(null)}>
           <div className="bg-white rounded-t-3xl sm:rounded-2xl w-full max-w-lg max-h-[80vh] overflow-y-auto p-5" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-base font-bold text-gray-900">
@@ -1500,7 +1500,7 @@ export default function StudentDashboard() {
                   : (lang === 'ar' ? 'الواجبات' : 'Homework')}
               </h2>
               <button onClick={() => setDrill(null)} aria-label={lang === 'ar' ? 'إغلاق' : 'Close'}
-                className="flex h-10 w-10 items-center justify-center rounded-full text-gray-500 hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--gold-500))]">
+                className="flex h-10 w-10 items-center justify-center rounded-full text-gray-500 hover:bg-gray-100 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[rgb(var(--gold-500))]">
                 ✕
               </button>
             </div>
@@ -1585,7 +1585,7 @@ export default function StudentDashboard() {
 
       {/* ─── MASTERY CELEBRATION ─────────────────────────────────────── */}
       {celebration && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-[rgb(var(--hymn-navy))]/95 p-6" role="status">
+        <div className="fixed inset-0 z-60 flex items-center justify-center bg-[rgb(var(--hymn-navy))]/95 p-6" role="status">
           {/* gentle gold confetti dots */}
           <div className="absolute inset-0 overflow-hidden" aria-hidden="true">
             {[...Array(14)].map((_, i) => (

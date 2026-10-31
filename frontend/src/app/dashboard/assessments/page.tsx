@@ -809,7 +809,7 @@ export default function AssessmentsPage() {
     <div className="space-y-6">
       {/* ── Batch Review Modal ── */}
       {batchMode && batchCurrent && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
           <div className="w-full max-w-md rounded-2xl bg-white shadow-2xl overflow-hidden">
             <div className="bg-indigo-600 px-5 py-4 flex items-center justify-between">
               <div>
@@ -1055,7 +1055,7 @@ export default function AssessmentsPage() {
               const opt = recordingOptions.find(o => o.url === e.target.value)
               updateForm({ referenceRecordingUrl: e.target.value, referenceRecordingName: opt?.name || '' })
             }}
-              className="mt-1.5 block w-full rounded-lg border border-gray-300 px-3.5 py-2.5 text-sm bg-white focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-gold-500">
+              className="mt-1.5 block w-full rounded-lg border border-gray-300 px-3.5 py-2.5 text-sm bg-white focus:border-gold-500 focus:outline-hidden focus:ring-1 focus:ring-gold-500">
               <option value="">{lang === 'ar' ? 'بدون' : 'None'}</option>
               {recordingOptions.map(o => <option key={o.url} value={o.url}>{o.name}</option>)}
             </select>
@@ -1128,7 +1128,7 @@ export default function AssessmentsPage() {
                       <input value={q.text} onChange={e => {
                         const questions = [...form.questions]; questions[qi].text = e.target.value; updateForm({ questions })
                       }} aria-label={lang === 'ar' ? 'نص السؤال' : 'Question text'}
-                        className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-blue-500" />
+                        className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gold-500 focus:outline-hidden focus:ring-1 focus:ring-blue-500" />
                     </div>
                     <Button variant="ghost" size="icon" onClick={() => updateForm({ questions: form.questions.filter((_, i) => i !== qi) })}
                       className="mt-1 text-red-600 hover:bg-red-50 border border-red-200">
@@ -1144,7 +1144,7 @@ export default function AssessmentsPage() {
                         const questions = [...form.questions]; questions[qi].type = e.target.value as QuestionDraft['type']; updateForm({ questions })
                       }}
                         aria-label={lang === 'ar' ? 'النوع' : 'Type'}
-                        className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
+                        className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gold-500 focus:outline-hidden focus:ring-1 focus:ring-blue-500">
                         <option value="multiple_choice">{lang === 'ar' ? 'اختيار من متعدد' : 'Multiple Choice'}</option>
                         <option value="true_false">{lang === 'ar' ? 'صواب / خطأ' : 'True / False'}</option>
                         <option value="short_answer">{lang === 'ar' ? 'إجابة قصيرة' : 'Short Answer'}</option>
@@ -1158,7 +1158,7 @@ export default function AssessmentsPage() {
                       <input type="number" min="1" value={q.points} onChange={e => {
                         const questions = [...form.questions]; questions[qi].points = e.target.value; updateForm({ questions })
                       }} aria-label={lang === 'ar' ? 'الدرجات' : 'Points'}
-                        className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-blue-500" />
+                        className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gold-500 focus:outline-hidden focus:ring-1 focus:ring-blue-500" />
                     </div>
                   </div>
                   {q.type === 'multiple_choice' && (
@@ -1170,7 +1170,7 @@ export default function AssessmentsPage() {
                         const questions = [...form.questions]; questions[qi].options = e.target.value; updateForm({ questions })
                       }} aria-label={lang === 'ar' ? 'الخيارات (واحد لكل سطر)' : 'Options (one per line)'}
                         rows={3}
-                        className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-blue-500 pl-6" />
+                        className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gold-500 focus:outline-hidden focus:ring-1 focus:ring-blue-500 pl-6" />
                     </div>
                   )}
                   <div>
@@ -1180,7 +1180,7 @@ export default function AssessmentsPage() {
                     <input value={q.correctAnswer} onChange={e => {
                       const questions = [...form.questions]; questions[qi].correctAnswer = e.target.value; updateForm({ questions })
                     }} aria-label={lang === 'ar' ? 'الإجابة الصحيحة' : 'Correct answer'}
-                      className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-blue-500 pl-6" />
+                      className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gold-500 focus:outline-hidden focus:ring-1 focus:ring-blue-500 pl-6" />
                   </div>
                 </div>
               ))}
@@ -1214,7 +1214,7 @@ export default function AssessmentsPage() {
           <div className="space-y-3">
               <div className="flex flex-wrap items-center gap-3">
                 <select value={studentGradeFilter} onChange={e => setStudentGradeFilter(e.target.value)}
-                  className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
+                  className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm focus:border-gold-500 focus:outline-hidden focus:ring-1 focus:ring-blue-500">
                   <option value="">{lang === 'ar' ? 'جميع الصفوف' : 'All Grades'}</option>
                   {gradeFilterOptions.map(g => (
                     <option key={g} value={g}>{g}</option>
@@ -1284,7 +1284,7 @@ export default function AssessmentsPage() {
                       ) : r.submissionStatus === 'completed' ? (
                         <>
                           <div className="flex items-center gap-2">
-                            <span className="text-sm font-semibold text-gray-900 min-w-[3rem] text-right">{r.mark ?? '—'}</span>
+                            <span className="text-sm font-semibold text-gray-900 min-w-12 text-right">{r.mark ?? '—'}</span>
                             <span className="text-xs text-gray-500">{r.maxMark}</span>
                             <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">{lang === 'ar' ? 'مكتمل' : 'Completed'}</span>
                             {r.markedBy && (
@@ -1335,7 +1335,7 @@ export default function AssessmentsPage() {
                             }}
                             aria-label={lang === 'ar' ? `درجة ${r.firstName} ${r.lastName}` : `Mark for ${r.firstName} ${r.lastName}`}
                             placeholder={`/ ${r.maxMark}`}
-                            className="w-20 rounded-lg border border-gray-300 px-2 py-1.5 text-sm text-right focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                            className="w-20 rounded-lg border border-gray-300 px-2 py-1.5 text-sm text-right focus:border-gold-500 focus:outline-hidden focus:ring-1 focus:ring-blue-500"
                           />
                           <Button
                             size="sm"

@@ -224,24 +224,24 @@ export function GradesTab() {
           {/* Filters & sorting */}
           <div className="flex flex-wrap items-center gap-3 border-b border-gray-100 px-6 py-3">
             <div className="relative flex-1 min-w-[200px] max-w-xs">
-              <Search className="absolute start-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500" />
+              <Search className="absolute inset-s-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500" />
               <input type="text" aria-label={t('Search grades', 'بحث عن الصفوف')} placeholder={t('Search grades...', 'بحث عن الصفوف...')} value={search}
                 onChange={e => setSearch(e.target.value)}
-                className="w-full rounded-lg border border-gray-300 ps-9 pe-3 py-2 text-sm focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-blue-500" />
+                className="w-full rounded-lg border border-gray-300 ps-9 pe-3 py-2 text-sm focus:border-gold-500 focus:outline-hidden focus:ring-1 focus:ring-blue-500" />
             </div>
             <select aria-label={t('Filter by group', 'تصفية حسب المجموعة')} value={filterGroup} onChange={e => setFilterGroup(e.target.value)}
-              className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
+              className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gold-500 focus:outline-hidden focus:ring-1 focus:ring-blue-500">
               <option value="">{t('All Groups', 'جميع المجموعات')}</option>
               {activeGroups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
             </select>
             <select aria-label={t('Filter by status', 'تصفية حسب الحالة')} value={filterStatus} onChange={e => setFilterStatus(e.target.value as 'all' | 'active' | 'inactive')}
-              className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
+              className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gold-500 focus:outline-hidden focus:ring-1 focus:ring-blue-500">
               <option value="all">{t('All Statuses', 'جميع الحالات')}</option>
               <option value="active">{t('Active', 'نشط')}</option>
               <option value="inactive">{t('Inactive', 'غير نشط')}</option>
             </select>
             <select aria-label={t('Sort by', 'ترتيب حسب')} value={sort} onChange={e => setSort(e.target.value)}
-              className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
+              className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gold-500 focus:outline-hidden focus:ring-1 focus:ring-blue-500">
               <option value="name-asc">{t('Name (A–Z)', 'الاسم (أ–ي)')}</option>
               <option value="name-desc">{t('Name (Z–A)', 'الاسم (ي–أ)')}</option>
               <option value="students-desc">{t('Students (High–Low)', 'الطلاب (الأكثر أولاً)')}</option>

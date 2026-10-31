@@ -119,8 +119,8 @@ export function StudentImportModal({ onClose, onSuccess, levelNameMap, lang }: P
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 p-0 sm:p-4">
-      <div ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-label={t('Import Students from CSV','استيراد الطلاب من ملف CSV')} className="w-full sm:max-w-2xl rounded-t-2xl sm:rounded-2xl bg-white shadow-xl max-h-[92dvh] sm:max-h-[90vh] pb-[env(safe-area-inset-bottom)] animate-slideUp sm:animate-none flex flex-col outline-none">
-        <div className="flex items-center justify-between border-b border-gray-100 px-4 sm:px-6 py-3 sm:py-4 flex-shrink-0">
+      <div ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-label={t('Import Students from CSV','استيراد الطلاب من ملف CSV')} className="w-full sm:max-w-2xl rounded-t-2xl sm:rounded-2xl bg-white shadow-xl max-h-[92dvh] sm:max-h-[90vh] pb-[env(safe-area-inset-bottom)] animate-slideUp sm:animate-none flex flex-col outline-hidden">
+        <div className="flex items-center justify-between border-b border-gray-100 px-4 sm:px-6 py-3 sm:py-4 shrink-0">
           <h2 className="text-lg font-semibold">{t('Import Students from CSV','استيراد الطلاب من ملف CSV')}</h2>
           <Button variant="ghost" size="icon" onClick={handleClose}><X className="h-5 w-5" /></Button>
         </div>
@@ -132,7 +132,7 @@ export function StudentImportModal({ onClose, onSuccess, levelNameMap, lang }: P
               <p className="mt-1 text-xs text-blue-600">{t('Group is auto-derived from grade.','يتم اشتقاق المجموعة تلقائياً من المرحلة.')}</p>
             </div>
             <Button variant="outline" onClick={downloadTemplate} className="inline-flex items-center gap-2"><FileSpreadsheet className="h-4 w-4" />{t('Download Template','تحميل القالب')}</Button>
-            {error&&<div className="rounded-lg bg-red-50 border border-red-200 p-3 text-sm text-red-700 flex items-start gap-2"><AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0"/>{error}</div>}
+            {error&&<div className="rounded-lg bg-red-50 border border-red-200 p-3 text-sm text-red-700 flex items-start gap-2"><AlertCircle className="h-4 w-4 mt-0.5 shrink-0"/>{error}</div>}
             <div className="flex items-center gap-4">
               <input ref={fileRef} type="file" accept=".csv" onChange={handleFile} className="hidden"/>
               <Button variant="outline" onClick={()=>fileRef.current?.click()} className="inline-flex items-center gap-2 border-2 border-dashed border-gray-300 px-6 py-4 text-sm font-medium text-gray-600 hover:border-gold-400 hover:bg-blue-50 transition-colors"><FileSpreadsheet className="h-5 w-5"/>{file?file.name:t('Choose CSV file','اختيار ملف CSV')}</Button>
@@ -187,7 +187,7 @@ export function StudentImportModal({ onClose, onSuccess, levelNameMap, lang }: P
             </div>)}
           </>)}
         </div>
-        {preview.length>0&&!result&&(<div className="flex items-center justify-end gap-3 border-t border-gray-100 px-4 sm:px-6 py-3 sm:py-4 flex-shrink-0">
+        {preview.length>0&&!result&&(<div className="flex items-center justify-end gap-3 border-t border-gray-100 px-4 sm:px-6 py-3 sm:py-4 shrink-0">
           <Button variant="outline" onClick={()=>{setPreview([]);setFile(null);setDuplicateWarnings([]);setRowValidations([])}}>{t('Cancel','إلغاء')}</Button>
           <Button onClick={handleImport} disabled={importing||(skipInvalid&&rowValidations.every(v=>v.status==='error'))} className="inline-flex items-center gap-2">
             {importing&&<Loader2 className="h-4 w-4 animate-spin"/>}{(()=>{

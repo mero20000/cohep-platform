@@ -139,7 +139,7 @@ export function AudioPlayer({ src, duration, compact, className = '', autoPlay }
       {/* Play/Pause */}
       <button
         onClick={toggle}
-        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gold-500 text-white hover:bg-gold-600 active:scale-95 transition-all shadow-sm shadow-gold-200"
+        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gold-500 text-white hover:bg-gold-600 active:scale-95 transition-all shadow-xs shadow-gold-200"
         aria-label={playing ? 'Pause' : 'Play'}
       >
         {!loaded

@@ -228,7 +228,7 @@ export function ChurchesTab() {
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">{lang === 'ar' ? 'شعار الكنيسة' : 'Church Logo'}</label>
               <div className="flex items-center gap-3">
-                <div className="flex h-16 w-16 items-center justify-center rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 overflow-hidden flex-shrink-0">
+                <div className="flex h-16 w-16 items-center justify-center rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 overflow-hidden shrink-0">
                   {form.logoUrl ? (
                     <Image src={form.logoUrl.startsWith('http') ? form.logoUrl : `${API_ORIGIN}${form.logoUrl}`} alt="Church logo" width={64} height={64} className="h-16 w-16 object-cover"  />
                   ) : (

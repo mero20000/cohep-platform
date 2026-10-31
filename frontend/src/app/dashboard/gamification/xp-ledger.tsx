@@ -166,7 +166,7 @@ export function XpLedger({ studentId, onChanged }: { studentId: string; onChange
                       {item.flag === 'archived_attempt' && <Badge variant="warning">{t('From an archived attempt', 'من محاولة مؤرشفة')}</Badge>}
                       {item.flag === 'missing_attempt' && <Badge variant="danger">{t('Attempt no longer exists', 'المحاولة لم تعد موجودة')}</Badge>}
                     </div>
-                    {item.description && <p className="mt-0.5 break-words text-xs text-gray-600">{item.description}</p>}
+                    {item.description && <p className="mt-0.5 wrap-break-word text-xs text-gray-600">{item.description}</p>}
                     <p className="mt-0.5 text-xs text-gray-400">
                       {new Date(item.createdAt).toLocaleString(lang === 'ar' ? 'ar-EG' : 'en-GB')}
                       {item.createdByName ? ` · ${item.createdByName}` : ''}

@@ -174,7 +174,7 @@ function ResetPasswordForm() {
             autoComplete="new-password"
             required
             minLength={8}
-            className="w-full rounded-xl border border-gray-300 px-4 py-3 pr-11 text-sm focus:border-gold-500 focus:outline-none focus:ring-2 focus:ring-gold-500/20 transition-colors"
+            className="w-full rounded-xl border border-gray-300 px-4 py-3 pr-11 text-sm focus:border-gold-500 focus:outline-hidden focus:ring-2 focus:ring-gold-500/20 transition-colors"
             placeholder="At least 8 characters"
           />
           <button
@@ -224,7 +224,7 @@ function ResetPasswordForm() {
             onChange={e => setConfirm(e.target.value)}
             autoComplete="new-password"
             required
-            className={`w-full rounded-xl border px-4 py-3 pr-11 text-sm focus:outline-none focus:ring-2 transition-colors ${
+            className={`w-full rounded-xl border px-4 py-3 pr-11 text-sm focus:outline-hidden focus:ring-2 transition-colors ${
               confirm.length > 0 && !passwordsMatch
                 ? 'border-red-300 focus:border-red-400 focus:ring-red-200'
                 : 'border-gray-300 focus:border-gold-500 focus:ring-gold-500/20'
@@ -254,7 +254,7 @@ function ResetPasswordForm() {
       <button
         type="submit"
         disabled={!canSubmit || step === 'submitting'}
-        className="w-full flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-gold-500 to-gold-600 hover:from-gold-600 hover:to-gold-700 disabled:opacity-50 disabled:cursor-not-allowed px-6 py-3.5 text-sm font-semibold text-white shadow-lg shadow-gold-200/50 transition-all"
+        className="w-full flex items-center justify-center gap-2 rounded-xl bg-linear-to-r from-gold-500 to-gold-600 hover:from-gold-600 hover:to-gold-700 disabled:opacity-50 disabled:cursor-not-allowed px-6 py-3.5 text-sm font-semibold text-white shadow-lg shadow-gold-200/50 transition-all"
       >
         {step === 'submitting' ? (
           <><Loader2 className="h-4 w-4 animate-spin" /> Updating password…</>
@@ -277,7 +277,7 @@ function ResetPasswordForm() {
 
 export default function ResetPasswordPage() {
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-950 via-gray-900 to-gray-900 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-linear-to-b from-gray-950 via-gray-900 to-gray-900 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="text-center mb-8">
@@ -287,7 +287,7 @@ export default function ResetPasswordPage() {
         </div>
 
         {/* Card */}
-        <div className="rounded-2xl border border-gray-800 bg-gray-900/80 backdrop-blur p-6 shadow-2xl">
+        <div className="rounded-2xl border border-gray-800 bg-gray-900/80 backdrop-blur-sm p-6 shadow-2xl">
           <Suspense fallback={
             <div className="flex justify-center py-8">
               <Loader2 className="h-6 w-6 animate-spin text-gold-700" />

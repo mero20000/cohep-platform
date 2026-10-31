@@ -112,7 +112,7 @@ export function StudentFormModal({ student, activeLevels, churches, gradeOptions
   const blobRef = useRef('')
   const revoke = useCallback(() => { if (blobRef.current) URL.revokeObjectURL(blobRef.current); blobRef.current = '' }, [])
   const t = (en: string, ar: string) => lang==='ar'?ar:en
-  const ic = (err?: string) => `mt-1 block w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 ${err?'border-semantic-status-inactive focus:border-semantic-status-inactive focus:ring-semantic-status-inactive':'border-gray-300 focus:border-gold-500 focus:ring-gold-500'}`
+  const ic = (err?: string) => `mt-1 block w-full rounded-lg border px-3 py-2 text-sm focus:outline-hidden focus:ring-2 ${err?'border-semantic-status-inactive focus:border-semantic-status-inactive focus:ring-semantic-status-inactive':'border-gray-300 focus:border-gold-500 focus:ring-gold-500'}`
 
   const { fieldErrors, handleBlur, validate } = useFormValidation({
     values: form as StudentFormFields,
@@ -191,9 +191,9 @@ export function StudentFormModal({ student, activeLevels, churches, gradeOptions
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 p-0 sm:p-4" onClick={onClose}>
-      <form ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-label={student?t('Edit Student','تعديل الطالب'):t('Add New Student','إضافة طالب جديد')} className="w-full sm:max-w-lg rounded-t-2xl sm:rounded-2xl bg-white shadow-xl max-h-[92dvh] sm:max-h-[90vh] pb-[env(safe-area-inset-bottom)] animate-slideUp sm:animate-none flex flex-col outline-none" onClick={e=>e.stopPropagation()} noValidate
+      <form ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-label={student?t('Edit Student','تعديل الطالب'):t('Add New Student','إضافة طالب جديد')} className="w-full sm:max-w-lg rounded-t-2xl sm:rounded-2xl bg-white shadow-xl max-h-[92dvh] sm:max-h-[90vh] pb-[env(safe-area-inset-bottom)] animate-slideUp sm:animate-none flex flex-col outline-hidden" onClick={e=>e.stopPropagation()} noValidate
         onSubmit={e=>{e.preventDefault();startTransition(()=>saveAction({form,photoFile,editing:student}))}}>
-        <div className="flex items-center justify-between border-b border-gray-100 px-4 sm:px-6 py-3 sm:py-4 flex-shrink-0">
+        <div className="flex items-center justify-between border-b border-gray-100 px-4 sm:px-6 py-3 sm:py-4 shrink-0">
           <h2 className="text-lg font-semibold">{student?t('Edit Student','تعديل الطالب'):t('Add New Student','إضافة طالب جديد')}</h2>
           <Button type="button" variant="ghost" size="icon" onClick={onClose}><X className="h-5 w-5" /></Button>
         </div>
@@ -328,7 +328,7 @@ export function StudentFormModal({ student, activeLevels, churches, gradeOptions
             </div>
           </div>
         </div>
-        <div className="flex items-center justify-end gap-3 border-t border-gray-100 px-4 sm:px-6 py-3 sm:py-4 flex-shrink-0">
+        <div className="flex items-center justify-end gap-3 border-t border-gray-100 px-4 sm:px-6 py-3 sm:py-4 shrink-0">
           <Button type="button" variant="outline" onClick={onClose}>{t('Cancel','إلغاء')}</Button>
           <Button type="submit" disabled={isSaving} className="inline-flex items-center gap-2">
             {isSaving&&<Loader2 className="h-4 w-4 animate-spin" />}

@@ -240,7 +240,7 @@ export function SchoolTab() {
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1.5">{lang === 'ar' ? 'شعار المدرسة' : 'School Logo'}</label>
             <div className="flex items-center gap-4">
-              <div className="flex h-20 w-20 items-center justify-center rounded-xl border-2 border-dashed border-gray-300 bg-gray-50 overflow-hidden flex-shrink-0">
+              <div className="flex h-20 w-20 items-center justify-center rounded-xl border-2 border-dashed border-gray-300 bg-gray-50 overflow-hidden shrink-0">
                 {form.logoUrl ? (
                   <Image src={form.logoUrl.startsWith('http') ? form.logoUrl : `${API_ORIGIN}${form.logoUrl}`} alt="School logo" width={80} height={80} className="h-full w-full object-cover"  />
                 ) : (

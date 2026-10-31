@@ -381,11 +381,11 @@ export default function StudentsClient() {
         toast={toast} lang={lang}/>
 
       {previewPhotoUrl&&(
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 p-4" onClick={()=>setPreviewPhotoUrl('')} onKeyDown={e=>{if(e.key==='Escape')setPreviewPhotoUrl('')}} role="presentation">
-          <div role="dialog" aria-modal="true" aria-label={t('Student Photo','صورة الطالب')} className="relative max-w-lg max-h-[80vh] outline-none" onClick={e=>e.stopPropagation()} tabIndex={-1} autoFocus>
+        <div className="fixed inset-0 z-60 flex items-center justify-center bg-black/70 p-4" onClick={()=>setPreviewPhotoUrl('')} onKeyDown={e=>{if(e.key==='Escape')setPreviewPhotoUrl('')}} role="presentation">
+          <div role="dialog" aria-modal="true" aria-label={t('Student Photo','صورة الطالب')} className="relative max-w-lg max-h-[80vh] outline-hidden" onClick={e=>e.stopPropagation()} tabIndex={-1} autoFocus>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={previewPhotoUrl} alt={selectedStudent ? `${selectedStudent.firstName} ${selectedStudent.lastName}` : 'Student photo'} className="max-w-full max-h-[75vh] rounded-2xl shadow-2xl object-contain"/>
-            <Button variant="ghost" size="icon" onClick={()=>setPreviewPhotoUrl('')} className="absolute -top-3 -end-3 rounded-full bg-white p-1.5 shadow-lg hover:bg-gray-100" aria-label={t('Close photo','إغلق الصورة')}><X className="h-4 w-4 text-gray-600"/></Button>
+            <Button variant="ghost" size="icon" onClick={()=>setPreviewPhotoUrl('')} className="absolute -top-3 -inset-e-3 rounded-full bg-white p-1.5 shadow-lg hover:bg-gray-100" aria-label={t('Close photo','إغلق الصورة')}><X className="h-4 w-4 text-gray-600"/></Button>
           </div>
         </div>
       )}

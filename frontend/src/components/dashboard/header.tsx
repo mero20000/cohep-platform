@@ -131,11 +131,11 @@ export function DashboardHeader({
         <Menu className="h-5 w-5" />
       </Button>
 
-      <Link href="/dashboard" aria-label={language === 'ar' && schoolNameAr ? schoolNameAr : schoolName} className="flex items-center gap-2.5 flex-shrink-0 hover:opacity-80 transition-opacity">
+      <Link href="/dashboard" aria-label={language === 'ar' && schoolNameAr ? schoolNameAr : schoolName} className="flex items-center gap-2.5 shrink-0 hover:opacity-80 transition-opacity">
         {schoolLogo ? (
-          <Image src={schoolLogo} alt={language === 'ar' && schoolNameAr ? schoolNameAr : schoolName} width={72} height={72} className="h-9 w-9 sm:h-[72px] sm:w-[72px] rounded-lg sm:rounded-xl object-cover border border-gray-200 flex-shrink-0" priority />
+          <Image src={schoolLogo} alt={language === 'ar' && schoolNameAr ? schoolNameAr : schoolName} width={72} height={72} className="h-9 w-9 sm:h-[72px] sm:w-[72px] rounded-lg sm:rounded-xl object-cover border border-gray-200 shrink-0" priority />
         ) : (
-          <div className="flex h-9 w-9 sm:h-[72px] sm:w-[72px] items-center justify-center rounded-lg sm:rounded-xl bg-blue-500 text-white flex-shrink-0">
+          <div className="flex h-9 w-9 sm:h-[72px] sm:w-[72px] items-center justify-center rounded-lg sm:rounded-xl bg-blue-500 text-white shrink-0">
             <Cross className="h-5 w-5 sm:h-8 sm:w-8" />
           </div>
         )}
@@ -158,7 +158,7 @@ export function DashboardHeader({
           <input type="text" placeholder={language === 'ar' ? 'بحث بالاسم...' : 'Search by name...'}
             aria-label={language === 'ar' ? 'بحث بالاسم' : 'Search students by name'}
             onKeyDown={e => { if (e.key === 'Enter' && (e.target as HTMLInputElement).value.trim()) { router.push(`/dashboard/students?search=${encodeURIComponent((e.target as HTMLInputElement).value.trim())}`) } }}
-            className={`w-full rounded-lg border border-gray-200 bg-gray-50 ${language === 'ar' ? 'pr-9 pl-3' : 'pl-9 pr-3'} py-1.5 text-sm placeholder:text-gray-400 focus:border-gold-500 focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-500`} />
+            className={`w-full rounded-lg border border-gray-200 bg-gray-50 ${language === 'ar' ? 'pr-9 pl-3' : 'pl-9 pr-3'} py-1.5 text-sm placeholder:text-gray-400 focus:border-gold-500 focus:bg-white focus:outline-hidden focus:ring-1 focus:ring-blue-500`} />
         </div>
       </div>
 

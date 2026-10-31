@@ -5,7 +5,7 @@ import { type } from './tokens'
  * (WCAG 1.4.1). Mastery levels map to the brand: gold = mastered.
  */
 const TONES = {
-  neutral: 'bg-gold-neutral-100 text-gray-700 border-[var(--hymn-border)]',
+  neutral: 'bg-gold-neutral-100 text-gray-700 border-(--hymn-border)',
   info: 'bg-blue-50 text-blue-800 border-blue-200',
   progress: 'bg-amber-50 text-amber-800 border-amber-200',
   success: 'bg-emerald-50 text-emerald-800 border-emerald-200',

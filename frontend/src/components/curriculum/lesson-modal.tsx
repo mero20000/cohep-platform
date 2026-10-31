@@ -133,7 +133,7 @@ export function LessonModal({ mode, lesson, levels, subjects, onSaveAdd, onSaveE
       <div role="dialog" aria-label={mode === 'add' ? (lang === 'ar' ? 'إضافة تسبيحة جديدة' : 'Add New Hymn') : (lang === 'ar' ? 'تعديل التسبيحة' : 'Edit Hymn')}
         className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[85vh] flex flex-col"
         onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 flex-shrink-0">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 shrink-0">
           <h3 className="font-semibold text-gray-900">{mode === 'add' ? (lang === 'ar' ? 'إضافة تسبيحة جديدة' : 'Add New Hymn') : (lang === 'ar' ? 'تعديل التسبيحة' : 'Edit Hymn')}</h3>
           <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded" aria-label={lang === 'ar' ? 'إغلاق' : 'Close dialog'}>
             <X className="h-5 w-5" />
@@ -145,14 +145,14 @@ export function LessonModal({ mode, lesson, levels, subjects, onSaveAdd, onSaveE
               <div>
                 <label htmlFor="lm-subject" className="block text-xs font-medium text-gray-500 mb-1">{lang === 'ar' ? 'المادة' : 'Subject'}</label>
                 <select id="lm-subject" value={subjectId} onChange={e => setSubjectId(e.target.value)}
-                  className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
+                  className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gold-500 focus:outline-hidden focus:ring-1 focus:ring-blue-500">
                   {subjects.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                 </select>
               </div>
               <div>
                 <label htmlFor="lm-status" className="block text-xs font-medium text-gray-500 mb-1">{lang === 'ar' ? 'الحالة' : 'Status'}</label>
                 <select id="lm-status" value={form.status} onChange={e => handleFieldChange('status', e.target.value)}
-                  className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
+                  className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gold-500 focus:outline-hidden focus:ring-1 focus:ring-blue-500">
                   <option value="draft">{lang === 'ar' ? 'مسودة' : 'Draft'}</option><option value="published">{lang === 'ar' ? 'منشور' : 'Published'}</option><option value="archived">{lang === 'ar' ? 'مؤرشف' : 'Archived'}</option>
                 </select>
               </div>
@@ -161,7 +161,7 @@ export function LessonModal({ mode, lesson, levels, subjects, onSaveAdd, onSaveE
           <div>
             <label htmlFor="lm-level" className="block text-xs font-medium text-gray-500 mb-1">{lang === 'ar' ? 'المستوى' : 'Level'}</label>
             <select id="lm-level" value={levelId} onChange={e => setLevelId(e.target.value)}
-              className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
+              className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gold-500 focus:outline-hidden focus:ring-1 focus:ring-blue-500">
               {mode === 'add' && <option value="">{lang === 'ar' ? 'اختر مستوى...' : 'Select level...'}</option>}
               {levels.map(l => <option key={l.id} value={l.id}>{lang === 'ar' ? 'المستوى' : 'Level'} {l.number} - {l.name}</option>)}
             </select>
@@ -174,7 +174,7 @@ export function LessonModal({ mode, lesson, levels, subjects, onSaveAdd, onSaveE
               </label>
               <div className="flex gap-2">
                 <select id="lm-subject-item" value={form.subjectItemId || ''} onChange={e => handleSelectSubjectItem(e.target.value)}
-                  className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
+                  className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gold-500 focus:outline-hidden focus:ring-1 focus:ring-blue-500">
                   <option value="">{lang === 'ar' ? '- اختر عنصراً -' : '- Select item -'}</option>
                   {subjectItems.map(si => (
                     <option key={si.id} value={si.id}>
@@ -190,7 +190,7 @@ export function LessonModal({ mode, lesson, levels, subjects, onSaveAdd, onSaveE
                     }
                   }}
                     aria-label={lang === 'ar' ? 'نسخ المحتوى من العنصر' : 'Copy content from item'}
-                    className="px-2 py-1 rounded-lg border border-gray-300 text-xs text-gray-500 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                    className="px-2 py-1 rounded-lg border border-gray-300 text-xs text-gray-500 hover:bg-gray-50 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-blue-500"
                     title={lang === 'ar' ? 'نسخ المحتوى من العنصر' : 'Copy content from item'}>
                     <RefreshCw className="h-3.5 w-3.5" />
                   </button>
@@ -201,12 +201,12 @@ export function LessonModal({ mode, lesson, levels, subjects, onSaveAdd, onSaveE
           <div>
             <label htmlFor="lm-title-coptic" className="block text-xs font-medium text-gray-500 mb-1">{lang === 'ar' ? 'الاسم القبطي' : 'Coptic Name'}</label>
             <input id="lm-title-coptic" type="text" value={form.titleCoptic} onChange={e => handleFieldChange('titleCoptic', e.target.value)}
-              className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-blue-500" />
+              className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gold-500 focus:outline-hidden focus:ring-1 focus:ring-blue-500" />
           </div>
           <div>
             <label htmlFor="lm-title-ar" className="block text-xs font-medium text-gray-500 mb-1">{lang === 'ar' ? 'الاسم العربي' : 'Arabic Name'}</label>
             <input id="lm-title-ar" type="text" value={form.titleAr} onChange={e => handleFieldChange('titleAr', e.target.value)} dir="rtl"
-              className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-blue-500 arabic-text" />
+              className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gold-500 focus:outline-hidden focus:ring-1 focus:ring-blue-500 arabic-text" />
           </div>
           <FormField
             label={lang === 'ar' ? 'الاسم الإنجليزي' : 'English Name'}
@@ -221,7 +221,7 @@ export function LessonModal({ mode, lesson, levels, subjects, onSaveAdd, onSaveE
             <div>
               <label htmlFor="lm-status-edit" className="block text-xs font-medium text-gray-500 mb-1">{lang === 'ar' ? 'الحالة' : 'Status'}</label>
               <select id="lm-status-edit" value={form.status} onChange={e => handleFieldChange('status', e.target.value)}
-                className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
+                className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gold-500 focus:outline-hidden focus:ring-1 focus:ring-blue-500">
                 <option value="draft">{lang === 'ar' ? 'مسودة' : 'Draft'}</option><option value="published">{lang === 'ar' ? 'منشور' : 'Published'}</option><option value="archived">{lang === 'ar' ? 'مؤرشف' : 'Archived'}</option>
               </select>
             </div>
@@ -230,12 +230,12 @@ export function LessonModal({ mode, lesson, levels, subjects, onSaveAdd, onSaveE
             <div>
               <label htmlFor="lm-duration" className="block text-xs font-medium text-gray-500 mb-1">{lang === 'ar' ? 'المدة (دقيقة)' : 'Duration (min)'}</label>
               <input id="lm-duration" type="number" value={form.estimatedDurationMinutes} onChange={e => handleFieldChange('estimatedDurationMinutes', Number(e.target.value))}
-                className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-blue-500" />
+                className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gold-500 focus:outline-hidden focus:ring-1 focus:ring-blue-500" />
             </div>
             <div>
               <label htmlFor="lm-sessions" className="block text-xs font-medium text-gray-500 mb-1">{lang === 'ar' ? 'الجلسات' : 'Sessions'}</label>
               <input id="lm-sessions" type="number" value={form.sessionsCount} onChange={e => handleFieldChange('sessionsCount', Number(e.target.value))}
-                className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-blue-500" />
+                className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gold-500 focus:outline-hidden focus:ring-1 focus:ring-blue-500" />
             </div>
           </div>
           {mode === 'edit' && (
@@ -275,10 +275,10 @@ export function LessonModal({ mode, lesson, levels, subjects, onSaveAdd, onSaveE
             <textarea id="lm-html" value={form.presentationHtml} onChange={e => handleFieldChange('presentationHtml', e.target.value)}
               placeholder={lang === 'ar' ? 'الصق محتوى الشرائح HTML هنا...' : 'Paste your HTML slide content here...'}
               rows={4}
-              className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm font-mono focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-blue-500" />
+              className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm font-mono focus:border-gold-500 focus:outline-hidden focus:ring-1 focus:ring-blue-500" />
           </div>
         </div>
-        <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-100 flex-shrink-0">
+        <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-100 shrink-0">
           <button onClick={onClose}
             className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 active:bg-gray-100">{lang === 'ar' ? 'إلغاء' : 'Cancel'}</button>
           <button onClick={handleSave} disabled={saving || (mode === 'add' && (!form.title.trim() || !levelId))}

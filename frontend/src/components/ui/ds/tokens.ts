@@ -9,17 +9,17 @@
  */
 export const ds = {
   /* Surfaces */
-  surface: 'bg-[var(--hymn-surface)]',
-  surfaceRaised: 'bg-white dark:bg-[var(--hymn-surface-header)]',
-  heroGreen: 'bg-[var(--hymn-green)]',
-  heroNavy: 'bg-[var(--hymn-navy)]',
+  surface: 'bg-(--hymn-surface)',
+  surfaceRaised: 'bg-white dark:bg-(--hymn-surface-header)',
+  heroGreen: 'bg-(--hymn-green)',
+  heroNavy: 'bg-(--hymn-navy)',
 
   /* Borders use logical-safe plain borders (symmetric) */
-  border: 'border-[var(--hymn-border)]',
+  border: 'border-(--hymn-border)',
 
   /* Focus ring — one consistent, visible treatment everywhere */
   focusRing:
-    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--gold-500))] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--hymn-surface)]',
+    'focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[rgb(var(--gold-500))] focus-visible:ring-offset-2 focus-visible:ring-offset-(--hymn-surface)',
 
   /* Minimum comfortable tap target (WCAG 2.5.5 / iOS HIG) */
   tapTarget: 'min-h-11 min-w-11',

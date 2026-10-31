@@ -61,7 +61,7 @@ function HealthRing({ score, size = 56 }: { score: number; size?: number }) {
   const color = score >= 80 ? '#10B981' : score >= 60 ? '#F59E0B' : '#EF4444'
 
   return (
-    <svg width={size} height={size} className="rotate-[-90deg]">
+    <svg width={size} height={size} className="-rotate-90">
       <circle cx={size/2} cy={size/2} r={radius} fill="none" stroke="#F3F4F6" strokeWidth={6} />
       <circle
         cx={size/2} cy={size/2} r={radius} fill="none"
@@ -102,7 +102,7 @@ function SummaryBar({ data, lang }: { data: DioceseReport; lang: string }) {
   return (
     <div className="space-y-4">
       {/* Diocese health hero */}
-      <div className={`rounded-2xl border bg-gradient-to-br ${hBg} p-5`}>
+      <div className={`rounded-2xl border bg-linear-to-br ${hBg} p-5`}>
         <div className="flex items-start gap-5">
           <div className="flex flex-col items-center gap-1 shrink-0">
             <HealthRing score={s.dioceseHealthScore} size={72} />
@@ -366,7 +366,7 @@ export default function DiocesePage() {
               value={searchQ}
               onChange={e => setSearchQ(e.target.value)}
               placeholder={t('Search school or church...', 'ابحث عن مدرسة أو كنيسة...')}
-              className="flex-1 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-400/20"
+              className="flex-1 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm focus:border-indigo-400 focus:outline-hidden focus:ring-2 focus:ring-indigo-400/20"
             />
             <div className="flex gap-1 rounded-xl border border-gray-200 bg-white p-1">
               {([
@@ -378,7 +378,7 @@ export default function DiocesePage() {
                   key={opt.id}
                   onClick={() => setSortBy(opt.id)}
                   className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-all ${
-                    sortBy === opt.id ? 'bg-indigo-600 text-white shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                    sortBy === opt.id ? 'bg-indigo-600 text-white shadow-xs' : 'text-gray-500 hover:text-gray-700'
                   }`}
                 >
                   {opt.label}

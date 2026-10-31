@@ -712,7 +712,7 @@ export default function ServantsPage() {
           <div className="flex items-center gap-3 mb-1">
             {schoolIdentity?.churchLogoUrl && (
               <Image src={schoolIdentity.churchLogoUrl} alt={schoolIdentity.churchName || ''} width={40} height={40}
-                className="rounded-xl border border-gray-200 object-cover flex-shrink-0 hidden sm:block" />
+                className="rounded-xl border border-gray-200 object-cover shrink-0 hidden sm:block" />
             )}
             <div>
               <h1 className="text-2xl font-bold text-gray-900">{lang === 'ar' ? 'الخدام' : 'Servants'}</h1>
@@ -775,48 +775,48 @@ export default function ServantsPage() {
       <div className="rounded-xl border border-gray-200 bg-white">
         <div className="flex flex-wrap items-center gap-3 px-6 py-3">
           <div className="relative flex-1 min-w-[200px] max-w-xs">
-            <Search className="absolute start-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500" />
+            <Search className="absolute inset-s-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500" />
             <input type="text" aria-label={lang === 'ar' ? 'بحث عن خدام' : 'Search servants'} placeholder={lang === 'ar' ? 'بحث عن خدام...' : 'Search servants...'} value={search}
               onChange={e => setSearch(e.target.value)}
-              className="w-full rounded-lg border border-gray-300 ps-9 pe-3 py-2 text-sm focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-blue-500" />
+              className="w-full rounded-lg border border-gray-300 ps-9 pe-3 py-2 text-sm focus:border-gold-500 focus:outline-hidden focus:ring-1 focus:ring-blue-500" />
           </div>
           <select aria-label={lang === 'ar' ? 'تصفية حسب الدور' : 'Filter by role'} value={filterRole} onChange={e => setFilterRole(e.target.value)}
-            className="rounded-lg border border-gray-300 px-3 py-2 text-base sm:text-sm focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
+            className="rounded-lg border border-gray-300 px-3 py-2 text-base sm:text-sm focus:border-gold-500 focus:outline-hidden focus:ring-1 focus:ring-blue-500">
             <option value="">{lang === 'ar' ? 'جميع الأدوار' : 'All Roles'}</option>
             {roleOptions.map(r => (
               <option key={r.name} value={r.name}>{r.displayName}</option>
             ))}
           </select>
           <select aria-label={lang === 'ar' ? 'تصفية حسب المستوى' : 'Filter by level'} value={filterLevel} onChange={e => { setFilterLevel(e.target.value); setFilterGroup('') }}
-            className="rounded-lg border border-gray-300 px-3 py-2 text-base sm:text-sm focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
+            className="rounded-lg border border-gray-300 px-3 py-2 text-base sm:text-sm focus:border-gold-500 focus:outline-hidden focus:ring-1 focus:ring-blue-500">
             <option value="">{lang === 'ar' ? 'جميع المستويات' : 'All Levels'}</option>
             {levels.filter(l => l.status !== 'inactive').map(l => (
               <option key={l.id} value={l.id}>{l.name}</option>
             ))}
           </select>
           <select aria-label={lang === 'ar' ? 'تصفية حسب المجموعة' : 'Filter by group'} value={filterGroup} onChange={e => setFilterGroup(e.target.value)}
-            className="rounded-lg border border-gray-300 px-3 py-2 text-base sm:text-sm focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
+            className="rounded-lg border border-gray-300 px-3 py-2 text-base sm:text-sm focus:border-gold-500 focus:outline-hidden focus:ring-1 focus:ring-blue-500">
             <option value="">{lang === 'ar' ? 'جميع المجموعات' : 'All Groups'}</option>
             {formGroups.map(g => (
               <option key={g.id} value={g.id}>{g.name}</option>
             ))}
           </select>
           <select aria-label={lang === 'ar' ? 'تصفية حسب المادة' : 'Filter by subject'} value={filterSubject} onChange={e => setFilterSubject(e.target.value)}
-            className="rounded-lg border border-gray-300 px-3 py-2 text-base sm:text-sm focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
+            className="rounded-lg border border-gray-300 px-3 py-2 text-base sm:text-sm focus:border-gold-500 focus:outline-hidden focus:ring-1 focus:ring-blue-500">
             <option value="">{lang === 'ar' ? 'جميع المواد' : 'All Subjects'}</option>
             {TEACHING_SUBJECTS.map(s => (
               <option key={s.value} value={s.value}>{lang === 'ar' ? s.arabicLabel : s.label}</option>
             ))}
           </select>
           <select aria-label={lang === 'ar' ? 'تصفية حسب المرحلة' : 'Filter by grade'} value={filterGrade} onChange={e => setFilterGrade(e.target.value)}
-            className="rounded-lg border border-gray-300 px-3 py-2 text-base sm:text-sm focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
+            className="rounded-lg border border-gray-300 px-3 py-2 text-base sm:text-sm focus:border-gold-500 focus:outline-hidden focus:ring-1 focus:ring-blue-500">
             <option value="">{lang === 'ar' ? 'جميع المراحل' : 'All Grades'}</option>
             {gradeOptions.map(g => (
               <option key={g} value={g}>{g}</option>
             ))}
           </select>
           <select aria-label={lang === 'ar' ? 'تصفية حسب الجنس' : 'Filter by gender'} value={filterGender} onChange={e => setFilterGender(e.target.value)}
-            className="rounded-lg border border-gray-300 px-3 py-2 text-base sm:text-sm focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
+            className="rounded-lg border border-gray-300 px-3 py-2 text-base sm:text-sm focus:border-gold-500 focus:outline-hidden focus:ring-1 focus:ring-blue-500">
             <option value="">{lang === 'ar' ? 'كل الجنس' : 'All genders'}</option>
             <option value="female">{lang === 'ar' ? 'أنثى' : 'Female'}</option>
             <option value="male">{lang === 'ar' ? 'ذكر' : 'Male'}</option>
@@ -918,7 +918,7 @@ export default function ServantsPage() {
                       )}
                       <td data-label="Servant" className="px-6 py-3.5">
                         <div className="flex items-center gap-3">
-                          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-50 overflow-hidden flex-shrink-0">
+                          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-50 overflow-hidden shrink-0">
                             {s.avatarUrl ? (
                               <Image src={s.avatarUrl.startsWith('http') ? s.avatarUrl : `${API_ORIGIN}${s.avatarUrl}`} alt="" width={36} height={36} className="h-9 w-9 object-cover" priority  />
                             ) : (
@@ -929,8 +929,8 @@ export default function ServantsPage() {
                              <div className="flex items-center gap-2 text-sm font-medium text-gray-900">
                                <span>{s.firstName} {s.lastName}</span>
                                <button type="button" onClick={() => toggleActive(s)} aria-label={lang === 'ar' ? (s.isActive ? 'إيقاف' : 'تفعيل') : (s.isActive ? 'Deactivate' : 'Activate')} title={s.isActive ? (lang === 'ar' ? 'نشط — انقر لإيقاف' : 'Active — click to deactivate') : (lang === 'ar' ? 'غير نشط — انقر لتفعيل' : 'Inactive — click to activate')}
-                                 className={`inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 ${s.isActive ? 'bg-green-500' : 'bg-gray-300'}`}>
-                                 <span className={`inline-block h-4 w-4 translate-x-0.5 rounded-full bg-white shadow ${s.isActive ? 'translate-x-6' : 'translate-x-0.5'}`} />
+                                 className={`inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-hidden focus:ring-2 focus:ring-blue-500 ${s.isActive ? 'bg-green-500' : 'bg-gray-300'}`}>
+                                 <span className={`inline-block h-4 w-4 translate-x-0.5 rounded-full bg-white shadow-sm ${s.isActive ? 'translate-x-6' : 'translate-x-0.5'}`} />
                                </button>
                              </div>
                             <div className="text-xs text-gray-500">{s.email}</div>
@@ -1017,10 +1017,10 @@ export default function ServantsPage() {
               const meta = s.metadata || {}
               const badgeStyle = ROLE_BADGE[role?.name || 'servant'] || ROLE_BADGE.servant
               return (
-                <div key={s.id} className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm hover:shadow-md transition-shadow">
+                <div key={s.id} className="rounded-xl border border-gray-200 bg-white p-5 shadow-xs hover:shadow-md transition-shadow">
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex items-center gap-3">
-                      <div className="flex h-11 w-11 items-center justify-center rounded-full bg-blue-50 overflow-hidden flex-shrink-0">
+                      <div className="flex h-11 w-11 items-center justify-center rounded-full bg-blue-50 overflow-hidden shrink-0">
                         {s.avatarUrl ? (
                           <Image src={s.avatarUrl.startsWith('http') ? s.avatarUrl : `${API_ORIGIN}${s.avatarUrl}`} alt="" width={44} height={44} className="h-11 w-11 object-cover" priority />
                         ) : (
@@ -1031,8 +1031,8 @@ export default function ServantsPage() {
                          <div className="flex items-center gap-2 text-sm font-medium text-gray-900">
                            <span>{s.firstName} {s.lastName}</span>
                            <button type="button" onClick={() => toggleActive(s)} aria-label={lang === 'ar' ? (s.isActive ? 'إيقاف' : 'تفعيل') : (s.isActive ? 'Deactivate' : 'Activate')} title={s.isActive ? (lang === 'ar' ? 'نشط — انقر لإيقاف' : 'Active — click to deactivate') : (lang === 'ar' ? 'غير نشط — انقر لتفعيل' : 'Inactive — click to activate')}
-                             className={`inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 ${s.isActive ? 'bg-green-500' : 'bg-gray-300'}`}>
-                             <span className={`inline-block h-4 w-4 translate-x-0.5 rounded-full bg-white shadow ${s.isActive ? 'translate-x-6' : 'translate-x-0.5'}`} />
+                             className={`inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-hidden focus:ring-2 focus:ring-blue-500 ${s.isActive ? 'bg-green-500' : 'bg-gray-300'}`}>
+                             <span className={`inline-block h-4 w-4 translate-x-0.5 rounded-full bg-white shadow-sm ${s.isActive ? 'translate-x-6' : 'translate-x-0.5'}`} />
                            </button>
                           </div>
                           <div className="text-xs text-gray-500 truncate">{s.email}</div>
@@ -1143,7 +1143,7 @@ export default function ServantsPage() {
 
           {/* Photo */}
           <div className="flex items-center gap-4">
-            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-blue-50 overflow-hidden border-2 border-dashed border-gray-300 flex-shrink-0">
+            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-blue-50 overflow-hidden border-2 border-dashed border-gray-300 shrink-0">
               {photoFile ? (
                 <Image src={previewUrl || ''} alt="" width={64} height={64} className="h-16 w-16 object-cover"  />
               ) : editing?.avatarUrl ? (
@@ -1236,7 +1236,7 @@ export default function ServantsPage() {
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1.5">{lang === 'ar' ? 'الدور' : 'Role'}</label>
             <select value={form.roleName} onChange={e => updateField('roleName', e.target.value)}
-              className="block w-full rounded-lg border border-gray-300 bg-white px-3.5 py-2.5 text-sm focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
+              className="block w-full rounded-lg border border-gray-300 bg-white px-3.5 py-2.5 text-sm focus:border-gold-500 focus:outline-hidden focus:ring-1 focus:ring-blue-500">
               {roleOptions.map(r => (
                 <option key={r.name} value={r.name}>{r.displayName}</option>
               ))}
@@ -1247,7 +1247,7 @@ export default function ServantsPage() {
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">{lang === 'ar' ? 'المرحلة الدراسية' : 'Grade'}</label>
               <select aria-label={lang === 'ar' ? 'المرحلة الدراسية' : 'Grade'} value={form.grade} onChange={e => selectGrade(e.target.value)}
-                className="block w-full rounded-lg border border-gray-300 bg-white px-3.5 py-2.5 text-sm focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
+                className="block w-full rounded-lg border border-gray-300 bg-white px-3.5 py-2.5 text-sm focus:border-gold-500 focus:outline-hidden focus:ring-1 focus:ring-blue-500">
                 <option value="">{lang === 'ar' ? 'اختر مرحلة...' : 'Select grade...'}</option>
                 {gradeOptions.map(g => (
                   <option key={g} value={g}>{g}</option>
@@ -1257,7 +1257,7 @@ export default function ServantsPage() {
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">{lang === 'ar' ? 'المستوى' : 'Level'}</label>
               <select value={form.levelId} onChange={e => { updateField('levelId', e.target.value); setForm(prev => ({ ...prev, groupId: '' })) }}
-                className="block w-full rounded-lg border border-gray-300 bg-white px-3.5 py-2.5 text-sm focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
+                className="block w-full rounded-lg border border-gray-300 bg-white px-3.5 py-2.5 text-sm focus:border-gold-500 focus:outline-hidden focus:ring-1 focus:ring-blue-500">
                 <option value="">{lang === 'ar' ? 'اختر مستوى...' : 'Select level...'}</option>
                 {levels.filter(l => l.status !== 'inactive').map(l => (
                   <option key={l.id} value={l.id}>{l.name}</option>
@@ -1267,7 +1267,7 @@ export default function ServantsPage() {
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">{lang === 'ar' ? 'المجموعة' : 'Group'}</label>
               <select aria-label={lang === 'ar' ? 'المجموعة' : 'Group'} value={form.groupId} onChange={e => updateField('groupId', e.target.value)}
-                className="block w-full rounded-lg border border-gray-300 bg-white px-3.5 py-2.5 text-sm focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:opacity-50">
+                className="block w-full rounded-lg border border-gray-300 bg-white px-3.5 py-2.5 text-sm focus:border-gold-500 focus:outline-hidden focus:ring-1 focus:ring-blue-500 disabled:opacity-50">
                 <option value="">{lang === 'ar' ? 'اختر مجموعة...' : 'Select group...'}</option>
                 {formGroups.map(g => (
                   <option key={g.id} value={g.id}>{g.name}</option>
@@ -1281,7 +1281,7 @@ export default function ServantsPage() {
             <label className="block text-sm font-medium text-gray-700 mb-2">{lang === 'ar' ? 'المواد الدراسية' : 'Teaching Subjects'}</label>
             <div className="flex flex-wrap gap-3">
               {TEACHING_SUBJECTS.map(sub => (
-                <label key={sub.value} className="flex items-center gap-2 rounded-lg border border-gray-200 px-3.5 py-2.5 cursor-pointer hover:bg-gray-50 active:bg-gray-100 has-[:checked]:border-gold-500 has-[:checked]:bg-blue-50 transition-colors">
+                <label key={sub.value} className="flex items-center gap-2 rounded-lg border border-gray-200 px-3.5 py-2.5 cursor-pointer hover:bg-gray-50 active:bg-gray-100 has-checked:border-gold-500 has-checked:bg-blue-50 transition-colors">
                   <input type="checkbox" checked={form.teachingSubjects.includes(sub.value)}
                     onChange={() => toggleSubject(sub.value)}
                     className="h-4 w-4 rounded border-gray-300 text-blue-700 focus:ring-blue-500" />

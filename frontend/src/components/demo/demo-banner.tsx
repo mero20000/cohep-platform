@@ -39,7 +39,7 @@ export function DemoBanner({ onExit, remainingMs = null }: DemoBannerProps) {
       </span>
       <button
         onClick={onExit}
-        className="underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-amber-600 rounded px-1 py-0.5"
+        className="underline focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-amber-600 rounded px-1 py-0.5"
       >
         {isAr ? 'الخروج من التجربة' : 'Exit Demo'}
       </button>

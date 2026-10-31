@@ -98,7 +98,7 @@ export function PresentationViewer({ data, title, titleCoptic, titleAr, hazzat, 
   }
 
   const content = (
-    <div ref={ref} className={`${contained ? 'relative w-full h-full' : 'fixed inset-0 z-[100]'} select-none`} style={{ background: BG }}
+    <div ref={ref} className={`${contained ? 'relative w-full h-full' : 'fixed inset-0 z-100'} select-none`} style={{ background: BG }}
       onTouchStart={e => { touchX.current = e.touches[0].clientX }}
       onTouchEnd={e => {
         const d = touchX.current - e.changedTouches[0].clientX

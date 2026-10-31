@@ -132,7 +132,7 @@ export function StudentTable({ students, loading, fetchError, selectedIds, allSe
           <div className="ms-auto flex items-center gap-1">
             <select aria-label={t('Sort by','ترتيب حسب')} value={sortKey}
               onChange={e => { if (e.target.value && e.target.value !== sortKey) toggleSort(e.target.value) }}
-              className="h-11 rounded-lg border border-gray-200 bg-white px-2 text-xs text-gray-700 focus:outline-none focus:ring-2 focus:ring-gold-500">
+              className="h-11 rounded-lg border border-gray-200 bg-white px-2 text-xs text-gray-700 focus:outline-hidden focus:ring-2 focus:ring-gold-500">
               <option value="">{t('Sort: newest','الترتيب: الأحدث')}</option>
               {COLS.filter(([k]) => k !== 'phone').map(([k, en, ar]) => <option key={k} value={k}>{lang === 'ar' ? ar : en}</option>)}
             </select>
@@ -158,11 +158,11 @@ export function StudentTable({ students, loading, fetchError, selectedIds, allSe
             <RowCheckbox checked={selectedIds.has(s.id)} onChange={e => toggleId(s.id,(e.nativeEvent as MouseEvent).shiftKey)} ariaLabel={t(`Select ${s.firstName} ${s.lastName}`,`تحديد ${s.firstName} ${s.lastName}`)} />
             <div role="button" tabIndex={0} onClick={() => onView(s)}
               onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onView(s) } }}
-              className="flex min-w-0 flex-1 cursor-pointer items-start gap-3 rounded-lg py-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">
+              className="flex min-w-0 flex-1 cursor-pointer items-start gap-3 rounded-lg py-1 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-blue-500">
               <span onClick={e => e.stopPropagation()}><AvatarCell s={s} size={44} onPreview={onPreviewPhoto} lang={lang} /></span>
               <div className="min-w-0 flex-1">
                 <div className="flex items-start gap-1.5">
-                  <span className="line-clamp-2 break-words text-[15px] font-semibold leading-snug text-gray-900">{s.firstName} {s.lastName}</span>
+                  <span className="line-clamp-2 wrap-break-word text-[15px] font-semibold leading-snug text-gray-900">{s.firstName} {s.lastName}</span>
                   <CompletenessIndicator student={s} lang={lang} />
                 </div>
                 <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1">
@@ -171,7 +171,7 @@ export function StudentTable({ students, loading, fetchError, selectedIds, allSe
                   {favorites.includes(s.id) && <Star className="h-3.5 w-3.5 fill-amber-500 text-amber-500" aria-label={t('Favorite','مفضل')} />}
                 </div>
                 {facts.length > 0 && <p className="mt-1 text-xs leading-relaxed text-gray-500">{facts.join(' • ')}</p>}
-                {s.churchName && <p className="text-xs text-gray-400 break-words">{s.churchName}</p>}
+                {s.churchName && <p className="text-xs text-gray-400 wrap-break-word">{s.churchName}</p>}
                 {(parentPhone || s.portalAccessKey) && (
                   <div className="mt-2 flex flex-wrap gap-2" onClick={e => e.stopPropagation()}>
                     {parentPhone && (
@@ -224,7 +224,7 @@ export function StudentTable({ students, loading, fetchError, selectedIds, allSe
                   onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleSort(key) } }}
                   role="button" tabIndex={0}
                   aria-sort={sortKey === key ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}
-                  className={`px-4 py-3 text-start text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer select-none hover:text-gray-700 ${key!=='name'&&key!=='status'?'hidden md:table-cell':''} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-inset`}>
+                  className={`px-4 py-3 text-start text-xs font-medium uppercase tracking-wider text-gray-500 cursor-pointer select-none hover:text-gray-700 ${key!=='name'&&key!=='status'?'hidden md:table-cell':''} focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-inset`}>
                   <span className="inline-flex items-center gap-1">
                     {lang==='ar'?ar:en}
                     <ArrowUpDown className={`h-3 w-3 transition-opacity ${sortKey===key?'opacity-100 text-gold-700':'opacity-30'}`} />
@@ -289,8 +289,8 @@ export function StudentTable({ students, loading, fetchError, selectedIds, allSe
 function AvatarCell({ s, size, onPreview, lang }: { s: Student; size: number; onPreview: (u: string) => void; lang: 'en'|'ar' }) {
   const [photoLoading, setPhotoLoading] = useState(true)
   const [photoBroken, setPhotoBroken] = useState(false)
-  if (s.photoUrl && !photoBroken) return <Button type="button" variant="ghost" size="icon" onClick={() => onPreview(photoSrc(s.photoUrl))} aria-label={`${lang==='ar'?'عرض صورة':'View photo'} ${s.firstName} ${s.lastName}`} className="flex-shrink-0 relative" style={{width:size+8,height:size+8}}><div className={`absolute inset-0 rounded-full bg-gray-200 animate-pulse flex items-center justify-center ${photoLoading?'':'hidden'}`}><Loader2 className="h-3 w-3 text-gray-400 animate-spin" /></div><Image src={photoSrc(s.photoUrl)} alt={`${s.firstName} ${s.lastName} profile photo`} width={size} height={size} onLoadingComplete={()=>setPhotoLoading(false)} onError={()=>{setPhotoBroken(true);setPhotoLoading(false)}} className="rounded-full object-cover border border-gray-200 cursor-pointer hover:ring-2 hover:ring-gold-400" style={{width:size,height:size}} /></Button>
-  return <div className={`flex items-center justify-center rounded-full text-sm font-bold flex-shrink-0 ${s.gender==='female'?'bg-semantic-gender-female-bg text-semantic-gender-female':'bg-semantic-gender-male-bg text-semantic-gender-male'}`} style={{width:size,height:size}}>{s.firstName[0]}{s.lastName?.[0]??''}</div>
+  if (s.photoUrl && !photoBroken) return <Button type="button" variant="ghost" size="icon" onClick={() => onPreview(photoSrc(s.photoUrl))} aria-label={`${lang==='ar'?'عرض صورة':'View photo'} ${s.firstName} ${s.lastName}`} className="shrink-0 relative" style={{width:size+8,height:size+8}}><div className={`absolute inset-0 rounded-full bg-gray-200 animate-pulse flex items-center justify-center ${photoLoading?'':'hidden'}`}><Loader2 className="h-3 w-3 text-gray-400 animate-spin" /></div><Image src={photoSrc(s.photoUrl)} alt={`${s.firstName} ${s.lastName} profile photo`} width={size} height={size} onLoadingComplete={()=>setPhotoLoading(false)} onError={()=>{setPhotoBroken(true);setPhotoLoading(false)}} className="rounded-full object-cover border border-gray-200 cursor-pointer hover:ring-2 hover:ring-gold-400" style={{width:size,height:size}} /></Button>
+  return <div className={`flex items-center justify-center rounded-full text-sm font-bold shrink-0 ${s.gender==='female'?'bg-semantic-gender-female-bg text-semantic-gender-female':'bg-semantic-gender-male-bg text-semantic-gender-male'}`} style={{width:size,height:size}}>{s.firstName[0]}{s.lastName?.[0]??''}</div>
 }
 function RowCheckbox({ checked, onChange, ariaLabel }: { checked: boolean; onChange: (e: React.ChangeEvent<HTMLInputElement>) => void; ariaLabel: string }) {
   return (

@@ -122,7 +122,7 @@ export function Modal({ open, onClose, title, description, children, footer, siz
             role="dialog" aria-modal="true"
             aria-labelledby={title ? titleId : undefined}
             aria-describedby={description ? descId : undefined}
-            className={`w-full ${sizeMap[size]} rounded-t-2xl sm:rounded-2xl bg-white shadow-xl max-h-[92dvh] sm:max-h-[95dvh] flex flex-col outline-none`}
+            className={`w-full ${sizeMap[size]} rounded-t-2xl sm:rounded-2xl bg-white shadow-xl max-h-[92dvh] sm:max-h-[95dvh] flex flex-col outline-hidden`}
             initial={{ opacity: 0, ...(reduce ? {} : { scale: 0.95 }) }}
             animate={{ opacity: 1, ...(reduce ? {} : { scale: 1 }) }}
             exit={{ opacity: 0, ...(reduce ? {} : { scale: 0.95 }) }}
