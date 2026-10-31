@@ -88,9 +88,24 @@ describe('ServantsService.listServants', () => {
     prisma.user.findMany.mockResolvedValue([S()]);
     await service.listServants(staff, { search: 'joh' });
     const arg = prisma.user.findMany.mock.calls[0][0];
-    expect(arg.where.OR).toEqual(expect.arrayContaining([
+    expect(arg.where.AND).toHaveLength(1);
+    expect(arg.where.AND[0].OR).toEqual(expect.arrayContaining([
       { email: { contains: 'joh', mode: 'insensitive' } },
     ]));
+  });
+
+  it('matches full "first last" names and phone numbers', async () => {
+    prisma.user.findMany.mockResolvedValue([S()]);
+    await service.listServants(staff, { search: 'John Smith' });
+    const names = prisma.user.findMany.mock.calls[0][0].where.AND;
+    expect(names).toHaveLength(2);
+    expect(names[0].OR).toContainEqual({ firstName: { contains: 'John', mode: 'insensitive' } });
+    expect(names[1].OR).toContainEqual({ lastName: { contains: 'Smith', mode: 'insensitive' } });
+
+    prisma.user.findMany.mockClear();
+    await service.listServants(staff, { search: '01001234567' });
+    const phone = prisma.user.findMany.mock.calls[0][0].where.AND;
+    expect(phone[0].OR).toContainEqual({ phone: { contains: '01001234567' } });
   });
 
   it('filters by role, levelId, groupId, teachingSubject', async () => {

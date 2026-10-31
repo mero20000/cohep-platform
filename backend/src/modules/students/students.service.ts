@@ -2,6 +2,7 @@ import { Injectable, NotFoundException, ForbiddenException, BadRequestException 
 import { PrismaService } from '../../database/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { SchoolResolver } from '../../common/utils/school-resolver';
+import { buildStudentSearchClauses } from '../../common/utils/search';
 import { AnalyticsService } from '../analytics/analytics.service';
 import { CreateStudentDto } from './dto/create-student.dto';
 import { UpdateStudentDto } from './dto/update-student.dto';
@@ -79,13 +80,8 @@ export class StudentsService {
       };
     }
 
-    if (search) {
-      where.OR = [
-        { firstName: { contains: search, mode: 'insensitive' } },
-        { lastName: { contains: search, mode: 'insensitive' } },
-        { studentCode: { contains: search, mode: 'insensitive' } },
-      ];
-    }
+    const searchClauses = buildStudentSearchClauses(search);
+    if (searchClauses.length) where.AND = searchClauses;
 
     const dir = sortDir === 'desc' ? 'desc' : 'asc';
     const orderMap: Record<string, any> = {
@@ -1032,13 +1028,8 @@ async getPortalData(portalAccessKey: string) {
       };
     }
 
-    if (filters?.search) {
-      where.OR = [
-        { firstName: { contains: filters.search, mode: 'insensitive' } },
-        { lastName: { contains: filters.search, mode: 'insensitive' } },
-        { studentCode: { contains: filters.search, mode: 'insensitive' } },
-      ];
-    }
+    const searchClauses = buildStudentSearchClauses(filters?.search);
+    if (searchClauses.length) where.AND = searchClauses;
 
     const [total, active, inactive, graduated, male, female] = await Promise.all([
       this.prisma.student.count({ where }),

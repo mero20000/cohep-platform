@@ -40,7 +40,7 @@ export function StudentFilters(p: Props) {
           <input
             type="text"
             aria-label={t('Search students','بحث عن الطلاب')}
-            placeholder={t('Search by name or code...','البحث بالاسم أو الرمز...')}
+            placeholder={t('Search by name, code or phone...','البحث بالاسم أو الرمز أو الهاتف...')}
             value={p.search}
             onChange={e => p.onSearchChange(e.target.value)}
             className="w-full rounded-lg border border-gray-200 bg-white ps-10 pe-4 py-2 text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-gold-500 focus:border-gold-500"

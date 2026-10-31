@@ -10,6 +10,7 @@ import { AssessmentsService } from '../assessments/assessments.service';
 import { WhatsAppService } from '../../common/whatsapp/whatsapp.service';
 import { CreateAttendanceSessionDto } from './dto/create-attendance-session.dto';
 import { MarkAttendanceDto } from './dto/mark-attendance.dto';
+import { buildStudentSearchClauses } from '../../common/utils/search';
 
 @Injectable()
 export class AttendanceService {
@@ -1112,13 +1113,7 @@ export class AttendanceService {
       where: {
         schoolId,
         deletedAt: null,
-        OR: [
-          { studentCode: { contains: q, mode: 'insensitive' } },
-          { firstName: { contains: q, mode: 'insensitive' } },
-          { lastName: { contains: q, mode: 'insensitive' } },
-          { firstNameAr: { contains: q, mode: 'insensitive' } },
-          { lastNameAr: { contains: q, mode: 'insensitive' } },
-        ],
+        AND: buildStudentSearchClauses(q),
       },
       select: { id: true, studentCode: true, firstName: true, lastName: true, firstNameAr: true, lastNameAr: true },
       take: 20,

@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../../database/prisma.service';
+import { buildUserSearchClauses } from '../../common/utils/search';
 
 const VALID_TEACHING_SUBJECTS = ['coptic_hymns', 'coptic_rites', 'coptic_language'] as const;
 const TEACHING_SUBJECT_ALIASES: Record<string, string> = {
@@ -106,13 +107,7 @@ export class UsersService {
       }
     }
     if (query?.isActive !== undefined) where.isActive = query.isActive === 'true';
-    if (query?.search) {
-      where.OR = [
-        { firstName: { contains: query.search, mode: 'insensitive' } },
-        { lastName: { contains: query.search, mode: 'insensitive' } },
-        { email: { contains: query.search, mode: 'insensitive' } },
-      ];
-    }
+    and.push(...buildUserSearchClauses(query?.search));
     const roleNames = query?.roleIn
       ? query.roleIn.split(',').map(r => r.trim()).filter(Boolean)
       : query?.role ? [query.role] : [];
