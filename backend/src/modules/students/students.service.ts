@@ -2,6 +2,7 @@ import { Injectable, NotFoundException, ForbiddenException, BadRequestException 
 import { PrismaService } from '../../database/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { SchoolResolver } from '../../common/utils/school-resolver';
+import { localToday, studentBirthdayWindow } from '../../common/utils/birthday';
 import { AnalyticsService } from '../analytics/analytics.service';
 import { LIFECYCLE_WHERE, assessmentGender, isEligible, liveByKey, scoreOf } from '../assessments/assessment-lifecycle';
 import { CreateStudentDto } from './dto/create-student.dto';
@@ -924,7 +925,7 @@ async getPortalData(portalAccessKey: string) {
         level: { select: { id: true, name: true, number: true, nameAr: true } },
         group: { select: { id: true, name: true, nameAr: true } },
         school: {
-          select: { id: true, name: true, nameAr: true, logoUrl: true, church: { select: { name: true, nameAr: true, logoUrl: true } } },
+          select: { id: true, name: true, nameAr: true, logoUrl: true, timezone: true, church: { select: { name: true, nameAr: true, logoUrl: true } } },
         },
       },
     });
@@ -1055,6 +1056,8 @@ async getPortalData(portalAccessKey: string) {
             churchLogoUrl: student.school.church?.logoUrl ?? null,
           }
         : null,
+      // Birthday card signal, computed here so the date of birth itself never reaches the browser.
+      birthday: this.portalBirthday(student),
       attendance: attendanceSummary,
       recentAttendance: attRecords.map(r => ({
         date: r.attendanceSession.scheduledDate,
@@ -1105,6 +1108,18 @@ async getPortalData(portalAccessKey: string) {
       recentHomework,
       assessments: this.portalAssessments(student, assignedAssessments as any[]),
     };
+  }
+
+  /**
+   * Set from the student's birthday until a week after it, so the portal can show a birthday card.
+   * A family can opt out with metadata.birthdayOptOut. Null otherwise.
+   */
+  private portalBirthday(student: { dateOfBirth: Date; metadata: any; school?: { timezone?: string | null } | null }) {
+    if ((student.metadata as any)?.birthdayOptOut === true) return null;
+    const today = localToday(new Date(), student.school?.timezone || 'UTC');
+    const w = studentBirthdayWindow(new Date(student.dateOfBirth), today);
+    if (!w || w.daysAway > 0 || w.daysAway < -7) return null;
+    return { daysSince: -w.daysAway || 0, turningAge: w.turningAge, year: w.year };
   }
 
   /**

@@ -1101,6 +1101,49 @@ systemConfig: {
       });
     });
 
+    describe('birthday card signal', () => {
+      const withDob = (dob: string, metadata: any = {}) =>
+        prisma.student.findFirst.mockResolvedValue({
+          ...mockStudent, portalAccessKey: 'abc-secret-key', dateOfBirth: new Date(`${dob}T00:00:00Z`), metadata,
+        });
+      afterEach(() => jest.useRealTimers());
+      const at = (iso: string) => jest.useFakeTimers().setSystemTime(new Date(iso));
+
+      it('is set on the birthday and for a week after, with the new age', async () => {
+        withDob('2016-11-01');
+        at('2026-11-01T10:00:00Z');
+        expect((await service.getPortalData('abc-secret-key')).birthday).toEqual({ daysSince: 0, turningAge: 10, year: 2026 });
+        at('2026-11-08T10:00:00Z');
+        expect((await service.getPortalData('abc-secret-key')).birthday).toEqual({ daysSince: 7, turningAge: 10, year: 2026 });
+      });
+
+      it('is null before the birthday and more than a week after', async () => {
+        withDob('2016-11-01');
+        at('2026-10-31T10:00:00Z');
+        expect((await service.getPortalData('abc-secret-key')).birthday).toBeNull();
+        at('2026-11-09T10:00:00Z');
+        expect((await service.getPortalData('abc-secret-key')).birthday).toBeNull();
+      });
+
+      it('respects a family opt-out', async () => {
+        withDob('2016-11-01', { birthdayOptOut: true });
+        at('2026-11-01T10:00:00Z');
+        expect((await service.getPortalData('abc-secret-key')).birthday).toBeNull();
+      });
+
+      it('ignores an implausible age such as an import-default date of birth', async () => {
+        withDob('2026-11-01');
+        at('2026-11-01T10:00:00Z');
+        expect((await service.getPortalData('abc-secret-key')).birthday).toBeNull();
+      });
+
+      it('never sends the date of birth to the browser', async () => {
+        withDob('2016-11-01');
+        at('2026-11-01T10:00:00Z');
+        expect(JSON.stringify(await service.getPortalData('abc-secret-key'))).not.toContain('2016-11-01');
+      });
+    });
+
     it('surfaces cancelled sessions as "cancelled" and excludes them from the attendance summary/rate', async () => {
       prisma.attendanceRecord.findMany.mockImplementation(({ where }: any) =>
         Promise.resolve(

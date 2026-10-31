@@ -11,6 +11,7 @@ import DashboardHero from '../../dashboard/hero'
 import { useLanguage } from '@/lib/use-language'
 import { getGreeting, getGreetingAr } from '@/lib/datetime'
 import { markLessonCompleted } from '@/lib/use-install-prompt'
+import { StudentBirthdayCard, type StudentBirthday } from '@/components/student/birthday-card'
 
 const API_ORIGIN = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api').replace('/api', '')
 import {
@@ -39,6 +40,7 @@ interface PortalData {
     name: string; nameAr?: string; logoUrl?: string;
     churchName?: string; churchNameAr?: string; churchLogoUrl?: string | null;
   } | null
+  birthday?: StudentBirthday | null
   attendance: { present: number; late: number; absent: number; excused: number; total: number }
   recentAttendance: Array<{ date: string; time?: string; status: string; homeworkStatus?: string }>
   badges: Array<{ id: string; name?: string; nameAr?: string; description?: string; iconUrl?: string; earnedAt: string; awardedBy?: string | null; reason?: string | null }>
@@ -445,6 +447,8 @@ export default function StudentDashboard() {
       </div>
 
       <main className="max-w-3xl mx-auto px-4 py-6 space-y-5">
+        <StudentBirthdayCard birthday={data.birthday} studentId={student.id} firstName={student.firstName} school={school} />
+
         {/* ─── DASHBOARD TAB ─────────────────────────────────────────── */}
         {activeTab === 'dashboard' && (
           <>

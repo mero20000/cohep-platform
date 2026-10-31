@@ -1,4 +1,4 @@
-import { localToday, localHour, nearestBirthday } from './birthday';
+import { localToday, localHour, nearestBirthday, studentBirthdayWindow } from './birthday';
 
 const d = (s: string) => new Date(`${s}T00:00:00.000Z`);
 
@@ -33,5 +33,12 @@ describe('birthday utils', () => {
   it('celebrates a Feb 29 birthday on Feb 28 in a non-leap year and Feb 29 in a leap year', () => {
     expect(nearestBirthday(d('2016-02-29'), d('2027-02-28'))).toMatchObject({ daysAway: 0, turningAge: 11 });
     expect(nearestBirthday(d('2016-02-29'), d('2028-02-29'))).toMatchObject({ daysAway: 0, turningAge: 12 });
+  });
+
+  it('studentBirthdayWindow drops implausible ages (e.g. an import-default date of birth)', () => {
+    expect(studentBirthdayWindow(d('2016-11-01'), d('2026-11-01'))?.turningAge).toBe(10);
+    expect(studentBirthdayWindow(d('2026-11-01'), d('2026-11-01'))).toBeNull(); // age 0
+    expect(studentBirthdayWindow(d('2025-11-01'), d('2026-11-01'))).toBeNull(); // age 1
+    expect(studentBirthdayWindow(d('1980-11-01'), d('2026-11-01'))).toBeNull(); // age 46
   });
 });

@@ -55,7 +55,17 @@ export function nearestBirthday(dob: Date, today: Date): BirthdayInfo {
   return {
     date: best,
     year,
-    daysAway: Math.round((best.getTime() - today.getTime()) / DAY_MS),
+    daysAway: Math.round((best.getTime() - today.getTime()) / DAY_MS) || 0, // `|| 0` turns -0 into 0
     turningAge: year - dob.getUTCFullYear(),
   };
+}
+
+/** Students are children and youth; this keeps a bogus date of birth (an import default, a typo) from being celebrated. */
+const MIN_BIRTHDAY_AGE = 2;
+const MAX_BIRTHDAY_AGE = 30;
+
+/** The nearest birthday, or null when the implied age is implausible. */
+export function studentBirthdayWindow(dob: Date, today: Date): BirthdayInfo | null {
+  const info = nearestBirthday(dob, today);
+  return info.turningAge >= MIN_BIRTHDAY_AGE && info.turningAge <= MAX_BIRTHDAY_AGE ? info : null;
 }

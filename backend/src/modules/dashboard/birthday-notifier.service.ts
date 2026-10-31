@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { PrismaService } from '../../database/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
-import { localHour, localToday, nearestBirthday } from '../../common/utils/birthday';
+import { localHour, localToday, studentBirthdayWindow } from '../../common/utils/birthday';
 
 const NOTIFY_HOUR = 7;
 const SERVANT_ROLE_NAMES = ['servant', 'group_leader', 'level_leader'];
@@ -42,8 +42,8 @@ export class BirthdayNotifier {
       select: { id: true, firstName: true, lastName: true, groupId: true, levelId: true, gender: true, dateOfBirth: true },
     });
     const celebrating = students
-      .map((s: any) => ({ s, b: nearestBirthday(new Date(s.dateOfBirth), today) }))
-      .filter(({ b }) => b.daysAway === 0);
+      .map((s: any) => ({ s, b: studentBirthdayWindow(new Date(s.dateOfBirth), today) }))
+      .filter((x): x is { s: any; b: NonNullable<typeof x.b> } => !!x.b && x.b.daysAway === 0);
     if (celebrating.length === 0) return 0;
 
     const servants = await this.prisma.user.findMany({
