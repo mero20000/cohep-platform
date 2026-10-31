@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { Save, Loader2, Bell, BellOff } from 'lucide-react'
 import { http } from '@/lib/http-client'
 import { useLanguage } from '@/lib/use-language'
+import { PushToggle } from '@/components/pwa/push-toggle'
 import { Button } from '@/components/ui/button'
 
 interface Prefs {
@@ -83,6 +84,8 @@ export function NotificationPreferencesTab() {
   const totalCount = Object.values(prefs).length
 
   return (
+    <div className="space-y-6">
+    <PushToggle />
     <div className="rounded-xl border border-gray-200 bg-white p-6">
       <div className="flex items-center justify-between">
         <div>
@@ -130,6 +133,7 @@ export function NotificationPreferencesTab() {
           {t('Disable all', 'تعطيل الكل')}
         </Button>
       </div>
+    </div>
     </div>
   )
 }
