@@ -191,6 +191,7 @@ function StudentsPanel() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="font-bold text-gray-900 truncate">{sd.name || sd.firstName}</div>
+                      {!sd.photoUrl && <span className="mt-0.5 inline-block rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-900">{t('No photo', 'بدون صورة')}</span>}
                       <div className="text-xs text-gray-500">{sd.dateOfBirth} · {sd.gender} · {sd.churchName || ''}</div>
                       <div className="mt-1 flex items-center gap-1.5 flex-wrap">
                         <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${app.hymnChoice === 'amen_be_mawteka' ? 'bg-blue-50 text-blue-700' : app.hymnChoice === 'both' ? 'bg-amber-50 text-amber-700 border border-amber-200' : 'bg-purple-50 text-purple-700'}`}>
@@ -295,6 +296,7 @@ function StudentsPanel() {
                   </div>
                   <div className="min-w-0">
                     <div className="font-bold text-gray-900 truncate">{sd.name || `${sd.firstName || ''} ${sd.lastName || ''}`.trim() || t('Application', 'طلب')}</div>
+                    {!sd.photoUrl && <span className="mt-0.5 inline-block rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-900">{t('No photo', 'بدون صورة')}</span>}
                     <div className="text-xs text-gray-500">{sd.dateOfBirth} · {sd.gender} · {sd.churchName || ''}</div>
                   </div>
                 </div>

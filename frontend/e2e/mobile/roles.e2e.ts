@@ -141,10 +141,46 @@ for (const lang of ['en', 'ar'] as const) {
         expect(overlaps(help, finalize), 'Help button overlaps "Save & Finalize"').toBe(false)
         expect(overlaps(help, box), 'Help button overlaps "Save"').toBe(false)
 
+        // Student photos: a real photo where one exists, initials where there is none or it fails to load.
+        const rows = page.locator('[data-student-id]')
+        // Count photos that actually loaded (an <img> that is still loading or has failed does not count).
+        const loadedPhotos = () => page.evaluate(() =>
+          [...document.querySelectorAll('[data-testid="student-avatar"] img')].filter((i) => (i as HTMLImageElement).complete && (i as HTMLImageElement).naturalWidth > 0).length)
+        await expect.poll(loadedPhotos, { message: 'students with a working photo show it' }).toBeGreaterThan(0)
+        await expect(rows.first().locator('[data-testid="student-avatar"]')).toBeVisible()
+        // Every avatar reserves its space (no layout jump when a photo arrives) and is not announced twice.
+        const avatar = rows.first().locator('[data-testid="student-avatar"]')
+        const avatarBox = (await avatar.boundingBox())!
+        expect(avatarBox.width).toBe(36)
+        expect(avatarBox.height).toBe(36)
+        await expect(avatar).toHaveAttribute('aria-hidden', 'true')
+        // A photo that 404s must end up as initials, not a broken-image icon.
+        await expect.poll(async () => page.evaluate(() =>
+          [...document.querySelectorAll('[data-testid="student-avatar"] img')].filter((i) => (i as HTMLImageElement).complete && (i as HTMLImageElement).naturalWidth === 0).length,
+        ), { message: 'no broken-image icons left on screen' }).toBe(0)
+
         await shot(page, info.project.name, `${lang}-${role.key}-attendance-mark`)
         expect(api.errors, 'uncaught runtime errors').toEqual([])
       })
     }
+
+    test('Admin: recent grades show the student photo, or initials when there is none', async ({ page }) => {
+      await setLanguage(page, lang)
+      await mockApi(page, ROLES.find((r) => r.key === 'admin')!)
+      await openDashboard(page)
+      const avatarBeside = (name: string) =>
+        page.getByText(name, { exact: true }).locator('visible=true').first().locator('xpath=preceding-sibling::*[@data-testid="student-avatar"]')
+
+      const withPhoto = avatarBeside('Mina Girgis')
+      await withPhoto.scrollIntoViewIfNeeded()
+      await expect.poll(() => withPhoto.locator('img').evaluate((i: HTMLImageElement) => i.complete && i.naturalWidth > 0), {
+        message: 'a graded student with a photo shows it',
+      }).toBe(true)
+
+      const noPhoto = avatarBeside('Marina Samir')
+      await expect(noPhoto).toHaveText('MS')
+      await expect(noPhoto.locator('img')).toHaveCount(0)
+    })
 
     test('Parent: sees only Dashboard and My Children in the bottom nav', async ({ page }) => {
       await setLanguage(page, lang)
