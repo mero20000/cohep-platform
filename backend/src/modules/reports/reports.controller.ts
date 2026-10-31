@@ -18,6 +18,13 @@ export class ReportsController {
     return this.reportsService.getPriestPulse(schoolId);
   }
 
+  @Get('level-group-overview')
+  @Roles('super_admin', 'admin', 'principal', 'priest', 'curriculum_manager')
+  @ApiOperation({ summary: 'Every level and group side by side: students, attendance (vs previous window), at-risk, pass rate' })
+  async getLevelGroupOverview(@Query('schoolId') schoolId: string = '', @Query('days') days?: string) {
+    return this.reportsService.getLevelGroupOverview(schoolId, days ? Number(days) : 30);
+  }
+
   @Get('liturgical-engagement')
   @ApiOperation({ summary: 'Liturgical season engagement — attendance and XP overlaid on the Coptic calendar' })
   async getLiturgicalEngagement(@Query('schoolId') schoolId: string = '') {

@@ -1,6 +1,8 @@
 import { loadAttendanceTrend } from '../attendance/attendance-trend';
 import { findAtRiskStudents } from '../attendance/absence-risk';
 import { computeHealthScore } from './health-score';
+import { buildLevelGroupOverview } from './level-group-overview';
+import { CLASS_SESSION_FILTER } from '../attendance/attendance-metrics';
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 import { SchoolResolver } from '../../common/utils/school-resolver';
@@ -12,6 +14,66 @@ export class ReportsService {
     private readonly prisma: PrismaService,
     private readonly schoolResolver: SchoolResolver,
   ) {}
+
+  // ── Level & group comparison (school leadership) ───────────────────────
+
+  /**
+   * Every level and group side by side: students, attendance (this window vs the one before), at-risk count and
+   * pass rate. Fixed number of queries regardless of school size. `days` is clamped to 7..180.
+   */
+  async getLevelGroupOverview(schoolIdentifier: string, daysInput = 30) {
+    const schoolId = await this.schoolResolver.resolve(schoolIdentifier);
+    const days = Math.min(180, Math.max(7, Math.floor(Number(daysInput) || 30)));
+    const now = new Date();
+    const dayMs = 24 * 60 * 60 * 1000;
+    const currentSince = new Date(now.getTime() - days * dayMs);
+    const prevSince = new Date(now.getTime() - 2 * days * dayMs);
+
+    const [levels, groups, students, rows, atRisk, graded] = await Promise.all([
+      this.prisma.level.findMany({ where: { schoolId, deletedAt: null }, select: { id: true, name: true, nameAr: true, orderIndex: true } }),
+      this.prisma.group.findMany({ where: { schoolId, deletedAt: null }, select: { id: true, name: true, nameAr: true, orderIndex: true } }),
+      this.prisma.student.findMany({ where: { schoolId, deletedAt: null, status: 'active' }, select: { id: true, levelId: true, groupId: true } }),
+      this.prisma.attendanceRecord.findMany({
+        where: {
+          status: { in: ['present', 'late', 'absent'] },
+          student: { schoolId, deletedAt: null, status: 'active' },
+          attendanceSession: { schoolId, deletedAt: null, scheduledDate: { gte: prevSince, lte: now }, AND: [CLASS_SESSION_FILTER] },
+        },
+        select: { studentId: true, status: true, attendanceSession: { select: { scheduledDate: true } } },
+      }),
+      findAtRiskStudents(this.prisma, schoolId, { now }),
+      this.prisma.assessmentSubmission.findMany({
+        where: {
+          assessment: { schoolId, deletedAt: null },
+          status: 'completed',
+          grades: { some: { questionId: null, createdAt: { gte: currentSince } } },
+          student: { schoolId, deletedAt: null, status: 'active' },
+        },
+        select: {
+          studentId: true,
+          assessment: { select: { passingScore: true } },
+          grades: { where: { questionId: null }, select: { score: true } },
+        },
+      }),
+    ]);
+
+    const overview = buildLevelGroupOverview({
+      levels,
+      groups,
+      students,
+      records: rows.map((r: any) => ({
+        studentId: r.studentId,
+        status: r.status,
+        current: new Date(r.attendanceSession.scheduledDate) >= currentSince,
+      })),
+      atRisk: new Set(atRisk.keys()),
+      grades: graded
+        .filter((g: any) => g.grades[0])
+        .map((g: any) => ({ studentId: g.studentId, passed: Number(g.grades[0].score) >= Number(g.assessment.passingScore) })),
+    });
+
+    return { generatedAt: now.toISOString(), windowDays: days, ...overview };
+  }
 
   // ── 30-Second Priest Pulse ─────────────────────────────────────────────
 
