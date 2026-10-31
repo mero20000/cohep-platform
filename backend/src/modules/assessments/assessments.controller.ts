@@ -132,8 +132,8 @@ export class AssessmentsController {
   @ApiOperation({ summary: 'Get assessment with questions' })
   @ApiResponse({ status: 200, description: 'Assessment retrieved successfully' })
   @ApiResponse({ status: 404, description: 'Assessment not found' })
-  async findOne(@Param('id', ParseUUIDPipe) id: string) {
-    return this.assessmentsService.findOne(id);
+  async findOne(@Param('id', ParseUUIDPipe) id: string, @Req() req: any) {
+    return this.assessmentsService.findOne(id, req.user);
   }
 
   @Post()
@@ -153,16 +153,17 @@ export class AssessmentsController {
   async update(
     @Param('id', ParseUUIDPipe) id: string,
     @Body(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true })) dto: UpdateAssessmentDto,
+    @Req() req: any,
   ) {
-    return this.assessmentsService.update(id, dto);
+    return this.assessmentsService.update(id, dto, req.user);
   }
 
   @Delete(':id')
   @ApiOperation({ summary: 'Delete assessment (soft delete)' })
   @ApiResponse({ status: 200, description: 'Assessment deleted successfully' })
   @ApiResponse({ status: 404, description: 'Assessment not found' })
-  async remove(@Param('id', ParseUUIDPipe) id: string) {
-    return this.assessmentsService.delete(id);
+  async remove(@Param('id', ParseUUIDPipe) id: string, @Req() req: any) {
+    return this.assessmentsService.delete(id, req.user);
   }
 
   @Post(':id/submit')
@@ -177,15 +178,15 @@ export class AssessmentsController {
     @Body(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true })) dto: SubmitAssessmentDto,
     @Req() req: any,
   ) {
-    return this.assessmentsService.submit(id, studentId, dto, { id: req.user?.id, schoolId: req.user?.schoolId });
+    return this.assessmentsService.submit(id, studentId, dto, req.user);
   }
 
   @Get(':id/submissions')
   @ApiOperation({ summary: 'List submissions for an assessment' })
   @ApiResponse({ status: 200, description: 'Submissions retrieved successfully' })
   @ApiResponse({ status: 404, description: 'Assessment not found' })
-  async getSubmissions(@Param('id', ParseUUIDPipe) id: string) {
-    return this.assessmentsService.getSubmissions(id);
+  async getSubmissions(@Param('id', ParseUUIDPipe) id: string, @Req() req: any) {
+    return this.assessmentsService.getSubmissions(id, req.user);
   }
 
   @Post(':id/assign')
@@ -193,14 +194,15 @@ export class AssessmentsController {
   async assignStudents(
     @Param('id', ParseUUIDPipe) id: string,
     @Body(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true })) dto: AssignStudentsDto,
+    @Req() req: any,
   ) {
-    return this.assessmentsService.assignStudents(id, dto.studentIds);
+    return this.assessmentsService.assignStudents(id, dto.studentIds, req.user);
   }
 
   @Post(':id/publish')
   @Roles('admin', 'super_admin', 'principal', 'curriculum_manager', 'level_leader')
-  async publish(@Param('id') id: string) {
-    return this.assessmentsService.publishAssessment(id);
+  async publish(@Param('id') id: string, @Req() req: any) {
+    return this.assessmentsService.publishAssessment(id, req.user);
   }
 
   @Delete(':id/students/:studentId')
@@ -208,8 +210,9 @@ export class AssessmentsController {
   async unassignStudent(
     @Param('id', ParseUUIDPipe) id: string,
     @Param('studentId', ParseUUIDPipe) studentId: string,
+    @Req() req: any,
   ) {
-    return this.assessmentsService.unassignStudent(id, studentId);
+    return this.assessmentsService.unassignStudent(id, studentId, req.user);
   }
 
   @Post(':id/students/:studentId/reassess')
@@ -217,8 +220,9 @@ export class AssessmentsController {
   async reassessStudent(
     @Param('id', ParseUUIDPipe) id: string,
     @Param('studentId', ParseUUIDPipe) studentId: string,
+    @Req() req: any,
   ) {
-    return this.assessmentsService.reassessStudent(id, studentId);
+    return this.assessmentsService.reassessStudent(id, studentId, req.user);
   }
 
   @Post(':id/students/:studentId/mark')
@@ -251,9 +255,10 @@ export class AssessmentsController {
   @ApiOperation({ summary: 'List students for an assessment (by level/group/grade) with marks' })
   async getStudentsForAssessment(
     @Param('id', ParseUUIDPipe) id: string,
+    @Req() req: any,
     @Query('gradeId') gradeId?: string,
   ) {
-    return this.assessmentsService.getStudentsForAssessment(id, gradeId);
+    return this.assessmentsService.getStudentsForAssessment(id, gradeId, req.user);
   }
 
   @Get(':id/questions')
@@ -262,7 +267,8 @@ export class AssessmentsController {
   async getTakeQuestions(
     @Param('id', ParseUUIDPipe) id: string,
     @Query('studentId', ParseUUIDPipe) studentId: string,
+    @Req() req: any,
   ) {
-    return this.assessmentsService.getTakeQuestions(id, studentId);
+    return this.assessmentsService.getTakeQuestions(id, studentId, req.user);
   }
 }

@@ -4,12 +4,17 @@ import { AssessmentsService } from './assessments.service';
 import { PrismaService } from '../../database/prisma.service';
 import { SchoolResolver } from '../../common/utils/school-resolver';
 import { AuditService } from '../audit/audit.service';
+import { AccessScopeService } from '../../common/access-scope.service';
 import { RolesGuard } from '../../modules/auth/guards/roles.guard';
 import { Reflector } from '@nestjs/core';
 import { STAFF_ROLES } from '../../common/decorators/roles.decorator';
 import { CreateAssessmentDto, CreateQuestionDto } from './dto/assessment.dto';
 import { validate } from 'class-validator';
 import { StudentNotificationsService } from '../student-notifications/student-notifications.service';
+
+// A staff member the service accepts everywhere; the real access rules are tested against a fake
+// database in assessments.access.spec.ts and access-scope.service.spec.ts.
+const staff = { id: 'admin-1', roles: ['admin'] };
 
 describe('AssessmentsService', () => {
   let service: AssessmentsService;
@@ -28,6 +33,26 @@ describe('AssessmentsService', () => {
     passingPoints: 60,
   };
 
+  /** Lets every call through, answering "which assessment" from the same mock the rest of the file sets up. */
+  const accessStub = () => ({
+    loadActor: jest.fn(async (u: any) => ({
+      id: u?.id ?? 'admin-1', schoolId, roles: u?.roles ?? ['admin'], isSuperAdmin: false, scope: u?.scope ?? {},
+    })),
+    assertAssessment: jest.fn(async (_actor: any, id: string, args: any = {}) => {
+      const a = await prismaMock.assessment.findUnique({ where: { id }, ...args });
+      if (!a || a.deletedAt) throw new NotFoundException('Assessment not found');
+      return a;
+    }),
+    assertAssessmentAndStudent: jest.fn(async (_actor: any, assessmentId: string, studentId: string) => {
+      const a = await prismaMock.assessment.findUnique({ where: { id: assessmentId } });
+      if (!a || a.deletedAt) throw new NotFoundException('Assessment not found');
+      return { assessment: a, student: { id: studentId, schoolId: a.schoolId } };
+    }),
+    studentWhere: jest.fn(() => ({})),
+    schoolWhere: jest.fn(() => ({})),
+    assertGroupAllowed: jest.fn(),
+  });
+
   const prismaMock = {
     $transaction: jest.fn(async (arg: any) => Array.isArray(arg) ? Promise.all(arg) : arg(prismaMock)),
     assessment: {
@@ -38,9 +63,14 @@ describe('AssessmentsService', () => {
       update: jest.fn(),
       deleteMany: jest.fn(),
     },
+    level: { findFirst: jest.fn().mockResolvedValue({ id: 'x' }) },
+    group: { findFirst: jest.fn().mockResolvedValue({ id: 'x' }) },
+    subject: { findFirst: jest.fn().mockResolvedValue({ id: 'x' }) },
+    lesson: { findFirst: jest.fn().mockResolvedValue({ id: 'x' }) },
     assessmentQuestion: {
       findMany: jest.fn(),
       deleteMany: jest.fn(),
+      updateMany: jest.fn().mockResolvedValue({ count: 1 }),
       update: jest.fn(),
       create: jest.fn(),
     },
@@ -85,6 +115,7 @@ describe('AssessmentsService', () => {
         { provide: PrismaService, useValue: prismaMock },
         { provide: SchoolResolver, useValue: { resolve: jest.fn().mockResolvedValue(schoolId) } },
         { provide: AuditService, useValue: { log: jest.fn().mockResolvedValue(undefined) } },
+        { provide: AccessScopeService, useValue: accessStub() },
       ],
     }).compile();
 
@@ -123,7 +154,7 @@ describe('AssessmentsService', () => {
     it('changes the audience on update without losing the rest of the metadata', async () => {
       prisma.assessment.findUnique.mockResolvedValue({ id: 'a1', deletedAt: null, metadata: { term: 2, grade: 'Grade 6' } });
 
-      await service.update('a1', { totalPoints: 100, passingPoints: 60, gender: 'male' });
+      await service.update('a1', { totalPoints: 100, passingPoints: 60, gender: 'male' }, staff);
 
       expect(prisma.assessment.update).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -135,7 +166,7 @@ describe('AssessmentsService', () => {
     it('leaves the audience alone when an update does not mention it', async () => {
       prisma.assessment.findUnique.mockResolvedValue({ id: 'a1', deletedAt: null, metadata: { gender: 'female' } });
 
-      await service.update('a1', { totalPoints: 100, passingPoints: 60, grade: 'Grade 7' });
+      await service.update('a1', { totalPoints: 100, passingPoints: 60, grade: 'Grade 7' }, staff);
 
       expect(prisma.assessment.update).toHaveBeenCalledWith(
         expect.objectContaining({ data: expect.objectContaining({ metadata: { gender: 'female', grade: 'Grade 7' } }) }),
@@ -150,7 +181,7 @@ describe('AssessmentsService', () => {
         prisma.student.findMany.mockResolvedValue([{ id: 'girl-1' }]);
         prisma.assessmentSubmission.findMany.mockResolvedValue([]);
 
-        const res = await service.assignStudents('a1', ['girl-1', 'boy-1']);
+        const res = await service.assignStudents('a1', ['girl-1', 'boy-1'], staff);
 
         expect(prisma.student.findMany).toHaveBeenCalledWith(
           expect.objectContaining({ where: expect.objectContaining({ levelId: 'l1', groupId: 'g1', gender: 'female' }) }),
@@ -166,7 +197,7 @@ describe('AssessmentsService', () => {
         prisma.student.findMany.mockResolvedValue([]);
         prisma.assessmentSubmission.findMany.mockResolvedValue([]);
 
-        await service.assignStudents('a1', ['x']);
+        await service.assignStudents('a1', ['x'], staff);
 
         const where = prisma.student.findMany.mock.calls[0][0].where;
         expect(where).not.toHaveProperty('gender');
@@ -177,7 +208,7 @@ describe('AssessmentsService', () => {
         prisma.student.findMany.mockResolvedValue([]);
         prisma.assessmentSubmission.findMany.mockResolvedValue([]);
 
-        await service.assignStudents('a1', ['x']);
+        await service.assignStudents('a1', ['x'], staff);
 
         expect(prisma.student.findMany.mock.calls[0][0].where).not.toHaveProperty('gender');
       });
@@ -189,7 +220,7 @@ describe('AssessmentsService', () => {
         prisma.student.findMany.mockResolvedValue([{ id: 'girl-1' }]);
         prisma.assessmentSubmission.findMany.mockResolvedValue([]);
 
-        await service.publishAssessment('a1');
+        await service.publishAssessment('a1', staff);
 
         for (const call of prisma.student.findMany.mock.calls) {
           expect(call[0].where).toEqual(expect.objectContaining({ gender: 'female' }));
@@ -201,7 +232,7 @@ describe('AssessmentsService', () => {
         prisma.student.findMany.mockResolvedValue([]);
         prisma.assessmentSubmission.findMany.mockResolvedValue([]);
 
-        await service.getStudentsForAssessment('a1');
+        await service.getStudentsForAssessment('a1', undefined, staff);
 
         expect(prisma.student.findMany).toHaveBeenCalledWith(
           expect.objectContaining({ where: expect.objectContaining({ gender: 'female', levelId: 'l1', groupId: 'g1' }) }),
@@ -305,7 +336,7 @@ describe('AssessmentsService', () => {
         passingPoints: 60,
         referenceRecordingUrl: 'https://x/rec2.mp3',
         referenceRecordingName: 'Rec2',
-      });
+      }, staff);
 
       expect(prisma.assessment.update).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -321,7 +352,7 @@ describe('AssessmentsService', () => {
       prisma.assessment.findUnique.mockResolvedValue({ id: 'a1', metadata: {}, deletedAt: null });
       prisma.assessment.update.mockResolvedValue({ id: 'a1' });
 
-      await service.update('a1', { totalPoints: 100, passingPoints: 60, type: 'exam' });
+      await service.update('a1', { totalPoints: 100, passingPoints: 60, type: 'exam' }, staff);
 
       const data = prisma.assessment.update.mock.calls[0][0].data;
       expect(data.type).toBe('exam');
@@ -331,14 +362,14 @@ describe('AssessmentsService', () => {
       prisma.assessment.findUnique.mockResolvedValue(null);
 
       await expect(
-        service.update('a1', { totalPoints: 100, passingPoints: 60, title: 'X' }),
+        service.update('a1', { totalPoints: 100, passingPoints: 60, title: 'X' }, staff),
       ).rejects.toThrow(NotFoundException);
     });
 
     it('upserts questions preserving existing ids', async () => {
       prisma.assessment.findUnique.mockResolvedValue({ id: 'a1', metadata: {}, deletedAt: null, totalPoints: 100 });
       prisma.assessment.update.mockResolvedValue({ id: 'a1' });
-      prisma.assessmentQuestion.update.mockResolvedValue({});
+      prisma.assessmentQuestion.updateMany.mockResolvedValue({ count: 1 });
       prisma.assessmentQuestion.create.mockResolvedValue({});
       prisma.assessmentQuestion.deleteMany.mockResolvedValue({});
 
@@ -349,20 +380,51 @@ describe('AssessmentsService', () => {
           { id: 'q1', text: 'Kept', type: 'multiple_choice', options: ['A', 'B'], correctAnswer: 'A', points: 50, orderIndex: 0 },
           { text: 'New', type: 'true_false', correctAnswer: 'true', points: 50, orderIndex: 1 },
         ],
-      });
+      }, staff);
 
-      expect(prisma.assessmentQuestion.update).toHaveBeenCalledWith(
-        expect.objectContaining({ where: { id: 'q1' } }),
+      expect(prisma.assessmentQuestion.updateMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { id: 'q1', assessmentId: 'a1' } }),
       );
       expect(prisma.assessmentQuestion.create).toHaveBeenCalledWith(
         expect.objectContaining({ data: expect.objectContaining({ assessmentId: 'a1', questionText: 'New' }) }),
       );
     });
 
+    it('refuses a question id that belongs to another assessment instead of overwriting it', async () => {
+      prisma.assessment.findUnique.mockResolvedValue({ id: 'a1', metadata: {}, deletedAt: null, totalPoints: 100 });
+      prisma.assessmentQuestion.deleteMany.mockResolvedValue({});
+      prisma.assessmentQuestion.updateMany.mockResolvedValueOnce({ count: 0 });
+
+      await expect(
+        service.update('a1', {
+          totalPoints: 100,
+          passingPoints: 60,
+          questions: [{ id: 'q-of-another-assessment', text: 'Hijack', type: 'true_false', correctAnswer: 'true', points: 100, orderIndex: 0 }],
+        }, staff),
+      ).rejects.toThrow(/does not belong to this assessment/);
+      expect(prisma.assessment.update).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      ['levelId', 'level'],
+      ['groupId', 'group'],
+      ['subjectId', 'subject'],
+      ['lessonId', 'lesson'],
+    ] as const)('refuses a %s from another school', async (field, table) => {
+      prisma.assessment.findUnique.mockResolvedValue({ id: 'a1', schoolId, metadata: {}, deletedAt: null, totalPoints: 100 });
+      (prisma as any)[table].findFirst.mockResolvedValueOnce(null);
+
+      await expect(
+        service.update('a1', { totalPoints: 100, passingPoints: 60, [field]: 'foreign-id' } as any, staff),
+      ).rejects.toThrow(/not found in this school/);
+      expect((prisma as any)[table].findFirst).toHaveBeenCalledWith({ where: { id: 'foreign-id', schoolId }, select: { id: true } });
+      expect(prisma.assessment.update).not.toHaveBeenCalled();
+    });
+
     it('does not delete questions that have grades', async () => {
       prisma.assessment.findUnique.mockResolvedValue({ id: 'a1', metadata: {}, deletedAt: null, totalPoints: 100 });
       prisma.assessment.update.mockResolvedValue({ id: 'a1' });
-      prisma.assessmentQuestion.update.mockResolvedValue({});
+      prisma.assessmentQuestion.updateMany.mockResolvedValue({ count: 1 });
       prisma.assessmentQuestion.create.mockResolvedValue({});
       prisma.assessmentQuestion.deleteMany.mockResolvedValue({});
 
@@ -372,7 +434,7 @@ describe('AssessmentsService', () => {
         questions: [
           { id: 'q1', text: 'Kept', type: 'multiple_choice', options: ['A', 'B'], correctAnswer: 'A', points: 100, orderIndex: 0 },
         ],
-      });
+      }, staff);
 
       // keptIds = ['q1']; deleteMany must exclude q1 and only target questions with no grades
       const args = prisma.assessmentQuestion.deleteMany.mock.calls[0][0];
@@ -384,7 +446,7 @@ describe('AssessmentsService', () => {
     it('persists durationMinutes into metadata on update', async () => {
       prisma.assessment.findUnique.mockResolvedValue({ id: 'a1', metadata: {}, totalPoints: 100 });
       prisma.assessment.update.mockResolvedValue({ id: 'a1' });
-      await service.update('a1', { totalPoints: 100, passingPoints: 60, durationMinutes: 30 });
+      await service.update('a1', { totalPoints: 100, passingPoints: 60, durationMinutes: 30 }, staff);
       const data = prisma.assessment.update.mock.calls[0][0].data;
       expect(data.metadata.durationMinutes).toBe(30);
     });
@@ -672,10 +734,9 @@ describe('AssessmentsService', () => {
       });
 
       it('limits a servant to the group and level on their profile', async () => {
-        prisma.user.findUnique.mockResolvedValue({ metadata: { groupId: 'g1', levelId: 'l1', teachingGender: 'both' } });
         prisma.assessmentSubmission.findMany.mockResolvedValue([row()]);
 
-        await service.getPendingReview('school-1', servant);
+        await service.getPendingReview('school-1', { ...servant, scope: { groupId: 'g1', levelId: 'l1' } } as any);
 
         expect(prisma.assessmentSubmission.findMany).toHaveBeenCalledWith(
           expect.objectContaining({
@@ -684,13 +745,16 @@ describe('AssessmentsService', () => {
         );
       });
 
-      it('shows a non-admin with no group or level nothing rather than everything', async () => {
-        prisma.user.findUnique.mockResolvedValue({ metadata: {} });
+      it('shows a servant with no group or level the whole school, as the students module does', async () => {
+        prisma.assessmentSubmission.findMany.mockResolvedValue([row()]);
 
-        const result = await service.getPendingReview('school-1', servant);
+        await service.getPendingReview('school-1', servant);
 
-        expect(result).toEqual([]);
-        expect(prisma.assessmentSubmission.findMany).not.toHaveBeenCalled();
+        expect(prisma.assessmentSubmission.findMany).toHaveBeenCalledWith(
+          expect.objectContaining({
+            where: expect.objectContaining({ student: { deletedAt: null } }),
+          }),
+        );
       });
 
       it('includes the student recording, notes, the reference recording and answers to since-removed questions', async () => {
@@ -746,9 +810,14 @@ describe('AssessmentsService', () => {
         expect(result).toEqual({ count: 3, oldestSubmittedAt: new Date('2026-01-01') });
       });
 
-      it('reports zero for an unscoped non-admin', async () => {
-        prisma.user.findUnique.mockResolvedValue({ metadata: null });
-        expect(await service.getPendingReviewCount('school-1', servant)).toEqual({ count: 0, oldestSubmittedAt: null });
+      it('counts the whole school for a servant with no assignment', async () => {
+        prisma.assessmentSubmission.count.mockResolvedValue(2);
+        prisma.assessmentSubmission.findFirst.mockResolvedValue(null);
+        const result = await service.getPendingReviewCount('school-1', servant);
+        expect(result.count).toBe(2);
+        expect(prisma.assessmentSubmission.count).toHaveBeenCalledWith(
+          expect.objectContaining({ where: expect.objectContaining({ student: { deletedAt: null } }) }),
+        );
       });
     });
 
@@ -791,7 +860,7 @@ describe('AssessmentsService', () => {
         prisma.assessmentSubmission.findFirst
           .mockResolvedValueOnce(sub())
           .mockResolvedValueOnce(null);
-        const spy = jest.spyOn(service, 'markStudent').mockResolvedValue({} as any);
+        const spy = jest.spyOn(service as any, 'applyMark').mockResolvedValue({} as any);
 
         const result = await service.acceptAutoScores('school-1', ['sub-1', 'sub-2'], admin);
 
@@ -1034,9 +1103,8 @@ describe('AssessmentsService', () => {
         expect(item.notes).toBeNull();
       });
 
-      it('limits a servant to their own group and shows nothing to an unscoped non-admin', async () => {
-        prisma.user.findUnique.mockResolvedValueOnce({ metadata: { groupId: 'g1', levelId: 'l1' } });
-        await service.getMarked('school-1', servant);
+      it('limits a servant to their own group, and shows the whole school to one with no assignment', async () => {
+        await service.getMarked('school-1', { ...servant, scope: { groupId: 'g1', levelId: 'l1' } } as any);
         expect(prisma.grade.findMany).toHaveBeenCalledWith(
           expect.objectContaining({
             where: expect.objectContaining({
@@ -1046,9 +1114,12 @@ describe('AssessmentsService', () => {
         );
 
         prisma.grade.findMany.mockClear();
-        prisma.user.findUnique.mockResolvedValueOnce({ metadata: {} });
-        expect(await service.getMarked('school-1', servant)).toEqual({ days: 90, truncated: false, items: [] });
-        expect(prisma.grade.findMany).not.toHaveBeenCalled();
+        await service.getMarked('school-1', servant);
+        expect(prisma.grade.findMany).toHaveBeenCalledWith(
+          expect.objectContaining({
+            where: expect.objectContaining({ submission: expect.objectContaining({ student: { deletedAt: null } }) }),
+          }),
+        );
       });
 
       it('flags truncation when more than the cap exist and clamps the window', async () => {
@@ -1148,7 +1219,7 @@ describe('AssessmentsService', () => {
         prisma.student.findMany.mockResolvedValue([{ id: 'stu-1' }, { id: 'stu-2' }]);
         prisma.assessmentSubmission.findMany.mockResolvedValue([{ studentId: 'stu-2' }]);
 
-        const res = await service.assignStudents('a1', ['stu-1', 'stu-2', 'stu-3', 'stu-1']);
+        const res = await service.assignStudents('a1', ['stu-1', 'stu-2', 'stu-3', 'stu-1'], staff);
 
         expect(prisma.student.findMany).toHaveBeenCalledWith(
           expect.objectContaining({
@@ -1166,7 +1237,7 @@ describe('AssessmentsService', () => {
         prisma.student.findMany.mockResolvedValue([{ id: 'stu-1' }]);
         prisma.assessmentSubmission.findMany.mockResolvedValue([]);
 
-        await service.assignStudents('a1', ['stu-1']);
+        await service.assignStudents('a1', ['stu-1'], staff);
 
         expect(prisma.assessmentSubmission.findMany).toHaveBeenCalledWith(
           expect.objectContaining({
@@ -1184,7 +1255,7 @@ describe('AssessmentsService', () => {
         prisma.student.findMany.mockResolvedValue([]);
         prisma.assessmentSubmission.findMany.mockResolvedValue([]);
 
-        const res = await service.assignStudents('a1', ['stu-9']);
+        const res = await service.assignStudents('a1', ['stu-9'], staff);
 
         expect(prisma.assessmentSubmission.createMany).not.toHaveBeenCalled();
         expect(res).toEqual({ assigned: 0, skipped: 1, notEligible: 1 });
@@ -1198,7 +1269,7 @@ describe('AssessmentsService', () => {
         prisma.grade.deleteMany = jest.fn();
         prisma.assessmentSubmission.deleteMany = jest.fn();
 
-        await service.unassignStudent('a1', 'stu-1');
+        await service.unassignStudent('a1', 'stu-1', staff);
 
         expect(prisma.grade.deleteMany).toHaveBeenCalledWith({ where: { submissionId: { in: ['s1', 's2'] } } });
         expect(prisma.assessmentSubmission.deleteMany).toHaveBeenCalledWith({ where: { id: { in: ['s1', 's2'] } } });
@@ -1207,7 +1278,7 @@ describe('AssessmentsService', () => {
       it('404s when the student has no live record', async () => {
         prisma.assessment.findUnique.mockResolvedValue(assessmentRow());
         prisma.assessmentSubmission.findMany.mockResolvedValue([]);
-        await expect(service.unassignStudent('a1', 'stu-1')).rejects.toThrow(/not assigned/);
+        await expect(service.unassignStudent('a1', 'stu-1', staff)).rejects.toThrow(/not assigned/);
       });
     });
 
@@ -1241,7 +1312,7 @@ describe('AssessmentsService', () => {
           { id: 'dupe', studentId: 'stu-1', status: 'assigned', attemptNumber: 1, createdAt: new Date('2026-02-01'), grades: [] },
         ]);
 
-        const [row] = (await service.getStudentsForAssessment('a1')) as any[];
+        const [row] = (await service.getStudentsForAssessment('a1', undefined, staff)) as any[];
 
         expect(row.submissionStatus).toBe('completed');
         expect(row.mark).toBe(8);
@@ -1582,7 +1653,7 @@ describe('AssessmentsService', () => {
     it('rejects publish when assessment has no questions', async () => {
       prisma.assessment.findUnique.mockResolvedValue({ id: 'a1', status: 'draft', deletedAt: null, totalPoints: 0 });
       prisma.assessmentQuestion.findMany.mockResolvedValue([]);
-      await expect(service.publishAssessment('a1')).rejects.toThrow('Cannot publish assessment without questions');
+      await expect(service.publishAssessment('a1', staff)).rejects.toThrow('Cannot publish assessment without questions');
     });
 
     it('publishes and auto-assigns group students', async () => {
@@ -1591,7 +1662,7 @@ describe('AssessmentsService', () => {
       prisma.student.findMany.mockResolvedValue([{ id: 'stu-1' }, { id: 'stu-2' }]);
       prisma.assessmentSubmission.findMany.mockResolvedValue([]);
       prisma.assessment.update.mockResolvedValue({ id: 'a1', status: 'published' });
-      const res = await service.publishAssessment('a1');
+      const res = await service.publishAssessment('a1', staff);
       expect(res.status).toBe('published');
       expect(prisma.assessmentSubmission.createMany).toHaveBeenCalled();
     });

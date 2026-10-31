@@ -2,6 +2,7 @@ import { Injectable, NotFoundException, BadRequestException } from '@nestjs/comm
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../database/prisma.service';
 import { SchoolResolver } from '../../common/utils/school-resolver';
+import { AccessScopeService } from '../../common/access-scope.service';
 import { AuditService } from '../audit/audit.service';
 import { StudentNotificationsService } from '../student-notifications/student-notifications.service';
 import { LIFECYCLE_WHERE, assessmentGender, isEligible, liveByKey, pickLive, ineligibleReason, scoreOf } from './assessment-lifecycle';
@@ -20,6 +21,7 @@ export class AssessmentsService {
     private schoolResolver: SchoolResolver,
     private readonly audit: AuditService,
     private readonly studentNotifications: StudentNotificationsService,
+    private readonly access: AccessScopeService,
   ) {}
 
   async findAll(schoolIdentifier: string, filters: {
@@ -62,9 +64,25 @@ export class AssessmentsService {
     };
   }
 
-  async findOne(id: string) {
-    const assessment = await this.prisma.assessment.findUnique({
-      where: { id },
+  /** Level, group, subject and lesson named in a body must belong to the school the record is in. */
+  private async assertReferencesInSchool(
+    schoolId: string,
+    refs: { levelId?: string | null; groupId?: string | null; subjectId?: string | null; lessonId?: string | null },
+  ) {
+    const checks: Array<[string, string | null | undefined, () => Promise<unknown>]> = [
+      ['Level', refs.levelId, () => this.prisma.level.findFirst({ where: { id: refs.levelId!, schoolId }, select: { id: true } })],
+      ['Group', refs.groupId, () => this.prisma.group.findFirst({ where: { id: refs.groupId!, schoolId }, select: { id: true } })],
+      ['Subject', refs.subjectId, () => this.prisma.subject.findFirst({ where: { id: refs.subjectId!, schoolId }, select: { id: true } })],
+      ['Lesson', refs.lessonId, () => this.prisma.lesson.findFirst({ where: { id: refs.lessonId!, schoolId }, select: { id: true } })],
+    ];
+    for (const [what, id, find] of checks) {
+      if (id && !(await find())) throw new BadRequestException(`${what} not found in this school`);
+    }
+  }
+
+  async findOne(id: string, user: any) {
+    const actor = await this.access.loadActor(user);
+    return this.access.assertAssessment(actor, id, {
       include: {
         level: { select: { id: true, name: true, number: true } },
         group: { select: { id: true, name: true } },
@@ -74,14 +92,11 @@ export class AssessmentsService {
         _count: { select: { submissions: true } },
       },
     });
-    if (!assessment || assessment.deletedAt) {
-      throw new NotFoundException('Assessment not found');
-    }
-    return assessment;
   }
 
   async create(dto: CreateAssessmentDto, schoolIdentifier: string) {
     const schoolId = await this.schoolResolver.resolve(schoolIdentifier || dto.schoolId || '');
+    await this.assertReferencesInSchool(schoolId, dto);
 
     const adminUser = await this.prisma.user.findFirst({
       where: { schoolId },
@@ -140,11 +155,11 @@ export class AssessmentsService {
     });
   }
 
-  async update(id: string, dto: UpdateAssessmentDto) {
-    const existing = await this.prisma.assessment.findUnique({ where: { id } });
-    if (!existing || existing.deletedAt) {
-      throw new NotFoundException('Assessment not found');
-    }
+  async update(id: string, dto: UpdateAssessmentDto, user: any) {
+    const actor = await this.access.loadActor(user);
+    const existing = await this.access.assertAssessment(actor, id);
+    await this.assertReferencesInSchool(existing.schoolId, dto);
+    this.access.assertGroupAllowed(actor, dto.groupId);
 
     const data: any = {};
     if (dto.title !== undefined) data.title = dto.title;
@@ -195,7 +210,13 @@ export class AssessmentsService {
             orderIndex: q.orderIndex,
           };
           if (q.id) {
-            await tx.assessmentQuestion.update({ where: { id: q.id }, data: questionData });
+            // Only this assessment's own questions: an id taken from another assessment would
+            // otherwise overwrite that assessment's question.
+            const { count } = await tx.assessmentQuestion.updateMany({
+              where: { id: q.id, assessmentId: id },
+              data: questionData,
+            });
+            if (count === 0) throw new BadRequestException('A question does not belong to this assessment');
           } else {
             await tx.assessmentQuestion.create({
               data: { assessmentId: id, ...questionData },
@@ -218,11 +239,9 @@ export class AssessmentsService {
     });
   }
 
-  async publishAssessment(assessmentId: string) {
-    const assessment = await this.prisma.assessment.findUnique({ where: { id: assessmentId } });
-    if (!assessment || assessment.deletedAt) {
-      throw new NotFoundException('Assessment not found');
-    }
+  async publishAssessment(assessmentId: string, user: any) {
+    const actor = await this.access.loadActor(user);
+    const assessment = await this.access.assertAssessment(actor, assessmentId);
     if (assessment.status === 'published') {
       return assessment;
     }
@@ -253,18 +272,18 @@ export class AssessmentsService {
         select: { id: true },
       });
       if (students.length > 0) {
-        const res = await this.assignStudents(assessmentId, students.map(s => s.id));
+        // The caller may publish this assessment, so every student it is meant for gets it, whatever
+        // part of the school the caller is assigned to.
+        const res = await this.assignEligible(assessment, students.map(s => s.id));
         assigned = res.assigned;
       }
     }
     return { ...updated, assigned };
   }
 
-  async delete(id: string) {
-    const existing = await this.prisma.assessment.findUnique({ where: { id } });
-    if (!existing || existing.deletedAt) {
-      throw new NotFoundException('Assessment not found');
-    }
+  async delete(id: string, user: any) {
+    const actor = await this.access.loadActor(user);
+    await this.access.assertAssessment(actor, id);
 
     await this.prisma.$transaction([
       this.prisma.grade.deleteMany({
@@ -292,7 +311,14 @@ export class AssessmentsService {
     });
   }
 
+  /**
+   * `actor` is the staff member submitting on a student's behalf (`req.user`); it is absent when the
+   * student submits for themselves through the portal, whose key already identifies the student.
+   */
   async submit(assessmentId: string, studentId: string, dto: SubmitAssessmentDto, actor?: { id?: string; schoolId?: string }) {
+    if (actor) {
+      await this.access.assertAssessmentAndStudent(await this.access.loadActor(actor), assessmentId, studentId);
+    }
     const assessment = await this.prisma.assessment.findUnique({
       where: { id: assessmentId },
       include: { questions: true },
@@ -387,22 +413,12 @@ export class AssessmentsService {
   }
 
   /**
-   * Which students an actor may review. `{}` for admins; for servants/leaders the group,
-   * level, grade and gender recorded on their profile; `null` when a non-admin has no
-   * group or level at all (so a mis-configured account sees nothing rather than everything).
+   * Which students an actor may review: `{}` for anyone school-wide (admins, principals, and a
+   * servant with no assignment); for an assigned servant or leader the group, level, grade and
+   * gender on their profile. The same rule as the students module, from AccessScopeService.
    */
-  private async reviewStudentScope(actor?: Actor): Promise<Record<string, any> | null> {
-    if (this.isAdminActor(actor)) return {};
-    if (!actor?.id) return null;
-    const user = await this.prisma.user.findUnique({ where: { id: actor.id }, select: { metadata: true } });
-    const meta = ((user as any)?.metadata as any) || {};
-    if (!meta.groupId && !meta.levelId) return null;
-    const scope: Record<string, any> = {};
-    if (meta.groupId) scope.groupId = meta.groupId;
-    if (meta.levelId) scope.levelId = meta.levelId;
-    if (meta.gradeId) scope.gradeId = meta.gradeId;
-    if (meta.teachingGender && meta.teachingGender !== 'both') scope.gender = meta.teachingGender;
-    return scope;
+  private async reviewStudentScope(actor?: Actor): Promise<Record<string, any>> {
+    return (await this.access.loadActor(actor)).scope;
   }
 
   /**
@@ -412,7 +428,6 @@ export class AssessmentsService {
   async getPendingReview(schoolIdentifier: string, actor?: Actor) {
     const schoolId = await this.schoolResolver.resolve(schoolIdentifier);
     const scope = await this.reviewStudentScope(actor);
-    if (!scope) return [];
 
     const submissions = await this.prisma.assessmentSubmission.findMany({
       where: {
@@ -520,7 +535,6 @@ export class AssessmentsService {
   async getMarked(schoolIdentifier: string, actor?: Actor, days = 90) {
     const schoolId = await this.schoolResolver.resolve(schoolIdentifier);
     const scope = await this.reviewStudentScope(actor);
-    if (!scope) return { days, truncated: false, items: [] };
 
     const window = Math.min(Math.max(Math.floor(days) || 90, 1), 365);
     const since = new Date(Date.now() - window * 86_400_000);
@@ -735,7 +749,6 @@ export class AssessmentsService {
   async getPendingReviewCount(schoolIdentifier: string, actor?: Actor) {
     const schoolId = await this.schoolResolver.resolve(schoolIdentifier);
     const scope = await this.reviewStudentScope(actor);
-    if (!scope) return { count: 0, oldestSubmittedAt: null };
 
     const where = {
       status: 'submitted',
@@ -783,7 +796,8 @@ export class AssessmentsService {
         const score = sub.grades
           .filter((g) => g.questionId !== null)
           .reduce((sum, g) => sum + Number(g.score.toString()), 0);
-        await this.markStudent(
+        // Already limited to this school and the caller's own students above.
+        await this.applyMark(
           sub.assessmentId, sub.studentId, score, Number(sub.assessment.totalPoints.toString()),
           undefined, actor?.id ?? null, { actor, viaAutoAccept: true },
         );
@@ -799,9 +813,10 @@ export class AssessmentsService {
    * Send a submitted attempt back to the student to redo, without deleting anything the
    * way unassignStudent does. The student is notified with the reviewer's note.
    */
-  async returnSubmission(assessmentId: string, studentId: string, note?: string, actor?: Actor) {
-    const assessment = await this.prisma.assessment.findUnique({ where: { id: assessmentId } });
-    if (!assessment || assessment.deletedAt) throw new NotFoundException('Assessment not found');
+  async returnSubmission(assessmentId: string, studentId: string, note: string | undefined, actor: Actor) {
+    const { assessment } = await this.access.assertAssessmentAndStudent(
+      await this.access.loadActor(actor), assessmentId, studentId,
+    );
 
     const submission = await this.liveSubmission(assessmentId, studentId);
     if (!submission) throw new NotFoundException('Student not assigned to this assessment');
@@ -1193,14 +1208,13 @@ export class AssessmentsService {
     };
   }
 
-  async getSubmissions(assessmentId: string) {
-    const assessment = await this.prisma.assessment.findUnique({ where: { id: assessmentId } });
-    if (!assessment || assessment.deletedAt) {
-      throw new NotFoundException('Assessment not found');
-    }
+  async getSubmissions(assessmentId: string, user: any) {
+    const actor = await this.access.loadActor(user);
+    await this.access.assertAssessment(actor, assessmentId);
 
     return this.prisma.assessmentSubmission.findMany({
-      where: { assessmentId, ...LIFECYCLE_WHERE },
+      // Only the students the caller may see.
+      where: { assessmentId, ...LIFECYCLE_WHERE, student: this.access.studentWhere(actor) },
       include: {
         student: { select: { id: true, firstName: true, lastName: true, studentCode: true } },
         grades: true,
@@ -1209,7 +1223,11 @@ export class AssessmentsService {
     });
   }
 
-  async getTakeQuestions(assessmentId: string, studentId: string) {
+  /** `actor` is the staff member previewing for a student; absent for the student's own portal. */
+  async getTakeQuestions(assessmentId: string, studentId: string, actor?: Actor) {
+    if (actor) {
+      await this.access.assertAssessmentAndStudent(await this.access.loadActor(actor), assessmentId, studentId);
+    }
     const assessment = await this.prisma.assessment.findUnique({
       where: { id: assessmentId },
       include: {
@@ -1261,11 +1279,18 @@ export class AssessmentsService {
     };
   }
 
-  async assignStudents(assessmentId: string, studentIds: string[]) {
-    const assessment = await this.prisma.assessment.findUnique({ where: { id: assessmentId } });
-    if (!assessment || assessment.deletedAt) {
-      throw new NotFoundException('Assessment not found');
-    }
+  async assignStudents(assessmentId: string, studentIds: string[], user: any) {
+    const actor = await this.access.loadActor(user);
+    const assessment = await this.access.assertAssessment(actor, assessmentId);
+    return this.assignEligible(assessment, studentIds, this.access.studentWhere(actor));
+  }
+
+  /**
+   * Opens the assessment for each of `studentIds` the assessment is meant for. The caller has
+   * already been cleared for the assessment; `studentFilter` further limits which students.
+   */
+  private async assignEligible(assessment: any, studentIds: string[], studentFilter?: Record<string, any>) {
+    const assessmentId: string = assessment.id;
 
     // Only students the assessment is meant for: same school and level, the same group when the
     // assessment is group-specific, and the right gender when it is limited to boys or girls. Anything else would create a record the student has no
@@ -1278,6 +1303,7 @@ export class AssessmentsService {
         levelId: assessment.levelId,
         ...((assessment as any).groupId ? { groupId: (assessment as any).groupId } : {}),
         ...(assessmentGender(assessment.metadata) !== 'all' ? { gender: assessmentGender(assessment.metadata) } : {}),
+        ...(studentFilter ? { AND: [studentFilter] } : {}),
       },
       select: { id: true },
     });
@@ -1312,11 +1338,8 @@ export class AssessmentsService {
     };
   }
 
-  async unassignStudent(assessmentId: string, studentId: string) {
-    const assessment = await this.prisma.assessment.findUnique({ where: { id: assessmentId } });
-    if (!assessment || assessment.deletedAt) {
-      throw new NotFoundException('Assessment not found');
-    }
+  async unassignStudent(assessmentId: string, studentId: string, user: any) {
+    await this.access.assertAssessmentAndStudent(await this.access.loadActor(user), assessmentId, studentId);
     // Every live record for the pair, so a legacy duplicate cannot be left behind to reappear.
     const rows = await this.prisma.assessmentSubmission.findMany({
       where: { assessmentId, studentId, ...LIFECYCLE_WHERE },
@@ -1331,11 +1354,8 @@ export class AssessmentsService {
     return { message: 'Student unassigned' };
   }
 
-  async reassessStudent(assessmentId: string, studentId: string) {
-    const assessment = await this.prisma.assessment.findUnique({ where: { id: assessmentId } });
-    if (!assessment || assessment.deletedAt) {
-      throw new NotFoundException('Assessment not found');
-    }
+  async reassessStudent(assessmentId: string, studentId: string, user: any) {
+    await this.access.assertAssessmentAndStudent(await this.access.loadActor(user), assessmentId, studentId);
     const submission = await this.liveSubmission(assessmentId, studentId);
     if (!submission) {
       throw new NotFoundException('Student not assigned to this assessment');
@@ -1354,7 +1374,21 @@ export class AssessmentsService {
     });
   }
 
+  /** Marks a student. `opts.actor` (the caller, `req.user`) is required: no actor, no access. */
   async markStudent(
+    assessmentId: string,
+    studentId: string,
+    score: number,
+    maxScore: number,
+    feedback?: string,
+    gradedBy?: string | null,
+    opts?: { questionScores?: QuestionScore[]; extraScore?: number; actor?: Actor; viaAutoAccept?: boolean },
+  ) {
+    await this.access.assertAssessmentAndStudent(await this.access.loadActor(opts?.actor), assessmentId, studentId);
+    return this.applyMark(assessmentId, studentId, score, maxScore, feedback, gradedBy, opts);
+  }
+
+  private async applyMark(
     assessmentId: string,
     studentId: string,
     score: number,
@@ -1555,15 +1589,14 @@ export class AssessmentsService {
     });
   }
 
-  async getStudentsForAssessment(assessmentId: string, gradeId?: string) {
+  async getStudentsForAssessment(assessmentId: string, gradeId: string | undefined, user: any) {
+    const actor = await this.access.loadActor(user);
+    const assessment = await this.access.assertAssessment(actor, assessmentId);
     try {
-      const assessment = await this.prisma.assessment.findUnique({ where: { id: assessmentId } });
-      if (!assessment || assessment.deletedAt) {
-        throw new NotFoundException('Assessment not found');
-      }
-
       const students = await this.prisma.student.findMany({
         where: {
+          // The caller's own students, within the assessment's school.
+          AND: [this.access.studentWhere(actor)],
           schoolId: assessment.schoolId,
           deletedAt: null,
           levelId: assessment.levelId,
