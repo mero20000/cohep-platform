@@ -44,7 +44,7 @@ export function MobileBottomNav({ items, lang, onMore }: MobileBottomNavProps) {
               aria-current={isActive ? 'page' : undefined}
               className={`flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 px-1 text-center transition-colors active:scale-95 ${
                 isActive
-                  ? 'text-gold-600'
+                  ? 'text-gold-700'
                   : 'text-gray-500 hover:text-gray-700'
               }`}
             >

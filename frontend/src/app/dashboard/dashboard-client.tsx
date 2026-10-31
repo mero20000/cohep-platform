@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef, useId } from 'react'
 import { useLanguage } from '@/lib/use-language'
 import { toTelHref, toWhatsAppDigits } from '@/lib/phone'
 import Image from 'next/image'
@@ -1025,6 +1025,7 @@ function RoleBadge({ role, lang }: { role: string; lang: string }) {
 }
 
 function StartClassCard({ lang, showForm }: { lang: string; showForm?: boolean }) {
+  const uid = useId()
   const [starting, setStarting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [groups, setGroups] = useState<{id:string;name:string}[]>([])
@@ -1097,7 +1098,7 @@ function StartClassCard({ lang, showForm }: { lang: string; showForm?: boolean }
         </div>
         {!showForm && (
           <button onClick={handleStart} disabled={starting}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-sm bg-emerald-600 text-white hover:bg-emerald-700 active:scale-95 transition-all disabled:opacity-50 shadow-lg shadow-emerald-200">
+            className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-sm bg-emerald-700 text-white hover:bg-emerald-800 active:scale-95 transition-all disabled:opacity-50 shadow-lg shadow-emerald-200">
             {starting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
             {starting ? (lang === 'ar' ? 'جاري البدء...' : 'Starting...') : (lang === 'ar' ? 'بدء الفصل' : 'Start Class')}
           </button>
@@ -1107,37 +1108,37 @@ function StartClassCard({ lang, showForm }: { lang: string; showForm?: boolean }
         <div className="mt-4 space-y-3">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">{lang === 'ar' ? 'المجموعة *' : 'Group *'}</label>
-              <select value={groupId} onChange={e => setGroupId(e.target.value)} className={sel}>
+              <label className="block text-xs font-medium text-gray-600 mb-1" htmlFor={`${uid}-sc1`}>{lang === 'ar' ? 'المجموعة *' : 'Group *'}</label>
+              <select id={`${uid}-sc1`} value={groupId} onChange={e => setGroupId(e.target.value)} className={sel}>
                 <option value="">{lang === 'ar' ? 'اختر مجموعة' : 'Select group'}</option>
                 {groups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
               </select>
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">{lang === 'ar' ? 'المستوى' : 'Level'}</label>
-              <select value={levelId} onChange={e => setLevelId(e.target.value)} className={sel}>
+              <label className="block text-xs font-medium text-gray-600 mb-1" htmlFor={`${uid}-sc2`}>{lang === 'ar' ? 'المستوى' : 'Level'}</label>
+              <select id={`${uid}-sc2`} value={levelId} onChange={e => setLevelId(e.target.value)} className={sel}>
                 <option value="">{lang === 'ar' ? 'الكل' : 'All'}</option>
                 {levels.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
               </select>
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">{lang === 'ar' ? 'الصف' : 'Grade'}</label>
-              <select value={gradeId} onChange={e => setGradeId(e.target.value)} className={sel}>
+              <label className="block text-xs font-medium text-gray-600 mb-1" htmlFor={`${uid}-sc3`}>{lang === 'ar' ? 'الصف' : 'Grade'}</label>
+              <select id={`${uid}-sc3`} value={gradeId} onChange={e => setGradeId(e.target.value)} className={sel}>
                 <option value="">{lang === 'ar' ? 'الكل' : 'All'}</option>
                 {grades.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
               </select>
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">{lang === 'ar' ? 'التاريخ *' : 'Date *'}</label>
-              <input type="date" value={date} onChange={e => setDate(e.target.value)} className={sel} />
+              <label className="block text-xs font-medium text-gray-600 mb-1" htmlFor={`${uid}-sc4`}>{lang === 'ar' ? 'التاريخ *' : 'Date *'}</label>
+              <input id={`${uid}-sc4`} type="date" value={date} onChange={e => setDate(e.target.value)} className={sel} />
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">{lang === 'ar' ? 'الوقت' : 'Time'}</label>
-              <input type="time" value={time} onChange={e => setTime(e.target.value)} className={sel} />
+              <label className="block text-xs font-medium text-gray-600 mb-1" htmlFor={`${uid}-sc5`}>{lang === 'ar' ? 'الوقت' : 'Time'}</label>
+              <input id={`${uid}-sc5`} type="time" value={time} onChange={e => setTime(e.target.value)} className={sel} />
             </div>
           </div>
           <button onClick={handleStart} disabled={starting || !groupId}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-sm bg-emerald-600 text-white hover:bg-emerald-700 active:scale-95 transition-all disabled:opacity-50 shadow-lg shadow-emerald-200 w-full justify-center">
+            className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-sm bg-emerald-700 text-white hover:bg-emerald-800 active:scale-95 transition-all disabled:opacity-50 shadow-lg shadow-emerald-200 w-full justify-center">
             {starting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
             {starting ? (lang === 'ar' ? 'جاري البدء...' : 'Starting...') : (lang === 'ar' ? 'بدء الجلسة' : 'Start Session')}
           </button>
@@ -1227,7 +1228,7 @@ export function TodaysSessionCard({ lang }: { lang: string }) {
             <p className="text-sm text-gray-500 mt-1">{lang === 'ar' ? 'اضغط لبدء الفصل — سيتم تسجيل جميع الطلاب كحاضرين مسبقًا' : 'Start your class — students pre-marked present'}</p>
           </div>
           <button onClick={handleStart} disabled={starting}
-            className="flex items-center gap-2 px-6 py-3 rounded-xl font-semibold text-sm bg-emerald-600 text-white hover:bg-emerald-700 active:scale-95 transition-all disabled:opacity-50 shadow-lg shadow-emerald-200">
+            className="flex items-center gap-2 px-6 py-3 rounded-xl font-semibold text-sm bg-emerald-700 text-white hover:bg-emerald-800 active:scale-95 transition-all disabled:opacity-50 shadow-lg shadow-emerald-200">
             {starting ? <Loader2 className="w-5 h-5 animate-spin" /> : <PlayCircle className="w-5 h-5" />}
             {starting ? (lang === 'ar' ? 'جاري...' : 'Starting...') : (lang === 'ar' ? 'بدء الفصل' : 'Start Class')}
           </button>
@@ -1683,7 +1684,7 @@ export function WeekSummaryCard({ thisWeek, lang }: { thisWeek?: any; lang: stri
           </div>
           <h2 className="font-semibold text-gray-900">{lang === 'ar' ? 'ملخص هذا الأسبوع' : 'This Week Summary'}</h2>
         </div>
-        <Link href="/dashboard/attendance" className="text-xs text-emerald-600 font-medium hover:text-emerald-700">
+        <Link href="/dashboard/attendance" className="text-xs text-emerald-700 font-medium hover:text-emerald-800">
           {lang === 'ar' ? 'الحضور' : 'Attendance'}
         </Link>
       </div>
@@ -1893,6 +1894,7 @@ function ContactParentButton({ student, lang }: { student: any; lang: string }) 
 }
 
 function RecurringSessionsButton({ lang }: { lang: string }) {
+  const uid = useId()
   const [showModal, setShowModal] = useState(false)
   const [groups, setGroups] = useState<any[]>([])
   const [levels, setLevels] = useState<any[]>([])
@@ -1954,8 +1956,8 @@ function RecurringSessionsButton({ lang }: { lang: string }) {
 
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">{lang === 'ar' ? 'المستوى' : 'Level'}</label>
-                <select value={selectedLevel} onChange={e => setSelectedLevel(e.target.value)}
+                <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor={`${uid}-rs1`}>{lang === 'ar' ? 'المستوى' : 'Level'}</label>
+                <select id={`${uid}-rs1`} value={selectedLevel} onChange={e => setSelectedLevel(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
                   <option value="">{lang === 'ar' ? 'اختر المستوى' : 'Select level'}</option>
                   {levels.map((l: any) => <option key={l.id} value={l.id}>{l.name}</option>)}
@@ -1963,8 +1965,8 @@ function RecurringSessionsButton({ lang }: { lang: string }) {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">{lang === 'ar' ? 'المجموعة' : 'Group'}</label>
-                <select value={selectedGroup} onChange={e => setSelectedGroup(e.target.value)}
+                <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor={`${uid}-rs2`}>{lang === 'ar' ? 'المجموعة' : 'Group'}</label>
+                <select id={`${uid}-rs2`} value={selectedGroup} onChange={e => setSelectedGroup(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
                   <option value="">{lang === 'ar' ? 'اختر المجموعة' : 'Select group'}</option>
                   {groups.map((g: any) => <option key={g.id} value={g.id}>{g.name}</option>)}
@@ -1972,8 +1974,8 @@ function RecurringSessionsButton({ lang }: { lang: string }) {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">{lang === 'ar' ? 'يوم الأسبوع' : 'Day of Week'}</label>
-                <select value={dayOfWeek} onChange={e => setDayOfWeek(Number(e.target.value))}
+                <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor={`${uid}-rs3`}>{lang === 'ar' ? 'يوم الأسبوع' : 'Day of Week'}</label>
+                <select id={`${uid}-rs3`} value={dayOfWeek} onChange={e => setDayOfWeek(Number(e.target.value))}
                   className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
                   {dayNames.map((day, i) => <option key={i} value={i}>{day}</option>)}
                 </select>
@@ -1981,13 +1983,13 @@ function RecurringSessionsButton({ lang }: { lang: string }) {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">{lang === 'ar' ? 'الوقت' : 'Time'}</label>
-                  <input type="time" value={time} onChange={e => setTime(e.target.value)}
+                  <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor={`${uid}-rs4`}>{lang === 'ar' ? 'الوقت' : 'Time'}</label>
+                  <input id={`${uid}-rs4`} type="time" value={time} onChange={e => setTime(e.target.value)}
                     className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">{lang === 'ar' ? 'عدد الأسابيع' : 'Weeks'}</label>
-                  <input type="number" min={1} max={12} value={weeks} onChange={e => setWeeks(Number(e.target.value))}
+                  <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor={`${uid}-rs5`}>{lang === 'ar' ? 'عدد الأسابيع' : 'Weeks'}</label>
+                  <input id={`${uid}-rs5`} type="number" min={1} max={12} value={weeks} onChange={e => setWeeks(Number(e.target.value))}
                     className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
                 </div>
               </div>
@@ -2235,7 +2237,7 @@ function ServantWellbeingPanel({ lang, schoolId }: { lang: string; schoolId: str
                   )}
                 </>
               ) : (
-                <p className="text-xs text-gray-400">{t('No notable student activity this week yet.', 'لا يوجد نشاط طلابي بارز هذا الأسبوع بعد.')}</p>
+                <p className="text-xs text-gray-600">{t('No notable student activity this week yet.', 'لا يوجد نشاط طلابي بارز هذا الأسبوع بعد.')}</p>
               )}
             </div>
 
@@ -2269,7 +2271,7 @@ function ServantWellbeingPanel({ lang, schoolId }: { lang: string; schoolId: str
                   </div>
                 </>
               ) : (
-                <p className="text-xs text-gray-400">{t('No session data yet for this week.', 'لا توجد بيانات جلسات لهذا الأسبوع بعد.')}</p>
+                <p className="text-xs text-gray-600">{t('No session data yet for this week.', 'لا توجد بيانات جلسات لهذا الأسبوع بعد.')}</p>
               )}
             </div>
 
@@ -2428,7 +2430,7 @@ export function MinistryDashboard({ data, loading, error, onRetry }: { data: any
 
  return (
   <>
-<title>{lang === 'ar' ? 'خدمتي' : 'My Ministry'} — Coptic Orthodox Hymn Education Platform (COHEP)</title>
+<title>{`${lang === 'ar' ? 'خدمتي' : 'My Ministry'} — Coptic Orthodox Hymn Education Platform (COHEP)`}</title>
     <meta name="description" content="Coptic Orthodox Hymn Education Platform (COHEP) ministry dashboard" />
    <motion.div className="space-y-6" initial={reduce ? false : "initial"} animate="animate" variants={stagger}>
      <DashboardHero
@@ -2547,7 +2549,7 @@ export function MinistryDashboard({ data, loading, error, onRetry }: { data: any
         <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[var(--hymn-surface-header)] text-emerald-600 ring-1 ring-emerald-200/50"><CalendarClock className="h-4 w-4" /></div>
         <h2 className="font-semibold text-gray-900">{lang === 'ar' ? 'الجلسات للتشغيل' : 'Sessions to Run'}</h2>
       </div>
-      <Link href="/dashboard/attendance" className="text-xs text-emerald-600 font-medium hover:text-emerald-700">{lang === 'ar' ? 'الحضور' : 'Attendance'}</Link>
+      <Link href="/dashboard/attendance" className="text-xs text-emerald-700 font-medium hover:text-emerald-800">{lang === 'ar' ? 'الحضور' : 'Attendance'}</Link>
      </div>
      <div className="divide-y divide-gray-100">
       {sessions.length === 0 ? (
@@ -2584,7 +2586,7 @@ export function MinistryDashboard({ data, loading, error, onRetry }: { data: any
           <h3 className="font-semibold text-gray-900">{g.name}</h3>
           <span className="rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700">{g.levelName}</span>
          </div>
-         <div className="mt-3 flex items-center gap-2 text-sm text-gray-500">
+         <div className="mt-3 flex items-center gap-2 text-sm text-gray-600">
           <Users className="h-4 w-4" /><span>{g.studentCount} {lang === 'ar' ? 'طالب' : 'students'}</span>
           <ChevronRight className="ms-auto h-4 w-4 text-gray-300 group-hover:text-blue-500" />
          </div>
@@ -2887,7 +2889,7 @@ function ChildCard({ child, lang }: { child: any; lang: string }) {
     </div>
     {p && (
      <div className="mt-4">
-      <div className="mb-1 flex items-center justify-between text-xs font-medium text-gray-500">
+      <div className="mb-1 flex items-center justify-between text-xs font-medium text-gray-600">
        <span>{lang === 'ar' ? 'التقدم العام' : 'Overall Progress'}</span>
        <span>{p.completedLessons}/{p.totalLessons} {lang === 'ar' ? 'درس' : 'lessons'}</span>
       </div>
@@ -2999,7 +3001,7 @@ function ChildCard({ child, lang }: { child: any; lang: string }) {
       ))}
      </div>
     ) : (
-     <p className="text-xs text-gray-400">{lang === 'ar' ? 'لا توجد درجات بعد' : 'No grades yet'}</p>
+     <p className="text-xs text-gray-600">{lang === 'ar' ? 'لا توجد درجات بعد' : 'No grades yet'}</p>
     )}
    </div>
   </motion.div>
@@ -3054,7 +3056,7 @@ function ParentDashboard({ data, loading, error, onRetry }: { data: any; loading
 
  return (
   <>
-<title>{lang === 'ar' ? 'أولادي' : 'My Children'} — Coptic Orthodox Hymn Education Platform (COHEP)</title>
+<title>{`${lang === 'ar' ? 'أولادي' : 'My Children'} — Coptic Orthodox Hymn Education Platform (COHEP)`}</title>
     <meta name="description" content="Coptic Orthodox Hymn Education Platform (COHEP) parent dashboard" />
    <motion.div className="space-y-6" initial={reduce ? false : "initial"} animate="animate" variants={stagger}>
     {/* Hero */}
@@ -3094,9 +3096,9 @@ function ParentDashboard({ data, loading, error, onRetry }: { data: any; loading
         <TrendingUp className="h-6 w-6" />
        </div>
        <div>
-        <div className="text-xs text-gray-400 mb-0.5">{lang === 'ar' ? 'نقاط هذا الأسبوع' : 'XP This Week'}</div>
+        <div className="text-xs text-gray-600 mb-0.5">{lang === 'ar' ? 'نقاط هذا الأسبوع' : 'XP This Week'}</div>
         <div className="text-xl font-bold text-gray-900">{xpThisWeek}</div>
-        <div className="flex items-center gap-1 text-xs text-gray-500">
+        <div className="flex items-center gap-1 text-xs text-gray-600">
          <div className={`h-2 w-full max-w-[80px] rounded-full bg-gray-100 overflow-hidden`}>
           <div className="h-full rounded-full bg-gradient-to-r from-amber-400 to-amber-500" style={{ width: `${xpProgress}%` }} />
          </div>
@@ -3109,11 +3111,11 @@ function ParentDashboard({ data, loading, error, onRetry }: { data: any; loading
         <UserCheck className="h-6 w-6" />
        </div>
        <div>
-        <div className="text-xs text-gray-400 mb-0.5">{lang === 'ar' ? 'الحضور هذا الأسبوع' : 'Attendance Trend'}</div>
+        <div className="text-xs text-gray-600 mb-0.5">{lang === 'ar' ? 'الحضور هذا الأسبوع' : 'Attendance Trend'}</div>
         <div className="text-xl font-bold text-gray-900">{attThisWeek}%</div>
         <div className="flex items-center gap-1 text-xs mt-0.5">
          {attTrendUp ? (
-          <span className="text-emerald-600 flex items-center gap-0.5"><ArrowUpRight className="h-3 w-3" />{lang === 'ar' ? 'تحسن عن الأسبوع الماضي' : 'Up from last week'}</span>
+          <span className="text-emerald-700 flex items-center gap-0.5"><ArrowUpRight className="h-3 w-3" />{lang === 'ar' ? 'تحسن عن الأسبوع الماضي' : 'Up from last week'}</span>
          ) : (
           <span className="text-red-500 flex items-center gap-0.5"><ArrowUpRight className="h-3 w-3 rotate-90" />{lang === 'ar' ? 'انخفاض عن الأسبوع الماضي' : 'Down from last week'}</span>
          )}
@@ -3125,13 +3127,13 @@ function ParentDashboard({ data, loading, error, onRetry }: { data: any; loading
         <Flame className="h-6 w-6" />
        </div>
        <div>
-        <div className="text-xs text-gray-400 mb-0.5">{lang === 'ar' ? 'أفضل سلسلة حضور' : 'Best Streak'}</div>
+        <div className="text-xs text-gray-600 mb-0.5">{lang === 'ar' ? 'أفضل سلسلة حضور' : 'Best Streak'}</div>
         <div className="text-xl font-bold text-gray-900">{topStreak} {lang === 'ar' ? 'أسابيع' : 'weeks'}</div>
         <div className="text-xs mt-0.5">
          {topStreak >= 3 ? (
           <span className="text-orange-600 font-medium">{lang === 'ar' ? '🔥 استمر في السلسلة!' : '🔥 Keep the chain going!'}</span>
          ) : (
-          <span className="text-gray-400">{lang === 'ar' ? 'ابنِ سلسلة حضور الآن' : 'Build your streak now'}</span>
+          <span className="text-gray-600">{lang === 'ar' ? 'ابنِ سلسلة حضور الآن' : 'Build your streak now'}</span>
          )}
         </div>
        </div>

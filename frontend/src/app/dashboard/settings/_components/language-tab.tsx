@@ -58,7 +58,7 @@ export function LanguageTab() {
           </p>
         </div>
         <div className="flex justify-end">
-          <Button onClick={handleSave} disabled={saving} aria-label={lang === 'ar' ? 'حفظ تفضيلات اللغة' : 'Save language preferences'}>
+          <Button onClick={handleSave} disabled={saving}>
             {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
             <span aria-live="polite">{saved ? (lang === 'ar' ? 'تم الحفظ!' : 'Saved!') : (lang === 'ar' ? 'حفظ التغييرات' : 'Save Changes')}</span>
           </Button>
