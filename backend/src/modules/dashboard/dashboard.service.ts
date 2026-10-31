@@ -2,7 +2,7 @@ import { Injectable, ForbiddenException, NotFoundException, BadRequestException 
 import { PrismaService } from '../../database/prisma.service';
 import { SchoolResolver } from '../../common/utils/school-resolver';
 import { getCopticContext } from '../../common/utils/coptic-calendar';
-import { localToday, nearestBirthday } from '../../common/utils/birthday';
+import { localToday, studentBirthdayWindow } from '../../common/utils/birthday';
 import { attendanceRate as calcAttendanceRate, rateFromCounts } from '../attendance/attendance-metrics';
 
 /** How long a ticked follow-up stays ticked before the student resurfaces. */
@@ -1209,8 +1209,9 @@ export class DashboardService {
     });
 
     const due = students
-      .map((st: any) => ({ st, bday: nearestBirthday(new Date(st.dateOfBirth), today) }))
-      .filter(({ bday }) => bday.daysAway >= -BIRTHDAY_WINDOW_DAYS && bday.daysAway <= BIRTHDAY_WINDOW_DAYS);
+      .map((st: any) => ({ st, bday: studentBirthdayWindow(new Date(st.dateOfBirth), today) }))
+      .filter((x): x is { st: any; bday: NonNullable<typeof x.bday> } =>
+        !!x.bday && x.bday.daysAway >= -BIRTHDAY_WINDOW_DAYS && x.bday.daysAway <= BIRTHDAY_WINDOW_DAYS);
     if (due.length === 0) return { today: today.toISOString().slice(0, 10), signoff, birthdays: [] };
 
     const greetings = await this.prisma.studentBirthdayGreeting.findMany({
@@ -1274,8 +1275,8 @@ export class DashboardService {
       this.prisma.school.findUnique({ where: { id: schoolId }, select: { timezone: true } }),
     ]);
     if (!student) throw new NotFoundException('Student not found');
-    const bday = nearestBirthday(new Date(student.dateOfBirth), localToday(new Date(), school?.timezone || 'UTC'));
-    if (Math.abs(bday.daysAway) > BIRTHDAY_WINDOW_DAYS) throw new BadRequestException('This student has no birthday this week');
+    const bday = studentBirthdayWindow(new Date(student.dateOfBirth), localToday(new Date(), school?.timezone || 'UTC'));
+    if (!bday || Math.abs(bday.daysAway) > BIRTHDAY_WINDOW_DAYS) throw new BadRequestException('This student has no birthday this week');
 
     const where = { studentId_year: { studentId, year: bday.year } };
     if (dto.done === false) {
