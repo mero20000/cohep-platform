@@ -22,6 +22,10 @@ jobs:
           cache-dependency-path: backend/package-lock.json
       - name: Install dependencies
         run: npm ci
+      # The build uses SWC, which strips types without checking them, so type errors only
+      # show up here.
+      - name: Type-check
+        run: npx tsc --noEmit
       - name: Build
         run: npm run build
       - name: Test
