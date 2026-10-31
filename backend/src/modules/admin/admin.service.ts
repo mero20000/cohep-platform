@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 import { MailService } from '../mail/mail.service';
-import { emailTemplate, emailParagraph } from '../mail/email-template';
+import { emailTemplate, emailParagraph, escapeHtml } from '../mail/email-template';
 
 export interface RegistrationListItem {
   id: string; schoolName: string; churchName: string;
@@ -127,7 +127,7 @@ export class AdminService {
         const html = emailTemplate({
           title: 'Account Approved',
           content: `
-            ${emailParagraph(`Your church registration for <strong>${school.name}</strong> has been approved.`)}
+            ${emailParagraph(`Your church registration for <strong>${escapeHtml(school.name)}</strong> has been approved.`)}
             ${emailParagraph('You can now log in to your account.')}
           `,
           cta: { text: 'Log In', url: '/auth/login' },
@@ -150,7 +150,7 @@ export class AdminService {
           title: 'Registration Update',
           variant: 'red',
           content: `
-            ${emailParagraph(`We have reviewed your registration request for <strong>${school.name}</strong>.`)}
+            ${emailParagraph(`We have reviewed your registration request for <strong>${escapeHtml(school.name)}</strong>.`)}
             ${emailParagraph('Unfortunately, we are unable to approve your request at this time. Please contact support for more information.')}
           `,
         });

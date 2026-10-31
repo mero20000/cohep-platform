@@ -17,6 +17,21 @@ const COLORS = {
   blue: { from: '#2563EB', to: '#1D4ED8', accent: '#DBEAFE', glow: 'rgba(37,99,235,0.15)' },
 } as const
 
+/**
+ * Escapes a value for use in HTML text or a double-quoted attribute. Every value that came from a
+ * user or the database must pass through this before it is placed in an email; the helpers below
+ * escape the plain-text fields they own (title, cta, footer, key-value rows) and take HTML for the
+ * rest, so callers build that HTML from escaped values.
+ */
+export function escapeHtml(value: unknown): string {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
 export function emailTemplate({
   title,
   content,
@@ -29,9 +44,9 @@ export function emailTemplate({
 
   const ctaHtml = cta
     ? `<div style="margin:28px 0;text-align:center;">
-        <a href="${cta.url.startsWith('http') ? cta.url : `${appUrl}${cta.url}`}"
+        <a href="${escapeHtml(cta.url.startsWith('http') ? cta.url : `${appUrl}${cta.url}`)}"
            style="display:inline-block;background:linear-gradient(135deg,${colors.from},${colors.to});color:#fff;padding:14px 36px;border-radius:10px;text-decoration:none;font-weight:700;font-size:15px;letter-spacing:0.3px;box-shadow:0 4px 14px ${colors.glow};transition:all 0.2s;">
-          ${cta.text}
+          ${escapeHtml(cta.text)}
         </a>
       </div>`
     : ''
@@ -40,7 +55,7 @@ export function emailTemplate({
     <div style="margin-top:32px;padding-top:20px;border-top:1px solid #f3f4f6;text-align:center;">
       <p style="color:#9ca3af;font-size:11px;margin:0 0 6px;letter-spacing:0.5px;text-transform:uppercase;">COHEP Platform</p>
       <p style="color:#d1d5db;font-size:11px;margin:0;">Coptic Orthodox Holy Education Platform</p>
-      ${footer ? `<p style="color:#9ca3af;font-size:11px;margin:12px 0 0;">${footer}</p>` : ''}
+      ${footer ? `<p style="color:#9ca3af;font-size:11px;margin:12px 0 0;">${escapeHtml(footer)}</p>` : ''}
     </div>
   `
 
@@ -54,7 +69,7 @@ export function emailTemplate({
           <div style="display:inline-block;background:rgba(255,255,255,0.2);padding:6px 14px;border-radius:20px;margin-bottom:12px;">
             <span style="color:#fff;font-size:11px;font-weight:600;letter-spacing:1px;text-transform:uppercase;">COHEP</span>
           </div>
-          <h1 style="color:#fff;margin:0;font-size:24px;font-weight:700;letter-spacing:-0.3px;">${title}</h1>
+          <h1 style="color:#fff;margin:0;font-size:24px;font-weight:700;letter-spacing:-0.3px;">${escapeHtml(title)}</h1>
         </div>
       </div>
 
@@ -71,11 +86,12 @@ export function emailTemplate({
   `
 }
 
-export function emailKeyValueRow(label: string, value: string): string {
+/** Label and value are plain text and are escaped; pass `valueIsHtml` only for markup built from escaped values. */
+export function emailKeyValueRow(label: string, value: string, valueIsHtml = false): string {
   return `
     <tr>
-      <td style="padding:12px 0;color:#6b7280;font-size:13px;vertical-align:top;width:40%;">${label}</td>
-      <td style="padding:12px 0;font-weight:600;color:#111827;font-size:14px;">${value}</td>
+      <td style="padding:12px 0;color:#6b7280;font-size:13px;vertical-align:top;width:40%;">${escapeHtml(label)}</td>
+      <td style="padding:12px 0;font-weight:600;color:#111827;font-size:14px;">${valueIsHtml ? value : escapeHtml(value)}</td>
     </tr>
   `
 }

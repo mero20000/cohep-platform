@@ -14,6 +14,7 @@ import { extname, join } from 'path';
 import { AppModule } from './app.module';
 import { getAllowedOrigins } from './common/config/cors-origins';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
+import { scrubSentryEvent } from './common/utils/redact-url';
 import { requestIdMiddleware } from './common/middleware/request-id.middleware';
 import { requestLoggerMiddleware } from './common/middleware/request-logger.middleware';
 
@@ -29,6 +30,8 @@ async function bootstrap() {
       dsn: process.env.SENTRY_DSN,
       environment: process.env.NODE_ENV || 'development',
       tracesSampleRate: parseFloat(process.env.SENTRY_SAMPLE_RATE || '0.1'),
+      beforeSend: (event) => scrubSentryEvent(event),
+      beforeSendTransaction: (event) => scrubSentryEvent(event),
     });
   }
 

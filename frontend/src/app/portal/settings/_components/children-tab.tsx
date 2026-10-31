@@ -45,6 +45,7 @@ export function ChildrenTab() {
   const [error, setError] = useState('')
 
   const [linkCode, setLinkCode] = useState('')
+  const [linkDob, setLinkDob] = useState('')
   const [linkRel, setLinkRel] = useState('father')
   const [linking, setLinking] = useState(false)
 
@@ -68,12 +69,13 @@ export function ChildrenTab() {
 
   const handleLink = async () => {
     const code = linkCode.trim()
-    if (!code) return
+    if (!code || !linkDob) return
     setLinking(true)
     try {
-      const d = await http.post<LinkedChild[]>('/parents/me/children/link', { studentCode: code, relationship: linkRel })
+      const d = await http.post<LinkedChild[]>('/parents/me/children/link', { studentCode: code, dateOfBirth: linkDob, relationship: linkRel })
       setChildren(d || [])
       setLinkCode('')
+      setLinkDob('')
       toast('success', t('Child linked successfully', 'تم ربط الطالب بنجاح'))
     } catch (e: any) {
       toast('error', e?.message || t('Failed to link child', 'تعذر ربط الطالب'))
@@ -151,6 +153,13 @@ export function ChildrenTab() {
               className="w-full rounded-lg border border-gray-300 bg-white pl-10 pr-3 py-2.5 text-sm focus:border-gold-400 focus:outline-none focus:ring-2 focus:ring-gold-200"
             />
           </div>
+          <input
+            type="date"
+            value={linkDob}
+            onChange={e => setLinkDob(e.target.value)}
+            aria-label={t('Date of birth', 'تاريخ الميلاد')}
+            className="rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm focus:border-gold-400 focus:outline-none focus:ring-2 focus:ring-gold-200 sm:w-44"
+          />
           <select
             value={linkRel}
             onChange={e => setLinkRel(e.target.value)}
@@ -162,7 +171,7 @@ export function ChildrenTab() {
           </select>
           <Button
             onClick={handleLink}
-            disabled={linking || !linkCode.trim()}
+            disabled={linking || !linkCode.trim() || !linkDob}
           >
             {linking ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserPlus className="h-4 w-4" />}
             {t('Link', 'ربط')}

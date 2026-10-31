@@ -1,6 +1,7 @@
 import { Injectable, Logger, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 import { MailService } from '../mail/mail.service';
+import { escapeHtml } from '../mail/email-template';
 import { NotificationsService } from '../notifications/notifications.service';
 import { uploadRecording, isOwnedRecordingUrl } from '../../common/storage/r2';
 import { ConfigService } from '@nestjs/config';
@@ -212,7 +213,7 @@ export class RegistrationsService {
         await this.mailService.sendMail(
           school.email,
           `New registration: ${name} — ${school.name}`,
-          `<p>New registration for <strong>${name}</strong> (${app.hymnChoice})</p><p>Review in <a href="${process.env.FRONTEND_URL || 'https://cohep-platform.vercel.app'}/dashboard/pending-registrations">Dashboard → Registrations</a></p>`,
+          `<p>New registration for <strong>${escapeHtml(name)}</strong> (${escapeHtml(app.hymnChoice)})</p><p>Review in <a href="${escapeHtml(process.env.FRONTEND_URL || 'https://cohep-platform.vercel.app')}/dashboard/pending-registrations">Dashboard → Registrations</a></p>`,
         );
       } catch {}
     }
@@ -435,7 +436,7 @@ export class RegistrationsService {
         await this.mailService.sendMail(
           parentEmail,
           `Welcome to ${year.name || 'COHEP'} — ${firstName} is enrolled`,
-          `<p>Dear parent,</p><p>Your application for <strong>${firstName} ${lastName}</strong> has been <strong>approved</strong>.</p><p>Student code: <strong>${studentCode}</strong></p><p><a href="${process.env.FRONTEND_URL || 'https://cohep-platform.vercel.app'}/portal">Open Parent Portal</a></p><p>Voice hymn: ${app.hymnChoice}</p>`,
+          `<p>Dear parent,</p><p>Your application for <strong>${escapeHtml(`${firstName} ${lastName}`)}</strong> has been <strong>approved</strong>.</p><p>Student code: <strong>${escapeHtml(studentCode)}</strong></p><p><a href="${escapeHtml(process.env.FRONTEND_URL || 'https://cohep-platform.vercel.app')}/portal">Open Parent Portal</a></p><p>Voice hymn: ${escapeHtml(app.hymnChoice)}</p>`,
         );
       }
     } catch (err) {
@@ -463,7 +464,7 @@ export class RegistrationsService {
         await this.mailService.sendMail(
           parentEmail,
           `Update on your application — ${sd.name || 'Student'}`,
-          `<p>Your application for <strong>${sd.name || 'Student'}</strong> was not approved at this time.</p>${reason ? `<p>Reason: ${reason}</p>` : ''}<p>You may reapply via <a href="${process.env.FRONTEND_URL || 'https://cohep-platform.vercel.app'}/register">registration</a>.</p>`,
+          `<p>Your application for <strong>${escapeHtml(sd.name || 'Student')}</strong> was not approved at this time.</p>${reason ? `<p>Reason: ${escapeHtml(reason)}</p>` : ''}<p>You may reapply via <a href="${escapeHtml(process.env.FRONTEND_URL || 'https://cohep-platform.vercel.app')}/register">registration</a>.</p>`,
         );
       }
     } catch {}

@@ -1,5 +1,25 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
+import { MAX_EVENTS_PER_BATCH, MAX_PROPERTIES_BYTES } from './dto/analytics-batch.dto';
+
+/** The authenticated caller of the public collector, as set by OptionalJwtAuthGuard. */
+export interface AnalyticsCaller {
+  id?: string;
+  schoolId?: string | null;
+  isDemo?: boolean;
+}
+
+const cut = (v: string | undefined, max: number) => (v ? v.slice(0, max) : undefined);
+
+/** Properties above the size cap are dropped rather than stored. */
+function boundedProperties(p: Record<string, unknown> | undefined) {
+  if (!p) return undefined;
+  try {
+    return JSON.stringify(p).length <= MAX_PROPERTIES_BYTES ? (p as any) : undefined;
+  } catch {
+    return undefined;
+  }
+}
 
 interface EventInput {
   name: string;
@@ -51,74 +71,94 @@ export class AnalyticsService {
   }
 
   /**
-   * Batch entry point used by the client tracker (session heartbeat + events).
-   * Upserts the session row and bulk-inserts events atomically-per-call.
+   * Batch entry point used by the client tracker (session heartbeat + events), reachable without
+   * login. Identity is never taken from the body: a signed-in caller is recorded under the user and
+   * school in their token; an anonymous caller may only name a school that exists, and has no user.
+   * An existing session is only ever extended by a caller in the same school, and its user is set
+   * once: at creation, or later from a token if the session began anonymously. It is never replaced.
    */
-  async recordBatch(input: {
-    sessionId: string;
-    userId?: string;
-    schoolId?: string;
-    locale?: string;
-    entryPage?: string;
-    userAgent?: string;
-    start?: boolean;
-    end?: boolean;
-    durationSec?: number;
-    actionCount?: number;
-    events: Array<{ name: string; category?: string; properties?: Record<string, unknown> }>;
-  }) {
+  async recordBatch(
+    input: {
+      sessionId: string;
+      userId?: string;
+      schoolId?: string;
+      locale?: string;
+      entryPage?: string;
+      userAgent?: string;
+      start?: boolean;
+      end?: boolean;
+      durationSec?: number;
+      actionCount?: number;
+      events: Array<{ name: string; category?: string; properties?: Record<string, unknown> }>;
+    },
+    caller: AnalyticsCaller | null = null,
+  ) {
     if (!input.sessionId) return;
     const now = new Date();
+    const sessionId = input.sessionId.slice(0, 64);
+    const userId = caller?.id && !caller.isDemo ? caller.id : undefined;
 
-    // Derive schoolId from userId if not provided
-    let schoolId = input.schoolId;
-    if (!schoolId && input.userId) {
-      const user = await this.prisma.user.findUnique({
-        where: { id: input.userId },
-        select: { schoolId: true },
+    let schoolId: string | undefined;
+    if (caller?.schoolId) {
+      schoolId = caller.schoolId;
+    } else if (input.schoolId) {
+      const school = await this.prisma.school.findFirst({
+        where: { OR: [{ id: input.schoolId }, { slug: input.schoolId }] },
+        select: { id: true },
       });
-      schoolId = user?.schoolId;
+      if (!school) throw new BadRequestException('Unknown school');
+      schoolId = school.id;
     }
     if (!schoolId) return; // Skip if no school context
 
+    const existing = await this.prisma.appSession.findUnique({
+      where: { id: sessionId },
+      select: { schoolId: true, userId: true },
+    });
+    if (existing && existing.schoolId !== schoolId) return; // someone else's session
+
+    const locale = cut(input.locale, 16);
     const session = await this.prisma.appSession.upsert({
-      where: { id: input.sessionId },
+      where: { id: sessionId },
       create: {
-        id: input.sessionId,
-        userId: input.userId || undefined,
+        id: sessionId,
+        userId,
         schoolId,
-        locale: input.locale || undefined,
-        entryPage: input.entryPage || undefined,
-        userAgent: input.userAgent ? input.userAgent.slice(0, 255) : undefined,
+        locale,
+        entryPage: cut(input.entryPage, 255),
+        userAgent: cut(input.userAgent, 255),
       },
       update: {
         lastActiveAt: now,
         ...(input.end ? { endedAt: now, durationSec: input.durationSec ?? null } : {}),
         ...(input.actionCount ? { actionCount: { increment: input.actionCount } } : {}),
-        ...(input.userId ? { userId: input.userId } : {}),
-        ...(input.locale ? { locale: input.locale } : {}),
+        ...(locale ? { locale } : {}),
+        // A session that began before sign-in (login page) takes its user from the token once; a user
+        // already on the session is never replaced.
+        ...(userId && existing && !existing.userId ? { userId } : {}),
       },
     });
 
-    if (input.events && input.events.length > 0) {
+    const events = (input.events || []).slice(0, MAX_EVENTS_PER_BATCH);
+    if (events.length > 0) {
       // Honor server-computed duration when ending so the session lifetime is
       // measured from the actual start, not a client-supplied estimate.
       if (input.end) {
         const dur = Math.max(0, Math.round((now.getTime() - session.startedAt.getTime()) / 1000));
         await this.prisma.appSession.update({
-          where: { id: input.sessionId },
+          where: { id: sessionId },
           data: { endedAt: now, durationSec: dur },
         });
       }
       await this.prisma.analyticsEvent.createMany({
-        data: input.events.map((e) => ({
-          sessionId: input.sessionId,
-          userId: input.userId || undefined,
+        data: events.map((e) => ({
+          sessionId,
+          userId,
           schoolId,
           name: e.name.slice(0, 100),
-          category: e.category || undefined,
-          locale: input.locale || undefined,
-          properties: (e.properties as any) || undefined,
+          category: cut(e.category, 50),
+          locale,
+          properties: boundedProperties(e.properties),
         })),
       });
     }

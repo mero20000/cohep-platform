@@ -1,8 +1,13 @@
-import { Injectable, NotFoundException, ForbiddenException, HttpException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, ForbiddenException, HttpException } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 import { HymnLearningService } from '../curriculum/hymn-learning.service';
 import { rateFromCounts } from '../attendance/attendance-metrics';
 import { liveByKey, scoreOf } from '../assessments/assessment-lifecycle';
+import { AuditService } from '../audit/audit.service';
+import { ChildLinkThrottleService } from './child-link-throttle.service';
+
+/** One answer for every way a link attempt can fail, so it reveals nothing about which part was wrong. */
+const NO_MATCH_MESSAGE = 'No matching student found. Check the student code and date of birth.';
 
 /**
  * Passed in place of a parent's user id when the student themselves is the caller.
@@ -15,9 +20,13 @@ export const STUDENT_SELF = '__student_self__';
 
 @Injectable()
 export class ParentsService {
+  private readonly logger = new Logger(ParentsService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly hymnLearning: HymnLearningService,
+    private readonly audit: AuditService,
+    private readonly linkThrottle: ChildLinkThrottleService,
   ) {}
 
   async unlinkChild(studentId: string, userId: string) {
@@ -221,16 +230,31 @@ export class ParentsService {
     return (await this.mapStudentParent({ student, relationship: link?.relationship || 'parent', isPrimary: link?.isPrimary || false })).student;
   }
 
-  async linkChild(studentCode: string, userId: string, relationship = 'parent') {
+  /**
+   * Links a child to a parent account. The student code alone is a sequential, printable number, so
+   * the child's date of birth is required too, attempts are limited, and every failure gets the same
+   * answer. Linking never writes `student.parentEmail`: that field decides where absence alerts go
+   * and is only changed by staff. Existing parents and the school's admins are told about the link.
+   */
+  async linkChild(studentCode: string, dateOfBirth: string, userId: string, relationship = 'parent') {
     const parent = await this.prisma.user.findUnique({
       where: { id: userId },
-      select: { schoolId: true, email: true },
+      select: { schoolId: true, firstName: true, lastName: true, email: true },
     });
     if (!parent) throw new NotFoundException('Parent not found');
+
+    this.linkThrottle.recordAttempt(userId);
+    this.linkThrottle.assertSchoolNotLocked(parent.schoolId);
+
     const student = await this.prisma.student.findFirst({
       where: { studentCode, schoolId: parent.schoolId, deletedAt: null },
     });
-    if (!student) throw new NotFoundException('No student found with that code in your school');
+    const dobMatches = !!student && student.dateOfBirth.toISOString().slice(0, 10) === dateOfBirth;
+    if (!student || !dobMatches) {
+      this.linkThrottle.recordSchoolFailure(parent.schoolId);
+      throw new NotFoundException(NO_MATCH_MESSAGE);
+    }
+
     const existing = await this.prisma.studentParent.findUnique({
       where: { studentId_parentId: { studentId: student.id, parentId: userId } },
     });
@@ -238,14 +262,71 @@ export class ParentsService {
       await this.prisma.studentParent.create({
         data: { studentId: student.id, parentId: userId, relationship, isPrimary: false },
       });
-    }
-    if (!student.parentEmail && parent.email) {
-      await this.prisma.student.update({
-        where: { id: student.id },
-        data: { parentEmail: parent.email },
-      });
+      await this.recordNewLink(student, parent, userId, relationship);
     }
     return this.getChildren(userId);
+  }
+
+  /** Audit entry plus in-app notices. Best effort: a failure here must not undo or block the link. */
+  private async recordNewLink(
+    student: { id: string; schoolId: string; firstName: string; lastName: string },
+    parent: { firstName: string; lastName: string },
+    userId: string,
+    relationship: string,
+  ) {
+    try {
+      await this.audit.log({
+        schoolId: student.schoolId,
+        userId,
+        action: 'parent.link_child',
+        entityType: 'student',
+        entityId: student.id,
+        metadata: { relationship },
+      });
+
+      const [admins, otherParents] = await Promise.all([
+        this.prisma.user.findMany({
+          where: {
+            schoolId: student.schoolId,
+            isActive: true,
+            deletedAt: null,
+            userRoles: { some: { role: { name: { in: ['admin', 'principal'] } } } },
+          },
+          select: { id: true },
+        }),
+        this.prisma.studentParent.findMany({
+          where: { studentId: student.id, parentId: { not: userId } },
+          select: { parentId: true },
+        }),
+      ]);
+      const recipients = [...new Set([...admins.map((a) => a.id), ...otherParents.map((p) => p.parentId)])].filter(
+        (id) => id !== userId,
+      );
+      if (recipients.length === 0) return;
+
+      const who = `${parent.firstName} ${parent.lastName}`.trim();
+      const child = `${student.firstName} ${student.lastName}`.trim();
+      await this.prisma.notification.createMany({
+        skipDuplicates: true,
+        data: recipients.map((id) => ({
+          schoolId: student.schoolId,
+          userId: id,
+          studentId: student.id,
+          type: 'parent_linked',
+          title: 'New parent linked to a student',
+          titleAr: 'تم ربط ولي أمر جديد بطالب',
+          body: `${who} linked to ${child} as ${relationship}. If this is unexpected, contact the school.`.slice(0, 500),
+          bodyAr: `قام ${who} بالارتباط بالطالب ${child} (${relationship}). إذا لم يكن هذا متوقعاً، يرجى التواصل مع المدرسة.`.slice(0, 500),
+          channel: 'in_app',
+          referenceType: 'student_parent',
+          referenceId: `${student.id}:${userId}:${id}`,
+          sentAt: new Date(),
+          deliveredAt: new Date(),
+        })),
+      });
+    } catch (err) {
+      this.logger.warn(`Could not record parent link for student ${student.id}: ${(err as Error).message}`);
+    }
   }
 
   async getChildAttendance(studentId: string, userId: string) {
