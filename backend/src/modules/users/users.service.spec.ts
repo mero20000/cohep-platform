@@ -175,6 +175,30 @@ describe('UsersService roles', () => {
     });
   });
 
+  describe('system config', () => {
+    const admin1 = { id: 'u1', schoolId: 'school-1', roles: ['admin'] };
+
+    it("blocks an admin of school A from reading or writing school B's config", async () => {
+      prisma.systemConfig = { findMany: jest.fn(), upsert: jest.fn() };
+      await expect(service.getSystemConfig('school-2', undefined, admin1)).rejects.toThrow(NotFoundException);
+      await expect(service.setSystemConfig('school-2', 'attendance_target', 80, undefined, admin1)).rejects.toThrow(NotFoundException);
+      expect(prisma.systemConfig.upsert).not.toHaveBeenCalled();
+    });
+
+    it('lets an admin write their own school and a super admin write any', async () => {
+      prisma.systemConfig = { findMany: jest.fn(), upsert: jest.fn().mockResolvedValue({}) };
+      await service.setSystemConfig('school-1', 'attendance_target', 85, undefined, admin1);
+      await service.setSystemConfig('school-2', 'attendance_target', 85, undefined, { id: 'sa', roles: ['super_admin'] });
+      expect(prisma.systemConfig.upsert).toHaveBeenCalledTimes(2);
+    });
+
+    it.each([0, 101, 79.5, '80', null])('rejects an invalid attendance_target (%p)', async (bad) => {
+      prisma.systemConfig = { findMany: jest.fn(), upsert: jest.fn() };
+      await expect(service.setSystemConfig('school-1', 'attendance_target', bad, undefined, admin1)).rejects.toThrow(BadRequestException);
+      expect(prisma.systemConfig.upsert).not.toHaveBeenCalled();
+    });
+  });
+
   describe('school CRUD tenancy', () => {
     const schoolB = { id: 'school-2' };
 

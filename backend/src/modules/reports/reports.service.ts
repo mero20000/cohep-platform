@@ -2,6 +2,8 @@ import { loadAttendanceTrend } from '../attendance/attendance-trend';
 import { findAtRiskStudents } from '../attendance/absence-risk';
 import { computeHealthScore } from './health-score';
 import { buildLevelGroupOverview } from './level-group-overview';
+import { loadAttendanceTarget } from './attendance-target';
+import { DATA_GAPS, dataGapWhere } from '../students/data-gaps';
 import { CLASS_SESSION_FILTER } from '../attendance/attendance-metrics';
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
@@ -29,7 +31,7 @@ export class ReportsService {
     const currentSince = new Date(now.getTime() - days * dayMs);
     const prevSince = new Date(now.getTime() - 2 * days * dayMs);
 
-    const [levels, groups, students, rows, atRisk, graded] = await Promise.all([
+    const [levels, groups, students, rows, atRisk, graded, attendanceTarget] = await Promise.all([
       this.prisma.level.findMany({ where: { schoolId, deletedAt: null }, select: { id: true, name: true, nameAr: true, orderIndex: true } }),
       this.prisma.group.findMany({ where: { schoolId, deletedAt: null }, select: { id: true, name: true, nameAr: true, orderIndex: true } }),
       this.prisma.student.findMany({ where: { schoolId, deletedAt: null, status: 'active' }, select: { id: true, levelId: true, groupId: true } }),
@@ -55,6 +57,7 @@ export class ReportsService {
           grades: { where: { questionId: null }, select: { score: true } },
         },
       }),
+      loadAttendanceTarget(this.prisma, schoolId),
     ]);
 
     const overview = buildLevelGroupOverview({
@@ -72,7 +75,24 @@ export class ReportsService {
         .map((g: any) => ({ studentId: g.studentId, passed: Number(g.grades[0].score) >= Number(g.assessment.passingScore) })),
     });
 
-    return { generatedAt: now.toISOString(), windowDays: days, ...overview };
+    return { generatedAt: now.toISOString(), windowDays: days, attendanceTarget, ...overview };
+  }
+
+  // ── Data quality ───────────────────────────────────────────────────────
+
+  /**
+   * How many ACTIVE students are missing a detail that makes them hard to look after. Each count uses the same
+   * where-clause as the students-list `dataGap` filter, so the number here is exactly the list it links to.
+   */
+  async getDataQuality(schoolIdentifier: string) {
+    const schoolId = await this.schoolResolver.resolve(schoolIdentifier);
+    const base = { schoolId, deletedAt: null, status: 'active' };
+    const [total, ...counts] = await Promise.all([
+      this.prisma.student.count({ where: base }),
+      ...DATA_GAPS.map((gap) => this.prisma.student.count({ where: { ...base, ...dataGapWhere(gap) } })),
+    ]);
+    const gaps = DATA_GAPS.map((gap, i) => ({ key: gap, missing: counts[i] }));
+    return { generatedAt: new Date().toISOString(), totalActiveStudents: total, gaps };
   }
 
   // ── 30-Second Priest Pulse ─────────────────────────────────────────────

@@ -76,6 +76,11 @@ export class QueryStudentDto {
   @IsOptional()
   engagementStatus?: 'at_risk';
 
+  @ApiPropertyOptional({ description: 'Only students missing a detail: no photo, no parent contact, or no school grade', enum: ['photo', 'parent', 'grade'] })
+  @IsIn(['photo', 'parent', 'grade'])
+  @IsOptional()
+  dataGap?: 'photo' | 'parent' | 'grade';
+
   @ApiPropertyOptional({ description: 'Comma-separated student IDs to restrict the list to (max 200)' })
   @IsString()
   @IsOptional()
