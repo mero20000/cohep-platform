@@ -42,6 +42,9 @@ export const GAMIFICATION_CONSTANTS = {
   ATTENDANCE_XP_PRESENT: 10,
   ATTENDANCE_XP_LATE: 5,
 
+  // Birthday gift: XP paid with the yearly birthday badge when a student opens their gift
+  BIRTHDAY_GIFT_XP: 50,
+
   // Streak XP bonus: awarded when a student attends N+ consecutive weeks
   STREAK_BONUS_WEEKS: 3,
   STREAK_BONUS_XP: 5,
@@ -65,3 +68,11 @@ export const GAMIFICATION_CONSTANTS = {
     LESSONS_20: 20,
   },
 } as const;
+
+/** Badge rule for badges that are only ever granted by an explicit action, never earned by criteria. */
+export const BIRTHDAY_BADGE_RULE = 'birthday';
+
+/** One badge per school per birthday year, so a student collects a new one each birthday. */
+export function birthdayBadgeName(year: number): string {
+  return `Birthday Blessing ${year}`;
+}

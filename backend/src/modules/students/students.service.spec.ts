@@ -1134,9 +1134,22 @@ systemConfig: {
       it('is set on the birthday and for a week after, with the new age', async () => {
         withDob('2016-11-01');
         at('2026-11-01T10:00:00Z');
-        expect((await service.getPortalData('abc-secret-key')).birthday).toEqual({ daysSince: 0, turningAge: 10, year: 2026 });
+        expect((await service.getPortalData('abc-secret-key')).birthday).toEqual({ daysSince: 0, turningAge: 10, year: 2026, giftClaimed: false });
         at('2026-11-08T10:00:00Z');
-        expect((await service.getPortalData('abc-secret-key')).birthday).toEqual({ daysSince: 7, turningAge: 10, year: 2026 });
+        expect((await service.getPortalData('abc-secret-key')).birthday).toEqual({ daysSince: 7, turningAge: 10, year: 2026, giftClaimed: false });
+      });
+
+      it('reports the gift as claimed once this year\'s birthday badge is owned (not last year\'s)', async () => {
+        withDob('2016-11-01');
+        at('2026-11-02T10:00:00Z');
+        prisma.studentBadge.findMany.mockResolvedValue([
+          { id: 'sb1', awardedAt: new Date(), badge: { id: 'b1', name: 'Birthday Blessing 2025' } },
+        ]);
+        expect((await service.getPortalData('abc-secret-key')).birthday?.giftClaimed).toBe(false);
+        prisma.studentBadge.findMany.mockResolvedValue([
+          { id: 'sb2', awardedAt: new Date(), badge: { id: 'b2', name: 'Birthday Blessing 2026' } },
+        ]);
+        expect((await service.getPortalData('abc-secret-key')).birthday?.giftClaimed).toBe(true);
       });
 
       it('is null before the birthday and more than a week after', async () => {

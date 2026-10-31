@@ -12,6 +12,7 @@ import { useLanguage } from '@/lib/use-language'
 import { getGreeting, getGreetingAr } from '@/lib/datetime'
 import { markLessonCompleted } from '@/lib/use-install-prompt'
 import { StudentBirthdayCard, type StudentBirthday } from '@/components/student/birthday-card'
+import { BadgeIcon } from '@/components/student/badge-icon'
 
 const API_ORIGIN = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api').replace('/api', '')
 import {
@@ -135,6 +136,14 @@ export default function StudentDashboard() {
   const [searchQuery, setSearchQuery] = useState('')
   const [filterMastery, setFilterMastery] = useState('')
   const [expandedLevels, setExpandedLevels] = useState<Set<string>>(new Set())
+
+  // Quiet refresh (no spinner) so XP and badges update behind an open card after the gift is opened.
+  const refreshPortal = async () => {
+    try {
+      const redactParam = !showName ? '?redactNames=true' : ''
+      setData(await portalGet<PortalData>(code, `/student-portal/${encodeURIComponent(code)}${redactParam}`))
+    } catch { /* the gift is already granted; the next load will show it */ }
+  }
 
   useEffect(() => {
     if (!code) return
@@ -447,7 +456,7 @@ export default function StudentDashboard() {
       </div>
 
       <main className="max-w-3xl mx-auto px-4 py-6 space-y-5">
-        <StudentBirthdayCard birthday={data.birthday} studentId={student.id} firstName={student.firstName} school={school} />
+        <StudentBirthdayCard birthday={data.birthday} studentId={student.id} code={code} firstName={student.firstName} school={school} onGiftOpened={refreshPortal} />
 
         {/* ─── DASHBOARD TAB ─────────────────────────────────────────── */}
         {activeTab === 'dashboard' && (
@@ -638,11 +647,7 @@ export default function StudentDashboard() {
                           <li key={b.id}
                             className="snap-start shrink-0 w-44 rounded-xl border border-blue-100 bg-blue-50/60 p-3">
                             <div className="flex items-center gap-2 mb-1.5">
-                              {b.iconUrl ? (
-                                <Image src={b.iconUrl.startsWith('http') ? b.iconUrl : `${API_ORIGIN}${b.iconUrl}`} alt="" width={32} height={32} className="h-8 w-8 rounded-lg object-cover" />
-                              ) : (
-                                <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-white border border-blue-100"><Award className="h-4 w-4 text-blue-500" /></span>
-                              )}
+                              <BadgeIcon iconUrl={b.iconUrl} apiOrigin={API_ORIGIN} className="h-8 w-8 rounded-lg" />
                               <p className="text-sm font-semibold text-gray-900 truncate">{lang === 'ar' && b.nameAr ? b.nameAr : b.name}</p>
                             </div>
                             {b.reason && <p className="text-xs text-gray-600 line-clamp-2 mb-1">{b.reason}</p>}
@@ -685,9 +690,7 @@ export default function StudentDashboard() {
                       {badges[0] && (
                         <div className="flex items-center gap-3 rounded-xl border border-blue-100 bg-blue-50/60 p-3">
                           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white border border-blue-100">
-                            {badges[0].iconUrl
-                              ? <Image src={badges[0].iconUrl.startsWith('http') ? badges[0].iconUrl : `${API_ORIGIN}${badges[0].iconUrl}`} alt="" width={32} height={32} className="h-8 w-8 rounded-full object-cover" />
-                              : <Award className="h-5 w-5 text-blue-500" />}
+                            <BadgeIcon iconUrl={badges[0].iconUrl} apiOrigin={API_ORIGIN} className="h-8 w-8 rounded-full" />
                           </span>
                           <div className="min-w-0">
                             <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">{lang === 'ar' ? 'أحدث شارة' : 'Latest badge'}</p>

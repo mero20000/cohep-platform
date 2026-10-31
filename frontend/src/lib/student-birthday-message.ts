@@ -9,8 +9,9 @@ export interface StudentBirthdayCopy {
   blessing: string
 }
 
-export function studentBirthdayCopy({ name, age, daysSince }: { name: string; age: number; daysSince: number }): StudentBirthdayCopy {
-  const who = name.trim() || 'friend'
+export function studentBirthdayCopy({ name, age, daysSince }: { name: string | null | undefined; age: number; daysSince: number }): StudentBirthdayCopy {
+  // The portal sends no name while a student has hidden it, so this must cope with null.
+  const who = (name ?? '').trim() || 'friend'
   return {
     headline: `Happy birthday, ${who}! 🎂`,
     subline: daysSince === 0 ? `You're ${age} today.` : `You turned ${age} this week.`,
