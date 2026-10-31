@@ -235,6 +235,7 @@ model User {
   certificates          Certificate[]
   servantProfile        ServantProfile?
   servantFollowUps      ServantFollowUp[]
+  birthdayGreetingsGiven StudentBirthdayGreeting[] @relation("BirthdayGreeter")
   passedSubjectPasses   StudentSubjectPass[]      @relation("PassedBy")
   reviewedRegistrations RegistrationApplication[]
   conversationsAsP1     Conversation[]            @relation("Conversation1")
@@ -339,6 +340,25 @@ model ServantFollowUp {
   @@unique([servantId, studentId])
   @@index([schoolId])
   @@map("servant_follow_ups")
+}
+
+/// One greeting per student per birthday occurrence (year of the birthday), so
+/// the whole team sees a student as greeted once anyone has done it.
+model StudentBirthdayGreeting {
+  id        String   @id @default(uuid())
+  schoolId  String   @map("school_id")
+  studentId String   @map("student_id")
+  servantId String   @map("servant_id")
+  year      Int
+  note      String?  @db.VarChar(500)
+  greetedAt DateTime @default(now()) @map("greeted_at")
+
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  servant User    @relation("BirthdayGreeter", fields: [servantId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, year])
+  @@index([schoolId])
+  @@map("student_birthday_greetings")
 }
 
 model Role {
@@ -458,6 +478,7 @@ model Student {
   notifications         Notification[]
   liturgyAppeals        StudentLiturgyAppeal[]
   servantFollowUps      ServantFollowUp[]
+  birthdayGreetings     StudentBirthdayGreeting[]
 
   @@unique([schoolId, studentCode])
   @@index([schoolId])
