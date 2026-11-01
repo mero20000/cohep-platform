@@ -10,6 +10,7 @@ import { LoginThrottleService } from './login-throttle.service';
 import { PasswordResetThrottleService } from './password-reset-throttle.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
+import { normalizeEmail } from '../../common/utils/email';
 
 /**
  * Every JWT this service signs says what it is for. The JWT strategy accepts only 'access',
@@ -40,7 +41,8 @@ export class AuthService {
   ) {}
 
   async register(registerDto: RegisterDto) {
-    const { email, password, firstName, lastName, churchName, country, city, educationLanguage, mobileNumber, schoolIdentifier, firstNameAr, lastNameAr } = registerDto;
+    const { password, firstName, lastName, churchName, country, city, educationLanguage, mobileNumber, schoolIdentifier, firstNameAr, lastNameAr } = registerDto;
+    const email = normalizeEmail(registerDto.email);
 
     let schoolId: string;
 
@@ -147,7 +149,8 @@ export class AuthService {
   }
 
   async login(loginDto: LoginDto) {
-    const { email, password, schoolIdentifier } = loginDto;
+    const { password, schoolIdentifier } = loginDto;
+    const email = normalizeEmail(loginDto.email);
 
     // Per-account lockout — block before any work is done for a locked account.
     this.loginThrottle.assertNotLocked(email);
@@ -410,7 +413,7 @@ export class AuthService {
     origin?: string,
     ip?: string,
   ) {
-    const email = dto.email.trim().toLowerCase();
+    const email = normalizeEmail(dto.email);
     this.passwordResetThrottle.assertAllowed(email, ip);
 
     let user: { id: string; email: string; schoolId: string; isActive: boolean } | null = null;
@@ -533,7 +536,8 @@ export class AuthService {
     return school.id;
   }
 
-  async validateUserByCredentials(email: string, password: string) {
+  async validateUserByCredentials(rawEmail: string, password: string) {
+    const email = normalizeEmail(rawEmail);
     const user = await this.prisma.user.findFirst({
       where: { email, deletedAt: null },
       include: {

@@ -1,9 +1,11 @@
 import { IsEmail, IsString, IsOptional, IsBoolean, MinLength, IsIn, Matches, IsArray, ValidateNested } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
+import { NormalizeEmail } from '../../../common/utils/email';
 
 export class CreateUserDto {
   @ApiProperty({ example: 'user@example.com' })
+  @NormalizeEmail()
   @IsEmail()
   email: string;
 
@@ -65,6 +67,7 @@ export class CreateUserDto {
 export class UpdateUserDto {
   @ApiPropertyOptional({ example: 'user@example.com' })
   @IsOptional()
+  @NormalizeEmail()
   @IsEmail()
   email?: string;
 

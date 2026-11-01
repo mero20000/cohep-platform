@@ -1,8 +1,10 @@
 import { IsEmail, IsString, MinLength, IsOptional, Matches } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { NormalizeEmail } from '../../../common/utils/email';
 
 export class RegisterDto {
   @ApiProperty({ example: 'user@example.com' })
+  @NormalizeEmail()
   @IsEmail()
   email: string;
 

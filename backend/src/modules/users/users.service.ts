@@ -3,6 +3,7 @@ import { Injectable, NotFoundException, ConflictException, BadRequestException }
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../../database/prisma.service';
 import { buildUserSearchClauses } from '../../common/utils/search';
+import { normalizeEmail } from '../../common/utils/email';
 
 const VALID_TEACHING_SUBJECTS = ['coptic_hymns', 'coptic_rites', 'coptic_language'] as const;
 const TEACHING_SUBJECT_ALIASES: Record<string, string> = {
@@ -179,7 +180,7 @@ export class UsersService {
     const updated = await this.prisma.user.update({
       where: { id },
       data: {
-        ...(data.email !== undefined && { email: data.email }),
+        ...(data.email !== undefined && { email: normalizeEmail(data.email) }),
         ...(data.firstName !== undefined && { firstName: data.firstName }),
         ...(data.lastName !== undefined && { lastName: data.lastName }),
         ...(data.gender !== undefined && { gender: data.gender }),
@@ -321,6 +322,7 @@ export class UsersService {
 
   async createUser(requestingUser: any, schoolIdentifier?: string, data?: any) {
     if (!data) throw new BadRequestException('User data is required');
+    data = { ...data, email: normalizeEmail(data.email) };
     const isSuperAdmin = requestingUser?.roles?.includes('super_admin');
     let schoolId: string;
 
@@ -390,7 +392,8 @@ export class UsersService {
     for (let i = 0; i < users.length; i += 10) {
       const batch = users.slice(i, i + 10);
       await Promise.allSettled(
-        batch.map(async (data, batchIdx) => {
+        batch.map(async (rawData, batchIdx) => {
+          const data = { ...rawData, email: normalizeEmail(rawData.email) };
           const idx = i + batchIdx;
           try {
             // Applies to both branches below: an existing user must not be promoted
