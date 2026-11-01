@@ -5,6 +5,11 @@ import { usePathname } from 'next/navigation'
 import InstallAppModal from '@/components/pwa/install-app-modal'
 import { useInstallPrompt, recordVisit } from '@/lib/use-install-prompt'
 
+/** The student portal is a browser experience; students are never asked to install the app. */
+function isStudentPortalPath(pathname: string | null): boolean {
+  return !!pathname && (pathname === '/student-portal' || pathname.startsWith('/student-portal/'))
+}
+
 /**
  * Mounts once in the root layout. Counts visits, runs the eligibility
  * gates with a small grace delay (avoid interrupting first paint), and
@@ -12,7 +17,9 @@ import { useInstallPrompt, recordVisit } from '@/lib/use-install-prompt'
  */
 export default function InstallPromptProvider() {
   const pathname = usePathname()
-  const { shouldShow, surface, promptInstall, dismiss, markInstalled } = useInstallPrompt()
+  const hook = useInstallPrompt()
+  const { surface, promptInstall, dismiss, markInstalled } = hook
+  const shouldShow = hook.shouldShow && !isStudentPortalPath(pathname)
   const [open, setOpen] = useState(false)
 
   // Count each session visit (spec gate: visited 3 pages / returned 2nd visit).
