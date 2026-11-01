@@ -1,9 +1,18 @@
-import { redirect } from 'next/navigation'
+'use client'
+
+import { useEffect } from 'react'
+import { useRouter } from 'next/navigation'
+import { getSavedStudentKey } from '@/lib/student-session'
 
 /**
- * Student portal index — the portal is reached via an access key, but parents
- * and students need a discoverable entry point. Send /student-portal to login.
+ * Student portal index. A student who already signed in on this device goes
+ * straight to their dashboard; everyone else goes to the sign-in page.
  */
 export default function StudentPortalIndex() {
-  redirect('/student-portal/login')
+  const router = useRouter()
+  useEffect(() => {
+    const key = getSavedStudentKey()
+    router.replace(key ? `/student-portal/${encodeURIComponent(key)}` : '/student-portal/login')
+  }, [router])
+  return null
 }

@@ -4,6 +4,8 @@ import { Inter } from 'next/font/google'
 import { Providers } from '@/components/providers'
 import { LangSync } from '@/components/lang-sync'
 import InstallPromptProvider from '@/components/pwa/install-prompt-provider'
+import StandaloneEntry from '@/components/pwa/standalone-entry'
+import { isStudentPortalPath } from '@/lib/student-session'
 import './globals.css'
 
 const inter = Inter({ subsets: ['latin'] })
@@ -46,7 +48,10 @@ export default async function RootLayout({
 }: {
   children: React.ReactNode
 }) {
-  const nonce = (await headers()).get('x-nonce') ?? undefined
+  const h = await headers()
+  const nonce = h.get('x-nonce') ?? undefined
+  // No manifest / home-screen app tags on the student portal: it is not installable.
+  const installable = !isStudentPortalPath(h.get('x-pathname'))
 
   // Site-wide structured data (moved from the landing page so it can carry the
   // CSP nonce; WebApplication schema is valid on every route).
@@ -67,10 +72,10 @@ export default async function RootLayout({
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Coptic:wght@400;600;700&family=Noto+Naskh+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet" />
-        <link rel="manifest" href="/manifest.json" />
+        {installable && <link rel="manifest" href="/manifest.json" />}
         <meta name="theme-color" content="#C89B3C" />
         <meta name="mobile-web-app-capable" content="yes" />
-        <meta name="apple-mobile-web-app-capable" content="yes" />
+        {installable && <meta name="apple-mobile-web-app-capable" content="yes" />}
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <meta name="apple-mobile-web-app-title" content="COHEP" />
         <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
@@ -84,7 +89,7 @@ export default async function RootLayout({
         }} />
         <script type="application/ld+json" nonce={nonce} dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
       </head>
-      <body className={inter.className}><Providers><LangSync /><InstallPromptProvider />{children}</Providers></body>
+      <body className={inter.className}><Providers><LangSync /><InstallPromptProvider /><StandaloneEntry />{children}</Providers></body>
     </html>
   )
 }

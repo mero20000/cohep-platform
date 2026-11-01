@@ -1,4 +1,4 @@
-const CACHE = 'cohep-v7'
+const CACHE = 'cohep-v8'
 const STATIC = [
   '/',
   '/manifest.json',
@@ -28,6 +28,8 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return
   if (event.request.url.includes('/api/')) return
+  // The student portal is never cached or intercepted: students always get fresh pages.
+  if (new URL(event.request.url).pathname.startsWith('/student-portal')) return
 
   // Navigations are network-first: after a deploy the cached HTML shell can
   // reference chunk hashes that no longer exist, causing "Loading chunk N

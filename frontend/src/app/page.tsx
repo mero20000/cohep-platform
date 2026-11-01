@@ -869,6 +869,9 @@ export default function Home() {
             >
               {lang === 'en' ? 'عربي' : 'EN'}
             </button>
+            <Link href="/student-portal/login" className="hidden md:block">
+              <Button variant="ghost" size="lg" className="text-gray-600">{isAr ? 'دخول الطالب' : 'Student sign in'}</Button>
+            </Link>
             <Link href="/auth/login" className="hidden sm:block">
               <Button variant="ghost" size="lg" className="text-gray-600">{t.nav.signIn}</Button>
             </Link>
@@ -915,6 +918,7 @@ export default function Home() {
                 })}
                 <hr className="my-1 border-gray-100" />
                 <Link href="/auth/login" onClick={() => setMobileMenuOpen(false)} className="rounded-lg px-3 py-3 text-sm font-medium text-gray-600 hover:bg-gray-100">{t.nav.signIn}</Link>
+                <Link href="/student-portal/login" onClick={() => setMobileMenuOpen(false)} className="rounded-lg px-3 py-3 text-sm font-medium text-gray-600 hover:bg-gray-100">{isAr ? 'دخول الطالب' : 'Student sign in'}</Link>
                 <Link href="/auth/register" onClick={() => setMobileMenuOpen(false)} className="rounded-lg bg-gold-500 px-3 py-3 text-sm font-medium text-gray-950 text-center hover:bg-gold-400">{t.nav.getStarted}</Link>
               </nav>
             </motion.div>

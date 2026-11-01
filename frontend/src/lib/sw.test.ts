@@ -95,6 +95,16 @@ describe('service worker fetch strategy (public/sw.js)', () => {
     expect(result).toBe(cachedAsset)
   })
 
+  it.each(['/student-portal', '/student-portal/login', '/student-portal/abc-123'])(
+    'never intercepts or caches the student portal (%s)',
+    async (path) => {
+      const { listeners } = loadSw({ fetchImpl, cacheStore })
+      const respondWith = vi.fn()
+      listeners.get('fetch')!({ request: navigateRequest('https://app.example.com' + path), respondWith })
+      expect(respondWith).not.toHaveBeenCalled()
+    },
+  )
+
   it('ignores API requests (no respondWith)', async () => {
     const { listeners } = loadSw({ fetchImpl, cacheStore })
     const respondWith = vi.fn()
