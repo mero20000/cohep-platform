@@ -20,7 +20,7 @@ const baseline: Baseline = JSON.parse(readFileSync(join(__dirname, '..', 'a11y-b
 const GATED = new Set(['serious', 'critical'])
 const TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']
 
-interface Screen { role: RoleKey | 'student'; path: string; name: string }
+interface Screen { role: RoleKey | 'student'; path: string; name: string; /** Extra steps after load, e.g. open a tab. */ open?: (page: Page, lang: 'en' | 'ar') => Promise<void> }
 
 const SCREENS: Screen[] = [
   { role: 'super_admin', path: '/dashboard', name: 'home' },
@@ -32,6 +32,10 @@ const SCREENS: Screen[] = [
   { role: 'admin', path: '/dashboard/settings', name: 'settings' },
   { role: 'admin', path: '/dashboard/reports', name: 'reports' },
   { role: 'admin', path: '/dashboard/students?engagement=at_risk', name: 'students-at-risk' },
+  {
+    role: 'admin', path: '/dashboard/reports', name: 'reports-levels',
+    open: async (page, lang) => { await page.getByRole('button', { name: lang === 'ar' ? /المراحل والمجموعات/ : /Levels & Groups/ }).click(); await page.getByRole('list').last().waitFor() },
+  },
   { role: 'student', path: '/student-portal/login', name: 'login' },
   { role: 'student', path: `/student-portal/${STUDENT_CODE}`, name: 'dashboard' },
 ]
@@ -55,6 +59,7 @@ for (const lang of ['en', 'ar'] as const) {
         await mockApi(page, ROLES.find((r) => r.key === (screen.role === 'student' ? 'servant' : screen.role))!)
         await page.goto(screen.path)
         await settle(page)
+        if (screen.open) { await screen.open(page, lang); await settle(page) }
 
         const result = await new AxeBuilder({ page }).withTags(TAGS).analyze()
 

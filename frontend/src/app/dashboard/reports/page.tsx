@@ -15,6 +15,7 @@ import { http } from '@/lib/http-client'
 import { useLanguage } from '@/lib/use-language'
 import { getSchoolId } from '@/lib/school'
 import { EmptyState } from '@/components/ui/empty-state'
+import { LevelGroupSection } from './_components/level-group-section'
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -537,22 +538,26 @@ export default function ReportsPage() {
   const lang = useLanguage()
   const t = (en: string, ar: string) => lang === 'ar' ? ar : en
   const schoolId = getSchoolId()
-  const [activeTab, setActiveTab] = useState<'pulse' | 'liturgical' | 'servants'>('pulse')
+  const [activeTab, setActiveTab] = useState<'pulse' | 'levels' | 'liturgical' | 'servants'>('pulse')
   // The servant report profiles other servants' activity, so it is leadership-only (the API enforces it too).
   const [canSeeServantReport, setCanSeeServantReport] = useState(false)
+  // The level/group comparison is for school leadership (the API enforces the same roles).
+  const [canSeeComparison, setCanSeeComparison] = useState(false)
   useEffect(() => {
     try {
       const roles: string[] = JSON.parse(localStorage.getItem('user') || '{}').roles || []
       setCanSeeServantReport(roles.some(r => ['super_admin', 'admin', 'principal'].includes(r)))
+      setCanSeeComparison(roles.some(r => ['super_admin', 'admin', 'principal', 'priest', 'curriculum_manager'].includes(r)))
     } catch {}
   }, [])
 
   const allTabs = [
     { id: 'pulse' as const,      label: t('Priest Pulse', 'نبض الكاهن'),      icon: Church,    description: t('30-second school health overview', 'نظرة سريعة على صحة المدرسة') },
+    { id: 'levels' as const,     label: t('Levels & Groups', 'المراحل والمجموعات'), icon: Users,     description: t('Compare every level and group side by side', 'قارن كل مرحلة ومجموعة جنبًا إلى جنب') },
     { id: 'liturgical' as const, label: t('Liturgical Seasons', 'المواسم الليتورجية'), icon: Calendar,  description: t('Engagement overlaid on the Coptic calendar', 'المشاركة على التقويم القبطي') },
     { id: 'servants' as const,   label: t('Servant Report', 'تقرير الخدام'),   icon: Award,     description: t('Appreciation-framed contributions', 'مساهمات معروضة بتقدير') },
   ]
-  const tabs = allTabs.filter(tab => tab.id !== 'servants' || canSeeServantReport)
+  const tabs = allTabs.filter(tab => (tab.id !== 'servants' || canSeeServantReport) && (tab.id !== 'levels' || canSeeComparison))
 
   return (
     <div className="space-y-6">
@@ -567,14 +572,16 @@ export default function ReportsPage() {
       </div>
 
       {/* Tab selector */}
-      <div className="flex flex-col sm:flex-row gap-3">
+      <div className="grid grid-cols-2 sm:flex sm:flex-row gap-3">
         {tabs.map(tab => {
           const Icon = tab.icon
           return (
             <button
               key={tab.id}
+              type="button"
+              aria-pressed={activeTab === tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex items-start gap-3 rounded-xl border p-4 text-left flex-1 transition-all ${
+              className={`flex items-start gap-2 sm:gap-3 rounded-xl border p-3 sm:p-4 text-start flex-1 transition-all ${
                 activeTab === tab.id
                   ? 'border-gold-400 bg-gold-50 shadow-xs'
                   : 'border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50'
@@ -585,7 +592,7 @@ export default function ReportsPage() {
               </div>
               <div className="min-w-0">
                 <p className={`text-sm font-semibold ${activeTab === tab.id ? 'text-gold-800' : 'text-gray-900'}`}>{tab.label}</p>
-                <p className="text-[11px] text-gray-500 mt-0.5 leading-tight">{tab.description}</p>
+                <p className="hidden sm:block text-[11px] text-gray-500 mt-0.5 leading-tight">{tab.description}</p>
               </div>
             </button>
           )
@@ -594,6 +601,7 @@ export default function ReportsPage() {
 
       {/* Tab content */}
       {activeTab === 'pulse' && <PriestPulseSection schoolId={schoolId} lang={lang} />}
+      {activeTab === 'levels' && canSeeComparison && <LevelGroupSection schoolId={schoolId} lang={lang} />}
       {activeTab === 'liturgical' && <LiturgicalEngagementSection schoolId={schoolId} lang={lang} />}
       {activeTab === 'servants' && canSeeServantReport && <ServantContributionsSection schoolId={schoolId} lang={lang} />}
     </div>

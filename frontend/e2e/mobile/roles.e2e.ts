@@ -270,6 +270,42 @@ for (const lang of ['en', 'ar'] as const) {
       })
     })
 
+    test('Reports: level and group comparison puts the units that need attention first', async ({ page }, info) => {
+      await setLanguage(page, lang)
+      await mockApi(page, ROLES.find((r) => r.key === 'admin')!)
+      await page.goto('/dashboard/reports')
+      await page.getByRole('button', { name: lang === 'ar' ? /المراحل والمجموعات/ : /Levels & Groups/ }).click()
+
+      const items = page.getByRole('list', { name: lang === 'ar' ? 'المراحل' : 'Levels' }).getByRole('listitem')
+      await expect(items).toHaveCount(3)
+      // Level 2 has the highest at-risk share, so it leads; Level 3 has no class data and shows a dash, not 0%.
+      await expect(items.nth(0)).toContainText('Level 2')
+      await expect(items.nth(0)).toContainText('54%')
+      await expect(items.nth(2)).toContainText('Level 3')
+      await expect(items.nth(2)).not.toContainText('0%')
+      await items.nth(0).scrollIntoViewIfNeeded()
+      await shot(page, info.project.name, `${lang}-admin-level-comparison`)
+
+      // Rows open the matching filtered student lists.
+      await expect(items.nth(0).getByRole('link', { name: lang === 'ar' ? /عرض طلاب/ : /View students in Level 2/ })).toHaveAttribute('href', '/dashboard/students?levelId=lvl-2')
+      await expect(items.nth(0).getByRole('link', { name: lang === 'ar' ? /في خطر/ : /6 at risk in Level 2/ })).toHaveAttribute('href', '/dashboard/students?levelId=lvl-2&engagement=at_risk')
+
+      // The window selector re-queries; groups switch the list.
+      const req = page.waitForRequest((r) => r.url().includes('level-group-overview') && r.url().includes('days=90'))
+      await page.getByRole('button', { name: lang === 'ar' ? '90 يومًا' : '90 days' }).click()
+      await req
+      await page.getByRole('button', { name: lang === 'ar' ? 'المجموعات' : 'Groups', exact: true }).click()
+      await expect(page.getByRole('list', { name: lang === 'ar' ? 'المجموعات' : 'Groups' }).getByRole('listitem')).toHaveCount(2)
+    })
+
+    test('Students: ?levelId deep link filters the list', async ({ page }) => {
+      await setLanguage(page, lang)
+      await mockApi(page, ROLES.find((r) => r.key === 'admin')!)
+      const req = page.waitForRequest((r) => r.url().includes('/api/students?') && r.url().includes('levelId=lvl-2'))
+      await page.goto('/dashboard/students?levelId=lvl-2')
+      await req
+    })
+
     test('Admin: a student opens from the list with the keyboard (the name is the button)', async ({ page }) => {
       await setLanguage(page, lang)
       await mockApi(page, ROLES.find((r) => r.key === 'admin')!)
