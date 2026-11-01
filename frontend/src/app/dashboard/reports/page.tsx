@@ -16,6 +16,7 @@ import { useLanguage } from '@/lib/use-language'
 import { getSchoolId } from '@/lib/school'
 import { EmptyState } from '@/components/ui/empty-state'
 import { LevelGroupSection } from './_components/level-group-section'
+import { DataQualitySection } from './_components/data-quality-section'
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -538,7 +539,7 @@ export default function ReportsPage() {
   const lang = useLanguage()
   const t = (en: string, ar: string) => lang === 'ar' ? ar : en
   const schoolId = getSchoolId()
-  const [activeTab, setActiveTab] = useState<'pulse' | 'levels' | 'liturgical' | 'servants'>('pulse')
+  const [activeTab, setActiveTab] = useState<'pulse' | 'levels' | 'quality' | 'liturgical' | 'servants'>('pulse')
   // The servant report profiles other servants' activity, so it is leadership-only (the API enforces it too).
   const [canSeeServantReport, setCanSeeServantReport] = useState(false)
   // The level/group comparison is for school leadership (the API enforces the same roles).
@@ -554,10 +555,11 @@ export default function ReportsPage() {
   const allTabs = [
     { id: 'pulse' as const,      label: t('Priest Pulse', 'نبض الكاهن'),      icon: Church,    description: t('30-second school health overview', 'نظرة سريعة على صحة المدرسة') },
     { id: 'levels' as const,     label: t('Levels & Groups', 'المراحل والمجموعات'), icon: Users,     description: t('Compare every level and group side by side', 'قارن كل مرحلة ومجموعة جنبًا إلى جنب') },
+    { id: 'quality' as const,    label: t('Data Quality', 'جودة البيانات'),    icon: CheckCircle2, description: t('Missing photos, parent contacts and grades', 'صور ووسائل اتصال وصفوف ناقصة') },
     { id: 'liturgical' as const, label: t('Liturgical Seasons', 'المواسم الليتورجية'), icon: Calendar,  description: t('Engagement overlaid on the Coptic calendar', 'المشاركة على التقويم القبطي') },
     { id: 'servants' as const,   label: t('Servant Report', 'تقرير الخدام'),   icon: Award,     description: t('Appreciation-framed contributions', 'مساهمات معروضة بتقدير') },
   ]
-  const tabs = allTabs.filter(tab => (tab.id !== 'servants' || canSeeServantReport) && (tab.id !== 'levels' || canSeeComparison))
+  const tabs = allTabs.filter(tab => (tab.id !== 'servants' || canSeeServantReport) && ((tab.id !== 'levels' && tab.id !== 'quality') || canSeeComparison))
 
   return (
     <div className="space-y-6">
@@ -602,6 +604,7 @@ export default function ReportsPage() {
       {/* Tab content */}
       {activeTab === 'pulse' && <PriestPulseSection schoolId={schoolId} lang={lang} />}
       {activeTab === 'levels' && canSeeComparison && <LevelGroupSection schoolId={schoolId} lang={lang} />}
+      {activeTab === 'quality' && canSeeComparison && <DataQualitySection schoolId={schoolId} lang={lang} />}
       {activeTab === 'liturgical' && <LiturgicalEngagementSection schoolId={schoolId} lang={lang} />}
       {activeTab === 'servants' && canSeeServantReport && <ServantContributionsSection schoolId={schoolId} lang={lang} />}
     </div>

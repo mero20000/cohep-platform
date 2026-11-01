@@ -25,6 +25,13 @@ export class ReportsController {
     return this.reportsService.getLevelGroupOverview(schoolId, days ? Number(days) : 30);
   }
 
+  @Get('data-quality')
+  @Roles('super_admin', 'admin', 'principal', 'priest', 'curriculum_manager')
+  @ApiOperation({ summary: 'Active students missing a photo, parent contact or school grade (each links to the matching students filter)' })
+  async getDataQuality(@Query('schoolId') schoolId: string = '') {
+    return this.reportsService.getDataQuality(schoolId);
+  }
+
   @Get('liturgical-engagement')
   @ApiOperation({ summary: 'Liturgical season engagement — attendance and XP overlaid on the Coptic calendar' })
   async getLiturgicalEngagement(@Query('schoolId') schoolId: string = '') {

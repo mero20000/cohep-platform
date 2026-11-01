@@ -36,6 +36,11 @@ const SCREENS: Screen[] = [
     role: 'admin', path: '/dashboard/reports', name: 'reports-levels',
     open: async (page, lang) => { await page.getByRole('button', { name: lang === 'ar' ? /المراحل والمجموعات/ : /Levels & Groups/ }).click(); await page.getByRole('list').last().waitFor() },
   },
+  {
+    role: 'admin', path: '/dashboard/reports', name: 'reports-quality',
+    open: async (page, lang) => { await page.getByRole('button', { name: lang === 'ar' ? /جودة البيانات/ : /Data Quality/ }).click(); await page.getByRole('list', { name: lang === 'ar' ? 'التفاصيل الناقصة' : 'Missing details' }).waitFor() },
+  },
+  { role: 'admin', path: '/dashboard/students?dataGap=photo', name: 'students-data-gap' },
   { role: 'student', path: '/student-portal/login', name: 'login' },
   { role: 'student', path: `/student-portal/${STUDENT_CODE}`, name: 'dashboard' },
 ]

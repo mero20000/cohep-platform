@@ -5,6 +5,7 @@ import { getCopticContext } from '../../common/utils/coptic-calendar';
 import { localToday, studentBirthdayWindow } from '../../common/utils/birthday';
 import { attendanceRate as calcAttendanceRate, rateFromCounts } from '../attendance/attendance-metrics';
 import { loadAttendanceTrend } from '../attendance/attendance-trend';
+import { loadAttendanceTarget } from '../reports/attendance-target';
 import { findAtRiskStudents } from '../attendance/absence-risk';
 
 /** How long a ticked follow-up stays ticked before the student resurfaces. */
@@ -55,6 +56,7 @@ export class DashboardService {
     const attendanceRate = attendanceTrend[attendanceTrend.length - 1].rate;
     const attendancePrevRate = attendanceTrend[attendanceTrend.length - 2].rate;
     const studentsAtRisk = (await findAtRiskStudents(this.prisma, resolvedId)).size;
+    const attendanceTarget = await loadAttendanceTarget(this.prisma, resolvedId);
 
     // Grade distribution — students grouped by gradeId
     const gradeGroups = await this.prisma.student.groupBy({
@@ -242,6 +244,7 @@ export class DashboardService {
       totalAssessments,
       attendanceRate,
       attendancePrevRate,
+      attendanceTarget,
       attendanceTrend,
       studentsAtRisk,
       completedSessions,

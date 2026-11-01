@@ -306,6 +306,77 @@ for (const lang of ['en', 'ar'] as const) {
       await req
     })
 
+    for (const [roleKey, reports, diocese] of [['admin', true, false], ['super_admin', true, true], ['servant', false, false]] as const) {
+      test(`Navigation: ${roleKey} ${reports ? 'sees Reports' : 'does not see Reports'}${diocese ? ' and Diocese' : ''}`, async ({ page }) => {
+        await setLanguage(page, lang)
+        await mockApi(page, ROLES.find((r) => r.key === roleKey)!)
+        await openDashboard(page)
+        await page.getByRole('navigation', { name: /bottom navigation|التنقل السفلي/i }).getByRole('button', { name: /more|المزيد/i }).click()
+        const main = page.getByRole('navigation', { name: /main navigation|القائمة الرئيسية/i })
+        await expect(main).toBeVisible()
+        await expect(main.locator('a[href="/dashboard/reports"]')).toHaveCount(reports ? 1 : 0)
+        await expect(main.locator('a[href="/dashboard/diocese"]')).toHaveCount(diocese ? 1 : 0)
+      })
+    }
+
+    test('Data quality: gaps link to the exact filtered student lists', async ({ page }, info) => {
+      await setLanguage(page, lang)
+      await mockApi(page, ROLES.find((r) => r.key === 'admin')!)
+      await page.goto('/dashboard/reports')
+      await page.getByRole('button', { name: lang === 'ar' ? /جودة البيانات/ : /Data Quality/ }).click()
+
+      const list = page.getByRole('list', { name: lang === 'ar' ? 'التفاصيل الناقصة' : 'Missing details' })
+      await expect(list.getByRole('listitem')).toHaveCount(3)
+      await expect(list.getByRole('link')).toHaveCount(2) // the zero-gap row is not a link
+      await expect(list.getByRole('link').first()).toHaveAttribute('href', '/dashboard/students?dataGap=photo')
+      await expect(list.getByRole('link').nth(1)).toHaveAttribute('href', '/dashboard/students?dataGap=parent')
+      await list.scrollIntoViewIfNeeded()
+      await shot(page, info.project.name, `${lang}-admin-data-quality`)
+
+      const req = page.waitForRequest((r) => r.url().includes('/api/students?') && r.url().includes('dataGap=photo'))
+      await list.getByRole('link').first().click()
+      await req
+      await expect(page.getByRole('status').filter({ hasText: lang === 'ar' ? 'بيانات ناقصة' : 'Missing details' })).toBeVisible()
+      await page.getByRole('button', { name: lang === 'ar' ? 'عرض كل الطلاب' : 'Show all students' }).click()
+      await expect(page.getByRole('status').filter({ hasText: lang === 'ar' ? 'بيانات ناقصة' : 'Missing details' })).toHaveCount(0)
+    })
+
+    test('Targets and export: dashboard shows the target, admin can change it, comparison exports CSV', async ({ page }) => {
+      await setLanguage(page, lang)
+      await mockApi(page, ROLES.find((r) => r.key === 'admin')!)
+      await openDashboard(page)
+      await expect(page.getByText(lang === 'ar' ? 'الهدف 80٪' : 'Target 80%').first()).toBeVisible()
+
+      await page.goto('/dashboard/reports')
+      await page.getByRole('button', { name: lang === 'ar' ? /المراحل والمجموعات/ : /Levels & Groups/ }).click()
+
+      const input = page.getByLabel(lang === 'ar' ? 'هدف الحضور' : 'Attendance target')
+      await input.fill('150')
+      await expect(page.getByRole('alert').filter({ hasText: /1/ })).toBeVisible()
+      await expect(page.getByRole('button', { name: lang === 'ar' ? 'حفظ' : 'Save', exact: true })).toBeDisabled()
+      await input.fill('85')
+      const post = page.waitForRequest((r) => r.method() === 'POST' && new URL(r.url()).pathname.endsWith('/config'))
+      await page.getByRole('button', { name: lang === 'ar' ? 'حفظ' : 'Save', exact: true }).click()
+      expect((await post).postDataJSON()).toMatchObject({ key: 'attendance_target', value: 85 })
+
+      const download = page.waitForEvent('download')
+      await page.getByRole('button', { name: lang === 'ar' ? 'تصدير CSV' : 'Export CSV' }).click()
+      const file = await download
+      expect(file.suggestedFilename()).toMatch(/^levels-comparison-30d-\d{4}-\d{2}-\d{2}\.csv$/)
+      const text = (await (await import('node:fs/promises')).readFile((await file.path())!, 'utf8'))
+      expect(text.startsWith('\uFEFF')).toBe(true)
+      expect(text).toContain('Level 2')
+      expect(text.split('\r\n')).toHaveLength(4) // header + 3 levels
+    })
+
+    test('Servant: no target editor and no export on a page they should not reach', async ({ page }) => {
+      await setLanguage(page, lang)
+      await mockApi(page, ROLES.find((r) => r.key === 'servant')!)
+      await page.goto('/dashboard/reports')
+      await expect(page.getByRole('button', { name: lang === 'ar' ? /المراحل والمجموعات/ : /Levels & Groups/ })).toHaveCount(0)
+      await expect(page.getByRole('button', { name: lang === 'ar' ? /جودة البيانات/ : /Data Quality/ })).toHaveCount(0)
+    })
+
     test('Admin: a student opens from the list with the keyboard (the name is the button)', async ({ page }) => {
       await setLanguage(page, lang)
       await mockApi(page, ROLES.find((r) => r.key === 'admin')!)

@@ -1,3 +1,4 @@
+import { ATTENDANCE_TARGET_KEY, isValidAttendanceTarget } from '../reports/attendance-target';
 import { Injectable, NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../../database/prisma.service';
@@ -605,7 +606,8 @@ export class UsersService {
     return { success: true };
   }
 
-  async getSystemConfig(schoolId: string, key?: string) {
+  async getSystemConfig(schoolId: string, key?: string, requestingUser?: any) {
+    this.requireOwnSchool(requestingUser, { id: schoolId });
     const where: any = { schoolId };
     if (key) where.key = key;
     const configs = await this.prisma.systemConfig.findMany({ where });
@@ -613,7 +615,11 @@ export class UsersService {
     return configs;
   }
 
-  async setSystemConfig(schoolId: string, key: string, value: any, description?: string) {
+  async setSystemConfig(schoolId: string, key: string, value: any, description?: string, requestingUser?: any) {
+    this.requireOwnSchool(requestingUser, { id: schoolId });
+    if (key === ATTENDANCE_TARGET_KEY && !isValidAttendanceTarget(value)) {
+      throw new BadRequestException('attendance_target must be a whole number from 1 to 100');
+    }
     return this.prisma.systemConfig.upsert({
       where: { schoolId_key: { schoolId, key } },
       update: { value, description },

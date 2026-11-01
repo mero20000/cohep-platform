@@ -25,6 +25,7 @@ describe('DashboardService', () => {
     lessonProgress: { findMany: jest.fn() },
     assessmentSubmission: { findMany: jest.fn() },
     servantFollowUp: { findMany: jest.fn().mockResolvedValue([]), upsert: jest.fn() },
+    systemConfig: { findUnique: jest.fn().mockResolvedValue(null) },
   };
 
   beforeEach(async () => {
@@ -121,6 +122,13 @@ describe('DashboardService', () => {
         Promise.resolve('lte' in args.where.attendanceSession.scheduledDate ? risk : trend),
       );
     }
+
+    it('returns the school attendance target: the default 80 until an admin sets one', async () => {
+      mockStatsBaseline();
+      expect((await service.getStats(schoolId)).attendanceTarget).toBe(80);
+      prismaMock.systemConfig.findUnique.mockResolvedValueOnce({ value: 90 });
+      expect((await service.getStats(schoolId)).attendanceTarget).toBe(90);
+    });
 
     it('reports null attendance (not 0%) when no class was held in the last 7 days', async () => {
       mockStatsBaseline();

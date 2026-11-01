@@ -277,6 +277,34 @@ systemConfig: {
       });
     });
 
+    describe('dataGap filter', () => {
+      beforeEach(() => {
+        prisma.student.findMany.mockResolvedValue([]);
+        prisma.student.count.mockResolvedValue(0);
+      });
+
+      it.each([
+        ['photo', { OR: [{ photoUrl: null }, { photoUrl: '' }] }],
+        ['grade', { gradeId: null }],
+      ] as const)('narrows to students with no %s, on top of the caller scope', async (gap, fragment) => {
+        await service.findAll({ page: 1, limit: 20, dataGap: gap }, schoolId);
+        const where = prisma.student.findMany.mock.calls[0][0].where;
+        expect(where.AND).toContainEqual(fragment);
+        expect(where.schoolId).toBe(schoolId);
+      });
+
+      it('parent gap needs no email AND no linked parent account', async () => {
+        await service.findAll({ page: 1, limit: 20, dataGap: 'parent' }, schoolId);
+        const and = prisma.student.findMany.mock.calls[0][0].where.AND;
+        expect(JSON.stringify(and)).toContain('studentParents');
+      });
+
+      it('does nothing when not requested', async () => {
+        await service.findAll({ page: 1, limit: 20 }, schoolId);
+        expect(JSON.stringify(prisma.student.findMany.mock.calls[0][0].where)).not.toContain('photoUrl');
+      });
+    });
+
     it('restricts the list to the given ids (favorites)', async () => {
       prisma.student.findMany.mockResolvedValue([]);
       prisma.student.count.mockResolvedValue(0);

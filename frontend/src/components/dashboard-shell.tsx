@@ -7,7 +7,7 @@ import {
   LayoutDashboard, Users, BookOpen, Calendar, ClipboardCheck,
   Trophy, Settings, UserCheck, Baby, ClipboardList, Megaphone,
   Crown, Shield, GraduationCap, Layers, Heart, Church, Mail,
-  Headphones, School, Sun, BarChart3,
+  Headphones, School, Sun, BarChart3, Globe,
 } from 'lucide-react'
 import { HelpButton } from './help-button'
 import { useDashboardHotkeys } from '@/hooks/use-hotkeys'
@@ -47,6 +47,8 @@ const navigation = [
   { name: 'My Servants', nameAr: 'خدامي', href: '/dashboard/my-servants', icon: Heart, roles: ['level_leader'] as const },
   { name: 'Level Report', nameAr: 'تقرير المستوى', href: '/dashboard/level-report', icon: BarChart3, roles: ['level_leader'] as const },
   { name: 'Group Report', nameAr: 'تقرير المجموعة', href: '/dashboard/group-report', icon: BarChart3, roles: ['servant', 'group_leader'] as const },
+  { name: 'Reports', nameAr: 'التقارير', href: '/dashboard/reports', icon: BarChart3, roles: ['super_admin','admin','principal','priest','curriculum_manager'] as const },
+  { name: 'Diocese', nameAr: 'الإيبارشية', href: '/dashboard/diocese', icon: Globe, superAdminOnly: true },
   { name: 'Curriculum', nameAr: 'المنهج', href: '/dashboard/curriculum', icon: BookOpen, perm: 'curriculum:view' as const },
   { name: 'Assessments', nameAr: 'التقييمات', href: '/dashboard/assessments', icon: ClipboardCheck, perm: 'assessment:view' as const },
   { name: 'Hymn Review', nameAr: 'مراجعة التسابيح', href: '/dashboard/hymn-review', icon: Headphones, perm: 'practice:view' as const },
