@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { Loader2, Search } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { saveStudentKey } from '@/lib/student-session'
 
 export default function StudentLoginPage() {
   const [code, setCode] = useState('')
@@ -33,6 +34,7 @@ export default function StudentLoginPage() {
       if (data?.accessToken) {
         try { sessionStorage.setItem('student_portal_token', data.accessToken) } catch {}
       }
+      saveStudentKey(code.trim())
       router.push(`/student-portal/${code.trim()}`)
     } catch (err: any) {
       setError(err.message || 'Login failed')

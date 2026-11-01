@@ -306,6 +306,11 @@ export default function LoginPage() {
               <Link href="/auth/register" className="inline-flex items-center gap-1 font-semibold text-gold-700 hover:text-gold-700 transition-colors">
                 {isAr ? 'أنشئ حسابًا مجانًا' : 'Create one free'} <ArrowRight className="h-3.5 w-3.5 rtl-flip" />
               </Link>
+              <br />
+              {isAr ? 'طالب؟' : 'Are you a student?'}{' '}
+              <Link href="/student-portal/login" className="font-semibold text-gold-700 hover:text-gold-700 transition-colors">
+                {isAr ? 'ادخل بمفتاح الوصول' : 'Sign in with your access key'}
+              </Link>
             </p>
           </div>
 

@@ -4,11 +4,7 @@ import { useEffect, useState } from 'react'
 import { usePathname } from 'next/navigation'
 import InstallAppModal from '@/components/pwa/install-app-modal'
 import { useInstallPrompt, recordVisit } from '@/lib/use-install-prompt'
-
-/** The student portal is a browser experience; students are never asked to install the app. */
-function isStudentPortalPath(pathname: string | null): boolean {
-  return !!pathname && (pathname === '/student-portal' || pathname.startsWith('/student-portal/'))
-}
+import { isStudentPortalPath } from '@/lib/student-session'
 
 /**
  * Mounts once in the root layout. Counts visits, runs the eligibility

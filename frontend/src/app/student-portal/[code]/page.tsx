@@ -6,6 +6,7 @@ import Image from 'next/image'
 import { http } from '@/lib/http-client'
 import { ensurePortalSession, clearPortalSession, portalGet } from '@/lib/portal-session'
 import { assetUrl } from '@/lib/asset-url'
+import { clearStudentSession } from '@/lib/student-session'
 import { AudioPlayer } from '@/components/audio-player'
 import DashboardHero from '../../dashboard/hero'
 import { useLanguage } from '@/lib/use-language'
@@ -270,7 +271,7 @@ export default function StudentDashboard() {
         </div>
         <h2 className="text-lg font-semibold text-gray-900 mb-1">Could not load dashboard</h2>
         <p className="text-sm text-gray-500 mb-4">{error || 'Check your student code and try again.'}</p>
-        <Link href="/student-portal/login" className="text-sm text-blue-600 hover:underline">Go back to login</Link>
+        <Link href="/student-portal/login" onClick={clearStudentSession} className="text-sm text-blue-600 hover:underline">Go back to login</Link>
       </div>
     </div>
   )
@@ -297,7 +298,7 @@ export default function StudentDashboard() {
           <div className="flex items-center justify-between mb-4">
             <Link
               href="/student-portal/login"
-              onClick={() => { try { sessionStorage.removeItem('student_portal_token') } catch {} }}
+              onClick={clearStudentSession}
               className="inline-flex items-center gap-1.5 text-white/70 hover:text-white text-xs focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-white/40 rounded-full px-2 py-3 -ms-2"
             >
               <ArrowLeft className="h-3.5 w-3.5 rtl:rotate-180" />
@@ -316,7 +317,7 @@ export default function StudentDashboard() {
                     {showName ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     {showName ? (lang === 'ar' ? 'إخفاء الاسم' : 'Hide Name') : (lang === 'ar' ? 'إظهار الاسم' : 'Show Name')}
                   </button>
-                  <Link href="/student-portal/login" onClick={() => { try { sessionStorage.removeItem('student_portal_token') } catch {} }} className="flex items-center gap-2 px-3 py-2.5 text-sm text-red-600 hover:bg-red-50">
+                  <Link href="/student-portal/login" onClick={clearStudentSession} className="flex items-center gap-2 px-3 py-2.5 text-sm text-red-600 hover:bg-red-50">
                     <LogOut className="h-4 w-4" /> {lang === 'ar' ? 'خروج' : 'Sign Out'}
                   </Link>
                 </div>

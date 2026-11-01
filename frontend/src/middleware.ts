@@ -39,6 +39,8 @@ export function middleware(request: NextRequest) {
   // the same nonce to its own bootstrap <script> tags.
   const requestHeaders = new Headers(request.headers)
   requestHeaders.set('x-nonce', nonce)
+  // Lets the root layout vary PWA tags by route (the student portal is not installable).
+  requestHeaders.set('x-pathname', request.nextUrl.pathname)
   requestHeaders.set('Content-Security-Policy', csp)
 
   const response = NextResponse.next({ request: { headers: requestHeaders } })
