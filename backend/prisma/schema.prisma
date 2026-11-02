@@ -977,6 +977,8 @@ model Assessment {
   requireRecording       Boolean   @default(false) @map("require_recording")
   /// Student may retry; maxAttempts is then the total attempts including the first.
   allowRetry             Boolean   @default(false) @map("allow_retry")
+  /// XP awarded for a full-score attempt; a partial score earns a proportional share.
+  xpReward               Int       @default(100) @map("xp_reward")
   instructions           String?
   instructionsAr         String?   @map("instructions_ar")
   status                 String    @default("draft")

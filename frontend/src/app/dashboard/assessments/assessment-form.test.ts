@@ -28,6 +28,10 @@ const detail: AssessmentDetail = {
 }
 
 describe('assessmentToForm', () => {
+  it('loads the configured XP reward', () => {
+    expect(assessmentToForm({ ...detail, xpReward: 25 }).xpReward).toBe('25')
+  })
+
   it('maps a loaded assessment into form state', () => {
     expect(assessmentToForm(detail)).toEqual({
       title: 'Midterm',
@@ -40,6 +44,7 @@ describe('assessmentToForm', () => {
       subjectId: 's1',
       totalPoints: '100',
       passingPoints: '60',
+      xpReward: '100',
       dueDate: '2026-12-01',
       term: '2',
       status: 'published',

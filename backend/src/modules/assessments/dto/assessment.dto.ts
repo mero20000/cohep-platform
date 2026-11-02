@@ -109,6 +109,13 @@ export class CreateAssessmentDto {
   @Min(1)
   passingPoints: number;
 
+  /** XP for a full-score attempt; partial scores earn a proportional share. Defaults to 100. */
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(1000)
+  xpReward?: number;
+
   @IsOptional()
   @IsBoolean()
   requireReview?: boolean;
@@ -216,6 +223,13 @@ export class UpdateAssessmentDto {
   @IsInt()
   @Min(1)
   passingPoints: number;
+
+  /** XP for a full-score attempt; partial scores earn a proportional share. Defaults to 100. */
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(1000)
+  xpReward?: number;
 
   @IsOptional()
   @IsBoolean()

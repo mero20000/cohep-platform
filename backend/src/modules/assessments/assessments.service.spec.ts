@@ -1026,6 +1026,28 @@ describe('AssessmentsService', () => {
       expect(prisma.xPTransaction.deleteMany).not.toHaveBeenCalled();
     });
 
+    it('scales XP to the assessment xpReward (4/5 with xpReward 50 earns 40)', async () => {
+      prisma.assessment.findUnique.mockResolvedValue(markable({ totalPoints: 5, passingScore: 3, xpReward: 50 }));
+      prisma.xPTransaction.findFirst.mockResolvedValue(null);
+
+      await service.markStudent('a1', 'stu-1', 4, 5, undefined, 'u1');
+
+      expect(prisma.xPTransaction.create).toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({ amount: 40 }) }),
+      );
+    });
+
+    it('defaults to 100 XP for a full score when xpReward is not set', async () => {
+      prisma.assessment.findUnique.mockResolvedValue(markable({ totalPoints: 5, passingScore: 3 }));
+      prisma.xPTransaction.findFirst.mockResolvedValue(null);
+
+      await service.markStudent('a1', 'stu-1', 5, 5, undefined, 'u1');
+
+      expect(prisma.xPTransaction.create).toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({ amount: 100 }) }),
+      );
+    });
+
     it('credits no XP for 5/10 on a 100-point assessment with pass mark 60 when retry is on', async () => {
       prisma.assessment.findUnique.mockResolvedValue(markable());
       prisma.xPTransaction.findFirst.mockResolvedValue({ id: 'x1' });

@@ -143,6 +143,7 @@ export class AssessmentsService {
       maxAttempts: allowRetry ? (dto.maxAttempts ?? 3) : null,
       totalPoints: dto.totalPoints,
       passingScore: dto.passingPoints,
+      xpReward: dto.xpReward ?? 100,
       dueDate: dto.dueDate ? new Date(dto.dueDate) : undefined,
       status: dto.status || 'draft',
       createdBy: adminUser?.id || '00000000-0000-0000-0000-000000000000',
@@ -198,6 +199,7 @@ export class AssessmentsService {
     if (dto.referenceRecordingName !== undefined) data.referenceRecordingName = dto.referenceRecordingName || null;
     if (dto.totalPoints !== undefined) data.totalPoints = dto.totalPoints;
     if (dto.passingPoints !== undefined) data.passingScore = dto.passingPoints;
+    if (dto.xpReward !== undefined) data.xpReward = dto.xpReward;
     if (dto.dueDate !== undefined) data.dueDate = dto.dueDate ? new Date(dto.dueDate) : null;
     if (dto.status !== undefined) data.status = dto.status;
     if (dto.type !== undefined) data.type = dto.type;
@@ -511,6 +513,7 @@ export class AssessmentsService {
         passRequired: assessment.allowRetry,
         passingScore: Number(assessment.passingScore),
         totalPoints,
+        xpReward: assessment.xpReward ?? 100,
       }, tx);
       return completed;
     });
@@ -1703,6 +1706,7 @@ export class AssessmentsService {
       passRequired: assessment.allowRetry,
       passingScore: Number(assessment.passingScore),
       totalPoints: total,
+      xpReward: assessment.xpReward ?? 100,
     });
 
     // Who marked, and whether an admin did it in place of the servant, must be traceable.
@@ -1751,8 +1755,10 @@ export class AssessmentsService {
     passRequired: boolean;
     passingScore: number;
     totalPoints: number;
+    /** XP for a full score (assessment.xpReward). */
+    xpReward: number;
   }, db: Prisma.TransactionClient | PrismaService = this.prisma): Promise<void> {
-    const { studentId, submissionId, lessonId, score, maxScore, passRequired, passingScore, totalPoints } = args;
+    const { studentId, submissionId, lessonId, score, maxScore, passRequired, passingScore, totalPoints, xpReward } = args;
 
     if (passRequired && scoreOnTotalScale(score, maxScore, totalPoints) < passingScore) {
       await db.xPTransaction.deleteMany({
@@ -1761,7 +1767,7 @@ export class AssessmentsService {
       return;
     }
 
-    const xpAmount = Math.round((Number(score) / Number(maxScore)) * 100);
+    const xpAmount = Math.round((Number(score) / Number(maxScore)) * xpReward);
     const existingXp = await db.xPTransaction.findFirst({
       where: { referenceType: 'submission', referenceId: submissionId },
     });
