@@ -105,7 +105,7 @@ export class AssessmentsController {
     @Body(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true })) dto: SubmitAssessmentDto,
     @Req() req: any,
   ) {
-    return this.assessmentsService.submit(id, studentId, dto, { id: req.user?.id, schoolId: req.user?.schoolId });
+    return this.assessmentsService.submit(id, studentId, dto, { id: req.user?.id, schoolId: req.user?.schoolId, source: 'staff' });
   }
 
   @Get(':id/submissions')

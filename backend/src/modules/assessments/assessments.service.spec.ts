@@ -16,6 +16,7 @@ describe('AssessmentsService', () => {
   let prisma: any;
   let resolver: any;
   let audit: any;
+  let notifications: any;
 
   const schoolId = 'school-1';
 
@@ -59,6 +60,13 @@ describe('AssessmentsService', () => {
     student: {
       findMany: jest.fn(),
     },
+    xPTransaction: {
+      findFirst: jest.fn(),
+      aggregate: jest.fn(),
+      create: jest.fn(),
+      update: jest.fn(),
+      deleteMany: jest.fn(),
+    },
     grade: {
       createMany: jest.fn(),
       deleteMany: jest.fn(),
@@ -84,6 +92,7 @@ describe('AssessmentsService', () => {
     prisma = prismaMock;
     resolver = module.get(SchoolResolver);
     audit = module.get(AuditService);
+    notifications = module.get(StudentNotificationsService);
   });
 
   describe('create', () => {
@@ -457,6 +466,139 @@ describe('AssessmentsService', () => {
     });
   });
 
+  describe('submit review, recording and XP rules', () => {
+    // A quiz with one 10-point question; the flags are overridden per test.
+    const quiz = (over: any = {}) => ({
+      id: 'a1', schoolId: 'school-1', status: 'published', deletedAt: null,
+      title: 'Quiz', titleAr: null, lessonId: null,
+      requireReview: false, requireRecording: false, allowRetry: false, maxAttempts: null,
+      passingScore: 6, totalPoints: 10, dueDate: null, allowLateSubmission: false,
+      questions: [{ id: 'q1', type: 'multiple_choice', correctAnswer: 'A', points: 10 }],
+      ...over,
+    });
+    const right = { answers: [{ questionId: 'q1', answer: 'A' }] };
+    const wrong = { answers: [{ questionId: 'q1', answer: 'B' }] };
+
+    beforeEach(() => {
+      prisma.assessmentSubmission.findFirst.mockResolvedValue({ id: 's1', status: 'assigned', attemptNumber: 1 });
+      prisma.assessmentSubmission.update.mockResolvedValue({ id: 's1' });
+      prisma.assessmentSubmission.findUnique.mockResolvedValue({ id: 's1', grades: [], student: null });
+      prisma.xPTransaction.findFirst.mockResolvedValue(null);
+      prisma.xPTransaction.aggregate.mockResolvedValue({ _sum: { amount: 0 } });
+    });
+
+    it('rejects a portal submit without fileUrl when requireRecording is on', async () => {
+      prisma.assessment.findUnique.mockResolvedValue(quiz({ requireRecording: true }));
+
+      await expect(service.submit('a1', 'stu-1', { answers: [] }, { source: 'portal' })).rejects.toThrow(
+        'A voice recording is required for this assessment',
+      );
+      await expect(service.submit('a1', 'stu-1', { answers: [] }, undefined)).rejects.toThrow(
+        'A voice recording is required for this assessment',
+      );
+    });
+
+    it('allows a staff submit without fileUrl when requireRecording is on', async () => {
+      prisma.assessment.findUnique.mockResolvedValue(quiz({ requireRecording: true }));
+
+      await expect(
+        service.submit('a1', 'stu-1', { answers: [] }, { source: 'staff' }),
+      ).resolves.toBeDefined();
+    });
+
+    it('auto-completes when requireReview is false and all questions are gradable', async () => {
+      prisma.assessment.findUnique.mockResolvedValue(quiz());
+
+      const res: any = await service.submit('a1', 'stu-1', right);
+
+      expect(prisma.assessmentSubmission.update).toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({ status: 'completed' }) }),
+      );
+      expect(notifications.notifyOrRefresh).toHaveBeenCalledTimes(1);
+      expect(res.result).toEqual(expect.objectContaining({
+        gradingComplete: true, earned: 10, max: 10, passed: true, attemptNumber: 1,
+      }));
+    });
+
+    it('leaves status submitted when requireReview is true', async () => {
+      prisma.assessment.findUnique.mockResolvedValue(quiz({ requireReview: true }));
+
+      const res: any = await service.submit('a1', 'stu-1', right);
+
+      expect(prisma.assessmentSubmission.update).not.toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({ status: 'completed' }) }),
+      );
+      expect(notifications.notifyOrRefresh).not.toHaveBeenCalled();
+      expect(prisma.xPTransaction.create).not.toHaveBeenCalled();
+      expect(res.result).toEqual(expect.objectContaining({ gradingComplete: false, earned: null, passed: null }));
+    });
+
+    it('leaves status submitted when an essay question exists even if requireReview is false', async () => {
+      prisma.assessment.findUnique.mockResolvedValue(quiz({
+        questions: [
+          { id: 'q1', type: 'multiple_choice', correctAnswer: 'A', points: 5 },
+          { id: 'q2', type: 'essay', correctAnswer: null, points: 5 },
+        ],
+      }));
+
+      const res: any = await service.submit('a1', 'stu-1', right);
+
+      expect(prisma.assessmentSubmission.update).not.toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({ status: 'completed' }) }),
+      );
+      expect(res.result.gradingComplete).toBe(false);
+    });
+
+    it('reports attempt 1 of 3 and canRetry true for a failed no-review quiz with retry on', async () => {
+      prisma.assessment.findUnique.mockResolvedValue(quiz({ allowRetry: true, maxAttempts: 3 }));
+
+      const res: any = await service.submit('a1', 'stu-1', wrong);
+
+      expect(res.result).toEqual({
+        gradingComplete: true, earned: 0, max: 10, passed: false,
+        attemptNumber: 1, maxAttempts: 3, attemptsRemaining: 2, canRetry: true, revealDetail: false,
+      });
+    });
+
+    it('credits no XP for a failing attempt when retry is on', async () => {
+      prisma.assessment.findUnique.mockResolvedValue(quiz({ allowRetry: true, maxAttempts: 3 }));
+
+      await service.submit('a1', 'stu-1', wrong);
+
+      expect(prisma.xPTransaction.create).not.toHaveBeenCalled();
+    });
+
+    it('credits one XP row for the passing attempt when retry is on', async () => {
+      prisma.assessment.findUnique.mockResolvedValue(quiz({ allowRetry: true, maxAttempts: 3 }));
+
+      await service.submit('a1', 'stu-1', right);
+
+      expect(prisma.xPTransaction.create).toHaveBeenCalledTimes(1);
+      expect(prisma.xPTransaction.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ studentId: 'stu-1', amount: 100, referenceId: 's1' }),
+        }),
+      );
+    });
+
+    it('still credits XP for a failing mark when retry is off', async () => {
+      prisma.assessment.findUnique.mockResolvedValue(quiz({
+        questions: [
+          { id: 'q1', type: 'multiple_choice', correctAnswer: 'A', points: 5 },
+          { id: 'q2', type: 'multiple_choice', correctAnswer: 'A', points: 5 },
+        ],
+      }));
+
+      await service.submit('a1', 'stu-1', {
+        answers: [{ questionId: 'q1', answer: 'A' }, { questionId: 'q2', answer: 'B' }],
+      });
+
+      expect(prisma.xPTransaction.create).toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({ amount: 50 }) }),
+      );
+    });
+  });
+
   describe('markStudent validation', () => {
     it('throws when score exceeds maxScore', async () => {
       prisma.assessment.findUnique.mockResolvedValue({ id: 'a1', deletedAt: null, totalPoints: 100 });
@@ -467,6 +609,45 @@ describe('AssessmentsService', () => {
       await expect(
         service.markStudent('a1', 'stu-1', 90, 80, 'ok', 'u1'),
       ).rejects.toThrow('score cannot exceed maxScore');
+    });
+  });
+
+  describe('markStudent XP', () => {
+    const markable = (over: any = {}) => ({
+      id: 'a1', deletedAt: null, totalPoints: 100, passingScore: 60, allowRetry: true,
+      lessonId: null, title: 'Quiz', titleAr: null, ...over,
+    });
+
+    beforeEach(() => {
+      prisma.assessmentSubmission.findFirst.mockResolvedValue({ id: 's1', status: 'submitted' });
+      prisma.assessmentSubmission.update.mockResolvedValue({ id: 's1' });
+      prisma.assessmentSubmission.findUnique.mockResolvedValue({ id: 's1', grades: [], student: null });
+      prisma.grade.findFirst.mockResolvedValue(null);
+      prisma.xPTransaction.aggregate.mockResolvedValue({ _sum: { amount: 0 } });
+    });
+
+    it('removes XP when a passing retry-enabled submission is re-marked below the pass mark', async () => {
+      prisma.assessment.findUnique.mockResolvedValue(markable());
+      prisma.xPTransaction.findFirst.mockResolvedValue({ id: 'x1' });
+
+      await service.markStudent('a1', 'stu-1', 40, 100, undefined, 'u1');
+
+      expect(prisma.xPTransaction.deleteMany).toHaveBeenCalledWith({
+        where: { referenceType: 'submission', referenceId: 's1' },
+      });
+      expect(prisma.xPTransaction.create).not.toHaveBeenCalled();
+    });
+
+    it('updates rather than duplicates XP on a second passing re-mark', async () => {
+      prisma.assessment.findUnique.mockResolvedValue(markable());
+      prisma.xPTransaction.findFirst.mockResolvedValue({ id: 'x1' });
+
+      await service.markStudent('a1', 'stu-1', 80, 100, undefined, 'u1');
+
+      expect(prisma.xPTransaction.update).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { id: 'x1' }, data: expect.objectContaining({ amount: 80 }) }),
+      );
+      expect(prisma.xPTransaction.create).not.toHaveBeenCalled();
     });
   });
 

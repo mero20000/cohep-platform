@@ -82,7 +82,7 @@ export class StudentPortalController {
     @Body() body: SubmitAssessmentDto,
   ) {
     const student = await this.resolveStudent(code);
-    return this.assessmentsService.submit(id, student.id, body);
+    return this.assessmentsService.submit(id, student.id, body, { source: 'portal' });
   }
 
   @Get(':code/assessments/:assessmentId/submission/:submissionId')

@@ -4,6 +4,19 @@ import { SchoolResolver } from '../../common/utils/school-resolver';
 import { AuditService } from '../audit/audit.service';
 import { StudentNotificationsService } from '../student-notifications/student-notifications.service';
 import { CreateAssessmentDto, UpdateAssessmentDto, SubmitAssessmentDto, CreateQuestionDto } from './dto/assessment.dto';
+import { attemptState, effectiveMaxAttempts, submissionScore } from './assessment-attempts';
+
+export interface SubmitResult {
+  gradingComplete: boolean;
+  earned: number | null;
+  max: number;
+  passed: boolean | null;
+  attemptNumber: number;
+  maxAttempts: number;
+  attemptsRemaining: number;
+  canRetry: boolean;
+  revealDetail: boolean;
+}
 
 @Injectable()
 export class AssessmentsService {
@@ -300,7 +313,7 @@ export class AssessmentsService {
     });
   }
 
-  async submit(assessmentId: string, studentId: string, dto: SubmitAssessmentDto, actor?: { id?: string; schoolId?: string }) {
+  async submit(assessmentId: string, studentId: string, dto: SubmitAssessmentDto, actor?: { id?: string; schoolId?: string; source?: 'staff' | 'portal' }) {
     const assessment = await this.prisma.assessment.findUnique({
       where: { id: assessmentId },
       include: { questions: true },
@@ -328,6 +341,17 @@ export class AssessmentsService {
         'The due date for this assessment has passed and late submissions are not allowed',
       );
     }
+
+    // Staff proxy-submitting on a student's behalf is exempt: they have no recording to attach.
+    if (actor?.source !== 'staff' && assessment.requireRecording && !dto.fileUrl) {
+      throw new BadRequestException('A voice recording is required for this assessment');
+    }
+
+    // Only a strict `false` auto-completes, and never when a question needs a human to mark it.
+    const autoComplete =
+      assessment.requireReview === false && !assessment.questions.some((q) => q.type === 'essay');
+    const totalPoints = Number(assessment.totalPoints);
+    let earned: number | null = null;
 
     const submission = await this.prisma.$transaction(async (tx) => {
       // Fill in the attempt row itself rather than inserting a second row beside it.
@@ -373,8 +397,35 @@ export class AssessmentsService {
         await tx.grade.createMany({ data: gradeData as any });
       }
 
-      return sub;
+      if (!autoComplete) return sub;
+
+      earned = submissionScore(gradeData as any, totalPoints).earned;
+      const completed = await tx.assessmentSubmission.update({
+        where: { id: sub.id },
+        data: { status: 'completed' },
+      });
+      await this.creditXp({
+        studentId,
+        submissionId: sub.id,
+        lessonId: assessment.lessonId,
+        score: earned,
+        maxScore: totalPoints,
+        passRequired: assessment.allowRetry,
+        passingScore: Number(assessment.passingScore),
+      });
+      return completed;
     });
+
+    if (autoComplete) {
+      await this.notifyGraded({
+        studentId,
+        submissionId: submission.id,
+        title: assessment.title,
+        titleAr: assessment.titleAr,
+        score: earned ?? 0,
+        maxScore: totalPoints,
+      });
+    }
 
     await this.audit.log({
       schoolId: actor?.schoolId || assessment.schoolId,
@@ -385,13 +436,40 @@ export class AssessmentsService {
       newValues: { studentId, assessmentId },
     });
 
-    return this.prisma.assessmentSubmission.findUnique({
+    const state = attemptState(
+      {
+        allowRetry: assessment.allowRetry,
+        maxAttempts: assessment.maxAttempts,
+        passingScore: Number(assessment.passingScore),
+        dueDate: assessment.dueDate,
+        allowLateSubmission: assessment.allowLateSubmission,
+      },
+      {
+        status: autoComplete ? 'completed' : 'submitted',
+        attemptNumber: assignment.attemptNumber,
+        earned,
+      },
+    );
+    const result: SubmitResult = {
+      gradingComplete: autoComplete,
+      earned,
+      max: totalPoints,
+      passed: state.passed,
+      attemptNumber: state.attemptNumber,
+      maxAttempts: effectiveMaxAttempts(assessment),
+      attemptsRemaining: state.remaining,
+      canRetry: state.canRetry,
+      revealDetail: !assessment.allowRetry || (autoComplete && state.answerKeyOpen),
+    };
+
+    const saved = await this.prisma.assessmentSubmission.findUnique({
       where: { id: submission.id },
       include: {
         grades: true,
         student: { select: { id: true, firstName: true, lastName: true } },
       },
     });
+    return { ...saved, result };
   }
 
   async getSubmissions(assessmentId: string) {
@@ -588,10 +666,60 @@ export class AssessmentsService {
       });
     }
 
-    // Credit XP for the scored mark (update existing or create new)
+    await this.creditXp({
+      studentId,
+      submissionId: submission.id,
+      lessonId: assessment.lessonId,
+      score,
+      maxScore,
+      passRequired: assessment.allowRetry,
+      passingScore: Number(assessment.passingScore),
+    });
+
+    await this.notifyGraded({
+      studentId,
+      submissionId: submission.id,
+      title: assessment.title,
+      titleAr: assessment.titleAr,
+      score,
+      maxScore,
+    });
+
+    return this.prisma.assessmentSubmission.findUnique({
+      where: { id: submission.id },
+      include: {
+        student: { select: { id: true, firstName: true, lastName: true, studentCode: true } },
+        grades: true,
+      },
+    });
+  }
+
+  /**
+   * Credit XP for the scored mark (update existing or create new). With retry on, a
+   * failing attempt earns nothing, and a previously credited row is removed so a
+   * re-mark below the pass mark cannot leave stale XP behind.
+   */
+  private async creditXp(args: {
+    studentId: string;
+    submissionId: string;
+    lessonId: string | null;
+    score: number;
+    maxScore: number;
+    passRequired: boolean;
+    passingScore: number;
+  }): Promise<void> {
+    const { studentId, submissionId, lessonId, score, maxScore, passRequired, passingScore } = args;
+
+    if (passRequired && score < passingScore) {
+      await this.prisma.xPTransaction.deleteMany({
+        where: { referenceType: 'submission', referenceId: submissionId },
+      });
+      return;
+    }
+
     const xpAmount = Math.round((Number(score) / Number(maxScore)) * 100);
     const existingXp = await this.prisma.xPTransaction.findFirst({
-      where: { referenceType: 'submission', referenceId: submission.id },
+      where: { referenceType: 'submission', referenceId: submissionId },
     });
     const xpWhere: any = { studentId };
     if (existingXp) xpWhere.id = { not: existingXp.id };
@@ -601,8 +729,8 @@ export class AssessmentsService {
     });
     const balanceAfter = (currentBalance._sum.amount || 0) + xpAmount;
     let lessonLabel = '';
-    if (assessment.lessonId) {
-      const lesson = await this.prisma.lesson.findUnique({ where: { id: assessment.lessonId }, select: { title: true } });
+    if (lessonId) {
+      const lesson = await this.prisma.lesson.findUnique({ where: { id: lessonId }, select: { title: true } });
       if (lesson) lessonLabel = ` · ${lesson.title}`;
     }
     const xpDesc = `Assessment mark: ${score}/${maxScore}${lessonLabel}`;
@@ -619,12 +747,22 @@ export class AssessmentsService {
           balanceAfter,
           type: 'assessment',
           referenceType: 'submission',
-          referenceId: submission.id,
+          referenceId: submissionId,
           description: xpDesc,
         },
       });
     }
+  }
 
+  private async notifyGraded(args: {
+    studentId: string;
+    submissionId: string;
+    title: string;
+    titleAr: string | null;
+    score: number;
+    maxScore: number;
+  }): Promise<void> {
+    const { studentId, submissionId, title, titleAr, score, maxScore } = args;
     // Grading was pull-only: a student had to reopen the assessment to discover a mark.
     // notifyOrRefresh rather than notify, so a re-grade updates the message and shows as
     // unread again instead of being silently swallowed as a duplicate.
@@ -633,19 +771,11 @@ export class AssessmentsService {
       type: 'assessment_graded',
       title: 'Your assessment was marked',
       titleAr: 'تم تصحيح تقييمك',
-      body: `${assessment.title} — ${score}/${maxScore}`,
-      bodyAr: `${assessment.titleAr ?? assessment.title} — ${score}/${maxScore}`,
+      body: `${title} — ${score}/${maxScore}`,
+      bodyAr: `${titleAr ?? title} — ${score}/${maxScore}`,
       linkPath: '?tab=assessments',
       referenceType: 'assessment_submission',
-      referenceId: submission.id,
-    });
-
-    return this.prisma.assessmentSubmission.findUnique({
-      where: { id: submission.id },
-      include: {
-        student: { select: { id: true, firstName: true, lastName: true, studentCode: true } },
-        grades: true,
-      },
+      referenceId: submissionId,
     });
   }
 
