@@ -885,6 +885,12 @@ model Assessment {
   allowLateSubmission    Boolean   @default(false) @map("allow_late_submission")
   /// Maximum attempts a student may make. Null means unlimited.
   maxAttempts            Int?      @map("max_attempts")
+  /// Submissions stay pending until staff review them (false = auto-graded result is final).
+  requireReview          Boolean   @default(true) @map("require_review")
+  /// Student must attach an audio/video recording to submit.
+  requireRecording       Boolean   @default(false) @map("require_recording")
+  /// Student may retry; maxAttempts is then the total attempts including the first.
+  allowRetry             Boolean   @default(false) @map("allow_retry")
   instructions           String?
   instructionsAr         String?   @map("instructions_ar")
   status                 String    @default("draft")

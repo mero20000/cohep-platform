@@ -81,6 +81,11 @@ export class AssessmentsService {
       select: { id: true },
     });
 
+    const type = dto.type || 'quiz';
+    const requireReview = dto.requireReview ?? type !== 'quiz';
+    const allowRetry = dto.allowRetry ?? false;
+    this.assertReviewRetryCompatible(dto.questions ?? [], { requireReview, allowRetry });
+
     const data: any = {
       schoolId,
       levelId: dto.levelId,
@@ -91,7 +96,11 @@ export class AssessmentsService {
       description: dto.description,
       referenceRecordingUrl: dto.referenceRecordingUrl || null,
       referenceRecordingName: dto.referenceRecordingName || null,
-      type: dto.type || 'quiz',
+      type,
+      requireReview,
+      requireRecording: dto.requireRecording ?? false,
+      allowRetry,
+      maxAttempts: allowRetry ? (dto.maxAttempts ?? 3) : null,
       totalPoints: dto.totalPoints,
       passingScore: dto.passingPoints,
       dueDate: dto.dueDate ? new Date(dto.dueDate) : undefined,
@@ -151,6 +160,23 @@ export class AssessmentsService {
     if (dto.dueDate !== undefined) data.dueDate = dto.dueDate ? new Date(dto.dueDate) : null;
     if (dto.status !== undefined) data.status = dto.status;
     if (dto.type !== undefined) data.type = dto.type;
+    if (dto.requireReview !== undefined) data.requireReview = dto.requireReview;
+    if (dto.requireRecording !== undefined) data.requireRecording = dto.requireRecording;
+
+    const requireReview = dto.requireReview ?? existing.requireReview;
+    const allowRetry = dto.allowRetry ?? existing.allowRetry;
+    if (dto.allowRetry !== undefined || dto.maxAttempts !== undefined) {
+      data.allowRetry = allowRetry;
+      data.maxAttempts = allowRetry ? (dto.maxAttempts ?? existing.maxAttempts ?? 3) : null;
+    }
+    // Only the restrictive flag combinations can conflict with an essay question
+    if (dto.questions !== undefined || !requireReview || allowRetry) {
+      const questions = dto.questions ?? await this.prisma.assessmentQuestion.findMany({
+        where: { assessmentId: id },
+        select: { type: true },
+      });
+      this.assertReviewRetryCompatible(questions, { requireReview, allowRetry });
+    }
 
     if (dto.academicYearId !== undefined || dto.term !== undefined || dto.grade !== undefined || dto.durationMinutes !== undefined) {
       const metadata = (existing.metadata as any) || {};
@@ -872,6 +898,19 @@ export class AssessmentsService {
         : Math.max(0, assessment.maxAttempts - newSubmission.attemptNumber),
       message: 'Ready to retake. You can now access the assessment again.',
     };
+  }
+
+  private assertReviewRetryCompatible(
+    questions: Array<{ type: string }>,
+    flags: { requireReview: boolean; allowRetry: boolean },
+  ) {
+    if (!questions.some(q => q.type === 'essay')) return;
+    if (!flags.requireReview) {
+      throw new BadRequestException('Essay questions require staff review');
+    }
+    if (flags.allowRetry) {
+      throw new BadRequestException('Essay questions cannot be retried');
+    }
   }
 
   private validateQuestions(questions: CreateQuestionDto[], totalPoints: number) {

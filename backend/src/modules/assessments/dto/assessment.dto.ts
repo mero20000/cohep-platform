@@ -1,5 +1,6 @@
 import {
   IsString,
+  IsBoolean,
   IsOptional,
   IsUUID,
   IsInt,
@@ -103,6 +104,24 @@ export class CreateAssessmentDto {
   passingPoints: number;
 
   @IsOptional()
+  @IsBoolean()
+  requireReview?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  requireRecording?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  allowRetry?: boolean;
+
+  @IsOptional()
+  @IsInt()
+  @Min(2)
+  @Max(10)
+  maxAttempts?: number;
+
+  @IsOptional()
   @IsDateString()
   dueDate?: string;
 
@@ -186,6 +205,24 @@ export class UpdateAssessmentDto {
   @IsInt()
   @Min(1)
   passingPoints: number;
+
+  @IsOptional()
+  @IsBoolean()
+  requireReview?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  requireRecording?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  allowRetry?: boolean;
+
+  @IsOptional()
+  @IsInt()
+  @Min(2)
+  @Max(10)
+  maxAttempts?: number;
 
   @IsOptional()
   @IsDateString()

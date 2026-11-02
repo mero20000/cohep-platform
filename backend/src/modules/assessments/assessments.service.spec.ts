@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { NotFoundException } from '@nestjs/common';
+import { NotFoundException, BadRequestException } from '@nestjs/common';
 import { AssessmentsService } from './assessments.service';
 import { PrismaService } from '../../database/prisma.service';
 import { SchoolResolver } from '../../common/utils/school-resolver';
@@ -148,6 +148,79 @@ describe('AssessmentsService', () => {
       const data = prisma.assessment.create.mock.calls[0][0].data;
       expect(data.metadata.durationMinutes).toBe(45);
     });
+
+    it('defaults requireReview to false for quiz', async () => {
+      prisma.user.findFirst.mockResolvedValue({ id: 'user-1' });
+      prisma.assessment.create.mockResolvedValue({ id: 'a1' });
+
+      await service.create({ ...baseDto }, 'school-1');
+
+      const data = prisma.assessment.create.mock.calls[0][0].data;
+      expect(data.requireReview).toBe(false);
+    });
+
+    it('defaults requireReview to true for exam', async () => {
+      prisma.user.findFirst.mockResolvedValue({ id: 'user-1' });
+      prisma.assessment.create.mockResolvedValue({ id: 'a1' });
+
+      await service.create({ ...baseDto, type: 'exam' }, 'school-1');
+
+      const data = prisma.assessment.create.mock.calls[0][0].data;
+      expect(data.requireReview).toBe(true);
+    });
+
+    it('stores maxAttempts 3 when allowRetry is true and maxAttempts omitted', async () => {
+      prisma.user.findFirst.mockResolvedValue({ id: 'user-1' });
+      prisma.assessment.create.mockResolvedValue({ id: 'a1' });
+
+      await service.create({ ...baseDto, allowRetry: true }, 'school-1');
+
+      const data = prisma.assessment.create.mock.calls[0][0].data;
+      expect(data.allowRetry).toBe(true);
+      expect(data.maxAttempts).toBe(3);
+    });
+
+    it('stores maxAttempts null when allowRetry is false even if maxAttempts is sent', async () => {
+      prisma.user.findFirst.mockResolvedValue({ id: 'user-1' });
+      prisma.assessment.create.mockResolvedValue({ id: 'a1' });
+
+      await service.create({ ...baseDto, allowRetry: false, maxAttempts: 5 }, 'school-1');
+
+      const data = prisma.assessment.create.mock.calls[0][0].data;
+      expect(data.allowRetry).toBe(false);
+      expect(data.maxAttempts).toBeNull();
+    });
+
+    it('rejects an essay question with requireReview false', async () => {
+      prisma.user.findFirst.mockResolvedValue({ id: 'user-1' });
+
+      await expect(
+        service.create(
+          {
+            ...baseDto,
+            requireReview: false,
+            questions: [{ text: 'Essay', type: 'essay', correctAnswer: '', points: 10, orderIndex: 0 }],
+          },
+          'school-1',
+        ),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('rejects an essay question with allowRetry true', async () => {
+      prisma.user.findFirst.mockResolvedValue({ id: 'user-1' });
+
+      await expect(
+        service.create(
+          {
+            ...baseDto,
+            type: 'exam',
+            allowRetry: true,
+            questions: [{ text: 'Essay', type: 'essay', correctAnswer: '', points: 10, orderIndex: 0 }],
+          },
+          'school-1',
+        ),
+      ).rejects.toThrow(BadRequestException);
+    });
   });
 
   describe('findAll', () => {
@@ -164,7 +237,7 @@ describe('AssessmentsService', () => {
 
   describe('update', () => {
     it('persists referenceRecordingUrl on update', async () => {
-      prisma.assessment.findUnique.mockResolvedValue({ id: 'a1', metadata: {}, deletedAt: null });
+      prisma.assessment.findUnique.mockResolvedValue({ id: 'a1', metadata: {}, deletedAt: null, requireReview: true, allowRetry: false });
       prisma.assessment.update.mockResolvedValue({ id: 'a1' });
 
       await service.update('a1', {
@@ -185,7 +258,7 @@ describe('AssessmentsService', () => {
     });
 
     it('persists the provided type', async () => {
-      prisma.assessment.findUnique.mockResolvedValue({ id: 'a1', metadata: {}, deletedAt: null });
+      prisma.assessment.findUnique.mockResolvedValue({ id: 'a1', metadata: {}, deletedAt: null, requireReview: true, allowRetry: false });
       prisma.assessment.update.mockResolvedValue({ id: 'a1' });
 
       await service.update('a1', { totalPoints: 100, passingPoints: 60, type: 'exam' });
@@ -249,11 +322,50 @@ describe('AssessmentsService', () => {
     });
 
     it('persists durationMinutes into metadata on update', async () => {
-      prisma.assessment.findUnique.mockResolvedValue({ id: 'a1', metadata: {}, totalPoints: 100 });
+      prisma.assessment.findUnique.mockResolvedValue({ id: 'a1', metadata: {}, totalPoints: 100, requireReview: true, allowRetry: false });
       prisma.assessment.update.mockResolvedValue({ id: 'a1' });
       await service.update('a1', { totalPoints: 100, passingPoints: 60, durationMinutes: 30 });
       const data = prisma.assessment.update.mock.calls[0][0].data;
       expect(data.metadata.durationMinutes).toBe(30);
+    });
+
+    it('rejects adding an essay question to a retry-enabled assessment', async () => {
+      prisma.assessment.findUnique.mockResolvedValue({
+        id: 'a1', metadata: {}, deletedAt: null, totalPoints: 100, requireReview: true, allowRetry: true, maxAttempts: 3,
+      });
+
+      await expect(
+        service.update('a1', {
+          totalPoints: 100,
+          passingPoints: 60,
+          questions: [{ text: 'Essay', type: 'essay', correctAnswer: '', points: 10, orderIndex: 0 }],
+        }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('rejects turning allowRetry on when stored questions include an essay', async () => {
+      prisma.assessment.findUnique.mockResolvedValue({
+        id: 'a1', metadata: {}, deletedAt: null, totalPoints: 100, requireReview: true, allowRetry: false, maxAttempts: null,
+      });
+      prisma.assessmentQuestion.findMany.mockResolvedValue([{ type: 'essay' }]);
+
+      await expect(
+        service.update('a1', { totalPoints: 100, passingPoints: 60, allowRetry: true }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('clears maxAttempts when allowRetry is switched off', async () => {
+      prisma.assessment.findUnique.mockResolvedValue({
+        id: 'a1', metadata: {}, deletedAt: null, totalPoints: 100, requireReview: true, allowRetry: true, maxAttempts: 4,
+      });
+      prisma.assessmentQuestion.findMany.mockResolvedValue([]);
+      prisma.assessment.update.mockResolvedValue({ id: 'a1' });
+
+      await service.update('a1', { totalPoints: 100, passingPoints: 60, allowRetry: false });
+
+      const data = prisma.assessment.update.mock.calls[0][0].data;
+      expect(data.allowRetry).toBe(false);
+      expect(data.maxAttempts).toBeNull();
     });
   });
 
@@ -689,5 +801,23 @@ describe('DTO validation', () => {
     (dto as any).durationMinutes = -5;
     const errors = await validate(dto as any);
     expect(errors.length).toBeGreaterThan(0);
+  });
+
+  it('rejects maxAttempts of 1 and 11', async () => {
+    for (const n of [1, 11]) {
+      const dto = new CreateAssessmentDto();
+      (dto as any).maxAttempts = n;
+      const errors = await validate(dto as any);
+      expect(errors.filter(e => e.property === 'maxAttempts').length).toBeGreaterThan(0);
+    }
+  });
+
+  it('accepts maxAttempts 2..10', async () => {
+    for (let n = 2; n <= 10; n++) {
+      const dto = new CreateAssessmentDto();
+      (dto as any).maxAttempts = n;
+      const errors = await validate(dto as any);
+      expect(errors.filter(e => e.property === 'maxAttempts')).toHaveLength(0);
+    }
   });
 });
