@@ -50,7 +50,15 @@ interface TakeProps {
 
 type AnswerMap = Record<string, string>
 
-export default function TakeAssessment({ assessmentId, mode, accessKey, studentId, lang = 'en' }: TakeProps) {
+// A retake keeps the same route, so router.push would not remount anything. The wrapper
+// remounts the body with a new key instead, which refetches the take payload (fresh
+// attempt number) and clears answers, notes, recording, timer and submit state.
+export default function TakeAssessment(props: TakeProps) {
+  const [run, setRun] = useState(0)
+  return <TakeAssessmentBody key={run} {...props} onRetry={() => setRun((r) => r + 1)} />
+}
+
+function TakeAssessmentBody({ assessmentId, mode, accessKey, studentId, lang = 'en', onRetry }: TakeProps & { onRetry: () => void }) {
   const router = useRouter()
   const [payload, setPayload] = useState<TakePayload | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -303,7 +311,7 @@ export default function TakeAssessment({ assessmentId, mode, accessKey, studentI
       setRetakeError(null)
       try {
         await http.post(`/student-portal/${accessKey}/assessments/${assessmentId}/retake`, {})
-        router.push(`/student-portal/${accessKey}/assessment/${assessmentId}/take`)
+        onRetry()
       } catch (e: any) {
         setRetakeError(e?.message || (lang === 'ar' ? 'تعذر بدء محاولة جديدة' : 'Could not start a new attempt'))
         setRetaking(false)

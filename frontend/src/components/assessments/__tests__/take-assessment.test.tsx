@@ -106,37 +106,73 @@ describe('TakeAssessment', () => {
     expect(screen.getByRole('button', { name: /submit/i })).toBeInTheDocument()
   })
 
+  const retryResult = {
+    gradingComplete: true, earned: 0, max: 10, passed: false,
+    attemptNumber: 1, maxAttempts: 3, attemptsRemaining: 2,
+    canRetry: true, revealDetail: false,
+  }
+
+  async function submitFirstAttempt(user: ReturnType<typeof userEvent.setup>) {
+    await user.click(await screen.findByLabelText('True'))
+    await user.click(screen.getByRole('button', { name: /submit/i }))
+    return screen.findByRole('button', { name: /Try again/ })
+  }
+
   it('hides per-question marks and shows Try again when the result has revealDetail false and canRetry true', async () => {
     const user = userEvent.setup()
     mocks.get.mockResolvedValue(takePayload({ attemptNumber: 1, maxAttempts: 3 }))
     mocks.post.mockImplementation(async (url: string) => {
       if (url.endsWith('/submit')) {
-        return {
-          id: 'sub1',
-          grades: [{ questionId: 'q1', score: 0, maxScore: 10 }],
-          result: {
-            gradingComplete: true, earned: 0, max: 10, passed: false,
-            attemptNumber: 1, maxAttempts: 3, attemptsRemaining: 2,
-            canRetry: true, revealDetail: false,
-          },
-        }
+        return { id: 'sub1', grades: [], result: retryResult }
       }
       return {}
     })
     renderTake('portal')
 
-    await user.click(await screen.findByLabelText('True'))
-    await user.click(screen.getByRole('button', { name: /submit/i }))
-
-    const retry = await screen.findByRole('button', { name: /Try again/ })
+    const retry = await submitFirstAttempt(user)
     expect(retry).toHaveTextContent('Try again — attempt 2 of 3')
     expect(screen.queryByText('Your Answers')).not.toBeInTheDocument()
     expect(screen.queryByText('The hymn is Coptic?')).not.toBeInTheDocument()
+  })
 
+  it('returns to a fresh take view for the next attempt after Try again, without navigating', async () => {
+    const user = userEvent.setup()
+    mocks.get
+      .mockResolvedValueOnce(takePayload({ attemptNumber: 1, maxAttempts: 3 }))
+      .mockResolvedValue(takePayload({ attemptNumber: 2, maxAttempts: 3 }))
+    mocks.post.mockImplementation(async (url: string) => {
+      if (url.endsWith('/submit')) return { id: 'sub1', grades: [], result: retryResult }
+      return {}
+    })
+    renderTake('portal')
+
+    await user.click(await submitFirstAttempt(user))
+
+    expect(mocks.post).toHaveBeenCalledWith('/student-portal/KEY1/assessments/a1/retake', {})
+    expect(await screen.findByText(/Attempt 2 of 3/)).toBeInTheDocument()
+    expect(screen.getByText(/The hymn is Coptic\?/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /submit/i })).toBeInTheDocument()
+    expect(screen.queryByText(/Assessment Submitted/)).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Try again/ })).not.toBeInTheDocument()
+    expect(screen.getByLabelText('True')).not.toBeChecked()
+    expect(mocks.get).toHaveBeenCalledTimes(2)
+    expect(push).not.toHaveBeenCalled()
+  })
+
+  it('shows the error and re-enables Try again when the retake POST fails', async () => {
+    const user = userEvent.setup()
+    mocks.get.mockResolvedValue(takePayload({ attemptNumber: 1, maxAttempts: 3 }))
+    mocks.post.mockImplementation(async (url: string) => {
+      if (url.endsWith('/submit')) return { id: 'sub1', grades: [], result: retryResult }
+      throw new Error('No attempts left')
+    })
+    renderTake('portal')
+
+    const retry = await submitFirstAttempt(user)
     await user.click(retry)
-    await waitFor(() =>
-      expect(mocks.post).toHaveBeenCalledWith('/student-portal/KEY1/assessments/a1/retake', {}),
-    )
-    await waitFor(() => expect(push).toHaveBeenCalledWith('/student-portal/KEY1/assessment/a1/take'))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('No attempts left')
+    expect(screen.getByRole('button', { name: /Try again/ })).toBeEnabled()
+    expect(push).not.toHaveBeenCalled()
   })
 })
