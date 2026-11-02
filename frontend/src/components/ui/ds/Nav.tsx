@@ -24,8 +24,8 @@ export function BottomNav({ items, lang = 'en' }: { items: TabItem[]; lang?: 'en
     <nav
       aria-label={lang === 'ar' ? 'التنقل الرئيسي' : 'Primary'}
       className="fixed inset-x-0 bottom-0 z-40 lg:hidden
-        bg-white/95 dark:bg-[var(--hymn-surface-header)]/95 backdrop-blur
-        border-t border-[var(--hymn-border)]
+        bg-white/95 dark:bg-(--hymn-surface-header)/95 backdrop-blur-sm
+        border-t border-(--hymn-border)
         pb-[env(safe-area-inset-bottom)]"
     >
       <ul className="grid grid-flow-col auto-cols-fr">
@@ -101,7 +101,7 @@ export function MiniPlayer({
   return (
     <div
       className="fixed z-40 inset-x-0 bottom-16 lg:bottom-auto lg:inset-x-auto lg:right-6 lg:bottom-6 lg:w-80
-        bg-white dark:bg-[var(--hymn-surface-header)] border border-[var(--hymn-border)] rounded-t-2xl lg:rounded-2xl
+        bg-white dark:bg-(--hymn-surface-header) border border-(--hymn-border) rounded-t-2xl lg:rounded-2xl
         shadow-[0_-4px_24px_rgba(26,39,68,0.12)]"
       role="region"
       aria-label="Audio player"
@@ -129,7 +129,7 @@ export function MiniPlayer({
           onClick={onToggle}
           aria-label={playing ? 'Pause' : 'Play'}
           className={`h-12 w-12 grid place-items-center rounded-full bg-[rgb(var(--gold-500))]
-            text-[rgb(var(--gold-900))] shadow-sm ${ds.focusRing} ${ds.motionSafeTransition}`}
+            text-[rgb(var(--gold-900))] shadow-xs ${ds.focusRing} ${ds.motionSafeTransition}`}
         >
           {playing ? <Pause className="h-5 w-5" aria-hidden="true" /> : <Play className="h-5 w-5" aria-hidden="true" />}
         </button>
@@ -147,7 +147,7 @@ export function MiniPlayer({
         aria-hidden="true"
         tabIndex={-1}
         className="hidden lg:block absolute -top-3 right-4 h-6 w-6 grid place-items-center rounded-full
-          bg-white dark:bg-[var(--hymn-surface-header)] border border-[var(--hymn-border)] text-gray-500"
+          bg-white dark:bg-(--hymn-surface-header) border border-(--hymn-border) text-gray-500"
       >
         <ChevronUp className="h-4 w-4" />
       </button>

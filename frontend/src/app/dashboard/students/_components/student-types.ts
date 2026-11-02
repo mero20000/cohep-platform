@@ -12,7 +12,8 @@ export interface Student {
   levelId: string; groupId: string; status: string; enrollmentDate: string
   level: { id: string; name: string; number: number }
   group: { id: string; name: string }
-  metadata?: { phone?: string; email?: string; address?: string; notes?: string; churchToolId?: string; tags?: string[]; assignedServantIds?: string[] }
+  creator?: { id: string; firstName: string; lastName: string } | null
+  metadata?: { phone?: string; studentPhone?: string; email?: string; address?: string; notes?: string; churchToolId?: string; tags?: string[]; assignedServantIds?: string[] }
   parentEmail?: string
   portalAccessKey?: string
   studentParents?: Array<{ parent?: { id: string; firstName: string; lastName: string; phone?: string; email?: string }; relationship?: string }>
@@ -33,13 +34,14 @@ export interface StudentStats {
 export const emptyForm = {
   name: '', firstNameAr: '', lastNameAr: '', dateOfBirth: '', gender: 'male',
   churchName: '', gradeId: '', levelId: '', groupId: '', groupName: '', photoUrl: '',
-  status: 'active', phone: '', email: '', address: '', notes: '', churchToolId: '', parentEmail: '',
+  status: 'active', phone: '', studentPhone: '', email: '', address: '', notes: '', churchToolId: '', parentEmail: '',
 }
 export type StudentForm = typeof emptyForm
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 export const STATUS_STYLE: Record<string, { variant: 'success' | 'danger' | 'warning' | 'info'; bar: string }> = {
   active:    { variant: 'success', bar: 'border-s-green-400' },
+  pending:   { variant: 'info',    bar: 'border-s-blue-400'  },
   inactive:  { variant: 'danger',  bar: 'border-s-red-400'   },
   graduated: { variant: 'warning', bar: 'border-s-amber-400' },
 }
@@ -54,6 +56,23 @@ export function photoSrc(url: string | undefined | null): string {
     return `${base}${url}`
   }
   return url
+}
+
+export const COMPLETENESS_FIELDS = [
+  { key: 'churchName', en: 'Church', ar: 'الكنيسة' },
+  { key: 'gradeId', en: 'Grade', ar: 'المرحلة' },
+  { key: 'photoUrl', en: 'Photo', ar: 'الصورة' },
+  { key: 'parentEmail', en: 'Parent Email', ar: 'بريد ولي الأمر' },
+  { key: 'phone', en: 'Phone', ar: 'رقم الهاتف', meta: true },
+] as const
+
+export function getStudentCompleteness(s: Student): { complete: boolean; missing: typeof COMPLETENESS_FIELDS[number][]; pct: number } {
+  const missing = COMPLETENESS_FIELDS.filter(f => {
+    if ('meta' in f) return !s.metadata?.phone
+    return !(s as any)[f.key]
+  })
+  const total = COMPLETENESS_FIELDS.length
+  return { complete: missing.length === 0, missing, pct: Math.round(((total - missing.length) / total) * 100) }
 }
 
 export function calcAge(dob: string): number {

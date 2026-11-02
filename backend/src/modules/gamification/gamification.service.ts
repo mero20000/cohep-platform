@@ -2,8 +2,10 @@ import { Injectable, NotFoundException, BadRequestException } from '@nestjs/comm
 import { PrismaService } from '../../database/prisma.service';
 import { SchoolResolver } from '../../common/utils/school-resolver';
 import { StudentNotificationsService } from '../student-notifications/student-notifications.service';
+import { AuditService } from '../audit/audit.service';
 import { CreateBadgeDto, UpdateBadgeDto } from './dto/gamification.dto';
-import { GAMIFICATION_CONSTANTS } from './gamification.constants';
+import { GAMIFICATION_CONSTANTS, BIRTHDAY_BADGE_RULE, birthdayBadgeName } from './gamification.constants';
+import { localToday, studentBirthdayWindow } from '../../common/utils/birthday';
 
 interface BadgeCheckResult {
   badgeId: string
@@ -17,6 +19,7 @@ export class GamificationService {
     private readonly prisma: PrismaService,
     private schoolResolver: SchoolResolver,
     private readonly studentNotifications: StudentNotificationsService,
+    private readonly audit: AuditService,
   ) {}
 
   async getLeaderboard(schoolIdentifier: string, limit = 20, requestingUser?: any) {
@@ -197,6 +200,62 @@ export class GamificationService {
     return this.prisma.badge.delete({ where: { id } });
   }
 
+  /**
+   * A student opens their birthday gift: this year's "Birthday Blessing" badge, which carries the XP
+   * (so XP and badge are paid in one transaction). Allowed from the birthday until a week after it,
+   * once per birthday year. Safe to call repeatedly: later calls report claimed:false and pay nothing.
+   */
+  async claimBirthdayGift(studentId: string) {
+    const student = await this.prisma.student.findUnique({
+      where: { id: studentId },
+      select: { id: true, schoolId: true, dateOfBirth: true, metadata: true, school: { select: { timezone: true } } },
+    });
+    if (!student) throw new NotFoundException('Student not found');
+    if ((student.metadata as any)?.birthdayOptOut === true) {
+      throw new BadRequestException('Birthday gifts are turned off for this student');
+    }
+
+    const window = studentBirthdayWindow(new Date(student.dateOfBirth), localToday(new Date(), student.school?.timezone || 'UTC'));
+    if (!window || window.daysAway > 0 || window.daysAway < -7) {
+      throw new BadRequestException('There is no birthday gift to open right now');
+    }
+
+    const name = birthdayBadgeName(window.year);
+    let badge = await this.prisma.badge.findFirst({
+      where: { schoolId: student.schoolId, name, criteria: { path: ['rule'], equals: BIRTHDAY_BADGE_RULE } },
+    });
+    if (!badge) {
+      badge = await this.prisma.badge.create({
+        data: {
+          schoolId: student.schoolId,
+          name,
+          nameAr: `بركة عيد الميلاد ${window.year}`,
+          description: 'A birthday blessing from your school and church.',
+          descriptionAr: 'بركة عيد ميلاد من مدرستك وكنيستك.',
+          iconUrl: 'cake',
+          category: 'birthday',
+          xpReward: GAMIFICATION_CONSTANTS.BIRTHDAY_GIFT_XP,
+          isActive: true,
+          isSecret: false,
+          criteria: { rule: BIRTHDAY_BADGE_RULE, year: window.year },
+        },
+      });
+    }
+
+    const summary = { name: badge.name, nameAr: badge.nameAr, iconUrl: badge.iconUrl };
+    const alreadyOwned = await this.prisma.studentBadge.findFirst({ where: { studentId, badgeId: badge.id } });
+    if (alreadyOwned) return { claimed: false, xp: 0, badge: summary };
+
+    try {
+      await this.awardBadge(studentId, badge.id);
+    } catch (err: any) {
+      // A second tap racing the first: the badge is already theirs, nothing more to pay.
+      if (err instanceof BadRequestException || err?.code === 'P2002') return { claimed: false, xp: 0, badge: summary };
+      throw err;
+    }
+    return { claimed: true, xp: badge.xpReward, badge: summary };
+  }
+
   async awardBadge(studentId: string, badgeId: string, awardedBy?: string) {
     const student = await this.prisma.student.findUnique({ where: { id: studentId } });
     if (!student) throw new NotFoundException('Student not found');
@@ -304,6 +363,8 @@ export class GamificationService {
       for (const sb of owned) {
         const badge = await this.prisma.badge.findUnique({ where: { id: sb.badgeId } });
         if (!badge) continue;
+        // Birthday badges are granted by opening the gift, not earned by criteria: never revoke them here.
+        if ((badge.criteria as any)?.rule === BIRTHDAY_BADGE_RULE) continue;
         const result = await this.checkBadgeCriterion(student, badge);
         if (!result.earned) {
           await this.prisma.$transaction(async (tx) => {
@@ -372,6 +433,9 @@ export class GamificationService {
     }
 
     switch (rule) {
+      case BIRTHDAY_BADGE_RULE:
+        // Granted only by claimBirthdayGift; never auto-awarded.
+        return { badgeId: badge.id, earned: false };
       case 'perfect_week':
         return this.checkPerfectWeek(student);
       case 'perfect_month':
@@ -591,14 +655,16 @@ export class GamificationService {
     const absentPoints = rules.absentPoints ?? GAMIFICATION_CONSTANTS.ABSENT_POINTS_DEFAULT;
     const excusedPoints = rules.excusedPoints ?? GAMIFICATION_CONSTANTS.EXCUSED_POINTS_DEFAULT;
     const liturgyPoints = rules.liturgyPoints ?? GAMIFICATION_CONSTANTS.LITURGY_POINTS_DEFAULT;
+    const behaviorMult = rules.behaviorMultiplier ?? GAMIFICATION_CONSTANTS.BEHAVIOR_MULTIPLIER_DEFAULT;
+    const participationMult = rules.participationMultiplier ?? GAMIFICATION_CONSTANTS.PARTICIPATION_MULTIPLIER_DEFAULT;
     const totalPoints = attRecords.reduce((sum: number, r: any) => {
       let s = 0;
       if (r.status === 'present') s += presentPoints;
       else if (r.status === 'late') s += latePoints;
       else if (r.status === 'absent') s += absentPoints;
       else if (r.status === 'excused') s += excusedPoints;
-      if (r.behavior) s += r.behavior;
-      if (r.participation) s += r.participation;
+      if (r.behavior) s += r.behavior * behaviorMult;
+      if (r.participation) s += r.participation * participationMult;
       if (r.attendedLiturgy) s += liturgyPoints;
       return sum + s;
     }, 0);
@@ -870,6 +936,116 @@ export class GamificationService {
 
       return transaction;
     });
+  }
+
+  async awardAttendanceXp(
+    studentId: string,
+    sessionId: string,
+    status: string,
+    schoolId: string,
+  ) {
+    if (status !== 'present' && status !== 'late') return;
+
+    const existing = await this.prisma.xPTransaction.findFirst({
+      where: { studentId, referenceType: 'attendance_session', referenceId: sessionId },
+    });
+    if (existing) return;
+
+    const pointConfig = await this.prisma.systemConfig.findUnique({
+      where: { schoolId_key: { schoolId, key: 'point_rules' } },
+      select: { value: true },
+    });
+    const rules: any = (pointConfig?.value as any) || {};
+    const xpPresent = rules.attendanceXpPresent ?? GAMIFICATION_CONSTANTS.ATTENDANCE_XP_PRESENT;
+    const xpLate = rules.attendanceXpLate ?? GAMIFICATION_CONSTANTS.ATTENDANCE_XP_LATE;
+    const amount = status === 'present' ? xpPresent : xpLate;
+
+    await this.prisma.$transaction(async tx => {
+      await tx.$queryRawUnsafe('SELECT id FROM students WHERE id = $1 FOR UPDATE', studentId);
+      const agg = await tx.xPTransaction.aggregate({ where: { studentId }, _sum: { amount: true } });
+      const balanceAfter = (agg._sum.amount || 0) + amount;
+      await tx.xPTransaction.create({
+        data: {
+          studentId, amount, balanceAfter,
+          type: 'attendance',
+          description: status === 'present' ? 'Attendance: Present' : 'Attendance: Late',
+          referenceType: 'attendance_session',
+          referenceId: sessionId,
+        },
+      });
+      await tx.studentProgress.updateMany({
+        where: { studentId },
+        data: { totalXp: balanceAfter, currentLevel: Math.floor(balanceAfter / GAMIFICATION_CONSTANTS.XP_PER_LEVEL) + 1 },
+      }).catch(() => {});
+    });
+
+    await this.checkAndAwardStreakBonus(studentId, schoolId);
+  }
+
+  private async checkAndAwardStreakBonus(studentId: string, schoolId: string) {
+    const now = new Date();
+    const weeksNeeded = GAMIFICATION_CONSTANTS.STREAK_BONUS_WEEKS;
+    const lookbackStart = new Date(now);
+    lookbackStart.setDate(lookbackStart.getDate() - weeksNeeded * 7);
+
+    const sessions = await this.prisma.attendanceRecord.findMany({
+      where: {
+        studentId,
+        status: { in: ['present', 'late'] },
+        attendanceSession: { scheduledDate: { gte: lookbackStart }, deletedAt: null },
+      },
+      include: { attendanceSession: { select: { scheduledDate: true } } },
+      orderBy: { attendanceSession: { scheduledDate: 'desc' } },
+    });
+
+    const weekSet = new Set<string>();
+    for (const s of sessions) {
+      const d = new Date(s.attendanceSession.scheduledDate);
+      const year = d.getFullYear();
+      const jan1 = new Date(year, 0, 1);
+      const weekNum = Math.ceil(((d.getTime() - jan1.getTime()) / 86400000 + jan1.getDay() + 1) / 7);
+      weekSet.add(`${year}-W${weekNum}`);
+    }
+
+    if (weekSet.size < weeksNeeded) return;
+
+    const currentWeek = (() => {
+      const d = now;
+      const year = d.getFullYear();
+      const jan1 = new Date(year, 0, 1);
+      const weekNum = Math.ceil(((d.getTime() - jan1.getTime()) / 86400000 + jan1.getDay() + 1) / 7);
+      return `${year}-W${weekNum}`;
+    })();
+
+    let consecutive = 0;
+    const d = new Date(now);
+    for (let i = 0; i < weeksNeeded; i++) {
+      const year = d.getFullYear();
+      const jan1 = new Date(year, 0, 1);
+      const weekNum = Math.ceil(((d.getTime() - jan1.getTime()) / 86400000 + jan1.getDay() + 1) / 7);
+      const key = `${year}-W${weekNum}`;
+      if (weekSet.has(key)) {
+        consecutive++;
+      } else {
+        break;
+      }
+      d.setDate(d.getDate() - 7);
+    }
+
+    if (consecutive < weeksNeeded) return;
+
+    const bonusRef = `streak-${currentWeek}`;
+    const existing = await this.prisma.xPTransaction.findFirst({
+      where: { studentId, referenceType: 'streak_bonus', referenceId: bonusRef },
+    });
+    if (existing) return;
+
+    await this.addXp(
+      studentId,
+      GAMIFICATION_CONSTANTS.STREAK_BONUS_XP,
+      'streak_bonus',
+      `${consecutive}-week attendance streak bonus`,
+    );
   }
 
   async getStudentBadges(studentId: string) {
@@ -1400,6 +1576,224 @@ export class GamificationService {
         reason,
       };
     });
+  }
+
+  // ── Per-transaction XP management (admin) ────────────────────────────────
+
+  /**
+   * A student's full XP history, newest first, with who awarded each entry and a flag on XP that
+   * came from an assessment attempt which has since been archived or no longer exists (the
+   * leftover of a duplicate record), so an admin can see what is worth correcting.
+   */
+  async getXpLedger(studentId: string, skip = 0, take = 50, actor?: { schoolId?: string; roles?: string[] }) {
+    const student = await this.prisma.student.findUnique({ where: { id: studentId } });
+    if (!student || !this.canManageStudentXp(student, actor)) throw new NotFoundException('Student not found');
+
+    const limit = Math.min(Math.max(Math.floor(take) || 50, 1), 200);
+    const [agg, items] = await Promise.all([
+      this.prisma.xPTransaction.aggregate({ where: { studentId }, _sum: { amount: true }, _count: true }),
+      this.prisma.xPTransaction.findMany({
+        where: { studentId },
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        skip: Math.max(Math.floor(skip) || 0, 0),
+        take: limit,
+      }),
+    ]);
+
+    const submissionIds = Array.from(
+      new Set(items.filter((i) => i.referenceType === 'submission' && i.referenceId).map((i) => i.referenceId as string)),
+    );
+    const submissions = submissionIds.length
+      ? await this.prisma.assessmentSubmission.findMany({
+          where: { id: { in: submissionIds } },
+          select: { id: true, status: true },
+        })
+      : [];
+    const statusBySubmission = new Map(submissions.map((x) => [x.id, x.status]));
+
+    const creatorIds = Array.from(new Set(items.map((i) => i.createdBy).filter(Boolean))) as string[];
+    const creators = creatorIds.length
+      ? await this.prisma.user.findMany({ where: { id: { in: creatorIds } }, select: { id: true, firstName: true, lastName: true } })
+      : [];
+    const creatorName = new Map(creators.map((u) => [u.id, `${u.firstName} ${u.lastName}`.trim()]));
+
+    const totalXp = agg._sum.amount || 0;
+    return {
+      studentId,
+      firstName: student.firstName,
+      lastName: student.lastName,
+      totalXp,
+      level: Math.floor(Math.max(totalXp, 0) / 100) + 1,
+      total: agg._count,
+      skip,
+      take: limit,
+      items: items.map((i) => {
+        let flag: 'archived_attempt' | 'missing_attempt' | null = null;
+        if (i.referenceType === 'submission' && i.referenceId) {
+          const st = statusBySubmission.get(i.referenceId);
+          if (st === undefined) flag = 'missing_attempt';
+          else if (st === 'superseded') flag = 'archived_attempt';
+        }
+        return {
+          id: i.id,
+          amount: i.amount,
+          balanceAfter: i.balanceAfter,
+          type: i.type,
+          description: i.description,
+          referenceType: i.referenceType,
+          referenceId: i.referenceId,
+          createdAt: i.createdAt,
+          createdByName: i.createdBy ? creatorName.get(i.createdBy) ?? null : null,
+          flag,
+        };
+      }),
+    };
+  }
+
+  /** Correct the size of one XP award. History is kept in the description and the audit log. */
+  async amendXpTransaction(
+    studentId: string,
+    transactionId: string,
+    amount: number,
+    reason: string,
+    actor?: { id?: string; schoolId?: string; roles?: string[] },
+  ) {
+    if (!Number.isInteger(amount) || amount === 0 || Math.abs(amount) > 10000) {
+      throw new BadRequestException('Amount must be a non-zero whole number between -10000 and 10000');
+    }
+
+    const result = await this.prisma.$transaction(async (tx) => {
+      const student = await tx.student.findUnique({ where: { id: studentId } });
+      if (!student || !this.canManageStudentXp(student, actor)) throw new NotFoundException('Student not found');
+      await tx.$queryRawUnsafe('SELECT id FROM students WHERE id = $1 FOR UPDATE', studentId);
+
+      const existing = await tx.xPTransaction.findFirst({ where: { id: transactionId, studentId } });
+      if (!existing) throw new NotFoundException('XP transaction not found');
+
+      const total = await this.xpTotal(tx, studentId);
+      const newTotal = total - existing.amount + amount;
+      this.assertTotalNotLowered(total, newTotal);
+
+      const before = { amount: existing.amount, type: existing.type, description: existing.description };
+      const note = `[amended ${before.amount} → ${amount}: ${reason}]`;
+      await tx.xPTransaction.update({
+        where: { id: transactionId },
+        data: { amount, description: before.description ? `${before.description} ${note}` : note },
+      });
+      const totalXp = await this.rebuildXpBalances(tx, studentId);
+      return { student, existing: before, totalXp };
+    });
+
+    await this.audit.log({
+      schoolId: result.student.schoolId,
+      userId: actor?.id,
+      action: 'xp.transaction.amend',
+      entityType: 'xp_transaction',
+      entityId: transactionId,
+      oldValues: { amount: result.existing.amount },
+      newValues: { amount },
+      metadata: { studentId, reason, type: result.existing.type },
+    }).catch(() => undefined);
+
+    return {
+      transactionId,
+      previousAmount: result.existing.amount,
+      newAmount: amount,
+      totalXp: result.totalXp,
+      level: Math.floor(Math.max(result.totalXp, 0) / 100) + 1,
+    };
+  }
+
+  /**
+   * Remove one XP award (for example one that duplicated another). Badges earned with that XP are
+   * not revoked: that stays a separate, deliberate action.
+   */
+  async deleteXpTransaction(
+    studentId: string,
+    transactionId: string,
+    reason: string,
+    actor?: { id?: string; schoolId?: string; roles?: string[] },
+  ) {
+    const result = await this.prisma.$transaction(async (tx) => {
+      const student = await tx.student.findUnique({ where: { id: studentId } });
+      if (!student || !this.canManageStudentXp(student, actor)) throw new NotFoundException('Student not found');
+      await tx.$queryRawUnsafe('SELECT id FROM students WHERE id = $1 FOR UPDATE', studentId);
+
+      const existing = await tx.xPTransaction.findFirst({ where: { id: transactionId, studentId } });
+      if (!existing) throw new NotFoundException('XP transaction not found');
+
+      const total = await this.xpTotal(tx, studentId);
+      this.assertTotalNotLowered(total, total - existing.amount);
+
+      await tx.xPTransaction.delete({ where: { id: transactionId } });
+      const totalXp = await this.rebuildXpBalances(tx, studentId);
+      return { student, existing, totalXp };
+    });
+
+    await this.audit.log({
+      schoolId: result.student.schoolId,
+      userId: actor?.id,
+      action: 'xp.transaction.delete',
+      entityType: 'xp_transaction',
+      entityId: transactionId,
+      oldValues: {
+        amount: result.existing.amount,
+        type: result.existing.type,
+        description: result.existing.description,
+        referenceType: result.existing.referenceType,
+        referenceId: result.existing.referenceId,
+      },
+      metadata: { studentId, reason },
+    }).catch(() => undefined);
+
+    return {
+      deleted: true,
+      transactionId,
+      removedAmount: result.existing.amount,
+      totalXp: result.totalXp,
+      level: Math.floor(Math.max(result.totalXp, 0) / 100) + 1,
+    };
+  }
+
+  /** Same-school only, except for super admins. */
+  private canManageStudentXp(student: { schoolId: string }, actor?: { schoolId?: string; roles?: string[] }): boolean {
+    if (!actor?.schoolId || (actor.roles || []).includes('super_admin')) return true;
+    return student.schoolId === actor.schoolId;
+  }
+
+  private async xpTotal(tx: any, studentId: string): Promise<number> {
+    const agg = await tx.xPTransaction.aggregate({ where: { studentId }, _sum: { amount: true } });
+    return agg._sum.amount || 0;
+  }
+
+  /** An edit may not push a student's XP below zero, but may always move it back toward zero. */
+  private assertTotalNotLowered(total: number, newTotal: number) {
+    if (newTotal < 0 && newTotal < total) {
+      throw new BadRequestException(
+        'This would take the student below zero XP. Reduce or remove a negative adjustment first.',
+      );
+    }
+  }
+
+  /**
+   * balanceAfter is a running balance stored on every row, so changing or removing an earlier
+   * entry makes every later one stale. Recompute them in order, and keep StudentProgress in step.
+   */
+  private async rebuildXpBalances(tx: any, studentId: string): Promise<number> {
+    const rows = await tx.xPTransaction.findMany({
+      where: { studentId },
+      orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+      select: { id: true, amount: true, balanceAfter: true },
+    });
+    let running = 0;
+    for (const r of rows) {
+      running += r.amount;
+      if (r.balanceAfter !== running) {
+        await tx.xPTransaction.update({ where: { id: r.id }, data: { balanceAfter: running } });
+      }
+    }
+    await tx.studentProgress.updateMany({ where: { studentId }, data: { totalXp: running } }).catch(() => {});
+    return running;
   }
 
   async getStudentXpInfo(studentId: string) {

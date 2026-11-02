@@ -26,7 +26,7 @@ export function AssignedServants({ servants, loading, show, onToggle, lang }: Pr
             const subjects=s.metadata?.teachingSubjects??[]
             const roleBg=role?.role?.name==='level_leader'?'bg-semantic-role-level-leader-bg text-semantic-role-level-leader border-semantic-role-level-leader':role?.role?.name==='group_leader'?'bg-semantic-role-group-leader-bg text-semantic-role-group-leader border-semantic-role-group-leader':'bg-semantic-role-servant-bg text-semantic-role-servant border-semantic-role-servant'
             return <div key={s.id} className="flex items-center gap-3 rounded-lg border border-gray-100 bg-gray-50/50 p-2.5">
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-semantic-role-servant-bg overflow-hidden flex-shrink-0">
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-semantic-role-servant-bg overflow-hidden shrink-0">
                 {s.avatarUrl?<Image src={photoSrc(s.avatarUrl)} alt="" width={32} height={32} className="h-8 w-8 object-cover"/>:<span className="text-xs font-bold text-semantic-role-servant">{s.firstName?.[0]}{s.lastName?.[0]}</span>}
               </div>
               <div className="flex-1 min-w-0">

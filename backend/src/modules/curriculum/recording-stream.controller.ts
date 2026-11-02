@@ -1,9 +1,10 @@
 import { Controller, Get, Query, Req, Res } from '@nestjs/common';
 import { createReadStream } from 'fs';
 import { Readable } from 'stream';
-import { extname, resolve, normalize } from 'path';
+import { resolve, normalize } from 'path';
 import { JwtService } from '@nestjs/jwt';
 import { Public } from '../../common/decorators/public.decorator';
+import { audioContentTypeForKey } from '../../common/storage/r2';
 
 /**
  * Streams a reference recording regardless of how its URL was stored
@@ -48,7 +49,11 @@ export class RecordingStreamController {
     }
 
     let nodeStream: NodeJS.ReadableStream;
-    let contentType = 'audio/mpeg';
+    // Decided from the file extension only, never from what storage says the object is: the
+    // stored type is whatever the uploader claimed, and echoing it let an object uploaded as
+    // text/html run as a page on this origin. Unknown extensions download instead of rendering.
+    let contentType: string | undefined;
+    let isDownload = false;
 
     try {
       if (src.startsWith('/uploads/')) {
@@ -63,11 +68,7 @@ export class RecordingStreamController {
           return;
         }
         nodeStream = createReadStream(target);
-        const ext = extname(target).toLowerCase();
-        contentType =
-          ext === '.webm' ? 'audio/webm' :
-          ext === '.ogg' ? 'audio/ogg' :
-          ext === '.m4a' ? 'audio/mp4' : 'audio/mpeg';
+        contentType = audioContentTypeForKey(target);
       } else {
         let url: string;
         if (/^https?:\/\//i.test(src)) {
@@ -85,11 +86,18 @@ export class RecordingStreamController {
           res.status(404).json({ message: 'Recording not found' });
           return;
         }
-        contentType = upstream.headers.get('content-type') || contentType;
+        contentType = audioContentTypeForKey(new URL(url).pathname);
         nodeStream = Readable.fromWeb(upstream.body as any);
       }
 
+      if (!contentType) {
+        contentType = 'application/octet-stream';
+        isDownload = true;
+      }
       res.setHeader('Content-Type', contentType);
+      res.setHeader('X-Content-Type-Options', 'nosniff');
+      res.setHeader('Content-Security-Policy', "default-src 'none'; sandbox");
+      if (isDownload) res.setHeader('Content-Disposition', 'attachment');
       res.setHeader('Accept-Ranges', 'bytes');
       nodeStream.pipe(res);
       nodeStream.on('error', () => {

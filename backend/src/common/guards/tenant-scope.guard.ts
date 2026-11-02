@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   CanActivate,
   ExecutionContext,
   ForbiddenException,
@@ -15,8 +16,10 @@ const SCHOOL_PARAM_KEYS = ['schoolId', 'schoolIdentifier'];
  *
  * Runs AFTER JwtAuthGuard (so `req.user` is populated) and RolesGuard.
  * For any authenticated, non-super-admin request that carries a school
- * identifier (query/body/param), it resolves that identifier and rejects
- * the request unless it resolves to the caller's own school.
+ * identifier (query/body/param), it resolves EVERY such identifier and rejects
+ * the request unless all of them resolve to the caller's own school. Checking
+ * only the first one found let a caller send their own school in the query and
+ * another school's in the body, which handlers then used.
  *
  * Routes that carry no school identifier are left untouched, so this is a
  * single choke point that closes the cross-tenant IDOR class without
@@ -46,36 +49,44 @@ export class TenantScopeGuard implements CanActivate {
     // Super admin spans tenants by design.
     if (user.roles?.includes('super_admin')) return true;
 
-    const requestedSchoolId = this.extractSchoolIdentifier(request);
-    if (!requestedSchoolId) return true;
+    const requested = this.collectSchoolIdentifiers(request);
 
-    // Resolve slug or raw id to the canonical school id.
-    let resolved: string;
-    try {
-      resolved = await this.schoolResolver.resolve(requestedSchoolId);
-    } catch {
-      // Unresolvable identifier on a scoped route -> reject.
-      throw new ForbiddenException('Access to the requested school is not permitted');
-    }
+    for (const identifier of requested) {
+      // Resolve slug or raw id to the canonical school id.
+      let resolved: string;
+      try {
+        resolved = await this.schoolResolver.resolve(identifier);
+      } catch {
+        // Unresolvable identifier on a scoped route -> reject.
+        throw new ForbiddenException('Access to the requested school is not permitted');
+      }
 
-    if (resolved !== user.schoolId) {
-      throw new ForbiddenException('Access to the requested school is not permitted');
+      if (resolved !== user.schoolId) {
+        throw new ForbiddenException('Access to the requested school is not permitted');
+      }
     }
 
     return true;
   }
 
-  private extractSchoolIdentifier(request: any): string | undefined {
-    const sources = [request.query, request.body, request.params];
-    for (const source of sources) {
-      if (!source) continue;
+  /**
+   * Every non-empty school identifier the request carries, from query, body and
+   * params. A value that is not a string (an array from `?schoolId=a&schoolId=b`,
+   * or a JSON object) is rejected: it used to be skipped, which let it through.
+   */
+  private collectSchoolIdentifiers(request: any): string[] {
+    const found = new Set<string>();
+    for (const source of [request.query, request.body, request.params]) {
+      if (!source || typeof source !== 'object') continue;
       for (const key of SCHOOL_PARAM_KEYS) {
         const value = source[key];
-        if (typeof value === 'string' && value.trim().length > 0) {
-          return value;
+        if (value === undefined || value === null) continue;
+        if (typeof value !== 'string') {
+          throw new BadRequestException(`${key} must be a string`);
         }
+        if (value.trim().length > 0) found.add(value);
       }
     }
-    return undefined;
+    return [...found];
   }
 }

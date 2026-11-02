@@ -144,7 +144,7 @@ function SettingsContent() {
               onChange={(e) => setQuery(e.target.value)}
               placeholder={lang === 'ar' ? 'البحث في الإعدادات…' : 'Search settings…'}
               aria-label={lang === 'ar' ? 'البحث في الإعدادات' : 'Search settings'}
-              className="w-full rounded-lg border border-gray-300 bg-white py-2 pl-9 pr-3 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-gold-500"
+              className="w-full rounded-lg border border-gray-300 bg-white py-2 pl-9 pr-3 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-hidden focus:ring-2 focus:ring-gold-500"
             />
           </div>
           <nav aria-label="Settings tabs" onKeyDown={onKeyDown}>

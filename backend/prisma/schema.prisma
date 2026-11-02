@@ -234,6 +234,8 @@ model User {
   auditLogs             AuditLog[]
   certificates          Certificate[]
   servantProfile        ServantProfile?
+  servantFollowUps      ServantFollowUp[]
+  birthdayGreetingsGiven StudentBirthdayGreeting[] @relation("BirthdayGreeter")
   passedSubjectPasses   StudentSubjectPass[]      @relation("PassedBy")
   reviewedRegistrations RegistrationApplication[]
   conversationsAsP1     Conversation[]            @relation("Conversation1")
@@ -258,6 +260,7 @@ model User {
   respondedAppeals      StudentLiturgyAppeal[]
   notifications         Notification[]
   pushSubscriptions     PushSubscription[]
+  createdStudents       Student[]                 @relation("StudentCreator")
 
   @@unique([schoolId, email])
   @@index([schoolId])
@@ -305,6 +308,9 @@ model ServantMilestone {
   label       String
   description String?
 
+  // Set once the servant has seen the celebration; null = not yet celebrated.
+  seenAt DateTime? @map("seen_at")
+
   createdAt DateTime @default(now()) @map("created_at")
 
   profile ServantProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
@@ -312,6 +318,47 @@ model ServantMilestone {
   @@unique([userId, type, threshold])
   @@index([userId])
   @@map("servant_milestones")
+}
+
+/// A servant's persisted follow-up on one student (one row per servant + student).
+/// status 'done' counts as followed-up for 7 days from completedAt, then the
+/// student reappears as open if still flagged.
+model ServantFollowUp {
+  id          String    @id @default(uuid())
+  schoolId    String    @map("school_id")
+  servantId   String    @map("servant_id")
+  studentId   String    @map("student_id")
+  status      String    @default("open")
+  note        String?   @db.VarChar(500)
+  completedAt DateTime? @map("completed_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  servant User    @relation(fields: [servantId], references: [id], onDelete: Cascade)
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([servantId, studentId])
+  @@index([schoolId])
+  @@map("servant_follow_ups")
+}
+
+/// One greeting per student per birthday occurrence (year of the birthday), so
+/// the whole team sees a student as greeted once anyone has done it.
+model StudentBirthdayGreeting {
+  id        String   @id @default(uuid())
+  schoolId  String   @map("school_id")
+  studentId String   @map("student_id")
+  servantId String   @map("servant_id")
+  year      Int
+  note      String?  @db.VarChar(500)
+  greetedAt DateTime @default(now()) @map("greeted_at")
+
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  servant User    @relation("BirthdayGreeter", fields: [servantId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, year])
+  @@index([schoolId])
+  @@map("student_birthday_greetings")
 }
 
 model Role {
@@ -401,12 +448,14 @@ model Student {
   enrollmentDate  DateTime  @default(now()) @map("enrollment_date")
   graduationDate  DateTime? @map("graduation_date")
   metadata        Json?
+  createdBy       String?   @map("created_by")
   createdAt       DateTime  @default(now()) @map("created_at")
   updatedAt       DateTime  @updatedAt @map("updated_at")
   deletedAt       DateTime? @map("deleted_at")
 
   school                School                 @relation(fields: [schoolId], references: [id])
   academicYear          AcademicYear           @relation(fields: [academicYearId], references: [id])
+  creator               User?                  @relation("StudentCreator", fields: [createdBy], references: [id], onDelete: SetNull)
   level                 Level                  @relation(fields: [levelId], references: [id])
   group                 Group                  @relation(fields: [groupId], references: [id])
   grade                 SchoolGrade?           @relation(fields: [gradeId], references: [id])
@@ -428,6 +477,8 @@ model Student {
   hymns                 HymnPracticeSession[]
   notifications         Notification[]
   liturgyAppeals        StudentLiturgyAppeal[]
+  servantFollowUps      ServantFollowUp[]
+  birthdayGreetings     StudentBirthdayGreeting[]
 
   @@unique([schoolId, studentCode])
   @@index([schoolId])
@@ -521,6 +572,7 @@ model Level {
   promotionFromRecords  PromotionRecord[]      @relation("PromotionFromLevel")
   promotionToRecords    PromotionRecord[]      @relation("PromotionToLevel")
   attendanceSessions    AttendanceSession[]
+  sessionTargets AttendanceSessionTarget[]
   studentProgress       StudentProgress[]
   curriculumAllocations CurriculumAllocation[]
 
@@ -547,6 +599,7 @@ model Group {
   schoolGrades       SchoolGrade[]
   students           Student[]
   attendanceSessions AttendanceSession[]
+  sessionTargets AttendanceSessionTarget[]
   assessments        Assessment[]
 
   @@index([schoolId])
@@ -596,6 +649,7 @@ model SchoolGrade {
   group              Group               @relation(fields: [groupId], references: [id])
   students           Student[]
   attendanceSessions AttendanceSession[]
+  sessionTargets AttendanceSessionTarget[]
 
   @@unique([schoolId, name])
   @@index([schoolId])
@@ -808,7 +862,9 @@ model AttendanceSession {
   sessionId       String?   @map("session_id")
   servantId       String    @map("servant_id")
   levelId         String?   @map("level_id")
-  groupId         String    @map("group_id")
+  /// Primary group. Required for `class` sessions; liturgy/event sessions that span
+  /// several groups (or the whole school) describe their audience in `targets`.
+  groupId         String?   @map("group_id")
   gradeId         String?   @map("grade_id")
   scheduledDate   DateTime  @map("scheduled_date")
   scheduledTime   String?   @map("scheduled_time")
@@ -818,20 +874,50 @@ model AttendanceSession {
   notes           String?
   metadata        Json?
   subjectItemId   String?   @map("subject_item_id")
+  /// class | liturgy | event
+  type            String    @default("class")
+  title           String?
+  titleAr         String?   @map("title_ar")
+  location        String?
+  /// Audience is every active group in the school (liturgy / event only).
+  allGroups       Boolean   @default(false) @map("all_groups")
   createdAt       DateTime  @default(now()) @map("created_at")
   updatedAt       DateTime  @updatedAt @map("updated_at")
   deletedAt       DateTime? @map("deleted_at")
 
-  school            School             @relation(fields: [schoolId], references: [id])
-  servant           User               @relation(fields: [servantId], references: [id])
-  level             Level?             @relation(fields: [levelId], references: [id])
-  group             Group              @relation(fields: [groupId], references: [id])
-  grade             SchoolGrade?       @relation(fields: [gradeId], references: [id])
+  school            School                    @relation(fields: [schoolId], references: [id])
+  servant           User                      @relation(fields: [servantId], references: [id])
+  level             Level?                    @relation(fields: [levelId], references: [id])
+  group             Group?                    @relation(fields: [groupId], references: [id], onDelete: Restrict)
+  grade             SchoolGrade?              @relation(fields: [gradeId], references: [id])
   attendanceRecords AttendanceRecord[]
+  targets           AttendanceSessionTarget[]
 
   @@index([schoolId, servantId, scheduledDate])
   @@index([subjectItemId])
+  @@index([schoolId, type, scheduledDate])
   @@map("attendance_sessions")
+}
+
+/// Who a session is for. A class has exactly one target; liturgy and event
+/// sessions may have several. The roster is the union of the targets.
+model AttendanceSessionTarget {
+  id        String   @id @default(uuid())
+  sessionId String   @map("session_id")
+  groupId   String   @map("group_id")
+  levelId   String?  @map("level_id")
+  gradeId   String?  @map("grade_id")
+  gender    String?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  session AttendanceSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  group   Group             @relation(fields: [groupId], references: [id])
+  level   Level?            @relation(fields: [levelId], references: [id])
+  grade   SchoolGrade?      @relation(fields: [gradeId], references: [id])
+
+  @@index([sessionId])
+  @@index([groupId])
+  @@map("attendance_session_targets")
 }
 
 model AttendanceRecord {

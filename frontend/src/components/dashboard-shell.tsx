@@ -7,7 +7,7 @@ import {
   LayoutDashboard, Users, BookOpen, Calendar, ClipboardCheck,
   Trophy, Settings, UserCheck, Baby, ClipboardList, Megaphone,
   Crown, Shield, GraduationCap, Layers, Heart, Church, Mail,
-  Headphones, School, Sun, BarChart3,
+  Headphones, School, Sun, BarChart3, Globe,
 } from 'lucide-react'
 import { HelpButton } from './help-button'
 import { useDashboardHotkeys } from '@/hooks/use-hotkeys'
@@ -19,6 +19,7 @@ import { track } from '@/lib/analytics'
 import { MotionConfig } from 'motion/react'
 import { ROLES } from '@/lib/roles'
 import { usePermission } from '@/lib/use-permission'
+import { usePendingReviewCount } from '@/lib/use-pending-review-count'
 import { DashboardSidebar } from './dashboard/sidebar'
 import { DashboardHeader } from './dashboard/header'
 import { DashboardBanners } from './dashboard/banners'
@@ -27,6 +28,8 @@ import { useIdleTimeout } from '@/hooks/use-idle-timeout'
 import { SessionExpiryModal } from './session-expiry-modal'
 
 import { MobileBottomNav } from './dashboard/mobile-bottom-nav'
+import { setAppBadge } from '@/lib/app-badge'
+import { syncPushSubscription } from '@/lib/push'
 
 interface NotificationItem {
   id: string; type: string; title: string; titleAr?: string; body: string; bodyAr?: string;
@@ -38,13 +41,14 @@ const navigation = [
   { name: 'Dashboard', nameAr: 'لوحة التحكم', href: '/dashboard', icon: LayoutDashboard },
   { name: 'Students', nameAr: 'الطلاب', href: '/dashboard/students', icon: Users },
   { name: 'Attendance', nameAr: 'الحضور', href: '/dashboard/attendance/mark', icon: Calendar, perm: 'attendance:view' as const },
-  { name: 'Liturgy Attendance', nameAr: 'حضور القداس', href: '/dashboard/liturgy-attendance', icon: Church, perm: 'attendance:record' as const },
   { name: 'This Sunday', nameAr: 'أحد الأسبوع', href: '/dashboard/briefing', icon: Sun, perm: 'attendance:record' as const },
   // Additional navigation items
   { name: 'Servants', nameAr: 'الخدام', href: '/dashboard/servants', icon: UserCheck, perm: 'servant:view' as const },
   { name: 'My Servants', nameAr: 'خدامي', href: '/dashboard/my-servants', icon: Heart, roles: ['level_leader'] as const },
   { name: 'Level Report', nameAr: 'تقرير المستوى', href: '/dashboard/level-report', icon: BarChart3, roles: ['level_leader'] as const },
   { name: 'Group Report', nameAr: 'تقرير المجموعة', href: '/dashboard/group-report', icon: BarChart3, roles: ['servant', 'group_leader'] as const },
+  { name: 'Reports', nameAr: 'التقارير', href: '/dashboard/reports', icon: BarChart3, roles: ['super_admin','admin','principal','priest','curriculum_manager'] as const },
+  { name: 'Diocese', nameAr: 'الإيبارشية', href: '/dashboard/diocese', icon: Globe, superAdminOnly: true },
   { name: 'Curriculum', nameAr: 'المنهج', href: '/dashboard/curriculum', icon: BookOpen, perm: 'curriculum:view' as const },
   { name: 'Assessments', nameAr: 'التقييمات', href: '/dashboard/assessments', icon: ClipboardCheck, perm: 'assessment:view' as const },
   { name: 'Hymn Review', nameAr: 'مراجعة التسابيح', href: '/dashboard/hymn-review', icon: Headphones, perm: 'practice:view' as const },
@@ -59,6 +63,20 @@ const secondaryNav = [
   { name: 'Liturgy Verification', nameAr: 'التحقق من القداسات', href: '/dashboard/liturgy', icon: Church },
   { name: 'Settings', nameAr: 'الإعدادات', href: '/dashboard/settings', icon: Settings },
 ]
+
+// Bottom-nav shortlist, most useful first. Roles only see the entries they are permitted.
+const MOBILE_NAV_PRIORITY = [
+  '/dashboard',
+  '/dashboard/attendance/mark',
+  '/dashboard/my-class',
+  '/dashboard/students',
+  '/dashboard/assessments',
+  '/dashboard/briefing',
+  '/dashboard/parents',
+]
+const MOBILE_ACTIVE_PREFIX: Record<string, string> = {
+  '/dashboard/attendance/mark': '/dashboard/attendance',
+}
 
 const parentsNav = { name: 'My Children', nameAr: 'أولادي', href: '/dashboard/parents', icon: Baby }
 
@@ -107,6 +125,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
   const { can } = usePermission()
   const isParent = effectiveRole === 'parent'
   const [pendingRegsCount, setPendingRegsCount] = useState(0)
+  const pendingReviewCount = usePendingReviewCount(!isParent && can('assessment:grade'), pathname)
   const mainNav: any[] = isParent
     ? [...navigation.filter((n) => n.name === 'Dashboard'), parentsNav]
     : navigation.filter((item) => {
@@ -114,7 +133,15 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
         if ((item as any).roles && !user?.roles?.some((r: string) => (item as any).roles.includes(r))) return false
         if ((item as any).perm && !can((item as any).perm)) return false
         return item.href !== parentsNav.href || showParentsNav
-      }).map(item => item.href === '/dashboard/pending-registrations' && pendingRegsCount > 0 ? { ...item, badge: pendingRegsCount } : item)
+      }).map(item => {
+        if (item.href === '/dashboard/pending-registrations' && pendingRegsCount > 0) return { ...item, badge: pendingRegsCount }
+        if (item.href === '/dashboard/assessments' && pendingReviewCount > 0) return { ...item, badge: pendingReviewCount }
+        return item
+      })
+  const mobileNav = [
+    ...MOBILE_NAV_PRIORITY.flatMap((href) => mainNav.filter((n) => n.href === href)),
+    ...mainNav.filter((n) => !MOBILE_NAV_PRIORITY.includes(n.href)),
+  ]
   const [notifications, setNotifications] = useState<NotificationItem[]>([])
   const [notiLoading, setNotiLoading] = useState(false)
   const notiRef = useRef<HTMLDivElement>(null)
@@ -380,6 +407,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
     }).catch(() => {})
     localStorage.removeItem('user')
     localStorage.removeItem('niangelos_active_school')
+    setAppBadge(0)
     router.push('/auth/login')
   }
 
@@ -391,6 +419,9 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
   const initials = user ? `${user.firstName?.[0] || ''}${user.lastName?.[0] || ''}` : 'AU'
   const displayName = user ? `${user.firstName || ''} ${user.lastName || ''}` : 'Admin User'
   const unreadCount = notifications.filter(n => !n.isRead).length
+  // Unread total on the installed app's icon; re-registers an existing push subscription (never prompts).
+  useEffect(() => { setAppBadge(unreadCount) }, [unreadCount])
+  useEffect(() => { if (user) void syncPushSubscription() }, [user])
   const sidebarVisible = !autoHide || sidebarHover
   useDashboardHotkeys()
 
@@ -434,8 +465,8 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 overflow-x-hidden">
-      <a href="#main-content" className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[100] focus:rounded-lg focus:bg-gold-500 focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-white focus:outline-none focus:ring-2 focus:ring-gold-300">
+    <div className="min-h-screen bg-gray-50 overflow-x-clip">
+      <a href="#main-content" className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-100 focus:rounded-lg focus:bg-gold-500 focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-white focus:outline-hidden focus:ring-2 focus:ring-gold-300">
         {language === 'ar' ? 'انتقل إلى المحتوى' : 'Skip to content'}
       </a>
 
@@ -553,18 +584,21 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
         </DashboardMainContent>
       </div>
 
-      {/* Mobile bottom navigation — top 5 nav items */}
+      {/* Mobile bottom navigation: a role-aware shortlist plus "More" for the rest */}
       <MobileBottomNav
-        items={mainNav.slice(0, 5).map((item: any) => ({
+        items={mobileNav.map((item: any) => ({
           href: item.href,
           name: item.name,
           nameAr: item.nameAr || item.name,
           icon: item.icon,
+          badge: item.badge,
+          activePrefix: MOBILE_ACTIVE_PREFIX[item.href],
         }))}
         lang={language as 'en' | 'ar'}
+        onMore={mainNav.length > 5 ? () => setSidebarOpen(true) : undefined}
       />
-      {/* Bottom padding so content isn't hidden behind mobile bottom nav */}
-      <div className="h-16 lg:hidden pb-[env(safe-area-inset-bottom)]" aria-hidden="true" />
+      {/* Reserve space for the fixed bottom nav, including the device safe area */}
+      <div className="h-[calc(4rem+env(safe-area-inset-bottom))] lg:hidden" aria-hidden="true" />
 
       <HelpButton />
     </div>

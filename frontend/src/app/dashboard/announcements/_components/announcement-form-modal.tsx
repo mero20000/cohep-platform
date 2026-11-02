@@ -100,7 +100,7 @@ export function AnnouncementFormModal({ announcement, onClose, onSuccess, lang }
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
         <form className="w-full max-w-lg rounded-2xl bg-white shadow-xl max-h-[90vh] flex flex-col" noValidate onClick={e => e.stopPropagation()} onSubmit={e => e.preventDefault()}>
-        <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4 flex-shrink-0">
+        <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4 shrink-0">
           <h2 className="text-lg font-semibold">{announcement ? t('Edit Announcement', 'تعديل الإعلان') : t('New Announcement', 'إعلان جديد')}</h2>
           <Button variant="ghost" size="icon" type="button" onClick={onClose}><X className="h-5 w-5" /></Button>
         </div>
@@ -116,7 +116,7 @@ export function AnnouncementFormModal({ announcement, onClose, onSuccess, lang }
                 <div className="mt-3 flex items-center gap-2">
                   <input type="text" value={aiPrompt} onChange={e => setAiPrompt(e.target.value)}
                     placeholder={t('Describe the announcement topic...', 'صف موضوع الإعلان...')}
-                    className="flex-1 rounded-lg border border-purple-300 bg-white px-3 py-2 text-sm focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500" />
+                    className="flex-1 rounded-lg border border-purple-300 bg-white px-3 py-2 text-sm focus:outline-hidden focus:border-purple-500 focus:ring-1 focus:ring-purple-500" />
                   <Button type="button" size="sm" onClick={handleAiDraft} disabled={aiLoading || !aiPrompt.trim()}
                     className="bg-purple-600 hover:bg-purple-700 text-white whitespace-nowrap">
                     {aiLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
@@ -141,7 +141,7 @@ export function AnnouncementFormModal({ announcement, onClose, onSuccess, lang }
             <label className="block text-sm font-medium text-gray-700">{t('Title (Arabic)', 'العنوان (عربي)')}</label>
             <input type="text" value={form.titleAr} onChange={e => setForm({ ...form, titleAr: e.target.value })}
               placeholder={t('Announcement title in Arabic', 'عنوان الإعلان بالعربية')}
-              className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:border-gold-500 focus:ring-1 focus:ring-blue-500" />
+              className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-hidden focus:border-gold-500 focus:ring-1 focus:ring-blue-500" />
           </div>
           <FormField
             label={t('Body', 'النص')}
@@ -157,7 +157,7 @@ export function AnnouncementFormModal({ announcement, onClose, onSuccess, lang }
             <label className="block text-sm font-medium text-gray-700">{t('Body (Arabic)', 'النص (عربي)')}</label>
             <textarea rows={4} value={form.bodyAr} onChange={e => setForm({ ...form, bodyAr: e.target.value })}
               placeholder={t('Announcement text in Arabic', 'نص الإعلان بالعربية')}
-              className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:border-gold-500 focus:ring-1 focus:ring-blue-500" />
+              className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-hidden focus:border-gold-500 focus:ring-1 focus:ring-blue-500" />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">{t('Priority', 'الأولوية')}</label>
@@ -204,7 +204,7 @@ export function AnnouncementFormModal({ announcement, onClose, onSuccess, lang }
             </label>
           )}
         </div>
-        <div className="flex items-center justify-end gap-3 border-t border-gray-100 px-6 py-4 flex-shrink-0">
+        <div className="flex items-center justify-end gap-3 border-t border-gray-100 px-6 py-4 shrink-0">
           <Button variant="outline" type="button" onClick={onClose}
             >{t('Cancel', 'إلغاء')}</Button>
           <Button type="button" disabled={saving} onClick={handleSubmit}

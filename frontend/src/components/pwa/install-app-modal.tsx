@@ -79,7 +79,7 @@ export default function InstallAppModal({ surface, onPromptInstall, onDismiss, o
 
   return (
     <div
-      className="fixed inset-0 z-[100] flex items-end justify-center bg-black/60 backdrop-blur-sm animate-in fade-in sm:items-center"
+      className="fixed inset-0 z-100 flex items-end justify-center bg-black/60 backdrop-blur-xs animate-in fade-in sm:items-center"
       onClick={onDismiss}
       role="presentation"
     >
@@ -91,7 +91,7 @@ export default function InstallAppModal({ surface, onPromptInstall, onDismiss, o
         aria-describedby="install-modal-desc"
         dir={ar ? 'rtl' : 'ltr'}
         onClick={e => e.stopPropagation()}
-        className="relative w-full max-w-md rounded-t-3xl sm:rounded-3xl border border-white/10 bg-gradient-to-b from-[#1A2744] to-[#101a30] p-6 pb-8 shadow-2xl animate-in slide-in-from-bottom-4 sm:slide-in-from-bottom-2 sm:zoom-in-95"
+        className="relative w-full max-w-md rounded-t-3xl sm:rounded-3xl border border-white/10 bg-linear-to-b from-[#1A2744] to-[#101a30] p-6 pb-8 shadow-2xl animate-in slide-in-from-bottom-4 sm:slide-in-from-bottom-2 sm:zoom-in-95"
         style={{ borderRadius: '24px' }}
       >
         {/* Grab handle (mobile affordance) */}
@@ -101,7 +101,7 @@ export default function InstallAppModal({ surface, onPromptInstall, onDismiss, o
         <button
           onClick={onDismiss}
           aria-label={t('Close', 'إغلاق')}
-          className="absolute top-4 end-4 rounded-full p-1.5 text-white/50 hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C89B3C]"
+          className="absolute top-4 inset-e-4 rounded-full p-1.5 text-white/50 hover:bg-white/10 hover:text-white focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[#C89B3C]"
         >
           <X className="h-5 w-5" />
         </button>
@@ -184,7 +184,7 @@ export default function InstallAppModal({ surface, onPromptInstall, onDismiss, o
                 data-autofocus
                 onClick={handleNativeInstall}
                 disabled={prompting}
-                className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#C89B3C] to-[#B8862F] px-5 py-3.5 text-sm font-bold text-[#1A2744] shadow-lg shadow-[#C89B3C]/20 transition-all hover:brightness-110 active:scale-[0.98] disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+                className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-linear-to-r from-[#C89B3C] to-[#B8862F] px-5 py-3.5 text-sm font-bold text-[#1A2744] shadow-lg shadow-[#C89B3C]/20 transition-all hover:brightness-110 active:scale-[0.98] disabled:opacity-60 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-white"
               >
                 {prompting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
                 {surface === 'android' ? t('Install Now', 'ثبّت الآن') : t('Install App', 'ثبّت التطبيق')}
@@ -196,7 +196,7 @@ export default function InstallAppModal({ surface, onPromptInstall, onDismiss, o
         {/* Not now */}
         <button
           onClick={onDismiss}
-          className="mt-3 w-full rounded-xl py-2.5 text-center text-sm font-medium text-white/50 hover:text-white/80 hover:bg-white/5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
+          className="mt-3 w-full rounded-xl py-2.5 text-center text-sm font-medium text-white/50 hover:text-white/80 hover:bg-white/5 transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-white/40"
         >
           {t('Not now', 'ليس الآن')}
         </button>

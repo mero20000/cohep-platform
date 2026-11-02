@@ -5,7 +5,7 @@ import { SchoolResolver } from '../../common/utils/school-resolver';
 import { MailService } from '../mail/mail.service';
 import { NewsletterService } from '../newsletter/newsletter.service';
 import { NotificationsService } from '../notifications/notifications.service';
-import { emailTemplate, emailParagraph } from '../mail/email-template';
+import { emailTemplate, emailParagraph, escapeHtml } from '../mail/email-template';
 import { CreateAnnouncementDto, UpdateAnnouncementDto } from './dto/announcement.dto';
 import { STAFF_ROLES } from '../../common/decorators/roles.decorator';
 
@@ -130,11 +130,11 @@ export class AnnouncementsService {
     const html = emailTemplate({
       title: `${priorityLabel} ${title}`,
       content: `
-        ${emailParagraph(titleAr ? `${title} — ${titleAr}` : title)}
-        ${emailParagraph(bodyAr ? `${body}\n\n${bodyAr}` : body)}
+        ${emailParagraph(escapeHtml(titleAr ? `${title} — ${titleAr}` : title))}
+        ${emailParagraph(escapeHtml(bodyAr ? `${body}\n\n${bodyAr}` : body))}
         <table style="width:100%;border-collapse:collapse;font-size:14px;margin-top:16px;">
-          <tr><td style="padding:8px 0;color:#6b7280;">Priority</td><td style="padding:8px 0;font-weight:600;color:#111827;">${priorityLabel}</td></tr>
-          ${targetRoles.length > 0 ? `<tr><td style="padding:8px 0;color:#6b7280;">Target</td><td style="padding:8px 0;font-weight:600;color:#111827;">${targetRoles.join(', ')}</td></tr>` : ''}
+          <tr><td style="padding:8px 0;color:#6b7280;">Priority</td><td style="padding:8px 0;font-weight:600;color:#111827;">${escapeHtml(priorityLabel)}</td></tr>
+          ${targetRoles.length > 0 ? `<tr><td style="padding:8px 0;color:#6b7280;">Target</td><td style="padding:8px 0;font-weight:600;color:#111827;">${escapeHtml(targetRoles.join(', '))}</td></tr>` : ''}
           ${targetSubscribers ? `<tr><td style="padding:8px 0;color:#6b7280;">Audience</td><td style="padding:8px 0;font-weight:600;color:#111827;">Newsletter Subscribers</td></tr>` : ''}
         </table>
       `,

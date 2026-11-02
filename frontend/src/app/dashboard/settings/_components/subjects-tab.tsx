@@ -453,13 +453,13 @@ export function SubjectsTab() {
               {subjects.map(subject => (
                 <div key={subject.id} onClick={() => toggleSubject(subject)}
                   className={`rounded-xl border-2 bg-white cursor-pointer transition-all overflow-hidden ${
-                    selectedSubject?.id === subject.id ? 'border-gold-500 shadow-md' : 'border-gray-200 hover:border-gray-300 hover:shadow-sm'
+                    selectedSubject?.id === subject.id ? 'border-gold-500 shadow-md' : 'border-gray-200 hover:border-gray-300 hover:shadow-xs'
                   }`}>
                   <div className="h-2" style={{ backgroundColor: subject.color || '#D4AF37' }} />
                   <div className="p-4">
                     <div className="flex items-start justify-between">
                       <div className="flex items-center gap-3 min-w-0">
-                        <div className="h-10 w-10 rounded-lg flex items-center justify-center flex-shrink-0 text-lg font-bold text-white"
+                        <div className="h-10 w-10 rounded-lg flex items-center justify-center shrink-0 text-lg font-bold text-white"
                           style={{ backgroundColor: subject.color || '#D4AF37' }}>
                           {subject.name.charAt(0).toUpperCase()}
                         </div>
@@ -468,7 +468,7 @@ export function SubjectsTab() {
                           {subject.nameAr && <p className="text-xs text-gray-500 mt-0.5">{subject.nameAr}</p>}
                         </div>
                       </div>
-                      <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full flex-shrink-0 ${
+                      <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full shrink-0 ${
                         subject.status === 'active' ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-500'
                       }`}>{subject.status}</span>
                     </div>
@@ -517,15 +517,15 @@ export function SubjectsTab() {
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-500" />
               <input type="text" placeholder={lang === 'ar' ? 'البحث عن اسم التسبيحة...' : 'Search hymn name...'} value={filterSearch}
                 onChange={e => setFilterSearch(e.target.value)}
-                className="w-full rounded-lg border border-gray-200 bg-white pl-8 pr-3 py-1.5 text-xs focus:border-gold-500 focus:outline-none" />
+                className="w-full rounded-lg border border-gray-200 bg-white pl-8 pr-3 py-1.5 text-xs focus:border-gold-500 focus:outline-hidden" />
             </div>
             <select value={filterWhen} onChange={e => setFilterWhen(e.target.value)}
-              className="rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-xs focus:border-gold-500 focus:outline-none">
+              className="rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-xs focus:border-gold-500 focus:outline-hidden">
               <option value="">{lang === 'ar' ? 'جميع الأوقات' : 'All When'}</option>
               {Object.keys(WHEN_COLORS).map(w => <option key={w} value={w}>{w}</option>)}
             </select>
             <select value={filterLevel} onChange={e => setFilterLevel(e.target.value)}
-              className="rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-xs focus:border-gold-500 focus:outline-none">
+              className="rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-xs focus:border-gold-500 focus:outline-hidden">
               <option value="">{lang === 'ar' ? 'جميع المستويات' : 'All Levels'}</option>
               {[...new Set(items.flatMap(i => i.levels?.map(l => l.levelNumber) || [i.level || 1]))].sort((a: number, b: number) => a - b).map((l: number) => (
                 <option key={l} value={l}>{lang === 'ar' ? `المستوى ${l}` : `Level ${l}`}</option>
@@ -688,7 +688,7 @@ export function SubjectsTab() {
             <div className="col-span-2">
               <label className="block text-sm font-medium text-gray-700 mb-1">{lang === 'ar' ? 'الوقت' : 'When'}</label>
               <select value={itemForm.whenLabel} onChange={e => setItemForm({ ...itemForm, whenLabel: e.target.value })}
-                className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:border-gold-500 focus:outline-none">
+                className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:border-gold-500 focus:outline-hidden">
                 <option value="">{lang === 'ar' ? 'اختر...' : 'Select...'}</option>
                 <option value="Vespers/Matins">Vespers/Matins</option>
                 <option value="Liturgy">Liturgy</option>
@@ -716,7 +716,7 @@ export function SubjectsTab() {
                   }
                 }}
                 placeholder="e.g. Ϣⲉⲣⲉ ⲛⲉ ⲧⲉⲙⲛⲟ"
-                className={`w-full rounded-lg bg-white px-3 py-2 text-sm focus:border-gold-500 focus:outline-none coptic-text ${itemFieldErrors.name ? 'border-red-400' : 'border-gray-200'}`} />
+                className={`w-full rounded-lg bg-white px-3 py-2 text-sm focus:border-gold-500 focus:outline-hidden coptic-text ${itemFieldErrors.name ? 'border-red-400' : 'border-gray-200'}`} />
               {itemFieldErrors.name && <p className="text-xs text-red-500 mt-1">{itemFieldErrors.name}</p>}
             </div>
             <div>
@@ -778,28 +778,28 @@ export function SubjectsTab() {
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">{lang === 'ar' ? 'الحصص - المجموعة 1' : 'Sessions - Group 1'}</label>
               <input type="number" min={0} step={0.5} value={itemForm.sessionsGroup1 || ''} onChange={e => setItemForm({ ...itemForm, sessionsGroup1: Number(e.target.value) })}
-                className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:border-gold-500 focus:outline-none" />
+                className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:border-gold-500 focus:outline-hidden" />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">{lang === 'ar' ? 'الحصص - المجموعة 2' : 'Sessions - Group 2'}</label>
               <input type="number" min={0} step={0.5} value={itemForm.sessionsGroup2 || ''} onChange={e => setItemForm({ ...itemForm, sessionsGroup2: Number(e.target.value) })}
-                className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:border-gold-500 focus:outline-none" />
+                className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:border-gold-500 focus:outline-hidden" />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">{lang === 'ar' ? 'الحصص - المجموعة 3' : 'Sessions - Group 3'}</label>
               <input type="number" min={0} step={0.5} value={itemForm.sessionsGroup3 || ''} onChange={e => setItemForm({ ...itemForm, sessionsGroup3: Number(e.target.value) })}
-                className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:border-gold-500 focus:outline-none" />
+                className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:border-gold-500 focus:outline-hidden" />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">{lang === 'ar' ? 'الحصص - المجموعة 4' : 'Sessions - Group 4'}</label>
               <input type="number" min={0} step={0.5} value={itemForm.sessionsGroup4 || ''} onChange={e => setItemForm({ ...itemForm, sessionsGroup4: Number(e.target.value) })}
-                className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:border-gold-500 focus:outline-none" />
+                className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:border-gold-500 focus:outline-hidden" />
             </div>
             <div className="col-span-2">
               <label className="block text-sm font-medium text-gray-700 mb-1">{lang === 'ar' ? 'الاسم بالعربية' : 'Arabic Name'}</label>
               <input type="text" value={itemForm.nameAr} onChange={e => setItemForm({ ...itemForm, nameAr: e.target.value })}
                 placeholder={lang === 'ar' ? 'الاسم بالعربية' : 'Arabic name'}
-                className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:border-gold-500 focus:outline-none" />
+                className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:border-gold-500 focus:outline-hidden" />
             </div>
             <div className="col-span-2">
               <label className="block text-sm font-medium text-gray-700 mb-1">{lang === 'ar' ? 'الاسم القبطي' : 'Coptic Name'}</label>
@@ -817,13 +817,13 @@ export function SubjectsTab() {
                   }
                 }}
                 placeholder={lang === 'ar' ? 'الخط القبطي' : 'Coptic script'}
-                className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:border-gold-500 focus:outline-none coptic-text" />
+                className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:border-gold-500 focus:outline-hidden coptic-text" />
             </div>
             <div className="col-span-2">
               <label className="block text-sm font-medium text-gray-700 mb-1">{lang === 'ar' ? 'الوصف (بالعربية)' : 'Description (Arabic)'}</label>
               <input type="text" value={itemForm.descriptionAr} onChange={e => setItemForm({ ...itemForm, descriptionAr: e.target.value })}
                 placeholder={lang === 'ar' ? 'الوصف بالعربية' : 'Arabic description'}
-                className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:border-gold-500 focus:outline-none" />
+                className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:border-gold-500 focus:outline-hidden" />
             </div>
             <div className="col-span-2">
               <div className="border-2 border-dashed border-amber-300 rounded-lg p-4 bg-amber-50">
@@ -844,7 +844,7 @@ export function SubjectsTab() {
                     }
                   }}
                   rows={4} placeholder={lang === 'ar' ? 'الصق النص (قبطي + حزات)' : 'Paste text (Coptic + Hazzat)'}
-                  className="w-full rounded-lg border border-amber-200 bg-white px-3 py-2 text-sm focus:border-gold-500 focus:outline-none font-mono" />
+                  className="w-full rounded-lg border border-amber-200 bg-white px-3 py-2 text-sm focus:border-gold-500 focus:outline-hidden font-mono" />
                 <p className="text-xs text-amber-600 mt-1">{lang === 'ar' ? 'CS→Unicode يتحول تلقائياً. معاينة الخط في الدرج' : 'CS→Unicode auto-converted on paste. Preview Hazzat font in drawer'}</p>
               </div>
             </div>
@@ -855,7 +855,7 @@ export function SubjectsTab() {
               <div className="flex items-center gap-2">
                 <input type="text" value={itemForm.presentationUrl || ''} onChange={e => setItemForm({ ...itemForm, presentationUrl: e.target.value })}
                   placeholder={lang === 'ar' ? 'رابط الملف أو ارفعه' : 'File URL or upload'}
-                  className="flex-1 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:border-gold-500 focus:outline-none" />
+                  className="flex-1 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:border-gold-500 focus:outline-hidden" />
                 <Button type="button" variant="outline" size="icon" onClick={() => pptxInputRef.current?.click()}
                   className="rounded-lg text-gray-600">
                   <Upload className="h-4 w-4" />
@@ -1036,7 +1036,7 @@ export function SubjectsTab() {
             {drawerItem.hazzat && (
               <DetailSection label={lang === 'ar' ? 'الحزّات' : 'Hazzat'}>
                 <div className="border border-gray-200 rounded-lg p-3 bg-gray-50">
-                  <p className="hazzat-text text-base whitespace-pre-wrap break-words">{drawerItem.hazzat}</p>
+                  <p className="hazzat-text text-base whitespace-pre-wrap wrap-break-word">{drawerItem.hazzat}</p>
                 </div>
               </DetailSection>
             )}

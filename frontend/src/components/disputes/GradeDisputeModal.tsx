@@ -86,7 +86,7 @@ export function GradeDisputeModal({
               onChange={(e) => setReason(e.target.value)}
               placeholder="Explain why you believe this grade should be re-evaluated..."
               rows={4}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-blue-500 resize-none"
             />
             <p className="text-xs text-gray-500 mt-1">
               {reason.length}/500 characters
@@ -96,7 +96,7 @@ export function GradeDisputeModal({
           {/* Error */}
           {error && (
             <div className="flex gap-2 items-start bg-red-50 border border-red-200 rounded-lg p-3">
-              <AlertCircle className="h-4 w-4 text-red-600 mt-0.5 flex-shrink-0" />
+              <AlertCircle className="h-4 w-4 text-red-600 mt-0.5 shrink-0" />
               <p className="text-sm text-red-700">{error}</p>
             </div>
           )}

@@ -55,26 +55,29 @@ export function DashboardSidebar({
     <aside onMouseEnter={onMouseEnter} onMouseLeave={onMouseLeave}
       className={`fixed inset-y-0 z-50 bg-white border-gray-200 transform ${isResizing ? 'transition-none' : 'transition-all duration-300 ease-in-out'} ${
         language === 'ar'
-          ? 'border-l right-0'
-          : 'border-r left-0'
+          ? 'border-l'
+          : 'border-r'
       } ${sidebarOpen ? 'translate-x-0' : language === 'ar' ? 'translate-x-full' : '-translate-x-full'} lg:translate-x-0 ${
         sidebarVisible ? '' : (language === 'ar' ? 'lg:translate-x-full' : 'lg:-translate-x-full') + ' overflow-hidden'
       }`}
-      style={{ width: sidebarVisible ? sidebarWidth : 0 }}>
+      // Anchored with an inline style: globals.css mirrors the `.left-0` / `.right-0` classes under
+      // [dir=rtl], which pinned the Arabic drawer to the wrong edge and left part of it on screen.
+      style={{ width: sidebarVisible ? sidebarWidth : 0, ...(language === 'ar' ? { right: 0 } : { left: 0 }) }}>
       {sidebarVisible && (
         <div
           onMouseDown={(e) => onStartResize(e)}
-          className={`absolute top-0 bottom-0 w-3 cursor-col-resize transition-colors z-50 flex items-center justify-center ${language === 'ar' ? 'left-0' : 'right-0'}`} title={language === 'ar' ? 'اسحب لتغيير الحجم' : 'Drag to resize'}
+          style={language === 'ar' ? { left: 0 } : { right: 0 }}
+          className="absolute top-0 bottom-0 w-3 cursor-col-resize transition-colors z-50 flex items-center justify-center" title={language === 'ar' ? 'اسحب لتغيير الحجم' : 'Drag to resize'}
         />
       )}
       <div className="flex items-center gap-3 border-b border-gray-200 px-4 h-[72px]">
-        <Image src="/cohep-logo.png" alt="COHEP" width={56} height={56} className="h-14 w-14 rounded-lg object-contain flex-shrink-0" />
-        <Button variant="ghost" size="icon" onClick={() => onSetSidebarOpen(false)} aria-label={language === 'ar' ? 'إغلاق' : 'Close sidebar'} className={`lg:hidden text-gray-400 hover:text-gray-600 h-7 w-7 flex-shrink-0 ${language === 'ar' ? 'mr-auto' : 'ml-auto'}`}>
+        <Image src="/cohep-logo.png" alt="COHEP" width={56} height={56} className="h-14 w-14 rounded-lg object-contain shrink-0" />
+        <Button variant="ghost" size="icon" onClick={() => onSetSidebarOpen(false)} aria-label={language === 'ar' ? 'إغلاق' : 'Close sidebar'} className={`lg:hidden text-gray-400 hover:text-gray-600 h-11 w-11 shrink-0 ${language === 'ar' ? 'mr-auto' : 'ml-auto'}`}>
           <X className="h-4 w-4" />
         </Button>
       </div>
 
-      <div className="flex flex-col h-[calc(100vh-4rem)] overflow-y-auto">
+      <div className="flex flex-col h-[calc(100dvh-4.5rem)] overflow-y-auto">
         <nav aria-label={language === 'ar' ? 'القائمة الرئيسية' : 'Main navigation'} className="flex-1 px-3 py-4 space-y-1">
           {mainNav.map((item: any) => {
             const isActive = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href))

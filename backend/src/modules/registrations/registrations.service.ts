@@ -1,9 +1,19 @@
 import { Injectable, Logger, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 import { MailService } from '../mail/mail.service';
+import { escapeHtml } from '../mail/email-template';
 import { NotificationsService } from '../notifications/notifications.service';
-import { uploadRecording } from '../../common/storage/r2';
+import { uploadRecording, isOwnedRecordingUrl } from '../../common/storage/r2';
 import { ConfigService } from '@nestjs/config';
+
+// The extension is chosen here, not taken from the client's MIME type: a photo sent as
+// text/html used to be stored as ".html" and served from the API origin.
+const PHOTO_EXTENSIONS: Record<string, string> = {
+  'image/jpeg': 'jpg',
+  'image/png': 'png',
+  'image/webp': 'webp',
+};
+const MAX_PHOTO_BYTES = 5 * 1024 * 1024;
 
 @Injectable()
 export class RegistrationsService {
@@ -83,6 +93,24 @@ export class RegistrationsService {
     const voiceAmen = files?.voice_amen?.[0];
     const voiceShafaat = files?.voice_shafaat?.[0];
     const photoFile = files?.photoFile?.[0];
+
+    // Validate everything before anything is uploaded, so a refused request leaves no orphan files.
+    if (photoFile) {
+      if (!PHOTO_EXTENSIONS[photoFile.mimetype]) {
+        throw new BadRequestException('Photo must be a JPEG, PNG or WebP image');
+      }
+      if (photoFile.size > MAX_PHOTO_BYTES) {
+        throw new BadRequestException('Photo must be 5 MB or smaller');
+      }
+    }
+    // These two fields take a URL from the client. They are later rendered for staff, so only
+    // URLs this platform issued are accepted.
+    if (!voiceFile && !voiceAmen && !voiceShafaat && dto.voiceRecordingUrl && !isOwnedRecordingUrl(dto.voiceRecordingUrl)) {
+      throw new BadRequestException('Invalid recording URL');
+    }
+    if (!photoFile && studentData.photoUrl && !isOwnedRecordingUrl(studentData.photoUrl)) {
+      throw new BadRequestException('Invalid photo URL');
+    }
     let voiceUrl: string | undefined;
     const recordings: Record<string, string> = {};
     const uploadVoice = async (f: Express.Multer.File, hymnId: string) => {
@@ -110,7 +138,7 @@ export class RegistrationsService {
     if (Object.keys(recordings).length) studentData.recordings = recordings;
     let photoUrl: string | undefined = studentData.photoUrl;
     if (photoFile) {
-      const ext = photoFile.mimetype.split('/')[1] || 'jpg';
+      const ext = PHOTO_EXTENSIONS[photoFile.mimetype];
       const key = `student-photos/registrations/${schoolSlug}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
       photoUrl = await uploadRecording(photoFile.buffer, key, photoFile.mimetype);
       studentData.photoUrl = photoUrl;
@@ -185,7 +213,7 @@ export class RegistrationsService {
         await this.mailService.sendMail(
           school.email,
           `New registration: ${name} — ${school.name}`,
-          `<p>New registration for <strong>${name}</strong> (${app.hymnChoice})</p><p>Review in <a href="${process.env.FRONTEND_URL || 'https://cohep-platform.vercel.app'}/dashboard/pending-registrations">Dashboard → Registrations</a></p>`,
+          `<p>New registration for <strong>${escapeHtml(name)}</strong> (${escapeHtml(app.hymnChoice)})</p><p>Review in <a href="${escapeHtml(process.env.FRONTEND_URL || 'https://cohep-platform.vercel.app')}/dashboard/pending-registrations">Dashboard → Registrations</a></p>`,
         );
       } catch {}
     }
@@ -408,7 +436,7 @@ export class RegistrationsService {
         await this.mailService.sendMail(
           parentEmail,
           `Welcome to ${year.name || 'COHEP'} — ${firstName} is enrolled`,
-          `<p>Dear parent,</p><p>Your application for <strong>${firstName} ${lastName}</strong> has been <strong>approved</strong>.</p><p>Student code: <strong>${studentCode}</strong></p><p><a href="${process.env.FRONTEND_URL || 'https://cohep-platform.vercel.app'}/portal">Open Parent Portal</a></p><p>Voice hymn: ${app.hymnChoice}</p>`,
+          `<p>Dear parent,</p><p>Your application for <strong>${escapeHtml(`${firstName} ${lastName}`)}</strong> has been <strong>approved</strong>.</p><p>Student code: <strong>${escapeHtml(studentCode)}</strong></p><p><a href="${escapeHtml(process.env.FRONTEND_URL || 'https://cohep-platform.vercel.app')}/portal">Open Parent Portal</a></p><p>Voice hymn: ${escapeHtml(app.hymnChoice)}</p>`,
         );
       }
     } catch (err) {
@@ -436,7 +464,7 @@ export class RegistrationsService {
         await this.mailService.sendMail(
           parentEmail,
           `Update on your application — ${sd.name || 'Student'}`,
-          `<p>Your application for <strong>${sd.name || 'Student'}</strong> was not approved at this time.</p>${reason ? `<p>Reason: ${reason}</p>` : ''}<p>You may reapply via <a href="${process.env.FRONTEND_URL || 'https://cohep-platform.vercel.app'}/register">registration</a>.</p>`,
+          `<p>Your application for <strong>${escapeHtml(sd.name || 'Student')}</strong> was not approved at this time.</p>${reason ? `<p>Reason: ${escapeHtml(reason)}</p>` : ''}<p>You may reapply via <a href="${escapeHtml(process.env.FRONTEND_URL || 'https://cohep-platform.vercel.app')}/register">registration</a>.</p>`,
         );
       }
     } catch {}

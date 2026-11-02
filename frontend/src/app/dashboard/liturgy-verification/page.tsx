@@ -98,7 +98,7 @@ export default function LiturgyVerificationDashboard() {
         {/* Error */}
         {error && (
           <div className="rounded-lg border border-red-200 bg-red-50 p-4 flex gap-3">
-            <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
+            <AlertCircle className="h-5 w-5 text-red-600 shrink-0 mt-0.5" />
             <p className="text-sm text-red-700">{t('Failed to load verifications', 'فشل تحميل التحقق')}</p>
           </div>
         )}
@@ -210,7 +210,7 @@ export default function LiturgyVerificationDashboard() {
                           'Add verification notes (optional, max 300 chars)',
                           'أضف ملاحظات التحقق (اختياري، 300 حرف كحد أقصى)',
                         )}
-                        className="w-full rounded-lg border border-emerald-200 bg-white px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none resize-none"
+                        className="w-full rounded-lg border border-emerald-200 bg-white px-3 py-2 text-sm focus:border-emerald-500 focus:outline-hidden resize-none"
                         rows={2}
                       />
                       <div className="flex items-center justify-between">

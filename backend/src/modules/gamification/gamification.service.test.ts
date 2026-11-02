@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { GamificationService } from './gamification.service';
 import { PrismaService } from '../../database/prisma.service';
 import { SchoolResolver } from '../../common/utils/school-resolver';
+import { AuditService } from '../audit/audit.service';
 import { NotFoundException, BadRequestException } from '@nestjs/common';
 
 describe('GamificationService', () => {
@@ -29,6 +30,7 @@ describe('GamificationService', () => {
         GamificationService,
         { provide: PrismaService, useValue: prismaMock },
         { provide: SchoolResolver, useValue: schoolResolverMock },
+        { provide: AuditService, useValue: { log: jest.fn().mockResolvedValue(undefined) } },
       ],
     }).compile();
 

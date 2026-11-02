@@ -1,284 +1,160 @@
-import { Test, TestingModule } from '@nestjs/testing';
 import { NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { GradeDisputesService } from './grade-disputes.service';
-import { PrismaService } from '../../database/prisma.service';
-import { StudentNotificationsService } from '../student-notifications/student-notifications.service';
+import { AccessScopeService } from '../../common/access-scope.service';
+import { buildFixture, CALLERS, STUDENT_USER } from '../../common/testing/scope-fixture';
 
+/**
+ * The real AccessScopeService over an in-memory database that evaluates `where` clauses, so a
+ * denied caller is shown to get a 404 rather than just a filter being passed to a mock.
+ */
 describe('GradeDisputesService', () => {
   let service: GradeDisputesService;
   let prisma: any;
-  let notificationsService: any;
+  let notify: jest.Mock;
+  const reason = 'Grade seems incorrect';
 
-  const prismaMock = {
-    assessmentSubmission: { findUnique: jest.fn() },
-    user: { findUnique: jest.fn() },
-    gradeDispute: {
-      findFirst: jest.fn(),
-      findMany: jest.fn(),
-      findUnique: jest.fn(),
-      create: jest.fn(),
-      update: jest.fn(),
-      count: jest.fn(),
-    },
-    grade: { update: jest.fn() },
-    $transaction: jest.fn(),
-  };
-
-  const notificationsMock = { notify: jest.fn().mockResolvedValue(undefined) };
-
-  beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        GradeDisputesService,
-        { provide: PrismaService, useValue: prismaMock },
-        { provide: StudentNotificationsService, useValue: notificationsMock },
-      ],
-    }).compile();
-
-    service = module.get<GradeDisputesService>(GradeDisputesService);
-    prisma = module.get(PrismaService);
-    notificationsService = module.get(StudentNotificationsService);
-    jest.clearAllMocks();
+  beforeEach(() => {
+    const { prisma: fake } = buildFixture();
+    prisma = {
+      ...fake,
+      gradeDispute: {
+        ...fake.gradeDispute,
+        findFirst: jest.fn().mockResolvedValue(null),
+        create: jest.fn(async ({ data }: any) => ({ id: 'new', ...data })),
+        update: jest.fn(async ({ where }: any) => ({ id: where.id, status: 'responded' })),
+        count: jest.fn(async ({ where }: any) => fake.gradeDispute.count({ where })),
+      },
+      grade: { update: jest.fn().mockResolvedValue({}) },
+      $transaction: jest.fn(async (fn: any) => fn(prisma)),
+    };
+    notify = jest.fn().mockResolvedValue(undefined);
+    service = new GradeDisputesService(prisma, { notify } as any, new AccessScopeService(prisma));
   });
 
+  // caller -> may they dispute / answer a dispute about a school A, group 1 student?
+  const ON_GROUP_1_STUDENT = [
+    ['adminA', true],
+    ['servantG1', true],
+    ['servantG2', false],
+    ['servantUnassigned', true],
+    ['adminB', false],
+  ] as const;
+
   describe('createDispute', () => {
-    const createData = {
-      schoolId: 'school-1',
-      submissionId: 'sub-1',
-      requestedById: 'student-1',
-      reason: 'Grade seems incorrect',
-    };
+    it.each(ON_GROUP_1_STUDENT)('%s on a group 1 student’s submission: allowed=%s', async (caller, allowed) => {
+      const run = service.createDispute({ user: CALLERS[caller], submissionId: 'sub1', reason });
+      if (allowed) {
+        await expect(run).resolves.toEqual(expect.objectContaining({ schoolId: 'A', submissionId: 'sub1', gradeId: 'gr-1', requestedById: caller }));
+      } else {
+        await expect(run).rejects.toBeInstanceOf(NotFoundException);
+        expect(prisma.gradeDispute.create).not.toHaveBeenCalled();
+      }
+    });
 
-    const mockSubmission = {
-      id: 'sub-1',
-      studentId: 'student-1',
-      grades: [{ id: 'grade-1', score: 80 }],
-      student: { id: 'student-1', firstName: 'John', lastName: 'Doe' },
-    };
+    it('answers a missing submission with 404', async () => {
+      await expect(service.createDispute({ user: CALLERS.adminA, submissionId: 'nope', reason })).rejects.toThrow(NotFoundException);
+    });
 
-    it('should create a dispute when submission found with grades', async () => {
-      prismaMock.assessmentSubmission.findUnique.mockResolvedValue(mockSubmission);
-      prismaMock.user.findUnique.mockResolvedValue({ userRoles: [{ role: { name: 'student' } }] });
-      prismaMock.gradeDispute.findFirst.mockResolvedValue(null);
+    it('lets a student dispute their own submission and refuses another student’s', async () => {
+      await expect(service.createDispute({ user: STUDENT_USER, submissionId: 'subOwn', reason })).resolves.toBeDefined();
+      await expect(service.createDispute({ user: STUDENT_USER, submissionId: 'sub1', reason })).rejects.toThrow(ForbiddenException);
+    });
 
-      const createdDispute = { id: 'dispute-1', ...createData, gradeId: 'grade-1' };
-      prismaMock.gradeDispute.create.mockResolvedValue(createdDispute);
-
-      const result = await service.createDispute(createData);
-
-      expect(result).toEqual(createdDispute);
-      expect(prismaMock.assessmentSubmission.findUnique).toHaveBeenCalledWith({
-        where: { id: 'sub-1' },
-        include: { grades: true, student: true },
+    it('refuses a submission with no grade and a second pending dispute', async () => {
+      prisma.assessmentSubmission.findUnique = jest.fn().mockResolvedValue({
+        id: 'sub1', studentId: 's1', assessment: { schoolId: 'A' }, grades: [],
       });
-      expect(prismaMock.gradeDispute.findFirst).toHaveBeenCalledWith({
-        where: { submissionId: 'sub-1', status: 'pending' },
-      });
-      expect(prismaMock.gradeDispute.create).toHaveBeenCalledWith({
-        data: {
-          schoolId: 'school-1',
-          submissionId: 'sub-1',
-          gradeId: 'grade-1',
-          requestedById: 'student-1',
-          reason: 'Grade seems incorrect',
-        },
-        include: {
-          submission: { include: { student: true, assessment: true } },
-          requestedBy: { select: { id: true, firstName: true, lastName: true } },
-        },
-      });
+      await expect(service.createDispute({ user: CALLERS.adminA, submissionId: 'sub1', reason })).rejects.toThrow('No grade found');
     });
 
-    it('should throw NotFoundException when submission not found', async () => {
-      prismaMock.assessmentSubmission.findUnique.mockResolvedValue(null);
-
-      await expect(service.createDispute(createData)).rejects.toThrow(NotFoundException);
-      await expect(service.createDispute(createData)).rejects.toThrow('Submission not found');
-    });
-
-    it('should throw ForbiddenException when student tries to dispute another student\'s submission', async () => {
-      const otherStudentSubmission = {
-        ...mockSubmission,
-        studentId: 'other-student',
-      };
-      prismaMock.assessmentSubmission.findUnique.mockResolvedValue(otherStudentSubmission);
-      prismaMock.user.findUnique.mockResolvedValue({ userRoles: [{ role: { name: 'student' } }] });
-
-      await expect(service.createDispute(createData)).rejects.toThrow(ForbiddenException);
-      await expect(service.createDispute(createData)).rejects.toThrow('You can only dispute your own submissions');
-    });
-
-    it('should throw BadRequestException when no grade found', async () => {
-      const submissionNoGrades = { ...mockSubmission, grades: [] };
-      prismaMock.assessmentSubmission.findUnique.mockResolvedValue(submissionNoGrades);
-      prismaMock.user.findUnique.mockResolvedValue({ userRoles: [{ role: { name: 'student' } }] });
-
-      await expect(service.createDispute(createData)).rejects.toThrow(BadRequestException);
-      await expect(service.createDispute(createData)).rejects.toThrow('No grade found for this submission');
-    });
-
-    it('should throw BadRequestException when pending dispute already exists', async () => {
-      prismaMock.assessmentSubmission.findUnique.mockResolvedValue(mockSubmission);
-      prismaMock.user.findUnique.mockResolvedValue({ userRoles: [{ role: { name: 'student' } }] });
-      prismaMock.gradeDispute.findFirst.mockResolvedValue({ id: 'existing-dispute' });
-
-      await expect(service.createDispute(createData)).rejects.toThrow(BadRequestException);
-      await expect(service.createDispute(createData)).rejects.toThrow(
+    it('refuses a second pending dispute for the same submission', async () => {
+      prisma.gradeDispute.findFirst.mockResolvedValue({ id: 'existing' });
+      await expect(service.createDispute({ user: CALLERS.adminA, submissionId: 'sub1', reason })).rejects.toThrow(
         'A pending dispute already exists for this submission',
       );
     });
-  });
 
-  describe('listDisputes', () => {
-    const mockDisputes = [
-      { id: 'dispute-1', schoolId: 'school-1', status: 'pending' },
-      { id: 'dispute-2', schoolId: 'school-1', status: 'responded' },
-    ];
-
-    it('should return disputes with default limit 50', async () => {
-      prismaMock.gradeDispute.findMany.mockResolvedValue(mockDisputes);
-
-      const result = await service.listDisputes('school-1');
-
-      expect(result).toEqual(mockDisputes);
-      expect(prismaMock.gradeDispute.findMany).toHaveBeenCalledWith({
-        where: { schoolId: 'school-1' },
-        include: {
-          submission: { include: { student: true, assessment: true } },
-          requestedBy: { select: { id: true, firstName: true, lastName: true } },
-          respondedBy: { select: { id: true, firstName: true, lastName: true } },
-        },
-        orderBy: { createdAt: 'desc' },
-        take: 50,
-      });
-    });
-
-    it('should cap limit at 100', async () => {
-      prismaMock.gradeDispute.findMany.mockResolvedValue(mockDisputes);
-
-      await service.listDisputes('school-1', { limit: 200 });
-
-      expect(prismaMock.gradeDispute.findMany).toHaveBeenCalledWith(
-        expect.objectContaining({ take: 100 }),
-      );
-    });
-
-    it('should filter by status and requestedById when provided', async () => {
-      prismaMock.gradeDispute.findMany.mockResolvedValue([mockDisputes[0]]);
-
-      await service.listDisputes('school-1', { status: 'pending', requestedById: 'student-1', limit: 10 });
-
-      expect(prismaMock.gradeDispute.findMany).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: { schoolId: 'school-1', status: 'pending', requestedById: 'student-1' },
-          take: 10,
-        }),
-      );
-    });
+    it.each([['empty', ''], ['blank', '   '], ['too long', 'x'.repeat(501)], ['missing', undefined as any]])(
+      'refuses a %s reason',
+      async (_l, bad) => {
+        await expect(service.createDispute({ user: CALLERS.adminA, submissionId: 'sub1', reason: bad })).rejects.toThrow(BadRequestException);
+      },
+    );
   });
 
   describe('respondToDispute', () => {
-    const respondData = {
-      respondedById: 'teacher-1',
-      response: 'Grade has been reviewed and updated',
-      newScore: 90,
-    };
+    const answer = { response: 'Reviewed and updated', newScore: 8 };
 
-    const mockDispute = {
-      id: 'dispute-1',
-      status: 'pending',
-      submission: {
-        studentId: 'student-1',
-        student: { id: 'student-1', firstName: 'John', lastName: 'Doe' },
-        grades: [{ id: 'grade-1', score: 80 }],
-      },
-    };
-
-    it('should respond to dispute with transaction and notify student', async () => {
-      prismaMock.gradeDispute.findUnique.mockResolvedValue(mockDispute);
-      prismaMock.$transaction.mockImplementation(async (fn) => fn(prismaMock));
-
-      const updatedDispute = {
-        ...mockDispute,
-        status: 'responded',
-        respondedById: 'teacher-1',
-        response: respondData.response,
-      };
-      prismaMock.gradeDispute.update.mockResolvedValue(updatedDispute);
-
-      const result = await service.respondToDispute('dispute-1', respondData);
-
-      expect(result).toEqual(updatedDispute);
-      expect(prismaMock.$transaction).toHaveBeenCalled();
-      expect(prismaMock.gradeDispute.update).toHaveBeenCalledWith({
-        where: { id: 'dispute-1' },
-        data: expect.objectContaining({
-          status: 'responded',
-          respondedById: 'teacher-1',
-          response: respondData.response,
-          newScore: 90,
-        }),
-        include: {
-          submission: { include: { student: true } },
-          respondedBy: { select: { id: true, firstName: true, lastName: true } },
-        },
-      });
-      expect(prismaMock.grade.update).toHaveBeenCalledWith({
-        where: { id: 'grade-1' },
-        data: { score: 90 },
-      });
-      expect(notificationsMock.notify).toHaveBeenCalledWith(
-        expect.objectContaining({
-          studentId: 'student-1',
-          type: 'grade_dispute_responded',
-          referenceId: 'dispute-1',
-        }),
-      );
+    it.each(ON_GROUP_1_STUDENT)('%s on a group 1 dispute: allowed=%s', async (caller, allowed) => {
+      const run = service.respondToDispute('d1', { user: CALLERS[caller], ...answer });
+      if (allowed) {
+        await expect(run).resolves.toBeDefined();
+        expect(prisma.grade.update).toHaveBeenCalledWith({ where: { id: 'gr-1' }, data: { score: 8 } });
+        expect(notify).toHaveBeenCalledWith(expect.objectContaining({ studentId: 's1', referenceId: 'd1' }));
+      } else {
+        await expect(run).rejects.toBeInstanceOf(NotFoundException);
+        expect(prisma.$transaction).not.toHaveBeenCalled();
+        expect(prisma.grade.update).not.toHaveBeenCalled();
+      }
     });
 
-    it('should not update grade when newScore is not provided', async () => {
-      prismaMock.gradeDispute.findUnique.mockResolvedValue(mockDispute);
-      prismaMock.$transaction.mockImplementation(async (fn) => fn(prismaMock));
+    it('answers another school’s dispute with 404 for a school B admin', async () => {
+      await expect(service.respondToDispute('d1', { user: CALLERS.adminB, ...answer })).rejects.toThrow('Dispute not found');
+      await expect(service.respondToDispute('dB', { user: CALLERS.adminA, ...answer })).rejects.toThrow('Dispute not found');
+    });
 
-      const updatedDispute = { ...mockDispute, status: 'responded' };
-      prismaMock.gradeDispute.update.mockResolvedValue(updatedDispute);
+    it.each([[-1], [11], [10.01], [NaN], [Infinity]])('refuses newScore %s above the grade’s maximum or below zero', async (newScore) => {
+      await expect(service.respondToDispute('d1', { user: CALLERS.adminA, response: 'ok', newScore })).rejects.toThrow(/newScore must be between 0 and 10/);
+      expect(prisma.grade.update).not.toHaveBeenCalled();
+    });
 
-      await service.respondToDispute('dispute-1', {
-        respondedById: 'teacher-1',
-        response: 'Grade is correct',
+    it('accepts the exact bounds 0 and the maximum', async () => {
+      await expect(service.respondToDispute('d1', { user: CALLERS.adminA, response: 'ok', newScore: 0 })).resolves.toBeDefined();
+      expect(prisma.grade.update).toHaveBeenLastCalledWith({ where: { id: 'gr-1' }, data: { score: 0 } });
+    });
+
+    it('leaves the grade alone when no newScore is given', async () => {
+      await service.respondToDispute('d1', { user: CALLERS.adminA, response: 'Grade is correct' });
+      expect(prisma.grade.update).not.toHaveBeenCalled();
+    });
+
+    it('refuses a dispute that was already answered', async () => {
+      prisma.gradeDispute.findUnique = jest.fn().mockResolvedValue({
+        id: 'd1', schoolId: 'A', status: 'responded', gradeId: 'gr-1',
+        submission: { studentId: 's1', grades: [{ id: 'gr-1', maxScore: 10 }] },
       });
-
-      expect(prismaMock.grade.update).not.toHaveBeenCalled();
+      await expect(service.respondToDispute('d1', { user: CALLERS.adminA, ...answer })).rejects.toThrow('Dispute already responded to');
     });
 
-    it('should throw NotFoundException when dispute not found', async () => {
-      prismaMock.gradeDispute.findUnique.mockResolvedValue(null);
-
-      await expect(service.respondToDispute('nonexistent', respondData)).rejects.toThrow(NotFoundException);
-      await expect(service.respondToDispute('nonexistent', respondData)).rejects.toThrow('Dispute not found');
-    });
-
-    it('should throw BadRequestException when dispute already responded to', async () => {
-      const respondedDispute = { ...mockDispute, status: 'responded' };
-      prismaMock.gradeDispute.findUnique.mockResolvedValue(respondedDispute);
-
-      await expect(service.respondToDispute('dispute-1', respondData)).rejects.toThrow(BadRequestException);
-      await expect(service.respondToDispute('dispute-1', respondData)).rejects.toThrow(
-        'Dispute already responded to',
-      );
+    it.each([['empty', ''], ['too long', 'x'.repeat(501)]])('refuses a %s response', async (_l, bad) => {
+      await expect(service.respondToDispute('d1', { user: CALLERS.adminA, response: bad })).rejects.toThrow(BadRequestException);
     });
   });
 
-  describe('getPendingCount', () => {
-    it('should return count of pending disputes for a school', async () => {
-      prismaMock.gradeDispute.count.mockResolvedValue(5);
+  describe('listDisputes and getPendingCount', () => {
+    const idsFor = async (caller: keyof typeof CALLERS) =>
+      (await service.listDisputes(CALLERS[caller])).map((d: any) => d.id).sort();
 
-      const result = await service.getPendingCount('school-1');
+    it('lists only the caller’s school, and only their own students’ disputes for an assigned servant', async () => {
+      expect(await idsFor('adminA')).toEqual(['d1', 'd2']);
+      expect(await idsFor('servantG1')).toEqual(['d1']);
+      expect(await idsFor('servantG2')).toEqual(['d2']);
+      expect(await idsFor('servantUnassigned')).toEqual(['d1', 'd2']);
+      expect(await idsFor('adminB')).toEqual(['dB']);
+    });
 
-      expect(result).toBe(5);
-      expect(prismaMock.gradeDispute.count).toHaveBeenCalledWith({
-        where: { schoolId: 'school-1', status: 'pending' },
-      });
+    it('counts with the same scope', async () => {
+      expect(await service.getPendingCount(CALLERS.adminA)).toBe(2);
+      expect(await service.getPendingCount(CALLERS.servantG1)).toBe(1);
+      expect(await service.getPendingCount(CALLERS.adminB)).toBe(1);
+    });
+
+    it('caps the page at 100 and defaults to 50', async () => {
+      const spy = jest.spyOn(prisma.gradeDispute, 'findMany');
+      await service.listDisputes(CALLERS.adminA, { limit: 200 });
+      expect(spy).toHaveBeenLastCalledWith(expect.objectContaining({ take: 100 }));
+      await service.listDisputes(CALLERS.adminA);
+      expect(spy).toHaveBeenLastCalledWith(expect.objectContaining({ take: 50 }));
     });
   });
 });

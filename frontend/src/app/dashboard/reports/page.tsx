@@ -15,15 +15,24 @@ import { http } from '@/lib/http-client'
 import { useLanguage } from '@/lib/use-language'
 import { getSchoolId } from '@/lib/school'
 import { EmptyState } from '@/components/ui/empty-state'
+import { LevelGroupSection } from './_components/level-group-section'
+import { DataQualitySection } from './_components/data-quality-section'
 
 // ── Types ────────────────────────────────────────────────────────────────────
+
+interface HealthComponent {
+  key: string; labelEn: string; labelAr: string; points: number; max: number; counted: boolean
+  detailEn: string; detailAr: string
+}
 
 interface PriestPulse {
   generatedAt: string
   pulse: {
-    attendanceThisWeek: number; attendanceLastWeek: number; attendanceTrend: number
+    /** Last 7 days; null = no class was held (not 0%). */
+    attendanceThisWeek: number | null; attendanceLastWeek: number | null; attendanceTrend: number | null
     studentsAtRisk: number; pendingGrading: number; xpEarnedThisWeek: number
     familyPracticeThisWeek: number; totalStudents: number; activeStudentsThisWeek: number; healthScore: number
+    healthBreakdown: HealthComponent[]
   }
   signals: Array<{ type: 'warning' | 'info' | 'success'; messageEn: string; messageAr: string }>
 }
@@ -120,18 +129,20 @@ function PriestPulseSection({ schoolId, lang }: { schoolId: string; lang: string
   const cards = [
     {
       label: t('Attendance', 'الحضور'),
-      value: pulse.attendanceThisWeek + '%',
-      sub: t('This week', 'هذا الأسبوع'),
-      trend: pulse.attendanceTrend,
+      value: pulse.attendanceThisWeek === null ? '—' : pulse.attendanceThisWeek + '%',
+      sub: pulse.attendanceThisWeek === null ? t('No class in the last 7 days', 'لا حصص في آخر 7 أيام') : t('Last 7 days', 'آخر 7 أيام'),
+      // Only claim a change when both weeks had a class to compare.
+      trend: pulse.attendanceTrend ?? undefined,
       suffix: '%',
       icon: Users,
       iconBg: 'bg-blue-50', iconColor: 'text-blue-600',
-      alert: pulse.attendanceThisWeek < 60,
+      alert: pulse.attendanceThisWeek !== null && pulse.attendanceThisWeek < 60,
     },
     {
       label: t('Students At Risk', 'طلاب في خطر'),
       value: String(pulse.studentsAtRisk),
-      sub: t('Missed 3+ sessions', 'غابوا عن 3+ جلسات'),
+      sub: t('Missed 3+ in a row · view list', 'غابوا 3+ متتالية · عرض القائمة'),
+      href: '/dashboard/students?engagement=at_risk',
       icon: AlertTriangle,
       iconBg: pulse.studentsAtRisk > 0 ? 'bg-red-50' : 'bg-green-50',
       iconColor: pulse.studentsAtRisk > 0 ? 'text-red-500' : 'text-green-600',
@@ -177,7 +188,7 @@ function PriestPulseSection({ schoolId, lang }: { schoolId: string; lang: string
       className="space-y-4"
     >
       {/* Health score hero */}
-      <div className={`rounded-2xl border bg-gradient-to-br ${healthBg} p-5`}>
+      <div className={`rounded-2xl border bg-linear-to-br ${healthBg} p-5`}>
         <div className="flex items-start justify-between gap-4">
           <div>
             <p className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-1">
@@ -195,10 +206,29 @@ function PriestPulseSection({ schoolId, lang }: { schoolId: string; lang: string
                 : t('Some areas need attention this week.', 'بعض المجالات تحتاج اهتماماً هذا الأسبوع.')}
             </p>
           </div>
-          <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-white/60 border border-white/80 shadow-sm">
+          <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-white/60 border border-white/80 shadow-xs">
             <Church className={`h-8 w-8 ${healthColor}`} />
           </div>
         </div>
+        <details className="mt-3 group">
+          <summary className="cursor-pointer text-xs font-semibold text-gray-700 hover:text-gray-900 min-h-[44px] sm:min-h-0 flex items-center">
+            {t('How is this calculated?', 'كيف تُحسب؟')}
+          </summary>
+          <ul className="mt-2 space-y-1.5 rounded-xl bg-white/70 p-3 text-xs text-gray-700">
+            {pulse.healthBreakdown.map(c => (
+              <li key={c.key} className="flex items-start justify-between gap-3">
+                <span>
+                  <span className="font-semibold text-gray-900">{lang === 'ar' ? c.labelAr : c.labelEn}</span>
+                  <span className="block text-gray-600">{lang === 'ar' ? c.detailAr : c.detailEn}</span>
+                </span>
+                <span className="shrink-0 font-bold tabular-nums text-gray-900">{c.counted ? `${c.points}/${c.max}` : '—'}</span>
+              </li>
+            ))}
+            <li className="border-t border-gray-200 pt-1.5 text-gray-600">
+              {t('Score = points earned ÷ points possible. A week with no class is left out rather than scored as zero.', 'الدرجة = النقاط المكتسبة ÷ النقاط الممكنة. الأسبوع بلا حصص يُستبعد ولا يُحسب صفراً.')}
+            </li>
+          </ul>
+        </details>
         <div className="mt-3 text-[11px] text-gray-500">
           {t('Generated', 'تم التوليد')} {new Date(data.generatedAt).toLocaleTimeString(lang === 'ar' ? 'ar-EG' : 'en-GB', { hour: '2-digit', minute: '2-digit' })}
           <button onClick={refresh} className="ml-3 inline-flex items-center gap-1 text-gray-500 hover:text-gray-600 transition-colors">
@@ -231,8 +261,10 @@ function PriestPulseSection({ schoolId, lang }: { schoolId: string; lang: string
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {cards.map(card => {
           const Icon = card.icon
-          return (
-            <div key={card.label} className={`rounded-xl border bg-white p-4 ${card.alert ? 'border-red-200 ring-1 ring-red-100' : 'border-gray-200'}`}>
+          const cardClass = `rounded-xl border bg-white p-4 ${card.alert ? 'border-red-200 ring-1 ring-red-100' : 'border-gray-200'}`
+          const href = (card as { href?: string }).href
+          const content = (
+            <>
               <div className="flex items-start justify-between gap-2">
                 <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${card.iconBg}`}>
                   <Icon className={`h-4.5 w-4.5 ${card.iconColor}`} />
@@ -244,8 +276,11 @@ function PriestPulseSection({ schoolId, lang }: { schoolId: string; lang: string
                 <div className="text-xs text-gray-500 mt-0.5">{card.label}</div>
                 <div className="text-[11px] text-gray-500 mt-0.5">{card.sub}</div>
               </div>
-            </div>
+            </>
           )
+          return href
+            ? <Link key={card.label} href={href} className={`${cardClass} block hover:border-gold-400 hover:shadow-xs transition`}>{content}</Link>
+            : <div key={card.label} className={cardClass}>{content}</div>
         })}
       </div>
     </motion.div>
@@ -407,7 +442,7 @@ function ServantContributionsSection({ schoolId, lang }: { schoolId: string; lan
     >
       {/* Summary */}
       {data.summary.mostActiveThisMonth && (
-        <div className="rounded-xl border border-purple-100 bg-gradient-to-r from-purple-50 to-indigo-50 p-4">
+        <div className="rounded-xl border border-purple-100 bg-linear-to-r from-purple-50 to-indigo-50 p-4">
           <div className="flex items-center gap-3">
             <Crown className="h-5 w-5 text-purple-500 shrink-0" />
             <div>
@@ -504,13 +539,27 @@ export default function ReportsPage() {
   const lang = useLanguage()
   const t = (en: string, ar: string) => lang === 'ar' ? ar : en
   const schoolId = getSchoolId()
-  const [activeTab, setActiveTab] = useState<'pulse' | 'liturgical' | 'servants'>('pulse')
+  const [activeTab, setActiveTab] = useState<'pulse' | 'levels' | 'quality' | 'liturgical' | 'servants'>('pulse')
+  // The servant report profiles other servants' activity, so it is leadership-only (the API enforces it too).
+  const [canSeeServantReport, setCanSeeServantReport] = useState(false)
+  // The level/group comparison is for school leadership (the API enforces the same roles).
+  const [canSeeComparison, setCanSeeComparison] = useState(false)
+  useEffect(() => {
+    try {
+      const roles: string[] = JSON.parse(localStorage.getItem('user') || '{}').roles || []
+      setCanSeeServantReport(roles.some(r => ['super_admin', 'admin', 'principal'].includes(r)))
+      setCanSeeComparison(roles.some(r => ['super_admin', 'admin', 'principal', 'priest', 'curriculum_manager'].includes(r)))
+    } catch {}
+  }, [])
 
-  const tabs = [
+  const allTabs = [
     { id: 'pulse' as const,      label: t('Priest Pulse', 'نبض الكاهن'),      icon: Church,    description: t('30-second school health overview', 'نظرة سريعة على صحة المدرسة') },
+    { id: 'levels' as const,     label: t('Levels & Groups', 'المراحل والمجموعات'), icon: Users,     description: t('Compare every level and group side by side', 'قارن كل مرحلة ومجموعة جنبًا إلى جنب') },
+    { id: 'quality' as const,    label: t('Data Quality', 'جودة البيانات'),    icon: CheckCircle2, description: t('Missing photos, parent contacts and grades', 'صور ووسائل اتصال وصفوف ناقصة') },
     { id: 'liturgical' as const, label: t('Liturgical Seasons', 'المواسم الليتورجية'), icon: Calendar,  description: t('Engagement overlaid on the Coptic calendar', 'المشاركة على التقويم القبطي') },
     { id: 'servants' as const,   label: t('Servant Report', 'تقرير الخدام'),   icon: Award,     description: t('Appreciation-framed contributions', 'مساهمات معروضة بتقدير') },
   ]
+  const tabs = allTabs.filter(tab => (tab.id !== 'servants' || canSeeServantReport) && ((tab.id !== 'levels' && tab.id !== 'quality') || canSeeComparison))
 
   return (
     <div className="space-y-6">
@@ -525,16 +574,18 @@ export default function ReportsPage() {
       </div>
 
       {/* Tab selector */}
-      <div className="flex flex-col sm:flex-row gap-3">
+      <div className="grid grid-cols-2 sm:flex sm:flex-row gap-3">
         {tabs.map(tab => {
           const Icon = tab.icon
           return (
             <button
               key={tab.id}
+              type="button"
+              aria-pressed={activeTab === tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex items-start gap-3 rounded-xl border p-4 text-left flex-1 transition-all ${
+              className={`flex items-start gap-2 sm:gap-3 rounded-xl border p-3 sm:p-4 text-start flex-1 transition-all ${
                 activeTab === tab.id
-                  ? 'border-gold-400 bg-gold-50 shadow-sm'
+                  ? 'border-gold-400 bg-gold-50 shadow-xs'
                   : 'border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50'
               }`}
             >
@@ -543,7 +594,7 @@ export default function ReportsPage() {
               </div>
               <div className="min-w-0">
                 <p className={`text-sm font-semibold ${activeTab === tab.id ? 'text-gold-800' : 'text-gray-900'}`}>{tab.label}</p>
-                <p className="text-[11px] text-gray-500 mt-0.5 leading-tight">{tab.description}</p>
+                <p className="hidden sm:block text-[11px] text-gray-500 mt-0.5 leading-tight">{tab.description}</p>
               </div>
             </button>
           )
@@ -552,8 +603,10 @@ export default function ReportsPage() {
 
       {/* Tab content */}
       {activeTab === 'pulse' && <PriestPulseSection schoolId={schoolId} lang={lang} />}
+      {activeTab === 'levels' && canSeeComparison && <LevelGroupSection schoolId={schoolId} lang={lang} />}
+      {activeTab === 'quality' && canSeeComparison && <DataQualitySection schoolId={schoolId} lang={lang} />}
       {activeTab === 'liturgical' && <LiturgicalEngagementSection schoolId={schoolId} lang={lang} />}
-      {activeTab === 'servants' && <ServantContributionsSection schoolId={schoolId} lang={lang} />}
+      {activeTab === 'servants' && canSeeServantReport && <ServantContributionsSection schoolId={schoolId} lang={lang} />}
     </div>
   )
 }

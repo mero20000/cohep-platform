@@ -112,7 +112,7 @@ export function StudentFormModal({ student, activeLevels, churches, gradeOptions
   const blobRef = useRef('')
   const revoke = useCallback(() => { if (blobRef.current) URL.revokeObjectURL(blobRef.current); blobRef.current = '' }, [])
   const t = (en: string, ar: string) => lang==='ar'?ar:en
-  const ic = (err?: string) => `mt-1 block w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 ${err?'border-semantic-status-inactive focus:border-semantic-status-inactive focus:ring-semantic-status-inactive':'border-gray-300 focus:border-gold-500 focus:ring-gold-500'}`
+  const ic = (err?: string) => `mt-1 block w-full rounded-lg border px-3 py-2 text-sm focus:outline-hidden focus:ring-2 ${err?'border-semantic-status-inactive focus:border-semantic-status-inactive focus:ring-semantic-status-inactive':'border-gray-300 focus:border-gold-500 focus:ring-gold-500'}`
 
   const { fieldErrors, handleBlur, validate } = useFormValidation({
     values: form as StudentFormFields,
@@ -127,7 +127,7 @@ export function StudentFormModal({ student, activeLevels, churches, gradeOptions
   useEffect(() => {
     revoke(); setPhotoFile(null)
     if (student) {
-      setForm({ name:`${student.firstName} ${student.lastName}`.trim(), firstNameAr:student.firstNameAr||'', lastNameAr:student.lastNameAr||'', dateOfBirth:student.dateOfBirth.split('T')[0], gender:student.gender, churchName:student.churchName||'', gradeId:student.gradeId||'', levelId:student.levelId, groupId:student.groupId, groupName:student.group?.name||'', photoUrl:student.photoUrl||'', status:student.status, phone:student.metadata?.phone||'', email:student.metadata?.email||'', address:student.metadata?.address||'', notes:student.metadata?.notes||'', churchToolId:student.metadata?.churchToolId||'', parentEmail:student.parentEmail||'' })
+      setForm({ name:`${student.firstName} ${student.lastName}`.trim(), firstNameAr:student.firstNameAr||'', lastNameAr:student.lastNameAr||'', dateOfBirth:student.dateOfBirth.split('T')[0], gender:student.gender, churchName:student.churchName||'', gradeId:student.gradeId||'', levelId:student.levelId, groupId:student.groupId, groupName:student.group?.name||'', photoUrl:student.photoUrl||'', status:student.status, phone:student.metadata?.phone||'', studentPhone:student.metadata?.studentPhone||'', email:student.metadata?.email||'', address:student.metadata?.address||'', notes:student.metadata?.notes||'', churchToolId:student.metadata?.churchToolId||'', parentEmail:student.parentEmail||'' })
     } else { setForm(emptyForm) }
   }, [student?.id])
   // Servants cannot list churches (admin-only endpoint), so the dropdown would
@@ -167,6 +167,8 @@ export function StudentFormModal({ student, activeLevels, churches, gradeOptions
       if (data.photoFile) {
         setSavePhase('uploading')
         const fd=new FormData(); fd.append('file',data.photoFile); photoUrl=(await http.upload<{url:string}>('/upload/student-photo',fd)).url
+        // Keep the uploaded URL so a retry after a failed save reuses it instead of orphaning another file
+        setPhotoFile(null); setForm(prev=>({...prev,photoUrl}))
       }
       setSavePhase('saving')
       const { name:_n, groupId:_g, groupName:_gn, ...rest } = data.form
@@ -188,14 +190,14 @@ export function StudentFormModal({ student, activeLevels, churches, gradeOptions
   },{error:''})
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
-      <form ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-label={student?t('Edit Student','تعديل الطالب'):t('Add New Student','إضافة طالب جديد')} className="w-full max-w-lg rounded-2xl bg-white shadow-xl max-h-[90vh] flex flex-col outline-none" onClick={e=>e.stopPropagation()} noValidate
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 p-0 sm:p-4" onClick={onClose}>
+      <form ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-label={student?t('Edit Student','تعديل الطالب'):t('Add New Student','إضافة طالب جديد')} className="w-full sm:max-w-lg rounded-t-2xl sm:rounded-2xl bg-white shadow-xl max-h-[92dvh] sm:max-h-[90vh] pb-[env(safe-area-inset-bottom)] animate-slideUp sm:animate-none flex flex-col outline-hidden" onClick={e=>e.stopPropagation()} noValidate
         onSubmit={e=>{e.preventDefault();startTransition(()=>saveAction({form,photoFile,editing:student}))}}>
-        <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4 flex-shrink-0">
+        <div className="flex items-center justify-between border-b border-gray-100 px-4 sm:px-6 py-3 sm:py-4 shrink-0">
           <h2 className="text-lg font-semibold">{student?t('Edit Student','تعديل الطالب'):t('Add New Student','إضافة طالب جديد')}</h2>
           <Button type="button" variant="ghost" size="icon" onClick={onClose}><X className="h-5 w-5" /></Button>
         </div>
-        <div className="px-6 py-5 space-y-4 overflow-y-auto flex-1">
+        <div className="px-4 sm:px-6 py-5 space-y-4 overflow-y-auto overscroll-contain flex-1">
           {formState.error&&<div className="rounded-lg bg-red-50 border border-red-200 p-3 text-sm text-red-700">{formState.error}</div>}
           <FormField
             label={t('Name','الاسم')}
@@ -238,18 +240,26 @@ export function StudentFormModal({ student, activeLevels, churches, gradeOptions
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div><label htmlFor="sf-church" className="block text-sm font-medium text-gray-700">{t('Church','الكنيسة')}</label><select id="sf-church" value={form.churchName} onChange={e=>setForm({...form,churchName:e.target.value})} className={ic()}><option value="">{t('Select church','اختر الكنيسة')}</option>{effectiveChurches.map(c=><option key={c.id} value={c.name}>{c.name}{c.city?`, ${c.city}`:''}</option>)}</select></div>
             <div><label htmlFor="sf-grade" className="block text-sm font-medium text-gray-700">{t('Grade','المرحلة الدراسية')}</label><select id="sf-grade" value={form.gradeId} onChange={e=>{const v=e.target.value;const gr=gradeOptions.find(g=>g.id===v);setForm({...form,gradeId:v,groupId:gr?.groupId||'',groupName:gr?.groupName||''})}} className={ic(fieldErrors.gradeId)}><option value="">{t('Select grade','اختر المرحلة')}</option>{gradeOptions.map(g=>(
-              <option key={g.id} value={g.id}>{g.name}</option>
+              <option key={g.id} value={g.id} disabled={!g.groupId}>{g.name}{!g.groupId?` — ${t('no group assigned','بدون مجموعة')}`:''}</option>
             ))}</select>{fieldErrors.gradeId&&<p role="alert" className="mt-1 text-xs text-red-500">{fieldErrors.gradeId}</p>}<p className="mt-1 text-xs text-gray-400">{t('Group is auto-assigned from the grade','يتم تحديد المجموعة تلقائياً من المرحلة')}</p></div>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <FormField
-              label={t('Phone','رقم الهاتف')}
+              label={t('Parent Phone','هاتف ولي الأمر')}
               type="tel"
               value={form.phone}
               onChange={e=>setForm({...form,phone:e.target.value})}
               onBlur={()=>handleBlur('phone')}
               error={fieldErrors.phone}
             />
+            <FormField
+              label={t('Student Phone','هاتف الطالب')}
+              type="tel"
+              value={form.studentPhone}
+              onChange={e=>setForm({...form,studentPhone:e.target.value})}
+            />
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <FormField
               label={t('Email','البريد الإلكتروني')}
               type="email"
@@ -310,15 +320,15 @@ export function StudentFormModal({ student, activeLevels, churches, gradeOptions
           {/* Status */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">{t('Status','الحالة')}</label>
-            <div className="flex gap-2">
-              {([{value:'active',label:t('Active','نشط'),color:'border-green-300 bg-green-50 text-green-700'},{value:'inactive',label:t('Inactive','غير نشط'),color:'border-red-300 bg-red-50 text-red-700'},{value:'graduated',label:t('Graduated','متخرج'),color:'border-amber-300 bg-amber-50 text-amber-700'}]).map(opt=>(
-                <Button key={opt.value} type="button" variant="outline" onClick={()=>setForm({...form,status:opt.value})}
+            <div className="flex flex-wrap gap-2">
+              {([{value:'active',label:t('Active','نشط'),color:'border-green-300 bg-green-50 text-green-700'},{value:'pending',label:t('Pending Review','في الانتظار'),color:'border-blue-300 bg-blue-50 text-blue-700'},{value:'inactive',label:t('Inactive','غير نشط'),color:'border-red-300 bg-red-50 text-red-700'},{value:'graduated',label:t('Graduated','متخرج'),color:'border-amber-300 bg-amber-50 text-amber-700'}]).map(opt=>(
+                <Button key={opt.value} type="button" variant="outline" disabled={opt.value==='active'&&student?.status==='pending'&&!can('student:approve')} title={opt.value==='active'&&student?.status==='pending'&&!can('student:approve')?t('An admin or principal must approve this student','يجب أن يعتمد المسؤول أو المدير هذا الطالب'):undefined} onClick={()=>setForm({...form,status:opt.value})}
                   className={`flex-1 border-2 px-3 py-2 text-sm font-medium transition-all ${form.status===opt.value?opt.color+' ring-2 ring-offset-1':'border-gray-200 text-gray-500 hover:border-gray-300'}`}>{opt.label}</Button>
               ))}
             </div>
           </div>
         </div>
-        <div className="flex items-center justify-end gap-3 border-t border-gray-100 px-6 py-4 flex-shrink-0">
+        <div className="flex items-center justify-end gap-3 border-t border-gray-100 px-4 sm:px-6 py-3 sm:py-4 shrink-0">
           <Button type="button" variant="outline" onClick={onClose}>{t('Cancel','إلغاء')}</Button>
           <Button type="submit" disabled={isSaving} className="inline-flex items-center gap-2">
             {isSaving&&<Loader2 className="h-4 w-4 animate-spin" />}

@@ -1,4 +1,5 @@
-import { Controller, Get, Post, Query, Body, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Put, Param, Query, Body, UseGuards } from '@nestjs/common';
+import { IsBoolean, IsOptional, IsString, MaxLength } from 'class-validator';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { Roles, STAFF_ROLES } from '../../common/decorators/roles.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -6,6 +7,16 @@ import { RolesGuard } from '../auth/guards/roles.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { DashboardService } from './dashboard.service';
 import { NotificationsService } from '../notifications/notifications.service';
+
+class SetFollowUpDto {
+  @IsOptional() @IsBoolean() done?: boolean;
+  @IsOptional() @IsString() @MaxLength(500) note?: string;
+}
+
+class SetBirthdayGreetedDto {
+  @IsOptional() @IsBoolean() done?: boolean;
+  @IsOptional() @IsString() @MaxLength(500) note?: string;
+}
 
 @ApiTags('dashboard')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -72,6 +83,43 @@ export class DashboardController {
     @Query('schoolId') schoolId: string = '',
   ) {
     return this.service.getClassOverview(user, schoolId);
+  }
+
+  @Put('follow-ups/:studentId')
+  @Roles(...STAFF_ROLES)
+  @ApiOperation({ summary: 'Tick/untick a student on your follow-up checklist, with an optional note' })
+  async setFollowUp(
+    @CurrentUser() user: any,
+    @Param('studentId') studentId: string,
+    @Body() dto: SetFollowUpDto,
+    @Query('schoolId') schoolId: string = '',
+  ) {
+    return this.service.setFollowUp(user, schoolId, studentId, dto);
+  }
+
+  @Get('birthdays')
+  @Roles(...STAFF_ROLES)
+  @ApiOperation({ summary: 'Birthdays in your class (or the whole school with scope=school for school-wide roles), past week to next week, with message recipient and sign-off' })
+  async getBirthdays(
+    @CurrentUser() user: any,
+    @Query('schoolId') schoolId: string = '',
+    @Query('scope') scope?: string,
+  ) {
+    // 'school' only takes effect for school-wide roles; everyone else keeps their own class.
+    return this.service.getBirthdays(user, schoolId, scope === 'school' ? 'school' : 'class');
+  }
+
+  @Put('birthdays/:studentId/greeted')
+  @Roles(...STAFF_ROLES)
+  @ApiOperation({ summary: 'Mark a student\'s birthday as greeted (or undo), with an optional private note' })
+  async setBirthdayGreeted(
+    @CurrentUser() user: any,
+    @Param('studentId') studentId: string,
+    @Body() dto: SetBirthdayGreetedDto,
+    @Query('schoolId') schoolId: string = '',
+    @Query('scope') scope?: string,
+  ) {
+    return this.service.setBirthdayGreeted(user, schoolId, studentId, dto, scope === 'school' ? 'school' : 'class');
   }
 
   @Get('weekly-briefing')

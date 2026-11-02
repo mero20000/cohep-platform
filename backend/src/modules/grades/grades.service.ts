@@ -2,6 +2,7 @@ import { Injectable, NotFoundException, ConflictException, BadRequestException }
 import { PrismaService } from '../../database/prisma.service';
 import { SchoolResolver } from '../../common/utils/school-resolver';
 import { AuditService } from '../audit/audit.service';
+import { AccessScopeService } from '../../common/access-scope.service';
 import { CreateGradeDto, UpdateGradeDto } from './dto/grades.dto';
 
 type GradeWithRelations = {
@@ -21,6 +22,7 @@ export class GradesService {
     private readonly prisma: PrismaService,
     private readonly schoolResolver: SchoolResolver,
     private readonly audit: AuditService,
+    private readonly access: AccessScopeService,
   ) {}
 
   async getGrades(schoolIdentifier: string) {
@@ -75,9 +77,11 @@ export class GradesService {
     return this.toGrade(grade);
   }
 
-  async updateGrade(id: string, dto: UpdateGradeDto) {
-    const grade = await this.prisma.schoolGrade.findUnique({ where: { id } });
-    if (!grade) throw new NotFoundException('Grade not found');
+  async updateGrade(id: string, dto: UpdateGradeDto, user: any) {
+    const actor = await this.access.loadActor(user);
+    const grade = await this.access.assertGrade(actor, id);
+    // Moving a class to another group moves every student in it.
+    this.access.assertGroupAllowed(actor, dto.groupId);
     if (dto.name !== undefined) {
       const existing = await this.prisma.schoolGrade.findFirst({
         where: { schoolId: grade.schoolId, name: dto.name.trim(), deletedAt: null, id: { not: id } },
@@ -121,9 +125,8 @@ export class GradesService {
     return this.toGrade(updated);
   }
 
-  async deleteGrade(id: string) {
-    const grade = await this.prisma.schoolGrade.findUnique({ where: { id } });
-    if (!grade) throw new NotFoundException('Grade not found');
+  async deleteGrade(id: string, user: any) {
+    const grade = await this.access.assertGrade(await this.access.loadActor(user), id);
     const studentCount = await this.prisma.student.count({
       where: { gradeId: id, deletedAt: null },
     });

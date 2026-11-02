@@ -127,15 +127,15 @@ export function DashboardHeader({
 
   return (
     <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b border-gray-200 bg-white px-4 sm:px-6 lg:px-8">
-      <Button variant="ghost" size="icon" onClick={() => onSetSidebarOpen(true)} aria-label={language === 'ar' ? 'فتح القائمة' : 'Open menu'} aria-expanded={sidebarOpen} aria-controls="sidebar" className="lg:hidden h-9 w-9 text-gray-500 hover:text-gray-700">
+      <Button variant="ghost" size="icon" onClick={() => onSetSidebarOpen(true)} aria-label={language === 'ar' ? 'فتح القائمة' : 'Open menu'} aria-expanded={sidebarOpen} aria-controls="sidebar" className="lg:hidden h-11 w-11 shrink-0 sm:h-9 sm:w-9 text-gray-500 hover:text-gray-700">
         <Menu className="h-5 w-5" />
       </Button>
 
-      <Link href="/dashboard" className="flex items-center gap-2.5 flex-shrink-0 hover:opacity-80 transition-opacity">
+      <Link href="/dashboard" aria-label={language === 'ar' && schoolNameAr ? schoolNameAr : schoolName} className="flex items-center gap-2.5 shrink-0 hover:opacity-80 transition-opacity">
         {schoolLogo ? (
-          <Image src={schoolLogo} alt={language === 'ar' && schoolNameAr ? schoolNameAr : schoolName} width={72} height={72} className="h-9 w-9 sm:h-[72px] sm:w-[72px] rounded-lg sm:rounded-xl object-cover border border-gray-200 flex-shrink-0" priority />
+          <Image src={schoolLogo} alt={language === 'ar' && schoolNameAr ? schoolNameAr : schoolName} width={72} height={72} className="h-9 w-9 sm:h-[72px] sm:w-[72px] rounded-lg sm:rounded-xl object-cover border border-gray-200 shrink-0" priority />
         ) : (
-          <div className="flex h-9 w-9 sm:h-[72px] sm:w-[72px] items-center justify-center rounded-lg sm:rounded-xl bg-blue-500 text-white flex-shrink-0">
+          <div className="flex h-9 w-9 sm:h-[72px] sm:w-[72px] items-center justify-center rounded-lg sm:rounded-xl bg-blue-500 text-white shrink-0">
             <Cross className="h-5 w-5 sm:h-8 sm:w-8" />
           </div>
         )}
@@ -158,13 +158,14 @@ export function DashboardHeader({
           <input type="text" placeholder={language === 'ar' ? 'بحث بالاسم...' : 'Search by name...'}
             aria-label={language === 'ar' ? 'بحث بالاسم' : 'Search students by name'}
             onKeyDown={e => { if (e.key === 'Enter' && (e.target as HTMLInputElement).value.trim()) { router.push(`/dashboard/students?search=${encodeURIComponent((e.target as HTMLInputElement).value.trim())}`) } }}
-            className={`w-full rounded-lg border border-gray-200 bg-gray-50 ${language === 'ar' ? 'pr-9 pl-3' : 'pl-9 pr-3'} py-1.5 text-sm placeholder:text-gray-400 focus:border-gold-500 focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-500`} />
+            className={`w-full rounded-lg border border-gray-200 bg-gray-50 ${language === 'ar' ? 'pr-9 pl-3' : 'pl-9 pr-3'} py-1.5 text-sm placeholder:text-gray-400 focus:border-gold-500 focus:bg-white focus:outline-hidden focus:ring-1 focus:ring-blue-500`} />
         </div>
       </div>
 
       {canSwitchSchool && (
         <div ref={switchRef} className="relative">
           <Button variant="outline" size="sm" onClick={() => onSetSwitchOpen(!switchOpen)}
+            aria-label={language === 'ar' ? 'تبديل المدرسة' : 'Switch school'} aria-expanded={switchOpen} aria-haspopup="menu"
             className="h-auto gap-1.5 p-1.5 md:px-3 md:py-1.5">
             <Building2 className="h-4 w-4 md:h-3.5 md:w-3.5 text-gold-700" />
             <span className="hidden md:inline max-w-[140px] truncate">
@@ -177,7 +178,7 @@ export function DashboardHeader({
           {switchOpen && (
             <div className={`absolute ${language === 'ar' ? 'left-0' : 'right-0'} top-full mt-2 w-72 rounded-xl bg-white shadow-xl border border-gray-200 overflow-hidden z-50`}>
               <div className="px-4 py-2.5 border-b border-gray-100">
-                <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">{language === 'ar' ? 'عرض ك' : 'View as'}</p>
+                <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">{language === 'ar' ? 'عرض ك' : 'View as'}</p>
               </div>
               <div className="max-h-80 overflow-y-auto py-1">
                 <button onClick={() => { onSetActiveSchool(null); onSetSwitchOpen(false) }}
@@ -192,7 +193,7 @@ export function DashboardHeader({
                     <Building2 className="h-4 w-4 text-gray-400 shrink-0" />
                     <span className="truncate">
                       {s.name}
-                      {s.churchName && <span className="block text-[11px] text-gray-400">{s.churchName}</span>}
+                      {s.churchName && <span className="block text-xs text-gray-400">{s.churchName}</span>}
                     </span>
                     {activeSchoolId === s.id && <CheckCheck className={`h-4 w-4 ml-auto ${language === 'ar' ? 'mr-auto ml-0' : ''} text-blue-700`} />}
                   </button>
@@ -206,6 +207,7 @@ export function DashboardHeader({
       {isSuperAdmin && (
         <div ref={roleRef} className="relative">
           <Button variant={isViewingAs ? "default" : "outline"} size="sm" onClick={() => onSetRoleOpen(!roleOpen)}
+            aria-label={language === 'ar' ? 'عرض كدور آخر' : 'View as another role'} aria-expanded={roleOpen} aria-haspopup="menu"
             className="h-auto gap-1.5 p-1.5 md:px-3 md:py-1.5">
             <Crown className="h-4 w-4 md:h-3.5 md:w-3.5 text-gold-700" />
             <span className="hidden md:inline max-w-[140px] truncate">
@@ -216,7 +218,7 @@ export function DashboardHeader({
           {roleOpen && (
             <div className={`absolute ${language === 'ar' ? 'left-0' : 'right-0'} top-full mt-2 w-64 rounded-xl bg-white shadow-xl border border-gray-200 overflow-hidden z-50`}>
               <div className="px-4 py-2.5 border-b border-gray-100">
-                <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">{language === 'ar' ? 'عرض لوحة التحكم كـ' : 'View dashboard as'}</p>
+                <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">{language === 'ar' ? 'عرض لوحة التحكم كـ' : 'View dashboard as'}</p>
               </div>
               <div className="max-h-80 overflow-y-auto py-1">
                 {roleOptions.map(o => {
@@ -232,7 +234,7 @@ export function DashboardHeader({
                   )
                 })}
                 <div className="px-4 py-2 border-t border-gray-100">
-                  <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">{language === 'ar' ? 'البوابات' : 'Portals'}</p>
+                  <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">{language === 'ar' ? 'البوابات' : 'Portals'}</p>
                 </div>
                 <Link href="/portal/login" onClick={() => onSetRoleOpen(false)}
                   className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50 active:bg-gray-100">
@@ -259,7 +261,7 @@ export function DashboardHeader({
 
       <div className="flex items-center gap-1">
         <Button variant="ghost" size="icon" onClick={onToggleLanguage}
-          className="h-9 w-9 text-gray-500 hover:text-gray-700"
+          className="h-11 w-11 shrink-0 sm:h-9 sm:w-9 text-gray-500 hover:text-gray-700"
           title={language === 'ar' ? 'Switch to English' : 'التبديل إلى العربية'}>
           <Globe className="h-4 w-4" />
         </Button>
@@ -267,10 +269,10 @@ export function DashboardHeader({
         <div ref={notiRef} className="relative">
           <Button variant="ghost" size="icon" onClick={() => { onSetShowNotiPanel(!showNotiPanel); onSetShowUserMenu(false) }}
             aria-label={language === 'ar' ? 'الإشعارات' : 'Notifications'}
-            className="relative h-9 w-9 text-gray-500 hover:text-gray-700">
+            className="relative h-11 w-11 shrink-0 sm:h-9 sm:w-9 text-gray-500 hover:text-gray-700">
             <Bell className="h-4 w-4" />
             {unreadCount > 0 && (
-              <span className={`absolute -top-0.5 ${language === 'ar' ? '-left-0.5' : '-right-0.5'} flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white`}>
+              <span className={`absolute -top-0.5 ${language === 'ar' ? '-left-0.5' : '-right-0.5'} flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-xs font-bold text-white`}>
                 {unreadCount}
               </span>
             )}
@@ -324,7 +326,7 @@ export function DashboardHeader({
                             <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">
                               {language === 'ar' && n.bodyAr ? n.bodyAr : n.body}
                             </p>
-                            <time className="text-[10px] text-gray-400 mt-1 block">{relativeTime(n.createdAt)}</time>
+                            <time className="text-xs text-gray-400 mt-1 block">{relativeTime(n.createdAt)}</time>
                           </div>
                           {!n.isRead && <span className="h-2 w-2 rounded-full bg-blue-500 shrink-0 mt-2" />}
                         </div>
@@ -343,7 +345,7 @@ export function DashboardHeader({
 
         <div ref={userMenuRef} className="relative">
           <Button variant="ghost" onClick={() => { onSetShowUserMenu(!showUserMenu); onSetShowNotiPanel(false) }}
-            aria-label={language === 'ar' ? 'قائمة المستخدم' : 'User menu'}
+            aria-label={`${initials} — ${language === 'ar' ? 'قائمة المستخدم' : 'User menu'}`} aria-expanded={showUserMenu} aria-haspopup="menu"
             className="gap-1.5 px-1.5 h-auto hover:bg-gray-100">
             <div className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-100 overflow-hidden">
               {user?.avatarUrl && !avatarError ? (

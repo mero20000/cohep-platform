@@ -1,4 +1,4 @@
-import { IsOptional, IsString, IsUUID, IsInt, Min } from 'class-validator';
+import { IsIn, IsOptional, IsString, IsUUID, IsInt, Min } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 
@@ -17,7 +17,7 @@ export class QueryStudentDto {
   @IsOptional()
   groupId?: string;
 
-  @ApiPropertyOptional({ enum: ['active', 'inactive', 'graduated', 'transferred'] })
+  @ApiPropertyOptional({ enum: ['active', 'inactive', 'graduated', 'transferred', 'pending'] })
   @IsString()
   @IsOptional()
   status?: string;
@@ -37,7 +37,7 @@ export class QueryStudentDto {
   @IsOptional()
   gender?: string;
 
-  @ApiPropertyOptional({ description: 'Search by name or code' })
+  @ApiPropertyOptional({ description: 'Search by name, code, phone, email, or church' })
   @IsString()
   @IsOptional()
   search?: string;
@@ -71,8 +71,18 @@ export class QueryStudentDto {
   @IsOptional()
   assignedServantId?: string;
 
-  @ApiPropertyOptional({ description: 'Filter by engagement status (active/inactive/at_risk)' })
+  @ApiPropertyOptional({ description: 'Only students at risk: 3+ class absences in a row (see attendance/absence-risk)', enum: ['at_risk'] })
+  @IsIn(['at_risk'])
+  @IsOptional()
+  engagementStatus?: 'at_risk';
+
+  @ApiPropertyOptional({ description: 'Only students missing a detail: no photo, no parent contact, or no school grade', enum: ['photo', 'parent', 'grade'] })
+  @IsIn(['photo', 'parent', 'grade'])
+  @IsOptional()
+  dataGap?: 'photo' | 'parent' | 'grade';
+
+  @ApiPropertyOptional({ description: 'Comma-separated student IDs to restrict the list to (max 200)' })
   @IsString()
   @IsOptional()
-  engagementStatus?: string;
+  ids?: string;
 }

@@ -5,8 +5,19 @@ import { CreateAllocationDto, UpdateAllocationDto, ReorderAllocationDto } from '
 import { SchoolResolver } from '../../common/utils/school-resolver';
 import { AuditService } from '../audit/audit.service';
 import { parseCopticChurchHtml } from './html-parser';
-import { join } from 'path';
+import { resolve as resolvePath, sep } from 'path';
 import { access, unlink } from 'fs/promises';
+
+// Fields the subject-item edit form may change. subjectId and recordingUrl are deliberately absent.
+const EDITABLE_SUBJECT_ITEM_FIELDS = [
+  'whenLabel', 'name', 'nameAr', 'nameCoptic', 'descriptionAr',
+  'sessionsGroup1', 'sessionsGroup2', 'sessionsGroup3', 'sessionsGroup4',
+  'optional', 'isAssessmentItem', 'passRequired', 'orderIndex',
+  'presentationUrl', 'presentationData', 'hazzat', 'educationLanguages', 'metadata',
+  'active', 'status',
+] as const;
+
+const LOCAL_AUDIO_PREFIX = '/uploads/audio/';
 
 @Injectable()
 export class CurriculumService {
@@ -126,10 +137,32 @@ export class CurriculumService {
     return { success: true };
   }
 
+  /**
+   * SubjectItem has no schoolId of its own; it belongs to a school through its subject.
+   * 404 (not 403) for another school's item, so ids cannot be probed.
+   * Pass no schoolId to only check that the item exists (super admin on routes
+   * that carry no school).
+   */
+  async assertItemInSchool(id: string, schoolId?: string) {
+    const item = await this.prisma.subjectItem.findUnique({
+      where: { id },
+      select: { id: true, subject: { select: { schoolId: true } } },
+    });
+    if (!item || (schoolId && item.subject.schoolId !== schoolId)) {
+      throw new NotFoundException('Subject item not found');
+    }
+    return item;
+  }
+
+  private async assertSubjectInSchool(subjectId: string, schoolId: string) {
+    const subject = await this.prisma.subject.findFirst({ where: { id: subjectId, schoolId }, select: { id: true } });
+    if (!subject) throw new NotFoundException('Subject not found');
+  }
+
   async getSubjectItems(schoolIdentifier: string, subjectId: string) {
-    await this.schoolResolver.resolve(schoolIdentifier);
+    const schoolId = await this.schoolResolver.resolve(schoolIdentifier);
     return this.prisma.subjectItem.findMany({
-      where: { subjectId },
+      where: { subjectId, subject: { schoolId } },
       orderBy: { orderIndex: 'asc' },
       include: {
         _count: { select: { lessons: true } },
@@ -139,9 +172,10 @@ export class CurriculumService {
   }
 
   async getAllItems(schoolIdentifier: string, levelNumber?: number) {
-    await this.schoolResolver.resolve(schoolIdentifier);
+    const schoolId = await this.schoolResolver.resolve(schoolIdentifier);
     return this.prisma.subjectItem.findMany({
-      where: levelNumber ? { levels: { some: { levelNumber } } } : {},
+      // Without the subject filter this returned every school's items.
+      where: { subject: { schoolId }, ...(levelNumber ? { levels: { some: { levelNumber } } } : {}) },
       orderBy: [{ subjectId: 'asc' }, { orderIndex: 'asc' }],
       include: {
         _count: { select: { lessons: true } },
@@ -152,7 +186,8 @@ export class CurriculumService {
   }
 
   async createSubjectItem(schoolIdentifier: string, subjectId: string, data: any) {
-    await this.schoolResolver.resolve(schoolIdentifier);
+    const schoolId = await this.schoolResolver.resolve(schoolIdentifier);
+    await this.assertSubjectInSchool(subjectId, schoolId);
     const count = await this.prisma.subjectItem.count({ where: { subjectId } });
     const levelNumbers: number[] = data.levels ?? (data.level ? [data.level] : [1]);
     return this.prisma.subjectItem.create({
@@ -184,8 +219,16 @@ export class CurriculumService {
   }
 
   async updateSubjectItem(schoolIdentifier: string, id: string, data: any) {
-    await this.schoolResolver.resolve(schoolIdentifier);
-    const { level, levels, ...rest } = data;
+    const schoolId = await this.schoolResolver.resolve(schoolIdentifier);
+    await this.assertItemInSchool(id, schoolId);
+    const { level, levels } = data;
+    // Only these fields are editable here. The body used to be spread into the update, which let
+    // a caller move an item to another subject (subjectId) or point recordingUrl at any URL.
+    // Recordings go through the upload route; anything not listed is ignored.
+    const rest: Record<string, unknown> = {};
+    for (const key of EDITABLE_SUBJECT_ITEM_FIELDS) {
+      if (data[key] !== undefined) rest[key] = data[key];
+    }
     const levelNumbers: number[] = levels || (level ? [level] : []);
     if (levelNumbers.length > 0) {
       await this.prisma.subjectItemLevel.deleteMany({ where: { subjectItemId: id } });
@@ -200,15 +243,18 @@ export class CurriculumService {
     });
   }
 
-  async setItemRecording(id: string, recordingUrl: string, recordingMeta: any) {
+  async setItemRecording(id: string, recordingUrl: string, recordingMeta: any, schoolId?: string) {
+    await this.assertItemInSchool(id, schoolId);
     return this.prisma.subjectItem.update({ where: { id }, data: { recordingUrl, recordingMeta } });
   }
 
-  async clearItemRecording(id: string) {
+  async clearItemRecording(id: string, schoolId?: string) {
+    await this.assertItemInSchool(id, schoolId);
     return this.prisma.subjectItem.update({ where: { id }, data: { recordingUrl: null, recordingMeta: Prisma.JsonNull } });
   }
 
-  async updateItemStatus(id: string, status: string) {
+  async updateItemStatus(id: string, status: string, schoolId?: string) {
+    await this.assertItemInSchool(id, schoolId);
     return this.prisma.subjectItem.update({
       where: { id },
       data: { status },
@@ -216,7 +262,8 @@ export class CurriculumService {
   }
 
   async deleteSubjectItem(schoolIdentifier: string, id: string) {
-    await this.schoolResolver.resolve(schoolIdentifier);
+    const schoolId = await this.schoolResolver.resolve(schoolIdentifier);
+    await this.assertItemInSchool(id, schoolId);
     return this.prisma.subjectItem.delete({
       where: { id },
     });
@@ -611,12 +658,25 @@ export class CurriculumService {
     return lesson;
   }
 
-  async updateLesson(id: string, data: any) {
+  /**
+   * Remove a replaced local audio file. Only paths under uploads/audio are ever touched:
+   * the stored value used to be joined onto the working directory unchecked, so a lesson
+   * whose audioUrl held "/../../x" could make this delete a file outside the uploads folder.
+   */
+  private async removeLocalAudio(audioUrl: string) {
+    if (!audioUrl.startsWith(LOCAL_AUDIO_PREFIX)) return;
+    const root = resolvePath(process.cwd(), 'uploads', 'audio');
+    const target = resolvePath(root, audioUrl.slice(LOCAL_AUDIO_PREFIX.length));
+    if (!target.startsWith(root + sep)) return;
+    try { await access(target); await unlink(target); } catch {}
+  }
+
+  async updateLesson(id: string, data: any, requestingUser?: { schoolId?: string | null; roles?: string[] } | null) {
     const old = await this.prisma.lesson.findUnique({ where: { id }, select: { schoolId: true, title: true, audioUrl: true } });
     if (!old) throw new NotFoundException('Lesson not found');
+    this.assertSameSchool(old.schoolId, requestingUser);
     if (data.audioUrl && old.audioUrl && old.audioUrl !== data.audioUrl) {
-      const oldPath = join(process.cwd(), old.audioUrl)
-      try { await access(oldPath); await unlink(oldPath) } catch {}
+      await this.removeLocalAudio(old.audioUrl);
     }
     const updated = await this.prisma.lesson.update({
       where: { id },

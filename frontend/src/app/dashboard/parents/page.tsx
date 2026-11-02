@@ -137,6 +137,7 @@ export default function ParentsPage() {
   const [loading, setLoading] = useState(true)
   const [schoolIdentity, setSchoolIdentity] = useState<{ name: string; nameAr?: string; churchName?: string; logoUrl?: string | null; churchLogoUrl?: string | null } | null>(null)
   const [code, setCode] = useState('')
+  const [dob, setDob] = useState('')
   const [rel, setRel] = useState('father')
   const [linking, setLinking] = useState(false)
   const [unlinking, setUnlinking] = useState<string | null>(null)
@@ -167,13 +168,14 @@ export default function ParentsPage() {
 
   const link = async () => {
     const value = code.trim()
-    if (!value) return
+    if (!value || !dob) return
     setLinking(true)
     setError(null)
     try {
-      const d = await http.post<LinkedChild[]>('/parents/me/children/link', { studentCode: value, relationship: rel })
+      const d = await http.post<LinkedChild[]>('/parents/me/children/link', { studentCode: value, dateOfBirth: dob, relationship: rel })
       setChildren(d || [])
       setCode('')
+      setDob('')
       toast('success', lang === 'ar' ? 'تم ربط الطالب بحسابك' : 'Child linked to your account')
     } catch (e: any) {
       const msg = e?.message || (lang === 'ar' ? 'تعذر الربط' : 'Failed to link child')
@@ -248,7 +250,7 @@ export default function ParentsPage() {
       {/* Link form */}
       <div className="rounded-xl border border-gray-200 bg-white p-5">
         <div className="flex items-center gap-2 mb-4">
-          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-blue-100 to-blue-50 text-blue-700">
+          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-linear-to-br from-blue-100 to-blue-50 text-blue-700">
             <UserPlus className="h-4 w-4" />
           </div>
           <h2 className="font-semibold text-gray-900">{lang === 'ar' ? 'ربط طالب' : 'Link a Child'}</h2>
@@ -261,13 +263,20 @@ export default function ParentsPage() {
               onChange={(e) => setCode(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter') link() }}
               placeholder={lang === 'ar' ? 'أدخل كود الطالب (مثل 18192)' : 'Enter student code (e.g. 18192)'}
-              className="w-full rounded-lg border border-gray-200 bg-white pl-10 pr-4 py-3 text-sm shadow-sm focus:border-gold-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+              className="w-full rounded-lg border border-gray-200 bg-white pl-10 pr-4 py-3 text-sm shadow-xs focus:border-gold-500 focus:outline-hidden focus:ring-2 focus:ring-blue-500/20"
             />
           </div>
+          <input
+            type="date"
+            value={dob}
+            onChange={(e) => setDob(e.target.value)}
+            aria-label={lang === 'ar' ? 'تاريخ ميلاد الطالب' : "Child's date of birth"}
+            className="rounded-lg border border-gray-200 bg-white px-4 py-3 text-sm shadow-xs focus:border-gold-500 focus:outline-hidden focus:ring-2 focus:ring-blue-500/20"
+          />
           <select
             value={rel}
             onChange={(e) => setRel(e.target.value)}
-            className="rounded-lg border border-gray-200 bg-white px-4 py-3 text-sm shadow-sm focus:border-gold-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+            className="rounded-lg border border-gray-200 bg-white px-4 py-3 text-sm shadow-xs focus:border-gold-500 focus:outline-hidden focus:ring-2 focus:ring-blue-500/20"
           >
             {RELATIONSHIPS.map((r) => (
               <option key={r.value} value={r.value}>{lang === 'ar' ? r.ar : r.en}</option>
@@ -275,7 +284,7 @@ export default function ParentsPage() {
           </select>
           <Button
             onClick={link}
-            disabled={linking || !code.trim()}
+            disabled={linking || !code.trim() || !dob}
           >
             <Link2 className="h-4 w-4" />
             {linking ? (lang === 'ar' ? 'جارٍ الربط…' : 'Linking…') : (lang === 'ar' ? 'ربط' : 'Link')}
@@ -311,8 +320,8 @@ export default function ParentsPage() {
                 transition={{ delay: i * 0.05 }}
                 className="rounded-xl border border-gray-200 bg-white overflow-hidden hover:shadow-lg transition-shadow"
               >
-                <div className="flex items-center gap-4 p-5 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-white">
-                  <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-gradient-to-br from-blue-100 to-blue-50 text-blue-700 font-bold text-lg">
+                <div className="flex items-center gap-4 p-5 border-b border-gray-100 bg-linear-to-r from-gray-50 to-white">
+                  <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-linear-to-br from-blue-100 to-blue-50 text-blue-700 font-bold text-lg">
                     {initials}
                   </div>
                   <div className="min-w-0 flex-1">
@@ -344,7 +353,7 @@ export default function ParentsPage() {
                   </div>
                 <div className="p-5 space-y-4">
                   <div className="grid grid-cols-2 gap-3">
-                    <div className="rounded-xl bg-gradient-to-br from-blue-50 to-amber-50 border border-gold-100 p-4">
+                    <div className="rounded-xl bg-linear-to-br from-blue-50 to-amber-50 border border-gold-100 p-4">
                       <div className="flex items-center gap-2 mb-3">
                         <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-100 text-blue-700">
                           <Star className="h-4 w-4" />
@@ -366,7 +375,7 @@ export default function ParentsPage() {
                         </div>
                         {s.totalPoints != null && (
                           <div className="h-1.5 rounded-full bg-gold-200/50 overflow-hidden">
-                            <div className="h-full rounded-full bg-gradient-to-r from-gold-400 to-blue-500" style={{ width: `${Math.min(100, (s.totalPoints % 1000) / 10)}%` }} />
+                            <div className="h-full rounded-full bg-linear-to-r from-gold-400 to-blue-500" style={{ width: `${Math.min(100, (s.totalPoints % 1000) / 10)}%` }} />
                           </div>
                         )}
                         <div className="flex items-center justify-between text-xs">
@@ -375,7 +384,7 @@ export default function ParentsPage() {
                         </div>
                       </div>
                     </div>
-                    <div className="rounded-xl bg-gradient-to-br from-emerald-50 to-green-50 border border-emerald-100 p-4">
+                    <div className="rounded-xl bg-linear-to-br from-emerald-50 to-green-50 border border-emerald-100 p-4">
                       <div className="flex items-center gap-2 mb-3">
                         <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-100 text-emerald-600">
                           <UserCheck className="h-4 w-4" />

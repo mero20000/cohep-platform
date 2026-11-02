@@ -84,12 +84,12 @@ export function ThisSundayPanel({ data, isLoading, hymnMap = [], onSelect, lang 
             return (
               <button key={hymn.id} onClick={() => onSelect(hymn.id, hymn.title, hymn.audioUrl ?? undefined)}
                 className="flex items-center gap-3 w-full px-5 py-3 text-left hover:bg-gray-50 transition-colors">
-                <div className="h-2 w-2 rounded-full flex-shrink-0" style={{ background: meta.dot }} aria-hidden="true" />
+                <div className="h-2 w-2 rounded-full shrink-0" style={{ background: meta.dot }} aria-hidden="true" />
                 <div className="flex-1 min-w-0">
                   <div className="text-sm text-gray-900 truncate">{hymn.title}</div>
                   {hymn.titleCoptic && <div className="text-xs text-gray-400 truncate mt-0.5">{hymn.titleCoptic}</div>}
                 </div>
-                <div className="flex items-center gap-2 flex-shrink-0">
+                <div className="flex items-center gap-2 shrink-0">
                   <span className={`text-xs px-2 py-0.5 rounded-full ${meta.bg} ${meta.color}`}>
                     {lang === 'ar' ? meta.labelAr : meta.label}
                   </span>

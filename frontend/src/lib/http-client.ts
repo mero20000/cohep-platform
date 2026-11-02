@@ -194,7 +194,8 @@ class HttpClient {
         statusCode: res.status,
         message: `HTTP ${res.status}`,
       }))
-      throw new Error(error.message || `Request failed: ${res.status}`)
+      // Carry the status and full body so callers can act on extra fields (e.g. a 409's existingSessionId).
+      throw Object.assign(new Error(error.message || `Request failed: ${res.status}`), { status: res.status, body: error })
     }
 
     if (res.status === 204) return undefined as T

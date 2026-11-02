@@ -4,6 +4,9 @@ import { GradesService } from './grades.service';
 import { PrismaService } from '../../database/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { SchoolResolver } from '../../common/utils/school-resolver';
+import { AccessScopeService } from '../../common/access-scope.service';
+
+const staff = { id: 'admin-1' };
 
 describe('GradesService', () => {
   let service: GradesService;
@@ -51,6 +54,20 @@ describe('GradesService', () => {
         GradesService,
         { provide: PrismaService, useValue: prismaMock },
         { provide: SchoolResolver, useValue: { resolve: jest.fn(async (id: string) => id) } },
+        {
+          provide: AccessScopeService,
+          // Lets every call through; the real rules are tested in access-scope.service.spec.ts and
+          // grades.access.spec.ts.
+          useValue: {
+            loadActor: jest.fn(async () => ({ id: 'admin-1', schoolId, roles: ['admin'], isSuperAdmin: false, scope: {} })),
+            assertGrade: jest.fn(async (_a: any, id: string) => {
+              const g = await prismaMock.schoolGrade.findUnique({ where: { id } });
+              if (!g) throw new NotFoundException('Grade not found');
+              return g;
+            }),
+            assertGroupAllowed: jest.fn(),
+          },
+        },
         { provide: AuditService, useValue: { log: jest.fn().mockResolvedValue(undefined) } },
       ],
     }).compile();
@@ -156,7 +173,7 @@ describe('GradesService', () => {
     it('throws NotFoundException when grade is missing', async () => {
       prisma.schoolGrade.findUnique.mockResolvedValue(null);
 
-      await expect(service.updateGrade('grade-9', { name: 'X' })).rejects.toThrow(NotFoundException);
+      await expect(service.updateGrade('grade-9', { name: 'X' }, staff)).rejects.toThrow(NotFoundException);
     });
 
     it('batch-moves students when groupId changes', async () => {
@@ -168,7 +185,7 @@ describe('GradesService', () => {
         group: { id: 'group-2', name: 'Group B', nameAr: null },
       });
 
-      await service.updateGrade('grade-1', { groupId: 'group-2' });
+      await service.updateGrade('grade-1', { groupId: 'group-2' }, staff);
 
       expect(prisma.student.updateMany).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -182,7 +199,7 @@ describe('GradesService', () => {
       prisma.schoolGrade.findUnique.mockResolvedValue(existing);
       prisma.schoolGrade.update.mockResolvedValue(mockGradeRow);
 
-      await service.updateGrade('grade-1', { name: 'Grade 4 Updated' });
+      await service.updateGrade('grade-1', { name: 'Grade 4 Updated' }, staff);
 
       expect(prisma.student.updateMany).not.toHaveBeenCalled();
     });
@@ -191,7 +208,7 @@ describe('GradesService', () => {
       prisma.schoolGrade.findUnique.mockResolvedValue(existing);
       prisma.schoolGrade.findFirst.mockResolvedValue({ id: 'grade-2', name: 'Grade 4 Updated' });
 
-      await expect(service.updateGrade('grade-1', { name: 'Grade 4 Updated' })).rejects.toThrow(ConflictException);
+      await expect(service.updateGrade('grade-1', { name: 'Grade 4 Updated' }, staff)).rejects.toThrow(ConflictException);
       expect(prisma.schoolGrade.update).not.toHaveBeenCalled();
     });
 
@@ -199,7 +216,7 @@ describe('GradesService', () => {
       prisma.schoolGrade.findUnique.mockResolvedValue(existing);
       prisma.group.findFirst.mockResolvedValue(null);
 
-      await expect(service.updateGrade('grade-1', { groupId: 'group-x' })).rejects.toThrow(BadRequestException);
+      await expect(service.updateGrade('grade-1', { groupId: 'group-x' }, staff)).rejects.toThrow(BadRequestException);
       expect(prisma.schoolGrade.update).not.toHaveBeenCalled();
     });
   });
@@ -211,7 +228,7 @@ describe('GradesService', () => {
       prisma.student.count.mockResolvedValue(0);
       prisma.schoolGrade.update.mockResolvedValue({ id: 'grade-1', deletedAt: mockDate });
 
-      const result = await service.deleteGrade('grade-1');
+      const result = await service.deleteGrade('grade-1', staff);
 
       expect(result.success).toBe(true);
       expect(prisma.student.count).toHaveBeenCalledWith(
@@ -229,14 +246,14 @@ describe('GradesService', () => {
       prisma.schoolGrade.findUnique.mockResolvedValue({ id: 'grade-1', schoolId, name: 'Grade 4' });
       prisma.student.count.mockResolvedValue(2);
 
-      await expect(service.deleteGrade('grade-1')).rejects.toThrow('active student');
+      await expect(service.deleteGrade('grade-1', staff)).rejects.toThrow('active student');
       expect(prisma.schoolGrade.update).not.toHaveBeenCalled();
     });
 
     it('throws NotFoundException when grade is missing', async () => {
       prisma.schoolGrade.findUnique.mockResolvedValue(null);
 
-      await expect(service.deleteGrade('grade-9')).rejects.toThrow(NotFoundException);
+      await expect(service.deleteGrade('grade-9', staff)).rejects.toThrow(NotFoundException);
     });
   });
 });

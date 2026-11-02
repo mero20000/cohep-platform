@@ -10,6 +10,7 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { FormField } from '@/components/ui/form-field'
 import { http } from '@/lib/http-client'
 import { useLanguage } from '@/lib/use-language'
+import { TimezoneOptions } from './timezone-options'
 import { PhoneLink } from '@/app/dashboard/students/_components/phone-link'
 
 const API_ORIGIN = process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'http://localhost:3001'
@@ -229,9 +230,7 @@ export function SchoolTab() {
           </div>
           <div className="grid gap-5 sm:grid-cols-2">
             <FormField label={lang === 'ar' ? 'المنطقة الزمنية' : 'Timezone'} as="select" value={form.timezone} onChange={e => setForm({ ...form, timezone: e.target.value })}>
-              <option value="UTC">UTC</option><option value="America/New_York">Eastern (ET)</option><option value="America/Chicago">Central (CT)</option>
-              <option value="America/Denver">Mountain (MT)</option><option value="America/Los_Angeles">Pacific (PT)</option>
-              <option value="Europe/London">London (GMT)</option><option value="Africa/Cairo">Cairo (EET)</option>
+              <TimezoneOptions lang={lang} value={form.timezone} />
             </FormField>
             <FormField label={lang === 'ar' ? 'اللغة الافتراضية' : 'Default Language'} as="select" value={form.locale} onChange={e => setForm({ ...form, locale: e.target.value })}>
               <option value="en">{lang === 'ar' ? 'الإنجليزية' : 'English'}</option><option value="ar">{lang === 'ar' ? 'العربية' : 'Arabic'}</option>
@@ -240,7 +239,7 @@ export function SchoolTab() {
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1.5">{lang === 'ar' ? 'شعار المدرسة' : 'School Logo'}</label>
             <div className="flex items-center gap-4">
-              <div className="flex h-20 w-20 items-center justify-center rounded-xl border-2 border-dashed border-gray-300 bg-gray-50 overflow-hidden flex-shrink-0">
+              <div className="flex h-20 w-20 items-center justify-center rounded-xl border-2 border-dashed border-gray-300 bg-gray-50 overflow-hidden shrink-0">
                 {form.logoUrl ? (
                   <Image src={form.logoUrl.startsWith('http') ? form.logoUrl : `${API_ORIGIN}${form.logoUrl}`} alt="School logo" width={80} height={80} className="h-full w-full object-cover"  />
                 ) : (

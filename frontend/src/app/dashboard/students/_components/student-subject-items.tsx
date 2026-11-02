@@ -121,7 +121,7 @@ export function StudentSubjectItemsPanel({ studentId, lang }: Props) {
         {/* Progress bar */}
         {totalCount > 0 && (
           <div className="w-full h-2 rounded-full bg-blue-100 overflow-hidden">
-            <div className="h-full bg-gradient-to-r from-blue-400 to-blue-600 transition-all duration-300" style={{width: `${progressPercent}%`}} />
+            <div className="h-full bg-linear-to-r from-blue-400 to-blue-600 transition-all duration-300" style={{width: `${progressPercent}%`}} />
           </div>
         )}
       </div>
@@ -148,9 +148,9 @@ export function StudentSubjectItemsPanel({ studentId, lang }: Props) {
                 }`}>
                 <div className="flex items-start gap-3 min-w-0 flex-1">
                   {status === 'passed' ? (
-                    <CheckCircle2 className="h-5 w-5 text-green-600 flex-shrink-0 mt-0.5" />
+                    <CheckCircle2 className="h-5 w-5 text-green-600 shrink-0 mt-0.5" />
                   ) : (
-                    <Circle className="h-5 w-5 text-gray-300 flex-shrink-0 mt-0.5" />
+                    <Circle className="h-5 w-5 text-gray-300 shrink-0 mt-0.5" />
                   )}
                   <div className="min-w-0 flex-1">
                     <div className={`text-sm font-medium truncate ${status === 'passed' ? 'text-green-900' : 'text-gray-900'}`}>

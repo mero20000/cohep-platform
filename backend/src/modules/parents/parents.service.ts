@@ -1,6 +1,13 @@
-import { Injectable, NotFoundException, ForbiddenException, HttpException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, ForbiddenException, HttpException } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 import { HymnLearningService } from '../curriculum/hymn-learning.service';
+import { rateFromCounts } from '../attendance/attendance-metrics';
+import { liveByKey, scoreOf } from '../assessments/assessment-lifecycle';
+import { AuditService } from '../audit/audit.service';
+import { ChildLinkThrottleService } from './child-link-throttle.service';
+
+/** One answer for every way a link attempt can fail, so it reveals nothing about which part was wrong. */
+const NO_MATCH_MESSAGE = 'No matching student found. Check the student code and date of birth.';
 
 /**
  * Passed in place of a parent's user id when the student themselves is the caller.
@@ -13,9 +20,13 @@ export const STUDENT_SELF = '__student_self__';
 
 @Injectable()
 export class ParentsService {
+  private readonly logger = new Logger(ParentsService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly hymnLearning: HymnLearningService,
+    private readonly audit: AuditService,
+    private readonly linkThrottle: ChildLinkThrottleService,
   ) {}
 
   async unlinkChild(studentId: string, userId: string) {
@@ -97,7 +108,7 @@ export class ParentsService {
     // Compute total points from attendance records
     const [attRecords, pointConfig, badgeCount, currentLesson] = await Promise.all([
       this.prisma.attendanceRecord.findMany({
-        where: { studentId: sp.student.id },
+        where: { studentId: sp.student.id, attendanceSession: { OR: [{ notes: null }, { notes: { not: 'liturgy' } }] } },
         select: { status: true, behavior: true, participation: true, attendedLiturgy: true },
       }),
       this.prisma.systemConfig.findUnique({
@@ -109,12 +120,18 @@ export class ParentsService {
     ]);
     const rules: any = (pointConfig?.value as any) || {};
     const presentPoints = rules.presentPoints ?? 5;
+    const latePoints = rules.latePoints ?? 2;
+    const excusedPoints = rules.excusedPoints ?? 1;
     const liturgyPoints = rules.liturgyPoints ?? 3;
+    const behaviorMult = rules.behaviorMultiplier ?? 2;
+    const participationMult = rules.participationMultiplier ?? 2;
     const totalPoints = attRecords.reduce((sum: number, r: any) => {
       let s = 0;
       if (r.status === 'present') s += presentPoints;
-      if (r.behavior) s += r.behavior;
-      if (r.participation) s += r.participation;
+      else if (r.status === 'late') s += latePoints;
+      else if (r.status === 'excused') s += excusedPoints;
+      if (r.behavior) s += r.behavior * behaviorMult;
+      if (r.participation) s += r.participation * participationMult;
       if (r.attendedLiturgy) s += liturgyPoints;
       return sum + s;
     }, 0);
@@ -138,9 +155,7 @@ export class ParentsService {
         badges: badgeCount,
         ...attCounts,
         upcomingSessions: upcomingCount,
-        attendanceRate: attCounts.total > 0
-          ? Math.round(((attCounts.present + attCounts.late) / attCounts.total) * 100)
-          : 0,
+        attendanceRate: rateFromCounts(attCounts),
       },
       currentLesson,
     };
@@ -215,16 +230,31 @@ export class ParentsService {
     return (await this.mapStudentParent({ student, relationship: link?.relationship || 'parent', isPrimary: link?.isPrimary || false })).student;
   }
 
-  async linkChild(studentCode: string, userId: string, relationship = 'parent') {
+  /**
+   * Links a child to a parent account. The student code alone is a sequential, printable number, so
+   * the child's date of birth is required too, attempts are limited, and every failure gets the same
+   * answer. Linking never writes `student.parentEmail`: that field decides where absence alerts go
+   * and is only changed by staff. Existing parents and the school's admins are told about the link.
+   */
+  async linkChild(studentCode: string, dateOfBirth: string, userId: string, relationship = 'parent') {
     const parent = await this.prisma.user.findUnique({
       where: { id: userId },
-      select: { schoolId: true, email: true },
+      select: { schoolId: true, firstName: true, lastName: true, email: true },
     });
     if (!parent) throw new NotFoundException('Parent not found');
+
+    this.linkThrottle.recordAttempt(userId);
+    this.linkThrottle.assertSchoolNotLocked(parent.schoolId);
+
     const student = await this.prisma.student.findFirst({
       where: { studentCode, schoolId: parent.schoolId, deletedAt: null },
     });
-    if (!student) throw new NotFoundException('No student found with that code in your school');
+    const dobMatches = !!student && student.dateOfBirth.toISOString().slice(0, 10) === dateOfBirth;
+    if (!student || !dobMatches) {
+      this.linkThrottle.recordSchoolFailure(parent.schoolId);
+      throw new NotFoundException(NO_MATCH_MESSAGE);
+    }
+
     const existing = await this.prisma.studentParent.findUnique({
       where: { studentId_parentId: { studentId: student.id, parentId: userId } },
     });
@@ -232,20 +262,77 @@ export class ParentsService {
       await this.prisma.studentParent.create({
         data: { studentId: student.id, parentId: userId, relationship, isPrimary: false },
       });
-    }
-    if (!student.parentEmail && parent.email) {
-      await this.prisma.student.update({
-        where: { id: student.id },
-        data: { parentEmail: parent.email },
-      });
+      await this.recordNewLink(student, parent, userId, relationship);
     }
     return this.getChildren(userId);
+  }
+
+  /** Audit entry plus in-app notices. Best effort: a failure here must not undo or block the link. */
+  private async recordNewLink(
+    student: { id: string; schoolId: string; firstName: string; lastName: string },
+    parent: { firstName: string; lastName: string },
+    userId: string,
+    relationship: string,
+  ) {
+    try {
+      await this.audit.log({
+        schoolId: student.schoolId,
+        userId,
+        action: 'parent.link_child',
+        entityType: 'student',
+        entityId: student.id,
+        metadata: { relationship },
+      });
+
+      const [admins, otherParents] = await Promise.all([
+        this.prisma.user.findMany({
+          where: {
+            schoolId: student.schoolId,
+            isActive: true,
+            deletedAt: null,
+            userRoles: { some: { role: { name: { in: ['admin', 'principal'] } } } },
+          },
+          select: { id: true },
+        }),
+        this.prisma.studentParent.findMany({
+          where: { studentId: student.id, parentId: { not: userId } },
+          select: { parentId: true },
+        }),
+      ]);
+      const recipients = [...new Set([...admins.map((a) => a.id), ...otherParents.map((p) => p.parentId)])].filter(
+        (id) => id !== userId,
+      );
+      if (recipients.length === 0) return;
+
+      const who = `${parent.firstName} ${parent.lastName}`.trim();
+      const child = `${student.firstName} ${student.lastName}`.trim();
+      await this.prisma.notification.createMany({
+        skipDuplicates: true,
+        data: recipients.map((id) => ({
+          schoolId: student.schoolId,
+          userId: id,
+          studentId: student.id,
+          type: 'parent_linked',
+          title: 'New parent linked to a student',
+          titleAr: 'تم ربط ولي أمر جديد بطالب',
+          body: `${who} linked to ${child} as ${relationship}. If this is unexpected, contact the school.`.slice(0, 500),
+          bodyAr: `قام ${who} بالارتباط بالطالب ${child} (${relationship}). إذا لم يكن هذا متوقعاً، يرجى التواصل مع المدرسة.`.slice(0, 500),
+          channel: 'in_app',
+          referenceType: 'student_parent',
+          referenceId: `${student.id}:${userId}:${id}`,
+          sentAt: new Date(),
+          deliveredAt: new Date(),
+        })),
+      });
+    } catch (err) {
+      this.logger.warn(`Could not record parent link for student ${student.id}: ${(err as Error).message}`);
+    }
   }
 
   async getChildAttendance(studentId: string, userId: string) {
     await this.verifyParent(userId, studentId);
     const records = await this.prisma.attendanceRecord.findMany({
-      where: { studentId, attendanceSession: { deletedAt: null } },
+      where: { studentId, attendanceSession: { deletedAt: null, OR: [{ notes: null }, { notes: { not: 'liturgy' } }] } },
       include: {
         attendanceSession: {
           include: { level: { select: { number: true, name: true } } },
@@ -267,17 +354,23 @@ export class ParentsService {
 
   async getChildAssessments(studentId: string, userId: string) {
     await this.verifyParent(userId, studentId);
-    const submissions = await this.prisma.assessmentSubmission.findMany({
-      where: { studentId },
+    const all = await this.prisma.assessmentSubmission.findMany({
+      where: { studentId, status: { not: 'superseded' } },
       include: {
         assessment: { include: { subject: { select: { name: true, nameAr: true } } } },
         grades: true,
       },
       orderBy: { createdAt: 'desc' },
     });
+    // One entry per assessment from its live record (same rule as the student's own view and the
+    // teacher screens), plus the parent's own home-practice reports, which are separate evidence.
+    const reports = all.filter(s => s.submissionType === 'parent_report');
+    const live = Array.from(liveByKey(all.filter(s => s.submissionType !== 'parent_report'), s => s.assessmentId).values());
+    const submissions = [...live, ...reports].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
     return submissions.map(s => {
-      const totalScore = s.grades.reduce((sum, g) => sum + Number(g.score), 0);
-      const maxScore = s.grades.reduce((sum, g) => sum + Number(g.maxScore), 0) || Number(s.assessment.totalPoints);
+      const mark = scoreOf(s.grades);
+      const totalScore = mark?.score ?? 0;
+      const maxScore = mark?.maxScore || Number(s.assessment.totalPoints);
       const percentage = maxScore > 0 ? Math.round((totalScore / maxScore) * 100) : 0;
       return {
         id: s.id,
@@ -317,7 +410,7 @@ export class ParentsService {
 
   private async getAttendanceCounts(studentId: string) {
     const records = await this.prisma.attendanceRecord.findMany({
-      where: { studentId, attendanceSession: { deletedAt: null } },
+      where: { studentId, attendanceSession: { deletedAt: null, OR: [{ notes: null }, { notes: { not: 'liturgy' } }] } },
       select: { status: true },
     });
     let present = 0, late = 0, absent = 0, excused = 0;
@@ -376,7 +469,7 @@ export class ParentsService {
 
     // Attendance
     const attRecords = await this.prisma.attendanceRecord.findMany({
-      where: { studentId, attendanceSession: { deletedAt: null } },
+      where: { studentId, attendanceSession: { deletedAt: null, OR: [{ notes: null }, { notes: { not: 'liturgy' } }] } },
       select: { status: true },
     });
     const present = attRecords.filter(r => r.status === 'present').length;
@@ -851,24 +944,67 @@ export class ParentsService {
 
   async getLiturgyRecords(studentId: string, userId: string) {
     await this.verifyParent(userId, studentId);
-    const records = await this.prisma.familyLiturgy.findMany({
-      where: { studentId },
-      orderBy: { date: 'desc' },
-      take: 30,
+
+    const student = await this.prisma.student.findUnique({
+      where: { id: studentId },
+      select: { schoolId: true },
     });
-    return records.map(r => ({
-      id: r.id,
-      date: r.date,
-      status: r.status,
-      notes: r.notes,
-      servantNote: r.servantNote,
-      verifiedAt: r.verifiedAt,
-      // Without these a rejection is indistinguishable from a claim still pending, which
-      // is most of what made the old hard delete so opaque.
-      rejectedAt: r.rejectedAt,
-      rejectionReason: r.rejectionReason,
-      createdAt: r.createdAt,
-    }));
+
+    const [familyRecords, servantRecords] = await Promise.all([
+      this.prisma.familyLiturgy.findMany({
+        where: { studentId },
+        orderBy: { date: 'desc' },
+        take: 30,
+      }),
+      this.prisma.attendanceRecord.findMany({
+        where: {
+          studentId,
+          attendedLiturgy: true,
+          attendanceSession: { schoolId: student?.schoolId, deletedAt: null },
+        },
+        include: { attendanceSession: { select: { scheduledDate: true } } },
+        orderBy: { attendanceSession: { scheduledDate: 'desc' } },
+        take: 30,
+      }),
+    ]);
+
+    const dateKey = (d: Date | string) => new Date(d).toISOString().split('T')[0];
+    const merged = new Map<string, any>();
+
+    for (const r of servantRecords) {
+      const dk = dateKey(r.attendanceSession.scheduledDate);
+      merged.set(dk, {
+        id: r.id,
+        date: r.attendanceSession.scheduledDate,
+        status: 'verified',
+        notes: null,
+        servantNote: null,
+        verifiedAt: r.recordedAt,
+        rejectedAt: null,
+        rejectionReason: null,
+        createdAt: r.recordedAt,
+        source: 'servant',
+      });
+    }
+    for (const r of familyRecords) {
+      const dk = dateKey(r.date);
+      if (!merged.has(dk) || r.status === 'verified') {
+        merged.set(dk, {
+          id: r.id,
+          date: r.date,
+          status: r.status,
+          notes: r.notes,
+          servantNote: r.servantNote,
+          verifiedAt: r.verifiedAt,
+          rejectedAt: r.rejectedAt,
+          rejectionReason: r.rejectionReason,
+          createdAt: r.createdAt,
+          source: 'family',
+        });
+      }
+    }
+
+    return [...merged.values()].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }
 
   async getMilestones(studentId: string, userId: string) {
@@ -1048,7 +1184,7 @@ export class ParentsService {
       this.prisma.attendanceRecord.findMany({
         where: {
           studentId,
-          attendanceSession: { scheduledDate: { gte: termStart, lte: termEnd }, deletedAt: null },
+          attendanceSession: { scheduledDate: { gte: termStart, lte: termEnd }, deletedAt: null, OR: [{ notes: null }, { notes: { not: 'liturgy' } }] },
         },
         select: { status: true },
       }),
@@ -1106,9 +1242,14 @@ export class ParentsService {
     await this.verifyParent(userId, studentId);
     const assessment = await this.prisma.assessment.findUnique({
       where: { id: assessmentId },
-      select: { id: true, totalPoints: true, passingScore: true, title: true },
+      select: { id: true, totalPoints: true, passingScore: true, title: true, schoolId: true, status: true, deletedAt: true },
     });
-    if (!assessment) throw new NotFoundException('Assessment not found');
+    // A report can only attach to a real, published assessment in the child's own school; any other
+    // id would tie the child to work that was never theirs.
+    const child = await this.prisma.student.findUnique({ where: { id: studentId }, select: { schoolId: true } });
+    if (!assessment || assessment.deletedAt || assessment.status !== 'published' || !child || assessment.schoolId !== child.schoolId) {
+      throw new NotFoundException('Assessment not found');
+    }
 
     const totalPoints = Number(assessment.totalPoints);
     const maxScore = totalPoints || 100;

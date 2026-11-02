@@ -6,7 +6,7 @@ import { Roles, STAFF_ROLES } from '../../common/decorators/roles.decorator';
 import { AttendanceService } from './attendance.service';
 import { CreateAttendanceSessionDto } from './dto/create-attendance-session.dto';
 import { UpdateAttendanceSessionDto } from './dto/update-attendance-session.dto';
-import { MarkAttendanceDto } from './dto/mark-attendance.dto';
+import { MarkAttendanceDto, FinalizeAttendanceDto } from './dto/mark-attendance.dto';
 import { QrCheckInDto } from './dto/qr-checkin.dto';
 
 @ApiTags('attendance')
@@ -28,18 +28,42 @@ export class AttendanceController {
     @Query('servantId') servantId?: string,
     @Query('from') from?: string,
     @Query('to') to?: string,
+    @Query('notes') notes?: string,
+    @Query('excludeNotes') excludeNotes?: string,
+    @Query('type') type?: string,
   ) {
     return this.attendanceService.getSessions(schoolId, {
       page: page ? parseInt(page, 10) : 1,
       limit: limit ? parseInt(limit, 10) : 50,
-      status, levelId, groupId, servantId, from, to,
+      status, levelId, groupId, servantId, from, to, notes, excludeNotes, type,
     }, req.user);
   }
 
   @Get('stats')
   @ApiOperation({ summary: 'Get attendance session stats' })
-  async getStats(@Query('schoolId') schoolId: string = '') {
-    return this.attendanceService.getSessionStats(schoolId);
+  async getStats(
+    @Query('schoolId') schoolId: string = '',
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+  ) {
+    return this.attendanceService.getSessionStats(schoolId, { from, to });
+  }
+
+  @Get('enrolled-count')
+  @ApiOperation({ summary: 'Get the active enrolled student headcount — the denominator for insights' })
+  async getEnrolledCount(@Query('schoolId') schoolId: string = '') {
+    return { enrolledStudents: await this.attendanceService.getEnrolledStudentCount(schoolId) };
+  }
+
+  @Get('top-absentees')
+  @ApiOperation({ summary: 'Students with the most absences in a date range (insights drill-down)' })
+  async getTopAbsentees(
+    @Query('schoolId') schoolId: string = '',
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.attendanceService.getTopAbsentees(schoolId, { from, to, limit: limit ? parseInt(limit, 10) : undefined });
   }
 
   @Get('student-search')
@@ -53,14 +77,22 @@ export class AttendanceController {
 
   @Get('level-stats')
   @ApiOperation({ summary: 'Get attendance stats by level' })
-  async getLevelStats(@Query('schoolId') schoolId: string = '') {
-    return this.attendanceService.getLevelStats(schoolId);
+  async getLevelStats(
+    @Query('schoolId') schoolId: string = '',
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+  ) {
+    return this.attendanceService.getLevelStats(schoolId, { from, to });
   }
 
   @Get('group-stats')
   @ApiOperation({ summary: 'Get attendance stats by group' })
-  async getGroupStats(@Query('schoolId') schoolId: string = '') {
-    return this.attendanceService.getGroupStats(schoolId);
+  async getGroupStats(
+    @Query('schoolId') schoolId: string = '',
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+  ) {
+    return this.attendanceService.getGroupStats(schoolId, { from, to });
   }
 
   @Get('sessions/:id')
@@ -90,8 +122,12 @@ export class AttendanceController {
   @ApiOperation({ summary: 'Reset auto-seed-like records to unmarked (dry run unless confirmed)' })
   async resetAutoSeedSuspects(
     @Body() body: { schoolId?: string; from?: string; to?: string; limit?: number; dryRun?: boolean; confirm?: boolean },
+    @Req() req: any,
   ) {
-    return this.attendanceService.resetSuspectAutoSeeds(body.schoolId || '', {
+    // This route writes. A non-super-admin always acts on their own school, whatever the body says.
+    const isSuperAdmin = req.user?.roles?.includes('super_admin');
+    const schoolId = isSuperAdmin ? body.schoolId || '' : req.user?.schoolId || '';
+    return this.attendanceService.resetSuspectAutoSeeds(schoolId, {
       from: body.from,
       to: body.to,
       limit: body.limit,
@@ -102,8 +138,8 @@ export class AttendanceController {
 
   @Post('sessions')
   @ApiOperation({ summary: 'Create an attendance session' })
-  async createSession(@Body() dto: CreateAttendanceSessionDto) {
-    return this.attendanceService.createSession(dto);
+  async createSession(@Body() dto: CreateAttendanceSessionDto, @Req() req: any) {
+    return this.attendanceService.createSession(dto, req.user);
   }
 
   @Post('sessions/:id/mark')
@@ -111,8 +147,19 @@ export class AttendanceController {
   async markAttendance(
     @Param('id') id: string,
     @Body() dto: MarkAttendanceDto,
+    @Req() req: any,
   ) {
-    return this.attendanceService.markAttendance(id, dto);
+    return this.attendanceService.markAttendance(id, dto, req.user);
+  }
+
+  @Post('sessions/:id/finalize')
+  @ApiOperation({ summary: 'Save marks and complete the session in a single transaction' })
+  async finalizeSession(
+    @Param('id') id: string,
+    @Body() dto: FinalizeAttendanceDto,
+    @Req() req: any,
+  ) {
+    return this.attendanceService.finalizeSession(id, dto, req.user);
   }
 
   @Put('sessions/:id')
@@ -120,8 +167,9 @@ export class AttendanceController {
   async updateSession(
     @Param('id') id: string,
     @Body() dto: UpdateAttendanceSessionDto,
+    @Req() req: any,
   ) {
-    return this.attendanceService.updateSession(id, dto);
+    return this.attendanceService.updateSession(id, dto, req.user);
   }
 
   @Post('sessions/:id/subject-item/pass')
@@ -144,12 +192,14 @@ export class AttendanceController {
   }
 
   @Delete('sessions/:id')
+  @Roles('super_admin')
   @ApiOperation({ summary: 'Delete an attendance session (soft)' })
   async deleteSession(@Param('id') id: string) {
     return this.attendanceService.deleteSession(id);
   }
 
   @Post('sessions/batch-delete')
+  @Roles('super_admin')
   @ApiOperation({ summary: 'Batch delete multiple attendance sessions (only scheduled status allowed)' })
   async batchDeleteSessions(@Body() body: { sessionIds: string[] }) {
     return this.attendanceService.batchDeleteSessions(body.sessionIds);
@@ -181,8 +231,9 @@ export class AttendanceController {
   async batchUpdateRecords(
     @Param('id') id: string,
     @Body() body: { updates: Array<{ studentId: string; status: string }> },
+    @Req() req: any,
   ) {
-    return this.attendanceService.batchUpdateRecords(id, body.updates);
+    return this.attendanceService.batchUpdateRecords(id, body.updates, req.user);
   }
 
   @Put('sessions/:id/notes')
@@ -201,15 +252,15 @@ export class AttendanceController {
   }
 
   @Post('start-class')
-  @ApiOperation({ summary: 'Start class for today — auto-detect group, or use specified groupId/levelId/gradeId' })
-  async startClass(@Req() req: any, @Query('groupId') groupId?: string, @Query('levelId') levelId?: string, @Query('gradeId') gradeId?: string) {
-    return this.attendanceService.startClass(req.user.id, groupId, levelId, gradeId);
+  @ApiOperation({ summary: 'Start class for today — auto-detect group, or use specified groupId/levelId/gradeId/gender' })
+  async startClass(@Req() req: any, @Query('groupId') groupId?: string, @Query('levelId') levelId?: string, @Query('gradeId') gradeId?: string, @Query('gender') gender?: string) {
+    return this.attendanceService.startClass(req.user.id, groupId, levelId, gradeId, gender);
   }
 
   @Post('sessions/:id/start')
   @ApiOperation({ summary: 'Start a scheduled attendance session manually' })
   async startSession(@Param('id') id: string, @Req() req: any) {
-    return this.attendanceService.startSession(id, req.user.id);
+    return this.attendanceService.startSession(id, req.user.id, req.user.roles);
   }
 
   @Get('liturgy-heatmap')

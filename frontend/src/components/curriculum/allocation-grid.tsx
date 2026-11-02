@@ -64,7 +64,7 @@ function MobileAllocationCard({ week, level, allocations, lessons, onSave, savin
               <select value={alloc?.lesson.id || ''}
                 onChange={e => onSave(week.weekNumber, level.number, subject.name, e.target.value || null)}
                 disabled={saving}
-                className={`flex-1 text-xs rounded border ${alloc ? `${s.border} ${s.bg}` : 'border-gray-200'} px-2 py-1.5 focus:border-gold-500 focus:outline-none ${s.text} disabled:opacity-50`}>
+                className={`flex-1 text-xs rounded border ${alloc ? `${s.border} ${s.bg}` : 'border-gray-200'} px-2 py-1.5 focus:border-gold-500 focus:outline-hidden ${s.text} disabled:opacity-50`}>
                 <option value="">- None -</option>
                 {lessons.filter(l => l.level.number === level.number && l.subject.name === subject.name).sort((a, b) => a.orderIndex - b.orderIndex).map(lsn => (
                   <option key={lsn.id} value={lsn.id}>
@@ -204,7 +204,7 @@ export function AllocationGrid({
                           <select value={alloc?.lesson.id || ''}
                             onChange={e => handleSave(week.weekNumber, level.number, subject.name, e.target.value || null)}
                             disabled={isSaving}
-                            className={`flex-1 text-xs rounded border ${alloc ? `${s.border} ${s.bg}` : 'border-gray-200'} px-2 py-1.5 focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-blue-500 ${s.text} disabled:opacity-50`}
+                            className={`flex-1 text-xs rounded border ${alloc ? `${s.border} ${s.bg}` : 'border-gray-200'} px-2 py-1.5 focus:border-gold-500 focus:outline-hidden focus:ring-1 focus:ring-blue-500 ${s.text} disabled:opacity-50`}
                             aria-label={`${subject.name} - ${lang === 'ar' ? 'الأسبوع' : 'Week'} ${week.weekNumber}, ${lang === 'ar' ? 'المستوى' : 'Level'} ${level.number}`}>
                             <option value="">-</option>
                             {availableLessons.sort((a, b) => a.orderIndex - b.orderIndex).map(lsn => (
@@ -266,24 +266,24 @@ function Toolbar({ lang, selectedTerm, onTermChange, selectedAllocLevelId, onAll
         <span className="text-sm font-medium text-gray-700">{lang === 'ar' ? 'الفصل:' : 'Term:'}</span>
         {[1, 2, 3].map(t => (
           <button key={t} onClick={() => onTermChange(t)}
-            className={`px-4 py-2 text-sm font-medium rounded-lg border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500 focus-visible:ring-offset-2 ${
+            className={`px-4 py-2 text-sm font-medium rounded-lg border transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-gold-500 focus-visible:ring-offset-2 ${
               selectedTerm === t ? 'bg-blue-500 text-white border-gold-500' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50 active:bg-gray-100'
             }`}>{TERM_SHORT[t]}</button>
         ))}
         <span className="ms-4 text-sm font-medium text-gray-700">{lang === 'ar' ? 'المستوى:' : 'Level:'}</span>
         <select value={selectedAllocLevelId} onChange={e => onAllocLevelChange(e.target.value)}
           aria-label={lang === 'ar' ? 'المستوى' : 'Level'}
-          className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
+          className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gold-500 focus:outline-hidden focus:ring-1 focus:ring-blue-500">
           <option value="">{lang === 'ar' ? 'جميع المستويات' : 'All Levels'}</option>
           {sortedLevels.map(l => <option key={l.id} value={l.id}>{lang === 'ar' ? 'المستوى' : 'Level'} {l.number}</option>)}
         </select>
         <div className="ms-auto flex items-center gap-2">
           <button onClick={() => handleClear('term')} disabled={!selectedYear}
-            className="flex items-center gap-1.5 rounded-lg border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50 disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-300">
+            className="flex items-center gap-1.5 rounded-lg border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50 disabled:opacity-40 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-red-300">
             <Trash2 className="h-3 w-3" />{lang === 'ar' ? 'مسح الفصل' : 'Clear Term'}
           </button>
           <button onClick={() => handleClear('all')} disabled={!selectedYear}
-            className="flex items-center gap-1.5 rounded-lg border border-red-300 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-50 disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-300">
+            className="flex items-center gap-1.5 rounded-lg border border-red-300 px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-50 disabled:opacity-40 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-red-300">
             <Trash2 className="h-3 w-3" />{lang === 'ar' ? 'مسح الكل' : 'Clear All'}
           </button>
         </div>

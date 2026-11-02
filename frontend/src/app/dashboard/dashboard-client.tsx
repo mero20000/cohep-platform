@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef, useId } from 'react'
+import { StudentAvatar } from '@/components/ui/student-avatar'
 import { useLanguage } from '@/lib/use-language'
 import { toTelHref, toWhatsAppDigits } from '@/lib/phone'
 import Image from 'next/image'
@@ -31,36 +32,39 @@ import { useActiveRole, roleCategory } from '@/lib/use-active-role'
 import DashboardHero from './hero'
 import { PhoneLink } from '@/app/dashboard/students/_components/phone-link'
 import { ServantJourneyCard } from '@/components/dashboard/servant-journey-card'
+import { BirthdaysSection } from '@/components/servants/birthdays-section'
 import { useAcademicYearsQuery, useAllAllocationsQuery, useLessonsQuery, useLevelsQuery } from '@/components/curriculum/hooks'
 import type { Allocation, Level } from '@/components/curriculum/types'
 import { parseISO, isSameDay, startOfDay, startOfWeek, addDays, format } from 'date-fns'
 import { enGB, ar } from 'date-fns/locale'
-import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, Cell, PieChart, Pie, Sector } from 'recharts'
+import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, Cell, PieChart, Pie, Sector, ReferenceLine } from 'recharts'
 import { AnimatedChartTooltip } from '@/components/ui/animated-chart-tooltip'
 
 interface GradeDistItem { grade: string; count: number }
 interface StudentsPerLevel { levelName: string; count: number }
 interface StudentsByStatus { status: string; count: number }
-interface AssessmentStatItem { gradedCount: number; passCount: number; passRate: number; avgGradeScore: number }
+interface AssessmentStatItem { gradedCount: number; passCount: number; passRate: number; avgGradeScore: number; recent: { windowDays: number; gradedCount: number; passRate: number | null } }
 interface AssessmentsByStatus { status: string; count: number }
 interface RecentGrade { id: string; studentName: string; studentPhotoUrl: string | null; assessmentTitle: string; assessmentId: string; score: number; maxScore: number; passed: boolean; gradedAt: string }
 
+interface AttendanceTrendPoint { weekStart: string; rate: number | null; decided: number }
 interface DashboardData {
  totalStudents: number; totalLevels: number; totalLessons: number; totalAllocations: number;
  totalChurches: number; totalUsers: number; totalBadges: number; activeStudents: number;
- publishedAssessments: number; totalAssessments: number; attendanceRate: number;
+ publishedAssessments: number; totalAssessments: number;
+ /** Last 7 days; null = no class was held (shown as a dash, never 0%). */
+ attendanceRate: number | null; attendancePrevRate: number | null; attendanceTarget?: number; attendanceTrend: AttendanceTrendPoint[]; studentsAtRisk: number;
  completedSessions: number; gradeDistribution: GradeDistItem[]; studentsPerLevel: StudentsPerLevel[];
  studentsByStatus: StudentsByStatus[]; studentsWithoutGrade: number;
  assessmentsByStatus: AssessmentsByStatus[]; assessmentStats: AssessmentStatItem;
  recentGrades: RecentGrade[]; recentActivity: ActivityItem[];
- upcomingSessions: UpcomingSession[]; topStudents: TopStudent[]; weeklyStats: WeeklyStat[];
+ upcomingSessions: UpcomingSession[]; topStudents: TopStudent[];
  school: { name: string; nameAr: string; logoUrl: string | null } | null
 }
 
 interface ActivityItem { id: string; action: string; entityType: string; createdAt: string; user?: { firstName: string; lastName: string } | null }
-interface UpcomingSession { id: string; scheduledDate: string; status: string; level: { name: string; number?: number }; servant: { firstName: string; lastName: string } }
+interface UpcomingSession { id: string; scheduledDate: string; status: string; level: { name: string; number?: number } | null; group: { id: string; name: string } | null; servant: { firstName: string; lastName: string } | null }
 interface TopStudent { rank: number; id: string; firstName: string; lastName: string; photoUrl: string | null; level: number; levelName: string; xp: number; badgeCount: number }
-interface WeeklyStat { scheduledDate: string; status: string; _count: { attendanceRecords: number } }
 
 interface PrimaryData {
   stats: DashboardData
@@ -89,12 +93,12 @@ interface GroupMate {
 const EMPTY_STATS: DashboardData = {
  totalStudents: 0, totalLevels: 0, totalLessons: 0, totalAllocations: 0,
  totalChurches: 0, totalUsers: 0, totalBadges: 0, activeStudents: 0,
- publishedAssessments: 0, totalAssessments: 0, attendanceRate: 0,
+ publishedAssessments: 0, totalAssessments: 0, attendanceRate: null, attendancePrevRate: null, attendanceTrend: [], studentsAtRisk: 0,
  completedSessions: 0, gradeDistribution: [], studentsPerLevel: [],
  studentsByStatus: [], studentsWithoutGrade: 0, assessmentsByStatus: [],
- assessmentStats: { gradedCount: 0, passCount: 0, passRate: 0, avgGradeScore: 0 },
+ assessmentStats: { gradedCount: 0, passCount: 0, passRate: 0, avgGradeScore: 0, recent: { windowDays: 90, gradedCount: 0, passRate: null } },
  recentGrades: [], recentActivity: [], upcomingSessions: [], topStudents: [],
- weeklyStats: [], school: null,
+ school: null,
 }
 
 function formatDate(dateStr: string, locale = 'en-GB') { return new Date(dateStr).toLocaleDateString(locale, { day: '2-digit', month: 'short', year: 'numeric' }) }
@@ -155,13 +159,13 @@ const ACTIVITY_ICONS: Record<string, typeof Users> = {
  attended: UserCheck, enrolled: GraduationCap, assigned: Calendar,
 }
 const ACTIVITY_COLORS: Record<string, string> = {
- created: 'bg-gradient-to-br from-green-100 to-green-50 text-green-600',
- updated: 'bg-gradient-to-br from-blue-100 to-blue-50 text-blue-600',
- deleted: 'bg-gradient-to-br from-red-100 to-red-50 text-red-600',
- graded: 'bg-gradient-to-br from-purple-100 to-purple-50 text-purple-600',
- attended: 'bg-gradient-to-br from-emerald-100 to-emerald-50 text-emerald-600',
- enrolled: 'bg-gradient-to-br from-indigo-100 to-indigo-50 text-indigo-600',
- assigned: 'bg-gradient-to-br from-amber-100 to-amber-50 text-amber-600',
+ created: 'bg-linear-to-br from-green-100 to-green-50 text-green-600',
+ updated: 'bg-linear-to-br from-blue-100 to-blue-50 text-blue-600',
+ deleted: 'bg-linear-to-br from-red-100 to-red-50 text-red-600',
+ graded: 'bg-linear-to-br from-purple-100 to-purple-50 text-purple-600',
+ attended: 'bg-linear-to-br from-emerald-100 to-emerald-50 text-emerald-600',
+ enrolled: 'bg-linear-to-br from-indigo-100 to-indigo-50 text-indigo-600',
+ assigned: 'bg-linear-to-br from-amber-100 to-amber-50 text-amber-600',
 }
 
 const fadeUp = {
@@ -226,7 +230,7 @@ function useAsync<T>(fetcher: () => Promise<T>, deps: React.DependencyList): { d
 
 function HeroFallback() {
  return (
-  <div className="rounded-2xl bg-[var(--hymn-navy)] p-6 sm:p-8 animate-pulse">
+  <div className="rounded-2xl bg-(--hymn-navy) p-6 sm:p-8 animate-pulse">
    <div className="h-4 w-32 bg-white/10 rounded mb-3" />
    <div className="h-8 w-64 bg-white/10 rounded mb-2" />
    <div className="h-4 w-48 bg-white/10 rounded" />
@@ -244,7 +248,7 @@ function HeroFallback() {
 
 function SectionFallback({ height = 'h-48' }: { height?: string }) {
   return (
-   <div className={`rounded-xl border border-[var(--hymn-border)] bg-[var(--hymn-surface)] p-5 ${height}`}>
+   <div className={`rounded-xl border border-(--hymn-border) bg-(--hymn-surface) p-5 ${height}`}>
     <div className="h-4 w-32 bg-gray-200 rounded mb-4 animate-pulse" />
     <div className="space-y-3 animate-pulse">
      <div className="h-3 w-full bg-gray-100 rounded" />
@@ -257,8 +261,8 @@ function SectionFallback({ height = 'h-48' }: { height?: string }) {
 
 function ServantSectionFallback() {
  return (
-  <div className="rounded-xl border border-[var(--hymn-border)] bg-[var(--hymn-surface)]">
-   <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--hymn-border)]">
+  <div className="rounded-xl border border-(--hymn-border) bg-(--hymn-surface)">
+   <div className="flex items-center justify-between px-5 py-4 border-b border-(--hymn-border)">
     <div className="h-5 w-24 bg-gray-200 rounded" />
     <div className="h-3 w-12 bg-gray-200 rounded" />
    </div>
@@ -272,6 +276,12 @@ function ServantSectionFallback() {
 }
 
 // ── Section components ─────────────────────────────────────────────
+
+interface HeroTile {
+  label: string; labelAr: string; value: number | null; suffix?: string; icon: React.ComponentType<{ className?: string }>
+  /** Change versus the previous period, in points. */
+  delta?: number | null; note?: string; noteAr?: string; href?: string
+}
 
 function HeroSection({ stats, churchLogo, churchName, loading }: { stats: DashboardData | null; churchLogo: string | null; churchName: string; loading: boolean }) {
   const lang = useLanguage()
@@ -328,37 +338,82 @@ function HeroSection({ stats, churchLogo, churchName, loading }: { stats: Dashbo
   const nextSession = s.upcomingSessions?.[0] || null
   const nextLabel = nextSession ? new Date(nextSession.scheduledDate).toLocaleDateString(isRTL ? 'ar-EG' : 'en-GB', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : ''
 
-  const heroStats = isSuperAdmin
-    ? ([
+  // Attendance is the last 7 days (not just today) and says so; a week with no class is a dash, never 0%.
+  const attendanceDelta = s.attendanceRate != null && s.attendancePrevRate != null ? s.attendanceRate - s.attendancePrevRate : null
+  const attendanceTile: HeroTile = {
+    label: 'Attendance · 7 days', labelAr: 'الحضور · 7 أيام', value: s.attendanceRate ?? null, suffix: '%', icon: UserCheck,
+    delta: attendanceDelta,
+    note: s.attendanceRate == null ? 'No class this week' : `Target ${s.attendanceTarget ?? 80}%`,
+    noteAr: s.attendanceRate == null ? 'لا حصص هذا الأسبوع' : `الهدف ${s.attendanceTarget ?? 80}٪`,
+  }
+  // The at-risk count opens the students it counts.
+  const atRiskTile: HeroTile = {
+    label: 'At risk', labelAr: 'في خطر', value: s.studentsAtRisk ?? 0, icon: AlertTriangle,
+    note: 'Missed 3+ in a row', noteAr: 'غابوا 3+ متتالية', href: '/dashboard/students?engagement=at_risk',
+  }
+  // Recent pass rate (last 90 days); an old weak term no longer drags a good one down.
+  const passTile: HeroTile = {
+    label: 'Pass rate · 90 days', labelAr: 'النجاح · 90 يوماً', value: s.assessmentStats?.recent?.passRate ?? null, suffix: '%', icon: TrendingUp,
+    note: s.assessmentStats?.recent?.passRate == null ? 'Nothing graded lately' : undefined, noteAr: s.assessmentStats?.recent?.passRate == null ? 'لا تصحيح مؤخراً' : undefined,
+  }
+  const heroStats: HeroTile[] = isSuperAdmin
+    ? [
         { label: 'Churches', labelAr: 'الكنائس', value: s.totalChurches ?? 0, icon: Church },
         { label: 'Active Students', labelAr: 'الطلاب النشطون', value: s.activeStudents ?? 0, icon: Users },
-        { label: 'Attendance', labelAr: 'الحضور', value: s.attendanceRate ?? 0, suffix: '%', icon: UserCheck },
-        { label: 'Assessments', labelAr: 'التقييمات', value: s.publishedAssessments ?? 0, icon: ClipboardCheck },
-        { label: 'Pass Rate', labelAr: 'نسبة النجاح', value: s.assessmentStats?.passRate ?? 0, suffix: '%', icon: TrendingUp },
-      ] as const)
-    : ([
+        attendanceTile,
+        atRiskTile,
+        passTile,
+      ]
+    : [
         { label: 'Active Students', labelAr: 'الطلاب النشطون', value: s.activeStudents ?? 0, icon: Users },
-        { label: 'Attendance', labelAr: 'الحضور', value: s.attendanceRate ?? 0, suffix: '%', icon: UserCheck },
-        { label: 'Levels', labelAr: 'المستويات', value: s.totalLevels ?? 0, icon: Layers },
+        attendanceTile,
+        atRiskTile,
         { label: 'Assessments', labelAr: 'التقييمات', value: s.publishedAssessments ?? 0, icon: ClipboardCheck },
-        { label: 'Pass Rate', labelAr: 'نسبة النجاح', value: s.assessmentStats?.passRate ?? 0, suffix: '%', icon: TrendingUp },
-      ] as const)
+        passTile,
+      ]
   const statsGrid = (
     <div className="grid grid-cols-2 gap-2.5 sm:gap-3 sm:grid-cols-5" role="list">
-      {heroStats.map((item, idx) => (
-        <div key={item.label} role="listitem" tabIndex={0} className={`group relative overflow-hidden rounded-2xl bg-white/[0.06] border border-white/10 backdrop-blur-sm px-3.5 py-3 sm:px-4 sm:py-3 hover:bg-white/[0.09] hover:border-white/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-400/40 focus-visible:ring-offset-0 transition-all duration-300 ${idx === 4 ? 'col-span-2 sm:col-span-1' : ''}`}>
-          <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-gold-400/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-          <div className="flex items-center gap-1.5 mb-1.5">
-            <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-white/10 border border-white/10">
-              <item.icon className="h-3.5 w-3.5 text-gold-200" />
-            </span>
-            <span className="text-[11px] sm:text-xs font-medium text-white/75 tracking-wide">{lang === 'ar' ? (item as any).labelAr : item.label}</span>
+      {heroStats.map((item, idx) => {
+        const body = (
+          <>
+            <div className="absolute inset-x-0 top-0 h-px bg-linear-to-r from-transparent via-gold-400/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+            <div className="flex items-center gap-1.5 mb-1.5">
+              <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-white/10 border border-white/10">
+                <item.icon className="h-3.5 w-3.5 text-gold-200" aria-hidden="true" />
+              </span>
+              <span className="text-xs sm:text-xs font-medium text-white/75 tracking-wide">{lang === 'ar' ? item.labelAr : item.label}</span>
+            </div>
+            <div className="text-xl sm:text-xl font-bold text-white tracking-tight">
+              {item.value === null
+                ? <span aria-label={lang === 'ar' ? 'لا توجد بيانات' : 'No data'}>—</span>
+                : <AnimatedCounter value={item.value} suffix={item.suffix ?? ''} />}
+            </div>
+            {item.delta != null && item.delta !== 0 && (
+              <div className={`mt-0.5 text-xs font-medium ${item.delta > 0 ? 'text-emerald-300' : 'text-red-300'}`}>
+                {item.delta > 0 ? '▲' : '▼'} {Math.abs(item.delta)} {lang === 'ar' ? 'عن الأسبوع السابق' : 'vs previous 7 days'}
+              </div>
+            )}
+            {item.note && <div className="mt-0.5 text-xs text-white/70">{lang === 'ar' ? item.noteAr : item.note}</div>}
+          </>
+        )
+        const cls = `group relative overflow-hidden rounded-2xl bg-white/6 border border-white/10 backdrop-blur-xs px-3.5 py-3 sm:px-4 sm:py-3 hover:bg-white/9 hover:border-white/15 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-gold-400/40 focus-visible:ring-offset-0 transition-all duration-300 ${idx === 4 ? 'col-span-2 sm:col-span-1' : ''}`
+        // A tile that goes somewhere keeps its list-item role and carries a stretched overlay link, so assistive
+        // technology still announces a link (an <a role="listitem"> would stop being one).
+        const label = lang === 'ar' ? item.labelAr : item.label
+        const note = lang === 'ar' ? item.noteAr : item.note
+        return (
+          <div key={item.label} role="listitem" tabIndex={item.href ? undefined : 0} className={cls}>
+            {body}
+            {item.href && (
+              <Link
+                href={item.href}
+                aria-label={`${label}: ${item.value ?? '—'}${note ? `. ${note}` : ''}`}
+                className="absolute inset-0 z-10 rounded-2xl focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-gold-400/70"
+              />
+            )}
           </div>
-          <div className="text-xl sm:text-xl font-bold text-white tracking-tight">
-            <AnimatedCounter value={item.value} suffix={'suffix' in item ? (item as any).suffix || '' : ''} />
-          </div>
-        </div>
-      ))}
+        )
+      })}
     </div>
   )
 
@@ -376,9 +431,9 @@ function HeroSection({ stats, churchLogo, churchName, loading }: { stats: Dashbo
       logos={logos}
     >
       {nextSession && (
-        <Link href={`/dashboard/attendance?sessionId=${nextSession.id}`} className={`flex items-center justify-between gap-3 rounded-2xl bg-gradient-to-r from-gold-500 to-amber-500 px-4 py-3 mb-3 shadow-lg shadow-black/15 hover:from-gold-400 hover:to-amber-400 active:scale-[0.99] transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60 ${isRTL ? 'flex-row-reverse' : ''}`}>
+        <Link href={`/dashboard/attendance?sessionId=${nextSession.id}`} className={`flex items-center justify-between gap-3 rounded-2xl bg-linear-to-r from-gold-500 to-amber-500 px-4 py-3 mb-3 shadow-lg shadow-black/15 hover:from-gold-400 hover:to-amber-400 active:scale-[0.99] transition-all focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-white/60 ${isRTL ? 'flex-row-reverse' : ''}`}>
           <span className={`flex items-center gap-2.5 min-w-0 ${isRTL ? 'flex-row-reverse' : ''}`}>
-            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white/20 backdrop-blur"><Calendar className="h-4 w-4 text-white" /></span>
+            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white/20 backdrop-blur-sm"><Calendar className="h-4 w-4 text-white" /></span>
             <span className="text-left">
               <span className="block text-xs font-semibold text-white/80 tracking-wide uppercase">{isRTL ? 'الجلسة القادمة' : 'Next session'}</span>
               <span className="block text-sm font-bold text-white truncate">{nextSession.level?.name || nextSession.level?.number ? `Level ${nextSession.level.number}` : ''}{nextSession.level?.name ? ` · ${nextLabel}` : nextLabel}</span>
@@ -404,9 +459,9 @@ function ServantSection({ counts, loading }: { counts: ServantCounts | null; loa
  ]
  return (
   <div className="rounded-xl border border-gray-200/60 bg-white overflow-hidden">
-    <div className="flex items-center justify-between px-5 py-4 bg-[var(--hymn-surface-header)] border-b border-[var(--hymn-border)]">
+    <div className="flex items-center justify-between px-5 py-4 bg-(--hymn-surface-header) border-b border-(--hymn-border)">
     <div className="flex items-center gap-2">
-     <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[var(--hymn-surface-header)] text-blue-700 ring-1 ring-gold-200/50">
+     <div className="flex h-7 w-7 items-center justify-center rounded-full bg-(--hymn-surface-header) text-blue-700 ring-1 ring-gold-200/50">
       <Shield className="h-4 w-4" />
      </div>
      <h2 className="font-semibold text-gray-900">{lang === 'ar' ? 'الخدام' : 'Servants'}</h2>
@@ -418,7 +473,7 @@ function ServantSection({ counts, loading }: { counts: ServantCounts | null; loa
    <div className="grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-gray-100">
      {items.map((r, i) => (
       <motion.div key={i} whileHover={reduce ? undefined : { y: -2 }} whileTap={reduce ? undefined : { y: -1 }} className="px-5 py-4 text-center group">
-      <div className={`inline-flex items-center justify-center h-11 w-11 rounded-xl bg-gradient-to-br ${r.bg} ${r.color} mb-2 shadow-sm group-hover:shadow-md group-hover:scale-110 group-active:shadow-md group-active:scale-110 transition-transform duration-300`}>
+      <div className={`inline-flex items-center justify-center h-11 w-11 rounded-xl bg-linear-to-br ${r.bg} ${r.color} mb-2 shadow-xs group-hover:shadow-md group-hover:scale-110 group-active:shadow-md group-active:scale-110 transition-transform duration-300`}>
        <r.icon className="h-5 w-5" />
       </div>
       <div className="text-2xl font-bold text-gray-900">{r.value}</div>
@@ -438,95 +493,94 @@ function StatsSection({ stats, loading }: { stats: DashboardData | null; loading
  return (
   <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4" role="region" aria-label="Dashboard statistics">
     <motion.div whileHover={reduce ? undefined : { y: -4, transition: { duration: 0.2 } }} whileTap={reduce ? undefined : { y: -2 }}>
-     <StatCard delay={reduce ? 0 : 0} label={lang === 'ar' ? 'إجمالي الطلاب' : 'Total Students'} value={s.totalStudents ?? 0} icon={Users} iconBg="bg-gradient-to-br from-blue-50 to-blue-100" iconColor="text-blue-600"
+     <StatCard delay={reduce ? 0 : 0} label={lang === 'ar' ? 'إجمالي الطلاب' : 'Total Students'} value={s.totalStudents ?? 0} icon={Users} iconBg="bg-linear-to-br from-blue-50 to-blue-100" iconColor="text-blue-600"
       subtitle={lang === 'ar' ? `${s.activeStudents ?? 0} نشط · ${s.studentsByStatus?.find(x => x.status === 'inactive')?.count ?? 0} غير نشط` : `${s.activeStudents ?? 0} active · ${s.studentsByStatus?.find(x => x.status === 'inactive')?.count ?? 0} inactive`} />
     </motion.div>
     <motion.div whileHover={reduce ? undefined : { y: -4, transition: { duration: 0.2 } }} whileTap={reduce ? undefined : { y: -2 }}>
-     <StatCard delay={reduce ? 0 : 0.05} label={lang === 'ar' ? 'الحضور' : 'Attendance'} value={`${s.attendanceRate ?? 0}%`} icon={UserCheck} iconBg="bg-gradient-to-br from-emerald-50 to-emerald-100" iconColor="text-emerald-600"
+     <StatCard delay={reduce ? 0 : 0.05} label={lang === 'ar' ? 'الحضور (7 أيام)' : 'Attendance (7 days)'} value={s.attendanceRate == null ? '—' : `${s.attendanceRate}%`} icon={UserCheck} iconBg="bg-linear-to-br from-emerald-50 to-emerald-100" iconColor="text-emerald-600"
       subtitle={lang === 'ar' ? `${s.completedSessions ?? 0} جلسة مكتملة` : `${s.completedSessions ?? 0} sessions completed`} />
     </motion.div>
     <motion.div whileHover={reduce ? undefined : { y: -4, transition: { duration: 0.2 } }} whileTap={reduce ? undefined : { y: -2 }}>
-     <StatCard delay={reduce ? 0 : 0.1} label={lang === 'ar' ? 'نسبة النجاح' : 'Pass Rate'} value={`${s.assessmentStats?.passRate ?? 0}%`} icon={TrendingUp} iconBg="bg-gradient-to-br from-purple-50 to-purple-100" iconColor="text-purple-600"
-      subtitle={lang === 'ar' ? `${s.assessmentStats?.gradedCount ?? 0} مصحح` : `${s.assessmentStats?.gradedCount ?? 0} graded`} />
+     <StatCard delay={reduce ? 0 : 0.1} label={lang === 'ar' ? 'نسبة النجاح (90 يوماً)' : 'Pass Rate (90 days)'} value={s.assessmentStats?.recent?.passRate == null ? '—' : `${s.assessmentStats.recent.passRate}%`} icon={TrendingUp} iconBg="bg-linear-to-br from-purple-50 to-purple-100" iconColor="text-purple-600"
+      subtitle={lang === 'ar' ? `${s.assessmentStats?.recent?.gradedCount ?? 0} مصحح · ${s.assessmentStats?.gradedCount ?? 0} إجمالاً` : `${s.assessmentStats?.recent?.gradedCount ?? 0} graded · ${s.assessmentStats?.gradedCount ?? 0} all time`} />
     </motion.div>
     <motion.div whileHover={reduce ? undefined : { y: -4, transition: { duration: 0.2 } }} whileTap={reduce ? undefined : { y: -2 }}>
-     <StatCard delay={reduce ? 0 : 0.15} label={lang === 'ar' ? 'الشارات المكتسبة' : 'Badges Earned'} value={s.totalBadges ?? 0} icon={Award} iconBg="bg-gradient-to-br from-amber-50 to-amber-100" iconColor="text-amber-600"
+     <StatCard delay={reduce ? 0 : 0.15} label={lang === 'ar' ? 'الشارات المكتسبة' : 'Badges Earned'} value={s.totalBadges ?? 0} icon={Award} iconBg="bg-linear-to-br from-amber-50 to-amber-100" iconColor="text-amber-600"
       subtitle={lang === 'ar' ? `عبر ${s.totalLevels ?? 0} مستوى` : `Across ${s.totalLevels ?? 0} levels`} />
     </motion.div>
   </div>
  )
 }
 
+function TrendTooltip({ active, payload, lang }: { active?: boolean; payload?: Array<{ payload: { label: string; rate: number | null; decided: number } }>; lang: string }) {
+  const point = active && payload && payload.length > 0 ? payload[0].payload : null
+  if (!point || point.rate === null) return null
+  return (
+    <div className="rounded-lg border border-gray-200 bg-white px-3 py-2 shadow-lg">
+      <p className="text-xs font-medium text-gray-500 mb-1">{lang === 'ar' ? `7 أيام تبدأ ${point.label}` : `7 days from ${point.label}`}</p>
+      <p className="text-sm font-semibold text-gray-900">{point.rate}%</p>
+      <p className="text-xs text-gray-500">{lang === 'ar' ? `${point.decided} سجل حضور` : `${point.decided} marked`}</p>
+    </div>
+  )
+}
+
+/** Attendance rate for each of the last 8 rolling 7-day windows (not record counts). */
 function AttendanceChartSection({ stats, loading }: { stats: DashboardData | null; loading: boolean }) {
   const lang = useLanguage()
   const reduce = useReducedMotion()
-  const [hoveredBar, setHoveredBar] = useState<number | null>(null)
   if (loading && !stats) return <SectionFallback />
   const s = stats ?? EMPTY_STATS
-  const weeklyStatsKey = JSON.stringify(s.weeklyStats)
-  if (!s.weeklyStats?.length) return null
+  const trend = s.attendanceTrend ?? []
+  const hasData = trend.some(p => p.rate !== null)
+  if (!hasData) {
+    return (
+      <div className="p-5">
+        <EmptyState size="sm" title={lang === 'ar' ? 'لم يُسجَّل حضور في آخر 8 أسابيع' : 'No attendance recorded in the last 8 weeks'} />
+      </div>
+    )
+  }
 
-const dayLocale = lang === 'ar' ? 'ar-EG' : 'en-GB'
-  const dayMap = new Map<string, number>()
-  s.weeklyStats.forEach(item => {
-    const d = new Date(item.scheduledDate).toLocaleDateString(dayLocale, { weekday: 'short' })
-    dayMap.set(d, (dayMap.get(d) || 0) + item._count.attendanceRecords)
-  })
-  const data = Array.from(dayMap.keys()).map(day => ({ day, count: dayMap.get(day) || 0 }))
-  const total = s.weeklyStats.reduce((a, item) => a + item._count.attendanceRecords, 0)
-  const completed = s.weeklyStats.filter(item => item.status === 'completed').length
-
+  const dayLocale = lang === 'ar' ? 'ar-EG' : 'en-GB'
+  const data = trend.map(p => ({
+    label: new Date(`${p.weekStart}T12:00:00`).toLocaleDateString(dayLocale, { day: 'numeric', month: 'short' }),
+    rate: p.rate,
+    decided: p.decided,
+  }))
+  const target = s.attendanceTarget ?? 80
+  const latest = trend[trend.length - 1]
+  const previous = trend[trend.length - 2]
+  const change = latest.rate !== null && previous.rate !== null ? latest.rate - previous.rate : null
   const GOLD = '#c9a030'
-  const BLUE = '#3b82f6'
+  const BLUE = '#93c5fd'
 
   return (
     <div className="p-5">
-      <div className="h-64">
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={weeklyStatsKey}
-            initial={reduce ? false : { opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={reduce ? undefined : { opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            className="h-full"
-          >
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart key={`attendance-${weeklyStatsKey}`} data={data} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
-                <XAxis dataKey="day" tick={{ fontSize: 12, fill: '#6b7280' }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 12, fill: '#6b7280' }} axisLine={false} tickLine={false} allowDecimals={false} />
-                <Tooltip
-                  cursor={{ fill: 'rgba(59,130,246,0.08)' }}
-                  content={<AnimatedChartTooltip />}
-                />
-                <Bar
-                  dataKey="count"
-                  name={lang === 'ar' ? 'السجلات' : 'records'}
-                  radius={[8, 8, 0, 0]}
-                  isAnimationActive={!reduce}
-                  animationDuration={800}
-                  animationEasing="ease-out"
-                  onMouseEnter={reduce ? undefined : (_: any, index: number) => setHoveredBar(index)}
-                  onMouseLeave={reduce ? undefined : () => setHoveredBar(null)}
-                >
-                  {data.map((_, i) => (
-                    <Cell
-                      key={i}
-                      fill={i % 2 === 0 ? GOLD : BLUE}
-                      opacity={hoveredBar === null || hoveredBar === i ? 1 : 0.5}
-                      style={{ transition: 'opacity 0.2s ease-out' }}
-                    />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </motion.div>
-        </AnimatePresence>
+      <div className="h-64" role="img" aria-label={lang === 'ar'
+        ? `نسبة الحضور لآخر 8 أسابيع. الأحدث: ${latest.rate === null ? 'لا بيانات' : latest.rate + '٪'}`
+        : `Attendance rate for the last 8 weeks. Latest: ${latest.rate === null ? 'no data' : latest.rate + '%'}`}>
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart data={data} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
+            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
+            <XAxis dataKey="label" tick={{ fontSize: 12, fill: '#6b7280' }} axisLine={false} tickLine={false} />
+            <YAxis domain={[0, 100]} ticks={[0, 25, 50, 75, 100]} tickFormatter={(v: number) => `${v}%`} tick={{ fontSize: 12, fill: '#6b7280' }} axisLine={false} tickLine={false} />
+            <Tooltip cursor={{ fill: 'rgba(59,130,246,0.08)' }} content={<TrendTooltip lang={lang} />} />
+            <ReferenceLine y={target} stroke="#059669" strokeDasharray="4 4" ifOverflow="extendDomain" />
+            <Bar dataKey="rate" radius={[8, 8, 0, 0]} isAnimationActive={!reduce} animationDuration={800} animationEasing="ease-out">
+              {data.map((_, i) => <Cell key={i} fill={i === data.length - 1 ? GOLD : BLUE} />)}
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
       </div>
-      <div className="mt-4 flex items-center justify-between text-xs text-gray-500 border-t border-gray-100 pt-3">
-        <span className="flex items-center gap-1"><Zap className="h-3 w-3 text-gold-400" />{lang === 'ar' ? 'إجمالي السجلات:' : 'Total records:'} {total}</span>
-        <span className="bg-blue-50 text-blue-700 font-semibold px-2 py-0.5 rounded-full">{completed} {lang === 'ar' ? 'جلسات' : 'sessions'}</span>
+      <div className="mt-4 flex items-center justify-between text-xs text-gray-600 border-t border-gray-100 pt-3">
+        <span className="flex items-center gap-1"><Zap className="h-3 w-3 text-gold-400" aria-hidden="true" />
+          {lang === 'ar' ? 'آخر 7 أيام:' : 'Last 7 days:'} <strong className="text-gray-900">{latest.rate === null ? '—' : `${latest.rate}%`}</strong>
+          <span className="text-gray-500">· {lang === 'ar' ? `الهدف ${target}٪ (الخط المتقطع)` : `target ${target}% (dashed line)`}</span>
+        </span>
+        {change !== null && change !== 0 && (
+          <span className={`font-semibold px-2 py-0.5 rounded-full ${change > 0 ? 'bg-emerald-50 text-emerald-800' : 'bg-red-50 text-red-800'}`}>
+            {change > 0 ? '▲' : '▼'} {Math.abs(change)} {lang === 'ar' ? 'عن الأسبوع السابق' : 'vs previous 7 days'}
+          </span>
+        )}
       </div>
     </div>
   )
@@ -574,7 +628,7 @@ function AnalyticsSection({ stats, loading }: { stats: DashboardData | null; loa
     <div className="grid gap-4 sm:grid-cols-2">
       {perLevel.length > 0 && (
         <div className="rounded-xl border border-gray-200/60 bg-white overflow-hidden">
-          <div className="px-5 py-4 border-b border-[var(--hymn-border)] bg-[var(--hymn-surface-header)]">
+          <div className="px-5 py-4 border-b border-(--hymn-border) bg-(--hymn-surface-header)">
             <h3 className="font-semibold text-gray-900">{lang === 'ar' ? 'الطلاب حسب المستوى' : 'Students per Level'}</h3>
           </div>
           <div className="p-5 h-64">
@@ -624,7 +678,7 @@ function AnalyticsSection({ stats, loading }: { stats: DashboardData | null; loa
       )}
       {gradeDist.length > 0 && (
         <div className="rounded-xl border border-gray-200/60 bg-white overflow-hidden">
-          <div className="px-5 py-4 border-b border-[var(--hymn-border)] bg-[var(--hymn-surface-header)]">
+          <div className="px-5 py-4 border-b border-(--hymn-border) bg-(--hymn-surface-header)">
             <h3 className="font-semibold text-gray-900">{lang === 'ar' ? 'توزيع الدرجات' : 'Grade Distribution'}</h3>
           </div>
           <div className="p-5 h-64">
@@ -673,7 +727,7 @@ function AnalyticsSection({ stats, loading }: { stats: DashboardData | null; loa
                   initial={reduce ? false : { opacity: 0, y: 8 }}
                   animate={reduce ? undefined : { opacity: 1, y: 0 }}
                   transition={reduce ? undefined : { delay: 0.4 + i * 0.04, duration: 0.3 }}
-                  className="flex items-center gap-1.5 text-[11px] text-gray-500"
+                  className="flex items-center gap-1.5 text-xs text-gray-500"
                 >
                   <span className="h-2 w-2 rounded-full" style={{ backgroundColor: PALETTE[i % PALETTE.length] }} />
                   {g.name} ({g.value})
@@ -703,12 +757,12 @@ function LeaderboardSection({ stats, loading }: { stats: DashboardData | null; l
     const pct = (student.xp / maxXp) * 100
      return (
       <motion.div key={student.id || i} initial={reduce ? false : { opacity: 0, x: -10 }} animate={reduce ? undefined : { opacity: 1, x: 0 }} transition={reduce ? undefined : { delay: i * 0.05 }}
-       className="px-5 py-3.5 hover:bg-gradient-to-r hover:from-blue-50/30 hover:to-transparent transition-all duration-300 group">
+       className="px-5 py-3.5 hover:bg-linear-to-r hover:from-blue-50/30 hover:to-transparent transition-all duration-300 group">
       <div className="flex items-center gap-3">
        <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-bold transition-transform duration-300 group-hover:scale-110 ${
-        i === 0 ? 'bg-gradient-to-br from-gold-400 via-gold-500 to-gold-600 text-gray-950 shadow-lg shadow-blue-200' :
-        i === 1 ? 'bg-gradient-to-br from-gray-300 to-gray-400 text-white shadow-md' :
-        i === 2 ? 'bg-gradient-to-br from-orange-400 to-orange-500 text-white shadow-md' :
+        i === 0 ? 'bg-linear-to-br from-gold-400 via-gold-500 to-gold-600 text-gray-950 shadow-lg shadow-blue-200' :
+        i === 1 ? 'bg-linear-to-br from-gray-300 to-gray-400 text-white shadow-md' :
+        i === 2 ? 'bg-linear-to-br from-orange-400 to-orange-500 text-white shadow-md' :
         'bg-gray-100 text-gray-600'
        }`}>
         {i === 0 ? <Crown className="h-4 w-4" /> : i + 1}
@@ -719,7 +773,7 @@ function LeaderboardSection({ stats, loading }: { stats: DashboardData | null; l
        </div>
        <div className="text-right">
         <div className="text-sm font-bold text-gray-900">{student.xp.toLocaleString('en-GB')}</div>
-        <div className="text-[10px] text-gray-400 font-medium">{lang === 'ar' ? 'نقاط' : 'XP'}</div>
+        <div className="text-xs text-gray-400 font-medium">{lang === 'ar' ? 'نقاط' : 'XP'}</div>
        </div>
       </div>
       <div className="mt-2 h-1.5 w-full rounded-full bg-gray-100 overflow-hidden">
@@ -727,7 +781,7 @@ function LeaderboardSection({ stats, loading }: { stats: DashboardData | null; l
         initial={reduce ? { width: `${pct}%` } : { width: 0 }}
         animate={{ width: `${pct}%` }}
         transition={reduce ? undefined : { delay: 0.2 + i * 0.05, duration: 0.8, ease: 'easeOut' }}
-        className="h-full rounded-full bg-gradient-to-r from-gold-400 to-gold-600"
+        className="h-full rounded-full bg-linear-to-r from-gold-400 to-gold-600"
         style={{ boxShadow: '0 0 6px rgba(201,160,48,0.4)' }} />
       </div>
      </motion.div>
@@ -778,7 +832,7 @@ function AssessmentSection({ stats, loading }: { stats: DashboardData | null; lo
       { color: 'bg-blue-400', label: 'Avg Score', labelAr: 'متوسط الدرجات', value: s.assessmentStats?.avgGradeScore ?? 0 },
      ].map((item) => (
       <div key={item.label} className="flex items-center gap-2">
-       <div className={`h-3 w-3 rounded-full ${item.color} shadow-sm ${item.color === 'bg-green-500' ? 'animate-[softPulse_2s_ease-in-out_infinite]' : ''}`} />
+       <div className={`h-3 w-3 rounded-full ${item.color} shadow-xs ${item.color === 'bg-green-500' ? 'animate-[softPulse_2s_ease-in-out_infinite]' : ''}`} />
        <span className="text-sm text-gray-600">{lang === 'ar' ? item.labelAr : item.label}: <strong className="text-gray-900">{item.value}</strong></span>
       </div>
      ))}
@@ -787,7 +841,7 @@ function AssessmentSection({ stats, loading }: { stats: DashboardData | null; lo
    {s.assessmentsByStatus?.length > 0 && (
     <div className="border-t border-gray-100 pt-3 flex flex-wrap gap-2">
      {s.assessmentsByStatus.map(st => (
-      <div key={st.status} className="rounded-lg bg-[var(--hymn-surface-header)] px-3 py-1.5 text-xs border border-gray-100">
+      <div key={st.status} className="rounded-lg bg-(--hymn-surface-header) px-3 py-1.5 text-xs border border-gray-100">
        <span className="capitalize text-gray-700">{st.status}: </span>
        <span className="font-semibold text-gray-900">{st.count}</span>
       </div>
@@ -830,7 +884,7 @@ function ActivitySection({ stats, loading }: { stats: DashboardData | null; load
      <button key={t.key} role="tab" aria-selected={activeTab === t.key} onClick={() => setActiveTab(t.key)}
       className={`inline-flex min-h-[44px] items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium border transition-colors ${activeTab === t.key ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'}`}>
       {lang === 'ar' ? t.labelAr : t.label}
-      <span className={`rounded-full px-1.5 py-0 text-[10px] leading-none ${activeTab === t.key ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-600'}`}>{t.count}</span>
+      <span className={`rounded-full px-1.5 py-0 text-xs leading-none ${activeTab === t.key ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-600'}`}>{t.count}</span>
      </button>
     ))}
    </div>
@@ -843,11 +897,11 @@ function ActivitySection({ stats, loading }: { stats: DashboardData | null; load
      </div>
     ) : filtered.slice(0, 8).map((a, i) => {
      const IconComp = ACTIVITY_ICONS[a.action] || TrendingUp
-     const colorClass = ACTIVITY_COLORS[a.action] || 'bg-gradient-to-br from-gray-100 to-gray-50 text-gray-600'
+     const colorClass = ACTIVITY_COLORS[a.action] || 'bg-linear-to-br from-gray-100 to-gray-50 text-gray-600'
       return (
        <motion.div key={a.id} initial={reduce ? false : { opacity: 0, x: -10 }} animate={reduce ? undefined : { opacity: 1, x: 0 }} transition={reduce ? undefined : { delay: i * 0.03 }}
-        className="flex items-center gap-3 px-5 py-3 hover:bg-gradient-to-r hover:from-gray-50 hover:to-transparent transition-all duration-200">
-       <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${colorClass} shadow-sm`}>
+        className="flex items-center gap-3 px-5 py-3 hover:bg-linear-to-r hover:from-gray-50 hover:to-transparent transition-all duration-200">
+       <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${colorClass} shadow-xs`}>
         <IconComp className="h-4 w-4" />
        </div>
        <div className="flex-1 min-w-0">
@@ -856,7 +910,7 @@ function ActivitySection({ stats, loading }: { stats: DashboardData | null; load
         </div>
         <div className="text-xs text-gray-500 truncate">{(lang === 'ar' ? ACTION_LABELS[a.action] : ACTION_LABELS_EN[a.action]) || a.action} — {a.entityType}</div>
        </div>
-        <time dateTime={a.createdAt ?? undefined} className="text-[11px] text-gray-400 shrink-0 bg-gray-50 px-2 py-0.5 rounded-full">{relativeTime(a.createdAt, lang === 'ar' ? 'ar' : 'en')}</time>
+        <time dateTime={a.createdAt ?? undefined} className="text-xs text-gray-400 shrink-0 bg-gray-50 px-2 py-0.5 rounded-full">{relativeTime(a.createdAt, lang === 'ar' ? 'ar' : 'en')}</time>
       </motion.div>
      )
     })}
@@ -875,22 +929,25 @@ function UpcomingSection({ stats, loading }: { stats: DashboardData | null; load
  return (
   <div className="divide-y divide-gray-100">
     {sessions.slice(0, 5).map((sess, i) => (
-     <motion.div key={sess.id} initial={reduce ? false : { opacity: 0, x: -10 }} animate={reduce ? undefined : { opacity: 1, x: 0 }} transition={reduce ? undefined : { delay: i * 0.05 }}
-      className="flex items-center gap-3 px-5 py-3.5 hover:bg-gradient-to-r hover:from-blue-50/30 hover:to-transparent transition-all duration-200 group">
-     <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-blue-50 to-blue-100 text-blue-700 shadow-sm group-hover:shadow-md group-hover:scale-110 group-active:shadow-md group-active:scale-110 transition-transform duration-300">
+     <Link key={sess.id} href={`/dashboard/attendance/mark?sessionId=${sess.id}`}>
+     <motion.div initial={reduce ? false : { opacity: 0, x: -10 }} animate={reduce ? undefined : { opacity: 1, x: 0 }} transition={reduce ? undefined : { delay: i * 0.05 }}
+      className="flex items-center gap-3 px-5 py-3.5 hover:bg-linear-to-r hover:from-blue-50/30 hover:to-transparent transition-all duration-200 group cursor-pointer">
+     <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-linear-to-br from-blue-50 to-blue-100 text-blue-700 shadow-xs group-hover:shadow-md group-hover:scale-110 group-active:shadow-md group-active:scale-110 transition-transform duration-300">
       <Calendar className="h-5 w-5" />
      </div>
      <div className="flex-1 min-w-0">
       <div className="flex items-center gap-2">
-       <span className="text-sm font-semibold text-gray-900">{sess.level.name}</span>
-       <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 uppercase border border-emerald-200">{sess.status}</span>
+       <span className="text-sm font-semibold text-gray-900">{sess.group?.name ?? (lang === 'ar' ? 'بدون مجموعة' : 'No group')}</span>
+       {sess.level?.name && <span className="text-xs text-gray-500">· {sess.level.name}</span>}
+       <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-700 uppercase border border-emerald-200">{sess.status}</span>
       </div>
       <div className="text-xs text-gray-500 mt-0.5 flex items-center gap-1">
-       <User className="h-3 w-3 inline" /> {sess.servant.firstName} {sess.servant.lastName} · {formatDate(sess.scheduledDate, lang === 'ar' ? 'ar-EG' : 'en-GB')} <span className="text-gold-700 font-medium">{formatTime(sess.scheduledDate, lang === 'ar' ? 'ar-EG' : 'en-GB')}</span>
+       <User className="h-3 w-3 inline" /> {sess.servant ? `${sess.servant.firstName} ${sess.servant.lastName}` : (lang === 'ar' ? 'غير معين' : 'Unassigned')} · {formatDate(sess.scheduledDate, lang === 'ar' ? 'ar-EG' : 'en-GB')} <span className="text-gold-700 font-medium">{formatTime(sess.scheduledDate, lang === 'ar' ? 'ar-EG' : 'en-GB')}</span>
       </div>
      </div>
      <ChevronRight className="h-4 w-4 text-gray-300 group-hover:text-gold-700 group-hover:translate-x-0.5 transition-all" />
     </motion.div>
+     </Link>
    ))}
   </div>
  )
@@ -907,7 +964,7 @@ function RecentGradesSection({ stats, loading }: { stats: DashboardData | null; 
   <>
    <div className="hidden sm:block overflow-x-auto">
     <table className="min-w-full text-sm">
-     <thead className="bg-gray-50/50 border-b border-[var(--hymn-border)]">
+     <thead className="bg-gray-50/50 border-b border-(--hymn-border)">
       <tr>
        <th className="px-5 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{lang === 'ar' ? 'الطالب' : 'Student'}</th>
        <th className="px-5 py-2.5 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{lang === 'ar' ? 'التقييم' : 'Assessment'}</th>
@@ -919,12 +976,10 @@ function RecentGradesSection({ stats, loading }: { stats: DashboardData | null; 
      <tbody className="divide-y divide-gray-100">
       {grades.slice(0, 5).map((g, i) => (
        <motion.tr key={g.id} initial={reduce ? false : { opacity: 0 }} animate={reduce ? undefined : { opacity: 1 }} transition={reduce ? undefined : { delay: i * 0.05 }}
-        className="hover:bg-gradient-to-r hover:from-blue-50/20 hover:to-transparent transition-all duration-200">
+        className="hover:bg-linear-to-r hover:from-blue-50/20 hover:to-transparent transition-all duration-200">
         <td className="px-5 py-3">
          <div className="flex items-center gap-2.5">
-          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-blue-100 to-blue-50 text-xs font-bold text-blue-700 shadow-sm">
-           {g.studentName.split(' ').map(n => n[0]).join('')}
-          </div>
+          <StudentAvatar name={g.studentName} photoUrl={g.studentPhotoUrl} size={32} />
           <span className="font-medium text-gray-900">{g.studentName}</span>
          </div>
         </td>
@@ -946,17 +1001,15 @@ function RecentGradesSection({ stats, loading }: { stats: DashboardData | null; 
      </tbody>
     </table>
    </div>
-   <div className="block sm:hidden divide-y divide-[var(--hymn-border)]">
+   <div className="block sm:hidden divide-y divide-(--hymn-border)">
     {grades.slice(0, 5).map((g, i) => (
      <div key={g.id} className="px-4 py-3 space-y-1.5">
       <div className="flex items-center justify-between">
        <div className="flex items-center gap-2 min-w-0">
-        <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-blue-100 to-blue-50 text-[10px] font-bold text-blue-700">
-         {g.studentName.split(' ').map(n => n[0]).join('')}
-        </div>
+        <StudentAvatar name={g.studentName} photoUrl={g.studentPhotoUrl} size={28} />
         <span className="text-sm font-medium text-gray-900 truncate">{g.studentName}</span>
        </div>
-       <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold border shrink-0 ${
+       <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold border shrink-0 ${
         g.passed ? 'bg-green-50 text-green-700 border-green-200' : 'bg-red-50 text-red-700 border-red-200'
        }`}>
         {g.score}/{g.maxScore} · {lang === 'ar' ? (g.passed ? 'ناجح' : 'راسب') : (g.passed ? 'Passed' : 'Failed')}
@@ -978,11 +1031,11 @@ function RecentGradesSection({ stats, loading }: { stats: DashboardData | null; 
 function MineFallback() {
  return (
   <div className="space-y-6">
-   <div className="rounded-2xl bg-[var(--hymn-navy)] p-6 sm:p-8 animate-pulse h-44" />
+   <div className="rounded-2xl bg-(--hymn-navy) p-6 sm:p-8 animate-pulse h-44" />
    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
     {Array.from({ length: 4 }).map((_, i) => <div key={i} className="h-20 rounded-xl bg-gray-100 animate-pulse" />)}
    </div>
-   <div className="rounded-xl border border-[var(--hymn-border)] bg-[var(--hymn-surface)] h-48 p-4 space-y-3">
+   <div className="rounded-xl border border-(--hymn-border) bg-(--hymn-surface) h-48 p-4 space-y-3">
     <div className="h-4 w-full bg-gray-100 rounded animate-pulse" />
     <div className="h-4 w-5/6 bg-gray-100 rounded animate-pulse" />
     <div className="h-4 w-2/3 bg-gray-100 rounded animate-pulse" />
@@ -993,7 +1046,7 @@ function MineFallback() {
 
 function RetryCard({ onRetry, lang }: { onRetry: () => void; lang: string }) {
  return (
-  <div className="rounded-xl border border-[var(--hymn-border)] bg-[var(--hymn-surface)] p-8 text-center">
+  <div className="rounded-xl border border-(--hymn-border) bg-(--hymn-surface) p-8 text-center">
    <p className="text-sm text-gray-500 mb-3">{lang === 'ar' ? 'تعذر تحميل البيانات' : 'Failed to load data'}</p>
     <Button onClick={onRetry}>
      {lang === 'ar' ? 'إعادة المحاولة' : 'Retry'}
@@ -1013,31 +1066,69 @@ const ROLE_LABELS: Record<string, { en: string; ar: string }> = {
 function RoleBadge({ role, lang }: { role: string; lang: string }) {
  const l = ROLE_LABELS[role] || { en: role, ar: role }
  return (
-  <span className="inline-flex items-center gap-1.5 rounded-full bg-white/10 border border-white/20 px-3 py-1 text-xs font-semibold text-white backdrop-blur">
+  <span className="inline-flex items-center gap-1.5 rounded-full bg-white/10 border border-white/20 px-3 py-1 text-xs font-semibold text-white backdrop-blur-sm">
    <Heart className="h-3.5 w-3.5 text-rose-300" />
    {lang === 'ar' ? l.ar : l.en}
   </span>
  )
 }
 
-function StartClassCard({ lang }: { lang: string }) {
+function StartClassCard({ lang, showForm }: { lang: string; showForm?: boolean }) {
+  const uid = useId()
   const [starting, setStarting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [groups, setGroups] = useState<{id:string;name:string}[]>([])
+  const [levels, setLevels] = useState<{id:string;name:string;number:number}[]>([])
+  const [grades, setGrades] = useState<{id:string;name:string}[]>([])
+  const [groupId, setGroupId] = useState('')
+  const [levelId, setLevelId] = useState('')
+  const [gradeId, setGradeId] = useState('')
+  const [date, setDate] = useState(new Date().toISOString().slice(0, 10))
+  const [time, setTime] = useState('12:00')
   const { toast } = useToast()
   const router = useRouter()
 
+  useEffect(() => {
+    if (!showForm) return
+    const sid = getSchoolId()
+    http.get('/students/groups/all', { schoolId: sid }).then((d: any) => setGroups(Array.isArray(d) ? d : d.data || [])).catch(() => {})
+    http.get('/students/levels/all', { schoolId: sid }).then((d: any) => setLevels(Array.isArray(d) ? d : d.data || [])).catch(() => {})
+    http.get('/grades', { schoolId: sid }).then((d: any) => setGrades(Array.isArray(d) ? d : d.data || [])).catch(() => {})
+  }, [showForm])
+
   const handleStart = async () => {
+    if (showForm && !groupId) {
+      setError(lang === 'ar' ? 'المجموعة مطلوبة' : 'Group is required')
+      setTimeout(() => setError(null), 3000)
+      return
+    }
     setStarting(true)
     setError(null)
     try {
-      const res = await http.post('/attendance/start-class') as any
-      if (res.requiresGroupPick) {
-        toast('info', lang === 'ar' ? 'اختر المجموعة من صفحة الحضور' : 'Pick your group from the attendance page')
-        router.push('/dashboard/attendance')
-        return
+      if (showForm) {
+        const user = JSON.parse(localStorage.getItem('user') || '{}')
+        const body: Record<string, string> = {
+          servantId: user.id,
+          groupId,
+          scheduledDate: date,
+          scheduledTime: time,
+          status: 'in_progress',
+        }
+        if (levelId) body.levelId = levelId
+        if (gradeId) body.gradeId = gradeId
+        const res = await http.post('/attendance/sessions', body, { schoolId: getSchoolId() }) as any
+        toast('success', lang === 'ar' ? 'تم إنشاء الجلسة!' : 'Session created!')
+        router.push(`/dashboard/attendance/mark?sessionId=${res.id}`)
+      } else {
+        const res = await http.post('/attendance/start-class') as any
+        if (res.requiresGroupPick) {
+          toast('info', lang === 'ar' ? 'اختر المجموعة من صفحة الحضور' : 'Pick your group from the attendance page')
+          router.push('/dashboard/attendance')
+          return
+        }
+        toast('success', lang === 'ar' ? 'تم بدء الفصل!' : 'Class started!')
+        router.push(`/dashboard/attendance?sessionId=${res.session.id}&mode=exceptions`)
       }
-      toast('success', lang === 'ar' ? 'تم بدء الفصل!' : 'Class started!')
-      router.push(`/dashboard/attendance?sessionId=${res.session.id}&mode=exceptions`)
     } catch {
       setError(lang === 'ar' ? 'فشل بدء الفصل' : 'Failed to start class')
       setTimeout(() => setError(null), 3000)
@@ -1045,19 +1136,63 @@ function StartClassCard({ lang }: { lang: string }) {
     setStarting(false)
   }
 
+  const sel = 'w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500'
+
   return (
-    <div className="rounded-xl border border-emerald-100 bg-gradient-to-br from-emerald-50 to-white p-5">
+    <div className="rounded-xl border border-emerald-100 bg-linear-to-br from-emerald-50 to-white p-5">
       <div className="flex items-center justify-between">
         <div>
           <h3 className="font-semibold text-gray-900">{lang === 'ar' ? 'بدء الفصل' : 'Start Class'}</h3>
-          <p className="text-sm text-gray-500 mt-1">{lang === 'ar' ? 'اضغط لبدء الفصل — سيتم تسجيل جميع الطلاب كحاضرين مسبقًا' : 'One tap — all students pre-marked present. Fix exceptions only.'}</p>
+          <p className="text-sm text-gray-500 mt-1">{showForm ? (lang === 'ar' ? 'حدد المجموعة والتاريخ لبدء جلسة جديدة' : 'Pick group and date to start a new session') : (lang === 'ar' ? 'اضغط لبدء الفصل — سيتم تسجيل جميع الطلاب كحاضرين مسبقًا' : 'One tap — all students pre-marked present. Fix exceptions only.')}</p>
         </div>
-        <button onClick={handleStart} disabled={starting}
-          className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-sm bg-emerald-600 text-white hover:bg-emerald-700 active:scale-95 transition-all disabled:opacity-50 shadow-lg shadow-emerald-200">
-          {starting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
-          {starting ? (lang === 'ar' ? 'جاري البدء...' : 'Starting...') : (lang === 'ar' ? 'بدء الفصل' : 'Start Class')}
-        </button>
+        {!showForm && (
+          <button onClick={handleStart} disabled={starting}
+            className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-sm bg-emerald-700 text-white hover:bg-emerald-800 active:scale-95 transition-all disabled:opacity-50 shadow-lg shadow-emerald-200">
+            {starting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
+            {starting ? (lang === 'ar' ? 'جاري البدء...' : 'Starting...') : (lang === 'ar' ? 'بدء الفصل' : 'Start Class')}
+          </button>
+        )}
       </div>
+      {showForm && (
+        <div className="mt-4 space-y-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1" htmlFor={`${uid}-sc1`}>{lang === 'ar' ? 'المجموعة *' : 'Group *'}</label>
+              <select id={`${uid}-sc1`} value={groupId} onChange={e => setGroupId(e.target.value)} className={sel}>
+                <option value="">{lang === 'ar' ? 'اختر مجموعة' : 'Select group'}</option>
+                {groups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1" htmlFor={`${uid}-sc2`}>{lang === 'ar' ? 'المستوى' : 'Level'}</label>
+              <select id={`${uid}-sc2`} value={levelId} onChange={e => setLevelId(e.target.value)} className={sel}>
+                <option value="">{lang === 'ar' ? 'الكل' : 'All'}</option>
+                {levels.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1" htmlFor={`${uid}-sc3`}>{lang === 'ar' ? 'الصف' : 'Grade'}</label>
+              <select id={`${uid}-sc3`} value={gradeId} onChange={e => setGradeId(e.target.value)} className={sel}>
+                <option value="">{lang === 'ar' ? 'الكل' : 'All'}</option>
+                {grades.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1" htmlFor={`${uid}-sc4`}>{lang === 'ar' ? 'التاريخ *' : 'Date *'}</label>
+              <input id={`${uid}-sc4`} type="date" value={date} onChange={e => setDate(e.target.value)} className={sel} />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1" htmlFor={`${uid}-sc5`}>{lang === 'ar' ? 'الوقت' : 'Time'}</label>
+              <input id={`${uid}-sc5`} type="time" value={time} onChange={e => setTime(e.target.value)} className={sel} />
+            </div>
+          </div>
+          <button onClick={handleStart} disabled={starting || !groupId}
+            className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-sm bg-emerald-700 text-white hover:bg-emerald-800 active:scale-95 transition-all disabled:opacity-50 shadow-lg shadow-emerald-200 w-full justify-center">
+            {starting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
+            {starting ? (lang === 'ar' ? 'جاري البدء...' : 'Starting...') : (lang === 'ar' ? 'بدء الجلسة' : 'Start Session')}
+          </button>
+        </div>
+      )}
       {error && <p className="text-sm text-red-600 mt-2">{error}</p>}
     </div>
   )
@@ -1122,7 +1257,7 @@ export function TodaysSessionCard({ lang }: { lang: string }) {
 
   const updateAttendance = async (studentId: string, status: string) => {
     try {
-      await http.patch(`/attendance/sessions/${session.id}/records`, { studentId, status })
+      await http.put(`/attendance/sessions/${session.id}/records/batch`, { updates: [{ studentId, status }] })
       setStudents(prev => prev.map(s => s.studentId === studentId ? { ...s, status } : s))
       toast('success', lang === 'ar' ? 'تم التحديث' : 'Updated')
     } catch {
@@ -1135,14 +1270,14 @@ export function TodaysSessionCard({ lang }: { lang: string }) {
   // No active session - show start button
   if (!session) {
     return (
-      <div className="rounded-xl border-2 border-dashed border-emerald-200 bg-gradient-to-br from-emerald-50 to-white p-6">
+      <div className="rounded-xl border-2 border-dashed border-emerald-200 bg-linear-to-br from-emerald-50 to-white p-6">
         <div className="flex items-center justify-between">
           <div>
             <h3 className="text-lg font-semibold text-gray-900">{lang === 'ar' ? 'ابدأ فصل اليوم' : "Today's Session"}</h3>
             <p className="text-sm text-gray-500 mt-1">{lang === 'ar' ? 'اضغط لبدء الفصل — سيتم تسجيل جميع الطلاب كحاضرين مسبقًا' : 'Start your class — students pre-marked present'}</p>
           </div>
           <button onClick={handleStart} disabled={starting}
-            className="flex items-center gap-2 px-6 py-3 rounded-xl font-semibold text-sm bg-emerald-600 text-white hover:bg-emerald-700 active:scale-95 transition-all disabled:opacity-50 shadow-lg shadow-emerald-200">
+            className="flex items-center gap-2 px-6 py-3 rounded-xl font-semibold text-sm bg-emerald-700 text-white hover:bg-emerald-800 active:scale-95 transition-all disabled:opacity-50 shadow-lg shadow-emerald-200">
             {starting ? <Loader2 className="w-5 h-5 animate-spin" /> : <PlayCircle className="w-5 h-5" />}
             {starting ? (lang === 'ar' ? 'جاري...' : 'Starting...') : (lang === 'ar' ? 'بدء الفصل' : 'Start Class')}
           </button>
@@ -1157,7 +1292,7 @@ export function TodaysSessionCard({ lang }: { lang: string }) {
   const lateCount = students.filter(s => s.status === 'late').length
 
   return (
-    <div className="rounded-xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-white p-5">
+    <div className="rounded-xl border border-emerald-200 bg-linear-to-br from-emerald-50 to-white p-5">
       <div className="flex items-center justify-between mb-4">
         <div>
           <div className="flex items-center gap-2">
@@ -1265,9 +1400,9 @@ function WeekScheduleCard({ lang }: { lang: string }) {
 
   return (
     <div className="rounded-xl border border-gray-200/60 bg-white overflow-hidden">
-      <div className="flex items-center justify-between border-b border-[var(--hymn-border)] px-5 py-4 bg-[var(--hymn-surface-header)]">
+      <div className="flex items-center justify-between border-b border-(--hymn-border) px-5 py-4 bg-(--hymn-surface-header)">
         <div className="flex items-center gap-2">
-          <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[var(--hymn-surface-header)] text-blue-700 ring-1 ring-gold-200/50">
+          <div className="flex h-7 w-7 items-center justify-center rounded-full bg-(--hymn-surface-header) text-blue-700 ring-1 ring-gold-200/50">
             <CalendarClock className="h-4 w-4" />
           </div>
           <h2 className="font-semibold text-gray-900">{lang === 'ar' ? 'جدول هذا الأسبوع' : 'This Week'}</h2>
@@ -1412,7 +1547,7 @@ export function NextSessionCard({ lang, assigned, groups, sessions }: { lang: st
 
   const tabBar =
     isAdminMode && configuredLevels.length > 0 ? (
-      <div className="flex items-center gap-1 overflow-x-auto border-b border-[var(--hymn-border)] bg-white px-3 py-2">
+      <div className="flex items-center gap-1 overflow-x-auto border-b border-(--hymn-border) bg-white px-3 py-2">
         {/* All view first — without it there is no way back once a level is selected */}
         <button
           type="button"
@@ -1503,7 +1638,7 @@ export function NextSessionCard({ lang, assigned, groups, sessions }: { lang: st
                 <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
                   {lesson?.subject?.name && (
                     <span
-                      className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium"
+                      className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium"
                       style={{ backgroundColor: `${theme}14`, color: theme }}
                     >
                       <span
@@ -1514,17 +1649,17 @@ export function NextSessionCard({ lang, assigned, groups, sessions }: { lang: st
                     </span>
                   )}
                   {showLevelBadge && a.level?.name && (
-                    <span className="rounded-full bg-purple-50 px-2 py-0.5 text-[11px] font-medium text-purple-700">
+                    <span className="rounded-full bg-purple-50 px-2 py-0.5 text-xs font-medium text-purple-700">
                       {a.level.name}
                     </span>
                   )}
                   {item?.optional && (
-                    <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-medium text-gray-600">
+                    <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600">
                       {lang === 'ar' ? 'اختياري' : 'Optional'}
                     </span>
                   )}
                   {lesson?.estimatedDurationMinutes ? (
-                    <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-700">
+                    <span className="rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700">
                       {lesson.estimatedDurationMinutes} {lang === 'ar' ? 'دقيقة' : 'min'}
                     </span>
                   ) : null}
@@ -1555,16 +1690,16 @@ function NextSessionHeader({ lang, dateLabel, scope }: { lang: string; dateLabel
             : 'Recent'
           : ''
   return (
-    <div className="flex items-center justify-between border-b border-[var(--hymn-border)] px-5 py-4 bg-[var(--hymn-surface-header)]">
+    <div className="flex items-center justify-between border-b border-(--hymn-border) px-5 py-4 bg-(--hymn-surface-header)">
       <div className="flex items-center gap-2">
-        <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[var(--hymn-surface-header)] text-blue-700 ring-1 ring-blue-200/50">
+        <div className="flex h-7 w-7 items-center justify-center rounded-full bg-(--hymn-surface-header) text-blue-700 ring-1 ring-blue-200/50">
           <BookOpen className="h-4 w-4" />
         </div>
         <h2 className="font-semibold text-gray-900">{lang === 'ar' ? 'الجلسة القادمة' : 'Next Session'}</h2>
       </div>
       <div className="flex items-center gap-2">
         {dateLabel && (
-          <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-medium text-blue-700">
+          <span className="rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700">
             {scopeLabel ? `${scopeLabel} · ${dateLabel}` : dateLabel}
           </span>
         )}
@@ -1591,14 +1726,14 @@ export function WeekSummaryCard({ thisWeek, lang }: { thisWeek?: any; lang: stri
   ]
   return (
     <div className="rounded-xl border border-gray-200/60 bg-white overflow-hidden">
-      <div className="flex items-center justify-between border-b border-[var(--hymn-border)] px-5 py-4 bg-[var(--hymn-surface-header)]">
+      <div className="flex items-center justify-between border-b border-(--hymn-border) px-5 py-4 bg-(--hymn-surface-header)">
         <div className="flex items-center gap-2">
-          <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[var(--hymn-surface-header)] text-emerald-600 ring-1 ring-emerald-200/50">
+          <div className="flex h-7 w-7 items-center justify-center rounded-full bg-(--hymn-surface-header) text-emerald-600 ring-1 ring-emerald-200/50">
             <ClipboardCheck className="h-4 w-4" />
           </div>
           <h2 className="font-semibold text-gray-900">{lang === 'ar' ? 'ملخص هذا الأسبوع' : 'This Week Summary'}</h2>
         </div>
-        <Link href="/dashboard/attendance" className="text-xs text-emerald-600 font-medium hover:text-emerald-700">
+        <Link href="/dashboard/attendance" className="text-xs text-emerald-700 font-medium hover:text-emerald-800">
           {lang === 'ar' ? 'الحضور' : 'Attendance'}
         </Link>
       </div>
@@ -1608,7 +1743,7 @@ export function WeekSummaryCard({ thisWeek, lang }: { thisWeek?: any; lang: stri
             <div key={it.key} className="rounded-lg border border-gray-100 bg-gray-50 px-3 py-2.5">
               <div className="flex items-center gap-1.5 mb-1">
                 <span className={`h-2 w-2 rounded-full ${it.dot}`} />
-                <span className="text-[11px] text-gray-500">{it.label}</span>
+                <span className="text-xs text-gray-500">{it.label}</span>
               </div>
               <div className="text-xl font-bold text-gray-900">{it.count}</div>
             </div>
@@ -1647,9 +1782,9 @@ function SessionSummaryModal({ session, students, lang, onClose }: { session: an
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs">
       <div className="bg-white rounded-2xl shadow-xl max-w-md w-full mx-4 overflow-hidden">
-        <div className="bg-gradient-to-r from-emerald-500 to-emerald-600 p-6 text-white">
+        <div className="bg-linear-to-r from-emerald-500 to-emerald-600 p-6 text-white">
           <div className="flex items-center justify-between">
             <h3 className="text-xl font-semibold">{lang === 'ar' ? 'ملخص الفصل' : 'Session Summary'}</h3>
             <button onClick={onClose} className="text-white/80 hover:text-white">
@@ -1703,7 +1838,7 @@ function SessionSummaryModal({ session, students, lang, onClose }: { session: an
               value={notes}
               onChange={e => setNotes(e.target.value)}
               placeholder={lang === 'ar' ? 'أضف ملاحظات حول الفصل...' : 'Add notes about the session...'}
-              className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent resize-none"
+              className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-emerald-500 focus:border-transparent resize-none"
               rows={3}
             />
             <button
@@ -1734,7 +1869,7 @@ function ContactParentButton({ student, lang }: { student: any; lang: string }) 
         {lang === 'ar' ? 'تواصل مع الوالد' : 'Contact Parent'}
       </button>
       {showContact && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs">
           <div className="bg-white rounded-2xl shadow-xl max-w-sm w-full mx-4 p-6">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-gray-900">{lang === 'ar' ? 'تواصل مع الوالد' : 'Contact Parent'}</h3>
@@ -1808,6 +1943,7 @@ function ContactParentButton({ student, lang }: { student: any; lang: string }) 
 }
 
 function RecurringSessionsButton({ lang }: { lang: string }) {
+  const uid = useId()
   const [showModal, setShowModal] = useState(false)
   const [groups, setGroups] = useState<any[]>([])
   const [levels, setLevels] = useState<any[]>([])
@@ -1858,7 +1994,7 @@ function RecurringSessionsButton({ lang }: { lang: string }) {
       </button>
 
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs">
           <div className="bg-white rounded-2xl shadow-xl max-w-md w-full mx-4 p-6">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-gray-900">{lang === 'ar' ? 'إنشاء جلسات متكررة' : 'Create Recurring Sessions'}</h3>
@@ -1869,41 +2005,41 @@ function RecurringSessionsButton({ lang }: { lang: string }) {
 
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">{lang === 'ar' ? 'المستوى' : 'Level'}</label>
-                <select value={selectedLevel} onChange={e => setSelectedLevel(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor={`${uid}-rs1`}>{lang === 'ar' ? 'المستوى' : 'Level'}</label>
+                <select id={`${uid}-rs1`} value={selectedLevel} onChange={e => setSelectedLevel(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-500">
                   <option value="">{lang === 'ar' ? 'اختر المستوى' : 'Select level'}</option>
                   {levels.map((l: any) => <option key={l.id} value={l.id}>{l.name}</option>)}
                 </select>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">{lang === 'ar' ? 'المجموعة' : 'Group'}</label>
-                <select value={selectedGroup} onChange={e => setSelectedGroup(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor={`${uid}-rs2`}>{lang === 'ar' ? 'المجموعة' : 'Group'}</label>
+                <select id={`${uid}-rs2`} value={selectedGroup} onChange={e => setSelectedGroup(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-500">
                   <option value="">{lang === 'ar' ? 'اختر المجموعة' : 'Select group'}</option>
                   {groups.map((g: any) => <option key={g.id} value={g.id}>{g.name}</option>)}
                 </select>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">{lang === 'ar' ? 'يوم الأسبوع' : 'Day of Week'}</label>
-                <select value={dayOfWeek} onChange={e => setDayOfWeek(Number(e.target.value))}
-                  className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor={`${uid}-rs3`}>{lang === 'ar' ? 'يوم الأسبوع' : 'Day of Week'}</label>
+                <select id={`${uid}-rs3`} value={dayOfWeek} onChange={e => setDayOfWeek(Number(e.target.value))}
+                  className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-500">
                   {dayNames.map((day, i) => <option key={i} value={i}>{day}</option>)}
                 </select>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">{lang === 'ar' ? 'الوقت' : 'Time'}</label>
-                  <input type="time" value={time} onChange={e => setTime(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                  <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor={`${uid}-rs4`}>{lang === 'ar' ? 'الوقت' : 'Time'}</label>
+                  <input id={`${uid}-rs4`} type="time" value={time} onChange={e => setTime(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-500" />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">{lang === 'ar' ? 'عدد الأسابيع' : 'Weeks'}</label>
-                  <input type="number" min={1} max={12} value={weeks} onChange={e => setWeeks(Number(e.target.value))}
-                    className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                  <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor={`${uid}-rs5`}>{lang === 'ar' ? 'عدد الأسابيع' : 'Weeks'}</label>
+                  <input id={`${uid}-rs5`} type="number" min={1} max={12} value={weeks} onChange={e => setWeeks(Number(e.target.value))}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-blue-500" />
                 </div>
               </div>
             </div>
@@ -1959,7 +2095,7 @@ function LiturgyHeatmapCard({ lang }: { lang: string }) {
           <div className="flex h-7 w-7 items-center justify-center rounded-full bg-amber-50 text-amber-700"><Church className="h-4 w-4" /></div>
           <h2 className="font-semibold text-gray-900">{lang === 'ar' ? 'خريطة القداسات الحرارية' : 'Liturgy Heatmap'}</h2>
         </div>
-        <div className="flex items-center gap-3 text-[11px]">
+        <div className="flex items-center gap-3 text-xs">
           <span className="flex items-center gap-1"><span className="h-2.5 w-2.5 rounded bg-green-500" />{lang === 'ar' ? 'قداس+حضور' : 'Liturgy+Class'}</span>
           <span className="flex items-center gap-1"><span className="h-2.5 w-2.5 rounded bg-amber-400" />{lang === 'ar' ? 'حضور فقط' : 'Class only'}</span>
           <span className="flex items-center gap-1"><span className="h-2.5 w-2.5 rounded bg-red-300" />{lang === 'ar' ? 'غائب' : 'Absent'}</span>
@@ -2097,8 +2233,8 @@ function ServantWellbeingPanel({ lang, schoolId }: { lang: string; schoolId: str
 
           {/* Arrival Tap */}
           {digest.nextSession && (
-            <div className="relative overflow-hidden rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 p-4">
-              <div className="absolute inset-0 opacity-10 bg-[radial-gradient(circle_at_top_right,_white_1px,_transparent_1px)] bg-[length:16px_16px]" />
+            <div className="relative overflow-hidden rounded-xl bg-linear-to-r from-emerald-600 to-teal-600 p-4">
+              <div className="absolute inset-0 opacity-10 bg-[radial-gradient(circle_at_top_right,white_1px,transparent_1px)] bg-size-[16px_16px]" />
               <div className="relative flex items-center justify-between gap-4">
                 <div>
                   <p className="text-xs font-semibold text-emerald-100 uppercase tracking-wide mb-0.5">
@@ -2121,7 +2257,7 @@ function ServantWellbeingPanel({ lang, schoolId }: { lang: string; schoolId: str
                   {t('Start Class', 'ابدأ الفصل')}
                 </button>
               </div>
-              <p className="relative mt-2 text-[10px] text-emerald-200">
+              <p className="relative mt-2 text-xs text-emerald-200">
                 {t('Attendance opens pre-filled with all present — fix exceptions only.', 'الحضور يُفتح مع تسجيل الجميع حاضرين — صحّح الغائبين فقط.')}
               </p>
             </div>
@@ -2133,7 +2269,7 @@ function ServantWellbeingPanel({ lang, schoolId }: { lang: string; schoolId: str
             <div className="rounded-xl border border-purple-100 bg-purple-50 p-4">
               <div className="flex items-center gap-1.5 mb-2">
                 <Music className="h-3.5 w-3.5 text-purple-600" />
-                <span className="text-[10px] font-bold uppercase tracking-wider text-purple-600">
+                <span className="text-xs font-bold uppercase tracking-wider text-purple-600">
                   {t('Student Story', 'قصة الطالب')}
                 </span>
               </div>
@@ -2150,7 +2286,7 @@ function ServantWellbeingPanel({ lang, schoolId }: { lang: string; schoolId: str
                   )}
                 </>
               ) : (
-                <p className="text-xs text-gray-400">{t('No notable student activity this week yet.', 'لا يوجد نشاط طلابي بارز هذا الأسبوع بعد.')}</p>
+                <p className="text-xs text-gray-600">{t('No notable student activity this week yet.', 'لا يوجد نشاط طلابي بارز هذا الأسبوع بعد.')}</p>
               )}
             </div>
 
@@ -2158,7 +2294,7 @@ function ServantWellbeingPanel({ lang, schoolId }: { lang: string; schoolId: str
             <div className="rounded-xl border border-blue-100 bg-blue-50 p-4">
               <div className="flex items-center gap-1.5 mb-2">
                 <TrendingUp className="h-3.5 w-3.5 text-blue-600" />
-                <span className="text-[10px] font-bold uppercase tracking-wider text-blue-600">
+                <span className="text-xs font-bold uppercase tracking-wider text-blue-600">
                   {t('Class Trend', 'اتجاه الفصل')}
                 </span>
               </div>
@@ -2169,22 +2305,22 @@ function ServantWellbeingPanel({ lang, schoolId }: { lang: string; schoolId: str
                   </p>
                   <div className="mt-2 flex items-center gap-1.5">
                     {digest.classTrend.improvement > 0 ? (
-                      <span className="inline-flex items-center gap-0.5 rounded-full bg-green-100 px-2 py-0.5 text-[10px] font-bold text-green-700">
+                      <span className="inline-flex items-center gap-0.5 rounded-full bg-green-100 px-2 py-0.5 text-xs font-bold text-green-700">
                         <ArrowUp className="h-2.5 w-2.5" />+{digest.classTrend.improvement}%
                       </span>
                     ) : digest.classTrend.improvement < 0 ? (
-                      <span className="inline-flex items-center gap-0.5 rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-bold text-red-600">
+                      <span className="inline-flex items-center gap-0.5 rounded-full bg-red-100 px-2 py-0.5 text-xs font-bold text-red-600">
                         <ArrowDown className="h-2.5 w-2.5" />{digest.classTrend.improvement}%
                       </span>
                     ) : (
-                      <span className="inline-flex items-center gap-0.5 rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-bold text-gray-500">
+                      <span className="inline-flex items-center gap-0.5 rounded-full bg-gray-100 px-2 py-0.5 text-xs font-bold text-gray-500">
                         <Minus className="h-2.5 w-2.5" />0%
                       </span>
                     )}
                   </div>
                 </>
               ) : (
-                <p className="text-xs text-gray-400">{t('No session data yet for this week.', 'لا توجد بيانات جلسات لهذا الأسبوع بعد.')}</p>
+                <p className="text-xs text-gray-600">{t('No session data yet for this week.', 'لا توجد بيانات جلسات لهذا الأسبوع بعد.')}</p>
               )}
             </div>
 
@@ -2192,7 +2328,7 @@ function ServantWellbeingPanel({ lang, schoolId }: { lang: string; schoolId: str
             <div className={`rounded-xl border p-4 ${digest.milestone?.isFresh ? 'border-amber-200 bg-amber-50' : 'border-gray-200 bg-gray-50'}`}>
               <div className="flex items-center gap-1.5 mb-2">
                 <Trophy className={`h-3.5 w-3.5 ${digest.milestone?.isFresh ? 'text-amber-600' : 'text-gray-500'}`} />
-                <span className={`text-[10px] font-bold uppercase tracking-wider ${digest.milestone?.isFresh ? 'text-amber-600' : 'text-gray-500'}`}>
+                <span className={`text-xs font-bold uppercase tracking-wider ${digest.milestone?.isFresh ? 'text-amber-600' : 'text-gray-500'}`}>
                   {t('Your Milestone', 'إنجازك')}
                 </span>
               </div>
@@ -2206,7 +2342,7 @@ function ServantWellbeingPanel({ lang, schoolId }: { lang: string; schoolId: str
                   </p>
                   {!digest.milestone.isFresh && digest.milestone.nextMilestone && (
                     <div className="mt-2">
-                      <div className="flex justify-between text-[10px] text-gray-400 mb-1">
+                      <div className="flex justify-between text-xs text-gray-400 mb-1">
                         <span>{digest.milestone.totalSessions}</span>
                         <span>{digest.milestone.nextMilestone}</span>
                       </div>
@@ -2233,14 +2369,14 @@ function ServantWellbeingPanel({ lang, schoolId }: { lang: string; schoolId: str
                 <h3 className="text-sm font-semibold text-amber-800">
                   {t('Students to check in on', 'طلاب يستحقون متابعة')}
                 </h3>
-                <span className="ml-auto rounded-full bg-amber-200 px-2 py-0.5 text-[10px] font-bold text-amber-800">
+                <span className="ml-auto rounded-full bg-amber-200 px-2 py-0.5 text-xs font-bold text-amber-800">
                   {digest.absenceAlerts.length}
                 </span>
               </div>
               <div className="space-y-2">
                 {digest.absenceAlerts.map(alert => (
                   <div key={alert.studentId} className="flex items-start gap-3 rounded-lg bg-white border border-amber-100 px-3 py-2.5">
-                    <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-amber-100 text-[11px] font-bold text-amber-700">
+                    <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-amber-100 text-xs font-bold text-amber-700">
                       {alert.firstName[0]}{alert.lastName[0]}
                     </div>
                     <p className="text-xs text-gray-700 leading-relaxed flex-1">
@@ -2249,7 +2385,7 @@ function ServantWellbeingPanel({ lang, schoolId }: { lang: string; schoolId: str
                   </div>
                 ))}
               </div>
-              <p className="mt-2 text-[10px] text-amber-600 italic">
+              <p className="mt-2 text-xs text-amber-600 italic">
                 {t('Parents have been notified automatically. No action required.', 'تم إبلاغ الأهالي تلقائياً. لا حاجة لأي إجراء.')}
               </p>
             </div>
@@ -2331,7 +2467,7 @@ export function MinistryDashboard({ data, loading, error, onRetry }: { data: any
     <div key={item.label} className="rounded-xl bg-white/5 border border-white/10 px-4 py-3">
      <div className="flex items-center gap-2 mb-1">
       <item.icon className="h-3.5 w-3.5 text-gold-400" />
-      <span className="text-[11px] text-white/80">{lang === 'ar' ? (item as any).labelAr : item.label}</span>
+      <span className="text-xs text-white/80">{lang === 'ar' ? (item as any).labelAr : item.label}</span>
      </div>
      <div className="text-xl font-bold text-white tracking-wider">
       <AnimatedCounter value={item.value} suffix={'suffix' in item ? (item as any).suffix || '' : ''} />
@@ -2343,7 +2479,7 @@ export function MinistryDashboard({ data, loading, error, onRetry }: { data: any
 
  return (
   <>
-<title>{lang === 'ar' ? 'خدمتي' : 'My Ministry'} — Coptic Orthodox Hymn Education Platform (COHEP)</title>
+<title>{`${lang === 'ar' ? 'خدمتي' : 'My Ministry'} — Coptic Orthodox Hymn Education Platform (COHEP)`}</title>
     <meta name="description" content="Coptic Orthodox Hymn Education Platform (COHEP) ministry dashboard" />
    <motion.div className="space-y-6" initial={reduce ? false : "initial"} animate="animate" variants={stagger}>
      <DashboardHero
@@ -2403,6 +2539,12 @@ export function MinistryDashboard({ data, loading, error, onRetry }: { data: any
         </motion.div>
       )}
 
+      {/* Birthdays this week — own class, with one-tap greeting */}
+      {/* (no wrapper: it renders nothing in weeks without birthdays, so it must not leave a spacing gap) */}
+      {SERVANT_ROLES.includes(d.role || '') && (
+        <BirthdaysSection lang={lang === 'ar' ? 'ar' : 'en'} className="" />
+      )}
+
       {/* Servant Journey Card */}
       {SERVANT_ROLES.includes(d.role || '') && (
         <motion.div variants={fadeUp}>
@@ -2451,12 +2593,12 @@ export function MinistryDashboard({ data, loading, error, onRetry }: { data: any
     )}
 
     <motion.div variants={fadeUp} className="rounded-xl border border-gray-200/60 bg-white overflow-hidden">
-      <div className="flex items-center justify-between border-b border-[var(--hymn-border)] px-5 py-4 bg-[var(--hymn-surface-header)]">
+      <div className="flex items-center justify-between border-b border-(--hymn-border) px-5 py-4 bg-(--hymn-surface-header)">
        <div className="flex items-center gap-2">
-        <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[var(--hymn-surface-header)] text-emerald-600 ring-1 ring-emerald-200/50"><CalendarClock className="h-4 w-4" /></div>
+        <div className="flex h-7 w-7 items-center justify-center rounded-full bg-(--hymn-surface-header) text-emerald-600 ring-1 ring-emerald-200/50"><CalendarClock className="h-4 w-4" /></div>
         <h2 className="font-semibold text-gray-900">{lang === 'ar' ? 'الجلسات للتشغيل' : 'Sessions to Run'}</h2>
       </div>
-      <Link href="/dashboard/attendance" className="text-xs text-emerald-600 font-medium hover:text-emerald-700">{lang === 'ar' ? 'الحضور' : 'Attendance'}</Link>
+      <Link href="/dashboard/attendance" className="text-xs text-emerald-700 font-medium hover:text-emerald-800">{lang === 'ar' ? 'الحضور' : 'Attendance'}</Link>
      </div>
      <div className="divide-y divide-gray-100">
       {sessions.length === 0 ? (
@@ -2478,9 +2620,9 @@ export function MinistryDashboard({ data, loading, error, onRetry }: { data: any
     </motion.div>
 
     <motion.div variants={fadeUp} className="rounded-xl border border-gray-200/60 bg-white overflow-hidden">
-      <div className="flex items-center justify-between border-b border-[var(--hymn-border)] px-5 py-4 bg-[var(--hymn-surface-header)]">
+      <div className="flex items-center justify-between border-b border-(--hymn-border) px-5 py-4 bg-(--hymn-surface-header)">
        <div className="flex items-center gap-2">
-        <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[var(--hymn-surface-header)] text-blue-700 ring-1 ring-gold-200/50"><UserCog className="h-4 w-4" /></div>
+        <div className="flex h-7 w-7 items-center justify-center rounded-full bg-(--hymn-surface-header) text-blue-700 ring-1 ring-gold-200/50"><UserCog className="h-4 w-4" /></div>
         <h2 className="font-semibold text-gray-900">{lang === 'ar' ? 'مجموعاتي' : 'My Groups'}</h2>
       </div>
      </div>
@@ -2488,12 +2630,12 @@ export function MinistryDashboard({ data, loading, error, onRetry }: { data: any
       {groups.length === 0 ? (
        <div className="col-span-full px-1 py-6"><EmptyState icon={UserCog} title={lang === 'ar' ? 'لا مجموعات' : 'No groups'} /></div>
        ) : groups.map((g) => (
-        <Link key={g.id} href={`/dashboard/students?groupId=${g.id}`} className="block rounded-xl border border-[var(--hymn-border)] bg-[var(--hymn-surface)] p-4 hover:border-blue-200 hover:shadow-md transition-all group">
+        <Link key={g.id} href={`/dashboard/students?groupId=${g.id}`} className="block rounded-xl border border-(--hymn-border) bg-(--hymn-surface) p-4 hover:border-blue-200 hover:shadow-md transition-all group">
          <div className="flex items-center justify-between">
           <h3 className="font-semibold text-gray-900">{g.name}</h3>
-          <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-medium text-blue-700">{g.levelName}</span>
+          <span className="rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700">{g.levelName}</span>
          </div>
-         <div className="mt-3 flex items-center gap-2 text-sm text-gray-500">
+         <div className="mt-3 flex items-center gap-2 text-sm text-gray-600">
           <Users className="h-4 w-4" /><span>{g.studentCount} {lang === 'ar' ? 'طالب' : 'students'}</span>
           <ChevronRight className="ms-auto h-4 w-4 text-gray-300 group-hover:text-blue-500" />
          </div>
@@ -2503,9 +2645,9 @@ export function MinistryDashboard({ data, loading, error, onRetry }: { data: any
     </motion.div>
 
     <motion.div variants={fadeUp} className="rounded-xl border border-gray-200/60 bg-white overflow-hidden">
-      <div className="flex items-center justify-between border-b border-[var(--hymn-border)] px-5 py-4 bg-[var(--hymn-surface-header)]">
+      <div className="flex items-center justify-between border-b border-(--hymn-border) px-5 py-4 bg-(--hymn-surface-header)">
        <div className="flex items-center gap-2">
-        <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[var(--hymn-surface-header)] text-purple-600 ring-1 ring-purple-200/50"><Award className="h-4 w-4" /></div>
+        <div className="flex h-7 w-7 items-center justify-center rounded-full bg-(--hymn-surface-header) text-purple-600 ring-1 ring-purple-200/50"><Award className="h-4 w-4" /></div>
         <h2 className="font-semibold text-gray-900">{lang === 'ar' ? 'أحدث الدرجات' : 'Recent Grades'}</h2>
       </div>
       <Link href="/dashboard/assessments" className="text-xs text-blue-700 font-medium hover:text-blue-800 flex items-center gap-0.5 group">{lang === 'ar' ? 'عرض الكل' : 'View all'}<ChevronRight className="h-3 w-3 group-hover:translate-x-0.5 transition-transform" /></Link>
@@ -2562,12 +2704,12 @@ function ServantDigestCard({ lang }: { lang: string }) {
 
   return (
     <div className="rounded-xl border border-gray-200/60 bg-white overflow-hidden">
-      <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4 bg-[var(--hymn-surface-header)]">
+      <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4 bg-(--hymn-surface-header)">
         <div className="flex items-center gap-2">
           <div className="flex h-7 w-7 items-center justify-center rounded-full bg-amber-50 text-amber-700"><BookMarked className="h-4 w-4" /></div>
           <h2 className="font-semibold text-gray-900">{lang === 'ar' ? 'ملخص الخدمة' : 'Servant Digest'}</h2>
         </div>
-        <span className="text-[11px] text-gray-400">{lang === 'ar' ? 'نظرة سريعة على خدمتك' : 'Your ministry at a glance'}</span>
+        <span className="text-xs text-gray-400">{lang === 'ar' ? 'نظرة سريعة على خدمتك' : 'Your ministry at a glance'}</span>
       </div>
       <div className="divide-y divide-gray-100">
         {/* Student Story */}
@@ -2642,7 +2784,7 @@ function ServantDigestCard({ lang }: { lang: string }) {
 
         {/* Next Session */}
         {data.nextSession && (
-          <div className="rounded-b-xl bg-gradient-to-r from-blue-50 to-white px-5 py-3">
+          <div className="rounded-b-xl bg-linear-to-r from-blue-50 to-white px-5 py-3">
             <div className="flex items-center gap-2 text-sm">
               <CalendarClock className="h-4 w-4 text-blue-600 shrink-0" />
               <span className="font-medium text-gray-900">
@@ -2683,12 +2825,12 @@ function PracticeCountersSection({ lang }: { lang: string }) {
 
   return (
     <div className="rounded-xl border border-gray-200/60 bg-white overflow-hidden">
-      <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4 bg-[var(--hymn-surface-header)]">
+      <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4 bg-(--hymn-surface-header)">
         <div className="flex items-center gap-2">
           <div className="flex h-7 w-7 items-center justify-center rounded-full bg-indigo-50 text-indigo-600"><BookOpen className="h-4 w-4" /></div>
           <h2 className="font-semibold text-gray-900">{lang === 'ar' ? 'الممارسة العائلية هذا الأسبوع' : 'Weekly Practice'}</h2>
         </div>
-        <span className="text-[11px] text-gray-400">
+        <span className="text-xs text-gray-400">
           {hasPractice}/{data.students.length} {lang === 'ar' ? 'مارسوا' : 'practiced'}
         </span>
       </div>
@@ -2757,7 +2899,7 @@ function ChildCard({ child, lang }: { child: any; lang: string }) {
   { label: lang === 'ar' ? 'الشارات' : 'Badges', value: child.badges ?? 0, icon: Star, color: 'text-blue-700', bg: 'bg-blue-50', bar: null, barColor: '' },
  ]
  return (
-  <motion.div variants={fadeUp} className="rounded-2xl border border-[var(--hymn-border)] bg-[var(--hymn-surface)] overflow-hidden hover:shadow-xl hover:shadow-gold-500/10 transition-all duration-300">
+  <motion.div variants={fadeUp} className="rounded-2xl border border-(--hymn-border) bg-(--hymn-surface) overflow-hidden hover:shadow-xl hover:shadow-gold-500/10 transition-all duration-300">
    {/* At-risk banner */}
    {atRisk && (
     <div className="flex items-center gap-2 bg-red-50 px-5 py-2 border-b border-red-100">
@@ -2768,21 +2910,21 @@ function ChildCard({ child, lang }: { child: any; lang: string }) {
     </div>
    )}
    {/* Header */}
-   <div className="relative p-5 bg-[var(--hymn-surface)] border-b border-[var(--hymn-border)]">
+   <div className="relative p-5 bg-(--hymn-surface) border-b border-(--hymn-border)">
     <div className="flex items-center gap-4">
      {child.photoUrl ? (
-      <Image src={API + child.photoUrl} alt="" width={56} height={56} className="h-14 w-14 rounded-2xl object-cover border border-white shadow-sm"  />
+      <Image src={API + child.photoUrl} alt="" width={56} height={56} className="h-14 w-14 rounded-2xl object-cover border border-white shadow-xs"  />
      ) : (
-      <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-gold-400 to-blue-500 text-white font-bold text-lg shadow-sm">{initials}</div>
+      <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-linear-to-br from-gold-400 to-blue-500 text-white font-bold text-lg shadow-xs">{initials}</div>
      )}
      <div className="min-w-0">
       <h3 className="text-lg font-bold text-[#1A2744] truncate">{child.firstName} {child.lastName}</h3>
       <div className="mt-1 flex flex-wrap items-center gap-1.5">
-       {gradePill && <span className="rounded-full bg-indigo-100 px-2 py-0.5 text-[11px] font-semibold text-indigo-700">{gradePill}</span>}
-       {child.levelName && <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[11px] font-semibold text-blue-700">{child.levelName}</span>}
-       {child.groupName && <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-medium text-gray-600">{child.groupName}</span>}
+       {gradePill && <span className="rounded-full bg-indigo-100 px-2 py-0.5 text-xs font-semibold text-indigo-700">{gradePill}</span>}
+       {child.levelName && <span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-semibold text-blue-700">{child.levelName}</span>}
+       {child.groupName && <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600">{child.groupName}</span>}
        {streakNudge && (
-        <span className="rounded-full bg-orange-100 px-2 py-0.5 text-[11px] font-semibold text-orange-700">
+        <span className="rounded-full bg-orange-100 px-2 py-0.5 text-xs font-semibold text-orange-700">
          🔥 {lang === 'ar' ? 'سلسلة {p.currentStreak}' : `Streak ${p.currentStreak}`}
         </span>
        )}
@@ -2796,12 +2938,12 @@ function ChildCard({ child, lang }: { child: any; lang: string }) {
     </div>
     {p && (
      <div className="mt-4">
-      <div className="mb-1 flex items-center justify-between text-[11px] font-medium text-gray-500">
+      <div className="mb-1 flex items-center justify-between text-xs font-medium text-gray-600">
        <span>{lang === 'ar' ? 'التقدم العام' : 'Overall Progress'}</span>
        <span>{p.completedLessons}/{p.totalLessons} {lang === 'ar' ? 'درس' : 'lessons'}</span>
       </div>
       <div className="h-2.5 w-full rounded-full bg-gray-100 overflow-hidden">
-       <div className="h-full rounded-full bg-gradient-to-r from-gold-400 to-blue-500 transition-all duration-700" style={{ width: `${Math.min(100, p.progressPercent)}%` }} />
+       <div className="h-full rounded-full bg-linear-to-r from-gold-400 to-blue-500 transition-all duration-700" style={{ width: `${Math.min(100, p.progressPercent)}%` }} />
       </div>
      </div>
     )}
@@ -2809,7 +2951,7 @@ function ChildCard({ child, lang }: { child: any; lang: string }) {
     {curLesson && (
      <div className="mt-3 flex items-center gap-2 rounded-lg bg-indigo-50 px-3 py-2">
       <BookOpen className="h-3.5 w-3.5 text-indigo-500 shrink-0" />
-      <span className="text-[11px] font-medium text-indigo-700 truncate">
+      <span className="text-xs font-medium text-indigo-700 truncate">
        {lang === 'ar' ? 'يتعلم الآن:' : 'Now learning:'} {lang === 'ar' && curLesson.titleAr ? curLesson.titleAr : curLesson.title}
       </span>
      </div>
@@ -2818,13 +2960,13 @@ function ChildCard({ child, lang }: { child: any; lang: string }) {
    {/* Tiles */}
    <div className="grid grid-cols-3 gap-3 p-5">
     {primaryTiles.map((t) => (
-     <div key={t.label} className="rounded-xl border border-gray-100 bg-gradient-to-b from-white to-gray-50 p-3 text-center">
+     <div key={t.label} className="rounded-xl border border-gray-100 bg-linear-to-b from-white to-gray-50 p-3 text-center">
       <div className={`mx-auto mb-1.5 flex h-9 w-9 items-center justify-center rounded-xl ${t.bg} ${t.color}`}><t.icon className="h-4 w-4" /></div>
       <div className="text-base font-bold text-gray-900">{t.value}</div>
-      <div className="text-[11px] text-gray-400">{t.label}</div>
+      <div className="text-xs text-gray-400">{t.label}</div>
       {t.bar != null && (
        <div className="mt-1.5 h-1 w-full rounded-full bg-gray-100 overflow-hidden">
-        <div className={`h-full rounded-full bg-gradient-to-r ${t.barColor}`} style={{ width: `${Math.min(100, t.bar)}%` }} />
+        <div className={`h-full rounded-full bg-linear-to-r ${t.barColor}`} style={{ width: `${Math.min(100, t.bar)}%` }} />
        </div>
       )}
      </div>
@@ -2834,23 +2976,23 @@ function ChildCard({ child, lang }: { child: any; lang: string }) {
    {showMore && (
     <div className="grid grid-cols-2 gap-3 px-5 pb-3">
      {secondaryTiles.map((t) => (
-      <div key={t.label} className="rounded-xl border border-gray-100 bg-gradient-to-b from-white to-gray-50 p-3 text-center">
+      <div key={t.label} className="rounded-xl border border-gray-100 bg-linear-to-b from-white to-gray-50 p-3 text-center">
        <div className={`mx-auto mb-1.5 flex h-9 w-9 items-center justify-center rounded-xl ${t.bg} ${t.color}`}><t.icon className="h-4 w-4" /></div>
        <div className="text-base font-bold text-gray-900">{t.value}</div>
-       <div className="text-[11px] text-gray-400">{t.label}</div>
+       <div className="text-xs text-gray-400">{t.label}</div>
       </div>
      ))}
     </div>
    )}
     <Button variant="ghost" size="sm" onClick={() => setShowMore(!showMore)}
-     className="w-full justify-center gap-1 py-4 text-[11px] font-medium text-blue-700 hover:text-blue-800 hover:bg-blue-50/30 transition-colors border-t border-gray-100 rounded-b-xl">
+     className="w-full justify-center gap-1 py-4 text-xs font-medium text-blue-700 hover:text-blue-800 hover:bg-blue-50/30 transition-colors border-t border-gray-100 rounded-b-xl">
      {showMore ? (lang === 'ar' ? 'عرض أقل' : 'Show less') : (lang === 'ar' ? 'عرض المزيد' : `Show more (${secondaryTiles.length} more)`)}
      <ChevronDown className={`h-3 w-3 transition-transform ${showMore ? 'rotate-180' : ''}`} />
     </Button>
    {/* Weekly comparison + recent badges */}
    <div className="px-5 pb-3 flex flex-wrap items-center gap-3">
     {wc.xpThisWeek != null && (
-     <div className={`flex items-center gap-1 text-[11px] font-medium ${xpChange >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+     <div className={`flex items-center gap-1 text-xs font-medium ${xpChange >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
       <Zap className="h-3 w-3" />
       <span>{lang === 'ar' ? 'نقاط هذا الأسبوع:' : 'XP this week:'} {wc.xpThisWeek}</span>
       {xpChange > 0 && <ArrowUpRight className="h-3 w-3" />}
@@ -2858,7 +3000,7 @@ function ChildCard({ child, lang }: { child: any; lang: string }) {
      </div>
     )}
     {wc.attendanceThisWeek != null && (
-     <div className={`flex items-center gap-1 text-[11px] font-medium ${attChange >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+     <div className={`flex items-center gap-1 text-xs font-medium ${attChange >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
       <UserCheck className="h-3 w-3" />
       <span>{lang === 'ar' ? 'حضور هذا الأسبوع:' : 'Att this week:'} {wc.attendanceThisWeek}%</span>
       {attChange > 0 && <ArrowUpRight className="h-3 w-3" />}
@@ -2869,7 +3011,7 @@ function ChildCard({ child, lang }: { child: any; lang: string }) {
     {child.recentBadges?.length > 0 && (
      <div className="flex flex-wrap items-center gap-1.5">
       {child.recentBadges.map((b: any) => (
-       <span key={b.id} className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-medium text-blue-700 border border-gold-100">
+       <span key={b.id} className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700 border border-gold-100">
         <span className="text-xs">{b.iconUrl || '🏅'}</span>
         {b.name}
        </span>
@@ -2880,10 +3022,10 @@ function ChildCard({ child, lang }: { child: any; lang: string }) {
    {/* Upcoming sessions */}
    {child.upcomingSessions?.length > 0 && (
     <div className="px-5 pb-3">
-     <h5 className="text-[11px] font-semibold text-gray-500 mb-1.5">{lang === 'ar' ? 'الجلسات القادمة' : 'Upcoming Sessions'}</h5>
+     <h5 className="text-xs font-semibold text-gray-500 mb-1.5">{lang === 'ar' ? 'الجلسات القادمة' : 'Upcoming Sessions'}</h5>
      <div className="flex flex-wrap gap-2">
       {child.upcomingSessions.map((sess: any) => (
-       <div key={sess.id} className="flex items-center gap-1.5 rounded-lg bg-gray-50 px-2.5 py-1.5 text-[11px] text-gray-600 border border-gray-100">
+       <div key={sess.id} className="flex items-center gap-1.5 rounded-lg bg-gray-50 px-2.5 py-1.5 text-xs text-gray-600 border border-gray-100">
         <Calendar className="h-3 w-3 text-gray-400" />
         <span>{new Date(sess.scheduledDate).toLocaleDateString(lang === 'ar' ? 'ar-EG' : 'en-GB')}</span>
         {sess.title && <span className="text-gray-400">· {sess.title}</span>}
@@ -2908,7 +3050,7 @@ function ChildCard({ child, lang }: { child: any; lang: string }) {
       ))}
      </div>
     ) : (
-     <p className="text-xs text-gray-400">{lang === 'ar' ? 'لا توجد درجات بعد' : 'No grades yet'}</p>
+     <p className="text-xs text-gray-600">{lang === 'ar' ? 'لا توجد درجات بعد' : 'No grades yet'}</p>
     )}
    </div>
   </motion.div>
@@ -2963,7 +3105,7 @@ function ParentDashboard({ data, loading, error, onRetry }: { data: any; loading
 
  return (
   <>
-<title>{lang === 'ar' ? 'أولادي' : 'My Children'} — Coptic Orthodox Hymn Education Platform (COHEP)</title>
+<title>{`${lang === 'ar' ? 'أولادي' : 'My Children'} — Coptic Orthodox Hymn Education Platform (COHEP)`}</title>
     <meta name="description" content="Coptic Orthodox Hymn Education Platform (COHEP) parent dashboard" />
    <motion.div className="space-y-6" initial={reduce ? false : "initial"} animate="animate" variants={stagger}>
     {/* Hero */}
@@ -2984,11 +3126,11 @@ function ParentDashboard({ data, loading, error, onRetry }: { data: any; loading
        { label: lang === 'ar' ? 'إجمالي النقاط' : 'Total XP', value: totalXp, icon: Zap, color: 'text-amber-600', bg: 'bg-amber-50' },
        { label: lang === 'ar' ? 'إجمالي الشارات' : 'Total Badges', value: totalBadges, icon: Star, color: 'text-blue-700', bg: 'bg-blue-50' },
       ].map((s) => (
-       <motion.div key={s.label} variants={fadeUp} className="flex items-center gap-3 border-t border-[var(--hymn-border)] p-3.5">
+       <motion.div key={s.label} variants={fadeUp} className="flex items-center gap-3 border-t border-(--hymn-border) p-3.5">
         <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${s.bg} ${s.color}`}><s.icon className="h-5 w-5" /></div>
         <div>
          <h3 className="text-lg font-bold text-gray-900 leading-none">{s.value}</h3>
-         <div className="text-[11px] text-gray-400 mt-1">{s.label}</div>
+         <div className="text-xs text-gray-400 mt-1">{s.label}</div>
         </div>
        </motion.div>
       ))}
@@ -2998,49 +3140,49 @@ function ParentDashboard({ data, loading, error, onRetry }: { data: any; loading
     {/* This Week at a Glance */}
     {children.length > 0 && (
      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-      <motion.div variants={fadeUp} className="rounded-xl border border-[var(--hymn-border)] bg-[var(--hymn-surface)] p-4 flex items-center gap-4">
-       <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-amber-50 to-amber-100 text-amber-600">
+      <motion.div variants={fadeUp} className="rounded-xl border border-(--hymn-border) bg-(--hymn-surface) p-4 flex items-center gap-4">
+       <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-linear-to-br from-amber-50 to-amber-100 text-amber-600">
         <TrendingUp className="h-6 w-6" />
        </div>
        <div>
-        <div className="text-xs text-gray-400 mb-0.5">{lang === 'ar' ? 'نقاط هذا الأسبوع' : 'XP This Week'}</div>
+        <div className="text-xs text-gray-600 mb-0.5">{lang === 'ar' ? 'نقاط هذا الأسبوع' : 'XP This Week'}</div>
         <div className="text-xl font-bold text-gray-900">{xpThisWeek}</div>
-        <div className="flex items-center gap-1 text-xs text-gray-500">
+        <div className="flex items-center gap-1 text-xs text-gray-600">
          <div className={`h-2 w-full max-w-[80px] rounded-full bg-gray-100 overflow-hidden`}>
-          <div className="h-full rounded-full bg-gradient-to-r from-amber-400 to-amber-500" style={{ width: `${xpProgress}%` }} />
+          <div className="h-full rounded-full bg-linear-to-r from-amber-400 to-amber-500" style={{ width: `${xpProgress}%` }} />
          </div>
          <span>{totalXp}/{xpMilestoneNext}</span>
         </div>
        </div>
       </motion.div>
-      <motion.div variants={fadeUp} className="rounded-xl border border-[var(--hymn-border)] bg-[var(--hymn-surface)] p-4 flex items-center gap-4">
-       <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-50 to-emerald-100 text-emerald-600">
+      <motion.div variants={fadeUp} className="rounded-xl border border-(--hymn-border) bg-(--hymn-surface) p-4 flex items-center gap-4">
+       <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-linear-to-br from-emerald-50 to-emerald-100 text-emerald-600">
         <UserCheck className="h-6 w-6" />
        </div>
        <div>
-        <div className="text-xs text-gray-400 mb-0.5">{lang === 'ar' ? 'الحضور هذا الأسبوع' : 'Attendance Trend'}</div>
+        <div className="text-xs text-gray-600 mb-0.5">{lang === 'ar' ? 'الحضور هذا الأسبوع' : 'Attendance Trend'}</div>
         <div className="text-xl font-bold text-gray-900">{attThisWeek}%</div>
         <div className="flex items-center gap-1 text-xs mt-0.5">
          {attTrendUp ? (
-          <span className="text-emerald-600 flex items-center gap-0.5"><ArrowUpRight className="h-3 w-3" />{lang === 'ar' ? 'تحسن عن الأسبوع الماضي' : 'Up from last week'}</span>
+          <span className="text-emerald-700 flex items-center gap-0.5"><ArrowUpRight className="h-3 w-3" />{lang === 'ar' ? 'تحسن عن الأسبوع الماضي' : 'Up from last week'}</span>
          ) : (
           <span className="text-red-500 flex items-center gap-0.5"><ArrowUpRight className="h-3 w-3 rotate-90" />{lang === 'ar' ? 'انخفاض عن الأسبوع الماضي' : 'Down from last week'}</span>
          )}
         </div>
        </div>
       </motion.div>
-      <motion.div variants={fadeUp} className="rounded-xl border border-[var(--hymn-border)] bg-[var(--hymn-surface)] p-4 flex items-center gap-4">
-       <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-orange-50 to-orange-100 text-orange-600">
+      <motion.div variants={fadeUp} className="rounded-xl border border-(--hymn-border) bg-(--hymn-surface) p-4 flex items-center gap-4">
+       <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-linear-to-br from-orange-50 to-orange-100 text-orange-600">
         <Flame className="h-6 w-6" />
        </div>
        <div>
-        <div className="text-xs text-gray-400 mb-0.5">{lang === 'ar' ? 'أفضل سلسلة حضور' : 'Best Streak'}</div>
+        <div className="text-xs text-gray-600 mb-0.5">{lang === 'ar' ? 'أفضل سلسلة حضور' : 'Best Streak'}</div>
         <div className="text-xl font-bold text-gray-900">{topStreak} {lang === 'ar' ? 'أسابيع' : 'weeks'}</div>
         <div className="text-xs mt-0.5">
          {topStreak >= 3 ? (
           <span className="text-orange-600 font-medium">{lang === 'ar' ? '🔥 استمر في السلسلة!' : '🔥 Keep the chain going!'}</span>
          ) : (
-          <span className="text-gray-400">{lang === 'ar' ? 'ابنِ سلسلة حضور الآن' : 'Build your streak now'}</span>
+          <span className="text-gray-600">{lang === 'ar' ? 'ابنِ سلسلة حضور الآن' : 'Build your streak now'}</span>
          )}
         </div>
        </div>
@@ -3051,20 +3193,20 @@ function ParentDashboard({ data, loading, error, onRetry }: { data: any; loading
     {/* Leaderboard */}
     {leaderboard.length > 0 && (
      <motion.div variants={fadeUp} className="rounded-xl border border-gray-200/60 bg-white overflow-hidden">
-       <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--hymn-border)] bg-[var(--hymn-surface-header)]">
+       <div className="flex items-center justify-between px-5 py-4 border-b border-(--hymn-border) bg-(--hymn-surface-header)">
         <div className="flex items-center gap-2">
          <Trophy className="h-5 w-5 text-blue-700" />
          <h2 className="font-semibold text-gray-900">{lang === 'ar' ? 'لوحة الشرف' : 'Leaderboard'}</h2>
        </div>
-       <span className="text-[11px] text-gray-400">{lang === 'ar' ? 'أفضل الطلاب' : 'Top Students'}</span>
+       <span className="text-xs text-gray-400">{lang === 'ar' ? 'أفضل الطلاب' : 'Top Students'}</span>
       </div>
       <div className="divide-y divide-gray-50">
        {leaderboard.map((s: any, i: number) => (
         <div key={s.studentId} className="flex items-center gap-3 px-5 py-2.5 hover:bg-gray-50 active:bg-gray-100 transition-colors">
-          <div className={`flex h-7 w-7 items-center justify-center rounded-full text-[11px] font-bold ${i < 3 ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600'}`}>{s.rank}</div>
+          <div className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold ${i < 3 ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600'}`}>{s.rank}</div>
          <div className="min-w-0 flex-1">
           <div className="text-sm font-medium text-gray-900 truncate">{s.firstName} {s.lastName}</div>
-          <div className="text-[10px] text-gray-400">{s.gradeName || s.levelName || ''}</div>
+          <div className="text-xs text-gray-400">{s.gradeName || s.levelName || ''}</div>
          </div>
          <div className="flex items-center gap-1 text-sm font-semibold text-amber-600">
           <Zap className="h-3.5 w-3.5" />{s.totalXp}
@@ -3083,7 +3225,7 @@ function ParentDashboard({ data, loading, error, onRetry }: { data: any; loading
     )}
 
     {children.length === 0 ? (
-     <div className="rounded-xl border border-[var(--hymn-border)] bg-[var(--hymn-surface)] p-10"><EmptyState icon={Baby} title={lang === 'ar' ? 'لا يوجد أبناء مرتبطون' : 'No children linked'} description={lang === 'ar' ? 'اربط أبناءك من إعدادات الحساب.' : 'Link your children from account settings.'} /></div>
+     <div className="rounded-xl border border-(--hymn-border) bg-(--hymn-surface) p-10"><EmptyState icon={Baby} title={lang === 'ar' ? 'لا يوجد أبناء مرتبطون' : 'No children linked'} description={lang === 'ar' ? 'اربط أبناءك من إعدادات الحساب.' : 'Link your children from account settings.'} /></div>
     ) : (
      <div className="grid gap-6 lg:grid-cols-2">
       {children.map((c) => <ChildCard key={c.id} child={c} lang={lang} />)}
@@ -3157,6 +3299,11 @@ export default function DashboardPage() {
      <HeroSection stats={primary.data?.stats ?? null} churchLogo={primary.data?.churchLogo ?? null} churchName={primary.data?.churchName ?? ''} loading={primary.loading} />
     </ErrorBoundary>
 
+    {/* Start Class — super admin gets form with group/level/grade/date/time pickers */}
+    <motion.div variants={fadeUp}>
+      <StartClassCard lang={lang} showForm />
+    </motion.div>
+
     {/* Next Session — curriculum subject items allocated for the day (all levels for admin) */}
     <ErrorBoundary onRetry={handleRetry}>
      <motion.div variants={fadeUp}>
@@ -3164,20 +3311,23 @@ export default function DashboardPage() {
      </motion.div>
     </ErrorBoundary>
 
+    {/* Birthdays this week — whole school, with one-tap greeting */}
+    <BirthdaysSection lang={lang === 'ar' ? 'ar' : 'en'} scope="school" className="" />
+
     {/* Quick Actions */}
     <motion.div variants={fadeUp} className="grid grid-cols-2 sm:grid-cols-5 gap-3">
      {QUICK_ACTIONS.map((a) => (
       <motion.div key={a.label} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
         <Link href={a.href}
          className="group flex items-center gap-3 rounded-xl px-4 py-3.5 transition-all duration-300 hover:bg-gray-50 hover:-translate-y-0.5 relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-transparent via-transparent to-blue-50/30 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-        <div className={`relative flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br ${a.color} text-white shadow-lg ${a.shadow} group-hover:shadow-xl group-hover:scale-110 group-active:scale-110 transition-transform duration-300`}
+        <div className="absolute inset-0 bg-linear-to-br from-transparent via-transparent to-blue-50/30 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+        <div className={`relative flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-linear-to-br ${a.color} text-white shadow-lg ${a.shadow} group-hover:shadow-xl group-hover:scale-110 group-active:scale-110 transition-transform duration-300`}
          style={{ transformStyle: 'preserve-3d', perspective: '400px' }}>
          <a.icon className="h-5 w-5" />
         </div>
         <div className="relative">
          <div className="text-sm font-semibold text-gray-900 group-hover:text-blue-700 transition-colors">{lang === 'ar' ? a.labelAr : a.label}</div>
-         <div className="text-[11px] text-gray-400 flex items-center gap-0.5">
+         <div className="text-xs text-gray-400 flex items-center gap-0.5">
           {lang === 'ar' ? 'فتح' : 'Open'} <ArrowUpRight className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-all duration-300 group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
          </div>
         </div>
@@ -3207,14 +3357,14 @@ export default function DashboardPage() {
     <motion.div variants={fadeUp} className="grid gap-6 lg:grid-cols-3">
      {/* Weekly Attendance Chart */}
        <div className="lg:col-span-2 rounded-xl border border-gray-200/60 bg-white overflow-hidden">
-       <div className="flex items-center justify-between border-b border-[var(--hymn-border)] px-5 py-4 bg-[var(--hymn-surface-header)]">
+       <div className="flex items-center justify-between border-b border-(--hymn-border) px-5 py-4 bg-(--hymn-surface-header)">
         <div className="flex items-center gap-2">
-         <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[var(--hymn-surface-header)] text-blue-700 ring-1 ring-gold-200/50">
+         <div className="flex h-7 w-7 items-center justify-center rounded-full bg-(--hymn-surface-header) text-blue-700 ring-1 ring-gold-200/50">
           <BarChart3 className="h-4 w-4" />
          </div>
-         <h2 className="font-semibold text-gray-900">{lang === 'ar' ? 'الحضور هذا الأسبوع' : 'Weekly Attendance'}</h2>
+         <h2 className="font-semibold text-gray-900">{lang === 'ar' ? 'اتجاه الحضور' : 'Attendance trend'}</h2>
         </div>
-        <span className="text-xs text-gray-500 bg-gray-50 px-2 py-1 rounded-full">{lang === 'ar' ? 'نظرة عامة على 7 أيام' : '7-day overview'}</span>
+        <span className="text-xs text-gray-500 bg-gray-50 px-2 py-1 rounded-full">{lang === 'ar' ? 'آخر 8 أسابيع' : 'Last 8 weeks'}</span>
        </div>
        <ErrorBoundary onRetry={handleRetry}>
         <AttendanceChartSection stats={primary.data?.stats ?? null} loading={primary.loading} />
@@ -3223,9 +3373,9 @@ export default function DashboardPage() {
 
      {/* Top Students Leaderboard */}
       <div className="rounded-xl border border-gray-200/60 bg-white overflow-hidden">
-       <div className="flex items-center justify-between border-b border-[var(--hymn-border)] px-5 py-4 bg-[var(--hymn-surface-header)]">
+       <div className="flex items-center justify-between border-b border-(--hymn-border) px-5 py-4 bg-(--hymn-surface-header)">
         <div className="flex items-center gap-2">
-         <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[var(--hymn-surface-header)] text-blue-700 ring-1 ring-gold-200/50">
+         <div className="flex h-7 w-7 items-center justify-center rounded-full bg-(--hymn-surface-header) text-blue-700 ring-1 ring-gold-200/50">
           <Trophy className="h-4 w-4" />
          </div>
          <h2 className="font-semibold text-gray-900">{lang === 'ar' ? 'أفضل الطلاب' : 'Top Students'}</h2>
@@ -3244,9 +3394,9 @@ export default function DashboardPage() {
     <motion.div variants={fadeUp} className="grid gap-6 lg:grid-cols-3">
      {/* Assessment Performance */}
       <div className="rounded-xl border border-gray-200/60 bg-white">
-       <div className="flex items-center justify-between border-b border-[var(--hymn-border)] px-5 py-4 bg-[var(--hymn-surface-header)]">
+       <div className="flex items-center justify-between border-b border-(--hymn-border) px-5 py-4 bg-(--hymn-surface-header)">
         <div className="flex items-center gap-2">
-         <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[var(--hymn-surface-header)] text-blue-700 ring-1 ring-gold-200/50">
+         <div className="flex h-7 w-7 items-center justify-center rounded-full bg-(--hymn-surface-header) text-blue-700 ring-1 ring-gold-200/50">
           <ClipboardCheck className="h-4 w-4" />
          </div>
          <h2 className="font-semibold text-gray-900">{lang === 'ar' ? 'أداء التقييمات' : 'Assessment Performance'}</h2>
@@ -3259,9 +3409,9 @@ export default function DashboardPage() {
 
      {/* Recent Activity */}
       <div className="rounded-xl border border-gray-200/60 bg-white">
-       <div className="flex items-center justify-between border-b border-[var(--hymn-border)] px-5 py-4 bg-[var(--hymn-surface-header)]">
+       <div className="flex items-center justify-between border-b border-(--hymn-border) px-5 py-4 bg-(--hymn-surface-header)">
         <div className="flex items-center gap-2">
-         <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[var(--hymn-surface-header)] text-blue-700 ring-1 ring-gold-200/50">
+         <div className="flex h-7 w-7 items-center justify-center rounded-full bg-(--hymn-surface-header) text-blue-700 ring-1 ring-gold-200/50">
           <Clock className="h-4 w-4" />
          </div>
          <h2 className="font-semibold text-gray-900">{lang === 'ar' ? 'النشاط الأخير' : 'Recent Activity'}</h2>
@@ -3274,9 +3424,9 @@ export default function DashboardPage() {
 
      {/* Upcoming Sessions */}
       <div className="rounded-xl border border-gray-200/60 bg-white">
-       <div className="flex items-center justify-between border-b border-[var(--hymn-border)] px-5 py-4 bg-[var(--hymn-surface-header)]">
+       <div className="flex items-center justify-between border-b border-(--hymn-border) px-5 py-4 bg-(--hymn-surface-header)">
         <div className="flex items-center gap-2">
-         <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[var(--hymn-surface-header)] text-blue-700 ring-1 ring-gold-200/50">
+         <div className="flex h-7 w-7 items-center justify-center rounded-full bg-(--hymn-surface-header) text-blue-700 ring-1 ring-gold-200/50">
           <Calendar className="h-4 w-4" />
          </div>
          <h2 className="font-semibold text-gray-900">{lang === 'ar' ? 'الفصول القادمة' : 'Upcoming Classes'}</h2>
@@ -3292,9 +3442,9 @@ export default function DashboardPage() {
     {/* Recent Grades */}
     <ErrorBoundary onRetry={handleRetry}>
       <div className="rounded-xl border border-gray-200/60 bg-white overflow-hidden">
-       <div className="flex items-center justify-between border-b border-[var(--hymn-border)] px-5 py-4 bg-[var(--hymn-surface-header)]">
+       <div className="flex items-center justify-between border-b border-(--hymn-border) px-5 py-4 bg-(--hymn-surface-header)">
         <div className="flex items-center gap-2">
-         <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[var(--hymn-surface-header)] text-blue-700 ring-1 ring-gold-200/50">
+         <div className="flex h-7 w-7 items-center justify-center rounded-full bg-(--hymn-surface-header) text-blue-700 ring-1 ring-gold-200/50">
           <Award className="h-4 w-4" />
          </div>
          <h2 className="font-semibold text-gray-900">{lang === 'ar' ? 'الدرجات الأخيرة' : 'Recent Grades'}</h2>

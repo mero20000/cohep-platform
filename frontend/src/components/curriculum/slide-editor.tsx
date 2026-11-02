@@ -84,12 +84,12 @@ export function SlideEditor({ value, onChange, schoolApiBase }: SlideEditorProps
           <label htmlFor="se-speaker" className="block text-xs font-medium text-gray-500 mb-1">{lang === 'ar' ? 'القائل' : 'Speaker'}</label>
           <input id="se-speaker" value={data.speaker || ''} onChange={e => update({ speaker: e.target.value })}
             placeholder="People / Priest / Deacon"
-            className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-blue-500" />
+            className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gold-500 focus:outline-hidden focus:ring-1 focus:ring-blue-500" />
         </div>
         <div>
           <label htmlFor="se-format" className="block text-xs font-medium text-gray-500 mb-1">{lang === 'ar' ? 'العرض' : 'Display'}</label>
           <select id="se-format" value={data.format} onChange={e => update({ format: e.target.value as PresentationData['format'] })}
-            className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
+            className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gold-500 focus:outline-hidden focus:ring-1 focus:ring-blue-500">
             <option value="both">{lang === 'ar' ? 'ثلاثي الأعمدة' : '3-Column (Both)'}</option>
             <option value="en">{lang === 'ar' ? 'إنجليزي فقط' : 'English Only'}</option>
             <option value="cop">{lang === 'ar' ? 'قبطي فقط' : 'Coptic Only'}</option>
@@ -107,7 +107,7 @@ export function SlideEditor({ value, onChange, schoolApiBase }: SlideEditorProps
               </span>
               <button onClick={() => removeVerse(idx)} disabled={data.verses.length <= 1}
                 aria-label={lang === 'ar' ? `حذف المقطع ${idx + 1}` : `Remove verse ${idx + 1}`}
-                className="p-1 text-gray-400 hover:text-red-500 disabled:opacity-30 disabled:hover:text-gray-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400 rounded">
+                className="p-1 text-gray-400 hover:text-red-500 disabled:opacity-30 disabled:hover:text-gray-400 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-red-400 rounded">
                 <Trash2 className="h-3.5 w-3.5" />
               </button>
             </div>
@@ -115,17 +115,17 @@ export function SlideEditor({ value, onChange, schoolApiBase }: SlideEditorProps
               <div>
                 <label htmlFor={`se-verse-en-${idx}`} className="block text-[11px] font-medium text-gray-500 mb-0.5">English</label>
                 <textarea id={`se-verse-en-${idx}`} value={verse.en} onChange={e => updateVerse(idx, 'en', e.target.value)} rows={3}
-                  className="block w-full rounded-md border border-gray-200 px-2.5 py-1.5 text-xs focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-blue-500 resize-none" />
+                  className="block w-full rounded-md border border-gray-200 px-2.5 py-1.5 text-xs focus:border-gold-500 focus:outline-hidden focus:ring-1 focus:ring-blue-500 resize-none" />
               </div>
               <div>
                 <label htmlFor={`se-verse-cop-${idx}`} className="block text-[11px] font-medium text-gray-500 mb-0.5">Coptic</label>
                 <textarea id={`se-verse-cop-${idx}`} value={verse.cop} onChange={e => updateVerse(idx, 'cop', e.target.value)} rows={3}
-                  className="block w-full rounded-md border border-gray-200 px-2.5 py-1.5 text-xs focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-blue-500 resize-none" />
+                  className="block w-full rounded-md border border-gray-200 px-2.5 py-1.5 text-xs focus:border-gold-500 focus:outline-hidden focus:ring-1 focus:ring-blue-500 resize-none" />
               </div>
               <div>
                 <label htmlFor={`se-verse-ar-${idx}`} className="block text-[11px] font-medium text-gray-500 mb-0.5">{lang === 'ar' ? 'عربي' : 'Arabic'}</label>
                 <textarea id={`se-verse-ar-${idx}`} value={verse.ar} onChange={e => updateVerse(idx, 'ar', e.target.value)} rows={3} dir="rtl"
-                  className="block w-full rounded-md border border-gray-200 px-2.5 py-1.5 text-xs font-arabic focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-blue-500 resize-none" />
+                  className="block w-full rounded-md border border-gray-200 px-2.5 py-1.5 text-xs font-arabic focus:border-gold-500 focus:outline-hidden focus:ring-1 focus:ring-blue-500 resize-none" />
               </div>
             </div>
           </div>
@@ -141,7 +141,7 @@ export function SlideEditor({ value, onChange, schoolApiBase }: SlideEditorProps
         <label htmlFor="se-note" className="block text-xs font-medium text-gray-500 mb-1">{lang === 'ar' ? 'ملاحظة' : 'Note'}</label>
         <input id="se-note" value={data.note || ''} onChange={e => update({ note: e.target.value })}
           placeholder={lang === 'ar' ? 'تُقال في جميع أيام الصوم...' : 'Said on all fasting days...'}
-          className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-blue-500" />
+          className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gold-500 focus:outline-hidden focus:ring-1 focus:ring-blue-500" />
       </div>
     </div>
   )

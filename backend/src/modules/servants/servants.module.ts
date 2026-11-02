@@ -5,9 +5,10 @@ import { ServantsController } from './servants.controller';
 import { ServantsService } from './servants.service';
 import { GamificationModule } from '../gamification/gamification.module';
 import { StudentNotificationsModule } from '../student-notifications/student-notifications.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
-  imports: [ScheduleModule.forRoot(), DatabaseModule, GamificationModule, StudentNotificationsModule],
+  imports: [ScheduleModule.forRoot(), DatabaseModule, GamificationModule, StudentNotificationsModule, NotificationsModule],
   controllers: [ServantsController],
   providers: [ServantsService],
   exports: [ServantsService],

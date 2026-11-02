@@ -90,15 +90,15 @@ export class UsersController {
   @Roles('super_admin', 'admin', 'principal')
   @Get('schools/:id/config')
   @ApiOperation({ summary: 'Get system config for a school' })
-  getSystemConfig(@Param('id') schoolId: string, @Query('key') key?: string) {
-    return this.usersService.getSystemConfig(schoolId, key);
+  getSystemConfig(@Param('id') schoolId: string, @CurrentUser() user: any, @Query('key') key?: string) {
+    return this.usersService.getSystemConfig(schoolId, key, user);
   }
 
   @Roles('super_admin', 'admin')
   @Post('schools/:id/config')
   @ApiOperation({ summary: 'Set system config for a school' })
-  setSystemConfig(@Param('id') schoolId: string, @Body() dto: SetSystemConfigDto) {
-    return this.usersService.setSystemConfig(schoolId, dto.key, dto.value, dto.description);
+  setSystemConfig(@Param('id') schoolId: string, @Body() dto: SetSystemConfigDto, @CurrentUser() user: any) {
+    return this.usersService.setSystemConfig(schoolId, dto.key, dto.value, dto.description, user);
   }
 
   @Roles('super_admin', 'admin')

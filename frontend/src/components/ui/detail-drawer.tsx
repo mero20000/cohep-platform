@@ -56,7 +56,7 @@ export function DetailDrawer({ open, onClose, title, subtitle, children, footer 
             exit={{ x: '100%' }}
             transition={{ type: 'spring', stiffness: 400, damping: 35 }}
             onClick={e => e.stopPropagation()}
-            className="fixed inset-y-0 right-0 z-50 w-full max-w-xl bg-white shadow-xl flex flex-col outline-none"
+            className="fixed inset-y-0 right-0 z-50 w-full max-w-xl bg-white shadow-xl flex flex-col outline-hidden"
           >
             {/* Header */}
             <div className="flex items-start justify-between px-6 py-5 border-b border-gray-100">
@@ -65,7 +65,7 @@ export function DetailDrawer({ open, onClose, title, subtitle, children, footer 
                 {subtitle && <p className="mt-0.5 text-sm text-gray-500 truncate">{subtitle}</p>}
               </div>
               <button onClick={onClose} aria-label="Close"
-                className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors flex-shrink-0">
+                className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors shrink-0">
                 <X className="h-5 w-5" />
               </button>
             </div>

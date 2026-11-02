@@ -6,11 +6,14 @@ import Image from 'next/image'
 import { http } from '@/lib/http-client'
 import { ensurePortalSession, clearPortalSession, portalGet } from '@/lib/portal-session'
 import { assetUrl } from '@/lib/asset-url'
+import { clearStudentSession } from '@/lib/student-session'
 import { AudioPlayer } from '@/components/audio-player'
 import DashboardHero from '../../dashboard/hero'
 import { useLanguage } from '@/lib/use-language'
 import { getGreeting, getGreetingAr } from '@/lib/datetime'
 import { markLessonCompleted } from '@/lib/use-install-prompt'
+import { StudentBirthdayCard, type StudentBirthday } from '@/components/student/birthday-card'
+import { BadgeIcon } from '@/components/student/badge-icon'
 
 const API_ORIGIN = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api').replace('/api', '')
 import {
@@ -40,6 +43,7 @@ interface PortalData {
     name: string; nameAr?: string; logoUrl?: string;
     churchName?: string; churchNameAr?: string; churchLogoUrl?: string | null;
   } | null
+  birthday?: StudentBirthday | null
   attendance: { present: number; late: number; absent: number; excused: number; total: number }
   recentAttendance: Array<{ date: string; time?: string; status: string; homeworkStatus?: string }>
   badges: Array<{ id: string; name?: string; nameAr?: string; description?: string; iconUrl?: string; earnedAt: string; awardedBy?: string | null; reason?: string | null }>
@@ -58,10 +62,16 @@ interface PortalData {
   }>
 }
 
-const STATUS_ICONS: Record<string, any> = { present: CheckCircle2, late: Clock, absent: XCircle, excused: AlertCircle }
+const STATUS_ICONS: Record<string, any> = { present: CheckCircle2, late: Clock, absent: XCircle, excused: AlertCircle, cancelled: Calendar }
 const STATUS_COLORS: Record<string, string> = {
   present: 'text-green-600 bg-green-50', late: 'text-amber-600 bg-amber-50',
   absent: 'text-red-600 bg-red-50', excused: 'text-gray-700 bg-gray-100',
+  cancelled: 'text-gray-500 bg-gray-100',
+}
+const STATUS_LABELS: Record<string, { en: string; ar: string }> = {
+  present: { en: 'Present', ar: 'حاضر' }, late: { en: 'Late', ar: 'متأخر' },
+  absent: { en: 'Absent', ar: 'غائب' }, excused: { en: 'Excused', ar: 'معذور' },
+  cancelled: { en: 'Cancelled', ar: 'ملغاة' },
 }
 const HW_COLORS: Record<string, string> = {
   completed: 'text-green-700 bg-green-100', partial: 'text-amber-700 bg-amber-100',
@@ -129,6 +139,14 @@ export default function StudentDashboard() {
   const [searchQuery, setSearchQuery] = useState('')
   const [filterMastery, setFilterMastery] = useState('')
   const [expandedLevels, setExpandedLevels] = useState<Set<string>>(new Set())
+
+  // Quiet refresh (no spinner) so XP and badges update behind an open card after the gift is opened.
+  const refreshPortal = async () => {
+    try {
+      const redactParam = !showName ? '?redactNames=true' : ''
+      setData(await portalGet<PortalData>(code, `/student-portal/${encodeURIComponent(code)}${redactParam}`))
+    } catch { /* the gift is already granted; the next load will show it */ }
+  }
 
   useEffect(() => {
     if (!code) return
@@ -255,7 +273,7 @@ export default function StudentDashboard() {
         </div>
         <h2 className="text-lg font-semibold text-gray-900 mb-1">Could not load dashboard</h2>
         <p className="text-sm text-gray-500 mb-4">{error || 'Check your student code and try again.'}</p>
-        <Link href="/student-portal/login" className="text-sm text-blue-600 hover:underline">Go back to login</Link>
+        <Link href="/student-portal/login" onClick={clearStudentSession} className="text-sm text-blue-600 hover:underline">Go back to login</Link>
       </div>
     </div>
   )
@@ -276,23 +294,23 @@ export default function StudentDashboard() {
       <header className="relative overflow-hidden rounded-b-[28px] sm:rounded-b-2xl px-5 pt-6 pb-7 sm:px-6 sm:py-8" style={{ backgroundColor: 'var(--hymn-navy)' }}>
         <div className="absolute top-0 left-1/4 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl" aria-hidden="true" />
         <div className="absolute bottom-0 right-1/4 w-48 h-48 bg-indigo-500/10 rounded-full blur-3xl" aria-hidden="true" />
-        <div className="absolute inset-0 opacity-[0.04] bg-[radial-gradient(circle_at_center,_white_1px,_transparent_1px)] bg-[length:18px_18px]" aria-hidden="true" />
-        <div className="absolute bottom-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-gold-400/40 to-transparent" />
+        <div className="absolute inset-0 opacity-[0.04] bg-[radial-gradient(circle_at_center,white_1px,transparent_1px)] bg-size-[18px_18px]" aria-hidden="true" />
+        <div className="absolute bottom-0 inset-x-0 h-px bg-linear-to-r from-transparent via-gold-400/40 to-transparent" />
         <div className="relative max-w-3xl mx-auto">
           <div className="flex items-center justify-between mb-4">
             <Link
               href="/student-portal/login"
-              onClick={() => { try { sessionStorage.removeItem('student_portal_token') } catch {} }}
-              className="inline-flex items-center gap-1.5 text-white/70 hover:text-white text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40 rounded-full px-2 py-1 -ml-2"
+              onClick={clearStudentSession}
+              className="inline-flex items-center gap-1.5 text-white/70 hover:text-white text-xs focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-white/40 rounded-full px-2 py-3 -ms-2"
             >
               <ArrowLeft className="h-3.5 w-3.5 rtl:rotate-180" />
               {lang === 'ar' ? 'خروج' : 'Sign Out'}
             </Link>
-            <button onClick={toggleLanguage} aria-label={lang === 'ar' ? 'Switch to English' : 'Switch to Arabic'} className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10 border border-white/15 text-white hover:bg-white/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40 text-xs font-bold">
+            <button onClick={toggleLanguage} aria-label={lang === 'ar' ? 'Switch to English' : 'Switch to Arabic'} className="flex h-11 w-11 items-center justify-center rounded-full bg-white/10 border border-white/15 text-white hover:bg-white/15 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-white/40 text-xs font-bold">
               {lang === 'ar' ? 'EN' : 'AR'}
             </button>
             <div ref={menuRef} className="relative">
-              <button onClick={() => setMenuOpen(o => !o)} aria-label="Menu" aria-expanded={menuOpen} className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10 border border-white/15 text-white hover:bg-white/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40">
+              <button onClick={() => setMenuOpen(o => !o)} aria-label="Menu" aria-expanded={menuOpen} className="flex h-11 w-11 items-center justify-center rounded-full bg-white/10 border border-white/15 text-white hover:bg-white/15 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-white/40">
                 <MoreVertical className="h-4 w-4" />
               </button>
               {menuOpen && (
@@ -301,7 +319,7 @@ export default function StudentDashboard() {
                     {showName ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     {showName ? (lang === 'ar' ? 'إخفاء الاسم' : 'Hide Name') : (lang === 'ar' ? 'إظهار الاسم' : 'Show Name')}
                   </button>
-                  <Link href="/student-portal/login" onClick={() => { try { sessionStorage.removeItem('student_portal_token') } catch {} }} className="flex items-center gap-2 px-3 py-2.5 text-sm text-red-600 hover:bg-red-50">
+                  <Link href="/student-portal/login" onClick={clearStudentSession} className="flex items-center gap-2 px-3 py-2.5 text-sm text-red-600 hover:bg-red-50">
                     <LogOut className="h-4 w-4" /> {lang === 'ar' ? 'خروج' : 'Sign Out'}
                   </Link>
                 </div>
@@ -310,11 +328,11 @@ export default function StudentDashboard() {
           </div>
           {/* Church & School identity — the anchor of belonging */}
           {school && (
-            <div className="mb-5 rounded-2xl bg-white/[0.06] border border-white/10 backdrop-blur-sm px-4 py-3.5">
+            <div className="mb-5 rounded-2xl bg-white/6 border border-white/10 backdrop-blur-xs px-4 py-3.5">
               <div className="flex items-center gap-3">
                 {/* Church logo */}
                 <div className="relative shrink-0">
-                  <div className="absolute -inset-0.5 rounded-xl bg-gold-400/30 blur-sm" aria-hidden="true" />
+                  <div className="absolute -inset-0.5 rounded-xl bg-gold-400/30 blur-xs" aria-hidden="true" />
                   <div className="relative flex h-14 w-14 items-center justify-center rounded-xl overflow-hidden bg-white/10 border border-gold-300/40">
                     {school.churchLogoUrl ? (
                       <Image src={school.churchLogoUrl.startsWith('http') ? school.churchLogoUrl : `${API_ORIGIN}${school.churchLogoUrl}`}
@@ -334,11 +352,11 @@ export default function StudentDashboard() {
                       {lang === 'ar' && school.nameAr ? school.nameAr : school.name}
                     </p>
                   )}
-                  <span className="inline-block mt-1 h-px w-16 bg-gradient-to-r from-transparent via-gold-400/60 to-transparent" aria-hidden="true" />
+                  <span className="inline-block mt-1 h-px w-16 bg-linear-to-r from-transparent via-gold-400/60 to-transparent" aria-hidden="true" />
                 </div>
                 {/* School logo (falls back to church mark if none) */}
                 <div className="relative shrink-0">
-                  <div className="absolute -inset-0.5 rounded-xl bg-gold-400/30 blur-sm" aria-hidden="true" />
+                  <div className="absolute -inset-0.5 rounded-xl bg-gold-400/30 blur-xs" aria-hidden="true" />
                   <div className="relative flex h-14 w-14 items-center justify-center rounded-xl overflow-hidden bg-white/10 border border-white/20">
                     {school.logoUrl ? (
                       <Image src={school.logoUrl.startsWith('http') ? school.logoUrl : `${API_ORIGIN}${school.logoUrl}`}
@@ -352,7 +370,7 @@ export default function StudentDashboard() {
             </div>
           )}
           <div className="flex items-center gap-4">
-            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-white/10 border border-white/15 backdrop-blur-sm text-2xl font-bold overflow-hidden shadow-lg shadow-black/20 shrink-0">
+            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-white/10 border border-white/15 backdrop-blur-xs text-2xl font-bold overflow-hidden shadow-lg shadow-black/20 shrink-0">
               {photoSrc ? (
                 <Image src={photoSrc} alt="" width={64} height={64} className="h-full w-full object-cover" />
               ) : (
@@ -401,9 +419,9 @@ export default function StudentDashboard() {
                 <span className="font-semibold text-white/90 flex items-center gap-1.5"><Trophy className="h-3.5 w-3.5 text-gold-300" /> {totalXp} XP</span>
                 <span className="text-white/60">{badges.length} {lang === 'ar' ? 'شارات' : 'badges'}</span>
               </div>
-              <div className="h-2 rounded-full bg-white/15 overflow-hidden"><div className="h-full rounded-full bg-gradient-to-r from-gold-400 to-amber-500 transition-all duration-700" style={{ width: `${xpPct}%` }} /></div>
+              <div className="h-2 rounded-full bg-white/15 overflow-hidden"><div className="h-full rounded-full bg-linear-to-r from-gold-400 to-amber-500 transition-all duration-700" style={{ width: `${xpPct}%` }} /></div>
             </div>
-            <button onClick={() => setActiveTab('practice')} className="inline-flex items-center justify-center gap-2 rounded-full bg-gold-500 hover:bg-gold-400 text-white px-6 py-3 text-base font-bold shadow-lg shadow-black/15 active:motion-safe:scale-[0.95] motion-safe:transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60">
+            <button onClick={() => setActiveTab('practice')} className="inline-flex items-center justify-center gap-2 rounded-full bg-gold-500 hover:bg-gold-400 text-white px-6 py-3 text-base font-bold shadow-lg shadow-black/15 motion-safe:active:scale-[0.95] motion-safe:transition-all focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-white/60">
               <Play className="h-4 w-4 fill-white" /> {lang === 'ar' ? 'تدرّب الآن' : 'Practice Now'}
             </button>
           </div>
@@ -419,7 +437,7 @@ export default function StudentDashboard() {
               // assessment is waiting on a servant, not on them.
               const pendingCount = assessments.filter(a => a.submissionStatus !== 'completed' && a.submissionStatus !== 'submitted').length
               const badge = tab === 'assessments' && pendingCount > 0
-                ? <span className="ml-1 inline-flex items-center justify-center h-5 min-w-5 rounded-full bg-red-500 px-1 text-[10px] font-bold text-white align-middle">{pendingCount}</span>
+                ? <span className="ml-1 inline-flex items-center justify-center h-5 min-w-5 rounded-full bg-red-500 px-1 text-xs font-bold text-white align-middle">{pendingCount}</span>
                 : null
               return (
                 <button
@@ -441,6 +459,8 @@ export default function StudentDashboard() {
       </div>
 
       <main className="max-w-3xl mx-auto px-4 py-6 space-y-5">
+        <StudentBirthdayCard birthday={data.birthday} studentId={student.id} code={code} firstName={student.firstName} school={school} onGiftOpened={refreshPortal} />
+
         {/* ─── DASHBOARD TAB ─────────────────────────────────────────── */}
         {activeTab === 'dashboard' && (
           <>
@@ -475,13 +495,13 @@ export default function StudentDashboard() {
                     if (!last) return null
                     return (
                       <button onClick={() => setPracticeLesson(last)}
-                        className={`w-full text-left rounded-2xl border border-gold-300 bg-gradient-to-r from-gold-neutral-50 to-white p-4 hover:shadow-md active:motion-safe:scale-[0.98] motion-safe:transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--gold-500))]`}>
+                        className={`w-full text-left rounded-2xl border border-gold-300 bg-linear-to-r from-gold-neutral-50 to-white p-4 hover:shadow-md motion-safe:active:scale-[0.98] motion-safe:transition-all focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[rgb(var(--gold-500))]`}>
                         <div className="flex items-center gap-3">
-                          <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[rgb(var(--gold-500))] text-white shadow-sm">
+                          <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[rgb(var(--gold-500))] text-white shadow-xs">
                             <Play className="h-5 w-5 fill-white" />
                           </span>
                           <div className="min-w-0 flex-1">
-                            <p className="text-[11px] font-semibold uppercase tracking-wide text-gold-700">
+                            <p className="text-xs font-semibold uppercase tracking-wide text-gold-700">
                               {lang === 'ar' ? 'أكمل من حيث توقفت' : 'Continue practicing'}
                             </p>
                             {last.titleCoptic && <p className="font-coptic text-sm text-gray-600 truncate">{last.titleCoptic}</p>}
@@ -495,8 +515,8 @@ export default function StudentDashboard() {
 
                   {/* Next class encouragement — because the subject items are included */}
                   {nextSession && (
-                    <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-emerald-600 to-teal-700 p-4 text-white shadow-lg shadow-emerald-900/10">
-                      <div className="absolute inset-0 opacity-10 bg-[radial-gradient(circle_at_top_right,_white_1px,_transparent_1px)] bg-[length:16px_16px]" aria-hidden="true" />
+                    <div className="relative overflow-hidden rounded-2xl bg-linear-to-br from-emerald-600 to-teal-700 p-4 text-white shadow-lg shadow-emerald-900/10">
+                      <div className="absolute inset-0 opacity-10 bg-[radial-gradient(circle_at_top_right,white_1px,transparent_1px)] bg-size-[16px_16px]" aria-hidden="true" />
                       <div className="relative">
                         <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-emerald-100">
                           <Calendar className="h-3.5 w-3.5" />
@@ -514,7 +534,7 @@ export default function StudentDashboard() {
                             : (lang === 'ar' ? 'حضّر نفسك للجلسة القادمة!' : 'Get ready for your next class!')}
                         </p>
                         <button onClick={() => setActiveTab('practice')}
-                          className="mt-3 inline-flex items-center gap-2 rounded-full bg-white text-emerald-800 px-5 py-2.5 min-h-12 text-sm font-bold hover:bg-emerald-50 active:motion-safe:scale-[0.96] motion-safe:transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white">
+                          className="mt-3 inline-flex items-center gap-2 rounded-full bg-white text-emerald-800 px-5 py-2.5 min-h-12 text-sm font-bold hover:bg-emerald-50 motion-safe:active:scale-[0.96] motion-safe:transition-all focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-white">
                           <Play className="h-4 w-4 fill-emerald-700" />{lang === 'ar' ? 'تدرّب الآن' : 'Practice now'}
                         </button>
                       </div>
@@ -540,7 +560,7 @@ export default function StudentDashboard() {
                           </svg>
                           <div className="absolute inset-0 flex flex-col items-center justify-center">
                             <span className="text-lg font-black text-gray-900 tabular-nums">{masteryPct}%</span>
-                            <span className="text-[10px] font-medium text-gray-400">{lang === 'ar' ? 'إتقان' : 'mastery'}</span>
+                            <span className="text-xs font-medium text-gray-400">{lang === 'ar' ? 'إتقان' : 'mastery'}</span>
                           </div>
                         </div>
                         <div className="min-w-0 flex-1">
@@ -556,7 +576,7 @@ export default function StudentDashboard() {
                           <div className="space-y-1.5">
                             {subjects.slice(0, 3).map(s => (
                               <div key={s.name}>
-                                <div className="flex justify-between text-[11px] text-gray-500 mb-0.5">
+                                <div className="flex justify-between text-xs text-gray-500 mb-0.5">
                                   <span className="truncate max-w-[70%]">{s.name}</span>
                                   <span className="tabular-nums">{s.known}/{s.total}</span>
                                 </div>
@@ -578,11 +598,11 @@ export default function StudentDashboard() {
                       <Church className="h-4 w-4 text-amber-600" />
                       {lang === 'ar' ? 'حضور القداس' : 'Liturgy Attendance'}
                     </h2>
-                    <div className="rounded-2xl bg-gradient-to-br from-amber-50 to-gold-neutral-50 border border-[var(--hymn-border)] p-4">
+                    <div className="rounded-2xl bg-linear-to-br from-amber-50 to-gold-neutral-50 border border-(--hymn-border) p-4">
                       <div className="flex items-center gap-4">
                         <div className="text-center shrink-0">
                           <div className="text-3xl font-black text-amber-700 tabular-nums">{liturgy.verifiedCount}</div>
-                          <div className="text-[10px] font-medium text-gray-500 uppercase tracking-wide">{lang === 'ar' ? 'قداسات مؤكدة' : 'verified'}</div>
+                          <div className="text-xs font-medium text-gray-500 uppercase tracking-wide">{lang === 'ar' ? 'قداسات مؤكدة' : 'verified'}</div>
                         </div>
                         <div className="min-w-0 flex-1 text-sm text-gray-700 leading-snug">
                           {liturgy.pendingCount > 0
@@ -599,7 +619,7 @@ export default function StudentDashboard() {
                         </div>
                       </div>
                       {liturgy.recent.length > 0 && (
-                        <ul className="mt-3 space-y-1.5 border-t border-[var(--hymn-border)] pt-3">
+                        <ul className="mt-3 space-y-1.5 border-t border-(--hymn-border) pt-3">
                           {liturgy.recent.slice(0, 3).map((l, i) => (
                             <li key={i} className="flex items-center justify-between gap-2 text-xs">
                               <span className="text-gray-600">
@@ -630,15 +650,11 @@ export default function StudentDashboard() {
                           <li key={b.id}
                             className="snap-start shrink-0 w-44 rounded-xl border border-blue-100 bg-blue-50/60 p-3">
                             <div className="flex items-center gap-2 mb-1.5">
-                              {b.iconUrl ? (
-                                <Image src={b.iconUrl.startsWith('http') ? b.iconUrl : `${API_ORIGIN}${b.iconUrl}`} alt="" width={32} height={32} className="h-8 w-8 rounded-lg object-cover" />
-                              ) : (
-                                <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-white border border-blue-100"><Award className="h-4 w-4 text-blue-500" /></span>
-                              )}
+                              <BadgeIcon iconUrl={b.iconUrl} apiOrigin={API_ORIGIN} className="h-8 w-8 rounded-lg" />
                               <p className="text-sm font-semibold text-gray-900 truncate">{lang === 'ar' && b.nameAr ? b.nameAr : b.name}</p>
                             </div>
                             {b.reason && <p className="text-xs text-gray-600 line-clamp-2 mb-1">{b.reason}</p>}
-                            <p className="text-[11px] text-gray-400">
+                            <p className="text-xs text-gray-400">
                               {lang === 'ar' ? 'من' : 'from'} {b.awardedBy}
                               {' · '}
                               {new Date(b.earnedAt).toLocaleDateString(lang === 'ar' ? 'ar-EG' : 'en-GB', { day: 'numeric', month: 'short' })}
@@ -659,14 +675,14 @@ export default function StudentDashboard() {
                     ] as const).map(tile => (
                       <button key={tile.key} onClick={() => setDrill(tile.key as any)}
                         aria-label={`${tile.label}`}
-                        className={`rounded-xl bg-white border border-gray-200 p-4 text-center min-h-20 active:motion-safe:scale-[0.97] motion-safe:transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--gold-500))] ${tile.hover}`}>
+                        className={`rounded-xl bg-white border border-gray-200 p-4 text-center min-h-20 motion-safe:active:scale-[0.97] motion-safe:transition-all focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[rgb(var(--gold-500))] ${tile.hover}`}>
                         <tile.icon className={`h-5 w-5 mx-auto mb-1 ${tile.tint}`} />
                         <div className="text-xl font-bold text-gray-900 tabular-nums">{tile.value}</div>
                         <div className="text-xs text-gray-500">{tile.label}</div>
                         {'ring' in tile && (
-                          <div className="mt-1.5 h-1 rounded-full bg-gray-100 overflow-hidden"><div className={`h-full rounded-full bg-gradient-to-r ${tile.ringCls}`} style={{ width: `${tile.ring}%` }} /></div>
+                          <div className="mt-1.5 h-1 rounded-full bg-gray-100 overflow-hidden"><div className={`h-full rounded-full bg-linear-to-r ${tile.ringCls}`} style={{ width: `${tile.ring}%` }} /></div>
                         )}
-                        <div className="mt-1 text-[10px] font-medium text-blue-600">{lang === 'ar' ? 'التفاصيل ←' : 'See all →'}</div>
+                        <div className="mt-1 text-xs font-medium text-blue-600">{lang === 'ar' ? 'التفاصيل ←' : 'See all →'}</div>
                       </button>
                     ))}
                   </div>
@@ -677,14 +693,12 @@ export default function StudentDashboard() {
                       {badges[0] && (
                         <div className="flex items-center gap-3 rounded-xl border border-blue-100 bg-blue-50/60 p-3">
                           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white border border-blue-100">
-                            {badges[0].iconUrl
-                              ? <Image src={badges[0].iconUrl.startsWith('http') ? badges[0].iconUrl : `${API_ORIGIN}${badges[0].iconUrl}`} alt="" width={32} height={32} className="h-8 w-8 rounded-full object-cover" />
-                              : <Award className="h-5 w-5 text-blue-500" />}
+                            <BadgeIcon iconUrl={badges[0].iconUrl} apiOrigin={API_ORIGIN} className="h-8 w-8 rounded-full" />
                           </span>
                           <div className="min-w-0">
-                            <p className="text-[11px] font-semibold uppercase tracking-wide text-blue-700">{lang === 'ar' ? 'أحدث شارة' : 'Latest badge'}</p>
+                            <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">{lang === 'ar' ? 'أحدث شارة' : 'Latest badge'}</p>
                             <p className="text-sm font-semibold text-gray-900 truncate">{lang === 'ar' && badges[0].nameAr ? badges[0].nameAr : badges[0].name}</p>
-                            {badges[0].awardedBy && <p className="text-[11px] text-gray-400">{lang === 'ar' ? 'من' : 'from'} {badges[0].awardedBy}</p>}
+                            {badges[0].awardedBy && <p className="text-xs text-gray-400">{lang === 'ar' ? 'من' : 'from'} {badges[0].awardedBy}</p>}
                           </div>
                         </div>
                       )}
@@ -694,7 +708,7 @@ export default function StudentDashboard() {
                             <TrendingUp className="h-5 w-5 text-gold-600" />
                           </span>
                           <div className="min-w-0">
-                            <p className="text-[11px] font-semibold uppercase tracking-wide text-gold-700">{lang === 'ar' ? 'أحدث إنجاز' : 'Latest achievement'}</p>
+                            <p className="text-xs font-semibold uppercase tracking-wide text-gold-700">{lang === 'ar' ? 'أحدث إنجاز' : 'Latest achievement'}</p>
                             <p className="text-sm font-semibold text-gray-900 truncate">
                               +{achievements.transactions[0].amount} XP{achievements.transactions[0].description ? ` — ${achievements.transactions[0].description}` : ''}
                             </p>
@@ -720,7 +734,7 @@ export default function StudentDashboard() {
                               : "Your class learned something new — practice your hymns now so you're ready for next week."}
                           </p>
                           <button onClick={() => setActiveTab('practice')}
-                            className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-sky-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-sky-700 active:motion-safe:scale-[0.97] motion-safe:transition-all">
+                            className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-sky-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-sky-700 motion-safe:active:scale-[0.97] motion-safe:transition-all">
                             <Play className="h-3 w-3 fill-white" />{lang === 'ar' ? 'تدرّب الآن' : 'Practice now'}
                           </button>
                         </div>
@@ -790,7 +804,7 @@ export default function StudentDashboard() {
                         <Icon className="h-4 w-4" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <div className="text-sm text-gray-900 capitalize">{r.status}</div>
+                        <div className="text-sm text-gray-900">{lang === 'ar' ? (STATUS_LABELS[r.status]?.ar ?? r.status) : (STATUS_LABELS[r.status]?.en ?? r.status)}</div>
                         <div className="text-xs text-gray-500">
                           {new Date(r.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
                           {r.time ? ` at ${r.time}` : ''}
@@ -833,6 +847,33 @@ export default function StudentDashboard() {
               </section>
             )}
 
+            {/* ── How Points & XP Work — student guide ── */}
+            <details className="rounded-xl border border-indigo-200 bg-linear-to-r from-indigo-50 to-purple-50 group">
+              <summary className="flex items-center gap-2 px-4 py-3 cursor-pointer select-none text-sm font-semibold text-indigo-800 hover:bg-indigo-50/50 transition-colors">
+                <Sparkles className="h-4 w-4 text-indigo-500" />
+                {lang === 'ar' ? 'كيف أحصل على النقاط والخبرة؟' : 'How do I earn points & XP?'}
+                <ChevronRight className="h-4 w-4 text-indigo-400 ml-auto transition-transform group-open:rotate-90 rtl:rotate-180 group-open:rtl:rotate-90" />
+              </summary>
+              <div className="px-4 pb-4 space-y-2 text-xs text-gray-700">
+                <div className="rounded-lg bg-white/80 border border-gray-100 p-3 space-y-1.5">
+                  <p className="font-semibold text-gray-900">{lang === 'ar' ? 'كل حصة تكسبك نقاطاً:' : 'Every session earns points:'}</p>
+                  <p>{lang === 'ar' ? 'حاضر = 5 نقاط · متأخر = 2 · معذور = 1' : 'Be present = 5 pts · Late = 2 pts · Excused = 1 pt'}</p>
+                  <p>{lang === 'ar' ? 'السلوك الجيد والمشاركة يكسبان نقاطاً إضافية (حتى 10 لكل منهما)' : 'Good behavior & participation earn bonus points (up to 10 each)'}</p>
+                  <p>{lang === 'ar' ? 'حضور القداس = 3 نقاط إضافية' : 'Attending liturgy = 3 bonus pts'}</p>
+                </div>
+                <div className="rounded-lg bg-white/80 border border-gray-100 p-3 space-y-1.5">
+                  <p className="font-semibold text-gray-900">{lang === 'ar' ? 'الخبرة ترفع مستواك:' : 'XP levels you up:'}</p>
+                  <p>{lang === 'ar' ? 'حاضر = +10 خبرة · متأخر = +5 · التمرين المنزلي = +10' : 'Present = +10 XP · Late = +5 XP · Practice at home = +10 XP'}</p>
+                  <p>{lang === 'ar' ? '3+ أسابيع متتالية = +5 خبرة مكافأة سلسلة' : '3+ weeks in a row = +5 XP streak bonus'}</p>
+                  <p>{lang === 'ar' ? 'كل 100 خبرة = مستوى جديد!' : 'Every 100 XP = 1 Level up!'}</p>
+                </div>
+                <div className="rounded-lg bg-white/80 border border-gray-100 p-3 space-y-1.5">
+                  <p className="font-semibold text-gray-900">{lang === 'ar' ? 'اكسب الشارات عبر:' : 'Earn badges by:'}</p>
+                  <p>{lang === 'ar' ? 'جمع 500 / 1,000 / 1,500 / 2,000 نقطة · أسابيع حضور كاملة · سلاسل سلوك ممتاز · حضور القداس' : 'Collecting 500 / 1,000 / 1,500 / 2,000 points · Perfect attendance weeks · Great behavior streaks · Liturgy attendance'}</p>
+                </div>
+              </div>
+            </details>
+
             {/* ── My Hymn Journey — progress summary card ── */}
             {(() => {
               const t = (en: string, ar: string) => (lang === 'ar' ? ar : en)
@@ -857,7 +898,7 @@ export default function StudentDashboard() {
               }
               const mastery = stats ? (['known', 'mastered'] as const).map(k => stats[k] || 0) : null
               return (
-                <section aria-label={t('My Hymn Journey', 'رحلتي في الترانيم')} className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-indigo-950 via-purple-950 to-indigo-950 p-5 text-white">
+                <section aria-label={t('My Hymn Journey', 'رحلتي في الترانيم')} className="relative overflow-hidden rounded-2xl bg-linear-to-br from-indigo-950 via-purple-950 to-indigo-950 p-5 text-white">
                   <div className="absolute inset-0 pointer-events-none" aria-hidden="true">
                     <div className="absolute -top-10 -right-10 w-40 h-40 bg-purple-500/20 rounded-full blur-3xl" />
                     <div className="absolute -bottom-10 -left-10 w-32 h-32 bg-indigo-400/10 rounded-full blur-3xl" />
@@ -875,7 +916,7 @@ export default function StudentDashboard() {
                       </p>
                     </div>
                     <div className="h-2.5 rounded-full bg-white/15 overflow-hidden" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100}>
-                      <div className="h-full rounded-full bg-gradient-to-r from-amber-300 to-gold-500 transition-all duration-700" style={{ width: `${pct}%` }} />
+                      <div className="h-full rounded-full bg-linear-to-r from-amber-300 to-gold-500 transition-all duration-700" style={{ width: `${pct}%` }} />
                     </div>
                     <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs">
                       <span className="flex items-center gap-1 font-semibold text-emerald-300">
@@ -902,7 +943,7 @@ export default function StudentDashboard() {
                     {nextUp && passed.length > 0 && (
                       <button
                         onClick={() => setActiveTab('practice')}
-                        className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-white/10 border border-white/20 px-3 py-1.5 text-xs font-semibold text-white hover:bg-white/20 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300"
+                        className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-white/10 border border-white/20 px-3 py-1.5 text-xs font-semibold text-white hover:bg-white/20 transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-amber-300"
                       >
                         <Music className="h-3.5 w-3.5" aria-hidden="true" />
                         {t(`Next up: ${nextName}`, `التالي: ${nextName}`)}
@@ -930,7 +971,7 @@ export default function StudentDashboard() {
                       const name = lang === 'ar' && i.subjectItem.nameAr ? i.subjectItem.nameAr : i.subjectItem.name
                       return (
                         <div key={i.subjectItem.id} className="flex items-center gap-3 rounded-xl bg-white border border-gray-200 px-4 py-3">
-                          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-green-50 text-green-600 flex-shrink-0">
+                          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-green-50 text-green-600 shrink-0">
                             <CheckCircle2 className="h-4 w-4" />
                           </div>
                           <div className="flex-1 min-w-0">
@@ -941,7 +982,7 @@ export default function StudentDashboard() {
                               </div>
                             )}
                           </div>
-                          <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2.5 py-1 text-xs font-medium text-green-700 flex-shrink-0">
+                          <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2.5 py-1 text-xs font-medium text-green-700 shrink-0">
                             ✓ {lang === 'ar' ? 'مجتاز' : 'Passed'}
                           </span>
                         </div>
@@ -953,7 +994,7 @@ export default function StudentDashboard() {
                       const lastDate = (lastPass as any)?.passedAt ?? (lastPass as any)?.date
                       return (
                         <div key={i.subjectItem.id} className="flex items-center gap-3 rounded-xl bg-gray-50 border border-gray-200 px-4 py-3 opacity-70">
-                          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gray-100 text-gray-400 flex-shrink-0">
+                          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gray-100 text-gray-400 shrink-0">
                             <Music className="h-4 w-4" />
                           </div>
                           <div className="flex-1 min-w-0">
@@ -964,7 +1005,7 @@ export default function StudentDashboard() {
                               </div>
                             )}
                           </div>
-                          <span className="inline-flex items-center gap-1 rounded-full bg-gray-200 px-2.5 py-1 text-xs font-medium text-gray-600 flex-shrink-0">
+                          <span className="inline-flex items-center gap-1 rounded-full bg-gray-200 px-2.5 py-1 text-xs font-medium text-gray-600 shrink-0">
                             {lang === 'ar' ? 'ملغى' : 'Revoked'}
                           </span>
                         </div>
@@ -1062,7 +1103,7 @@ export default function StudentDashboard() {
                       ].map(tile => (
                         <div key={tile.label} className={`rounded-xl border p-3 text-center ${tile.cls}`}>
                           <div className="text-xl font-bold tabular-nums">{tile.count}</div>
-                          <div className="text-[11px] font-medium">{tile.label}</div>
+                          <div className="text-xs font-medium">{tile.label}</div>
                         </div>
                       ))}
                     </div>
@@ -1072,7 +1113,7 @@ export default function StudentDashboard() {
                     /* ── Empty state — encouraging ── */
                     <div className="rounded-2xl border-2 border-dashed border-indigo-200 bg-indigo-50/50 p-10 text-center mt-4">
                       <div className="flex justify-center mb-3">
-                        <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-white border border-indigo-100 shadow-sm">
+                        <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-white border border-indigo-100 shadow-xs">
                           <ClipboardCheck className="h-8 w-8 text-indigo-400" />
                         </div>
                       </div>
@@ -1101,7 +1142,7 @@ export default function StudentDashboard() {
                               const days = a.dueDate ? Math.abs(daysLeft(a.dueDate)) : 0
                               return (
                                 <Link key={a.id} href={`/student-portal/${code}/assessment/${a.id}/take`}
-                                  className={`block rounded-2xl border-2 border-red-300 bg-white p-4 transition-all hover:shadow-md active:motion-safe:scale-[0.98]`}>
+                                  className={`block rounded-2xl border-2 border-red-300 bg-white p-4 transition-all hover:shadow-md motion-safe:active:scale-[0.98]`}>
                                   <div className="flex items-start gap-3">
                                     <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-red-100">
                                       <AlertCircle className="h-5 w-5 text-red-500" />
@@ -1109,12 +1150,12 @@ export default function StudentDashboard() {
                                     <div className="flex-1 min-w-0">
                                       <p className="text-sm font-bold text-gray-900 truncate">{aTitle(a)}</p>
                                       <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
-                                        <span className={`text-[11px] px-2 py-0.5 rounded-full font-medium ${ss.chip}`}>{sName(a.subject)}</span>
-                                        <span className="text-[11px] text-red-300">·</span>
-                                        <span className="text-[11px] text-red-700">{a.totalPoints} pts</span>
+                                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${ss.chip}`}>{sName(a.subject)}</span>
+                                        <span className="text-xs text-red-300">·</span>
+                                        <span className="text-xs text-red-700">{a.totalPoints} pts</span>
                                         <AttemptChip attempt={a.attempt} lang={lang as 'en' | 'ar'} />
-                                        <span className="text-[11px] text-red-300">·</span>
-                                        <span className="text-[11px] font-medium text-red-700">{days} {lang === 'ar' ? 'أيام متأخرة' : 'days overdue'}</span>
+                                        <span className="text-xs text-red-300">·</span>
+                                        <span className="text-xs font-medium text-red-700">{days} {lang === 'ar' ? 'أيام متأخرة' : 'days overdue'}</span>
                                       </div>
                                     </div>
                                     <span className="shrink-0 inline-flex items-center gap-1 rounded-full bg-red-100 px-2.5 py-1 text-xs font-bold text-red-700">
@@ -1146,7 +1187,7 @@ export default function StudentDashboard() {
                               const urgent = days !== null && days <= 3
                               return (
                                 <Link key={a.id} href={`/student-portal/${code}/assessment/${a.id}/take`}
-                                  className={`block rounded-2xl border-2 bg-white p-4 transition-all hover:shadow-md active:motion-safe:scale-[0.98]`}
+                                  className={`block rounded-2xl border-2 bg-white p-4 transition-all hover:shadow-md motion-safe:active:scale-[0.98]`}
                                   style={{ borderColor: ss.accent.replace('border-l-', '').replace('-400', '-300') }}>
                                   <div className="flex items-start gap-3">
                                     <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${ss.bg}`}>
@@ -1155,14 +1196,14 @@ export default function StudentDashboard() {
                                     <div className="flex-1 min-w-0">
                                       <p className="text-sm font-bold text-gray-900 truncate">{aTitle(a)}</p>
                                       <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
-                                        <span className={`text-[11px] px-2 py-0.5 rounded-full font-medium ${ss.chip}`}>{sName(a.subject)}</span>
-                                        <span className="text-[11px] text-gray-300">·</span>
-                                        <span className="text-[11px] text-gray-700">{a.totalPoints} pts</span>
+                                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${ss.chip}`}>{sName(a.subject)}</span>
+                                        <span className="text-xs text-gray-300">·</span>
+                                        <span className="text-xs text-gray-700">{a.totalPoints} pts</span>
                                         <AttemptChip attempt={a.attempt} lang={lang as 'en' | 'ar'} />
                                         {a.dueDate && (
                                           <>
-                                            <span className="text-[11px] text-gray-300">·</span>
-                                            <span className={`text-[11px] font-medium ${urgent ? 'text-amber-700' : 'text-gray-700'}`}>
+                                            <span className="text-xs text-gray-300">·</span>
+                                            <span className={`text-xs font-medium ${urgent ? 'text-amber-700' : 'text-gray-700'}`}>
                                               {days !== null && days <= 0
                                                 ? (lang === 'ar' ? 'اليوم!' : 'Due today!')
                                                 : days !== null
@@ -1174,7 +1215,7 @@ export default function StudentDashboard() {
                                       </div>
                                       {a.dueDate && (
                                         <div className="mt-2 h-1 rounded-full bg-gray-100 overflow-hidden">
-                                          <div className="h-full rounded-full bg-gradient-to-r from-blue-400 to-indigo-500 transition-all"
+                                          <div className="h-full rounded-full bg-linear-to-r from-blue-400 to-indigo-500 transition-all"
                                             style={{ width: `${Math.max(5, 100 - (days !== null ? days * 10 : 50))}%` }} />
                                         </div>
                                       )}
@@ -1203,7 +1244,7 @@ export default function StudentDashboard() {
                               return (
                                 <Link key={a.id}
                                   href={`/student-portal/${code}/assessment/${a.id}/submission/${a.submissionId}`}
-                                  className="block rounded-2xl border-2 border-amber-300 bg-white p-4 transition-all hover:shadow-md active:motion-safe:scale-[0.98]">
+                                  className="block rounded-2xl border-2 border-amber-300 bg-white p-4 transition-all hover:shadow-md motion-safe:active:scale-[0.98]">
                                   <div className="flex items-start gap-3">
                                     <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-100">
                                       <Clock className="h-5 w-5 text-amber-600" />
@@ -1211,11 +1252,11 @@ export default function StudentDashboard() {
                                     <div className="flex-1 min-w-0">
                                       <p className="text-sm font-bold text-gray-900 truncate">{aTitle(a)}</p>
                                       <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
-                                        <span className={`text-[11px] px-2 py-0.5 rounded-full font-medium ${ss.chip}`}>{sName(a.subject)}</span>
-                                        <span className="text-[11px] text-gray-300">·</span>
-                                        <span className="text-[11px] text-gray-700">{a.totalPoints} pts</span>
+                                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${ss.chip}`}>{sName(a.subject)}</span>
+                                        <span className="text-xs text-gray-300">·</span>
+                                        <span className="text-xs text-gray-700">{a.totalPoints} pts</span>
                                       </div>
-                                      <p className="mt-1.5 text-[11px] text-amber-700">
+                                      <p className="mt-1.5 text-xs text-amber-700">
                                         {lang === 'ar'
                                           ? 'تم التسليم. سيظهر تقديرك بعد أن يصححه الخادم.'
                                           : 'Submitted. Your mark appears once a servant has looked at it.'}
@@ -1247,7 +1288,7 @@ export default function StudentDashboard() {
                               return (
                                 <Link key={a.id}
                                   href={`/student-portal/${code}/assessment/${a.id}/submission/${a.submissionId}`}
-                                  className="rounded-2xl border-2 border-green-300 bg-white p-4 transition-all hover:shadow-md active:motion-safe:scale-[0.98] cursor-pointer">
+                                  className="rounded-2xl border-2 border-green-300 bg-white p-4 transition-all hover:shadow-md motion-safe:active:scale-[0.98] cursor-pointer">
                                   <div className="flex items-start gap-3">
                                     <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-green-100">
                                       <CheckCircle2 className="h-5 w-5 text-green-500" />
@@ -1255,14 +1296,14 @@ export default function StudentDashboard() {
                                     <div className="flex-1 min-w-0">
                                       <p className="text-sm font-medium text-gray-900 truncate line-through decoration-green-300">{aTitle(a)}</p>
                                       <div className="flex flex-wrap items-center gap-1.5 mt-1">
-                                        <span className={`text-[11px] px-2 py-0.5 rounded-full font-medium ${ss.chip}`}>{sName(a.subject)}</span>
-                                        <span className="text-[11px] text-green-300">·</span>
-                                        <span className="text-[11px] text-green-700">{a.totalPoints} pts</span>
+                                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${ss.chip}`}>{sName(a.subject)}</span>
+                                        <span className="text-xs text-green-300">·</span>
+                                        <span className="text-xs text-green-700">{a.totalPoints} pts</span>
                                         <AttemptChip attempt={a.attempt} lang={lang as 'en' | 'ar'} />
                                         {score !== null && (
                                           <>
-                                            <span className="text-[11px] text-green-300">·</span>
-                                            <span className={`text-[11px] font-bold ${passed ? 'text-green-700' : 'text-amber-700'}`}>
+                                            <span className="text-xs text-green-300">·</span>
+                                            <span className={`text-xs font-bold ${passed ? 'text-green-700' : 'text-amber-700'}`}>
                                               {lang === 'ar' ? `${score} / ${a.totalPoints} نقاط` : `${score}/${a.totalPoints}`}
                                             </span>
                                           </>
@@ -1293,14 +1334,14 @@ export default function StudentDashboard() {
           <>
             {/* Learning Stats */}
             {stats && (
-              <div className="grid grid-cols-5 gap-2">
+              <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
                 {(['not_started', 'introduced', 'practicing', 'known', 'mastered'] as const).map(s => {
                   const meta = MASTERY_META[s]
                   return (
                     <div key={s} className="rounded-lg bg-white border border-gray-200 p-2 text-center">
                       <div className="h-2 w-2 rounded-full mx-auto mb-1" style={{ background: meta.dot }} />
                       <div className="text-lg font-bold text-gray-900">{stats[s]}</div>
-                      <div className="text-[10px] text-gray-500 leading-tight">{lang === 'ar' ? meta.labelAr : meta.label}</div>
+                      <div className="text-xs text-gray-500 leading-tight">{lang === 'ar' ? meta.labelAr : meta.label}</div>
                     </div>
                   )
                 })}
@@ -1339,7 +1380,7 @@ export default function StudentDashboard() {
                           <div className="text-sm font-medium text-gray-900">{item.lesson.title}</div>
                           {item.lesson.titleCoptic && <div className="text-xs text-gray-500 mt-0.5">{item.lesson.titleCoptic}</div>}
                         </div>
-                        <div className="flex items-center gap-2 flex-shrink-0">
+                        <div className="flex items-center gap-2 shrink-0">
                           <span className="text-xs text-amber-700 font-medium">{item.overdueDays}d overdue</span>
                           <span className={`text-xs px-2 py-0.5 rounded-full ${meta.bg} ${meta.color}`}>
                             {lang === 'ar' ? meta.labelAr : meta.label}
@@ -1367,10 +1408,10 @@ export default function StudentDashboard() {
                   <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
                   <input type="text" value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
                     placeholder="Search hymns..."
-                    className="w-full rounded-xl border border-gray-200 bg-white pl-9 pr-3 py-2.5 text-base focus:border-gold-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--gold-500))]" />
+                    className="w-full rounded-xl border border-gray-200 bg-white pl-9 pr-3 py-2.5 text-base focus:border-gold-500 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-[rgb(var(--gold-500))]" />
                 </div>
                 <select value={filterMastery} onChange={e => setFilterMastery(e.target.value)}
-                  className="rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-xs focus:border-blue-500 focus:outline-none">
+                  className="rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-xs focus:border-blue-500 focus:outline-hidden">
                   <option value="">All Status</option>
                   {(['not_started', 'introduced', 'practicing', 'known', 'mastered'] as const).map(s => (
                     <option key={s} value={s}>{lang === 'ar' ? MASTERY_META[s].labelAr : MASTERY_META[s].label}</option>
@@ -1410,13 +1451,13 @@ export default function StudentDashboard() {
                               const isKnown = mastery === 'known' || mastery === 'mastered'
                               return (
                                 <button key={hymn.id} onClick={() => setPracticeLesson(hymn)}
-                                  className={`group text-left rounded-2xl border overflow-hidden bg-white hover:shadow-md active:motion-safe:scale-[0.97] motion-safe:transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--gold-500))] ${isKnown ? 'border-gold-300' : 'border-gray-200'}`}>
+                                  className={`group text-left rounded-2xl border overflow-hidden bg-white hover:shadow-md motion-safe:active:scale-[0.97] motion-safe:transition-all focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[rgb(var(--gold-500))] ${isKnown ? 'border-gold-300' : 'border-gray-200'}`}>
                                   {/* Color-art header — pickable by color before reading */}
                                   <div className="relative h-16 flex items-end p-2"
                                     style={{ background: `linear-gradient(135deg, ${hymn.subject?.color || '#3b82f6'}22, ${hymn.subject?.color || '#3b82f6'}55)` }}>
                                     <Music className="absolute top-2 right-2 h-4 w-4 opacity-40" style={{ color: hymn.subject?.color || '#3b82f6' }} aria-hidden="true" />
                                     {isKnown && (
-                                      <span className="inline-flex items-center gap-0.5 rounded-full bg-white/90 px-1.5 py-0.5 text-[10px] font-bold text-gold-700">
+                                      <span className="inline-flex items-center gap-0.5 rounded-full bg-white/90 px-1.5 py-0.5 text-xs font-bold text-gold-700">
                                         <Star className="h-3 w-3 fill-gold-500 text-gold-500" /> {lang === 'ar' ? 'متقن' : 'Mastered'}
                                       </span>
                                     )}
@@ -1429,7 +1470,7 @@ export default function StudentDashboard() {
                                       {lang === 'ar' && hymn.titleAr ? hymn.titleAr : hymn.title}
                                     </p>
                                     <div className="flex items-center justify-between mt-2">
-                                      <span className={`inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-medium ${meta.bg} ${meta.color}`}>
+                                      <span className={`inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-xs font-medium ${meta.bg} ${meta.color}`}>
                                         <span className="h-1.5 w-1.5 rounded-full" style={{ background: meta.dot }} aria-hidden="true" />
                                         {lang === 'ar' ? meta.labelAr : meta.label}
                                       </span>
@@ -1455,7 +1496,7 @@ export default function StudentDashboard() {
 
       {/* ─── STAT DRILL-DOWN ────────────────────────────────────────── */}
       {drill && (
-        <div className="fixed inset-0 z-[55] flex items-end sm:items-center justify-center bg-black/50 p-0 sm:p-4" onClick={() => setDrill(null)}>
+        <div className="fixed inset-0 z-55 flex items-end sm:items-center justify-center bg-black/50 p-0 sm:p-4" onClick={() => setDrill(null)}>
           <div className="bg-white rounded-t-3xl sm:rounded-2xl w-full max-w-lg max-h-[80vh] overflow-y-auto p-5" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-base font-bold text-gray-900">
@@ -1465,7 +1506,7 @@ export default function StudentDashboard() {
                   : (lang === 'ar' ? 'الواجبات' : 'Homework')}
               </h2>
               <button onClick={() => setDrill(null)} aria-label={lang === 'ar' ? 'إغلاق' : 'Close'}
-                className="flex h-10 w-10 items-center justify-center rounded-full text-gray-500 hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--gold-500))]">
+                className="flex h-10 w-10 items-center justify-center rounded-full text-gray-500 hover:bg-gray-100 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[rgb(var(--gold-500))]">
                 ✕
               </button>
             </div>
@@ -1479,9 +1520,14 @@ export default function StudentDashboard() {
                           <p className="text-sm font-medium text-gray-900 truncate">{t.description || t.type}</p>
                           <p className="text-xs text-gray-400">{new Date(t.date).toLocaleDateString(lang === 'ar' ? 'ar-EG' : 'en-GB', { day: 'numeric', month: 'short' })}</p>
                         </div>
-                        <span className={`text-sm font-bold tabular-nums ${t.amount >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                          {t.amount >= 0 ? '+' : ''}{t.amount} XP
-                        </span>
+                        <div className="text-right shrink-0">
+                          <span className={`text-sm font-bold tabular-nums ${t.amount >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                            {t.amount >= 0 ? '+' : ''}{t.amount} XP
+                          </span>
+                          {t.balanceAfter != null && (
+                            <p className="text-xs text-gray-400 tabular-nums">{lang === 'ar' ? 'الرصيد' : 'Balance'}: {t.balanceAfter}</p>
+                          )}
+                        </div>
                       </li>
                     ))}
                   </ul>
@@ -1497,7 +1543,7 @@ export default function StudentDashboard() {
                           ? <Image src={b.iconUrl.startsWith('http') ? b.iconUrl : `${API_ORIGIN}${b.iconUrl}`} alt="" width={40} height={40} className="mx-auto h-10 w-10 rounded-full object-cover mb-1.5" />
                           : <Award className="mx-auto h-8 w-8 text-blue-400 mb-1.5" />}
                         <p className="text-sm font-medium text-gray-900 truncate">{lang === 'ar' && b.nameAr ? b.nameAr : b.name}</p>
-                        {b.awardedBy && <p className="text-[11px] text-gray-400">{lang === 'ar' ? 'من' : 'from'} {b.awardedBy}</p>}
+                        {b.awardedBy && <p className="text-xs text-gray-400">{lang === 'ar' ? 'من' : 'from'} {b.awardedBy}</p>}
                       </li>
                     ))}
                   </ul>
@@ -1514,7 +1560,7 @@ export default function StudentDashboard() {
                         <li key={i} className="flex items-center gap-3 py-2.5">
                           <div className={`flex h-9 w-9 items-center justify-center rounded-lg ${color}`}><Icon className="h-4 w-4" /></div>
                           <div className="flex-1">
-                            <p className="text-sm capitalize text-gray-900">{r.status}</p>
+                            <p className="text-sm text-gray-900">{lang === 'ar' ? (STATUS_LABELS[r.status]?.ar ?? r.status) : (STATUS_LABELS[r.status]?.en ?? r.status)}</p>
                             <p className="text-xs text-gray-400">{new Date(r.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
                           </div>
                           {r.homeworkStatus && r.homeworkStatus !== 'not_assigned' && (
@@ -1545,7 +1591,7 @@ export default function StudentDashboard() {
 
       {/* ─── MASTERY CELEBRATION ─────────────────────────────────────── */}
       {celebration && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-[rgb(var(--hymn-navy))]/95 p-6" role="status">
+        <div className="fixed inset-0 z-60 flex items-center justify-center bg-[rgb(var(--hymn-navy))]/95 p-6" role="status">
           {/* gentle gold confetti dots */}
           <div className="absolute inset-0 overflow-hidden" aria-hidden="true">
             {[...Array(14)].map((_, i) => (

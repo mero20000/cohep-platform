@@ -20,7 +20,7 @@ export function PhotoLightbox({ src, caption, onClose }: Props) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" onClick={onClose}>
       <div className="relative max-w-3xl max-h-[90vh]" onClick={e => e.stopPropagation()}>
-        <button onClick={onClose} className="absolute -top-3 -right-3 z-10 w-8 h-8 rounded-full bg-white shadow flex items-center justify-center hover:bg-gray-100">
+        <button onClick={onClose} className="absolute -top-3 -right-3 z-10 w-8 h-8 rounded-full bg-white shadow-sm flex items-center justify-center hover:bg-gray-100">
           <X className="w-4 h-4" />
         </button>
         <Image

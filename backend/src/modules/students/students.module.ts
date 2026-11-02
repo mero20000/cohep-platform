@@ -12,6 +12,7 @@ import { AssessmentsModule } from '../assessments/assessments.module';
 // same aggregations. ParentsModule does not import StudentsModule, so there is no cycle.
 import { ParentsModule } from '../parents/parents.module';
 import { StudentNotificationsModule } from '../student-notifications/student-notifications.module';
+import { GamificationModule } from '../gamification/gamification.module';
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { StudentNotificationsModule } from '../student-notifications/student-not
     AssessmentsModule,
     ParentsModule,
     StudentNotificationsModule,
+    GamificationModule,
     // Secret is supplied per-call (process.env.JWT_SECRET) to match auth module config.
     JwtModule.register({}),
   ],

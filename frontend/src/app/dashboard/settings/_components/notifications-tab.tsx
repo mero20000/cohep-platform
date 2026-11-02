@@ -5,6 +5,7 @@ import { Save, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { http } from '@/lib/http-client'
 import { getSchoolId } from '@/lib/school'
+import { PushToggle } from '@/components/pwa/push-toggle'
 
 interface NotificationPrefs {
   attendance: boolean; enrollments: boolean; curriculum: boolean; systemUpdates: boolean
@@ -48,13 +49,15 @@ export function NotificationsTab() {
   ]
 
   return (
+    <div className="space-y-6">
+    <PushToggle />
     <div className="rounded-xl border border-gray-200 bg-white p-6">
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-lg font-semibold text-gray-900">Notification Preferences</h2>
           <p className="mt-1 text-sm text-gray-500">Configure how you receive notifications</p>
         </div>
-        <Button onClick={handleSave} disabled={saving} aria-label="Save notification preferences">
+        <Button onClick={handleSave} disabled={saving}>
           {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
           <span aria-live="polite">{saved ? 'Saved!' : 'Save Preferences'}</span>
         </Button>
@@ -72,6 +75,7 @@ export function NotificationsTab() {
           </label>
         ))}
       </div>
+    </div>
     </div>
   )
 }

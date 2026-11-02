@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, Query, ForbiddenException } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Query } from '@nestjs/common';
 import { GradeDisputesService } from './grade-disputes.service';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
@@ -14,9 +14,8 @@ export class GradeDisputesController {
     @Body() body: { submissionId: string; reason: string }
   ) {
     return this.service.createDispute({
-      schoolId: user.schoolId,
+      user,
       submissionId: body.submissionId,
-      requestedById: user.id,
       reason: body.reason,
     });
   }
@@ -28,7 +27,7 @@ export class GradeDisputesController {
     @Query('status') status?: string,
     @Query('limit') limit?: number
   ) {
-    return this.service.listDisputes(user.schoolId, { status, limit });
+    return this.service.listDisputes(user, { status, limit });
   }
 
   @Post(':id/respond')
@@ -39,7 +38,7 @@ export class GradeDisputesController {
     @Body() body: { response: string; newScore?: number }
   ) {
     return this.service.respondToDispute(id, {
-      respondedById: user.id,
+      user,
       response: body.response,
       newScore: body.newScore,
     });
@@ -48,7 +47,7 @@ export class GradeDisputesController {
   @Get('pending/count')
   @Roles('servant', 'group_leader', 'level_leader', 'admin', 'principal', 'super_admin')
   async getPendingCount(@CurrentUser() user: any) {
-    const count = await this.service.getPendingCount(user.schoolId);
+    const count = await this.service.getPendingCount(user);
     return { pending: count };
   }
 }

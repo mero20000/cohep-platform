@@ -13,7 +13,7 @@ export function AttemptChip({
   const label = attempt ? attemptLabel(attempt.number, attempt.max, lang) : null
   if (!label) return null
   return (
-    <span className={`text-[11px] px-2 py-0.5 rounded-full font-medium bg-indigo-50 text-indigo-700 ${className}`}>
+    <span className={`text-xs px-2 py-0.5 rounded-full font-medium bg-indigo-50 text-indigo-700 ${className}`}>
       {label}
     </span>
   )

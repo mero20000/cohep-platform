@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { usePathname } from 'next/navigation'
 import InstallAppModal from '@/components/pwa/install-app-modal'
 import { useInstallPrompt, recordVisit } from '@/lib/use-install-prompt'
+import { isStudentPortalPath } from '@/lib/student-session'
 
 /**
  * Mounts once in the root layout. Counts visits, runs the eligibility
@@ -12,7 +13,9 @@ import { useInstallPrompt, recordVisit } from '@/lib/use-install-prompt'
  */
 export default function InstallPromptProvider() {
   const pathname = usePathname()
-  const { shouldShow, surface, promptInstall, dismiss, markInstalled } = useInstallPrompt()
+  const hook = useInstallPrompt()
+  const { surface, promptInstall, dismiss, markInstalled } = hook
+  const shouldShow = hook.shouldShow && !isStudentPortalPath(pathname)
   const [open, setOpen] = useState(false)
 
   // Count each session visit (spec gate: visited 3 pages / returned 2nd visit).

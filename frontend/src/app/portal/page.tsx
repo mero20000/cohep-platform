@@ -62,6 +62,7 @@ export default function PortalPage() {
   const [schoolIdentity, setSchoolIdentity] = useState<{ name: string; nameAr?: string; churchName?: string; logoUrl?: string | null; churchLogoUrl?: string | null } | null>(null)
 
   const [studentCode, setStudentCode] = useState('')
+  const [dateOfBirth, setDateOfBirth] = useState('')
   const [relationship, setRelationship] = useState('father')
   const [linking, setLinking] = useState(false)
   const [linkError, setLinkError] = useState('')
@@ -98,8 +99,9 @@ export default function PortalPage() {
     setLinkError('')
     setLinkSuccess('')
     try {
-      await http.post('/parents/me/children/link', { studentCode: studentCode.trim(), relationship })
+      await http.post('/parents/me/children/link', { studentCode: studentCode.trim(), dateOfBirth, relationship })
       setStudentCode('')
+      setDateOfBirth('')
       setRelationship('father')
       setLinkSuccess(t('Child linked successfully', 'تم ربط الطالب بنجاح'))
       await refresh()
@@ -188,7 +190,7 @@ export default function PortalPage() {
         }
       >
         {hasChildren && nextUpcoming > 0 && nextChild && (
-          <Link href={`/portal/children/${nextChild.student.id}`} className="flex items-center justify-between gap-3 rounded-2xl bg-gradient-to-r from-gold-500/15 to-amber-500/10 border border-gold-400/20 px-4 py-3 hover:from-gold-500/20 hover:to-amber-500/15 transition-colors">
+          <Link href={`/portal/children/${nextChild.student.id}`} className="flex items-center justify-between gap-3 rounded-2xl bg-linear-to-r from-gold-500/15 to-amber-500/10 border border-gold-400/20 px-4 py-3 hover:from-gold-500/20 hover:to-amber-500/15 transition-colors">
             <span className="flex items-center gap-2 min-w-0">
               <span className="flex h-7 w-7 items-center justify-center rounded-full bg-gold-400/20"><Calendar className="h-3.5 w-3.5 text-gold-300" /></span>
               <span className="text-sm font-semibold text-white truncate">{t(`Next: ${nextChildName} · ${nextUpcoming} upcoming`, `القادم: ${nextChildName} · ${nextUpcoming} قادمة`)}</span>
@@ -197,7 +199,7 @@ export default function PortalPage() {
           </Link>
         )}
         {!hasChildren && (
-          <a href="#link-child" className="flex items-center justify-between gap-3 rounded-2xl bg-gradient-to-r from-gold-500 to-amber-500 px-4 py-3 shadow-lg shadow-black/15 hover:from-gold-400 hover:to-amber-400 transition-colors">
+          <a href="#link-child" className="flex items-center justify-between gap-3 rounded-2xl bg-linear-to-r from-gold-500 to-amber-500 px-4 py-3 shadow-lg shadow-black/15 hover:from-gold-400 hover:to-amber-400 transition-colors">
             <span className="flex items-center gap-2 text-sm font-bold text-white"><Link2 className="h-4 w-4" /> {t('Link child with code', 'اربط طفلاً بالكود')}</span>
             <ChevronRight className="h-4 w-4 text-white rtl:rotate-180" />
           </a>
@@ -207,7 +209,7 @@ export default function PortalPage() {
       {/* Link form */}
       <form id="link-child" onSubmit={handleLink} className="rounded-xl border border-blue-200 bg-blue-50 p-5">
         <h2 className="text-sm font-semibold text-blue-800 mb-1">{t('Link a child', 'ربط طالب')}</h2>
-        <p className="text-xs text-blue-700/80 mb-3">{t("Enter the student code from your child's enrollment card to connect their account.", 'أدخل كود الطالب الموجود ببطاقة التسجيل لربط حسابه.')}</p>
+        <p className="text-xs text-blue-700/80 mb-3">{t("Enter the student code from your child's enrollment card and their date of birth to connect their account.", 'أدخل كود الطالب الموجود ببطاقة التسجيل مع تاريخ ميلاده لربط حسابه.')}</p>
         <div className="flex flex-col gap-3 sm:flex-row">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -215,14 +217,22 @@ export default function PortalPage() {
               value={studentCode}
               onChange={e => setStudentCode(e.target.value)}
               placeholder={t('Student code (e.g. STU-0001)', 'كود الطالب (مثال STU-0001)')}
-              className="w-full rounded-lg border border-gray-300 bg-white pl-10 pr-3 py-2.5 text-sm focus:border-gold-400 focus:outline-none focus:ring-2 focus:ring-gold-200"
+              className="w-full rounded-lg border border-gray-300 bg-white pl-10 pr-3 py-2.5 text-sm focus:border-gold-400 focus:outline-hidden focus:ring-2 focus:ring-gold-200"
             />
           </div>
+          <input
+            type="date"
+            required
+            value={dateOfBirth}
+            onChange={e => setDateOfBirth(e.target.value)}
+            aria-label={t('Date of birth', 'تاريخ الميلاد')}
+            className="rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm focus:border-gold-400 focus:outline-hidden focus:ring-2 focus:ring-gold-200 sm:w-44"
+          />
           <select
             value={relationship}
             onChange={e => setRelationship(e.target.value)}
             aria-label={t('Relationship to child', 'صلة القرابة')}
-            className="rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm focus:border-gold-400 focus:outline-none focus:ring-2 focus:ring-gold-200 sm:w-48"
+            className="rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm focus:border-gold-400 focus:outline-hidden focus:ring-2 focus:ring-gold-200 sm:w-48"
           >
             {RELATIONSHIPS.map(r => (
               <option key={r.value} value={r.value}>{t(r.en, r.ar)}</option>
@@ -230,7 +240,7 @@ export default function PortalPage() {
           </select>
           <Button
             type="submit"
-            disabled={linking || !studentCode.trim()}
+            disabled={linking || !studentCode.trim() || !dateOfBirth}
           >
             {linking ? <Loader2 className="h-4 w-4 animate-spin" /> : <Link2 className="h-4 w-4" />}
             {t('Link child', 'ربط')}
@@ -331,7 +341,7 @@ export default function PortalPage() {
                 )}
 
                 {(s.rank != null || s.totalPoints != null || s.badges != null) && (
-                  <div className="mt-3 flex items-center gap-3 rounded-lg bg-gradient-to-r from-blue-50 to-amber-50 border border-gold-100 px-3 py-2">
+                  <div className="mt-3 flex items-center gap-3 rounded-lg bg-linear-to-r from-blue-50 to-amber-50 border border-gold-100 px-3 py-2">
                     {s.rank != null && s.totalStudents != null && (
                       <span className="flex items-center gap-1 text-xs text-gray-700">
                         <Award className="h-3.5 w-3.5 text-blue-600" />
@@ -355,7 +365,7 @@ export default function PortalPage() {
               </Link>
               <div className="px-5 pb-4 flex items-center justify-between gap-2">
                 <Link href={`/portal/children/${s.id}/home`} className="flex-1">
-                  <button className="w-full flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-indigo-200/50 transition-all active:scale-95">
+                  <button className="w-full flex items-center justify-center gap-2 rounded-xl bg-linear-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-indigo-200/50 transition-all active:scale-95">
                     <span>🎵</span>
                     <span>{lang === 'ar' ? `عرض ${s.firstNameAr || s.firstName}` : `${s.firstName}'s View`}</span>
                   </button>

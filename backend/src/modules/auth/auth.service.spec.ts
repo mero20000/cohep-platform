@@ -90,6 +90,7 @@ describe('AuthService', () => {
       sub: 'user-1',
       email: 'user@example.com',
       purpose: 'password-reset',
+      typ: 'reset',
       iat: IAT_SEC,
     });
   });
@@ -226,7 +227,7 @@ describe('AuthService', () => {
     });
 
     it('rejects a token with the wrong purpose', async () => {
-      jwt.verifyAsync.mockResolvedValue({ sub: 'user-1', purpose: 'access', iat: IAT_SEC });
+      jwt.verifyAsync.mockResolvedValue({ sub: 'user-1', purpose: 'access', typ: 'access', iat: IAT_SEC });
       prisma.user.findUnique.mockResolvedValue(baseUser);
 
       await expect(service.verifyResetToken('access-token')).rejects.toThrow(BadRequestException);
@@ -249,6 +250,25 @@ describe('AuthService', () => {
         }),
       );
       expect(result.message).toContain('Password reset successfully');
+    });
+
+    it('revokes every refresh token of the user', async () => {
+      prisma.user.findUnique.mockResolvedValue(baseUser);
+
+      await service.resetPassword('valid-token', 'NewPassword123!');
+
+      expect(prisma.refreshToken.updateMany).toHaveBeenCalledWith({
+        where: { userId: 'user-1', revokedAt: null },
+        data: { revokedAt: expect.any(Date) },
+      });
+    });
+
+    it('refuses a token that is not a reset token, even with the right purpose', async () => {
+      jwt.verifyAsync.mockResolvedValue({ sub: 'user-1', purpose: 'password-reset', typ: 'access', iat: IAT_SEC });
+      prisma.user.findUnique.mockResolvedValue(baseUser);
+
+      await expect(service.resetPassword('wrong-type', 'NewPassword123!')).rejects.toThrow(BadRequestException);
+      expect(prisma.user.update).not.toHaveBeenCalled();
     });
 
     it('rejects an already-used token', async () => {
@@ -281,6 +301,19 @@ describe('AuthService', () => {
           data: expect.objectContaining({ passwordChangedAt: expect.any(Date) }),
         }),
       );
+    });
+
+    it('revokes old refresh tokens and hands this device fresh ones', async () => {
+      prisma.user.findUnique.mockResolvedValue(baseUser);
+
+      const result = await service.changePassword('user-1', 'OldPassword1!', 'NewPassword123!');
+
+      expect(prisma.refreshToken.updateMany).toHaveBeenCalledWith({
+        where: { userId: 'user-1', revokedAt: null },
+        data: { revokedAt: expect.any(Date) },
+      });
+      expect(prisma.refreshToken.create).toHaveBeenCalledTimes(1);
+      expect(result).toEqual(expect.objectContaining({ success: true, accessToken: expect.any(String), refreshToken: expect.any(String) }));
     });
   });
 });

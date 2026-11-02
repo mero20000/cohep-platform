@@ -67,6 +67,14 @@ Add these manually (they're not in render.yaml for security):
 | `JWT_REFRESH_EXPIRATION` | `7d` |
 | `STORAGE_TYPE` | `local` |
 | `STORAGE_PATH` | `./uploads` |
+| `VAPID_PUBLIC_KEY` | Web Push public key (optional; leave unset to keep push off) |
+| `VAPID_PRIVATE_KEY` | Web Push private key |
+| `VAPID_SUBJECT` | `mailto:you@example.org` (contact for the push services) |
+
+To enable push notifications, generate the key pair once with `npx web-push generate-vapid-keys` and set the three
+`VAPID_*` variables above. Keep the private key secret and **do not rotate it casually**: every device would need to
+turn notifications on again. With the keys unset the app works as before and Settings shows
+"Push notifications are not set up yet."
 
 Then click **Save Changes** — Render will redeploy automatically.
 

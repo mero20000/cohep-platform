@@ -5,6 +5,7 @@ export const PERMISSIONS = {
   'student:edit':        'Edit student profiles',
   'student:edit-sensitive': 'Edit church tool ID & parent email',
   'student:delete':      'Delete students',
+  'student:approve':     'Approve pending students',
   'student:bulk-delete': 'Bulk delete students',
   'student:import':      'Import students from CSV',
   'student:export':      'Export students to XLSX or PDF',
@@ -78,7 +79,7 @@ const ROLE_DEFAULT_PERMS: Record<string, Permission[]> = {
   super_admin: Object.keys(PERMISSIONS) as Permission[],
 
   admin: [
-    'student:view','student:create','student:edit','student:edit-sensitive','student:delete','student:bulk-delete','student:import','student:export',
+    'student:view','student:create','student:edit','student:edit-sensitive','student:approve','student:delete','student:bulk-delete','student:import','student:export',
     'servant:view','servant:create','servant:edit','servant:delete','servant:import','servant:export',
     'attendance:view','attendance:record','attendance:manage',
     'assessment:view','assessment:create','assessment:edit','assessment:delete','assessment:grade',
@@ -92,7 +93,7 @@ const ROLE_DEFAULT_PERMS: Record<string, Permission[]> = {
   ],
 
   principal: [
-    'student:view','student:edit',
+    'student:view','student:edit','student:approve',
     'servant:view','servant:export',
     'attendance:view','attendance:record','attendance:manage',
     'assessment:view','assessment:create','assessment:edit','assessment:grade',

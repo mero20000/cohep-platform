@@ -43,10 +43,10 @@ const languages = [
   ...allLanguages.filter(l => RELEVANT_LANG_CODES.includes(l.code) && l.code !== 'cop'),
 ]
 
-const INPUT_CLASS = "block w-full min-h-[48px] rounded-lg border border-gray-200 bg-white px-4 py-3 text-sm shadow-sm placeholder:text-gray-400 focus:border-gold-500 focus:outline-none focus:ring-2 focus:ring-gold-500/20 transition-all"
-const INPUT_ERROR_CLASS = "block w-full min-h-[48px] rounded-lg border border-red-300 bg-white px-4 py-3 text-sm shadow-sm placeholder:text-gray-400 focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-500/20 transition-all"
-const SELECT_CLASS = "block w-full min-h-[48px] rounded-lg border border-gray-200 bg-white px-4 py-3 pe-10 text-sm shadow-sm focus:border-gold-500 focus:outline-none focus:ring-2 focus:ring-gold-500/20 transition-all appearance-none cursor-pointer"
-const SELECT_ERROR_CLASS = "block w-full min-h-[48px] rounded-lg border border-red-300 bg-white px-4 py-3 pe-10 text-sm shadow-sm focus:border-red-500 focus:outline-none focus:ring-2 focus:ring-red-500/20 transition-all appearance-none cursor-pointer"
+const INPUT_CLASS = "block w-full min-h-[48px] rounded-lg border border-gray-200 bg-white px-4 py-3 text-sm shadow-xs placeholder:text-gray-400 focus:border-gold-500 focus:outline-hidden focus:ring-2 focus:ring-gold-500/20 transition-all"
+const INPUT_ERROR_CLASS = "block w-full min-h-[48px] rounded-lg border border-red-300 bg-white px-4 py-3 text-sm shadow-xs placeholder:text-gray-400 focus:border-red-500 focus:outline-hidden focus:ring-2 focus:ring-red-500/20 transition-all"
+const SELECT_CLASS = "block w-full min-h-[48px] rounded-lg border border-gray-200 bg-white px-4 py-3 pe-10 text-sm shadow-xs focus:border-gold-500 focus:outline-hidden focus:ring-2 focus:ring-gold-500/20 transition-all appearance-none cursor-pointer"
+const SELECT_ERROR_CLASS = "block w-full min-h-[48px] rounded-lg border border-red-300 bg-white px-4 py-3 pe-10 text-sm shadow-xs focus:border-red-500 focus:outline-hidden focus:ring-2 focus:ring-red-500/20 transition-all appearance-none cursor-pointer"
 
 interface RegisterForm extends Record<string, unknown> {
   firstName: string
@@ -233,7 +233,7 @@ export default function RegisterPage() {
 
   if (submitted) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900" dir={isAr ? 'rtl' : 'ltr'}>
+      <div className="min-h-screen flex items-center justify-center bg-linear-to-br from-gray-900 via-gray-800 to-gray-900" dir={isAr ? 'rtl' : 'ltr'}>
         <div className="max-w-md mx-auto px-6 text-center">
           <div className="inline-flex h-16 w-16 items-center justify-center rounded-full bg-blue-500/10 mb-6">
             <CheckCircle2 className="h-8 w-8 text-gold-400" />
@@ -258,7 +258,7 @@ export default function RegisterPage() {
           <div className="flex gap-3 justify-center">
             <Link
               href="/auth/login"
-                className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-gold-500 to-gold-600 px-6 py-3 text-gray-950 font-semibold hover:from-gold-400 hover:to-gold-500 transition-all"
+                className="inline-flex items-center gap-2 rounded-lg bg-linear-to-r from-gold-500 to-gold-600 px-6 py-3 text-gray-950 font-semibold hover:from-gold-400 hover:to-gold-500 transition-all"
             >
               {isAr ? 'الذهاب إلى تسجيل الدخول' : 'Go to Login'} <ArrowRight className="h-4 w-4 rtl-flip" />
             </Link>
@@ -270,7 +270,7 @@ export default function RegisterPage() {
 
   return (
     <div className="min-h-screen flex" dir={isAr ? 'rtl' : 'ltr'}>
-      <div className="hidden lg:flex lg:w-[55%] bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 relative overflow-hidden">
+      <div className="hidden lg:flex lg:w-[55%] bg-linear-to-br from-gray-900 via-gray-800 to-gray-900 relative overflow-hidden">
         <div className="absolute inset-0">
           <div className="absolute top-0 left-0 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl -translate-x-1/2 -translate-y-1/2" />
           <div className="absolute bottom-0 right-0 w-80 h-80 bg-blue-500/10 rounded-full blur-3xl translate-x-1/3 translate-y-1/3" />
@@ -279,7 +279,7 @@ export default function RegisterPage() {
         <div className="absolute inset-0 bg-[url('/grid.svg')] opacity-5" />
 
         <div className="relative flex flex-col justify-between px-12 xl:px-16 py-12">
-          <Link href="/" className="flex items-center gap-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500 rounded-lg">
+          <Link href="/" className="flex items-center gap-4 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-gold-500 rounded-lg">
             <Image src="/cohep-logo.png" alt="COHEP" width={80} height={80} className="h-20 w-20 rounded-xl object-contain shadow-lg shadow-gold-500/30" />
           </Link>
 
@@ -290,7 +290,7 @@ export default function RegisterPage() {
             </div>
             <h1 className="text-4xl xl:text-5xl font-bold text-white leading-tight">
               Start Your{' '}
-              <span className="bg-gradient-to-r from-gold-400 to-blue-500 bg-clip-text text-transparent">
+              <span className="bg-linear-to-r from-gold-400 to-blue-500 bg-clip-text text-transparent">
                 Hymn Education
               </span>{' '}
               Journey Today
@@ -301,7 +301,7 @@ export default function RegisterPage() {
 
             <div className="mt-8 grid grid-cols-2 gap-3">
               {features.map((f) => (
-                <div key={f.text} className="flex items-center gap-3 rounded-xl bg-white/5 border border-white/10 px-4 py-3 backdrop-blur-sm">
+                <div key={f.text} className="flex items-center gap-3 rounded-xl bg-white/5 border border-white/10 px-4 py-3 backdrop-blur-xs">
                   <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-500/10 text-gold-400">
                     <f.icon className="h-4 w-4" />
                   </div>
@@ -325,9 +325,9 @@ export default function RegisterPage() {
         </div>
       </div>
 
-      <div className="flex flex-1 flex-col px-6 py-10 sm:px-12 lg:px-16 xl:px-20 bg-gradient-to-br from-white via-gray-50 to-blue-50/30 overflow-y-auto">
+      <div className="flex flex-1 flex-col px-6 py-10 sm:px-12 lg:px-16 xl:px-20 bg-linear-to-br from-white via-gray-50 to-blue-50/30 overflow-y-auto">
         <div className="my-auto mx-auto w-full max-w-md">
-          <Link href="/" className="flex items-center gap-3 mb-6 lg:hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-500 rounded-lg">
+          <Link href="/" className="flex items-center gap-3 mb-6 lg:hidden focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-gold-500 rounded-lg">
             <Image src="/cohep-logo.png" alt="COHEP" width={64} height={64} className="h-16 w-16 rounded-lg object-contain shadow-md" />
           </Link>
 
@@ -347,7 +347,7 @@ export default function RegisterPage() {
             </p>
           </div>
 
-          <div className="rounded-2xl border border-gray-200 bg-white p-6 sm:p-8 shadow-sm">
+          <div className="rounded-2xl border border-gray-200 bg-white p-6 sm:p-8 shadow-xs">
             <form onSubmit={handleSubmit} noValidate className="space-y-4">
               {/* Step progress */}
               <div className="flex items-center gap-1.5 mb-1">
@@ -357,7 +357,7 @@ export default function RegisterPage() {
                   {n:3 as const,en:'Location',ar:'الموقع'},
                 ]).map((s,i)=>(
                   <div key={s.n} className="flex items-center gap-1.5 flex-1">
-                    <div className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-bold transition-all ${regStep>s.n?'bg-green-500 text-white':regStep===s.n?'bg-gold-500 text-gray-950 shadow shadow-gold-200':'bg-gray-100 text-gray-400'}`}>
+                    <div className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-bold transition-all ${regStep>s.n?'bg-green-500 text-white':regStep===s.n?'bg-gold-500 text-gray-950 shadow-sm shadow-gold-200':'bg-gray-100 text-gray-400'}`}>
                       {regStep>s.n?'✓':s.n}
                     </div>
                     <span className={`text-[11px] font-medium hidden sm:block whitespace-nowrap ${regStep===s.n?'text-gray-700':'text-gray-400'}`}>{isAr?s.ar:s.en}</span>
@@ -367,8 +367,8 @@ export default function RegisterPage() {
               </div>
 
               {error && (
-                <div ref={errorRef} tabIndex={-1} role="alert" className="rounded-xl bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700 flex items-center gap-2 focus:outline-none">
-                  <div className="flex h-5 w-5 items-center justify-center rounded-full bg-red-100 flex-shrink-0">
+                <div ref={errorRef} tabIndex={-1} role="alert" className="rounded-xl bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700 flex items-center gap-2 focus:outline-hidden">
+                  <div className="flex h-5 w-5 items-center justify-center rounded-full bg-red-100 shrink-0">
                     <span className="text-xs font-bold text-red-600">!</span>
                   </div>
                   {error}
@@ -393,7 +393,7 @@ export default function RegisterPage() {
                 <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1.5">{isAr ? 'كلمة المرور' : 'Password'}</label>
                 <div className="relative">
                   <input id="password" type={showPassword ? 'text' : 'password'} value={form.password} onChange={(e) => update('password', e.target.value)} onFocus={() => setPasswordFocused(true)} onBlur={() => { handleBlur('password'); setPasswordFocused(false) }} required autoComplete="new-password" className={(err('password') ? INPUT_ERROR_CLASS : INPUT_CLASS) + " pe-11"} placeholder={isAr ? 'إنشاء كلمة مرور قوية' : 'Create a strong password'} />
-                  <button type="button" onClick={() => setShowPassword(!showPassword)} aria-label={showPassword ? 'Hide' : 'Show'} className="absolute end-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                  <button type="button" onClick={() => setShowPassword(!showPassword)} aria-label={showPassword ? 'Hide' : 'Show'} className="absolute inset-e-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
                     {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
                 </div>
@@ -414,7 +414,7 @@ export default function RegisterPage() {
                 <input id="confirmPassword" type="password" value={form.confirmPassword} onChange={(e) => { setForm({ ...form, confirmPassword: e.target.value }) }} onBlur={() => handleBlur('confirmPassword')} required autoComplete="new-password" className={err('confirmPassword') ? INPUT_ERROR_CLASS : INPUT_CLASS} placeholder={isAr ? 'تأكيد كلمة المرور' : 'Confirm your password'} />
                 {err('confirmPassword') && <p role="alert" className="mt-1 text-xs text-red-600">{err('confirmPassword')}</p>}
               </div>
-              <button type="button" onClick={handleNext} className="w-full flex items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-gold-500 to-gold-600 px-4 py-3 text-sm font-semibold text-gray-950 shadow-lg shadow-gold-200 hover:from-gold-400 hover:to-gold-500 transition-all">
+              <button type="button" onClick={handleNext} className="w-full flex items-center justify-center gap-2 rounded-lg bg-linear-to-r from-gold-500 to-gold-600 px-4 py-3 text-sm font-semibold text-gray-950 shadow-lg shadow-gold-200 hover:from-gold-400 hover:to-gold-500 transition-all">
                 {isAr ? 'التالي ←' : 'Continue →'}
               </button>
               </>}
@@ -439,7 +439,7 @@ export default function RegisterPage() {
               </div>
               <div className="flex gap-3">
                 <button type="button" onClick={()=>setRegStep(1)} className="flex-1 rounded-lg border border-gray-200 py-3 text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors">{isAr?'← رجوع':'← Back'}</button>
-                <button type="button" onClick={handleNext} className="flex-1 rounded-lg bg-gradient-to-r from-gold-500 to-gold-600 py-3 text-sm font-semibold text-gray-950 hover:from-gold-400 hover:to-gold-500 transition-all">{isAr?'التالي →':'Continue →'}</button>
+                <button type="button" onClick={handleNext} className="flex-1 rounded-lg bg-linear-to-r from-gold-500 to-gold-600 py-3 text-sm font-semibold text-gray-950 hover:from-gold-400 hover:to-gold-500 transition-all">{isAr?'التالي →':'Continue →'}</button>
               </div>
               </div>}
 
@@ -453,7 +453,7 @@ export default function RegisterPage() {
                       <option value="">{isAr?'اختر الدولة':'Select country'}</option>
                       {countries.map((c) => <option key={c} value={c}>{c}</option>)}
                     </select>
-                    <ChevronDown className="absolute end-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+                    <ChevronDown className="absolute inset-e-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
                     {err('country')&&<p role="alert" className="mt-1 text-xs text-red-600">{err('country')}</p>}
                   </div>
                 </div>
@@ -464,7 +464,7 @@ export default function RegisterPage() {
                       <option value="">{form.country?(isAr?'اختر المدينة':'Select city'):(isAr?'اختر الدولة أولاً':'Select country first')}</option>
                       {availableCities.map((c) => <option key={c} value={c}>{c}</option>)}
                     </select>
-                    <ChevronDown className="absolute end-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+                    <ChevronDown className="absolute inset-e-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
                     {err('city')&&<p role="alert" className="mt-1 text-xs text-red-600">{err('city')}</p>}
                   </div>
                 </div>
@@ -478,12 +478,12 @@ export default function RegisterPage() {
                   <select id="educationLanguage" value={form.educationLanguage} onChange={(e) => update('educationLanguage', e.target.value)} required className={SELECT_CLASS}>
                     {languages.map((l) => <option key={l.code} value={l.code}>{l.name}</option>)}
                   </select>
-                  <ChevronDown className="absolute end-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+                  <ChevronDown className="absolute inset-e-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
                 </div>
               </div>
               <div className="flex gap-3">
                 <button type="button" onClick={()=>setRegStep(2)} className="flex-1 rounded-lg border border-gray-200 py-3 text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors">{isAr?'← رجوع':'← Back'}</button>
-                <button type="submit" disabled={loading} className="flex-1 flex items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-gold-500 to-gold-600 py-3 text-sm font-semibold text-gray-950 shadow-lg shadow-gold-200 hover:from-gold-400 hover:to-gold-500 disabled:opacity-60 transition-all">
+                <button type="submit" disabled={loading} className="flex-1 flex items-center justify-center gap-2 rounded-lg bg-linear-to-r from-gold-500 to-gold-600 py-3 text-sm font-semibold text-gray-950 shadow-lg shadow-gold-200 hover:from-gold-400 hover:to-gold-500 disabled:opacity-60 transition-all">
                   {loading?<Loader2 className="h-4 w-4 animate-spin"/>:<><Building2 className="h-4 w-4"/>{isAr?'إنشاء حساب':'Create Account'}</>}
                 </button>
               </div>

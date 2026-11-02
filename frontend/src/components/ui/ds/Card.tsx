@@ -19,8 +19,8 @@ export function Card({
 } & React.HTMLAttributes<HTMLElement>) {
   const tones = {
     raised:
-      'bg-white dark:bg-[var(--hymn-surface-header)] border border-[var(--hymn-border)] rounded-2xl shadow-[0_1px_3px_rgba(26,39,68,0.06)]',
-    flat: 'bg-transparent border border-[var(--hymn-border)] rounded-2xl',
+      'bg-white dark:bg-(--hymn-surface-header) border border-(--hymn-border) rounded-2xl shadow-[0_1px_3px_rgba(26,39,68,0.06)]',
+    flat: 'bg-transparent border border-(--hymn-border) rounded-2xl',
     hero: `${ds.heroGreen} text-white rounded-2xl`,
   } as const
   return (

@@ -51,9 +51,9 @@ export default function DashboardHero({
       <motion.div className="absolute -top-6 left-1/2 -translate-x-1/2 w-[120%] h-12 rounded-[50%] bg-blue-500/5" style={{ y: curveY }} />
       <motion.div className="absolute top-0 left-1/4 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl" style={{ y: orb1Y }} />
       <motion.div className={`absolute bottom-0 right-1/4 w-48 h-48 ${orbTint} rounded-full blur-3xl`} style={{ y: orb2Y }} />
-      <div className="absolute inset-0 opacity-[0.04] bg-[radial-gradient(circle_at_center,_white_1px,_transparent_1px)] bg-[length:18px_18px]" />
+      <div className="absolute inset-0 opacity-[0.04] bg-[radial-gradient(circle_at_center,white_1px,transparent_1px)] bg-size-[18px_18px]" />
       {/* gold hairline */}
-      <div className="absolute bottom-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-gold-400/40 to-transparent" />
+      <div className="absolute bottom-0 inset-x-0 h-px bg-linear-to-r from-transparent via-gold-400/40 to-transparent" />
 
       <div className="relative flex items-start justify-between gap-3 sm:gap-4">
         <div className="flex items-start gap-3 sm:gap-4 min-w-0 flex-1">
@@ -61,7 +61,7 @@ export default function DashboardHero({
             <div className="shrink-0 rounded-2xl border-2 border-white/20 overflow-hidden shadow-lg shadow-black/20">{avatar}</div>
           )}
           <div className="min-w-0 flex-1">
-            <div className="inline-flex items-center gap-1.5 rounded-full bg-white/[0.08] border border-white/10 px-2.5 py-1 text-gold-200 text-xs font-semibold tracking-wide mb-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-400/50">
+            <div className="inline-flex items-center gap-1.5 rounded-full bg-white/8 border border-white/10 px-2.5 py-1 text-gold-200 text-xs font-semibold tracking-wide mb-3 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-gold-400/50">
               {greeting ?? (
                 <>
                   <Sun className="h-3.5 w-3.5" />

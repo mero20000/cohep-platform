@@ -160,10 +160,10 @@ export function UsersTab() {
           <div className="relative flex-1 max-w-xs">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
             <input type="text" placeholder={lang === 'ar' ? 'البحث عن المستخدمين...' : 'Search users...'} value={search} onChange={e => setSearch(e.target.value)}
-              className="w-full rounded-lg border border-gray-300 pl-9 pr-3 py-2 text-sm focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-blue-500" />
+              className="w-full rounded-lg border border-gray-300 pl-9 pr-3 py-2 text-sm focus:border-gold-500 focus:outline-hidden focus:ring-1 focus:ring-blue-500" />
           </div>
           <select value={roleFilter} onChange={e => setRoleFilter(e.target.value)}
-            className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
+            className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gold-500 focus:outline-hidden focus:ring-1 focus:ring-blue-500">
             <option value="">{lang === 'ar' ? 'جميع الأدوار' : 'All Roles'}</option>
               {roles.filter(r => isSuperAdmin || (r.name !== 'super_admin' && r.name !== 'admin')).map((r: Role) => <option key={r.id} value={r.name}>{r.displayName}</option>)}
           </select>

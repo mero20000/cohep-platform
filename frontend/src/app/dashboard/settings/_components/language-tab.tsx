@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { FormField } from '@/components/ui/form-field'
 import { http } from '@/lib/http-client'
 import { useLanguage } from '@/lib/use-language'
+import { TimezoneOptions } from './timezone-options'
 
 export function LanguageTab() {
   const lang = useLanguage()
@@ -48,9 +49,7 @@ export function LanguageTab() {
           </div>
         </div>
         <FormField label={lang === 'ar' ? 'المنطقة الزمنية' : 'Timezone'} as="select" value={timezone} onChange={e => setTimezone(e.target.value)}>
-          <option value="UTC">UTC</option><option value="America/New_York">Eastern (ET)</option><option value="America/Chicago">Central (CT)</option>
-          <option value="America/Denver">Mountain (MT)</option><option value="America/Los_Angeles">Pacific (PT)</option>
-          <option value="Europe/London">London (GMT)</option><option value="Africa/Cairo">Cairo (EET)</option>
+          <TimezoneOptions lang={lang} value={timezone} />
         </FormField>
         <div className="rounded-lg bg-amber-50 border border-amber-200 p-4">
           <p className="text-sm text-amber-800">
@@ -58,7 +57,7 @@ export function LanguageTab() {
           </p>
         </div>
         <div className="flex justify-end">
-          <Button onClick={handleSave} disabled={saving} aria-label={lang === 'ar' ? 'حفظ تفضيلات اللغة' : 'Save language preferences'}>
+          <Button onClick={handleSave} disabled={saving}>
             {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
             <span aria-live="polite">{saved ? (lang === 'ar' ? 'تم الحفظ!' : 'Saved!') : (lang === 'ar' ? 'حفظ التغييرات' : 'Save Changes')}</span>
           </Button>

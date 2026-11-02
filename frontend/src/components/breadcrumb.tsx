@@ -15,6 +15,7 @@ const LABEL_MAP: Record<string, [string, string]> = {
   sessions: ['Sessions', 'الجلسات'],
   insights: ['Insights', 'الإحصائيات'],
   assessments: ['Assessments', 'التقييمات'],
+  'pending-review': ['Pending review', 'بانتظار المراجعة'],
   gamification: ['Gamification', 'الألعاب التحفيزية'],
   settings: ['Settings', 'الإعدادات'],
   parents: ['My Children', 'أولادي'],

@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useLanguage } from '@/lib/use-language'
+import { usePermission } from '@/lib/use-permission'
+import { usePendingReviewCount } from '@/lib/use-pending-review-count'
 import { validateQuestions } from './validation'
 import { emptyForm, assessmentToForm, toCopyForm, type QuestionDraft } from './assessment-form'
 import { defaultRequireReview, hasEssay, reviewPayload, needsShortAnswerWarning } from './review-settings'
@@ -55,6 +57,9 @@ interface StudentRow {
   status: string
   assigned: boolean
   submissionStatus: string | null
+  submittedAt?: string | null
+  markedBy?: string | null
+  markedAt?: string | null
   mark: number | null
   maxMark: number
 }
@@ -75,7 +80,7 @@ interface Assessment {
   lessonId?: string
   subjectId: string
   academicYearId?: string
-  metadata?: { term?: number; academicYearId?: string; grade?: string; durationMinutes?: number }
+  metadata?: { term?: number; academicYearId?: string; grade?: string; gender?: 'all' | 'male' | 'female'; durationMinutes?: number }
   level: { id: string; name: string; number: number }
   group?: { id: string; name: string }
   lesson?: { id: string; title: string }
@@ -113,6 +118,9 @@ function termLabel(t: number, lang: 'en' | 'ar'): string {
 export default function AssessmentsPage() {
   const { toast } = useToast()
   const lang = useLanguage()
+  const { can } = usePermission()
+  const canReview = can('assessment:grade')
+  const pendingReviewCount = usePendingReviewCount(canReview)
 
   const [assessments, setAssessments] = useState<Assessment[]>([])
   const [pagination, setPagination] = useState({ page: 1, limit: 20, total: 0, totalPages: 0 })
@@ -339,8 +347,9 @@ export default function AssessmentsPage() {
   const openStudents = async (a: Assessment, grade?: string) => {
     setSelectedAssessment(a)
     setShowStudents(true)
-    const assessmentGrade = (a.metadata as { grade?: string } | undefined)?.grade || a.grade || ''
-    setStudentGradeFilter(grade || assessmentGrade)
+    // Only filter when the caller asks for a grade. Pre-filtering by the assessment's own
+    // grade silently hid submitted students whose grade differed from it.
+    setStudentGradeFilter(grade || '')
     setStudentsLoading(true)
     let rows: StudentRow[] = []
     try {
@@ -551,6 +560,7 @@ export default function AssessmentsPage() {
         levelId: form.levelId,
         groupId: form.groupId || undefined,
         grade: form.grade || undefined,
+        gender: form.gender,
         lessonId: form.lessonId || undefined,
         subjectId: form.subjectId,
         totalPoints: parseInt(form.totalPoints, 10),
@@ -630,7 +640,14 @@ export default function AssessmentsPage() {
       key: 'group',
       header: lang === 'ar' ? 'المجموعة' : 'Group',
       render: (a: Assessment) => (
-        <span className="text-sm text-gray-700">{a.group?.name || '—'}</span>
+        <span className="text-sm text-gray-700">
+          {a.group?.name || '—'}
+          {(a.metadata?.gender === 'male' || a.metadata?.gender === 'female') && (
+            <span className="ml-2"><Badge variant="info" size="sm">
+              {a.metadata.gender === 'male' ? (lang === 'ar' ? 'أولاد فقط' : 'Boys only') : (lang === 'ar' ? 'بنات فقط' : 'Girls only')}
+            </Badge></span>
+          )}
+        </span>
       ),
     },
     {
@@ -765,7 +782,7 @@ export default function AssessmentsPage() {
     <div className="space-y-6">
       {/* ── Batch Review Modal ── */}
       {batchMode && batchCurrent && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
           <div className="w-full max-w-md rounded-2xl bg-white shadow-2xl overflow-hidden">
             <div className="bg-indigo-600 px-5 py-4 flex items-center justify-between">
               <div>
@@ -836,6 +853,18 @@ export default function AssessmentsPage() {
               <button className="flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-gray-100" onClick={() => handleExport('pdf')}><FileText className="h-4 w-4 text-red-600" />{lang === 'ar' ? 'تصدير PDF' : 'Export PDF'}</button>
             </div>}
           </div>
+          {canReview && (
+            <a
+              href="/dashboard/assessments/pending-review"
+              className="inline-flex items-center gap-2 rounded-lg border border-indigo-200 px-3 py-1.5 text-sm font-medium text-indigo-700 hover:bg-indigo-50"
+            >
+              <ClipboardCheck className="h-4 w-4" />
+              {lang === 'ar' ? 'بانتظار المراجعة' : 'Pending review'}
+              {pendingReviewCount > 0 && (
+                <span className="rounded-full bg-indigo-600 px-2 py-0.5 text-xs text-white">{pendingReviewCount}</span>
+              )}
+            </a>
+          )}
           <Button onClick={openCreate}>
             <Plus className="h-4 w-4" /> {lang === 'ar' ? 'تقييم جديد' : 'New Assessment'}
           </Button>
@@ -978,6 +1007,11 @@ export default function AssessmentsPage() {
               <option value="">{lang === 'ar' ? 'جميع الصفوف' : 'All Grades'}</option>
               {gradeOptions.map(g => <option key={g.id} value={g.name}>{g.name}</option>)}
             </FormField>
+            <FormField label={lang === 'ar' ? 'الفئة' : 'Gender'} as="select" value={form.gender} onChange={e => updateForm({ gender: e.target.value as 'all' | 'male' | 'female' })}>
+              <option value="all">{lang === 'ar' ? 'الجميع (أولاد وبنات)' : 'All (boys and girls)'}</option>
+              <option value="male">{lang === 'ar' ? 'أولاد فقط' : 'Boys only'}</option>
+              <option value="female">{lang === 'ar' ? 'بنات فقط' : 'Girls only'}</option>
+            </FormField>
             <FormField label={lang === 'ar' ? 'المادة' : 'Subject'} required as="select" value={form.subjectId} onChange={e => updateForm({ subjectId: e.target.value })}>
               <option value="">{lang === 'ar' ? 'اختر المادة' : 'Select subject'}</option>
               {subjects.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
@@ -994,7 +1028,7 @@ export default function AssessmentsPage() {
               const opt = recordingOptions.find(o => o.url === e.target.value)
               updateForm({ referenceRecordingUrl: e.target.value, referenceRecordingName: opt?.name || '' })
             }}
-              className="mt-1.5 block w-full rounded-lg border border-gray-300 px-3.5 py-2.5 text-sm bg-white focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-gold-500">
+              className="mt-1.5 block w-full rounded-lg border border-gray-300 px-3.5 py-2.5 text-sm bg-white focus:border-gold-500 focus:outline-hidden focus:ring-1 focus:ring-gold-500">
               <option value="">{lang === 'ar' ? 'بدون' : 'None'}</option>
               {recordingOptions.map(o => <option key={o.url} value={o.url}>{o.name}</option>)}
             </select>
@@ -1133,7 +1167,7 @@ export default function AssessmentsPage() {
                       <input value={q.text} onChange={e => {
                         const questions = [...form.questions]; questions[qi].text = e.target.value; updateForm({ questions })
                       }} aria-label={lang === 'ar' ? 'نص السؤال' : 'Question text'}
-                        className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-blue-500" />
+                        className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gold-500 focus:outline-hidden focus:ring-1 focus:ring-blue-500" />
                     </div>
                     <Button variant="ghost" size="icon" onClick={() => updateForm({ questions: form.questions.filter((_, i) => i !== qi) })}
                       className="mt-1 text-red-600 hover:bg-red-50 border border-red-200">
@@ -1149,7 +1183,7 @@ export default function AssessmentsPage() {
                         const questions = [...form.questions]; questions[qi].type = e.target.value as QuestionDraft['type']; updateForm({ questions })
                       }}
                         aria-label={lang === 'ar' ? 'النوع' : 'Type'}
-                        className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
+                        className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gold-500 focus:outline-hidden focus:ring-1 focus:ring-blue-500">
                         <option value="multiple_choice">{lang === 'ar' ? 'اختيار من متعدد' : 'Multiple Choice'}</option>
                         <option value="true_false">{lang === 'ar' ? 'صواب / خطأ' : 'True / False'}</option>
                         <option value="short_answer">{lang === 'ar' ? 'إجابة قصيرة' : 'Short Answer'}</option>
@@ -1163,7 +1197,7 @@ export default function AssessmentsPage() {
                       <input type="number" min="1" value={q.points} onChange={e => {
                         const questions = [...form.questions]; questions[qi].points = e.target.value; updateForm({ questions })
                       }} aria-label={lang === 'ar' ? 'الدرجات' : 'Points'}
-                        className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-blue-500" />
+                        className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gold-500 focus:outline-hidden focus:ring-1 focus:ring-blue-500" />
                     </div>
                   </div>
                   {q.type === 'multiple_choice' && (
@@ -1175,7 +1209,7 @@ export default function AssessmentsPage() {
                         const questions = [...form.questions]; questions[qi].options = e.target.value; updateForm({ questions })
                       }} aria-label={lang === 'ar' ? 'الخيارات (واحد لكل سطر)' : 'Options (one per line)'}
                         rows={3}
-                        className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-blue-500 pl-6" />
+                        className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gold-500 focus:outline-hidden focus:ring-1 focus:ring-blue-500 pl-6" />
                     </div>
                   )}
                   <div>
@@ -1185,7 +1219,7 @@ export default function AssessmentsPage() {
                     <input value={q.correctAnswer} onChange={e => {
                       const questions = [...form.questions]; questions[qi].correctAnswer = e.target.value; updateForm({ questions })
                     }} aria-label={lang === 'ar' ? 'الإجابة الصحيحة' : 'Correct answer'}
-                      className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-blue-500 pl-6" />
+                      className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gold-500 focus:outline-hidden focus:ring-1 focus:ring-blue-500 pl-6" />
                   </div>
                 </div>
               ))}
@@ -1219,7 +1253,7 @@ export default function AssessmentsPage() {
           <div className="space-y-3">
               <div className="flex flex-wrap items-center gap-3">
                 <select value={studentGradeFilter} onChange={e => setStudentGradeFilter(e.target.value)}
-                  className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
+                  className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm focus:border-gold-500 focus:outline-hidden focus:ring-1 focus:ring-blue-500">
                   <option value="">{lang === 'ar' ? 'جميع الصفوف' : 'All Grades'}</option>
                   {gradeFilterOptions.map(g => (
                     <option key={g} value={g}>{g}</option>
@@ -1289,9 +1323,14 @@ export default function AssessmentsPage() {
                       ) : r.submissionStatus === 'completed' ? (
                         <>
                           <div className="flex items-center gap-2">
-                            <span className="text-sm font-semibold text-gray-900 min-w-[3rem] text-right">{r.mark ?? '—'}</span>
+                            <span className="text-sm font-semibold text-gray-900 min-w-12 text-right">{r.mark ?? '—'}</span>
                             <span className="text-xs text-gray-500">{r.maxMark}</span>
                             <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">{lang === 'ar' ? 'مكتمل' : 'Completed'}</span>
+                            {r.markedBy && (
+                              <span className="text-xs text-gray-500">
+                                {lang === 'ar' ? 'بواسطة' : 'by'} {r.markedBy}
+                              </span>
+                            )}
                               <Button variant="ghost" size="icon" onClick={() => deassignStudent(r.id)}
                                 className="text-red-600 hover:bg-red-50 border border-red-200"
                                 title={lang === 'ar' ? 'إلغاء التعيين' : 'De-assign'}>
@@ -1306,7 +1345,13 @@ export default function AssessmentsPage() {
                       ) : (
                         <>
                           <div className="flex items-center gap-2">
-                            <span className="rounded-full bg-green-50 px-2 py-0.5 text-xs font-medium text-green-600">{lang === 'ar' ? 'تم التعيين' : 'Assigned'}</span>
+                            {r.submissionStatus === 'submitted' ? (
+                              <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">
+                                {lang === 'ar' ? 'تم التسليم — بانتظار التقييم' : 'Submitted — awaiting marking'}
+                              </span>
+                            ) : (
+                              <span className="rounded-full bg-green-50 px-2 py-0.5 text-xs font-medium text-green-600">{lang === 'ar' ? 'تم التعيين' : 'Assigned'}</span>
+                            )}
                               <Button variant="ghost" size="icon" onClick={() => deassignStudent(r.id)}
                                 className="text-red-600 hover:bg-red-50 border border-red-200"
                                 title={lang === 'ar' ? 'إلغاء التعيين' : 'De-assign'}>
@@ -1329,7 +1374,7 @@ export default function AssessmentsPage() {
                             }}
                             aria-label={lang === 'ar' ? `درجة ${r.firstName} ${r.lastName}` : `Mark for ${r.firstName} ${r.lastName}`}
                             placeholder={`/ ${r.maxMark}`}
-                            className="w-20 rounded-lg border border-gray-300 px-2 py-1.5 text-sm text-right focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                            className="w-20 rounded-lg border border-gray-300 px-2 py-1.5 text-sm text-right focus:border-gold-500 focus:outline-hidden focus:ring-1 focus:ring-blue-500"
                           />
                           <Button
                             size="sm"
@@ -1410,8 +1455,8 @@ export default function AssessmentsPage() {
                           <td data-label={lang === 'ar' ? 'الطالب' : 'Student'} className="px-3 py-2.5 text-sm font-medium text-gray-900">{r.firstName} {r.lastName}</td>
                           <td data-label={lang === 'ar' ? 'الصف' : 'Grade'} className="px-3 py-2.5 text-sm text-gray-600">{r.gradeName || '—'}</td>
                           <td data-label={lang === 'ar' ? 'الحالة' : 'Status'} className="px-3 py-2.5">
-                            <Badge variant={r.submissionStatus === 'completed' ? 'success' : r.submissionStatus === 'assigned' ? 'info' : 'default'} size="sm">
-                              {r.submissionStatus === 'completed' ? (lang === 'ar' ? 'مكتمل' : 'completed') : r.submissionStatus === 'assigned' ? (lang === 'ar' ? 'تم التعيين' : 'assigned') : r.submissionStatus || '—'}
+                            <Badge variant={r.submissionStatus === 'completed' ? 'success' : r.submissionStatus === 'submitted' ? 'warning' : r.submissionStatus === 'assigned' ? 'info' : 'default'} size="sm">
+                              {r.submissionStatus === 'completed' ? (lang === 'ar' ? 'مكتمل' : 'completed') : r.submissionStatus === 'submitted' ? (lang === 'ar' ? 'بانتظار التقييم' : 'awaiting marking') : r.submissionStatus === 'assigned' ? (lang === 'ar' ? 'تم التعيين' : 'assigned') : r.submissionStatus || '—'}
                             </Badge>
                           </td>
                                                     <td data-label={lang === 'ar' ? 'الدرجة' : 'Mark'} className="px-3 py-2.5 text-sm text-right font-medium">{r.mark !== null ? r.mark : '—'}</td>

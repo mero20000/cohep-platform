@@ -31,10 +31,23 @@ export const GAMIFICATION_CONSTANTS = {
 
   // Point Calculation Rules (overridable per school via systemConfig 'point_rules')
   PRESENT_POINTS_DEFAULT: 5,
-  LATE_POINTS_DEFAULT: 0,
+  LATE_POINTS_DEFAULT: 2,
   ABSENT_POINTS_DEFAULT: 0,
-  EXCUSED_POINTS_DEFAULT: 0,
+  EXCUSED_POINTS_DEFAULT: 1,
   LITURGY_POINTS_DEFAULT: 3,
+  BEHAVIOR_MULTIPLIER_DEFAULT: 2,
+  PARTICIPATION_MULTIPLIER_DEFAULT: 2,
+
+  // Direct XP awards for attendance (overridable per school via systemConfig 'point_rules')
+  ATTENDANCE_XP_PRESENT: 10,
+  ATTENDANCE_XP_LATE: 5,
+
+  // Birthday gift: XP paid with the yearly birthday badge when a student opens their gift
+  BIRTHDAY_GIFT_XP: 50,
+
+  // Streak XP bonus: awarded when a student attends N+ consecutive weeks
+  STREAK_BONUS_WEEKS: 3,
+  STREAK_BONUS_XP: 5,
 
   // Query Limits
   RECENT_TRANSACTIONS_LIMIT: 10,
@@ -55,3 +68,11 @@ export const GAMIFICATION_CONSTANTS = {
     LESSONS_20: 20,
   },
 } as const;
+
+/** Badge rule for badges that are only ever granted by an explicit action, never earned by criteria. */
+export const BIRTHDAY_BADGE_RULE = 'birthday';
+
+/** One badge per school per birthday year, so a student collects a new one each birthday. */
+export function birthdayBadgeName(year: number): string {
+  return `Birthday Blessing ${year}`;
+}

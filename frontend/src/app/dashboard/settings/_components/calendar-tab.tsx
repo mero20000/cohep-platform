@@ -258,7 +258,7 @@ export function CalendarTab() {
               className={`px-6 py-3.5 flex items-center justify-between cursor-pointer transition-colors ${selectedYearId === year.id ? 'bg-blue-50/50' : 'hover:bg-gray-50 active:bg-gray-100'}`}
               onClick={() => setSelectedYearId(year.id)}>
               <div className="flex items-center gap-3">
-                <div className={`h-2.5 w-2.5 rounded-full flex-shrink-0 ${year.isCurrent ? 'bg-green-500' : 'bg-gray-300'}`} />
+                <div className={`h-2.5 w-2.5 rounded-full shrink-0 ${year.isCurrent ? 'bg-green-500' : 'bg-gray-300'}`} />
                 <div>
                   <span className="text-sm font-medium text-gray-900">{year.name}</span>
                   {year.isCurrent && <span className="ml-2 text-xs font-medium text-green-600 bg-green-50 px-1.5 py-0.5 rounded">{lang === 'ar' ? 'الحالي' : 'Current'}</span>}
@@ -310,7 +310,7 @@ export function CalendarTab() {
                     } catch (e) { console.error(e) }
                   }}
                     className={`px-4 py-2.5 rounded-lg text-sm font-medium transition-all border ${
-                      active ? 'bg-gold-500 text-gray-950 border-gold-600 shadow-sm' : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'
+                      active ? 'bg-gold-500 text-gray-950 border-gold-600 shadow-xs' : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'
                     }`}>
                     {label}
                   </button>
@@ -394,8 +394,8 @@ export function CalendarTab() {
                             className={`px-4 py-3 flex items-center gap-4 transition-colors ${week.isAvailable ? 'bg-white hover:bg-gray-50 active:bg-gray-100' : 'bg-red-50/30 hover:bg-red-50/50'}`}>
                             <button onClick={() => handleToggleWeek(week)}
                               aria-label={`Toggle week ${week.weekNumber} availability`}
-                              className={`flex-shrink-0 w-9 h-5 rounded-full transition-colors relative ${week.isAvailable ? 'bg-green-500' : 'bg-gray-300'}`}>
-                              <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${week.isAvailable ? 'translate-x-4' : ''}`} />
+                              className={`shrink-0 w-9 h-5 rounded-full transition-colors relative ${week.isAvailable ? 'bg-green-500' : 'bg-gray-300'}`}>
+                              <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow-sm transition-transform ${week.isAvailable ? 'translate-x-4' : ''}`} />
                             </button>
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2">
@@ -418,14 +418,14 @@ export function CalendarTab() {
                             <select
                               value={currentStatus}
                               onChange={e => handleToggleWeek(week, e.target.value)}
-                              className={`text-xs font-medium px-2 py-1 rounded-lg border cursor-pointer focus:outline-none focus:ring-1 focus:ring-blue-500 ${statusOption.color}`}
+                              className={`text-xs font-medium px-2 py-1 rounded-lg border cursor-pointer focus:outline-hidden focus:ring-1 focus:ring-blue-500 ${statusOption.color}`}
                             >
                               {WEEK_STATUS_OPTIONS.map(opt => (
                                 <option key={opt.value} value={opt.value}>{opt.label}</option>
                               ))}
                             </select>
                             <Button variant="ghost" size="icon" onClick={() => openEditWeek(week)} aria-label={`Edit week ${week.weekNumber}`} title="Edit week details"
-                              className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600 flex-shrink-0">
+                              className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600 shrink-0">
                               <Pencil className="h-3.5 w-3.5" />
                             </Button>
                           </div>
@@ -499,7 +499,7 @@ export function CalendarTab() {
                     }}
                     className={`px-3 py-2 rounded-lg border-2 text-sm font-medium transition-all text-left ${
                       weekForm.status === opt.value
-                        ? `${opt.color} border-current shadow-sm`
+                        ? `${opt.color} border-current shadow-xs`
                         : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'
                     }`}>
                     {opt.label}
@@ -541,7 +541,7 @@ export function CalendarTab() {
                 const typeOption = EVENT_TYPE_OPTIONS.find(t => t.value === ev.type) || EVENT_TYPE_OPTIONS.find(t => t.value === 'other')!
                 return (
                   <div key={ev.id} className="px-6 py-3 flex items-center gap-4 hover:bg-gray-50 active:bg-gray-100">
-                    <div className="flex-shrink-0 w-16 text-center">
+                    <div className="shrink-0 w-16 text-center">
                       <div className="text-lg font-bold text-gray-900">{new Date(ev.date).getDate()}</div>
                       <div className="text-[10px] text-gray-400 uppercase">{new Date(ev.date).toLocaleDateString('en-GB', { month: 'short' })}</div>
                     </div>
@@ -586,7 +586,7 @@ export function CalendarTab() {
                   onClick={() => setEventForm({ ...eventForm, type: opt.value })}
                   className={`px-3 py-2 rounded-lg border-2 text-xs font-medium transition-all text-center ${
                     eventForm.type === opt.value
-                      ? `${opt.color} border-current shadow-sm`
+                      ? `${opt.color} border-current shadow-xs`
                       : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'
                   }`}>
                   {opt.label}

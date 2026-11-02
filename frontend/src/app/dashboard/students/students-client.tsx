@@ -24,7 +24,7 @@ import { StudentBulkModals }  from './_components/student-bulk-modals'
 import { StudentAssignServantModal } from './_components/student-assign-servant-modal'
 import { StudentDuplicatesModal } from './_components/student-duplicates-modal'
 import { AssignedServants, type Servant } from './_components/assigned-servants'
-import { type Student, type Group, type ChurchItem, type PaginatedResponse, type StudentStats as StatsType } from './_components/student-types'
+import { type Student, type Group, type ChurchItem, type PaginatedResponse, type StudentStats as StatsType, getStudentCompleteness } from './_components/student-types'
 import { useStudentFavorites } from './_components/use-student-favorites'
 
 type BulkModal = 'delete'|'status'|'level'|'grade'
@@ -35,6 +35,8 @@ export default function StudentsClient() {
   const lang = useLanguage()
   const { can } = usePermission()
   const { favorites, toggleFavorite, isFavorite } = useStudentFavorites()
+  // Only changes (and so only refetches) while the Favorites filter is on.
+  const favoritesKey = favorites.slice(0,200).join(',')
   // Data
   const [students, setStudents]     = useState<Student[]>([])
   const [optimisticStudents, addOptimisticStudent] = useOptimistic(students,
@@ -47,15 +49,22 @@ export default function StudentsClient() {
   // Filters
   const [search, setSearch]           = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
-  const [filterLevel, setFilterLevel] = useState('')
+  // Deep link: ?levelId=<id> (from the Reports level/group comparison).
+  const [filterLevel, setFilterLevel] = useState(useSearchParams()?.get('levelId') ?? '')
   const [filterGroup, setFilterGroup] = useState('')
   const [filterStatus, setFilterStatus] = useState('')
   const [filterChurch, setFilterChurch] = useState('')
   const [filterGrade, setFilterGrade]   = useState('')
   const [filterGender, setFilterGender] = useState('')
+  // Deep link: ?engagement=at_risk (from the dashboard / Priest Pulse "students at risk" cards).
+  const [filterEngagement, setFilterEngagement] = useState<''|'at_risk'>(useSearchParams()?.get('engagement')==='at_risk'?'at_risk':'')
+  // Deep link: ?dataGap=photo|parent|grade (from Reports > Data quality).
+  const [filterDataGap, setFilterDataGap] = useState<''|'photo'|'parent'|'grade'>(((g)=>g==='photo'||g==='parent'||g==='grade'?g:'')(useSearchParams()?.get('dataGap')))
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false)
   const [showMyStudentsOnly, setShowMyStudentsOnly] = useState(false)
+  const [showIncompleteOnly, setShowIncompleteOnly] = useState(false)
   const [currentUserId, setCurrentUserId] = useState('')
+  const activeFavoritesKey = showFavoritesOnly ? favoritesKey : ''
   // Sort
   const [sortKey, setSortKey] = useState('')
   const [sortDir, setSortDir] = useState<'asc'|'desc'>('asc')
@@ -89,30 +98,64 @@ export default function StudentsClient() {
   // Derived
   const activeLevels     = useMemo(()=>levels.filter(l=>l.status!=='inactive'),[levels])
   const filterGroups     = allGroups
-  const hasActiveFilters = !!(search||filterLevel||filterGroup||filterStatus||filterChurch||filterGrade||filterGender||showFavoritesOnly||showMyStudentsOnly)
-  const allSelected      = optimisticStudents.length>0&&selectedIds.size===optimisticStudents.length
+  const hasActiveFilters = !!(filterEngagement||search||filterLevel||filterGroup||filterStatus||(filterChurch&&filterChurch!==defaultChurch?.name)||filterGrade||filterGender||showFavoritesOnly||showMyStudentsOnly||showIncompleteOnly||filterDataGap)
   const levelNameMap     = useMemo(()=>{const m:Record<string,string>={};for(const l of activeLevels)m[l.id]=l.name;return m},[activeLevels])
-  const sortedStudents   = useMemo(()=>{
-    if (showFavoritesOnly) {
-      return optimisticStudents.filter(s => favorites.includes(s.id))
-    }
-    return optimisticStudents
-  },[optimisticStudents, showFavoritesOnly, favorites])
+  // Favorites / Incomplete are applied in fetchStudents so totals and paging stay truthful.
+  const sortedStudents   = optimisticStudents
+  const allSelected      = sortedStudents.length>0&&sortedStudents.every(s=>selectedIds.has(s.id))
+  const filterParams = useCallback(():Record<string,string>=>{
+    const params:Record<string,string>={schoolId:getSchoolId()}
+    if(sortKey){params.sortBy=sortKey;params.sortDir=sortDir}
+    if(debouncedSearch)params.search=debouncedSearch; if(filterLevel)params.levelId=filterLevel; if(filterGroup)params.groupId=filterGroup
+    if(filterStatus)params.status=filterStatus; if(filterChurch)params.churchName=filterChurch; if(filterGrade)params.gradeId=filterGrade; if(filterGender)params.gender=filterGender
+    if(showMyStudentsOnly && currentUserId) params.assignedServantId = currentUserId
+    if(showFavoritesOnly) params.ids = activeFavoritesKey
+    if(filterEngagement) params.engagementStatus = filterEngagement
+    if(filterDataGap) params.dataGap = filterDataGap
+    return params
+  },[debouncedSearch,filterLevel,filterGroup,filterStatus,filterChurch,filterGrade,filterGender,sortKey,sortDir,showMyStudentsOnly,currentUserId,showFavoritesOnly,activeFavoritesKey,filterEngagement,filterDataGap])
 
-  const fetchStudents = useCallback(async(page=1)=>{
+  // Every page of the current filter set (used by export and by the Incomplete filter, which the API can't express).
+  const fetchEveryPage = useCallback(async(params:Record<string,string>)=>{
+    const baseParams={...params,limit:'100'}
+    const firstPage=await http.get<PaginatedResponse>('/students',{...baseParams,page:'1'})
+    const all=[...firstPage.data]
+    const totalPages=firstPage.pagination.totalPages
+    if(totalPages>1){
+      const remaining=Array.from({length:totalPages-1},(_,i)=>i+2)
+      const batchSize=5
+      for(let i=0;i<remaining.length;i+=batchSize){
+        const batch=remaining.slice(i,i+batchSize)
+        const results=await Promise.all(batch.map(page=>http.get<PaginatedResponse>('/students',{...baseParams,page:String(page)})))
+        results.forEach(r=>all.push(...r.data))
+      }
+    }
+    return all
+  },[])
+
+  const incompleteRowsRef = useRef<Student[]|null>(null)
+  const fetchStudents = useCallback(async(page=1, reusePages=false)=>{
     setLoading(true)
     try{
-      const params:Record<string,string>={page:String(page),limit:String(pageSize),schoolId:getSchoolId()}
-      if(sortKey)params.sortBy=sortKey
-      if(sortKey)params.sortDir=sortDir
-      if(debouncedSearch)params.search=debouncedSearch; if(filterLevel)params.levelId=filterLevel; if(filterGroup)params.groupId=filterGroup
-      if(filterStatus)params.status=filterStatus; if(filterChurch)params.churchName=filterChurch; if(filterGrade)params.gradeId=filterGrade; if(filterGender)params.gender=filterGender
-      if(showMyStudentsOnly && currentUserId) params.assignedServantId = currentUserId
-      const data=await http.get<PaginatedResponse>('/students',params)
-      setStudents(data.data); setPagination(data.pagination); setFetchError(false)
+      if(showFavoritesOnly&&!activeFavoritesKey){
+        setStudents([]); setPagination({page:1,limit:pageSize,total:0,totalPages:0}); setFetchError(false); setLoading(false); return
+      }
+      const params=filterParams()
+      if(showIncompleteOnly){
+        if(!reusePages||!incompleteRowsRef.current) incompleteRowsRef.current=(await fetchEveryPage(params)).filter(s=>!getStudentCompleteness(s).complete)
+        const rows=incompleteRowsRef.current
+        const totalPages=Math.max(1,Math.ceil(rows.length/pageSize))
+        const safePage=Math.min(page,totalPages)
+        setStudents(rows.slice((safePage-1)*pageSize,safePage*pageSize))
+        setPagination({page:safePage,limit:pageSize,total:rows.length,totalPages:rows.length?totalPages:0})
+      }else{
+        const data=await http.get<PaginatedResponse>('/students',{page:String(page),limit:String(pageSize),...params})
+        setStudents(data.data); setPagination(data.pagination)
+      }
+      setFetchError(false)
     }catch{setFetchError(true)}
     setLoading(false)
-  },[debouncedSearch,filterLevel,filterGroup,filterStatus,filterChurch,filterGrade,filterGender,sortKey,sortDir,pageSize,showMyStudentsOnly,currentUserId])
+  },[filterParams,pageSize,showIncompleteOnly,showFavoritesOnly,activeFavoritesKey,fetchEveryPage])
 
   // M10: stats are refetched whenever the roster changes (add/edit/delete/import) or filters change
   const fetchStats = useCallback(()=>{
@@ -131,10 +174,11 @@ export default function StudentsClient() {
   useEffect(()=>{const t=setTimeout(()=>setDebouncedSearch(search),300);return ()=>clearTimeout(t)},[search])
   useEffect(()=>{fetchStudents(1)},[fetchStudents])
   useEffect(()=>{fetchStats()},[fetchStats])
-  useEffect(()=>{setSelectedIds(new Set())},[search,filterLevel,filterGroup,filterStatus,filterChurch,filterGrade,filterGender])
+  useEffect(()=>{setSelectedIds(new Set())},[debouncedSearch,filterLevel,filterGroup,filterStatus,filterChurch,filterGrade,filterGender,showFavoritesOnly,showMyStudentsOnly,showIncompleteOnly,filterEngagement,filterDataGap,sortKey,sortDir,pageSize])
   // Deep link: ?groupId=<id> (e.g. from the servant dashboard My Groups)
   // wins once on init; later level changes reset the group as before.
   const urlGroupId = useSearchParams()?.get('groupId') ?? null
+  const urlLevelId = useSearchParams()?.get('levelId') ?? null
   const urlGroupConsumed = useRef(false)
   useEffect(()=>{
     if(urlGroupId && !urlGroupConsumed.current){urlGroupConsumed.current=true;return}
@@ -158,7 +202,7 @@ export default function StudentsClient() {
         const u=JSON.parse(stored)
         setCurrentUserId(u.id)
         const isServant=u.roles?.some((r:string)=>SERVANT_ROLES.includes(r))
-        if(urlGroupId){setFilterGroup(urlGroupId)}
+        if(urlGroupId||urlLevelId){if(urlGroupId)setFilterGroup(urlGroupId)}
         else if(isServant&&u.metadata){
           if(u.metadata.levelId)setFilterLevel(u.metadata.levelId)
           if(u.metadata.groupId)setFilterGroup(u.metadata.groupId)
@@ -173,19 +217,33 @@ export default function StudentsClient() {
   },[filterLevel,filterGroup])
   useEffect(()=>{
     const fn=(e:KeyboardEvent)=>{
-      if(e.key==='Escape'){setShowForm(false);setShowDetail(false);setShowDelete(false);setShowImport(false);setBulkOpen({delete:false,status:false,level:false,grade:false});return}
-      if((e.ctrlKey||e.metaKey)&&e.key==='n'){e.preventDefault();if(!showForm)openCreate()}
-      if((e.ctrlKey||e.metaKey)&&e.key==='e'&&selectedIds.size===1){e.preventDefault();const s=optimisticStudents.find(st=>selectedIds.has(st.id));if(s&&!showForm)openEdit(s)}
+      if(e.key==='Escape'){
+        // Close only the topmost layer; the modals handle their own nested overlays.
+        if(previewPhotoUrl){setPreviewPhotoUrl('');return}
+        if(bulkOpen.delete||bulkOpen.status||bulkOpen.level||bulkOpen.grade){setBulkOpen({delete:false,status:false,level:false,grade:false});return}
+        if(showDelete){setShowDelete(false);return}
+        if(showAssignServant){setShowAssignServant(false);return}
+        if(showDuplicates){setShowDuplicates(false);return}
+        if(showImport){setShowImport(false);return}
+        if(showForm){setShowForm(false);return}
+        if(showDetail){setShowDetail(false)}
+        return
+      }
+      // Alt-based so we don't fight the browser's own Ctrl+N / Ctrl+E; ignored while typing.
+      const el=e.target as HTMLElement|null
+      if(el&&(el.tagName==='INPUT'||el.tagName==='TEXTAREA'||el.tagName==='SELECT'||el.isContentEditable))return
+      if(e.altKey&&!e.ctrlKey&&!e.metaKey&&e.key.toLowerCase()==='n'){e.preventDefault();if(!showForm&&can('student:create'))openCreate()}
+      if(e.altKey&&!e.ctrlKey&&!e.metaKey&&e.key.toLowerCase()==='e'&&selectedIds.size===1){e.preventDefault();const s=optimisticStudents.find(st=>selectedIds.has(st.id));if(s&&!showForm&&can('student:edit'))openEdit(s)}
     }
     window.addEventListener('keydown',fn); return ()=>window.removeEventListener('keydown',fn)
-  },[showForm,selectedIds,optimisticStudents])
+  },[showForm,showDetail,showDelete,showImport,showAssignServant,showDuplicates,bulkOpen,previewPhotoUrl,selectedIds,optimisticStudents,can])
 
-  const clearFilters = ()=>{setSearch('');setFilterLevel('');setFilterGroup('');setFilterStatus('');setFilterChurch('');setFilterGrade('');setFilterGender('');setShowFavoritesOnly(false);setShowMyStudentsOnly(false)}
+  const clearFilters = ()=>{setSearch('');setFilterLevel('');setFilterGroup('');setFilterStatus('');setFilterChurch('');setFilterGrade('');setFilterGender('');setShowFavoritesOnly(false);setShowMyStudentsOnly(false);setShowIncompleteOnly(false);setFilterEngagement('');setFilterDataGap('')}
   const toggleSort   = (k:string)=>{if(k==='phone')return;if(sortKey===k)setSortDir(d=>d==='asc'?'desc':'asc');else{setSortKey(k);setSortDir('asc')}}
-  const toggleAll    = ()=>setSelectedIds(allSelected?new Set():new Set(optimisticStudents.map(s=>s.id)))
+  const toggleAll    = ()=>setSelectedIds(allSelected?new Set():new Set(sortedStudents.map(s=>s.id)))
   const toggleId     = (id:string,shiftKey?:boolean)=>{
     if(shiftKey&&lastClickedRef.current&&lastClickedRef.current!==id){
-      const idxs=optimisticStudents.map(s=>s.id);const[from,to]=[idxs.indexOf(lastClickedRef.current),idxs.indexOf(id)]
+      const idxs=sortedStudents.map(s=>s.id);const[from,to]=[idxs.indexOf(lastClickedRef.current),idxs.indexOf(id)]
       if(from!==-1&&to!==-1){const[s,e]=from<to?[from,to]:[to,from];const next=new Set(selectedIds);idxs.slice(s,e+1).forEach(r=>next.add(r));setSelectedIds(next);lastClickedRef.current=id;return}
     }
     lastClickedRef.current=id;const next=new Set(selectedIds);if(next.has(id))next.delete(id);else next.add(id);setSelectedIds(next)
@@ -205,7 +263,7 @@ export default function StudentsClient() {
     http.get<Student>(`/students/${deepStudentId}`,{schoolId:getSchoolId()})
       .then(s=>{if(s?.id){deepOpenedRef.current=deepStudentId;openDetail(s)}})
       .catch(()=>{})
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   },[deepStudentId,students,loading])
   const handleDelete = async()=>{
     if(!selectedStudent)return
@@ -229,22 +287,8 @@ export default function StudentsClient() {
   },[])
 
   const fetchAllStudents=async()=>{
-    const baseParams:Record<string,string>={schoolId:getSchoolId(),limit:'100'}
-    if(search)baseParams.search=search;if(filterLevel)baseParams.levelId=filterLevel;if(filterGroup)baseParams.groupId=filterGroup;if(filterStatus)baseParams.status=filterStatus;if(filterChurch)baseParams.churchName=filterChurch;if(filterGrade)baseParams.gradeId=filterGrade;if(filterGender)baseParams.gender=filterGender
-    if(showMyStudentsOnly && currentUserId) baseParams.assignedServantId = currentUserId
-    const firstPage=await http.get<PaginatedResponse>('/students',{...baseParams,page:'1'})
-    const all=[...firstPage.data]
-    const totalPages=firstPage.pagination.totalPages
-    if(totalPages>1){
-      const remaining=Array.from({length:totalPages-1},(_,i)=>i+2)
-      const batchSize=5
-      for(let i=0;i<remaining.length;i+=batchSize){
-        const batch=remaining.slice(i,i+batchSize)
-        const results=await Promise.all(batch.map(page=>http.get<PaginatedResponse>('/students',{...baseParams,page:String(page)})))
-        results.forEach(r=>all.push(...r.data))
-      }
-    }
-    return all
+    const all=await fetchEveryPage(filterParams())
+    return showIncompleteOnly?all.filter(s=>!getStudentCompleteness(s).complete):all
   }
 
   const handleExport=async(format:'xlsx'|'pdf')=>{
@@ -275,11 +319,25 @@ export default function StudentsClient() {
             </div>}
           </div>}
           {can('student:import')&&<Button variant="outline" size="sm" onClick={()=>setShowImport(true)}><Upload className="h-4 w-4"/>{t('Import','استيراد')}</Button>}
-          {can('student:create')&&<Button size="sm" onClick={openCreate} title={t('Add Student (Ctrl+N)','إضافة طالب (Ctrl+N)')}><Plus className="h-4 w-4"/>{t('Add Student','إضافة طالب')}</Button>}
+          {can('student:create')&&<Button size="sm" onClick={openCreate} title={t('Add Student (Alt+N)','إضافة طالب (Alt+N)')}><Plus className="h-4 w-4"/>{t('Add Student','إضافة طالب')}</Button>}
         </div>
       </div>
 
       <StudentStats stats={studentStats} loading={statsLoading} lang={lang} onGradeClick={name=>{const gr=gradeOptions.find(o=>o.name===name);if(gr)setFilterGrade(gr.id)}} onStatusClick={s=>setFilterStatus(s)}/>
+
+      {filterEngagement==='at_risk'&&(
+        <div role="status" className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-900">
+          <span><strong>{lang==='ar'?'طلاب في خطر':'Students at risk'}</strong>{' · '}{lang==='ar'?'غابوا عن 3 حصص متتالية أو أكثر':'missed 3 or more class sessions in a row'}</span>
+          <button type="button" onClick={()=>setFilterEngagement('')} className="min-h-[44px] rounded-lg px-3 font-medium underline hover:bg-red-100 sm:min-h-0 sm:py-1">{lang==='ar'?'عرض كل الطلاب':'Show all students'}</button>
+        </div>
+      )}
+
+      {filterDataGap&&(
+        <div role="status" className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          <span><strong>{lang==='ar'?'بيانات ناقصة':'Missing details'}</strong>{' · '}{filterDataGap==='photo'?(lang==='ar'?'بدون صورة':'no photo'):filterDataGap==='parent'?(lang==='ar'?'بدون وسيلة اتصال بولي الأمر':'no parent contact'):(lang==='ar'?'بدون صف دراسي':'no school grade')}</span>
+          <button type="button" onClick={()=>setFilterDataGap('')} className="min-h-[44px] rounded-lg px-3 font-medium underline hover:bg-amber-100 sm:min-h-0 sm:py-1">{lang==='ar'?'عرض كل الطلاب':'Show all students'}</button>
+        </div>
+      )}
 
       <StudentFilters
         search={search} onSearchChange={setSearch} isSearching={search !== debouncedSearch}
@@ -289,7 +347,8 @@ export default function StudentsClient() {
         activeLevels={activeLevels} filterGroups={filterGroups} gradeOptions={gradeOptions} churches={churches}
         hasActiveFilters={hasActiveFilters} onClearFilters={clearFilters} lang={lang}
         showFavoritesOnly={showFavoritesOnly} onFavoritesToggle={() => setShowFavoritesOnly(!showFavoritesOnly)} favorites={favorites}
-        showMyStudentsOnly={showMyStudentsOnly} onMyStudentsToggle={() => setShowMyStudentsOnly(!showMyStudentsOnly)}/>
+        showMyStudentsOnly={showMyStudentsOnly} onMyStudentsToggle={() => setShowMyStudentsOnly(!showMyStudentsOnly)}
+        showIncompleteOnly={showIncompleteOnly} onIncompleteToggle={() => setShowIncompleteOnly(!showIncompleteOnly)}/>
 
       {selectedIds.size>0&&<StudentBulkToolbar
         selectedCount={selectedIds.size}
@@ -312,8 +371,8 @@ export default function StudentsClient() {
         sortKey={sortKey} sortDir={sortDir} toggleSort={toggleSort}
         onView={openDetail} onEdit={openEdit} onDelete={openDelete} onRetry={()=>fetchStudents(1)}
         hasActiveFilters={hasActiveFilters} onClearFilters={clearFilters} onOpenCreate={openCreate}
-        pagination={pagination} onPageChange={p=>{fetchStudents(p)}}
-        pageSize={pageSize} onPageSizeChange={s=>{setPageSize(s);fetchStudents(1)}}
+        pagination={pagination} onPageChange={p=>{setSelectedIds(new Set());fetchStudents(p,true)}}
+        pageSize={pageSize} onPageSizeChange={setPageSize}
         onPreviewPhoto={setPreviewPhotoUrl} lang={lang}
         favorites={favorites} onToggleFavorite={toggleFavorite}
         onStudentUpdated={updated=>setStudents(list=>list.map(s=>s.id===updated.id?updated:s))}/>
@@ -344,11 +403,11 @@ export default function StudentsClient() {
         toast={toast} lang={lang}/>
 
       {previewPhotoUrl&&(
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 p-4" onClick={()=>setPreviewPhotoUrl('')} onKeyDown={e=>{if(e.key==='Escape')setPreviewPhotoUrl('')}} role="presentation">
-          <div role="dialog" aria-modal="true" aria-label={t('Student Photo','صورة الطالب')} className="relative max-w-lg max-h-[80vh] outline-none" onClick={e=>e.stopPropagation()} tabIndex={-1} autoFocus>
+        <div className="fixed inset-0 z-60 flex items-center justify-center bg-black/70 p-4" onClick={()=>setPreviewPhotoUrl('')} onKeyDown={e=>{if(e.key==='Escape')setPreviewPhotoUrl('')}} role="presentation">
+          <div role="dialog" aria-modal="true" aria-label={t('Student Photo','صورة الطالب')} className="relative max-w-lg max-h-[80vh] outline-hidden" onClick={e=>e.stopPropagation()} tabIndex={-1} autoFocus>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={previewPhotoUrl} alt={selectedStudent ? `${selectedStudent.firstName} ${selectedStudent.lastName}` : 'Student photo'} className="max-w-full max-h-[75vh] rounded-2xl shadow-2xl object-contain"/>
-            <Button variant="ghost" size="icon" onClick={()=>setPreviewPhotoUrl('')} className="absolute -top-3 -end-3 rounded-full bg-white p-1.5 shadow-lg hover:bg-gray-100" aria-label={t('Close photo','إغلق الصورة')}><X className="h-4 w-4 text-gray-600"/></Button>
+            <Button variant="ghost" size="icon" onClick={()=>setPreviewPhotoUrl('')} className="absolute -top-3 -inset-e-3 rounded-full bg-white p-1.5 shadow-lg hover:bg-gray-100" aria-label={t('Close photo','إغلق الصورة')}><X className="h-4 w-4 text-gray-600"/></Button>
           </div>
         </div>
       )}

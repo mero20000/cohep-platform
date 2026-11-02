@@ -10,6 +10,7 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { FormField } from '@/components/ui/form-field'
 import { http } from '@/lib/http-client'
 import { useLanguage } from '@/lib/use-language'
+import { TimezoneOptions } from './timezone-options'
 
 const API_ORIGIN = process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'http://localhost:3001'
 
@@ -217,9 +218,7 @@ export function ChurchesTab() {
               <option value="en">{lang === 'ar' ? 'الإنجليزية' : 'English'}</option><option value="ar">{lang === 'ar' ? 'العربية' : 'Arabic'}</option><option value="coptic">{lang === 'ar' ? 'القبطية' : 'Coptic'}</option>
             </FormField>
             <FormField label={lang === 'ar' ? 'المنطقة الزمنية' : 'Timezone'} as="select" value={form.timezone} onChange={e => setForm({ ...form, timezone: e.target.value })}>
-              <option value="UTC">UTC</option><option value="America/New_York">Eastern (ET)</option><option value="America/Chicago">Central (CT)</option>
-              <option value="America/Denver">Mountain (MT)</option><option value="America/Los_Angeles">Pacific (PT)</option>
-              <option value="Europe/London">London (GMT)</option><option value="Africa/Cairo">Cairo (EET)</option>
+              <TimezoneOptions lang={lang} value={form.timezone} />
             </FormField>
           </div>
 
@@ -228,7 +227,7 @@ export function ChurchesTab() {
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">{lang === 'ar' ? 'شعار الكنيسة' : 'Church Logo'}</label>
               <div className="flex items-center gap-3">
-                <div className="flex h-16 w-16 items-center justify-center rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 overflow-hidden flex-shrink-0">
+                <div className="flex h-16 w-16 items-center justify-center rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 overflow-hidden shrink-0">
                   {form.logoUrl ? (
                     <Image src={form.logoUrl.startsWith('http') ? form.logoUrl : `${API_ORIGIN}${form.logoUrl}`} alt="Church logo" width={64} height={64} className="h-16 w-16 object-cover"  />
                   ) : (

@@ -144,7 +144,7 @@ export function ImportModal({ levels, subjects, onImport, onClose }: ImportModal
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
       <div role="dialog" aria-label={lang === 'ar' ? 'استيراد التسبائح' : 'Import Hymns'} className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[85vh] flex flex-col" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 flex-shrink-0">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 shrink-0">
           <h3 className="font-semibold text-gray-900">{lang === 'ar' ? 'استيراد التسبائح' : 'Import Hymns'}</h3>
           <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded" aria-label={lang === 'ar' ? 'إغلاق' : 'Close dialog'}><X className="h-5 w-5" /></button>
         </div>
@@ -155,7 +155,7 @@ export function ImportModal({ levels, subjects, onImport, onClose }: ImportModal
           <div>
             <label htmlFor="im-level" className="block text-xs font-medium text-gray-500 mb-1">{lang === 'ar' ? 'المستوى المستهدف' : 'Target Level'}</label>
             <select id="im-level" value={importTargetLevel} onChange={e => setImportTargetLevel(e.target.value)}
-              className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
+              className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gold-500 focus:outline-hidden focus:ring-1 focus:ring-blue-500">
               <option value="">{lang === 'ar' ? 'اختر مستوى...' : 'Select a level...'}</option>
               {levels.map(l => <option key={l.id} value={l.id}>{lang === 'ar' ? 'المستوى' : 'Level'} {l.number}</option>)}
             </select>
@@ -163,7 +163,7 @@ export function ImportModal({ levels, subjects, onImport, onClose }: ImportModal
           <div>
             <label htmlFor="im-subject" className="block text-xs font-medium text-gray-500 mb-1">{lang === 'ar' ? 'المادة' : 'Subject'}</label>
             <select id="im-subject" value={importSubjectId} onChange={e => setImportSubjectId(e.target.value)}
-              className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
+              className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-gold-500 focus:outline-hidden focus:ring-1 focus:ring-blue-500">
               <option value="">{lang === 'ar' ? 'اختر مادة...' : 'Select a subject...'}</option>
               {subjects.map(s => <option key={s.id} value={s.id}>{s.name}{s.nameAr ? ` (${s.nameAr})` : ''}</option>)}
             </select>
@@ -184,7 +184,7 @@ export function ImportModal({ levels, subjects, onImport, onClose }: ImportModal
             </div>
           )}
         </div>
-        <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-100 flex-shrink-0">
+        <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-100 shrink-0">
           <button onClick={() => { setImportData([]); setImportFile(null); onClose() }}
             className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 active:bg-gray-100">{lang === 'ar' ? 'إلغاء' : 'Cancel'}</button>
           <button onClick={handleSubmit} disabled={importing || !hasRequired}

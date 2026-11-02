@@ -92,6 +92,7 @@ systemConfig: {
     assessmentSubmission: { findMany: jest.fn() },
     familyLiturgy: { findMany: jest.fn() },
     user: { findUnique: jest.fn() },
+    studentParent: { findFirst: jest.fn() },
     subjectItem: { findFirst: jest.fn(), findMany: jest.fn() },
     studentSubjectPass: {
       findFirst: jest.fn(),
@@ -122,6 +123,90 @@ systemConfig: {
     prisma.academicYear.findFirst.mockResolvedValue({ id: academicYearId, isCurrent: true });
     prisma.student.count.mockResolvedValue(0);
     prisma.schoolGrade.findFirst.mockResolvedValue({ id: 'grade-1', groupId: 'group-1' });
+    prisma.level.findFirst.mockResolvedValue({ id: 'level-1' });
+  });
+
+  // ===== student portal assessments =====
+  describe('portalAssessments', () => {
+    const me = { levelId: 'level-1', groupId: 'group-1' };
+    const sub = (over: any = {}) => ({
+      id: 's', status: 'assigned', attemptNumber: 1, createdAt: new Date('2026-01-01'), submittedAt: null,
+      grades: [],
+      assessment: {
+        id: 'a1', title: 'Quiz', titleAr: null, type: 'quiz', totalPoints: 10, passingScore: 6, dueDate: null,
+        deletedAt: null, levelId: 'level-1', groupId: null, level: { id: 'level-1', name: 'L1' }, subject: null,
+      },
+      ...over,
+    });
+
+    it('shows one entry per assessment and prefers the finished record over a newer pending duplicate', () => {
+      const rows = [
+        sub({ id: 'pending', createdAt: new Date('2026-03-01') }),
+        sub({ id: 'done', status: 'completed', createdAt: new Date('2026-01-01'), grades: [{ questionId: null, score: 8, maxScore: 10 }] }),
+      ];
+
+      const out = (service as any).portalAssessments(me, rows);
+
+      expect(out).toHaveLength(1);
+      expect(out[0]).toMatchObject({ submissionId: 'done', submissionStatus: 'completed', earnedScore: 8 });
+    });
+
+    it('does not double-count: the overall grade is the earned score, not the sum of every grade row', () => {
+      const out = (service as any).portalAssessments(me, [
+        sub({
+          status: 'completed',
+          grades: [
+            { questionId: 'q1', score: 4, maxScore: 5 },
+            { questionId: 'q2', score: 3, maxScore: 5 },
+            { questionId: null, score: 7, maxScore: 10 },
+          ],
+        }),
+      ]);
+      expect(out[0].earnedScore).toBe(7);
+    });
+
+    it('hides an untouched assignment for an assessment that is not for the student, but keeps one with work', () => {
+      const elsewhere = { levelId: 'level-9', groupId: null };
+      const rows = [
+        sub({ id: 'stale', assessment: { ...sub().assessment, id: 'old', ...elsewhere } }),
+        sub({ id: 'history', status: 'completed', assessment: { ...sub().assessment, id: 'hist', ...elsewhere } }),
+        sub({ id: 'group-mismatch', assessment: { ...sub().assessment, id: 'g', groupId: 'group-9' } }),
+        sub({ id: 'mine', assessment: { ...sub().assessment, id: 'mine' } }),
+      ];
+
+      const out = (service as any).portalAssessments(me, rows);
+
+      expect(out.map((o: any) => o.submissionId).sort()).toEqual(['history', 'mine']);
+    });
+
+    it('hides an untouched assignment limited to the other gender, but keeps one for the student\'s own gender and any with work', () => {
+      const girl = { ...me, gender: 'female' }
+      const girlsOnly = { ...sub().assessment, metadata: { gender: 'female' } }
+      const boysOnly = { ...sub().assessment, metadata: { gender: 'male' } }
+      const rows = [
+        sub({ id: 'mine', assessment: { ...girlsOnly, id: 'g' } }),
+        sub({ id: 'other-gender', assessment: { ...boysOnly, id: 'b' } }),
+        sub({ id: 'other-gender-done', status: 'completed', assessment: { ...boysOnly, id: 'b2' } }),
+        sub({ id: 'everyone', assessment: { ...sub().assessment, id: 'e', metadata: null } }),
+      ]
+
+      const out = (service as any).portalAssessments(girl, rows)
+
+      expect(out.map((o: any) => o.submissionId).sort()).toEqual(['everyone', 'mine', 'other-gender-done'])
+    })
+
+    it('drops deleted assessments and caps the list at 20, newest first', () => {
+      const rows = Array.from({ length: 25 }, (_, i) =>
+        sub({ id: `s${i}`, createdAt: new Date(2026, 0, i + 1), assessment: { ...sub().assessment, id: `a${i}` } }),
+      );
+      rows.push(sub({ id: 'gone', assessment: { ...sub().assessment, id: 'del', deletedAt: new Date() } }));
+
+      const out = (service as any).portalAssessments(me, rows);
+
+      expect(out).toHaveLength(20);
+      expect(out[0].submissionId).toBe('s24');
+      expect(out.some((o: any) => o.submissionId === 'gone')).toBe(false);
+    });
   });
 
   // ===== findAll =====
@@ -144,23 +229,150 @@ systemConfig: {
       );
     });
 
+    describe('engagementStatus=at_risk', () => {
+      const day = (n: number) => new Date(Date.now() - n * 24 * 60 * 60 * 1000);
+      const rec = (studentId: string, status: string, n: number) => ({ studentId, status, attendanceSession: { scheduledDate: day(n) } });
+
+      beforeEach(() => {
+        prisma.student.findMany.mockResolvedValue([]);
+        prisma.student.count.mockResolvedValue(0);
+      });
+
+      it('narrows the list to students at risk, by the shared 3-absences-in-a-row rule', async () => {
+        prisma.attendanceRecord.findMany.mockResolvedValue([
+          rec('stu-risk', 'absent', 5), rec('stu-risk', 'absent', 12), rec('stu-risk', 'absent', 19),
+          rec('stu-ok', 'absent', 5), rec('stu-ok', 'present', 12), rec('stu-ok', 'absent', 19),
+        ]);
+
+        await service.findAll({ page: 1, limit: 20, engagementStatus: 'at_risk' }, schoolId);
+
+        const where = prisma.student.findMany.mock.calls[0][0].where;
+        expect(where.AND).toContainEqual({ id: { in: ['stu-risk'] } });
+        expect(where.schoolId).toBe(schoolId);
+      });
+
+      it('returns nobody (not everybody) when no student is at risk', async () => {
+        prisma.attendanceRecord.findMany.mockResolvedValue([rec('stu-ok', 'present', 5)]);
+
+        await service.findAll({ page: 1, limit: 20, engagementStatus: 'at_risk' }, schoolId);
+
+        expect(prisma.student.findMany.mock.calls[0][0].where.AND).toContainEqual({ id: { in: [] } });
+      });
+
+      it('keeps the search filter and narrows on top of it', async () => {
+        prisma.attendanceRecord.findMany.mockResolvedValue([
+          rec('stu-risk', 'absent', 5), rec('stu-risk', 'absent', 12), rec('stu-risk', 'absent', 19),
+        ]);
+
+        await service.findAll({ page: 1, limit: 20, search: 'Malak', engagementStatus: 'at_risk' }, schoolId);
+
+        const and = prisma.student.findMany.mock.calls[0][0].where.AND;
+        expect(and.length).toBeGreaterThan(1);
+        expect(and).toContainEqual({ id: { in: ['stu-risk'] } });
+      });
+
+      it('does not touch attendance at all when the filter is not requested', async () => {
+        await service.findAll({ page: 1, limit: 20 }, schoolId);
+        expect(prisma.attendanceRecord.findMany).not.toHaveBeenCalled();
+      });
+    });
+
+    describe('dataGap filter', () => {
+      beforeEach(() => {
+        prisma.student.findMany.mockResolvedValue([]);
+        prisma.student.count.mockResolvedValue(0);
+      });
+
+      it.each([
+        ['photo', { OR: [{ photoUrl: null }, { photoUrl: '' }] }],
+        ['grade', { gradeId: null }],
+      ] as const)('narrows to students with no %s, on top of the caller scope', async (gap, fragment) => {
+        await service.findAll({ page: 1, limit: 20, dataGap: gap }, schoolId);
+        const where = prisma.student.findMany.mock.calls[0][0].where;
+        expect(where.AND).toContainEqual(fragment);
+        expect(where.schoolId).toBe(schoolId);
+      });
+
+      it('parent gap needs no email AND no linked parent account', async () => {
+        await service.findAll({ page: 1, limit: 20, dataGap: 'parent' }, schoolId);
+        const and = prisma.student.findMany.mock.calls[0][0].where.AND;
+        expect(JSON.stringify(and)).toContain('studentParents');
+      });
+
+      it('does nothing when not requested', async () => {
+        await service.findAll({ page: 1, limit: 20 }, schoolId);
+        expect(JSON.stringify(prisma.student.findMany.mock.calls[0][0].where)).not.toContain('photoUrl');
+      });
+    });
+
+    it('restricts the list to the given ids (favorites)', async () => {
+      prisma.student.findMany.mockResolvedValue([]);
+      prisma.student.count.mockResolvedValue(0);
+
+      await service.findAll({ page: 1, limit: 20, ids: 'a, b,,c' }, schoolId);
+
+      expect(prisma.student.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: expect.objectContaining({ id: { in: ['a', 'b', 'c'] } }) }),
+      );
+    });
+
+    it('searches the parent phone stored in metadata.phone', async () => {
+      prisma.student.findMany.mockResolvedValue([]);
+      prisma.student.count.mockResolvedValue(0);
+
+      await service.findAll({ page: 1, limit: 20, search: '0100' }, schoolId);
+
+      const where = prisma.student.findMany.mock.calls[0][0].where;
+      expect(where.AND).toHaveLength(1);
+      expect(where.AND[0].OR).toContainEqual({ metadata: { path: ['phone'], string_contains: '0100' } });
+    });
+
+    it('searches phone numbers typed with spaces or dashes', async () => {
+      prisma.student.findMany.mockResolvedValue([]);
+      prisma.student.count.mockResolvedValue(0);
+
+      await service.findAll({ page: 1, limit: 20, search: '0100 123-4567' }, schoolId);
+
+      const where = prisma.student.findMany.mock.calls[0][0].where;
+      expect(where.AND).toHaveLength(1);
+      expect(where.AND[0].OR).toEqual(
+        expect.arrayContaining([
+          { metadata: { path: ['phone'], string_contains: '0100 123-4567' } },
+          { metadata: { path: ['phone'], string_contains: '01001234567' } },
+          { studentParents: { some: { parent: { phone: { contains: '01001234567' } } } } },
+        ]),
+      );
+    });
+
     it('applies search filter', async () => {
       prisma.student.findMany.mockResolvedValue([]);
       prisma.student.count.mockResolvedValue(0);
 
       await service.findAll({ search: 'Malak', page: 1, limit: 20 }, schoolId);
 
-      expect(prisma.student.findMany).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: expect.objectContaining({
-            OR: [
-              { firstName: { contains: 'Malak', mode: 'insensitive' } },
-              { lastName: { contains: 'Malak', mode: 'insensitive' } },
-              { studentCode: { contains: 'Malak', mode: 'insensitive' } },
-            ],
-          }),
-        }),
+      const where = prisma.student.findMany.mock.calls[0][0].where;
+      expect(where.AND).toHaveLength(1);
+      expect(where.AND[0].OR).toEqual(
+        expect.arrayContaining([
+          { firstName: { contains: 'Malak', mode: 'insensitive' } },
+          { lastName: { contains: 'Malak', mode: 'insensitive' } },
+          { firstNameAr: { contains: 'Malak', mode: 'insensitive' } },
+          { studentCode: { contains: 'Malak', mode: 'insensitive' } },
+          { studentParents: { some: { parent: { email: { contains: 'Malak', mode: 'insensitive' } } } } },
+        ]),
       );
+    });
+
+    it('matches "first last" name searches by requiring each word separately', async () => {
+      prisma.student.findMany.mockResolvedValue([]);
+      prisma.student.count.mockResolvedValue(0);
+
+      await service.findAll({ search: 'Malak Samir', page: 1, limit: 20 }, schoolId);
+
+      const where = prisma.student.findMany.mock.calls[0][0].where;
+      expect(where.AND).toHaveLength(2);
+      expect(where.AND[0].OR).toContainEqual({ firstName: { contains: 'Malak', mode: 'insensitive' } });
+      expect(where.AND[1].OR).toContainEqual({ lastName: { contains: 'Samir', mode: 'insensitive' } });
     });
 
     it('applies level and group filters', async () => {
@@ -281,6 +493,51 @@ systemConfig: {
       expect(result.studentCode).toBe('STU-00001');
       expect(result.firstName).toBe('Malak');
       expect(prisma.student.create).toHaveBeenCalled();
+    });
+
+    it('retries with the next free code when a concurrent create took the same one', async () => {
+      const dto = {
+        firstName: 'Malak', lastName: 'Ahmed', dateOfBirth: '2026-01-01', gender: 'female',
+        levelId: 'level-1', gradeId: 'grade-1', churchName: 'St. Mary',
+      };
+      const conflict = Object.assign(new Error('Unique constraint failed'), { code: 'P2002', meta: { target: ['school_id', 'student_code'] } });
+      prisma.student.create.mockRejectedValueOnce(conflict).mockResolvedValueOnce({ ...mockStudent, studentCode: 'STU-00002' });
+
+      const result = await service.create(dto, schoolId);
+
+      expect(result.studentCode).toBe('STU-00002');
+      expect(prisma.student.create).toHaveBeenCalledTimes(2);
+    });
+
+    it('does not retry unrelated unique violations', async () => {
+      const dto = {
+        firstName: 'Malak', lastName: 'Ahmed', dateOfBirth: '2026-01-01', gender: 'female',
+        levelId: 'level-1', gradeId: 'grade-1', churchName: 'St. Mary',
+      };
+      const other = Object.assign(new Error('Unique constraint failed'), { code: 'P2002', meta: { target: ['portal_access_key'] } });
+      prisma.student.create.mockRejectedValueOnce(other);
+
+      await expect(service.create(dto, schoolId)).rejects.toBe(other);
+      expect(prisma.student.create).toHaveBeenCalledTimes(1);
+    });
+
+    it('gives up after repeated code conflicts instead of looping forever', async () => {
+      const dto = {
+        firstName: 'Malak', lastName: 'Ahmed', dateOfBirth: '2026-01-01', gender: 'female',
+        levelId: 'level-1', gradeId: 'grade-1', churchName: 'St. Mary',
+      };
+      const conflict = Object.assign(new Error('Unique constraint failed'), { code: 'P2002', meta: { target: ['student_code'] } });
+      prisma.student.create.mockRejectedValue(conflict);
+
+      await expect(service.create(dto, schoolId)).rejects.toBe(conflict);
+      expect(prisma.student.create).toHaveBeenCalledTimes(5);
+    });
+
+    it('B4: rejects a level that belongs to another school', async () => {
+      prisma.level.findFirst.mockResolvedValue(null);
+      const dto = { firstName: 'Malak', lastName: 'Ahmed', dateOfBirth: '2026-01-01', gender: 'female', levelId: 'level-foreign', gradeId: 'grade-1' };
+      await expect(service.create(dto as any, schoolId)).rejects.toThrow(BadRequestException);
+      expect(prisma.student.create).not.toHaveBeenCalled();
     });
 
     it('throws when no academic year is set', async () => {
@@ -615,6 +872,189 @@ systemConfig: {
   });
 
   // ===== bulkCreate =====
+  // ===== authorization (B1–B4) =====
+  describe('authorization', () => {
+    const scopedServant = { id: 'srv-1', roles: ['servant'], schoolId };
+    const admin = { id: 'adm-1', roles: ['admin'], schoolId };
+    const principal = { id: 'pri-1', roles: ['principal'], schoolId };
+
+    const asServant = (meta: any = { groupId: 'group-1', levelId: 'level-1' }) =>
+      prisma.user.findUnique.mockResolvedValue({ metadata: meta, userRoles: [{ role: { name: 'servant' } }] });
+    const asAdmin = () =>
+      prisma.user.findUnique.mockResolvedValue({ metadata: {}, userRoles: [{ role: { name: 'admin' } }] });
+
+    beforeEach(() => {
+      prisma.student.findFirst.mockReset();
+      prisma.student.findMany.mockReset();
+      prisma.student.update.mockReset();
+      prisma.student.updateMany.mockReset();
+      prisma.level.findFirst.mockReset();
+      prisma.group.findFirst.mockReset();
+      prisma.studentParent.findFirst.mockReset();
+    });
+
+    it('B1: findOne applies a servant\'s assignment scope', async () => {
+      asServant();
+      prisma.student.findFirst.mockResolvedValue(mockStudent);
+      await service.findOne('stu-1', schoolId, scopedServant);
+      expect(prisma.student.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({ where: expect.objectContaining({ id: 'stu-1', schoolId, groupId: 'group-1', levelId: 'level-1' }) }),
+      );
+    });
+
+    it('B1: a student outside the servant\'s scope is a 404 on delete', async () => {
+      asServant();
+      prisma.student.findFirst.mockResolvedValue(null);
+      await expect(service.remove('stu-9', schoolId, scopedServant)).rejects.toThrow(NotFoundException);
+      expect(prisma.student.update).not.toHaveBeenCalled();
+    });
+
+    it('B1: the list cannot be widened by passing another groupId', async () => {
+      asServant();
+      prisma.student.findMany.mockResolvedValue([]);
+      prisma.student.count.mockResolvedValue(0);
+      await service.findAll({ page: 1, limit: 20, groupId: 'group-other' }, schoolId, scopedServant);
+      const where = prisma.student.findMany.mock.calls[0][0].where;
+      expect(where.groupId).toBe('group-1');
+    });
+
+    it('B1: admins stay unrestricted', async () => {
+      asAdmin();
+      prisma.student.findFirst.mockResolvedValue(mockStudent);
+      await service.findOne('stu-1', schoolId, admin);
+      expect(prisma.student.findFirst.mock.calls[0][0].where).toEqual({ id: 'stu-1', schoolId, deletedAt: null });
+    });
+
+    it('B1: bulk delete only touches students inside the caller\'s scope', async () => {
+      asServant();
+      prisma.student.updateMany.mockResolvedValue({ count: 1 });
+      await service.bulkDelete(['a', 'b'], schoolId, scopedServant);
+      expect(prisma.student.updateMany.mock.calls[0][0].where).toEqual(
+        expect.objectContaining({ id: { in: ['a', 'b'] }, groupId: 'group-1', levelId: 'level-1' }),
+      );
+    });
+
+    it('B1: a servant cannot move a student into another group', async () => {
+      asServant();
+      prisma.student.findFirst.mockResolvedValue(mockStudent);
+      prisma.group.findFirst.mockResolvedValue({ id: 'group-2' });
+      await expect(service.update('stu-1', { groupId: 'group-2' } as any, schoolId, scopedServant)).rejects.toThrow(ForbiddenException);
+      expect(prisma.student.update).not.toHaveBeenCalled();
+    });
+
+    it('B1: subject-item endpoints reject a caller from another school', async () => {
+      asAdmin();
+      prisma.student.findFirst.mockResolvedValue({ id: 'stu-1', schoolId: 'school-2', level: { number: 1 } });
+      await expect(service.getStudentSubjectItems('stu-1', admin)).rejects.toThrow(NotFoundException);
+      await expect(service.toggleSubjectItemPass('stu-1', 'item-1', admin)).rejects.toThrow(NotFoundException);
+    });
+
+    it('B1: a parent only reaches a linked child\'s subject items', async () => {
+      const parent = { id: 'par-1', roles: ['parent'], schoolId };
+      prisma.student.findFirst.mockResolvedValue({ id: 'stu-1', schoolId, level: { number: 1 } });
+      prisma.studentParent.findFirst.mockResolvedValue(null);
+      await expect(service.getStudentSubjectItems('stu-1', parent)).rejects.toThrow(NotFoundException);
+    });
+
+    it('B2: a servant cannot approve a pending student through update', async () => {
+      asServant({});
+      prisma.student.findFirst.mockResolvedValue({ ...mockStudent, status: 'pending' });
+      await expect(service.update('stu-1', { status: 'active' } as any, schoolId, scopedServant)).rejects.toThrow(ForbiddenException);
+      expect(prisma.student.update).not.toHaveBeenCalled();
+    });
+
+    it('B2: an admin can move a pending student to active, and a servant can still toggle active/inactive', async () => {
+      asAdmin();
+      prisma.student.findFirst.mockResolvedValue({ ...mockStudent, status: 'pending' });
+      prisma.student.update.mockResolvedValue({ ...mockStudent, status: 'active' });
+      await expect(service.update('stu-1', { status: 'active' } as any, schoolId, admin)).resolves.toBeDefined();
+
+      asServant({});
+      prisma.student.findFirst.mockResolvedValue({ ...mockStudent, status: 'active' });
+      await expect(service.update('stu-1', { status: 'inactive' } as any, schoolId, scopedServant)).resolves.toBeDefined();
+    });
+
+    it('B2: rejects unknown status values', async () => {
+      asAdmin();
+      prisma.student.findFirst.mockResolvedValue(mockStudent);
+      await expect(service.update('stu-1', { status: 'wizard' } as any, schoolId, admin)).rejects.toThrow(BadRequestException);
+    });
+
+    it('B2: bulk status change skips pending students unless the caller is an approver', async () => {
+      asServant({});
+      prisma.student.updateMany.mockResolvedValue({ count: 1 });
+      await service.bulkUpdate(['a', 'b'], { status: 'active' } as any, schoolId, scopedServant);
+      expect(prisma.student.updateMany.mock.calls[0][0].where.status).toEqual({ not: 'pending' });
+
+      asAdmin();
+      prisma.student.updateMany.mockClear();
+      prisma.student.updateMany.mockResolvedValue({ count: 2 });
+      const res = await service.bulkUpdate(['a', 'b'], { status: 'active' } as any, schoolId, principal);
+      expect(prisma.student.updateMany.mock.calls[0][0].where.status).toBeUndefined();
+      expect(res).toEqual({ updated: 2, skipped: 0 });
+    });
+
+    it('B2: approve activates a pending student and audits it', async () => {
+      asAdmin();
+      prisma.student.findFirst.mockResolvedValue({ ...mockStudent, status: 'pending' });
+      prisma.student.update.mockResolvedValue({ ...mockStudent, status: 'active' });
+      const out = await service.approve('stu-1', schoolId, admin);
+      expect(out.status).toBe('active');
+      expect(prisma.student.update).toHaveBeenCalledWith(expect.objectContaining({ data: { status: 'active' } }));
+    });
+
+    it('B2: approve refuses a student that is not pending', async () => {
+      asAdmin();
+      prisma.student.findFirst.mockResolvedValue(mockStudent);
+      await expect(service.approve('stu-1', schoolId, admin)).rejects.toThrow(BadRequestException);
+    });
+
+    it('B3: rotating a key is limited to the caller\'s own school', async () => {
+      prisma.student.findFirst.mockResolvedValue(null);
+      await expect(service.rotatePortalAccessKey('stu-other', admin)).rejects.toThrow(NotFoundException);
+      expect(prisma.student.findFirst.mock.calls[0][0].where).toEqual(expect.objectContaining({ id: 'stu-other', schoolId }));
+      expect(prisma.student.update).not.toHaveBeenCalled();
+    });
+
+    it('B3: rotation is audited without recording the key, and super_admin spans schools', async () => {
+      prisma.student.findFirst.mockResolvedValue({ id: 'stu-1', schoolId: 'school-2' });
+      prisma.student.update.mockResolvedValue({});
+      const out = await service.rotatePortalAccessKey('stu-1', { id: 'sa-1', roles: ['super_admin'] });
+      expect(out.newKey).toMatch(/[0-9a-f-]{36}/);
+      expect(prisma.student.findFirst.mock.calls[0][0].where).toEqual({ id: 'stu-1', deletedAt: null });
+      const audit = (service as any).audit.log.mock.calls[0][0];
+      expect(audit).toEqual(expect.objectContaining({ action: 'ROTATE_PORTAL_KEY', entityId: 'stu-1', schoolId: 'school-2', userId: 'sa-1' }));
+      expect(JSON.stringify(audit)).not.toContain(out.newKey);
+    });
+
+    it('B4: bulk level change rejects a level from another school', async () => {
+      asAdmin();
+      prisma.level.findFirst.mockResolvedValue(null);
+      await expect(service.bulkUpdate(['a'], { levelId: 'level-foreign' } as any, schoolId, admin)).rejects.toThrow(BadRequestException);
+      expect(prisma.student.updateMany).not.toHaveBeenCalled();
+      expect(prisma.level.findFirst).toHaveBeenCalledWith(expect.objectContaining({ where: expect.objectContaining({ id: 'level-foreign', schoolId }) }));
+    });
+
+    it('B4: bulk group change rejects a group from another school', async () => {
+      asAdmin();
+      prisma.group.findFirst.mockResolvedValue(null);
+      await expect(service.bulkUpdate(['a'], { groupId: 'group-foreign' } as any, schoolId, admin)).rejects.toThrow(BadRequestException);
+    });
+
+    it('B4: a servant cannot bulk-move students outside their own group', async () => {
+      asServant();
+      prisma.group.findFirst.mockResolvedValue({ id: 'group-2' });
+      await expect(service.bulkUpdate(['a'], { groupId: 'group-2' } as any, schoolId, scopedServant)).rejects.toThrow(ForbiddenException);
+    });
+
+    it('B4: single update also rejects a level from another school', async () => {
+      asAdmin();
+      prisma.student.findFirst.mockResolvedValue(mockStudent);
+      prisma.level.findFirst.mockResolvedValue(null);
+      await expect(service.update('stu-1', { levelId: 'level-foreign' } as any, schoolId, admin)).rejects.toThrow(BadRequestException);
+    });
+  });
+
   describe('bulkCreate', () => {
     it('imports students in bulk, resolving grades by name', async () => {
       prisma.student.count.mockResolvedValue(5);
@@ -762,7 +1202,7 @@ systemConfig: {
     // Total 100, pass mark 60. The overall row (questionId null) carries the servant's
     // 8/10 mark alongside an auto-graded per-question row; neither is summed with the other.
     const portalSub = (over: any = {}, assessmentOver: any = {}, grades: any[] = []) => ({
-      id: 'sub-2', status: 'completed', attemptNumber: 2, submittedAt: new Date(),
+      id: 'sub-2', status: 'completed', attemptNumber: 2, submittedAt: new Date(), createdAt: new Date(),
       assessment: {
         id: 'a1', title: 'Quiz', titleAr: null, type: 'quiz', status: 'published',
         totalPoints: 100, passingScore: 60, dueDate: null,
@@ -839,6 +1279,80 @@ systemConfig: {
       expect(result.assessments[0].attempt.canRetry).toBe(false);
       expect(result.assessments[0].earnedScore).toBeNull();
     });
+
+    describe('birthday card signal', () => {
+      const withDob = (dob: string, metadata: any = {}) =>
+        prisma.student.findFirst.mockResolvedValue({
+          ...mockStudent, portalAccessKey: 'abc-secret-key', dateOfBirth: new Date(`${dob}T00:00:00Z`), metadata,
+        });
+      afterEach(() => jest.useRealTimers());
+      const at = (iso: string) => jest.useFakeTimers().setSystemTime(new Date(iso));
+
+      it('is set on the birthday and for a week after, with the new age', async () => {
+        withDob('2016-11-01');
+        at('2026-11-01T10:00:00Z');
+        expect((await service.getPortalData('abc-secret-key')).birthday).toEqual({ daysSince: 0, turningAge: 10, year: 2026, giftClaimed: false });
+        at('2026-11-08T10:00:00Z');
+        expect((await service.getPortalData('abc-secret-key')).birthday).toEqual({ daysSince: 7, turningAge: 10, year: 2026, giftClaimed: false });
+      });
+
+      it('reports the gift as claimed once this year\'s birthday badge is owned (not last year\'s)', async () => {
+        withDob('2016-11-01');
+        at('2026-11-02T10:00:00Z');
+        prisma.studentBadge.findMany.mockResolvedValue([
+          { id: 'sb1', awardedAt: new Date(), badge: { id: 'b1', name: 'Birthday Blessing 2025' } },
+        ]);
+        expect((await service.getPortalData('abc-secret-key')).birthday?.giftClaimed).toBe(false);
+        prisma.studentBadge.findMany.mockResolvedValue([
+          { id: 'sb2', awardedAt: new Date(), badge: { id: 'b2', name: 'Birthday Blessing 2026' } },
+        ]);
+        expect((await service.getPortalData('abc-secret-key')).birthday?.giftClaimed).toBe(true);
+      });
+
+      it('is null before the birthday and more than a week after', async () => {
+        withDob('2016-11-01');
+        at('2026-10-31T10:00:00Z');
+        expect((await service.getPortalData('abc-secret-key')).birthday).toBeNull();
+        at('2026-11-09T10:00:00Z');
+        expect((await service.getPortalData('abc-secret-key')).birthday).toBeNull();
+      });
+
+      it('respects a family opt-out', async () => {
+        withDob('2016-11-01', { birthdayOptOut: true });
+        at('2026-11-01T10:00:00Z');
+        expect((await service.getPortalData('abc-secret-key')).birthday).toBeNull();
+      });
+
+      it('ignores an implausible age such as an import-default date of birth', async () => {
+        withDob('2026-11-01');
+        at('2026-11-01T10:00:00Z');
+        expect((await service.getPortalData('abc-secret-key')).birthday).toBeNull();
+      });
+
+      it('never sends the date of birth to the browser', async () => {
+        withDob('2016-11-01');
+        at('2026-11-01T10:00:00Z');
+        expect(JSON.stringify(await service.getPortalData('abc-secret-key'))).not.toContain('2016-11-01');
+      });
+    });
+
+    it('surfaces cancelled sessions as "cancelled" and excludes them from the attendance summary/rate', async () => {
+      prisma.attendanceRecord.findMany.mockImplementation(({ where }: any) =>
+        Promise.resolve(
+          where?.attendedLiturgy
+            ? []
+            : [
+                { status: 'present', homeworkStatus: 'not_assigned', attendanceSession: { scheduledDate: mockDate, scheduledTime: '12:00' } },
+                { status: 'cancelled', homeworkStatus: 'not_assigned', attendanceSession: { scheduledDate: mockDate, scheduledTime: '12:00' } },
+              ],
+        ),
+      );
+
+      const result = await service.getPortalData('abc-secret-key');
+
+      expect(result.attendance).toEqual({ present: 1, late: 0, absent: 0, excused: 0, total: 1 });
+      expect(result.recentAttendance.map((r: any) => r.status)).toEqual(['present', 'cancelled']);
+    });
   });
 
   // ===== getStudentSubjectItems (portal) =====
@@ -876,9 +1390,10 @@ systemConfig: {
 
   // ===== toggleSubjectItemPass =====
   describe('toggleSubjectItemPass', () => {
-    const servantUser = { id: 'user-1', roles: ['servant'] };
+    const servantUser = { id: 'user-1', roles: ['servant'], schoolId };
 
     beforeEach(() => {
+      prisma.user.findUnique.mockResolvedValue({ metadata: {}, userRoles: [{ role: { name: 'servant' } }] });
       prisma.studentSubjectPass.findFirst.mockReset();
       prisma.studentSubjectPass.findMany.mockReset();
       prisma.studentSubjectPass.create.mockReset();

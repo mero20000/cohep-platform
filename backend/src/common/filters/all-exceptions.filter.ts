@@ -9,6 +9,7 @@ import {
 import { Request, Response } from 'express';
 import { Prisma } from '@prisma/client';
 import * as Sentry from '@sentry/node';
+import { redactPath } from '../utils/redact-url';
 
 @Catch()
 export class AllExceptionsFilter implements ExceptionFilter {
@@ -18,7 +19,8 @@ export class AllExceptionsFilter implements ExceptionFilter {
     const ctx = host.switchToHttp();
     const response = ctx.getResponse<Response>();
     const request = ctx.getRequest<Request>();
-    const path = request.url;
+    // Query strings and the student portal key are credentials; neither goes to logs, Sentry or the reply.
+    const path = redactPath(request.url);
     const requestId = (request as any).requestId;
 
     let statusCode = HttpStatus.INTERNAL_SERVER_ERROR;

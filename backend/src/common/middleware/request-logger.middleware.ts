@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
+import { redactPath } from '../utils/redact-url';
 
 /**
  * Structured (single-line JSON) request logger.
@@ -17,7 +18,8 @@ export function requestLoggerMiddleware(
 ) {
   const start = process.hrtime.bigint();
   const requestId = (req as any).requestId;
-  const path = req.baseUrl + req.path;
+  // req.path has no query string, but the student portal access key is part of the path.
+  const path = redactPath(req.baseUrl + req.path);
 
   res.on('finish', () => {
     // Skip noisy, uninteresting probes.

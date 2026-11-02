@@ -1,8 +1,14 @@
+import { dataGapWhere } from './data-gaps';
+import { findAtRiskStudents } from '../attendance/absence-risk';
 import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { SchoolResolver } from '../../common/utils/school-resolver';
+import { buildStudentSearchClauses } from '../../common/utils/search';
+import { localToday, studentBirthdayWindow } from '../../common/utils/birthday';
+import { birthdayBadgeName } from '../gamification/gamification.constants';
 import { AnalyticsService } from '../analytics/analytics.service';
+import { LIFECYCLE_WHERE, assessmentGender, isEligible, liveByKey } from '../assessments/assessment-lifecycle';
 import { CreateStudentDto } from './dto/create-student.dto';
 import { UpdateStudentDto } from './dto/update-student.dto';
 import { QueryStudentDto } from './dto/query-student.dto';
@@ -29,7 +35,8 @@ export class StudentsService {
 
   async findAll(queryDto: QueryStudentDto, schoolIdentifier: string, user?: any) {
     const schoolId = await this.schoolResolver.resolve(schoolIdentifier);
-    const { levelId, groupId, status, churchName, gradeId, gender, search, page = 1, limit: rawLimit = 20, sortBy, sortDir, assignedServantId, engagementStatus } = queryDto;
+    const { levelId, groupId, status, churchName, gradeId, gender, search, page = 1, limit: rawLimit = 20, sortBy, sortDir, assignedServantId, engagementStatus, dataGap, ids: rawIds } = queryDto;
+    const ids = rawIds ? rawIds.split(',').map(i => i.trim()).filter(Boolean).slice(0, 200) : undefined;
     const limit = Math.min(rawLimit, 100);
 
     const where: any = {
@@ -37,40 +44,15 @@ export class StudentsService {
       deletedAt: null,
     };
 
-    // Auto-filter by servant's metadata assignments
-    if (user) {
-      const userRecord = await this.prisma.user.findUnique({
-        where: { id: user.id },
-        select: { metadata: true, userRoles: { select: { role: { select: { name: true } } } } },
-      });
-      const meta = (userRecord?.metadata as any) || {};
-      const isServant = userRecord?.userRoles?.some((ur: any) =>
-        ['servant', 'group_leader', 'level_leader'].includes(ur.role.name)
-      );
-
-      if (isServant) {
-        if (meta.groupId) {
-          where.groupId = meta.groupId;
-        }
-        if (meta.levelId) {
-          where.levelId = meta.levelId;
-        }
-        if (meta.gradeId) {
-          where.gradeId = meta.gradeId;
-        }
-        if (meta.teachingGender && meta.teachingGender !== 'both') {
-          where.gender = meta.teachingGender;
-        }
-      }
-    }
-
-    // Apply explicit query filters (these override metadata if provided)
+    // Explicit query filters first; the caller's assignment scope is applied afterwards so it always wins.
     if (levelId) where.levelId = levelId;
     if (groupId) where.groupId = groupId;
     if (status) where.status = status;
     if (churchName) where.churchName = churchName;
     if (gradeId) where.gradeId = gradeId;
     if (gender) where.gender = gender;
+    if (ids?.length) where.id = { in: ids };
+    Object.assign(where, await this.getAccessScope(user));
 
     // Filter by assigned servant ID using JSON array containment
     if (assignedServantId) {
@@ -80,13 +62,18 @@ export class StudentsService {
       };
     }
 
-    if (search) {
-      where.OR = [
-        { firstName: { contains: search, mode: 'insensitive' } },
-        { lastName: { contains: search, mode: 'insensitive' } },
-        { studentCode: { contains: search, mode: 'insensitive' } },
-      ];
+    const searchClauses = buildStudentSearchClauses(search);
+    if (searchClauses.length) where.AND = searchClauses;
+
+    // "At risk" uses the platform's single definition (see attendance/absence-risk). Applied last, as an extra
+    // AND, so it can only narrow what the caller's assignment scope already allows, never widen it.
+    if (engagementStatus === 'at_risk') {
+      const atRisk = await findAtRiskStudents(this.prisma, schoolId);
+      where.AND = [...(where.AND || []), { id: { in: [...atRisk.keys()] } }];
     }
+
+    // Same narrowing-only rule: a data-gap filter is an extra AND on top of the caller's scope.
+    if (dataGap) where.AND = [...(where.AND || []), dataGapWhere(dataGap)];
 
     const dir = sortDir === 'desc' ? 'desc' : 'asc';
     const orderMap: Record<string, any> = {
@@ -110,6 +97,7 @@ export class StudentsService {
           level: { select: { id: true, name: true, number: true } },
           group: { select: { id: true, name: true } },
           grade: { select: { id: true, name: true } },
+          creator: { select: { id: true, firstName: true, lastName: true } },
           profile: true,
         },
         skip: (page - 1) * limit,
@@ -130,18 +118,92 @@ export class StudentsService {
     };
   }
 
-  async findOne(id: string, schoolIdentifier: string) {
+  private static readonly APPROVER_ROLES = ['super_admin', 'admin', 'principal'];
+  private static readonly STUDENT_STATUSES = ['active', 'inactive', 'graduated', 'transferred', 'pending'];
+
+  /**
+   * Row-level scope for assigned servants (servant / group_leader / level_leader):
+   * the where-fragment that limits which students they may touch. `{}` means
+   * unrestricted (admins, principals, internal callers with no user).
+   */
+  private async getAccessScope(user?: any): Promise<Record<string, any>> {
+    if (!user?.id) return {};
+    const userRecord = await this.prisma.user.findUnique({
+      where: { id: user.id },
+      select: { metadata: true, userRoles: { select: { role: { select: { name: true } } } } },
+    });
+    const meta = (userRecord?.metadata as any) || {};
+    const roleNames = (userRecord?.userRoles || []).map((ur: any) => ur.role?.name).filter(Boolean);
+    const isAdmin = roleNames.some((r: string) => ['super_admin', 'admin', 'principal'].includes(r));
+    const isServant = !isAdmin && roleNames.some((r: string) =>
+      ['servant', 'group_leader', 'level_leader'].includes(r),
+    );
+    const scope: Record<string, any> = {};
+    if (!isServant) return scope;
+    if (meta.groupId) scope.groupId = meta.groupId;
+    if (meta.levelId) scope.levelId = meta.levelId;
+    if (meta.gradeId) scope.gradeId = meta.gradeId;
+    if (meta.teachingGender && meta.teachingGender !== 'both') scope.gender = meta.teachingGender;
+    return scope;
+  }
+
+  /** 404 (not 403, so existence isn't leaked) when the student is outside the caller's scope. */
+  private async assertStudentAccess(id: string, schoolId: string, user?: any) {
+    const scope = await this.getAccessScope(user);
+    const found = await this.prisma.student.findFirst({
+      where: { id, schoolId, deletedAt: null, ...scope },
+      select: { id: true },
+    });
+    if (!found) throw new NotFoundException('Student not found');
+  }
+
+  /** A scoped user may not move a student into a level/group/grade outside their own assignment. */
+  private assertTargetInScope(scope: Record<string, any>, target: { levelId?: string; groupId?: string; gradeId?: string | null }) {
+    for (const key of ['levelId', 'groupId', 'gradeId'] as const) {
+      if (scope[key] && target[key] !== undefined && target[key] !== null && target[key] !== scope[key]) {
+        throw new ForbiddenException('You can only assign students within your own level, group and grade');
+      }
+    }
+  }
+
+  private isApprover(user?: any): boolean {
+    const roles: string[] = this.getUserRoleNames(user);
+    return roles.some(r => StudentsService.APPROVER_ROLES.includes(r));
+  }
+
+  private assertValidStatus(status: unknown) {
+    if (typeof status !== 'string' || !StudentsService.STUDENT_STATUSES.includes(status)) {
+      throw new BadRequestException('Invalid status');
+    }
+  }
+
+  /** Level / group / grade must belong to the caller's school (never trust ids from the body). */
+  private async assertSchoolOwns(schoolId: string, ref: { levelId?: string | null; groupId?: string | null }) {
+    if (ref.levelId) {
+      const level = await this.prisma.level.findFirst({ where: { id: ref.levelId, schoolId, deletedAt: null }, select: { id: true } });
+      if (!level) throw new BadRequestException('Level not found');
+    }
+    if (ref.groupId) {
+      const group = await this.prisma.group.findFirst({ where: { id: ref.groupId, schoolId, deletedAt: null }, select: { id: true } });
+      if (!group) throw new BadRequestException('Group not found');
+    }
+  }
+
+  async findOne(id: string, schoolIdentifier: string, user?: any) {
     const schoolId = await this.schoolResolver.resolve(schoolIdentifier);
+    const scope = await this.getAccessScope(user);
     const student = await this.prisma.student.findFirst({
       where: {
         id,
         schoolId,
         deletedAt: null,
+        ...scope,
       },
       include: {
         level: true,
         group: true,
         profile: true,
+        creator: { select: { id: true, firstName: true, lastName: true } },
         studentParents: {
           include: {
             parent: {
@@ -169,10 +231,8 @@ export class StudentsService {
     return student;
   }
 
-  async create(createStudentDto: CreateStudentDto, schoolIdentifier: string) {
+  async create(createStudentDto: CreateStudentDto, schoolIdentifier: string, creatorRoles: string[] = [], creatorUserId?: string) {
     const schoolId = await this.schoolResolver.resolve(schoolIdentifier);
-    const studentCode = await this.generateStudentCode(schoolId);
-
     let currentYear = await this.prisma.academicYear.findFirst({
       where: { schoolId, isCurrent: true },
     });
@@ -192,6 +252,9 @@ export class StudentsService {
     if (createStudentDto.address) metadata.address = createStudentDto.address;
     if (createStudentDto.notes) metadata.notes = createStudentDto.notes;
     if (createStudentDto.churchToolId) metadata.churchToolId = createStudentDto.churchToolId;
+    if (createStudentDto.studentPhone) metadata.studentPhone = createStudentDto.studentPhone;
+
+    await this.assertSchoolOwns(schoolId, { levelId: createStudentDto.levelId });
 
     let groupId: string;
     if (createStudentDto.gradeId) {
@@ -212,7 +275,9 @@ export class StudentsService {
       throw new BadRequestException('Grade or group is required');
     }
 
-    const student = await this.prisma.student.create({
+    const createOnce = async () => {
+      const studentCode = await this.generateStudentCode(schoolId);
+      return this.prisma.student.create({
       data: {
         firstName: createStudentDto.firstName,
         lastName: createStudentDto.lastName,
@@ -230,15 +295,33 @@ export class StudentsService {
         academicYearId: currentYear.id,
         parentEmail: createStudentDto.parentEmail || undefined,
         metadata: Object.keys(metadata).length > 0 ? metadata : undefined,
-        status: createStudentDto.status || 'active',
+        status: creatorRoles.some(r => ['super_admin', 'admin'].includes(r))
+          ? (createStudentDto.status || 'active')
+          : 'pending',
         enrollmentDate: new Date(),
+        createdBy: creatorUserId || undefined,
       },
       include: {
         level: true,
         group: true,
         grade: { select: { id: true, name: true } },
+        creator: creatorUserId ? { select: { id: true, firstName: true, lastName: true } } : false,
       },
-    });
+      });
+    };
+
+    // Two concurrent creates can be handed the same next code; the unique
+    // (schoolId, studentCode) index rejects the loser, which simply asks again.
+    let student: Awaited<ReturnType<typeof createOnce>>;
+    for (let attempt = 0; ; attempt++) {
+      try {
+        student = await createOnce();
+        break;
+      } catch (e: any) {
+        const isCodeConflict = e?.code === 'P2002' && /code/i.test(JSON.stringify(e?.meta?.target ?? ''));
+        if (!isCodeConflict || attempt >= 4) throw e;
+      }
+    }
 
     await this.audit.log({
       schoolId,
@@ -259,11 +342,20 @@ export class StudentsService {
     return student;
   }
 
-  async update(id: string, updateStudentDto: UpdateStudentDto, schoolIdentifier: string) {
+  async update(id: string, updateStudentDto: UpdateStudentDto, schoolIdentifier: string, user?: any) {
     const schoolId = await this.schoolResolver.resolve(schoolIdentifier);
-    const student = await this.findOne(id, schoolId);
+    const student = await this.findOne(id, schoolId, user);
 
     const data = { ...updateStudentDto } as any;
+
+    if (data.status !== undefined) {
+      this.assertValidStatus(data.status);
+      // Pending students were added by a servant and wait for an admin/principal to approve them.
+      if (student.status === 'pending' && data.status !== 'pending' && !this.isApprover(user)) {
+        throw new ForbiddenException('Only an admin or principal can approve a pending student');
+      }
+    }
+    await this.assertSchoolOwns(schoolId, { levelId: data.levelId });
     if (data.dateOfBirth) data.dateOfBirth = new Date(data.dateOfBirth);
 
     if (data.groupId === null) delete data.groupId;
@@ -285,9 +377,11 @@ export class StudentsService {
       delete data.groupId;
     }
 
+    this.assertTargetInScope(await this.getAccessScope(user), { levelId: data.levelId, groupId: data.groupId, gradeId: data.gradeId });
+
     // Merge contact fields into metadata
     const existingMeta = (student as any).metadata || {};
-    const metaFields: (keyof typeof data)[] = ['phone', 'email', 'address', 'notes', 'churchToolId'];
+    const metaFields: (keyof typeof data)[] = ['phone', 'studentPhone', 'email', 'address', 'notes', 'churchToolId'];
     const hasMetaUpdate = metaFields.some(f => data[f] !== undefined);
     if (hasMetaUpdate) {
       const newMeta: Record<string, string> = { ...existingMeta };
@@ -323,9 +417,9 @@ export class StudentsService {
     return updated;
   }
 
-  async remove(id: string, schoolIdentifier: string) {
+  async remove(id: string, schoolIdentifier: string, user?: any) {
     const schoolId = await this.schoolResolver.resolve(schoolIdentifier);
-    const student = await this.findOne(id, schoolId);
+    const student = await this.findOne(id, schoolId, user);
 
     await this.prisma.student.update({
       where: { id: student.id },
@@ -343,9 +437,9 @@ export class StudentsService {
     return { success: true };
   }
 
-  async getAttendanceHistory(studentId: string, schoolIdentifier: string) {
+  async getAttendanceHistory(studentId: string, schoolIdentifier: string, user?: any) {
     const schoolId = await this.schoolResolver.resolve(schoolIdentifier);
-    await this.findOne(studentId, schoolId);
+    await this.findOne(studentId, schoolId, user);
 
     const records = await this.prisma.attendanceRecord.findMany({
       where: {
@@ -365,9 +459,9 @@ export class StudentsService {
     return records;
   }
 
-  async getProgress(studentId: string, schoolIdentifier: string) {
+  async getProgress(studentId: string, schoolIdentifier: string, user?: any) {
     const schoolId = await this.schoolResolver.resolve(schoolIdentifier);
-    await this.findOne(studentId, schoolId);
+    await this.findOne(studentId, schoolId, user);
 
     const progress = await this.prisma.studentProgress.findMany({
       where: { studentId },
@@ -562,7 +656,7 @@ export class StudentsService {
     return { imported: results.length, students: results };
   }
 
-  async bulkUpdate(ids: string[], data: Partial<UpdateStudentDto>, schoolIdentifier: string) {
+  async bulkUpdate(ids: string[], data: Partial<UpdateStudentDto>, schoolIdentifier: string, user?: any) {
     const schoolId = await this.schoolResolver.resolve(schoolIdentifier);
     if (!Array.isArray(ids) || ids.length === 0) throw new BadRequestException('ids are required');
 
@@ -584,10 +678,19 @@ export class StudentsService {
       updateData.groupId = grade.groupId;
     }
 
-    const result = await this.prisma.student.updateMany({
-      where: { id: { in: ids }, schoolId, deletedAt: null },
-      data: updateData,
-    });
+    if (updateData.status !== undefined) this.assertValidStatus(updateData.status);
+    await this.assertSchoolOwns(schoolId, { levelId: updateData.levelId, groupId: updateData.groupId });
+
+    const scope = await this.getAccessScope(user);
+    this.assertTargetInScope(scope, updateData);
+
+    const where: any = { id: { in: ids }, schoolId, deletedAt: null, ...scope };
+    // Only an approver may move students out of 'pending'; those rows are skipped, not failed.
+    if (updateData.status !== undefined && updateData.status !== 'pending' && !this.isApprover(user)) {
+      where.status = { not: 'pending' };
+    }
+
+    const result = await this.prisma.student.updateMany({ where, data: updateData });
 
     await this.audit.log({
       schoolId,
@@ -596,15 +699,15 @@ export class StudentsService {
       newValues: { ids, data: updateData, count: result.count },
     });
 
-    return { updated: result.count };
+    return { updated: result.count, skipped: ids.length - result.count };
   }
 
-  async bulkDelete(ids: string[], schoolIdentifier: string) {
+  async bulkDelete(ids: string[], schoolIdentifier: string, user?: any) {
     const schoolId = await this.schoolResolver.resolve(schoolIdentifier);
     if (!Array.isArray(ids) || ids.length === 0) throw new BadRequestException('ids are required');
 
     const result = await this.prisma.student.updateMany({
-      where: { id: { in: ids }, schoolId, deletedAt: null },
+      where: { id: { in: ids }, schoolId, deletedAt: null, ...(await this.getAccessScope(user)) },
       data: { deletedAt: new Date() },
     });
 
@@ -626,7 +729,7 @@ export class StudentsService {
     return { deleted: result.count };
   }
 
-  async bulkAssignServant(ids: string[], servantId: string, schoolIdentifier: string) {
+  async bulkAssignServant(ids: string[], servantId: string, schoolIdentifier: string, user?: any) {
     const schoolId = await this.schoolResolver.resolve(schoolIdentifier);
     if (!Array.isArray(ids) || ids.length === 0) throw new BadRequestException('ids are required');
     if (!servantId) throw new BadRequestException('servantId is required');
@@ -635,7 +738,7 @@ export class StudentsService {
     if (!servant) throw new BadRequestException('Servant not found');
 
     const students = await this.prisma.student.findMany({
-      where: { id: { in: ids }, schoolId, deletedAt: null },
+      where: { id: { in: ids }, schoolId, deletedAt: null, ...(await this.getAccessScope(user)) },
       select: { id: true, metadata: true },
     });
 
@@ -661,9 +764,9 @@ export class StudentsService {
     return { assigned: students.length };
   }
 
-  async updateTags(id: string, tags: string[], schoolIdentifier: string) {
+  async updateTags(id: string, tags: string[], schoolIdentifier: string, user?: any) {
     const schoolId = await this.schoolResolver.resolve(schoolIdentifier);
-    const student = await this.findOne(id, schoolId);
+    const student = await this.findOne(id, schoolId, user);
     const meta = ((student as any).metadata as any) || {};
     const cleanTags = [...new Set(tags.map(t => t.trim()).filter(Boolean))].slice(0, 10);
 
@@ -824,17 +927,22 @@ async getPortalData(portalAccessKey: string) {
         level: { select: { id: true, name: true, number: true, nameAr: true } },
         group: { select: { id: true, name: true, nameAr: true } },
         school: {
-          select: { id: true, name: true, nameAr: true, logoUrl: true, church: { select: { name: true, nameAr: true, logoUrl: true } } },
+          select: { id: true, name: true, nameAr: true, logoUrl: true, timezone: true, church: { select: { name: true, nameAr: true, logoUrl: true } } },
         },
       },
     });
     if (!student) throw new NotFoundException('Student not found');
 
-    const [attRecords, badges, xpResult, upcoming, assignedAssessments, liturgies] = await Promise.all([
+    const [attRecords, badges, xpResult, upcoming, assignedAssessments, familyLiturgies, servantLiturgyRecords] = await Promise.all([
       this.prisma.attendanceRecord.findMany({
-        // Integrate with the attendance module's semantics: exclude records
-        // belonging to soft-deleted sessions and scope to the student's school.
-        where: { studentId: student.id, attendanceSession: { schoolId: student.schoolId, deletedAt: null } },
+        where: {
+          studentId: student.id,
+          attendanceSession: {
+            schoolId: student.schoolId,
+            deletedAt: null,
+            OR: [{ notes: null }, { notes: { not: 'liturgy' } }],
+          },
+        },
         include: { attendanceSession: { select: { scheduledDate: true, scheduledTime: true } } },
         orderBy: { attendanceSession: { scheduledDate: 'desc' } },
         take: 10,
@@ -854,18 +962,20 @@ async getPortalData(portalAccessKey: string) {
         orderBy: { scheduledDate: 'asc' },
         take: 5,
       }),
+      // Every live record, not "the newest 20": the live one per assessment is chosen below by the
+      // same rule the teacher screens use, so the two can never disagree about done vs pending.
       this.prisma.assessmentSubmission.findMany({
         where: {
           studentId: student.id,
-          // A prior attempt archived by a re-take must never surface as the live row.
-          status: { not: 'superseded' },
+          ...LIFECYCLE_WHERE,
           assessment: { status: 'published', deletedAt: null, schoolId: student.schoolId },
         },
         include: {
           assessment: {
             select: {
               id: true, title: true, titleAr: true, type: true, totalPoints: true,
-              passingScore: true, dueDate: true, status: true,
+              passingScore: true, dueDate: true, status: true, deletedAt: true,
+              levelId: true, groupId: true, metadata: true,
               allowRetry: true, maxAttempts: true, allowLateSubmission: true,
               level: { select: { id: true, name: true } },
               subject: { select: { id: true, name: true, nameAr: true } },
@@ -874,15 +984,24 @@ async getPortalData(portalAccessKey: string) {
           grades: { select: { questionId: true, score: true, maxScore: true } },
         },
         orderBy: { createdAt: 'desc' },
-        take: 20,
-        distinct: ['assessmentId'], // Only latest submission per assessment
       }),
-      // Liturgy attendance (FamilyLiturgy) — verified + pending entries
+      // Liturgy attendance (FamilyLiturgy) — self-reported by student/parent
       this.prisma.familyLiturgy.findMany({
         where: { studentId: student.id },
         orderBy: { date: 'desc' },
         take: 10,
         select: { date: true, status: true, notes: true, servantNote: true },
+      }),
+      // Liturgy attendance (AttendanceRecord) — recorded by servants via roll-call
+      this.prisma.attendanceRecord.findMany({
+        where: {
+          studentId: student.id,
+          attendedLiturgy: true,
+          attendanceSession: { schoolId: student.schoolId, deletedAt: null },
+        },
+        include: { attendanceSession: { select: { scheduledDate: true } } },
+        orderBy: { attendanceSession: { scheduledDate: 'desc' } },
+        take: 10,
       }),
     ]);
 
@@ -896,12 +1015,16 @@ async getPortalData(portalAccessKey: string) {
       : [];
     const awarderNames = new Map(awarders.map(u => [u.id, `${u.firstName} ${u.lastName}`]));
 
+    // Cancelled sessions require no recording from the student — their records
+    // (status 'cancelled') are excluded from the summary/rate, same as the
+    // staff-facing attendance stats.
+    const gradableAttRecords = attRecords.filter(r => r.status !== 'cancelled');
     const attendanceSummary = {
-      present: attRecords.filter(r => r.status === 'present').length,
-      late: attRecords.filter(r => r.status === 'late').length,
-      absent: attRecords.filter(r => r.status === 'absent').length,
-      excused: attRecords.filter(r => r.status === 'excused').length,
-      total: attRecords.length,
+      present: gradableAttRecords.filter(r => r.status === 'present').length,
+      late: gradableAttRecords.filter(r => r.status === 'late').length,
+      absent: gradableAttRecords.filter(r => r.status === 'absent').length,
+      excused: gradableAttRecords.filter(r => r.status === 'excused').length,
+      total: gradableAttRecords.length,
     };
 
     const totalXp = xpResult._sum?.amount || 0;
@@ -936,6 +1059,8 @@ async getPortalData(portalAccessKey: string) {
             churchLogoUrl: student.school.church?.logoUrl ?? null,
           }
         : null,
+      // Birthday card signal, computed here so the date of birth itself never reaches the browser.
+      birthday: this.portalBirthday(student, badges as any[]),
       attendance: attendanceSummary,
       recentAttendance: attRecords.map(r => ({
         date: r.attendanceSession.scheduledDate,
@@ -954,15 +1079,29 @@ async getPortalData(portalAccessKey: string) {
         awardedBy: b.awardedBy ? awarderNames.get(b.awardedBy) || null : null,
         reason: b.reason || null,
       })),
-      liturgy: {
-        verifiedCount: liturgies.filter((l: any) => l.status === 'verified').length,
-        pendingCount: liturgies.filter((l: any) => l.status !== 'verified').length,
-        recent: liturgies.slice(0, 5).map((l: any) => ({
-          date: l.date,
-          status: l.status,
-          servantNote: l.servantNote,
-        })),
-      },
+      liturgy: (() => {
+        // Merge both liturgy sources: FamilyLiturgy (self-reported) and
+        // AttendanceRecord (servant roll-call). Deduplicate by date so a date
+        // that appears in both counts only once, preferring the richer record.
+        const dateKey = (d: Date | string) => new Date(d).toISOString().split('T')[0];
+        const merged = new Map<string, { date: Date | string; status: string; servantNote?: string | null }>();
+        for (const r of servantLiturgyRecords) {
+          const dk = dateKey(r.attendanceSession.scheduledDate);
+          merged.set(dk, { date: r.attendanceSession.scheduledDate, status: 'verified', servantNote: null });
+        }
+        for (const l of familyLiturgies as any[]) {
+          const dk = dateKey(l.date);
+          if (!merged.has(dk) || l.status === 'verified') {
+            merged.set(dk, { date: l.date, status: l.status, servantNote: l.servantNote });
+          }
+        }
+        const all = [...merged.values()].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        return {
+          verifiedCount: all.filter(l => l.status === 'verified').length,
+          pendingCount: all.filter(l => l.status !== 'verified').length,
+          recent: all.slice(0, 5).map(l => ({ date: l.date, status: l.status, servantNote: l.servantNote })),
+        };
+      })(),
       totalXp,
       upcomingSessions: upcoming.map(s => ({
         id: s.id,
@@ -970,7 +1109,43 @@ async getPortalData(portalAccessKey: string) {
         time: s.scheduledTime,
       })),
       recentHomework,
-      assessments: assignedAssessments.map((sub: any) => {
+      assessments: this.portalAssessments(student, assignedAssessments as any[]),
+    };
+  }
+
+  /**
+   * Set from the student's birthday until a week after it, so the portal can show a birthday card.
+   * A family can opt out with metadata.birthdayOptOut. Null otherwise.
+   */
+  private portalBirthday(student: { dateOfBirth: Date; metadata: any; school?: { timezone?: string | null } | null }, badges: any[] = []) {
+    if ((student.metadata as any)?.birthdayOptOut === true) return null;
+    const today = localToday(new Date(), student.school?.timezone || 'UTC');
+    const w = studentBirthdayWindow(new Date(student.dateOfBirth), today);
+    if (!w || w.daysAway > 0 || w.daysAway < -7) return null;
+    const giftName = birthdayBadgeName(w.year);
+    return {
+      daysSince: -w.daysAway || 0,
+      turningAge: w.turningAge,
+      year: w.year,
+      giftClaimed: badges.some((b) => b.badge?.name === giftName),
+    };
+  }
+
+  /**
+   * The assessments a student sees: one entry per assessment, taken from its live record.
+   * An untouched assignment for an assessment that is not for this student's level or group is
+   * stale (old test data, a change of group) and is hidden; anything with work on it stays.
+   */
+  private portalAssessments(student: { levelId: string; groupId: string | null; gender?: string | null }, rows: any[]) {
+    const live = liveByKey(
+      rows.filter((r) => r.assessment && !r.assessment.deletedAt),
+      (r) => r.assessment.id,
+    );
+    return Array.from(live.values())
+      .filter((sub) => sub.status !== 'assigned' || isEligible(student, { ...sub.assessment, gender: assessmentGender(sub.assessment.metadata) }))
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+      .slice(0, 20)
+      .map((sub) => {
         // A servant's overall mark replaces the per-question rows rather than adding to them.
         const totalPoints = Number(sub.assessment.totalPoints);
         const { earned, max } = submissionScore(sub.grades ?? [], totalPoints);
@@ -1008,8 +1183,7 @@ async getPortalData(portalAccessKey: string) {
           earnedScore: completed ? earnedOnTotal : null,
           attempt: { number: state.attemptNumber, max: state.max, canRetry: state.canRetry },
         };
-      }),
-    };
+      });
   }
 
   async getStats(schoolIdentifier: string, filters?: {
@@ -1020,33 +1194,14 @@ async getPortalData(portalAccessKey: string) {
     const where: any = { deletedAt: null, schoolId };
 
     // Auto-filter by servant's metadata assignments
-    if (user) {
-      const userRecord = await this.prisma.user.findUnique({
-        where: { id: user.id },
-        select: { metadata: true, userRoles: { select: { role: { select: { name: true } } } } },
-      });
-      const meta = (userRecord?.metadata as any) || {};
-      const isServant = userRecord?.userRoles?.some((ur: any) =>
-        ['servant', 'group_leader', 'level_leader'].includes(ur.role.name)
-      );
-
-      if (isServant) {
-        if (meta.groupId) where.groupId = meta.groupId;
-        if (meta.levelId) where.levelId = meta.levelId;
-        if (meta.gradeId) where.gradeId = meta.gradeId;
-        if (meta.teachingGender && meta.teachingGender !== 'both') {
-          where.gender = meta.teachingGender;
-        }
-      }
-    }
-
-    // Apply explicit query filters (override metadata)
+    // Explicit filters first; the caller's assignment scope is applied afterwards so it always wins.
     if (filters?.levelId) where.levelId = filters.levelId;
     if (filters?.groupId) where.groupId = filters.groupId;
     if (filters?.status) where.status = filters.status;
     if (filters?.gradeId) where.gradeId = filters.gradeId;
     if (filters?.gender) where.gender = filters.gender;
     if (filters?.churchName) where.churchName = filters.churchName;
+    Object.assign(where, await this.getAccessScope(user));
 
     if (filters?.assignedServantId) {
       where.metadata = {
@@ -1055,13 +1210,8 @@ async getPortalData(portalAccessKey: string) {
       };
     }
 
-    if (filters?.search) {
-      where.OR = [
-        { firstName: { contains: filters.search, mode: 'insensitive' } },
-        { lastName: { contains: filters.search, mode: 'insensitive' } },
-        { studentCode: { contains: filters.search, mode: 'insensitive' } },
-      ];
-    }
+    const searchClauses = buildStudentSearchClauses(filters?.search);
+    if (searchClauses.length) where.AND = searchClauses;
 
     const [total, active, inactive, graduated, male, female] = await Promise.all([
       this.prisma.student.count({ where }),
@@ -1140,6 +1290,27 @@ async getPortalData(portalAccessKey: string) {
     return [];
   }
 
+  /**
+   * Gate for the subject-item endpoints, which look students up by bare id: the caller must be in
+   * the student's school and, if assigned to a level/group/grade, the student must be inside it.
+   * Parents only reach their own linked children.
+   */
+  private async assertCanAccessStudentRecord(student: { id: string; schoolId: string }, user: any) {
+    const roles = this.getUserRoleNames(user);
+    if (roles.includes('super_admin')) return;
+    if (!user?.schoolId || user.schoolId !== student.schoolId) throw new NotFoundException('Student not found');
+    if (roles.some(r => StudentsService.PASS_ROLES.includes(r))) {
+      const scope = await this.getAccessScope(user);
+      if (Object.keys(scope).length) {
+        const inScope = await this.prisma.student.findFirst({ where: { id: student.id, ...scope }, select: { id: true } });
+        if (!inScope) throw new NotFoundException('Student not found');
+      }
+      return;
+    }
+    const link = await this.prisma.studentParent.findFirst({ where: { studentId: student.id, parentId: user.id }, select: { id: true } });
+    if (!link) throw new NotFoundException('Student not found');
+  }
+
   async toggleSubjectItemPass(studentId: string, subjectItemId: string, user: any, dto: { note?: string } = {}) {
     const roleNames = this.getUserRoleNames(user);
     if (!roleNames.some((r) => StudentsService.PASS_ROLES.includes(r))) {
@@ -1152,6 +1323,7 @@ async getPortalData(portalAccessKey: string) {
       select: { id: true, schoolId: true, level: { select: { number: true } } },
     });
     if (!student) throw new NotFoundException('Student not found');
+    await this.assertCanAccessStudentRecord(student, user);
 
     const subjectItem = await this.prisma.subjectItem.findFirst({
       where: { id: subjectItemId, subject: { deletedAt: null } },
@@ -1201,9 +1373,10 @@ async getPortalData(portalAccessKey: string) {
 
     const student = await this.prisma.student.findFirst({
       where: { id: studentId, deletedAt: null },
-      select: { id: true, level: { select: { number: true } } },
+      select: { id: true, schoolId: true, level: { select: { number: true } } },
     });
     if (!student) throw new NotFoundException('Student not found');
+    if (!opts?.portal) await this.assertCanAccessStudentRecord(student, user);
 
     const items = await this.prisma.subjectItem.findMany({
       where: {
@@ -1255,9 +1428,10 @@ async getPortalData(portalAccessKey: string) {
 
     const student = await this.prisma.student.findFirst({
       where: { id: studentId, deletedAt: null },
-      select: { id: true },
+      select: { id: true, schoolId: true },
     });
     if (!student) throw new NotFoundException('Student not found');
+    if (!opts?.portal) await this.assertCanAccessStudentRecord(student, user);
 
 return this.prisma.studentSubjectPass.findMany({
       where: { studentId },
@@ -1265,11 +1439,46 @@ return this.prisma.studentSubjectPass.findMany({
     });
   }
 
-  async rotatePortalAccessKey(studentId: string) {
+  /** Approve a pending student (admin / principal only — enforced by the controller's @Roles). */
+  async approve(id: string, schoolIdentifier: string, user?: any) {
+    const schoolId = await this.schoolResolver.resolve(schoolIdentifier);
+    const student = await this.findOne(id, schoolId, user);
+    if (student.status !== 'pending') throw new BadRequestException('Student is not pending approval');
+    const updated = await this.prisma.student.update({
+      where: { id: student.id },
+      data: { status: 'active' },
+      include: { level: true, group: true, grade: { select: { id: true, name: true } } },
+    });
+    await this.audit.log({
+      schoolId,
+      action: 'APPROVE',
+      entityType: 'student',
+      entityId: student.id,
+      userId: user?.id,
+      oldValues: { status: 'pending' },
+      newValues: { status: 'active' },
+    });
+    return updated;
+  }
+
+  async rotatePortalAccessKey(studentId: string, user?: any) {
+    const isSuperAdmin = this.getUserRoleNames(user).includes('super_admin');
+    if (!isSuperAdmin && !user?.schoolId) throw new ForbiddenException('School context is required');
+    const student = await this.prisma.student.findFirst({
+      where: { id: studentId, deletedAt: null, ...(isSuperAdmin ? {} : { schoolId: user.schoolId }) },
+      select: { id: true, schoolId: true },
+    });
+    if (!student) throw new NotFoundException('Student not found');
+
     const newKey = uuidv4();
-    const student = await this.prisma.student.update({
-      where: { id: studentId },
-      data: { portalAccessKey: newKey },
+    await this.prisma.student.update({ where: { id: student.id }, data: { portalAccessKey: newKey } });
+    // The key itself is a credential: record who rotated it and when, never the value.
+    await this.audit.log({
+      schoolId: student.schoolId,
+      action: 'ROTATE_PORTAL_KEY',
+      entityType: 'student',
+      entityId: student.id,
+      userId: user?.id,
     });
     return { newKey, message: 'Portal access key rotated successfully' };
   }

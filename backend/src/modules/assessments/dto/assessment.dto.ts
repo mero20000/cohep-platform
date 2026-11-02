@@ -65,6 +65,11 @@ export class CreateAssessmentDto {
   @IsString()
   grade?: string;
 
+  /** Limit the assessment to boys or girls within the level/group/grade. Defaults to everyone. */
+  @IsOptional()
+  @IsIn(['all', 'male', 'female'])
+  gender?: 'all' | 'male' | 'female';
+
   @IsOptional()
   @IsUUID()
   lessonId?: string;
@@ -164,6 +169,11 @@ export class UpdateAssessmentDto {
   @IsOptional()
   @IsString()
   grade?: string;
+
+  /** Limit the assessment to boys or girls within the level/group/grade. Defaults to everyone. */
+  @IsOptional()
+  @IsIn(['all', 'male', 'female'])
+  gender?: 'all' | 'male' | 'female';
 
   @IsOptional()
   @IsUUID()
@@ -280,6 +290,15 @@ export class AssignStudentsDto {
   studentIds: string[];
 }
 
+export class QuestionScoreDto {
+  @IsUUID()
+  questionId: string;
+
+  @IsNumber()
+  @Min(0)
+  score: number;
+}
+
 export class MarkStudentDto {
   @IsNumber()
   @Min(0)
@@ -292,4 +311,50 @@ export class MarkStudentDto {
   @IsOptional()
   @IsString()
   feedback?: string;
+
+  /**
+   * Points not tied to a question (a recording, an oral). Added to the per-question sum, or
+   * used as the whole mark when there are no per-question scores.
+   */
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  extraScore?: number;
+
+  /** Optional per-question scores. When given, the overall score is their sum plus extraScore. */
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => QuestionScoreDto)
+  questionScores?: QuestionScoreDto[];
+}
+
+export class ReturnSubmissionDto {
+  @IsOptional()
+  @IsString()
+  note?: string;
+}
+
+export class AcceptAutoScoresDto {
+  @IsArray()
+  @IsUUID('all', { each: true })
+  submissionIds: string[];
+}
+
+export class IntegrityFixItemDto {
+  @IsIn(['duplicate', 'not_assigned'])
+  kind: 'duplicate' | 'not_assigned';
+
+  @IsUUID()
+  assessmentId: string;
+
+  @IsUUID()
+  studentId: string;
+}
+
+export class FixIntegrityDto {
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => IntegrityFixItemDto)
+  items: IntegrityFixItemDto[];
 }

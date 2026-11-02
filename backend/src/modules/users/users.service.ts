@@ -1,6 +1,8 @@
+import { ATTENDANCE_TARGET_KEY, isValidAttendanceTarget } from '../reports/attendance-target';
 import { Injectable, NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../../database/prisma.service';
+import { buildUserSearchClauses } from '../../common/utils/search';
 
 const VALID_TEACHING_SUBJECTS = ['coptic_hymns', 'coptic_rites', 'coptic_language'] as const;
 const TEACHING_SUBJECT_ALIASES: Record<string, string> = {
@@ -8,6 +10,9 @@ const TEACHING_SUBJECT_ALIASES: Record<string, string> = {
   'Coptic Rites': 'coptic_rites',
   'Coptic Language': 'coptic_language',
 };
+
+// Roles only a super admin may grant or revoke.
+const PRIVILEGED_ROLES = ['super_admin', 'admin'];
 
 @Injectable()
 export class UsersService {
@@ -29,6 +34,12 @@ export class UsersService {
       where: { userId_roleId: { userId, roleId: role.id } },
     });
     return !!userRole;
+  }
+
+  // Single source of truth for who may hand out privileged roles. Every path that
+  // attaches a role (assign, create, bulk import) must go through this.
+  private mayGrantRole(requestingUser: any, roleName: string): boolean {
+    return !!requestingUser?.roles?.includes('super_admin') || !PRIVILEGED_ROLES.includes(roleName);
   }
 
   // Tenancy guard: non-super-admin callers may only operate on users within
@@ -106,13 +117,7 @@ export class UsersService {
       }
     }
     if (query?.isActive !== undefined) where.isActive = query.isActive === 'true';
-    if (query?.search) {
-      where.OR = [
-        { firstName: { contains: query.search, mode: 'insensitive' } },
-        { lastName: { contains: query.search, mode: 'insensitive' } },
-        { email: { contains: query.search, mode: 'insensitive' } },
-      ];
-    }
+    and.push(...buildUserSearchClauses(query?.search));
     const roleNames = query?.roleIn
       ? query.roleIn.split(',').map(r => r.trim()).filter(Boolean)
       : query?.role ? [query.role] : [];
@@ -292,7 +297,7 @@ export class UsersService {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) throw new NotFoundException('User not found');
     await this.requireSameSchool(requestingUser, user);
-    if (requestingUser && !requestingUser.roles?.includes('super_admin') && (roleName === 'super_admin' || roleName === 'admin')) {
+    if (requestingUser && !this.mayGrantRole(requestingUser, roleName)) {
       throw new BadRequestException('Only super admin can assign super_admin or admin roles');
     }
     const role = await this.prisma.role.findFirst({ where: { name: roleName } });
@@ -306,7 +311,7 @@ export class UsersService {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) throw new NotFoundException('User not found');
     await this.requireSameSchool(requestingUser, user);
-    if (requestingUser && !requestingUser.roles?.includes('super_admin') && (roleName === 'super_admin' || roleName === 'admin')) {
+    if (requestingUser && !this.mayGrantRole(requestingUser, roleName)) {
       throw new BadRequestException('Only super admin can remove super_admin or admin roles');
     }
     const role = await this.prisma.role.findFirst({ where: { name: roleName } });
@@ -330,6 +335,10 @@ export class UsersService {
       if (!schoolId) throw new BadRequestException('Unable to determine school');
     }
 
+    // Refuse before creating anything, so a rejected role never leaves a role-less user behind.
+    if (data.roleName && !this.mayGrantRole(requestingUser, data.roleName)) {
+      throw new BadRequestException('Only super admin can assign super_admin or admin roles');
+    }
     const existing = await this.prisma.user.findFirst({ where: { email: data.email, schoolId, deletedAt: null } });
     if (existing) throw new ConflictException('User with this email already exists');
     // Validate metadata FKs
@@ -348,9 +357,6 @@ export class UsersService {
       select: { id: true, email: true, firstName: true, lastName: true, createdAt: true },
     });
     if (data.roleName) {
-      if (!isSuperAdmin && (data.roleName === 'super_admin' || data.roleName === 'admin')) {
-        throw new BadRequestException('Only super admin can assign super_admin or admin roles');
-      }
       const role = await this.prisma.role.findFirst({ where: { name: data.roleName } });
       if (role) await this.prisma.userRole.create({ data: { userId: user.id, roleId: role.id } });
     }
@@ -387,6 +393,13 @@ export class UsersService {
         batch.map(async (data, batchIdx) => {
           const idx = i + batchIdx;
           try {
+            // Applies to both branches below: an existing user must not be promoted
+            // through import any more than a new one may be created with the role.
+            if (data.roleName && !this.mayGrantRole(requestingUser, data.roleName)) {
+              results.failed++;
+              results.errors.push({ index: idx, email: data.email, reason: 'Insufficient permissions for role' });
+              return;
+            }
             const existing = await this.prisma.user.findFirst({
               where: { email: data.email, schoolId, deletedAt: null },
             });
@@ -428,11 +441,6 @@ export class UsersService {
             });
 
             if (data.roleName) {
-              if (!isSuperAdmin && (data.roleName === 'super_admin' || data.roleName === 'admin')) {
-                results.failed++;
-                results.errors.push({ index: idx, email: data.email, reason: 'Insufficient permissions for role' });
-                return;
-              }
               const role = await this.prisma.role.findFirst({ where: { name: data.roleName } });
               if (role) await this.prisma.userRole.create({ data: { userId: user.id, roleId: role.id } });
             }
@@ -598,7 +606,8 @@ export class UsersService {
     return { success: true };
   }
 
-  async getSystemConfig(schoolId: string, key?: string) {
+  async getSystemConfig(schoolId: string, key?: string, requestingUser?: any) {
+    this.requireOwnSchool(requestingUser, { id: schoolId });
     const where: any = { schoolId };
     if (key) where.key = key;
     const configs = await this.prisma.systemConfig.findMany({ where });
@@ -606,7 +615,11 @@ export class UsersService {
     return configs;
   }
 
-  async setSystemConfig(schoolId: string, key: string, value: any, description?: string) {
+  async setSystemConfig(schoolId: string, key: string, value: any, description?: string, requestingUser?: any) {
+    this.requireOwnSchool(requestingUser, { id: schoolId });
+    if (key === ATTENDANCE_TARGET_KEY && !isValidAttendanceTarget(value)) {
+      throw new BadRequestException('attendance_target must be a whole number from 1 to 100');
+    }
     return this.prisma.systemConfig.upsert({
       where: { schoolId_key: { schoolId, key } },
       update: { value, description },

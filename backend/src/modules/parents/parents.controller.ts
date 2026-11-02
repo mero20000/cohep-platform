@@ -22,9 +22,9 @@ export class ParentsController {
   @Post('me/children/link')
   @Roles('parent', 'admin')
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Link a child to your account using the child student code' })
+  @ApiOperation({ summary: 'Link a child to your account using the child student code and date of birth' })
   async linkChild(@Body() dto: LinkChildDto, @Req() req: any) {
-    return this.parentsService.linkChild(dto.studentCode, req.user.id, dto.relationship);
+    return this.parentsService.linkChild(dto.studentCode, dto.dateOfBirth, req.user.id, dto.relationship);
   }
 
   @Delete('me/children/:id')

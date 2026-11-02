@@ -14,7 +14,7 @@ const detail: AssessmentDetail = {
   groupId: 'g1',
   lessonId: 'les1',
   subjectId: 's1',
-  metadata: { term: 2, grade: 'G3', durationMinutes: 45 },
+  metadata: { term: 2, grade: 'G3', gender: 'female', durationMinutes: 45 },
   questions: [
     { id: 'q1', questionText: 'Q one', type: 'multiple_choice', options: ['A', 'B'], correctAnswer: 'A', points: 5 },
     { id: 'q2', questionText: 'Q two', type: 'true_false', options: null, correctAnswer: 'true', points: 5 },
@@ -35,6 +35,7 @@ describe('assessmentToForm', () => {
       levelId: 'l1',
       groupId: 'g1',
       grade: 'G3',
+      gender: 'female',
       lessonId: 'les1',
       subjectId: 's1',
       totalPoints: '100',
@@ -66,11 +67,16 @@ describe('assessmentToForm', () => {
     expect(form.maxAttempts).toBe('3')
     expect(form.durationMinutes).toBe('')
     expect(form.term).toBe('')
+    expect(form.gender).toBe('all')
   })
 })
 
 describe('toCopyForm', () => {
   const source = assessmentToForm(detail)
+
+  it('keeps the boys-only or girls-only audience on the copy', () => {
+    expect(toCopyForm(source, 'en').gender).toBe('female')
+  })
 
   it('titles the copy in English', () => {
     expect(toCopyForm(source, 'en').title).toBe('Copy of Midterm')

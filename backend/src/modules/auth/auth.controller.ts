@@ -126,8 +126,11 @@ export class AuthController {
   @ApiBearerAuth()
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Change password' })
-  async changePassword(@Request() req, @Body() dto: ChangePasswordDto) {
-    return this.authService.changePassword(req.user.id, dto.currentPassword, dto.newPassword);
+  async changePassword(@Request() req, @Body() dto: ChangePasswordDto, @Res({ passthrough: true }) res: Response) {
+    const result = await this.authService.changePassword(req.user.id, dto.currentPassword, dto.newPassword);
+    // Every older session was just ended; this device continues on the fresh tokens.
+    this.setAuthCookies(res, result);
+    return result;
   }
 
   @Post('forgot-password')

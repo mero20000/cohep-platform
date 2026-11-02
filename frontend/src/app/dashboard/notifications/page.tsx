@@ -135,7 +135,7 @@ export default function NotificationsPage() {
               return (
                 <div key={n.id}
                   className={`flex items-start gap-4 px-4 py-4 transition-colors ${n.isRead ? '' : 'bg-blue-50/40'} hover:bg-gray-50/50`}>
-                  <div className={`flex h-9 w-9 items-center justify-center rounded-full flex-shrink-0 ${n.isRead ? 'bg-gray-100' : 'bg-blue-100'}`}>
+                  <div className={`flex h-9 w-9 items-center justify-center rounded-full shrink-0 ${n.isRead ? 'bg-gray-100' : 'bg-blue-100'}`}>
                     <Icon className={`h-4 w-4 ${n.isRead ? 'text-gray-400' : 'text-blue-600'}`} />
                   </div>
                   <div className="flex-1 min-w-0">
@@ -146,7 +146,7 @@ export default function NotificationsPage() {
                         </p>
                         {tl && <span className="text-[11px] text-gray-400">{lang === 'ar' ? tl.ar : tl.en}</span>}
                       </div>
-                      <span className="text-xs text-gray-400 whitespace-nowrap flex-shrink-0">{timeAgo(n.createdAt)}</span>
+                      <span className="text-xs text-gray-400 whitespace-nowrap shrink-0">{timeAgo(n.createdAt)}</span>
                     </div>
                     <p className="text-xs text-gray-500 mt-1">{lang === 'ar' ? (n.bodyAr || n.body) : n.body}</p>
                   </div>

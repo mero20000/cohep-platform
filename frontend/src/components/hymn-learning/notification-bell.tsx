@@ -14,6 +14,8 @@ import {
 const ICONS: Record<StudentNotificationType, typeof Bell> = {
   practice_reviewed: Star,
   assessment_graded: ClipboardCheck,
+  assessment_returned: ClipboardCheck,
+  assessment_reset: ClipboardCheck,
   liturgy_verified: Church,
   liturgy_rejected: XCircle,
   liturgy_clearance: Church,
@@ -91,7 +93,7 @@ export function NotificationBell({
 
       {open && (
         <div
-          className="absolute end-0 z-50 mt-2 w-80 max-w-[calc(100vw-2rem)] overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-xl"
+          className="absolute inset-e-0 z-50 mt-2 w-80 max-w-[calc(100vw-2rem)] overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-xl"
           role="dialog"
           aria-label={t('Notifications', 'الإشعارات')}
         >

@@ -40,7 +40,7 @@ export function Pagination({ page, totalPages, total, onPageChange, pageSize, on
             value={pageSize}
             onChange={e => onPageSizeChange(Number(e.target.value))}
             aria-label={t('Rows per page','عدد الصفوف')}
-            className="rounded-lg border border-gray-200 px-2 py-1 text-xs text-gray-600 focus:outline-none focus:ring-1 focus:ring-blue-500">
+            className="rounded-lg border border-gray-200 px-2 py-1 text-xs text-gray-600 focus:outline-hidden focus:ring-1 focus:ring-blue-500">
             {[20, 50, 100].map(s => <option key={s} value={s}>{s} {t('/ page','/ صفحة')}</option>)}
           </select>
         )}

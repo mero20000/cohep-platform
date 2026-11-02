@@ -27,8 +27,9 @@ export function StudentBulkModals({ showBulkDelete, showBulkStatus, showBulkLeve
 
   const patch = async (data: Record<string,string>, m: 'status'|'level'|'grade') => {
     try {
-      const r: {updated:number} = await http.patch('/students/bulk',{ids,data},{schoolId:getSchoolId()})
+      const r: {updated:number;skipped?:number} = await http.patch('/students/bulk',{ids,data},{schoolId:getSchoolId()})
       onClose(m); onSuccess(currentPage); toast('success',`${r.updated} ${t('students updated','طالب تم تحديثهم')}`)
+      if(r.skipped) toast('success',t(`${r.skipped} skipped — pending students must be approved by an admin or principal`,`تم تخطي ${r.skipped} — الطلاب قيد الانتظار يعتمدهم المسؤول أو المدير`))
       track('bulk.action','action',{action:`students.bulk_update_${m}`,count:ids.length})
     } catch { toast('error',t('Bulk update failed','فشل التحديث الجماعي')); onSuccess(currentPage) }
   }
@@ -64,7 +65,7 @@ export function StudentBulkModals({ showBulkDelete, showBulkStatus, showBulkLeve
         <p className="mt-2 text-xs text-gray-500 text-center">{t('This fully removes them from the active roster but does not erase historical records.','يُحذف الطالب من قائمة النشطاء لكن لا تُمسح السجلات التاريخية.')}</p>
         <p className="mt-4 text-sm font-medium text-gray-700">{t('Type','اكتب')} <span className="font-bold text-semantic-status-inactive">{t('DELETE','DELETE')}</span> {t('to confirm','للتأكيد')}:</p>
         <input type="text" value={confirmText} onChange={e=>setConfirmText(e.target.value)} placeholder={t('Type DELETE','اكتب DELETE')}
-          className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-semantic-status-inactive focus:border-semantic-status-inactive" />
+          className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-hidden focus:ring-2 focus:ring-semantic-status-inactive focus:border-semantic-status-inactive" />
         <div className="mt-4 flex gap-3">
           <Button variant="outline" onClick={()=>{setConfirmText('');onClose('delete')}} className="flex-1">{t('Cancel','إلغاء')}</Button>
           <Button variant="destructive" disabled={deleting||confirmText!=='DELETE'} className="flex-1" onClick={handleBulkDelete}>
@@ -78,7 +79,7 @@ export function StudentBulkModals({ showBulkDelete, showBulkStatus, showBulkLeve
         <p className="mt-1 text-sm text-gray-500">{ids.length} {t('students will be updated','طالب سيتم تحديثهم')}</p>
         <div className="mt-4 space-y-2">
           {(['active','inactive','graduated'] as const).map(st=>(
-            <label key={st} className="flex items-center gap-3 rounded-lg border border-gray-200 p-3 cursor-pointer hover:bg-gray-50 has-[:checked]:border-gold-500 has-[:checked]:bg-blue-50">
+            <label key={st} className="flex items-center gap-3 rounded-lg border border-gray-200 p-3 cursor-pointer hover:bg-gray-50 has-checked:border-gold-500 has-checked:bg-blue-50">
               <input type="radio" name="bulkStatus" value={st} checked={bulkStatus===st} onChange={()=>setBulkStatus(st)} className="h-4 w-4 accent-gold-600 focus:ring-blue-500"/>
               <span className="text-sm font-medium text-gray-900">{st==='active'?t('Active','نشط'):st==='inactive'?t('Inactive','غير نشط'):t('Graduated','متخرج')}</span>
             </label>
@@ -94,7 +95,7 @@ export function StudentBulkModals({ showBulkDelete, showBulkStatus, showBulkLeve
         <h3 className="text-lg font-semibold text-gray-900">{t('Change Level','تغيير المستوى')}</h3>
         <p className="mt-1 text-sm text-gray-500">{ids.length} {t('students will be updated','طالب سيتم تحديثهم')}</p>
         <div className="mt-4 space-y-4">
-          <div><label className="block text-sm font-medium text-gray-700 mb-1">{t('Level','المستوى')}</label><select value={bulkLevelId} onChange={e=>setBulkLevelId(e.target.value)} className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gold-500 focus:border-gold-500"><option value="">{t('Select level','اختر المستوى')}</option>{activeLevels.map(l=><option key={l.id} value={l.id}>{l.name}</option>)}</select></div>
+          <div><label className="block text-sm font-medium text-gray-700 mb-1">{t('Level','المستوى')}</label><select value={bulkLevelId} onChange={e=>setBulkLevelId(e.target.value)} className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-hidden focus:ring-2 focus:ring-gold-500 focus:border-gold-500"><option value="">{t('Select level','اختر المستوى')}</option>{activeLevels.map(l=><option key={l.id} value={l.id}>{l.name}</option>)}</select></div>
         </div>
         <div className="mt-6 flex gap-3">
           <Button variant="outline" onClick={()=>onClose('level')} className="flex-1">{t('Cancel','إلغاء')}</Button>
@@ -105,7 +106,7 @@ export function StudentBulkModals({ showBulkDelete, showBulkStatus, showBulkLeve
       {showBulkGrade&&<M label={t('Change Grade','تغيير المرحلة الدراسية')} onClose={()=>onClose('grade')}>
         <h3 className="text-lg font-semibold text-gray-900">{t('Change Grade','تغيير المرحلة الدراسية')}</h3>
         <p className="mt-1 text-sm text-gray-500">{ids.length} {t('students will be updated','طالب سيتم تحديثهم')}</p>
-        <div className="mt-4"><label className="block text-sm font-medium text-gray-700 mb-1">{t('School Grade','المرحلة الدراسية')}</label><select value={bulkGrade} onChange={e=>setBulkGrade(e.target.value)} className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gold-500 focus:border-gold-500"><option value="">{t('Select grade','اختر المرحلة')}</option>{gradeOptions.map(g=><option key={g.id} value={g.id}>{g.name}</option>)}</select></div>
+        <div className="mt-4"><label className="block text-sm font-medium text-gray-700 mb-1">{t('School Grade','المرحلة الدراسية')}</label><select value={bulkGrade} onChange={e=>setBulkGrade(e.target.value)} className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-hidden focus:ring-2 focus:ring-gold-500 focus:border-gold-500"><option value="">{t('Select grade','اختر المرحلة')}</option>{gradeOptions.map(g=><option key={g.id} value={g.id}>{g.name}</option>)}</select></div>
         <div className="mt-6 flex gap-3">
           <Button variant="outline" onClick={()=>onClose('grade')} className="flex-1">{t('Cancel','إلغاء')}</Button>
           <Button disabled={!bulkGrade} onClick={()=>patch({gradeId:bulkGrade},'grade')} className="flex-1">{t('Update','تحديث')}</Button>
@@ -117,5 +118,5 @@ export function StudentBulkModals({ showBulkDelete, showBulkStatus, showBulkLeve
 function M({ children, onClose, label }: { children: React.ReactNode; onClose: () => void; label?: string }) {
   const ref = useRef<HTMLDivElement>(null)
   useEffect(() => { ref.current?.focus() }, [])
-  return <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}><div ref={ref} tabIndex={-1} role="dialog" aria-modal="true" aria-label={label} className="w-full max-w-sm rounded-2xl bg-white shadow-xl p-6 outline-none" onClick={e=>e.stopPropagation()}>{children}</div></div>
+  return <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}><div ref={ref} tabIndex={-1} role="dialog" aria-modal="true" aria-label={label} className="w-full max-w-sm rounded-2xl bg-white shadow-xl p-6 outline-hidden" onClick={e=>e.stopPropagation()}>{children}</div></div>
 }

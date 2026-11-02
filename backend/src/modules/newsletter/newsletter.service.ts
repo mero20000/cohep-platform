@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../database/prisma.service';
 import { MailService } from '../mail/mail.service';
-import { emailTemplate, emailKeyValueRow, emailParagraph } from '../mail/email-template';
+import { emailTemplate, emailKeyValueRow, emailParagraph, escapeHtml } from '../mail/email-template';
 
 @Injectable()
 export class NewsletterService {
@@ -35,7 +35,7 @@ export class NewsletterService {
           ${emailParagraph('You\'ll receive updates about new hymns, platform improvements, and community news from the Coptic Orthodox Hymn Education Platform.')}
           <table style="width:100%;border-collapse:collapse;font-size:14px;">
             ${emailKeyValueRow('Platform', 'COHEP — Coptic Orthodox Hymn Education Platform')}
-            ${emailKeyValueRow('Website', '<a href="' + appUrl + '" style="color:#D4A843;">' + appUrl + '</a>')}
+            ${emailKeyValueRow('Website', '<a href="' + escapeHtml(appUrl) + '" style="color:#D4A843;">' + escapeHtml(appUrl) + '</a>', true)}
           </table>
           ${emailParagraph('If you have any questions, feel free to reach out to us at any time.')}
         `,

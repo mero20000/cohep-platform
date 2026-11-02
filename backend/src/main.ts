@@ -10,9 +10,11 @@ import helmet from 'helmet';
 import cookieParser = require('cookie-parser');
 import * as Sentry from '@sentry/node';
 import { setDefaultResultOrder } from 'node:dns';
-import { join } from 'path';
+import { extname, join } from 'path';
 import { AppModule } from './app.module';
+import { getAllowedOrigins } from './common/config/cors-origins';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
+import { scrubSentryEvent } from './common/utils/redact-url';
 import { requestIdMiddleware } from './common/middleware/request-id.middleware';
 import { requestLoggerMiddleware } from './common/middleware/request-logger.middleware';
 
@@ -28,16 +30,36 @@ async function bootstrap() {
       dsn: process.env.SENTRY_DSN,
       environment: process.env.NODE_ENV || 'development',
       tracesSampleRate: parseFloat(process.env.SENTRY_SAMPLE_RATE || '0.1'),
+      beforeSend: (event) => scrubSentryEvent(event),
+      beforeSendTransaction: (event) => scrubSentryEvent(event),
     });
   }
 
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
+  // Render terminates TLS and forwards requests through one proxy. Without this, req.ip is the
+  // proxy's address for every visitor, so the per-IP throttles (200/min globally, 5/min on login)
+  // are one shared bucket for everyone. A hop count (not `true`) means a client cannot choose its
+  // own address by sending X-Forwarded-For. Set TRUST_PROXY_HOPS if the deployment changes.
+  const hops = Number.parseInt(process.env.TRUST_PROXY_HOPS ?? '1', 10);
+  app.set('trust proxy', Number.isInteger(hops) && hops >= 0 ? hops : 1);
+
   // Global prefix (health stays at the bare /health path for load balancers).
   app.setGlobalPrefix('api', { exclude: ['health'] });
 
   // Serve static uploads
-  app.useStaticAssets(join(__dirname, '..', 'uploads'), { prefix: '/uploads' });
+  // Files here are served from the API origin, so never let a browser guess a type, and make
+  // anything that could run as a page download instead.
+  const RENDERABLE_UPLOAD_EXTENSIONS = ['.html', '.htm', '.xhtml', '.svg', '.xml', '.js', '.mjs'];
+  app.useStaticAssets(join(__dirname, '..', 'uploads'), {
+    prefix: '/uploads',
+    setHeaders: (res, filePath) => {
+      res.setHeader('X-Content-Type-Options', 'nosniff');
+      if (RENDERABLE_UPLOAD_EXTENSIONS.includes(extname(filePath).toLowerCase())) {
+        res.setHeader('Content-Disposition', 'attachment');
+      }
+    },
+  });
 
   app.use(cookieParser());
 
@@ -46,14 +68,7 @@ async function bootstrap() {
   app.use(requestLoggerMiddleware);
 
   // CORS — explicit allowlist only. No wildcards, no null-origin passthrough.
-  const allowedOrigins = [
-    'http://localhost:3000',
-    'http://localhost:3001',
-    process.env.FRONTEND_URL,
-    process.env.FRONTEND_URL_2,
-  ]
-    .filter((o): o is string => !!o)
-    .map((o) => o.replace(/\/$/, ''));
+  const allowedOrigins = getAllowedOrigins();
 
   app.enableCors({
     origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {

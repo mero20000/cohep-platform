@@ -110,8 +110,15 @@ export class ServantsController {
     return this.servantsService.getMyServantProfile(user.id);
   }
 
+  @Post('milestones/seen')
+  @Roles('servant', 'group_leader', 'level_leader')
+  @ApiOperation({ summary: 'Mark the current servant\'s new milestones as celebrated' })
+  async markMilestonesSeen(@CurrentUser() user: any) {
+    return this.servantsService.markMilestonesSeen(user.id);
+  }
+
   @Get('school/summary')
-  @Roles('servant', 'group_leader', 'level_leader', 'admin', 'principal', 'super_admin')
+  @Roles('admin', 'principal', 'super_admin')
   @ApiOperation({ summary: 'Get all servant profiles for the school' })
   async getSchoolSummary(@CurrentUser() user: any) {
     return this.servantsService.getSchoolServantSummary(user.schoolId);
@@ -285,6 +292,8 @@ export class ServantsController {
           status: 'recorded',
           scheduledDate: target,
           notes: 'liturgy',
+          type: 'liturgy',
+          targets: { create: [{ groupId, levelId }] },
         },
       });
     }
@@ -406,6 +415,8 @@ export class ServantsController {
           status: 'recorded',
           scheduledDate: target,
           notes: 'liturgy',
+          type: 'liturgy',
+          ...(groupId ? { targets: { create: [{ groupId, levelId }] } } : {}),
         },
       });
     }

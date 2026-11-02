@@ -1,6 +1,14 @@
+import { loadAttendanceTrend } from '../attendance/attendance-trend';
+import { findAtRiskStudents } from '../attendance/absence-risk';
+import { computeHealthScore } from './health-score';
+import { buildLevelGroupOverview } from './level-group-overview';
+import { loadAttendanceTarget } from './attendance-target';
+import { DATA_GAPS, dataGapWhere } from '../students/data-gaps';
+import { CLASS_SESSION_FILTER } from '../attendance/attendance-metrics';
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 import { SchoolResolver } from '../../common/utils/school-resolver';
+import { attendanceRate } from '../attendance/attendance-metrics';
 
 @Injectable()
 export class ReportsService {
@@ -9,52 +17,103 @@ export class ReportsService {
     private readonly schoolResolver: SchoolResolver,
   ) {}
 
+  // ── Level & group comparison (school leadership) ───────────────────────
+
+  /**
+   * Every level and group side by side: students, attendance (this window vs the one before), at-risk count and
+   * pass rate. Fixed number of queries regardless of school size. `days` is clamped to 7..180.
+   */
+  async getLevelGroupOverview(schoolIdentifier: string, daysInput = 30) {
+    const schoolId = await this.schoolResolver.resolve(schoolIdentifier);
+    const days = Math.min(180, Math.max(7, Math.floor(Number(daysInput) || 30)));
+    const now = new Date();
+    const dayMs = 24 * 60 * 60 * 1000;
+    const currentSince = new Date(now.getTime() - days * dayMs);
+    const prevSince = new Date(now.getTime() - 2 * days * dayMs);
+
+    const [levels, groups, students, rows, atRisk, graded, attendanceTarget] = await Promise.all([
+      this.prisma.level.findMany({ where: { schoolId, deletedAt: null }, select: { id: true, name: true, nameAr: true, orderIndex: true } }),
+      this.prisma.group.findMany({ where: { schoolId, deletedAt: null }, select: { id: true, name: true, nameAr: true, orderIndex: true } }),
+      this.prisma.student.findMany({ where: { schoolId, deletedAt: null, status: 'active' }, select: { id: true, levelId: true, groupId: true } }),
+      this.prisma.attendanceRecord.findMany({
+        where: {
+          status: { in: ['present', 'late', 'absent'] },
+          student: { schoolId, deletedAt: null, status: 'active' },
+          attendanceSession: { schoolId, deletedAt: null, scheduledDate: { gte: prevSince, lte: now }, AND: [CLASS_SESSION_FILTER] },
+        },
+        select: { studentId: true, status: true, attendanceSession: { select: { scheduledDate: true } } },
+      }),
+      findAtRiskStudents(this.prisma, schoolId, { now }),
+      this.prisma.assessmentSubmission.findMany({
+        where: {
+          assessment: { schoolId, deletedAt: null },
+          status: 'completed',
+          grades: { some: { questionId: null, createdAt: { gte: currentSince } } },
+          student: { schoolId, deletedAt: null, status: 'active' },
+        },
+        select: {
+          studentId: true,
+          assessment: { select: { passingScore: true } },
+          grades: { where: { questionId: null }, select: { score: true } },
+        },
+      }),
+      loadAttendanceTarget(this.prisma, schoolId),
+    ]);
+
+    const overview = buildLevelGroupOverview({
+      levels,
+      groups,
+      students,
+      records: rows.map((r: any) => ({
+        studentId: r.studentId,
+        status: r.status,
+        current: new Date(r.attendanceSession.scheduledDate) >= currentSince,
+      })),
+      atRisk: new Set(atRisk.keys()),
+      grades: graded
+        .filter((g: any) => g.grades[0])
+        .map((g: any) => ({ studentId: g.studentId, passed: Number(g.grades[0].score) >= Number(g.assessment.passingScore) })),
+    });
+
+    return { generatedAt: now.toISOString(), windowDays: days, attendanceTarget, ...overview };
+  }
+
+  // ── Data quality ───────────────────────────────────────────────────────
+
+  /**
+   * How many ACTIVE students are missing a detail that makes them hard to look after. Each count uses the same
+   * where-clause as the students-list `dataGap` filter, so the number here is exactly the list it links to.
+   */
+  async getDataQuality(schoolIdentifier: string) {
+    const schoolId = await this.schoolResolver.resolve(schoolIdentifier);
+    const base = { schoolId, deletedAt: null, status: 'active' };
+    const [total, ...counts] = await Promise.all([
+      this.prisma.student.count({ where: base }),
+      ...DATA_GAPS.map((gap) => this.prisma.student.count({ where: { ...base, ...dataGapWhere(gap) } })),
+    ]);
+    const gaps = DATA_GAPS.map((gap, i) => ({ key: gap, missing: counts[i] }));
+    return { generatedAt: new Date().toISOString(), totalActiveStudents: total, gaps };
+  }
+
   // ── 30-Second Priest Pulse ─────────────────────────────────────────────
 
   async getPriestPulse(schoolIdentifier: string) {
     const schoolId = await this.schoolResolver.resolve(schoolIdentifier);
     const today = new Date();
     const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
-    const twoWeeksAgo = new Date(today.getTime() - 14 * 24 * 60 * 60 * 1000);
 
-    const calcRate = (sessions: any[]) => {
-      const all = sessions.flatMap((s: any) => s.attendanceRecords);
-      if (!all.length) return 0;
-      return Math.round(all.filter((r: any) => r.status === 'present' || r.status === 'late').length / all.length * 100);
-    };
-
-    const [thisWeekSessions, lastWeekSessions] = await Promise.all([
-      this.prisma.attendanceSession.findMany({
-        where: { schoolId, scheduledDate: { gte: weekAgo }, deletedAt: null },
-        include: { attendanceRecords: { select: { status: true } } },
-      }),
-      this.prisma.attendanceSession.findMany({
-        where: { schoolId, scheduledDate: { gte: twoWeeksAgo, lt: weekAgo }, deletedAt: null },
-        include: { attendanceRecords: { select: { status: true } } },
-      }),
+    // Attendance and "at risk" come from the same shared code as the dashboard headline and the servant alerts,
+    // so every screen agrees. A null rate means no class was held in that window (not 0%).
+    const [trend, atRiskMap, totalActiveStudents] = await Promise.all([
+      loadAttendanceTrend(this.prisma, schoolId),
+      findAtRiskStudents(this.prisma, schoolId),
+      this.prisma.student.count({ where: { schoolId, deletedAt: null, status: 'active' } }),
     ]);
-
-    const attendanceThisWeek = calcRate(thisWeekSessions);
-    const attendanceLastWeek = calcRate(lastWeekSessions);
-
-    // Students at risk: 3+ consecutive absences
-    const allStudents = await this.prisma.student.findMany({
-      where: { schoolId, deletedAt: null },
-      select: { id: true, firstName: true, lastName: true, firstNameAr: true, lastNameAr: true },
-    });
-
-    let atRiskCount = 0;
-    for (const student of allStudents) {
-      const last3 = await this.prisma.attendanceRecord.findMany({
-        where: { studentId: student.id },
-        orderBy: { createdAt: 'desc' },
-        take: 3,
-        select: { status: true },
-      });
-      if (last3.length >= 3 && last3.every((r: any) => r.status === 'absent')) {
-        atRiskCount++;
-      }
-    }
+    const attendanceThisWeek = trend[trend.length - 1].rate;
+    const attendanceLastWeek = trend[trend.length - 2].rate;
+    const attendanceDelta =
+      attendanceThisWeek !== null && attendanceLastWeek !== null ? attendanceThisWeek - attendanceLastWeek : null;
+    const atRiskCount = atRiskMap.size;
 
     // Assessments pending grading
     const pendingGrading = await this.prisma.assessmentSubmission.count({
@@ -87,12 +146,12 @@ export class ReportsService {
       },
     });
 
-    const healthScore = Math.min(100, Math.round(
-      (attendanceThisWeek * 0.5) +
-      (pendingGrading === 0 ? 20 : Math.max(0, 20 - pendingGrading * 2)) +
-      (atRiskCount === 0 ? 20 : Math.max(0, 20 - atRiskCount * 4)) +
-      (familyPractice > 0 ? 10 : 0),
-    ));
+    const health = computeHealthScore({
+      attendanceRate: attendanceThisWeek,
+      pendingGrading,
+      studentsAtRisk: atRiskCount,
+      familiesPracticedThisWeek: familyPractice,
+    });
 
     const signals: any[] = [];
     if (atRiskCount > 0) {
@@ -109,11 +168,11 @@ export class ReportsService {
         messageAr: pendingGrading + ' تقييم' + (pendingGrading > 1 ? ' ينتظران' : ' ينتظر') + ' التصحيح.',
       });
     }
-    if (attendanceThisWeek - attendanceLastWeek >= 5) {
+    if (attendanceDelta !== null && attendanceDelta >= 5) {
       signals.push({
         type: 'success',
-        messageEn: 'Attendance improved ' + (attendanceThisWeek - attendanceLastWeek) + '% this week — a great sign.',
-        messageAr: 'تحسّن الحضور ' + (attendanceThisWeek - attendanceLastWeek) + '٪ هذا الأسبوع — علامة رائعة.',
+        messageEn: 'Attendance improved ' + attendanceDelta + '% this week — a great sign.',
+        messageAr: 'تحسّن الحضور ' + attendanceDelta + '٪ هذا الأسبوع — علامة رائعة.',
       });
     }
     if (familyPractice > 0) {
@@ -130,14 +189,16 @@ export class ReportsService {
       pulse: {
         attendanceThisWeek,
         attendanceLastWeek,
-        attendanceTrend: attendanceThisWeek - attendanceLastWeek,
+        attendanceTrend: attendanceDelta,
+        attendanceTrendPoints: trend,
         studentsAtRisk: atRiskCount,
         pendingGrading,
         xpEarnedThisWeek: xpThisWeek,
         familyPracticeThisWeek: familyPractice,
-        totalStudents: allStudents.length,
+        totalStudents: totalActiveStudents,
         activeStudentsThisWeek: activeThisWeek.length,
-        healthScore,
+        healthScore: health.score,
+        healthBreakdown: health.components,
       },
       signals,
     };
@@ -168,7 +229,7 @@ export class ReportsService {
       const allRecs = sessions.flatMap((s: any) => s.attendanceRecords);
       const present = allRecs.filter((r: any) => r.status === 'present' || r.status === 'late').length;
       const liturgy = allRecs.filter((r: any) => r.attendedLiturgy).length;
-      const rate = allRecs.length > 0 ? Math.round(present / allRecs.length * 100) : 0;
+      const rate = attendanceRate(allRecs);
       const xp = await this.prisma.xPTransaction.aggregate({
         where: { student: { schoolId, deletedAt: null }, createdAt: { gte: season.start, lte: season.end } },
         _sum: { amount: true },
@@ -194,14 +255,13 @@ export class ReportsService {
       const start = new Date(d.getFullYear(), d.getMonth(), 1);
       const end = new Date(d.getFullYear(), d.getMonth() + 1, 0);
       const sessions = await this.prisma.attendanceSession.findMany({
-        where: { schoolId, scheduledDate: { gte: start, lte: end }, deletedAt: null },
+        where: { schoolId, type: 'class', scheduledDate: { gte: start, lte: end }, deletedAt: null },
         include: { attendanceRecords: { select: { status: true } } },
       });
       const all = sessions.flatMap((s: any) => s.attendanceRecords);
-      const pres = all.filter((r: any) => r.status === 'present' || r.status === 'late').length;
       monthly.push({
         month: start.toLocaleString('en-US', { month: 'short', year: '2-digit' }),
-        rate: all.length > 0 ? Math.round(pres / all.length * 100) : 0,
+        rate: attendanceRate(all),
         sessions: sessions.length,
       });
     }
@@ -332,11 +392,11 @@ export class ReportsService {
           }),
         this.prisma.userRole.count({ where: { user: { schoolId: school.id }, role: { name: { in: ['servant', 'group_leader', 'level_leader', 'curriculum_manager'] } } } }),
         this.prisma.attendanceSession.findMany({
-          where: { schoolId: school.id, scheduledDate: { gte: weekAgo }, deletedAt: null },
+          where: { schoolId: school.id, type: 'class', scheduledDate: { gte: weekAgo }, deletedAt: null },
           include: { attendanceRecords: { select: { status: true } } },
         }).then((sessions: any[]) => {
           const all = sessions.flatMap((s: any) => s.attendanceRecords);
-          return { count: sessions.length, rate: all.length > 0 ? Math.round(all.filter((r: any) => r.status === 'present' || r.status === 'late').length / all.length * 100) : 0 };
+          return { count: sessions.length, rate: attendanceRate(all) };
         }),
         this.prisma.xPTransaction.aggregate({
           where: { student: { schoolId: school.id, deletedAt: null }, createdAt: { gte: weekAgo } },
@@ -419,7 +479,7 @@ async getDioceseReport(churchId?: string) {
     const calcRate = (sessions: any[]) => {
       const all = sessions.flatMap((s: any) => s.attendanceRecords);
       if (!all.length) return 0;
-      return Math.round(all.filter((r: any) => r.status === 'present' || r.status === 'late').length / all.length * 100);
+      return attendanceRate(all);
     };
 
     const schoolStats = await Promise.all(
@@ -440,12 +500,12 @@ async getDioceseReport(churchId?: string) {
             }),
 
             this.prisma.attendanceSession.findMany({
-              where: { schoolId: school.id, scheduledDate: { gte: weekAgo }, deletedAt: null },
+              where: { schoolId: school.id, type: 'class', scheduledDate: { gte: weekAgo }, deletedAt: null },
               include: { attendanceRecords: { select: { status: true } } },
             }),
 
             this.prisma.attendanceSession.findMany({
-              where: { schoolId: school.id, scheduledDate: { gte: twoWeeksAgo, lt: weekAgo }, deletedAt: null },
+              where: { schoolId: school.id, type: 'class', scheduledDate: { gte: twoWeeksAgo, lt: weekAgo }, deletedAt: null },
               include: { attendanceRecords: { select: { status: true } } },
             }),
 

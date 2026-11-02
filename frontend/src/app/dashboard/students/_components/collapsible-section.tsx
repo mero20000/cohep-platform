@@ -20,7 +20,7 @@ export function CollapsibleSection({ title, icon, children, defaultOpen = false,
         className="w-full flex items-center justify-between gap-3 px-4 py-3 hover:bg-gray-50 transition-colors"
       >
         <div className="flex items-center gap-2 min-w-0">
-          {icon && <div className="flex-shrink-0 text-gray-400">{icon}</div>}
+          {icon && <div className="shrink-0 text-gray-400">{icon}</div>}
           <h4 className="text-sm font-semibold text-gray-900 truncate">{title}</h4>
           {badge !== undefined && (
             <span className="text-xs text-gray-500 font-normal ml-1">
@@ -29,7 +29,7 @@ export function CollapsibleSection({ title, icon, children, defaultOpen = false,
           )}
         </div>
         <ChevronDown
-          className={`h-4 w-4 text-gray-400 flex-shrink-0 transition-transform ${
+          className={`h-4 w-4 text-gray-400 shrink-0 transition-transform ${
             isOpen ? 'rotate-180' : ''
           }`}
         />

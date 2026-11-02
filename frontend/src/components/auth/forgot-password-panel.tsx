@@ -126,7 +126,7 @@ export default function ForgotPasswordPanel({
           value={schoolId}
           onChange={(e) => setSchoolId(e.target.value)}
           autoComplete="off"
-          className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:border-gold-500 focus:outline-none focus:ring-1 focus:ring-gold-500"
+          className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:border-gold-500 focus:outline-hidden focus:ring-1 focus:ring-gold-500"
           placeholder="e.g. niangelos-main"
         />
       </div>

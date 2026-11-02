@@ -1,6 +1,6 @@
 'use client'
 
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { http } from '@/lib/http-client'
 
 export interface ServantProfileData {
@@ -19,13 +19,26 @@ export interface ServantProfileData {
   totalHymns: number
   totalReviews: number
   lastCalculatedAt: string
+  nextMilestone: NextMilestone | null
+  /** Milestones not yet celebrated; only sent when you view your own profile. */
+  newMilestones?: ServantMilestoneData[]
 }
 
 export interface ServantMilestoneData {
   type: string
   threshold: number
   label: string
+  labelAr?: string | null
   reachedAt: string
+}
+
+export interface NextMilestone {
+  type: string
+  current: number
+  target: number
+  remaining: number
+  label: string
+  labelAr: string
 }
 
 const servantKeys = {
@@ -67,5 +80,14 @@ export function useSchoolServantSummary() {
     queryKey: servantKeys.schoolSummary(),
     queryFn: () => http.get<ServantProfileData[]>('/servants/school/summary'),
     staleTime: 60_000,
+  })
+}
+
+/** Dismisses the milestone celebration for good (marks every pending milestone as seen). */
+export function useMarkMilestonesSeen() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: () => http.post('/servants/milestones/seen'),
+    onSuccess: () => qc.invalidateQueries({ queryKey: servantKeys.all }),
   })
 }

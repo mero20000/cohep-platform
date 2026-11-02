@@ -9,11 +9,11 @@ type Size = 'sm' | 'md' | 'lg'
 const VARIANTS: Record<Variant, string> = {
   /* Gold = the brand's sacred accent. Dark text on gold keeps ≥4.5:1. */
   primary:
-    'bg-[rgb(var(--gold-500))] text-[rgb(var(--gold-900))] hover:bg-[rgb(var(--gold-600))] hover:text-white shadow-sm',
+    'bg-[rgb(var(--gold-500))] text-[rgb(var(--gold-900))] hover:bg-[rgb(var(--gold-600))] hover:text-white shadow-xs',
   secondary:
-    'bg-white dark:bg-[var(--hymn-surface-header)] text-gray-900 dark:text-gray-100 border border-[var(--hymn-border)] hover:bg-gold-neutral-50',
+    'bg-white dark:bg-(--hymn-surface-header) text-gray-900 dark:text-gray-100 border border-(--hymn-border) hover:bg-gold-neutral-50',
   ghost: 'text-gray-700 dark:text-gray-300 hover:bg-black/5 dark:hover:bg-white/10',
-  danger: 'bg-red-600 text-white hover:bg-red-700 shadow-sm',
+  danger: 'bg-red-600 text-white hover:bg-red-700 shadow-xs',
 }
 
 const SIZES: Record<Size, string> = {
@@ -43,7 +43,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       className={`inline-flex items-center justify-center font-medium select-none
         disabled:opacity-50 disabled:pointer-events-none
         ${VARIANTS[variant]} ${SIZES[size]}
-        ${ds.focusRing} ${ds.motionSafeTransition} active:motion-safe:scale-[0.98]
+        ${ds.focusRing} ${ds.motionSafeTransition} motion-safe:active:scale-[0.98]
         ${className}`}
       {...props}
     />

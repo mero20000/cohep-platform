@@ -15,6 +15,8 @@ export const emptyForm = {
   levelId: '',
   groupId: '',
   grade: '',
+  // Who the assessment is for within the level/group/grade: everyone unless narrowed.
+  gender: 'all' as 'all' | 'male' | 'female',
   lessonId: '',
   subjectId: '',
   totalPoints: '',
@@ -52,7 +54,7 @@ export interface AssessmentDetail {
   grade?: string
   lessonId?: string
   subjectId: string
-  metadata?: { term?: number; grade?: string; durationMinutes?: number }
+  metadata?: { term?: number; grade?: string; gender?: string; durationMinutes?: number }
   questions?: Array<{
     id: string
     questionText: string
@@ -78,6 +80,7 @@ export function assessmentToForm(detail: AssessmentDetail): AssessmentForm {
     levelId: detail.levelId,
     groupId: detail.groupId || '',
     grade: meta.grade || detail.grade || '',
+    gender: meta.gender === 'male' || meta.gender === 'female' ? meta.gender : 'all',
     lessonId: detail.lessonId || '',
     subjectId: detail.subjectId,
     totalPoints: String(detail.totalPoints),

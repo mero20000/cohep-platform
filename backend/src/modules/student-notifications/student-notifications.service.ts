@@ -4,6 +4,8 @@ import { PrismaService } from '../../database/prisma.service';
 export type StudentNotificationType =
   | 'practice_reviewed'
   | 'assessment_graded'
+  | 'assessment_returned'
+  | 'assessment_reset'
   | 'grade_dispute_responded'
   | 'liturgy_verified'
   | 'liturgy_rejected'

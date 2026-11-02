@@ -3,13 +3,20 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage, memoryStorage } from 'multer';
 import { extname } from 'path';
 import { v4 as uuidv4 } from 'uuid';
-import { uploadRecording } from '@/common/storage/r2';
+import { uploadRecording } from '../../common/storage/r2';
 import { ApiTags, ApiOperation, ApiConsumes } from '@nestjs/swagger';
 import { Roles, STAFF_ROLES } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { CurriculumService } from './curriculum.service';
 import { CreateAllocationDto, UpdateAllocationDto, ReorderAllocationDto } from './dto/curriculum.dto';
 import { CreateLessonDto, UpdateLessonDto, ParseHtmlDto } from './dto/lesson.dto';
+
+// Never matches a real school, so a caller with no school fails closed instead of skipping the check.
+const NO_SCHOOL = '__no_school__';
+
+// A super admin spans schools, so no school filter; everyone else is held to their own.
+const ownSchoolOnly = (user: any): string | undefined =>
+  user?.roles?.includes('super_admin') ? undefined : user?.schoolId ?? NO_SCHOOL;
 
 @ApiTags('curriculum')
 @Roles(...STAFF_ROLES)
@@ -101,8 +108,8 @@ export class CurriculumController {
 
     @Patch('items/:id/status')
   @ApiOperation({ summary: 'Update subject item status (pending, in_progress, completed)' })
-  updateItemStatus(@Param('id') id: string, @Body() body: { status: string }) {
-    return this.curriculumService.updateItemStatus(id, body.status);
+  updateItemStatus(@Param('id') id: string, @Body() body: { status: string }, @CurrentUser() user: any) {
+    return this.curriculumService.updateItemStatus(id, body.status, ownSchoolOnly(user));
   }
 
     @Get('lessons')
@@ -210,8 +217,11 @@ export class CurriculumController {
 
     @Put('lessons/:id')
   @ApiOperation({ summary: 'Update a lesson' })
-  updateLesson(@Param('id') id: string, @Body() dto: UpdateLessonDto) {
-    return this.curriculumService.updateLesson(id, dto);
+  updateLesson(@Param('id') id: string, @Body() dto: UpdateLessonDto, @CurrentUser() user: any) {
+    // The lesson form sends audioUrl back with every save, so the field stays in the DTO, but it is
+    // never written from here. Only PATCH lessons/:id/audio (server-generated path) sets it.
+    const { audioUrl: _ignoredAudioUrl, audioOriginalName: _ignoredAudioName, ...safe } = dto;
+    return this.curriculumService.updateLesson(id, safe, user);
   }
 
     @Patch('lessons/:id/audio')
@@ -232,9 +242,9 @@ export class CurriculumController {
     },
     limits: { fileSize: 15 * 1024 * 1024 },
   }))
-   uploadAudio(@Param('id') id: string, @UploadedFile() file: Express.Multer.File) {
+   uploadAudio(@Param('id') id: string, @UploadedFile() file: Express.Multer.File, @CurrentUser() user: any) {
     const audioUrl = `/uploads/audio/${file.filename}`
-    return this.curriculumService.updateLesson(id, { audioUrl, audioOriginalName: file.originalname })
+    return this.curriculumService.updateLesson(id, { audioUrl, audioOriginalName: file.originalname }, user)
   }
 
     @Post('subjects/items/:id/recording')
@@ -250,8 +260,10 @@ export class CurriculumController {
       },
       limits: { fileSize: 15 * 1024 * 1024 },
     }))
-    async uploadItemRecording(@Param('id') id: string, @UploadedFile() file: Express.Multer.File) {
+    async uploadItemRecording(@Param('id') id: string, @UploadedFile() file: Express.Multer.File, @CurrentUser() user: any) {
       if (!file) throw new BadRequestException('No file uploaded');
+      // Check ownership before the upload, so a refused request leaves no orphan object in storage.
+      await this.curriculumService.assertItemInSchool(id, ownSchoolOnly(user));
       const ext = extname(file.originalname).toLowerCase();
       const key = `recordings/subject-items/${id}-${uuidv4()}${ext}`;
       const url = await uploadRecording(file.buffer, key, file.mimetype);
@@ -259,13 +271,13 @@ export class CurriculumController {
         originalName: file.originalname,
         sizeBytes: file.size,
         contentType: file.mimetype,
-      });
+      }, ownSchoolOnly(user));
     }
 
     @Delete('subjects/items/:id/recording')
     @ApiOperation({ summary: 'Remove the hymn recording from a subject item' })
-    async removeItemRecording(@Param('id') id: string) {
-      return this.curriculumService.clearItemRecording(id);
+    async removeItemRecording(@Param('id') id: string, @CurrentUser() user: any) {
+      return this.curriculumService.clearItemRecording(id, ownSchoolOnly(user));
     }
 
     @Delete('lessons/:id')

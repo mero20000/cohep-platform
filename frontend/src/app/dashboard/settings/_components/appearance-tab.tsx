@@ -54,7 +54,7 @@ export function AppearanceTab() {
           <h2 className="text-lg font-semibold text-gray-900">Appearance</h2>
           <p className="mt-1 text-sm text-gray-500">Customize the look and feel of the platform</p>
         </div>
-        <Button onClick={handleSave} aria-label="Save appearance settings" className="bg-gold-500 hover:bg-gold-600">
+        <Button onClick={handleSave} className="bg-gold-500 hover:bg-gold-600">
           <Save className="h-4 w-4" /> <span aria-live="polite">{saved ? 'Saved!' : 'Save Appearance'}</span>
         </Button>
       </div>
@@ -65,7 +65,7 @@ export function AppearanceTab() {
             {(['light', 'dark', 'system'] as const).map(t => (
               <Button key={t} variant="ghost" onClick={() => setTheme(t)} aria-label={`Select ${t} theme`}
                 className={`rounded-lg border-2 p-4 text-center transition-colors capitalize h-auto ${theme === t ? 'border-gold-500 bg-gold-50' : 'border-gray-200 hover:border-gray-300'}`}>
-                <div className={`mx-auto h-10 w-16 rounded border ${t === 'light' ? 'bg-white border-gray-200' : t === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-gradient-to-r from-white to-gray-800 border-gray-300'}`} />
+                <div className={`mx-auto h-10 w-16 rounded border ${t === 'light' ? 'bg-white border-gray-200' : t === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-linear-to-r from-white to-gray-800 border-gray-300'}`} />
                 <span className="mt-2 block text-sm font-medium text-gray-700">{t}</span>
               </Button>
             ))}
