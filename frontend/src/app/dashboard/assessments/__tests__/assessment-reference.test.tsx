@@ -173,6 +173,7 @@ describe('Assessment reference recording picker', () => {
     expect(form.queryByLabelText(/Max attempts/)).not.toBeInTheDocument()
     await user.click(form.getByLabelText(/Allow retry/))
     const max = form.getByLabelText(/Max attempts/)
+    expect(max).toHaveAccessibleDescription(/Includes the first try: 3 means the first try plus 2 retries/)
     await user.clear(max)
     await user.type(max, '4')
     await user.click(form.getByLabelText(/Require recording/))
@@ -213,7 +214,12 @@ describe('Assessment reference recording picker', () => {
     expect(review).toBeChecked()
     expect(retry).toBeDisabled()
     expect(retry).not.toBeChecked()
-    expect(form.getAllByText(/essay/i).length).toBeGreaterThan(0)
+    const reviewHint = form.getByText('Essay questions always need a teacher review.')
+    const retryHint = form.getByText('Retries are not available when the assessment has an essay question.')
+    expect(review).toHaveAccessibleDescription(reviewHint.textContent!)
+    expect(retry).toHaveAccessibleDescription(retryHint.textContent!)
+    expect(review.getAttribute('aria-describedby')).toBe(reviewHint.id)
+    expect(retry.getAttribute('aria-describedby')).toBe(retryHint.id)
   })
 
   it('follows the type default for Require review until the user touches it', async () => {

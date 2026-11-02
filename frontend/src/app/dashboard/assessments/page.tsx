@@ -1078,7 +1078,7 @@ export default function AssessmentsPage() {
                 <div className="sm:max-w-[12rem]">
                   <FormField label={lang === 'ar' ? 'الحد الأقصى للمحاولات' : 'Max attempts'} type="number" min="2" max="10"
                     value={form.maxAttempts} onChange={e => updateForm({ maxAttempts: e.target.value })}
-                    hint={lang === 'ar' ? 'من 2 إلى 10' : 'Between 2 and 10'} />
+                    hint={lang === 'ar' ? 'تشمل المحاولة الأولى: 3 تعني المحاولة الأولى ومحاولتين إضافيتين. من 2 إلى 10.' : 'Includes the first try: 3 means the first try plus 2 retries. Between 2 and 10.'} />
                 </div>
               )}
             </div>
