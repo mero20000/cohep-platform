@@ -86,6 +86,40 @@ describe('TakeAssessment', () => {
     expect(screen.getByRole('button', { name: /submit/i })).toBeEnabled()
   })
 
+  describe('allowRecording', () => {
+    it('renders no recording block when allowRecording is false', async () => {
+      mocks.get.mockResolvedValue(takePayload({ allowRecording: false }))
+      renderTake('portal')
+
+      await screen.findByText('Hymns quiz')
+      expect(screen.queryByText(/Voice recording/)).not.toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: /start recording/i })).not.toBeInTheDocument()
+      expect(screen.getByRole('button', { name: /submit/i })).toBeEnabled()
+    })
+
+    it('shows the optional recording block when allowRecording is true', async () => {
+      mocks.get.mockResolvedValue(takePayload({ allowRecording: true }))
+      renderTake('portal')
+
+      expect(await screen.findByText('Voice recording (optional)')).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: /start recording/i })).toBeInTheDocument()
+    })
+
+    it('shows the optional recording block when the field is missing (older backend)', async () => {
+      mocks.get.mockResolvedValue(takePayload())
+      renderTake('portal')
+
+      expect(await screen.findByText('Voice recording (optional)')).toBeInTheDocument()
+    })
+
+    it('still shows a required recording', async () => {
+      mocks.get.mockResolvedValue(takePayload({ requireRecording: true, allowRecording: true }))
+      renderTake('portal')
+
+      expect(await screen.findByText('Voice recording (required)')).toBeInTheDocument()
+    })
+  })
+
   it('shows Attempt 2 of 3 in the header', async () => {
     mocks.get.mockResolvedValue(takePayload({ attemptNumber: 2, maxAttempts: 3 }))
     renderTake('portal')

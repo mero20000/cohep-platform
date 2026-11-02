@@ -9,20 +9,23 @@ export function hasEssay(questions: Array<{ type: string }>): boolean {
   return questions.some(q => q.type === 'essay')
 }
 
-type ReviewFields = Pick<AssessmentForm, 'requireReview' | 'requireRecording' | 'allowRetry' | 'maxAttempts' | 'questions'>
+type ReviewFields = Pick<AssessmentForm, 'requireReview' | 'requireRecording' | 'allowRecording' | 'allowRetry' | 'maxAttempts' | 'questions'>
 
 /** Mirrors the backend rules: essays force review on and retry off; maxAttempts only matters with retry. */
 export function reviewPayload(form: ReviewFields): {
   requireReview: boolean
   requireRecording: boolean
+  allowRecording: boolean
   allowRetry: boolean
   maxAttempts?: number
 } {
   const essay = hasEssay(form.questions)
   const allowRetry = essay ? false : form.allowRetry
-  const payload: { requireReview: boolean; requireRecording: boolean; allowRetry: boolean; maxAttempts?: number } = {
+  const payload: { requireReview: boolean; requireRecording: boolean; allowRecording: boolean; allowRetry: boolean; maxAttempts?: number } = {
     requireReview: essay ? true : form.requireReview,
     requireRecording: form.requireRecording,
+    // A required recording is always allowed (the backend enforces the same).
+    allowRecording: form.requireRecording ? true : form.allowRecording,
     allowRetry,
   }
   if (allowRetry) {

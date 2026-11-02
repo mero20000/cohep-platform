@@ -32,6 +32,8 @@ export const emptyForm = {
   referenceRecordingName: '',
   requireReview: false,
   requireRecording: false,
+  // Students may attach a recording at all; off hides it. Display-locked on while recording is required.
+  allowRecording: true,
   allowRetry: false,
   maxAttempts: '3',
   // UI-only: set once the teacher toggles Require review, so a later Type change stops overriding it. Never sent.
@@ -70,6 +72,7 @@ export interface AssessmentDetail {
   referenceRecordingName?: string
   requireReview?: boolean
   requireRecording?: boolean
+  allowRecording?: boolean
   allowRetry?: boolean
   maxAttempts?: number | null
 }
@@ -105,6 +108,7 @@ export function assessmentToForm(detail: AssessmentDetail): AssessmentForm {
     referenceRecordingName: detail.referenceRecordingName || '',
     requireReview: detail.requireReview ?? defaultRequireReview(detail.type || 'quiz'),
     requireRecording: detail.requireRecording ?? false,
+    allowRecording: detail.allowRecording ?? true,
     allowRetry: detail.allowRetry ?? false,
     maxAttempts: String(detail.maxAttempts ?? 3),
     reviewTouched: true,

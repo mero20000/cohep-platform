@@ -92,6 +92,7 @@ interface Assessment {
   referenceRecordingName?: string
   requireReview?: boolean
   requireRecording?: boolean
+  allowRecording?: boolean
   allowRetry?: boolean
   maxAttempts?: number | null
 }
@@ -1086,6 +1087,21 @@ export default function AssessmentsPage() {
                   <label htmlFor="require-recording" className="block text-sm font-medium text-gray-700">{lang === 'ar' ? 'يتطلب تسجيلاً صوتياً' : 'Require recording'}</label>
                   <p id="require-recording-hint" className="text-xs text-gray-500">
                     {lang === 'ar' ? 'يجب على الطالب إرفاق تسجيل صوتي عند التسليم.' : 'Students must attach an audio recording when they submit.'}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-3">
+                <input id="allow-recording" type="checkbox" className="mt-0.5 h-4 w-4 rounded border-gray-300"
+                  checked={form.requireRecording || form.allowRecording} disabled={form.requireRecording}
+                  aria-describedby="allow-recording-hint"
+                  onChange={e => updateForm({ allowRecording: e.target.checked })} />
+                <div>
+                  <label htmlFor="allow-recording" className="block text-sm font-medium text-gray-700">{lang === 'ar' ? 'السماح بالتسجيل الصوتي' : 'Allow voice recording'}</label>
+                  <p id="allow-recording-hint" className="text-xs text-gray-500">
+                    {form.requireRecording
+                      ? (lang === 'ar' ? 'التسجيل المطلوب مسموح به دائماً.' : 'A required recording is always allowed.')
+                      : (lang === 'ar' ? 'يمكن للطالب إرفاق تسجيل. أوقفه لإخفاء التسجيل تماماً.' : 'Students can attach a recording. Turn off to hide recording completely.')}
                   </p>
                 </div>
               </div>

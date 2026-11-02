@@ -194,6 +194,81 @@ describe('Assessment reference recording picker', () => {
     expect(createCall![1].durationMinutes).toBeUndefined()
   })
 
+  it('sends allowRecording true by default and false when the box is unchecked', async () => {
+    const user = userEvent.setup()
+    render(<AssessmentsPage />)
+
+    await user.click(await screen.findByText('New Assessment'))
+    const form = within(await screen.findByRole('dialog'))
+
+    await user.type(form.getByLabelText(/Title/), 'Quiz')
+    await user.selectOptions(form.getByLabelText(/Level/), 'l1')
+    await user.selectOptions(form.getByLabelText(/Subject/), 's1')
+    await user.type(form.getByLabelText(/Total Points/), '100')
+    await user.type(form.getByLabelText(/Passing Points/), '60')
+
+    const allow = form.getByLabelText(/Allow voice recording/)
+    expect(allow).toBeChecked()
+    expect(allow).toBeEnabled()
+    expect(allow).toHaveAccessibleDescription(/Students can attach a recording\. Turn off to hide recording completely\./)
+    await user.click(allow)
+    expect(allow).not.toBeChecked()
+
+    await user.click(form.getByRole('button', { name: /Create Assessment/ }))
+
+    await waitFor(() => {
+      expect(mocks.post).toHaveBeenCalled()
+    })
+    const createCall = mocks.post.mock.calls.find((c) => c[0] === '/assessments')
+    expect(createCall![1]).toMatchObject({ requireRecording: false, allowRecording: false })
+  })
+
+  it('shows Allow voice recording checked and disabled, with the reason, while Require recording is on', async () => {
+    const user = userEvent.setup()
+    render(<AssessmentsPage />)
+
+    await user.click(await screen.findByText('New Assessment'))
+    const form = within(await screen.findByRole('dialog'))
+
+    // Turn recording off first: the lock is display-only and must not overwrite this choice
+    await user.click(form.getByLabelText(/Allow voice recording/))
+    await user.click(form.getByLabelText(/Require recording/))
+
+    const allow = form.getByLabelText(/Allow voice recording/)
+    expect(allow).toBeChecked()
+    expect(allow).toBeDisabled()
+    const hint = form.getByText('A required recording is always allowed.')
+    expect(allow.getAttribute('aria-describedby')).toBe(hint.id)
+    expect(allow).toHaveAccessibleDescription(hint.textContent!)
+
+    await user.click(form.getByLabelText(/Require recording/))
+    expect(form.getByLabelText(/Allow voice recording/)).not.toBeChecked()
+    expect(form.getByLabelText(/Allow voice recording/)).toBeEnabled()
+  })
+
+  it('sends allowRecording true when Require recording is on', async () => {
+    const user = userEvent.setup()
+    render(<AssessmentsPage />)
+
+    await user.click(await screen.findByText('New Assessment'))
+    const form = within(await screen.findByRole('dialog'))
+
+    await user.type(form.getByLabelText(/Title/), 'Quiz')
+    await user.selectOptions(form.getByLabelText(/Level/), 'l1')
+    await user.selectOptions(form.getByLabelText(/Subject/), 's1')
+    await user.type(form.getByLabelText(/Total Points/), '100')
+    await user.type(form.getByLabelText(/Passing Points/), '60')
+    await user.click(form.getByLabelText(/Allow voice recording/))
+    await user.click(form.getByLabelText(/Require recording/))
+    await user.click(form.getByRole('button', { name: /Create Assessment/ }))
+
+    await waitFor(() => {
+      expect(mocks.post).toHaveBeenCalled()
+    })
+    const createCall = mocks.post.mock.calls.find((c) => c[0] === '/assessments')
+    expect(createCall![1]).toMatchObject({ requireRecording: true, allowRecording: true })
+  })
+
   it('disables Require review and Allow retry when an essay question exists', async () => {
     const user = userEvent.setup()
     render(<AssessmentsPage />)

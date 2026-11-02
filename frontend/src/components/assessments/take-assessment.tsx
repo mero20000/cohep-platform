@@ -22,6 +22,8 @@ interface TakePayload {
     hazzat?: string | null
     presentationUrl?: string | null
     requireRecording?: boolean
+    // Absent on an older backend: treated as allowed.
+    allowRecording?: boolean
     attemptNumber?: number
     maxAttempts?: number
   }
@@ -168,6 +170,8 @@ function TakeAssessmentBody({ assessmentId, mode, accessKey, studentId, lang = '
   }
 
   const requireRecording = payload?.assessment.requireRecording ?? false
+  // Hidden only when explicitly switched off; a required recording is always shown.
+  const showRecording = requireRecording || payload?.assessment.allowRecording !== false
   // True when a recording is required for this submit (portal only), whether or not one exists yet.
   const recordingRequired = recordingBlocksSubmit(mode, requireRecording, false)
   const submitBlocked = recordingBlocksSubmit(mode, requireRecording, recordedBlob != null)
@@ -519,6 +523,7 @@ function TakeAssessmentBody({ assessmentId, mode, accessKey, studentId, lang = '
         )}
 
         {/* Voice recording */}
+        {showRecording && (
         <div className="rounded-xl border border-gray-200 bg-white p-4">
           <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-gray-400">
             <Mic className="h-4 w-4" />
@@ -556,6 +561,7 @@ function TakeAssessmentBody({ assessmentId, mode, accessKey, studentId, lang = '
             </p>
           )}
         </div>
+        )}
 
         {/* Notes */}
         <div className="rounded-xl border border-gray-200 bg-white p-4">

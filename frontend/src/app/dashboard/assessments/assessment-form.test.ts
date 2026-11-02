@@ -23,6 +23,7 @@ const detail: AssessmentDetail = {
   referenceRecordingName: 'Lesson One',
   requireReview: true,
   requireRecording: true,
+  allowRecording: false,
   allowRetry: true,
   maxAttempts: 4,
 }
@@ -57,6 +58,7 @@ describe('assessmentToForm', () => {
       referenceRecordingName: 'Lesson One',
       requireReview: true,
       requireRecording: true,
+      allowRecording: false,
       allowRetry: true,
       maxAttempts: '4',
       reviewTouched: true,
@@ -65,9 +67,10 @@ describe('assessmentToForm', () => {
   })
 
   it('falls back to the type default for review and 3 attempts when the settings are absent', () => {
-    const form = assessmentToForm({ ...detail, type: 'exam', requireReview: undefined, requireRecording: undefined, allowRetry: undefined, maxAttempts: null, metadata: undefined })
+    const form = assessmentToForm({ ...detail, type: 'exam', requireReview: undefined, requireRecording: undefined, allowRecording: undefined, allowRetry: undefined, maxAttempts: null, metadata: undefined })
     expect(form.requireReview).toBe(true)
     expect(form.requireRecording).toBe(false)
+    expect(form.allowRecording).toBe(true)
     expect(form.allowRetry).toBe(false)
     expect(form.maxAttempts).toBe('3')
     expect(form.durationMinutes).toBe('')
@@ -115,6 +118,7 @@ describe('toCopyForm', () => {
       passingPoints: '60',
       requireReview: true,
       requireRecording: true,
+      allowRecording: false,
       allowRetry: true,
       maxAttempts: '4',
       reviewTouched: true,
