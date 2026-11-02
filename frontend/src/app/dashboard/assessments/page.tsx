@@ -72,6 +72,7 @@ interface Assessment {
   status: string
   totalPoints: number | string
   passingScore: number | string
+  xpReward?: number | null
   dueDate?: string
   term?: number
   levelId: string
@@ -565,6 +566,7 @@ export default function AssessmentsPage() {
         subjectId: form.subjectId,
         totalPoints: parseInt(form.totalPoints, 10),
         passingPoints: parseInt(form.passingPoints, 10),
+        xpReward: form.xpReward === '' ? undefined : Math.max(0, parseInt(form.xpReward, 10) || 0),
         dueDate: form.dueDate || undefined,
         status: form.status,
         type: form.type,
@@ -1043,6 +1045,12 @@ export default function AssessmentsPage() {
               <DatePicker value={form.dueDate} onChange={v => updateForm({ dueDate: v })} className="mt-1.5" />
             </div>
           </div>
+
+          <FormField label={lang === 'ar' ? 'نقاط الخبرة (XP)' : 'XP reward'} type="number" min="0" max="1000"
+            value={form.xpReward} onChange={e => updateForm({ xpReward: e.target.value })} placeholder="100"
+            hint={lang === 'ar'
+              ? 'نقاط الخبرة التي يحصل عليها الطالب عند نيل الدرجة الكاملة. الدرجات الجزئية تنال نسبة منها (مثلاً 4 من 5 تمنح 80% من هذه القيمة). إذا فعّلت إعادة المحاولة فلا تُمنح نقاط عند الرسوب. اتركها 100 للقيمة الافتراضية، أو 0 لعدم منح نقاط.'
+              : 'XP a student earns for a full score. Partial scores earn a proportional share (e.g. 4 out of 5 earns 80% of this value). With retries on, a failing attempt earns no XP. Leave at 100 for the default, or 0 to award none.'} />
 
           <fieldset className="border-t border-gray-100 pt-4">
             <legend className="text-sm font-medium text-gray-700">{lang === 'ar' ? 'المراجعة والمحاولات' : 'Review & attempts'}</legend>

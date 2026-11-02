@@ -21,6 +21,8 @@ export const emptyForm = {
   subjectId: '',
   totalPoints: '',
   passingPoints: '',
+  // XP for a full score; partial scores earn a proportional share.
+  xpReward: '100',
   dueDate: '',
   term: '',
   status: 'draft',
@@ -48,6 +50,7 @@ export interface AssessmentDetail {
   status: string
   totalPoints: number | string
   passingScore: number | string
+  xpReward?: number | null
   dueDate?: string
   levelId: string
   groupId?: string
@@ -85,6 +88,7 @@ export function assessmentToForm(detail: AssessmentDetail): AssessmentForm {
     subjectId: detail.subjectId,
     totalPoints: String(detail.totalPoints),
     passingPoints: String(detail.passingScore),
+    xpReward: String(detail.xpReward ?? 100),
     dueDate: detail.dueDate ? detail.dueDate.split('T')[0] : '',
     term: meta.term ? String(meta.term) : '',
     status: detail.status,
