@@ -240,4 +240,58 @@ describe('Assessment reference recording picker', () => {
     await user.selectOptions(form.getByLabelText('Type'), 'exam')
     expect(form.getByLabelText(/Require review/)).toBeChecked()
   })
+
+  it('Copy opens the create form prefilled and posts without ids', async () => {
+    const detail = {
+      id: 'a1',
+      title: 'Midterm',
+      description: '',
+      type: 'quiz',
+      status: 'published',
+      totalPoints: 10,
+      passingScore: 6,
+      dueDate: '2026-12-01T00:00:00.000Z',
+      levelId: 'l1',
+      groupId: null,
+      subjectId: 's1',
+      metadata: {},
+      level: { id: 'l1', name: 'Level 1', number: 1 },
+      subject: { id: 's1', name: 'Coptic Hymns' },
+      _count: { questions: 1, submissions: 3 },
+      questions: [
+        { id: 'q1', questionText: 'Pick one', type: 'multiple_choice', options: ['A', 'B'], correctAnswer: 'A', points: 10, orderIndex: 0 },
+      ],
+    }
+    const base = mocks.get.getMockImplementation()!
+    mocks.get.mockImplementation((path: string, params?: any) => {
+      if (path === '/assessments') {
+        return Promise.resolve({ data: [{ ...detail, questions: undefined }], pagination: { page: 1, limit: 20, total: 1, totalPages: 1 } })
+      }
+      if (path === '/assessments/a1') return Promise.resolve(detail)
+      return base(path, params)
+    })
+    const user = userEvent.setup()
+    render(<AssessmentsPage />)
+
+    await user.click(await screen.findByRole('button', { name: 'Copy Midterm' }))
+    const dialog = await screen.findByRole('dialog')
+    const form = within(dialog)
+    expect(form.getByLabelText(/Title/)).toHaveValue('Copy of Midterm')
+    expect(form.getByRole('button', { name: /Create Assessment/ })).toBeInTheDocument()
+
+    await user.click(form.getByRole('button', { name: /Create Assessment/ }))
+
+    await waitFor(() => {
+      expect(mocks.post).toHaveBeenCalled()
+    })
+    const createCall = mocks.post.mock.calls.find((c) => c[0] === '/assessments')
+    expect(createCall).toBeTruthy()
+    const body = createCall![1]
+    expect(body.title).toBe('Copy of Midterm')
+    expect(body.questions).toHaveLength(1)
+    expect(body.questions[0].id).toBeUndefined()
+    expect(body.dueDate).toBeUndefined()
+    expect(body.status).toBe('draft')
+    expect(mocks.put).not.toHaveBeenCalled()
+  })
 })

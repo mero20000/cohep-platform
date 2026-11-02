@@ -3,10 +3,10 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useLanguage } from '@/lib/use-language'
 import { validateQuestions } from './validation'
-import { emptyForm, type QuestionDraft } from './assessment-form'
+import { emptyForm, assessmentToForm, toCopyForm, type QuestionDraft } from './assessment-form'
 import { defaultRequireReview, hasEssay, reviewPayload, needsShortAnswerWarning } from './review-settings'
 import {
-  ClipboardCheck, Plus, Pencil, Trash2, Loader2, ChevronRight, Zap,
+  ClipboardCheck, Plus, Pencil, Copy, Trash2, Loader2, ChevronRight, Zap,
   Calendar, FileText, Clock, Eye, Users, Check, Download, Printer, X, UserX, CheckCircle, XCircle,
   FileSpreadsheet, ChevronDown,
 } from 'lucide-react'
@@ -304,38 +304,7 @@ export default function AssessmentsPage() {
       if (!a.questions || a.questions.length === 0) {
         detail = await http.get<Assessment>(`/assessments/${a.id}`)
       }
-      const meta = (detail.metadata || {}) as { term?: number; academicYearId?: string; grade?: string; durationMinutes?: number }
-      setForm({
-        title: detail.title,
-        description: detail.description || '',
-        levelId: detail.levelId,
-        groupId: detail.groupId || '',
-        grade: meta.grade || detail.grade || '',
-        lessonId: detail.lessonId || '',
-        subjectId: detail.subjectId,
-        totalPoints: String(detail.totalPoints),
-        passingPoints: String(detail.passingScore),
-        dueDate: detail.dueDate ? detail.dueDate.split('T')[0] : '',
-        term: meta.term ? String(meta.term) : '',
-        status: detail.status,
-        type: detail.type || 'quiz',
-          questions: (detail.questions || []).map(q => ({
-            id: q.id,
-            text: q.questionText,
-            type: q.type as QuestionDraft['type'],
-            options: Array.isArray(q.options) ? q.options.join('\n') : (q.options || ''),
-            correctAnswer: q.correctAnswer,
-            points: String(q.points),
-          })),
-          referenceRecordingUrl: detail.referenceRecordingUrl || '',
-          referenceRecordingName: detail.referenceRecordingName || '',
-          requireReview: detail.requireReview ?? defaultRequireReview(detail.type || 'quiz'),
-          requireRecording: detail.requireRecording ?? false,
-          allowRetry: detail.allowRetry ?? false,
-          maxAttempts: String(detail.maxAttempts ?? 3),
-          reviewTouched: true,
-          durationMinutes: meta.durationMinutes ? String(meta.durationMinutes) : '',
-        })
+      setForm(assessmentToForm(detail))
       setFormDirty(false)
       setSelectedAssessment(detail)
     } catch (err) {
@@ -343,6 +312,21 @@ export default function AssessmentsPage() {
       toast('error', lang === 'ar' ? 'فشل تحميل تفاصيل التقييم' : 'Failed to load assessment details')
       return
     }
+    setFormError('')
+    setShowForm(true)
+  }
+
+  const openCopy = async (a: Assessment) => {
+    try {
+      const detail = await http.get<Assessment>(`/assessments/${a.id}`)
+      setForm(toCopyForm(assessmentToForm(detail), lang))
+    } catch (err) {
+      console.error('Failed to load assessment', err)
+      toast('error', lang === 'ar' ? 'فشل تحميل تفاصيل التقييم' : 'Failed to load assessment details')
+      return
+    }
+    setFormDirty(true)
+    setSelectedAssessment(null)
     setFormError('')
     setShowForm(true)
   }
@@ -720,6 +704,11 @@ export default function AssessmentsPage() {
             aria-label={lang === 'ar' ? `طلاب ${a.title}` : `Students for ${a.title}`}
             className="text-gray-500 hover:bg-indigo-50 hover:text-indigo-600">
             <Users className="h-4 w-4" />
+          </Button>
+          <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); openCopy(a) }}
+            aria-label={lang === 'ar' ? `نسخ ${a.title}` : `Copy ${a.title}`}
+            className="text-gray-500 hover:bg-sky-50 hover:text-sky-600">
+            <Copy className="h-4 w-4" />
           </Button>
           <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); openEdit(a) }}
             aria-label={lang === 'ar' ? `تعديل ${a.title}` : `Edit ${a.title}`}
