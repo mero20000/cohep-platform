@@ -82,7 +82,8 @@ export class AssessmentsService {
     });
 
     const type = dto.type || 'quiz';
-    const requireReview = dto.requireReview ?? type !== 'quiz';
+    const hasEssay = (dto.questions ?? []).some(q => q.type === 'essay');
+    const requireReview = dto.requireReview ?? (hasEssay || type !== 'quiz');
     const allowRetry = dto.allowRetry ?? false;
     this.assertReviewRetryCompatible(dto.questions ?? [], { requireReview, allowRetry });
 

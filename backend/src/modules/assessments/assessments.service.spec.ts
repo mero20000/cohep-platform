@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { NotFoundException, BadRequestException } from '@nestjs/common';
+import { NotFoundException } from '@nestjs/common';
 import { AssessmentsService } from './assessments.service';
 import { PrismaService } from '../../database/prisma.service';
 import { SchoolResolver } from '../../common/utils/school-resolver';
@@ -203,7 +203,7 @@ describe('AssessmentsService', () => {
           },
           'school-1',
         ),
-      ).rejects.toThrow(BadRequestException);
+      ).rejects.toThrow(/review/);
     });
 
     it('rejects an essay question with allowRetry true', async () => {
@@ -219,7 +219,23 @@ describe('AssessmentsService', () => {
           },
           'school-1',
         ),
-      ).rejects.toThrow(BadRequestException);
+      ).rejects.toThrow(/retr/);
+    });
+
+    it('defaults requireReview to true for a quiz that contains an essay question', async () => {
+      prisma.user.findFirst.mockResolvedValue({ id: 'user-1' });
+      prisma.assessment.create.mockResolvedValue({ id: 'a1' });
+
+      await service.create(
+        {
+          ...baseDto,
+          questions: [{ text: 'Essay', type: 'essay', correctAnswer: '', points: 10, orderIndex: 0 }],
+        },
+        'school-1',
+      );
+
+      const data = prisma.assessment.create.mock.calls[0][0].data;
+      expect(data.requireReview).toBe(true);
     });
   });
 
@@ -340,7 +356,7 @@ describe('AssessmentsService', () => {
           passingPoints: 60,
           questions: [{ text: 'Essay', type: 'essay', correctAnswer: '', points: 10, orderIndex: 0 }],
         }),
-      ).rejects.toThrow(BadRequestException);
+      ).rejects.toThrow(/retr/);
     });
 
     it('rejects turning allowRetry on when stored questions include an essay', async () => {
@@ -351,7 +367,7 @@ describe('AssessmentsService', () => {
 
       await expect(
         service.update('a1', { totalPoints: 100, passingPoints: 60, allowRetry: true }),
-      ).rejects.toThrow(BadRequestException);
+      ).rejects.toThrow(/retr/);
     });
 
     it('clears maxAttempts when allowRetry is switched off', async () => {
