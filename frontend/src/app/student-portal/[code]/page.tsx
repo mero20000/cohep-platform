@@ -26,6 +26,7 @@ import { PracticeRecorder } from '@/components/hymn-learning/practice-recorder'
 import { PracticeHistory } from '@/components/hymn-learning/practice-history'
 import { LessonText } from '@/components/hymn-learning/lesson-text'
 import { NotificationBell } from '@/components/hymn-learning/notification-bell'
+import { AttemptChip } from '@/components/assessments/attempt-chip'
 import { MASTERY_META, type HymnMapItem } from '@/components/hymn-learning/hooks'
 
 interface PortalData {
@@ -53,6 +54,7 @@ interface PortalData {
     subject: { id: string; name: string; nameAr?: string };
     submissionStatus: string; submissionId: string; submittedAt: string;
     earnedScore?: number | null;
+    attempt?: { number: number; max: number; canRetry: boolean };
   }>
 }
 
@@ -1110,6 +1112,7 @@ export default function StudentDashboard() {
                                         <span className={`text-[11px] px-2 py-0.5 rounded-full font-medium ${ss.chip}`}>{sName(a.subject)}</span>
                                         <span className="text-[11px] text-red-300">·</span>
                                         <span className="text-[11px] text-red-700">{a.totalPoints} pts</span>
+                                        <AttemptChip attempt={a.attempt} lang={lang as 'en' | 'ar'} />
                                         <span className="text-[11px] text-red-300">·</span>
                                         <span className="text-[11px] font-medium text-red-700">{days} {lang === 'ar' ? 'أيام متأخرة' : 'days overdue'}</span>
                                       </div>
@@ -1155,6 +1158,7 @@ export default function StudentDashboard() {
                                         <span className={`text-[11px] px-2 py-0.5 rounded-full font-medium ${ss.chip}`}>{sName(a.subject)}</span>
                                         <span className="text-[11px] text-gray-300">·</span>
                                         <span className="text-[11px] text-gray-700">{a.totalPoints} pts</span>
+                                        <AttemptChip attempt={a.attempt} lang={lang as 'en' | 'ar'} />
                                         {a.dueDate && (
                                           <>
                                             <span className="text-[11px] text-gray-300">·</span>
@@ -1254,6 +1258,7 @@ export default function StudentDashboard() {
                                         <span className={`text-[11px] px-2 py-0.5 rounded-full font-medium ${ss.chip}`}>{sName(a.subject)}</span>
                                         <span className="text-[11px] text-green-300">·</span>
                                         <span className="text-[11px] text-green-700">{a.totalPoints} pts</span>
+                                        <AttemptChip attempt={a.attempt} lang={lang as 'en' | 'ar'} />
                                         {score !== null && (
                                           <>
                                             <span className="text-[11px] text-green-300">·</span>

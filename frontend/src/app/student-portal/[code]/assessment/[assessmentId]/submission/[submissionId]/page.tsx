@@ -8,6 +8,7 @@ import { useLanguage } from '@/lib/use-language'
 import { ArrowLeft, Play, Pause, RotateCcw, Volume2, Loader2, Clock } from 'lucide-react'
 import Link from 'next/link'
 import { useToast } from '@/components/ui/toast'
+import { AttemptChip } from '@/components/assessments/attempt-chip'
 
 interface SubmissionData {
   submission: {
@@ -32,6 +33,14 @@ interface SubmissionData {
     max: number
     percentage: number | null
     passed: boolean | null
+  }
+  /** The student's LIVE attempt, not necessarily the submission being viewed. */
+  attempt: {
+    number: number
+    max: number
+    remaining: number
+    canRetry: boolean
+    answerKeyOpen: boolean
   }
   questions: Array<{
     id: string
@@ -103,7 +112,9 @@ export default function SubmissionReview() {
   if (error) return <div className="text-center py-20"><p className="text-red-600">{error}</p></div>
   if (!data) return null
 
-  const { submission, assessment, grade, questions } = data
+  const { submission, assessment, grade, attempt, questions } = data
+  const failed = grade.gradingComplete && grade.passed === false
+  const noAttemptsLeft = failed && attempt.max > 1 && attempt.remaining === 0
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -115,7 +126,10 @@ export default function SubmissionReview() {
           </button>
           <div className="flex-1">
             <h1 className="text-lg font-bold text-gray-900">{assessment.titleAr || assessment.title}</h1>
-            <p className="text-sm text-gray-500">{t('Assessment Review', 'مراجعة التقييم')}</p>
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="text-sm text-gray-500">{t('Assessment Review', 'مراجعة التقييم')}</p>
+              <AttemptChip attempt={attempt} lang={lang} />
+            </div>
           </div>
         </div>
       </div>
@@ -206,7 +220,15 @@ export default function SubmissionReview() {
           </div>
         )}
 
-        {/* Questions Review */}
+        {/* Questions Review — the key stays shut until the student passes or uses the last attempt. */}
+        {grade.gradingComplete && !attempt.answerKeyOpen ? (
+          <div className="rounded-2xl border border-gray-200 bg-white p-5 text-sm text-gray-600">
+            {t(
+              'Detailed answers unlock after you pass or use your last attempt.',
+              'تظهر الإجابات التفصيلية بعد أن تنجح أو تستخدم محاولتك الأخيرة.',
+            )}
+          </div>
+        ) : (
         <div className="space-y-4">
           <h2 className="text-base font-bold text-gray-900">{t('Question Review', 'مراجعة الأسئلة')}</h2>
           {questions.map((q, idx) => (
@@ -279,16 +301,29 @@ export default function SubmissionReview() {
             </div>
           ))}
         </div>
+        )}
 
-        {/* Retake Button */}
+        {/* Retake Button — only while the server says another attempt is allowed. */}
         <div className="flex gap-3 pt-4">
-          <button
-            onClick={handleRetake}
-            disabled={retaking}
-            className="flex-1 flex items-center justify-center gap-2 rounded-lg bg-indigo-600 px-6 py-3 text-sm font-bold text-white hover:bg-indigo-700 disabled:opacity-50">
-            {retaking ? <Loader2 className="h-4 w-4 animate-spin" /> : <RotateCcw className="h-4 w-4" />}
-            {retaking ? t('Starting...', 'جاري البدء...') : t('Retake Assessment', 'أعد محاولتك')}
-          </button>
+          {attempt.canRetry && (
+            <button
+              onClick={handleRetake}
+              disabled={retaking}
+              className="flex-1 flex items-center justify-center gap-2 rounded-lg bg-indigo-600 px-6 py-3 text-sm font-bold text-white hover:bg-indigo-700 disabled:opacity-50">
+              {retaking ? <Loader2 className="h-4 w-4 animate-spin" /> : <RotateCcw className="h-4 w-4" />}
+              {retaking
+                ? t('Starting...', 'جاري البدء...')
+                : t(
+                    `Try again — attempt ${attempt.number + 1} of ${attempt.max}`,
+                    `حاول مرة أخرى — المحاولة ${attempt.number + 1} من ${attempt.max}`,
+                  )}
+            </button>
+          )}
+          {noAttemptsLeft && (
+            <p className="flex-1 flex items-center justify-center rounded-lg bg-amber-50 px-6 py-3 text-sm font-bold text-amber-700">
+              {t('No attempts left', 'لا توجد محاولات متبقية')}
+            </p>
+          )}
           <Link href={`/student-portal/${code}`} className="flex items-center justify-center gap-2 rounded-lg border border-gray-300 px-6 py-3 text-sm font-bold text-gray-700 hover:bg-gray-50">
             {t('Back to Dashboard', 'العودة للوحة التحكم')}
           </Link>
