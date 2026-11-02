@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { http } from '@/lib/http-client'
 import { assetUrl } from '@/lib/asset-url'
-import { computeResult, formatCountdown, type TakeQuestion } from '../../app/dashboard/assessments/take-helpers'
+import { attemptLabel, computeResult, formatCountdown, recordingBlocksSubmit, type TakeQuestion } from '../../app/dashboard/assessments/take-helpers'
 import { Loader2, AlertCircle, CheckCircle2, XCircle, Clock, ClipboardCheck, Music, FileText, Presentation, StickyNote, Mic, Square, Trash2, ArrowLeft } from 'lucide-react'
 import { AudioPlayer } from '@/components/audio-player'
 
@@ -21,8 +21,23 @@ interface TakePayload {
     referenceRecordingName?: string | null
     hazzat?: string | null
     presentationUrl?: string | null
+    requireRecording?: boolean
+    attemptNumber?: number
+    maxAttempts?: number
   }
   questions: TakeQuestion[]
+}
+
+interface SubmitResultInfo {
+  gradingComplete: boolean
+  earned: number | null
+  max: number
+  passed: boolean | null
+  attemptNumber: number
+  maxAttempts: number
+  attemptsRemaining: number
+  canRetry: boolean
+  revealDetail: boolean
 }
 
 interface TakeProps {
@@ -55,6 +70,12 @@ export default function TakeAssessment({ assessmentId, mode, accessKey, studentI
   const [recordedUrl, setRecordedUrl] = useState<string | null>(null)
   const [recordedBlob, setRecordedBlob] = useState<Blob | null>(null)
   const [uploadingAudio, setUploadingAudio] = useState(false)
+  // The timer callback closes over stale state, so it reads the blob from a ref.
+  const recordedBlobRef = useRef<Blob | null>(null)
+  const [timeExpired, setTimeExpired] = useState(false)
+  const [uploadError, setUploadError] = useState<string | null>(null)
+  const [retaking, setRetaking] = useState(false)
+  const [retakeError, setRetakeError] = useState<string | null>(null)
 
   // Pick a MIME the device actually supports (iOS Safari: audio/mp4; others: webm/ogg)
   const pickRecorderMime = (): string | undefined => {
@@ -77,6 +98,7 @@ export default function TakeAssessment({ assessmentId, mode, accessKey, studentI
       mr.onstop = () => {
         const type = mr.mimeType || mimeType || 'audio/webm'
         const blob = new Blob(chunksRef.current, { type })
+        recordedBlobRef.current = blob
         setRecordedBlob(blob)
         setRecordedUrl(URL.createObjectURL(blob))
         stream.getTracks().forEach(t => t.stop())
@@ -97,6 +119,7 @@ export default function TakeAssessment({ assessmentId, mode, accessKey, studentI
   const discardRecording = () => {
     if (recordedUrl) URL.revokeObjectURL(recordedUrl)
     setRecordedUrl(null)
+    recordedBlobRef.current = null
     setRecordedBlob(null)
   }
 
@@ -136,10 +159,16 @@ export default function TakeAssessment({ assessmentId, mode, accessKey, studentI
     })
   }
 
+  const requireRecording = payload?.assessment.requireRecording ?? false
+  // True when a recording is required for this submit (portal only), whether or not one exists yet.
+  const recordingRequired = recordingBlocksSubmit(mode, requireRecording, false)
+  const submitBlocked = recordingBlocksSubmit(mode, requireRecording, recordedBlob != null)
+
   const submit = async () => {
     if (submittedRef.current) return
     submittedRef.current = true
     setSubmitting(true)
+    setUploadError(null)
     try {
       const current = answersRef.current
       const answerList = payload!.questions.map((q) => ({ questionId: q.id, answer: current[q.id] ?? '' }))
@@ -149,20 +178,29 @@ export default function TakeAssessment({ assessmentId, mode, accessKey, studentI
 
       let fileUrl: string | undefined
       let fileType: string | undefined
-      if (recordedBlob) {
+      const blob = recordedBlobRef.current
+      if (blob) {
         setUploadingAudio(true)
         try {
-          const ext = recordedBlob.type.includes('mp4') ? 'm4a' : recordedBlob.type.includes('ogg') ? 'ogg' : 'webm'
+          const ext = blob.type.includes('mp4') ? 'm4a' : blob.type.includes('ogg') ? 'ogg' : 'webm'
           const fd = new FormData()
-          fd.append('file', recordedBlob, `assessment-recording.${ext}`)
+          fd.append('file', blob, `assessment-recording.${ext}`)
           const up = await http.upload<{ url: string }>(
             `/student-portal/${accessKey}/recordings`,
             fd,
             mode === 'portal' ? undefined : (qp as any),
           )
           fileUrl = up.url
-          fileType = recordedBlob.type
+          fileType = blob.type
         } catch (e: any) {
+          if (recordingRequired) {
+            // A required recording cannot be skipped, so abort instead of offering to submit without it.
+            setUploadError(lang === 'ar' ? 'فشل رفع التسجيل الصوتي. التسجيل مطلوب، حاول مرة أخرى.' : 'Voice upload failed. A recording is required, so please try again.')
+            submittedRef.current = false
+            setUploadingAudio(false)
+            setSubmitting(false)
+            return
+          }
           if (!window.confirm(lang === 'ar' ? 'فشل رفع التسجيل الصوتي. التسليم بدونه؟' : 'Voice upload failed. Submit without it?')) {
             submittedRef.current = false
             setUploadingAudio(false)
@@ -192,7 +230,11 @@ export default function TakeAssessment({ assessmentId, mode, accessKey, studentI
         if (prev == null) return prev
         if (prev <= 1) {
           clearInterval(id)
-          if (!submittedRef.current) submit()
+          if (!submittedRef.current) {
+            // Never auto-submit without a required recording: keep the page open and explain.
+            if (recordingBlocksSubmit(mode, requireRecording, recordedBlobRef.current != null)) setTimeExpired(true)
+            else submit()
+          }
           return 0
         }
         return prev - 1
@@ -207,6 +249,7 @@ export default function TakeAssessment({ assessmentId, mode, accessKey, studentI
   )
 
   const confirmSubmit = () => {
+    if (submitBlocked) return
     const unanswered = payload?.questions.filter((q) => (answers[q.id] ?? '').trim().length === 0).length ?? 0
     if (unanswered > 0 && !window.confirm(`${lang === 'ar' ? 'لديك' : 'You have'} ${unanswered} ${lang === 'ar' ? 'سؤال بدون إجابة. تأكيد التسليم؟' : 'unanswered question(s). Submit anyway?'}`)) {
       return
@@ -242,7 +285,30 @@ export default function TakeAssessment({ assessmentId, mode, accessKey, studentI
 
   if (submission) {
     const res = computeResult(submission.grades ?? [], payload.questions)
-    const isPassing = res.earned >= payload.assessment.passingScore
+    const result: SubmitResultInfo | undefined = submission.result
+    const gradingComplete = result?.gradingComplete === true
+    // With retry on, a submission still awaiting marking has no meaningful score yet.
+    const awaitingMarking = result != null && !result.gradingComplete && result.maxAttempts > 1
+    const showDetail = result == null || result.revealDetail
+    const shownEarned = gradingComplete && result.earned != null ? result.earned : res.earned
+    const shownMax = gradingComplete ? result.max : payload.assessment.totalPoints
+    const isPassing = gradingComplete && result.passed != null
+      ? result.passed
+      : res.earned >= payload.assessment.passingScore
+    const resultAttemptLabel = result ? attemptLabel(result.attemptNumber, result.maxAttempts, lang) : null
+    const canTryAgain = mode === 'portal' && gradingComplete && result.canRetry
+
+    const tryAgain = async () => {
+      setRetaking(true)
+      setRetakeError(null)
+      try {
+        await http.post(`/student-portal/${accessKey}/assessments/${assessmentId}/retake`, {})
+        router.push(`/student-portal/${accessKey}/assessment/${assessmentId}/take`)
+      } catch (e: any) {
+        setRetakeError(e?.message || (lang === 'ar' ? 'تعذر بدء محاولة جديدة' : 'Could not start a new attempt'))
+        setRetaking(false)
+      }
+    }
 
     return (
       <div className="mx-auto max-w-2xl px-4 py-8">
@@ -265,22 +331,63 @@ export default function TakeAssessment({ assessmentId, mode, accessKey, studentI
               : (lang === 'ar' ? 'شكراً لتسليمك. تحقق من النتائج أدناه.' : 'Thank you for your submission. Check your results below.')}
           </p>
 
-          {/* Score Display */}
-          <div className="mt-6 flex items-center justify-center gap-4">
-            <div>
-              <p className="text-4xl font-bold text-gray-900">{res.earned}</p>
-              <p className="text-sm text-gray-500">{lang === 'ar' ? 'نقاط' : 'points'}</p>
-            </div>
-            <div className="text-2xl text-gray-400">/</div>
-            <div>
-              <p className="text-4xl font-bold text-gray-400">{payload.assessment.totalPoints}</p>
-              <p className="text-sm text-gray-500">{lang === 'ar' ? 'من' : 'total'}</p>
-            </div>
-          </div>
+          {awaitingMarking ? (
+            <p className="mt-6 text-sm font-medium text-amber-700">
+              {lang === 'ar'
+                ? 'تسليمك بانتظار التصحيح. ستظهر النتيجة بعد التصحيح.'
+                : 'Your submission is awaiting marking. Your score will appear once it is marked.'}
+            </p>
+          ) : (
+            <>
+              {/* Score Display */}
+              <div className="mt-6 flex items-center justify-center gap-4">
+                <div>
+                  <p className="text-4xl font-bold text-gray-900">{shownEarned}</p>
+                  <p className="text-sm text-gray-500">{lang === 'ar' ? 'نقاط' : 'points'}</p>
+                </div>
+                <div className="text-2xl text-gray-400">/</div>
+                <div>
+                  <p className="text-4xl font-bold text-gray-400">{shownMax}</p>
+                  <p className="text-sm text-gray-500">{lang === 'ar' ? 'من' : 'total'}</p>
+                </div>
+              </div>
 
-          <p className="mt-3 text-xs text-gray-500">
-            {lang === 'ar' ? 'بناءً على الأسئلة المصححة تلقائيًا' : 'Based on auto-graded questions'}
-          </p>
+              {gradingComplete ? (
+                result.passed != null && (
+                  <p className={`mt-3 text-sm font-semibold ${result.passed ? 'text-green-700' : 'text-red-600'}`}>
+                    {result.passed
+                      ? (lang === 'ar' ? 'ناجح' : 'Passed')
+                      : (lang === 'ar' ? 'لم تنجح' : 'Not passed')}
+                  </p>
+                )
+              ) : (
+                <p className="mt-3 text-xs text-gray-500">
+                  {lang === 'ar' ? 'بناءً على الأسئلة المصححة تلقائيًا' : 'Based on auto-graded questions'}
+                </p>
+              )}
+            </>
+          )}
+
+          {resultAttemptLabel && (
+            <p className="mt-2 text-xs font-medium text-gray-500">{resultAttemptLabel}</p>
+          )}
+
+          {canTryAgain && (
+            <div className="mt-5">
+              <button
+                type="button"
+                onClick={tryAgain}
+                disabled={retaking}
+                className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-60"
+              >
+                {retaking && <Loader2 className="h-4 w-4 animate-spin" />}
+                {lang === 'ar'
+                  ? `حاول مرة أخرى — المحاولة ${result.attemptNumber + 1} من ${result.maxAttempts}`
+                  : `Try again — attempt ${result.attemptNumber + 1} of ${result.maxAttempts}`}
+              </button>
+              {retakeError && <p role="alert" className="mt-2 text-xs text-red-600">{retakeError}</p>}
+            </div>
+          )}
         </div>
 
         {/* Action Buttons */}
@@ -305,7 +412,8 @@ export default function TakeAssessment({ assessmentId, mode, accessKey, studentI
           </button>
         </div>
 
-        {/* Detailed Results */}
+        {/* Detailed Results (hidden when they would reveal the answer key) */}
+        {showDetail && (
         <div className="mt-8">
           <h3 className="text-sm font-semibold text-gray-900 mb-4">
             {lang === 'ar' ? 'تفاصيل الإجابات' : 'Your Answers'}
@@ -331,9 +439,12 @@ export default function TakeAssessment({ assessmentId, mode, accessKey, studentI
             })}
           </div>
         </div>
+        )}
       </div>
     )
   }
+
+  const headerAttempt = attemptLabel(payload.assessment.attemptNumber ?? 1, payload.assessment.maxAttempts ?? 1, lang)
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-8">
@@ -347,7 +458,10 @@ export default function TakeAssessment({ assessmentId, mode, accessKey, studentI
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-base font-semibold text-gray-900">{payload.assessment.titleAr || payload.assessment.title}</h1>
-            <p className="text-xs text-gray-500">{payload.assessment.type} · {payload.assessment.totalPoints} pts</p>
+            <p className="text-xs text-gray-500">
+              {payload.assessment.type} · {payload.assessment.totalPoints} pts
+              {headerAttempt && ` · ${headerAttempt}`}
+            </p>
           </div>
           <div className="flex items-center gap-3 text-sm">
             <span className="text-gray-500">{answeredCount}/{payload.questions.length}</span>
@@ -399,7 +513,10 @@ export default function TakeAssessment({ assessmentId, mode, accessKey, studentI
         {/* Voice recording */}
         <div className="rounded-xl border border-gray-200 bg-white p-4">
           <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-gray-400">
-            <Mic className="h-4 w-4" /> {lang === 'ar' ? 'تسجيل صوتي (اختياري)' : 'Voice recording (optional)'}
+            <Mic className="h-4 w-4" />
+            {recordingRequired
+              ? (lang === 'ar' ? 'تسجيل صوتي (مطلوب)' : 'Voice recording (required)')
+              : (lang === 'ar' ? 'تسجيل صوتي (اختياري)' : 'Voice recording (optional)')}
           </div>
           <div className="mt-3 flex flex-wrap items-center gap-2">
             {!recording && !recordedBlob && (
@@ -424,6 +541,7 @@ export default function TakeAssessment({ assessmentId, mode, accessKey, studentI
               </>
             )}
           </div>
+          {uploadError && <p role="alert" className="mt-2 text-xs text-red-600">{uploadError}</p>}
           {uploadingAudio && (
             <p className="mt-2 inline-flex items-center gap-1.5 text-xs text-gray-500">
               <Loader2 className="h-3.5 w-3.5 animate-spin" /> {lang === 'ar' ? 'جارٍ رفع التسجيل…' : 'Uploading recording…'}
@@ -490,10 +608,23 @@ export default function TakeAssessment({ assessmentId, mode, accessKey, studentI
         ))}
       </div>
 
-      <div className="mt-8 flex justify-end">
+      {timeExpired && submitBlocked && (
+        <p role="alert" className="mt-6 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          {lang === 'ar'
+            ? 'انتهى الوقت. التسجيل الصوتي مطلوب للتسليم، سجّل إجابتك ثم اضغط تسليم.'
+            : 'Time is up. A voice recording is required to submit. Record your answer, then press Submit.'}
+        </p>
+      )}
+
+      <div className="mt-8 flex flex-col items-end gap-2">
+        {submitBlocked && !timeExpired && (
+          <p className="text-xs text-gray-500">
+            {lang === 'ar' ? 'سجّل إجابتك الصوتية لتفعيل زر التسليم.' : 'Add your voice recording to enable Submit.'}
+          </p>
+        )}
         <button
           onClick={confirmSubmit}
-          disabled={submitting}
+          disabled={submitting || submitBlocked}
           className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-60"
         >
           <ClipboardCheck className="h-4 w-4" />
