@@ -5,7 +5,10 @@ import { SchoolResolver } from '../../common/utils/school-resolver';
 import { AuditService } from '../audit/audit.service';
 import { StudentNotificationsService } from '../student-notifications/student-notifications.service';
 import { CreateAssessmentDto, UpdateAssessmentDto, SubmitAssessmentDto, CreateQuestionDto } from './dto/assessment.dto';
-import { attemptState, effectiveMaxAttempts, scoreOnTotalScale, submissionScore } from './assessment-attempts';
+import {
+  attemptState, effectiveMaxAttempts, scoreOnTotalScale, submissionScore,
+  LiveAttempt, RetryPolicy,
+} from './assessment-attempts';
 
 export interface SubmitResult {
   gradingComplete: boolean;
@@ -314,6 +317,42 @@ export class AssessmentsService {
     });
   }
 
+  /** Prisma Decimals become numbers here so the pure helpers never see them. */
+  private retryPolicy(a: {
+    allowRetry: boolean; maxAttempts: number | null; passingScore: unknown;
+    dueDate: Date | null; allowLateSubmission: boolean;
+  }): RetryPolicy {
+    return {
+      allowRetry: a.allowRetry,
+      maxAttempts: a.maxAttempts,
+      passingScore: Number(a.passingScore),
+      dueDate: a.dueDate,
+      allowLateSubmission: a.allowLateSubmission,
+    };
+  }
+
+  /**
+   * The live submission as attemptState wants it. `earned` is only known once marking
+   * is complete, and is put on the assessment's total scale so a servant's 8/10 mark on
+   * a 100-point assessment compares against the pass mark as 80.
+   */
+  private async liveAttempt(
+    assessment: { totalPoints: unknown },
+    live: { id: string; status: string; attemptNumber: number },
+    knownGrades?: Array<{ questionId: string | null; score: unknown; maxScore: unknown }>,
+  ): Promise<LiveAttempt> {
+    const { status, attemptNumber } = live;
+    if (status !== 'completed') return { status, attemptNumber, earned: null };
+
+    const grades = knownGrades ?? await this.prisma.grade.findMany({
+      where: { submissionId: live.id },
+      select: { questionId: true, score: true, maxScore: true },
+    });
+    const totalPoints = Number(assessment.totalPoints);
+    const { earned, max } = submissionScore(grades, totalPoints);
+    return { status, attemptNumber, earned: scoreOnTotalScale(earned, max, totalPoints) };
+  }
+
   async submit(assessmentId: string, studentId: string, dto: SubmitAssessmentDto, actor?: { id?: string; schoolId?: string; source?: 'staff' | 'portal' }) {
     const assessment = await this.prisma.assessment.findUnique({
       where: { id: assessmentId },
@@ -526,6 +565,9 @@ export class AssessmentsService {
         passingScore: Number(assessment.passingScore),
         dueDate: assessment.dueDate,
         durationMinutes: metadata.durationMinutes ?? null,
+        requireRecording: assessment.requireRecording,
+        attemptNumber: submission.attemptNumber,
+        maxAttempts: effectiveMaxAttempts(assessment),
         referenceRecordingUrl: assessment.referenceRecordingUrl ?? null,
         referenceRecordingName: assessment.referenceRecordingName ?? null,
         hazzat: assessment.lesson?.subjectItem?.hazzat ?? null,
@@ -886,6 +928,7 @@ export class AssessmentsService {
         assessment: {
           select: {
             id: true, title: true, titleAr: true, type: true, totalPoints: true, passingScore: true,
+            allowRetry: true, maxAttempts: true, dueDate: true, allowLateSubmission: true,
             questions: { orderBy: { orderIndex: 'asc' } },
           },
         },
@@ -914,6 +957,27 @@ export class AssessmentsService {
     // otherwise read the answers off a previous attempt and then re-take.
     const gradingComplete = submission.status === 'completed';
 
+    // Whether the key may open depends on where the student stands now (live attempt),
+    // not on the row being viewed. The viewed row still has to be 'completed' itself, so
+    // a superseded attempt opened by id never shows its key.
+    const live = (await this.liveSubmission(assessmentId, studentId)) ?? submission;
+    const state = attemptState(
+      this.retryPolicy(submission.assessment),
+      await this.liveAttempt(
+        submission.assessment,
+        live,
+        live.id === submission.id ? submission.grades : undefined,
+      ),
+    );
+    const attempt = {
+      number: state.attemptNumber,
+      max: state.max,
+      remaining: state.remaining,
+      canRetry: state.canRetry,
+      answerKeyOpen: state.answerKeyOpen,
+    };
+    const showKey = gradingComplete && attempt.answerKeyOpen;
+
     return {
       submission: {
         id: submission.id,
@@ -939,9 +1003,11 @@ export class AssessmentsService {
           ? Math.min(100, Math.round((totalScore / maxScore) * 100))
           : null,
         passed: gradingComplete
-          ? totalScore >= Number(submission.assessment.passingScore)
+          ? scoreOnTotalScale(totalScore, maxScore, Number(submission.assessment.totalPoints))
+              >= Number(submission.assessment.passingScore)
           : null,
       },
+      attempt,
       questions: submission.assessment.questions.map((q: any) => {
         const grade = submission.grades.find(g => g.questionId === q.id);
         const answer = answers.find(a => a.questionId === q.id);
@@ -952,9 +1018,9 @@ export class AssessmentsService {
           options: q.options || null,
           points: Number(q.points),
           studentAnswer: answer?.answer || null,
-          correctAnswer: gradingComplete && q.type !== 'essay' ? q.correctAnswer : null,
-          isCorrect: gradingComplete && grade ? Number(grade.score) === Number(grade.maxScore) : null,
-          score: gradingComplete && grade ? Number(grade.score) : null,
+          correctAnswer: showKey && q.type !== 'essay' ? q.correctAnswer : null,
+          isCorrect: showKey && grade ? Number(grade.score) === Number(grade.maxScore) : null,
+          score: showKey && grade ? Number(grade.score) : null,
           maxScore: grade ? Number(grade.maxScore) : null,
           feedback: grade?.feedback || null,
           feedbackAr: grade?.feedbackAr || null,
@@ -988,23 +1054,34 @@ export class AssessmentsService {
 
     // An untaken attempt is already open; handing back a second one would strand a row.
     if (existing.status === 'assigned') {
+      const max = effectiveMaxAttempts(assessment);
       return {
         newSubmissionId: existing.id,
         attemptNumber: existing.attemptNumber,
-        attemptsRemaining: assessment.maxAttempts === null
-          ? null
-          : Math.max(0, assessment.maxAttempts - existing.attemptNumber),
+        attemptsRemaining: Math.max(0, max - existing.attemptNumber),
         message: 'Ready to retake. You can now access the assessment again.',
       };
     }
 
-    const attemptsUsed = await this.prisma.assessmentSubmission.count({
-      where: { assessmentId, studentId },
-    });
-    if (assessment.maxAttempts !== null && attemptsUsed >= assessment.maxAttempts) {
+    // Every retry decision goes through allowRetry (via attemptState): a legacy row can
+    // keep a stored maxAttempts after retry was switched off.
+    const state = attemptState(
+      this.retryPolicy(assessment),
+      await this.liveAttempt(assessment, existing),
+    );
+    if (!assessment.allowRetry) {
+      throw new BadRequestException('Retakes are not enabled for this assessment');
+    }
+    if (state.passed === true) {
+      throw new BadRequestException('You have already passed this assessment');
+    }
+    if (state.attemptNumber >= state.max) {
       throw new BadRequestException(
-        `No attempts remaining — this assessment allows ${assessment.maxAttempts}.`,
+        `No attempts remaining — this assessment allows ${state.max}.`,
       );
+    }
+    if (!state.canRetry) {
+      throw new BadRequestException('The due date has passed and late submissions are not allowed');
     }
 
     // Archive the attempt being replaced and open the next one atomically, so a student
@@ -1028,9 +1105,7 @@ export class AssessmentsService {
     return {
       newSubmissionId: newSubmission.id,
       attemptNumber: newSubmission.attemptNumber,
-      attemptsRemaining: assessment.maxAttempts === null
-        ? null
-        : Math.max(0, assessment.maxAttempts - newSubmission.attemptNumber),
+      attemptsRemaining: Math.max(0, state.max - newSubmission.attemptNumber),
       message: 'Ready to retake. You can now access the assessment again.',
     };
   }

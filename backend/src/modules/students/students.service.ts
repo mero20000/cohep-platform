@@ -8,6 +8,7 @@ import { UpdateStudentDto } from './dto/update-student.dto';
 import { QueryStudentDto } from './dto/query-student.dto';
 import { BulkImportStudentDto } from './dto/bulk-import-student.dto';
 import { v4 as uuidv4 } from 'uuid';
+import { attemptState, scoreOnTotalScale, submissionScore } from '../assessments/assessment-attempts';
 
 /**
  * NOTE: The `student` User role is currently orphaned — it exists in the role seed
@@ -865,11 +866,12 @@ async getPortalData(portalAccessKey: string) {
             select: {
               id: true, title: true, titleAr: true, type: true, totalPoints: true,
               passingScore: true, dueDate: true, status: true,
+              allowRetry: true, maxAttempts: true, allowLateSubmission: true,
               level: { select: { id: true, name: true } },
               subject: { select: { id: true, name: true, nameAr: true } },
             },
           },
-          grades: { select: { score: true, maxScore: true } },
+          grades: { select: { questionId: true, score: true, maxScore: true } },
         },
         orderBy: { createdAt: 'desc' },
         take: 20,
@@ -969,7 +971,24 @@ async getPortalData(portalAccessKey: string) {
       })),
       recentHomework,
       assessments: assignedAssessments.map((sub: any) => {
-        const totalScore = sub.grades?.reduce((sum: number, g: any) => sum + Number(g.score || 0), 0) ?? 0;
+        // A servant's overall mark replaces the per-question rows rather than adding to them.
+        const totalPoints = Number(sub.assessment.totalPoints);
+        const { earned, max } = submissionScore(sub.grades ?? [], totalPoints);
+        const completed = sub.status === 'completed';
+        const state = attemptState(
+          {
+            allowRetry: sub.assessment.allowRetry,
+            maxAttempts: sub.assessment.maxAttempts,
+            passingScore: Number(sub.assessment.passingScore),
+            dueDate: sub.assessment.dueDate,
+            allowLateSubmission: sub.assessment.allowLateSubmission,
+          },
+          {
+            status: sub.status,
+            attemptNumber: sub.attemptNumber,
+            earned: completed ? scoreOnTotalScale(earned, max, totalPoints) : null,
+          },
+        );
         return {
           id: sub.assessment.id,
           title: sub.assessment.title,
@@ -983,7 +1002,8 @@ async getPortalData(portalAccessKey: string) {
           submissionStatus: sub.status,
           submissionId: sub.id,
           submittedAt: sub.submittedAt,
-          earnedScore: sub.status === 'completed' ? totalScore : null,
+          earnedScore: completed ? earned : null,
+          attempt: { number: state.attemptNumber, max: state.max, canRetry: state.canRetry },
         };
       }),
     };

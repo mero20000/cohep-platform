@@ -71,6 +71,7 @@ describe('AssessmentsService', () => {
       createMany: jest.fn(),
       deleteMany: jest.fn(),
       findFirst: jest.fn(),
+      findMany: jest.fn(),
       create: jest.fn(),
       update: jest.fn(),
     },
@@ -699,6 +700,7 @@ describe('AssessmentsService', () => {
     const pubAssess = (over: any = {}) => ({
       id: 'a1', title: 'Quiz', titleAr: null, type: 'quiz', status: 'published',
       totalPoints: 10, passingScore: 5, dueDate: null,
+      requireRecording: true, allowRetry: true, maxAttempts: 3,
       metadata: { durationMinutes: 30 },
       subject: { id: 'sub1', name: 'Hymns', nameAr: null },
       questions: [
@@ -720,6 +722,26 @@ describe('AssessmentsService', () => {
         id: 'q1', text: 'What?', type: 'multiple_choice', options: ['A', 'B'], points: 5, orderIndex: 0,
       });
       expect(JSON.stringify(res.questions)).not.toContain('correctAnswer');
+    });
+
+    it('returns requireRecording, attemptNumber and the effective maxAttempts', async () => {
+      prisma.assessment.findUnique.mockResolvedValue(pubAssess());
+      prisma.assessmentSubmission.findFirst.mockResolvedValue({ id: 's2', status: 'assigned', attemptNumber: 2 });
+
+      const res: any = await service.getTakeQuestions('a1', 'stu-1');
+
+      expect(res.assessment.requireRecording).toBe(true);
+      expect(res.assessment.attemptNumber).toBe(2);
+      expect(res.assessment.maxAttempts).toBe(3);
+    });
+
+    it('reports a single attempt when retry is off, whatever maxAttempts is stored', async () => {
+      prisma.assessment.findUnique.mockResolvedValue(pubAssess({ allowRetry: false, maxAttempts: 5 }));
+      prisma.assessmentSubmission.findFirst.mockResolvedValue({ id: 's1', status: 'assigned', attemptNumber: 1 });
+
+      const res: any = await service.getTakeQuestions('a1', 'stu-1');
+
+      expect(res.assessment.maxAttempts).toBe(1);
     });
 
     it('throws BadRequestException when not published', async () => {
@@ -835,10 +857,20 @@ describe('AssessmentsService', () => {
   });
 
   describe('prepareRetake', () => {
+    const yesterday = () => new Date(Date.now() - 86_400_000);
+    const tomorrow = () => new Date(Date.now() + 86_400_000);
+
+    // Total 10, pass mark 5: the default live grades below (none) score 0, a failure.
     const retakeable = (over: any = {}) => ({
-      id: 'a1', status: 'published', deletedAt: null, maxAttempts: null,
+      id: 'a1', status: 'published', deletedAt: null,
+      allowRetry: true, maxAttempts: 3, passingScore: 5, totalPoints: 10,
+      dueDate: null, allowLateSubmission: false,
       questions: [{ id: 'q1', type: 'multiple_choice' }],
       ...over,
+    });
+
+    beforeEach(() => {
+      prisma.grade.findMany.mockResolvedValue([]);
     });
 
     // The previous guard tested `grade.score === null`, which is unreachable: Grade.score
@@ -862,10 +894,24 @@ describe('AssessmentsService', () => {
       expect(prisma.assessmentSubmission.create).not.toHaveBeenCalled();
     });
 
+    it('reuses the open attempt on a second call', async () => {
+      prisma.assessment.findUnique.mockResolvedValue(retakeable());
+      prisma.assessmentSubmission.findFirst.mockResolvedValueOnce({ id: 's1', status: 'completed', attemptNumber: 1 });
+      prisma.assessmentSubmission.create.mockResolvedValue({ id: 's2', attemptNumber: 2 });
+
+      const first = await service.prepareRetake('a1', 'stu-1');
+
+      // The second call finds the attempt the first one opened.
+      prisma.assessmentSubmission.findFirst.mockResolvedValueOnce({ id: 's2', status: 'assigned', attemptNumber: 2 });
+      const second = await service.prepareRetake('a1', 'stu-1');
+
+      expect(second.newSubmissionId).toBe(first.newSubmissionId);
+      expect(prisma.assessmentSubmission.create).toHaveBeenCalledTimes(1);
+    });
+
     it('archives the prior attempt and increments the attempt number', async () => {
       prisma.assessment.findUnique.mockResolvedValue(retakeable());
       prisma.assessmentSubmission.findFirst.mockResolvedValue({ id: 's1', status: 'completed', attemptNumber: 1 });
-      prisma.assessmentSubmission.count.mockResolvedValue(1);
       prisma.assessmentSubmission.create.mockResolvedValue({ id: 's2', attemptNumber: 2 });
 
       const res = await service.prepareRetake('a1', 'stu-1');
@@ -882,20 +928,75 @@ describe('AssessmentsService', () => {
       expect(res.attemptNumber).toBe(2);
     });
 
-    it('refuses a retake once maxAttempts is used up', async () => {
+    it('refuses when allowRetry is off', async () => {
+      // A legacy row can keep a stored maxAttempts after retry was switched off.
+      prisma.assessment.findUnique.mockResolvedValue(retakeable({ allowRetry: false, maxAttempts: 3 }));
+      prisma.assessmentSubmission.findFirst.mockResolvedValue({ id: 's1', status: 'completed', attemptNumber: 1 });
+
+      await expect(service.prepareRetake('a1', 'stu-1')).rejects.toThrow(/Retakes are not enabled/);
+      expect(prisma.assessmentSubmission.create).not.toHaveBeenCalled();
+    });
+
+    it('refuses when the student already passed', async () => {
+      prisma.assessment.findUnique.mockResolvedValue(retakeable());
+      prisma.assessmentSubmission.findFirst.mockResolvedValue({ id: 's1', status: 'completed', attemptNumber: 1 });
+      prisma.grade.findMany.mockResolvedValue([{ questionId: 'q1', score: 8, maxScore: 10 }]);
+
+      await expect(service.prepareRetake('a1', 'stu-1')).rejects.toThrow(/already passed/);
+      expect(prisma.assessmentSubmission.create).not.toHaveBeenCalled();
+    });
+
+    it('compares the pass mark on the total scale', async () => {
+      // 8/10 on a 100-point assessment is 80 points against a pass mark of 60.
+      prisma.assessment.findUnique.mockResolvedValue(retakeable({ totalPoints: 100, passingScore: 60 }));
+      prisma.assessmentSubmission.findFirst.mockResolvedValue({ id: 's1', status: 'completed', attemptNumber: 1 });
+      prisma.grade.findMany.mockResolvedValue([{ questionId: null, score: 8, maxScore: 10 }]);
+
+      await expect(service.prepareRetake('a1', 'stu-1')).rejects.toThrow(/already passed/);
+    });
+
+    it('refuses when attempts are exhausted', async () => {
       prisma.assessment.findUnique.mockResolvedValue(retakeable({ maxAttempts: 2 }));
       prisma.assessmentSubmission.findFirst.mockResolvedValue({ id: 's2', status: 'completed', attemptNumber: 2 });
-      prisma.assessmentSubmission.count.mockResolvedValue(2);
 
       await expect(service.prepareRetake('a1', 'stu-1')).rejects.toThrow(
         /No attempts remaining/,
       );
     });
 
+    it('refuses after the due date when late submission is not allowed', async () => {
+      prisma.assessment.findUnique.mockResolvedValue(retakeable({ dueDate: yesterday() }));
+      prisma.assessmentSubmission.findFirst.mockResolvedValue({ id: 's1', status: 'completed', attemptNumber: 1 });
+
+      await expect(service.prepareRetake('a1', 'stu-1')).rejects.toThrow(/due date has passed/);
+      expect(prisma.assessmentSubmission.create).not.toHaveBeenCalled();
+    });
+
+    it('allows after the due date when late submission is allowed', async () => {
+      prisma.assessment.findUnique.mockResolvedValue(
+        retakeable({ dueDate: yesterday(), allowLateSubmission: true }),
+      );
+      prisma.assessmentSubmission.findFirst.mockResolvedValue({ id: 's1', status: 'completed', attemptNumber: 1 });
+      prisma.assessmentSubmission.create.mockResolvedValue({ id: 's2', attemptNumber: 2 });
+
+      const res = await service.prepareRetake('a1', 'stu-1');
+
+      expect(res.newSubmissionId).toBe('s2');
+    });
+
+    it('allows before the due date', async () => {
+      prisma.assessment.findUnique.mockResolvedValue(retakeable({ dueDate: tomorrow() }));
+      prisma.assessmentSubmission.findFirst.mockResolvedValue({ id: 's1', status: 'completed', attemptNumber: 1 });
+      prisma.assessmentSubmission.create.mockResolvedValue({ id: 's2', attemptNumber: 2 });
+
+      const res = await service.prepareRetake('a1', 'stu-1');
+
+      expect(res.newSubmissionId).toBe('s2');
+    });
+
     it('reports remaining attempts when a cap is set', async () => {
       prisma.assessment.findUnique.mockResolvedValue(retakeable({ maxAttempts: 3 }));
       prisma.assessmentSubmission.findFirst.mockResolvedValue({ id: 's1', status: 'completed', attemptNumber: 1 });
-      prisma.assessmentSubmission.count.mockResolvedValue(1);
       prisma.assessmentSubmission.create.mockResolvedValue({ id: 's2', attemptNumber: 2 });
 
       const res = await service.prepareRetake('a1', 'stu-1');
@@ -905,24 +1006,38 @@ describe('AssessmentsService', () => {
   });
 
   describe('getSubmissionReview', () => {
-    const review = (status: string, grades: any[]) => ({
-      id: 'sub1', studentId: 'stu-1', assessmentId: 'a1', status,
+    const yesterday = () => new Date(Date.now() - 86_400_000);
+
+    // Total 10, pass mark 5. Retry is off unless a test turns it on.
+    const review = (status: string, grades: any[], over: any = {}, assessmentOver: any = {}) => ({
+      id: 'sub1', studentId: 'stu-1', assessmentId: 'a1', status, attemptNumber: 1,
       submissionContent: JSON.stringify([{ questionId: 'q1', answer: 'B' }]),
       submittedAt: new Date(), fileUrl: null, durationSeconds: null, isLate: false,
       metadata: null,
       assessment: {
         id: 'a1', title: 'Quiz', titleAr: null, type: 'quiz',
         totalPoints: 10, passingScore: 5,
+        allowRetry: false, maxAttempts: null, dueDate: null, allowLateSubmission: false,
         questions: [{ id: 'q1', questionText: 'Q?', type: 'multiple_choice', options: ['A', 'B'], points: 10, correctAnswer: 'B' }],
+        ...assessmentOver,
       },
       grades,
+      ...over,
     });
+    const g = (score: number, questionId: string | null = 'q1', maxScore = 10) => (
+      { questionId, score, maxScore, feedback: null, feedbackAr: null }
+    );
+
+    // The viewed row is fetched by id; the live row by the liveSubmission query.
+    const open = (viewed: any, live: any = viewed) => {
+      prisma.assessmentSubmission.findFirst.mockImplementation(async (args: any) =>
+        args.where.id ? viewed : live,
+      );
+    };
 
     // Reachable directly with a known submission id, so it must not leak the key early.
     it('withholds the answer key and the score until marking is complete', async () => {
-      prisma.assessmentSubmission.findFirst.mockResolvedValue(
-        review('submitted', [{ questionId: 'q1', score: 10, maxScore: 10, feedback: null, feedbackAr: null }]),
-      );
+      open(review('submitted', [g(10)]));
 
       const res: any = await service.getSubmissionReview('sub1', 'stu-1', 'a1');
 
@@ -934,9 +1049,7 @@ describe('AssessmentsService', () => {
     });
 
     it('releases the answer key once marking is complete', async () => {
-      prisma.assessmentSubmission.findFirst.mockResolvedValue(
-        review('completed', [{ questionId: 'q1', score: 10, maxScore: 10, feedback: null, feedbackAr: null }]),
-      );
+      open(review('completed', [g(10)]));
 
       const res: any = await service.getSubmissionReview('sub1', 'stu-1', 'a1');
 
@@ -948,12 +1061,7 @@ describe('AssessmentsService', () => {
     // The servant's overall row and the per-question auto-grades used to be summed
     // together, which double-counted and pushed the percentage past 100.
     it('treats a servant overall mark as authoritative rather than summing it in', async () => {
-      prisma.assessmentSubmission.findFirst.mockResolvedValue(
-        review('completed', [
-          { questionId: 'q1', score: 10, maxScore: 10, feedback: null, feedbackAr: null },
-          { questionId: null, score: 8, maxScore: 10, feedback: 'good', feedbackAr: null },
-        ]),
-      );
+      open(review('completed', [g(10), g(8, null)]));
 
       const res: any = await service.getSubmissionReview('sub1', 'stu-1', 'a1');
 
@@ -962,13 +1070,115 @@ describe('AssessmentsService', () => {
     });
 
     it('never reports a percentage above 100', async () => {
-      prisma.assessmentSubmission.findFirst.mockResolvedValue(
-        review('completed', [{ questionId: null, score: 25, maxScore: 10, feedback: null, feedbackAr: null }]),
-      );
+      open(review('completed', [g(25, null)]));
 
       const res: any = await service.getSubmissionReview('sub1', 'stu-1', 'a1');
 
       expect(res.grade.percentage).toBe(100);
+    });
+
+    it('decides passed on the total scale', async () => {
+      // 8/10 on a 100-point assessment is 80 points against a pass mark of 60.
+      open(review('completed', [g(8, null)], {}, { totalPoints: 100, passingScore: 60 }));
+
+      const res: any = await service.getSubmissionReview('sub1', 'stu-1', 'a1');
+
+      expect(res.grade.passed).toBe(true);
+    });
+
+    describe('answer-key gate', () => {
+      const retry = { allowRetry: true, maxAttempts: 3 };
+
+      it('withholds correctAnswer and per-question marks for a failed student with attempts left', async () => {
+        open(review('completed', [g(2)], {}, retry));
+
+        const res: any = await service.getSubmissionReview('sub1', 'stu-1', 'a1');
+
+        expect(res.attempt.answerKeyOpen).toBe(false);
+        expect(res.questions[0].correctAnswer).toBeNull();
+        expect(res.questions[0].isCorrect).toBeNull();
+        expect(res.questions[0].score).toBeNull();
+        // The student's own answer and overall mark stay visible.
+        expect(res.questions[0].studentAnswer).toBe('B');
+        expect(res.grade.earned).toBe(2);
+      });
+
+      it('releases them once the student passed', async () => {
+        open(review('completed', [g(8)], {}, retry));
+
+        const res: any = await service.getSubmissionReview('sub1', 'stu-1', 'a1');
+
+        expect(res.attempt.answerKeyOpen).toBe(true);
+        expect(res.questions[0].correctAnswer).toBe('B');
+        expect(res.questions[0].score).toBe(8);
+        expect(res.questions[0].isCorrect).toBe(false);
+      });
+
+      it('releases them when attempts are exhausted', async () => {
+        open(review('completed', [g(2)], { attemptNumber: 3 }, retry));
+
+        const res: any = await service.getSubmissionReview('sub1', 'stu-1', 'a1');
+
+        expect(res.attempt.answerKeyOpen).toBe(true);
+        expect(res.questions[0].correctAnswer).toBe('B');
+      });
+
+      it('releases them after the due date passes', async () => {
+        open(review('completed', [g(2)], {}, { ...retry, dueDate: yesterday() }));
+
+        const res: any = await service.getSubmissionReview('sub1', 'stu-1', 'a1');
+
+        expect(res.attempt.canRetry).toBe(false);
+        expect(res.attempt.answerKeyOpen).toBe(true);
+        expect(res.questions[0].correctAnswer).toBe('B');
+      });
+
+      it('releases them when retry is off, whatever maxAttempts is stored', async () => {
+        open(review('completed', [g(2)], {}, { allowRetry: false, maxAttempts: 3 }));
+
+        const res: any = await service.getSubmissionReview('sub1', 'stu-1', 'a1');
+
+        expect(res.attempt.max).toBe(1);
+        expect(res.attempt.answerKeyOpen).toBe(true);
+        expect(res.questions[0].correctAnswer).toBe('B');
+      });
+
+      // A student who failed attempt 1 and opened attempt 2 must not read the key off
+      // attempt 1 by id: it is superseded, and attempt 2 is still in play.
+      it('withholds them for a superseded attempt opened by id while a new attempt is open', async () => {
+        const viewed = review('superseded', [g(2)], {}, retry);
+        const live = { id: 'sub2', status: 'assigned', attemptNumber: 2 };
+        open(viewed, live);
+
+        const res: any = await service.getSubmissionReview('sub1', 'stu-1', 'a1');
+
+        expect(res.questions[0].correctAnswer).toBeNull();
+        expect(res.questions[0].isCorrect).toBeNull();
+        expect(res.questions[0].score).toBeNull();
+      });
+
+      it('withholds them for a superseded attempt even when the live attempt has since passed', async () => {
+        const viewed = review('superseded', [g(2)], {}, retry);
+        const live = { id: 'sub2', status: 'completed', attemptNumber: 2 };
+        open(viewed, live);
+        prisma.grade.findMany.mockResolvedValue([g(8)]);
+
+        const res: any = await service.getSubmissionReview('sub1', 'stu-1', 'a1');
+
+        expect(res.attempt.answerKeyOpen).toBe(true);
+        expect(res.questions[0].correctAnswer).toBeNull();
+        expect(res.questions[0].score).toBeNull();
+      });
+
+      it('reports attempt { number, max, remaining, canRetry }', async () => {
+        open(review('completed', [g(2)], {}, retry));
+
+        const res: any = await service.getSubmissionReview('sub1', 'stu-1', 'a1');
+
+        expect(res.attempt).toEqual({
+          number: 1, max: 3, remaining: 2, canRetry: true, answerKeyOpen: false,
+        });
+      });
     });
   });
 

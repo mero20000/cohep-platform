@@ -758,6 +758,65 @@ systemConfig: {
         churchLogoUrl: null,
       });
     });
+
+    // Total 100, pass mark 60. The overall row (questionId null) carries the servant's
+    // 8/10 mark alongside an auto-graded per-question row; neither is summed with the other.
+    const portalSub = (over: any = {}, assessmentOver: any = {}, grades: any[] = []) => ({
+      id: 'sub-2', status: 'completed', attemptNumber: 2, submittedAt: new Date(),
+      assessment: {
+        id: 'a1', title: 'Quiz', titleAr: null, type: 'quiz', status: 'published',
+        totalPoints: 100, passingScore: 60, dueDate: null,
+        allowRetry: true, maxAttempts: 3, allowLateSubmission: false,
+        level: null, subject: null,
+        ...assessmentOver,
+      },
+      grades,
+      ...over,
+    });
+
+    it('returns attempt 2 of 3 and canRetry for a failed completed retry-enabled assessment', async () => {
+      prisma.assessmentSubmission.findMany.mockResolvedValue([
+        portalSub({}, {}, [{ questionId: 'q1', score: 10, maxScore: 10 }, { questionId: null, score: 4, maxScore: 10 }]),
+      ]);
+
+      const result: any = await service.getPortalData('abc-secret-key');
+
+      expect(result.assessments[0].attempt).toEqual({ number: 2, max: 3, canRetry: true });
+      // The overall mark replaces the per-question rows rather than adding to them.
+      expect(result.assessments[0].earnedScore).toBe(4);
+    });
+
+    it('reports canRetry false once the student passed on the total scale', async () => {
+      // 8/10 on a 100-point assessment is 80 points against a pass mark of 60.
+      prisma.assessmentSubmission.findMany.mockResolvedValue([
+        portalSub({}, {}, [{ questionId: null, score: 8, maxScore: 10 }]),
+      ]);
+
+      const result: any = await service.getPortalData('abc-secret-key');
+
+      expect(result.assessments[0].attempt.canRetry).toBe(false);
+    });
+
+    it('reports a single attempt and no retry when allowRetry is off, whatever maxAttempts is stored', async () => {
+      prisma.assessmentSubmission.findMany.mockResolvedValue([
+        portalSub({ attemptNumber: 1 }, { allowRetry: false, maxAttempts: 3 }, [{ questionId: null, score: 1, maxScore: 10 }]),
+      ]);
+
+      const result: any = await service.getPortalData('abc-secret-key');
+
+      expect(result.assessments[0].attempt).toEqual({ number: 1, max: 1, canRetry: false });
+    });
+
+    it('reports canRetry false for an attempt that is not completed', async () => {
+      prisma.assessmentSubmission.findMany.mockResolvedValue([
+        portalSub({ status: 'submitted' }),
+      ]);
+
+      const result: any = await service.getPortalData('abc-secret-key');
+
+      expect(result.assessments[0].attempt.canRetry).toBe(false);
+      expect(result.assessments[0].earnedScore).toBeNull();
+    });
   });
 
   // ===== getStudentSubjectItems (portal) =====
