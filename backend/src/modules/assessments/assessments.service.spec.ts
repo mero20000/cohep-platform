@@ -578,6 +578,44 @@ describe('AssessmentsService', () => {
       });
     });
 
+    describe('response grades', () => {
+      const withGrades = () =>
+        prisma.assessmentSubmission.findUnique.mockResolvedValue({
+          id: 's1', grades: [{ id: 'g1', questionId: 'q1', score: 0, maxScore: 10 }], student: null,
+        });
+
+      it('withholds per-question grades from a failing attempt that can retry', async () => {
+        prisma.assessment.findUnique.mockResolvedValue(quiz({ allowRetry: true, maxAttempts: 3 }));
+        withGrades();
+
+        const res: any = await service.submit('a1', 'stu-1', wrong);
+
+        expect(res.grades).toEqual([]);
+        expect(res.result.revealDetail).toBe(false);
+        expect(res.id).toBe('s1');
+      });
+
+      it('keeps per-question grades when retry is off', async () => {
+        prisma.assessment.findUnique.mockResolvedValue(quiz());
+        withGrades();
+
+        const res: any = await service.submit('a1', 'stu-1', wrong);
+
+        expect(res.grades).toHaveLength(1);
+        expect(res.result.revealDetail).toBe(true);
+      });
+
+      it('keeps per-question grades when a retry-enabled attempt passed', async () => {
+        prisma.assessment.findUnique.mockResolvedValue(quiz({ allowRetry: true, maxAttempts: 3 }));
+        withGrades();
+
+        const res: any = await service.submit('a1', 'stu-1', right);
+
+        expect(res.grades).toHaveLength(1);
+        expect(res.result.revealDetail).toBe(true);
+      });
+    });
+
     it('credits no XP for a failing attempt when retry is on', async () => {
       prisma.assessment.findUnique.mockResolvedValue(quiz({ allowRetry: true, maxAttempts: 3 }));
 

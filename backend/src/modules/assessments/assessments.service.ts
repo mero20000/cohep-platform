@@ -510,7 +510,9 @@ export class AssessmentsService {
         student: { select: { id: true, firstName: true, lastName: true } },
       },
     });
-    return { ...saved, result };
+    // Per-question scores double as the answer key for true/false and multiple choice, so
+    // they must not leak while the student can still retry.
+    return { ...saved, ...(result.revealDetail ? {} : { grades: [] }), result };
   }
 
   async getSubmissions(assessmentId: string) {
