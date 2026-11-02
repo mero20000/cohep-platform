@@ -975,6 +975,9 @@ async getPortalData(portalAccessKey: string) {
         const totalPoints = Number(sub.assessment.totalPoints);
         const { earned, max } = submissionScore(sub.grades ?? [], totalPoints);
         const completed = sub.status === 'completed';
+        // Shown and compared against totalPoints, so it must be on that scale (8/10 on a
+        // 100-point assessment is 80).
+        const earnedOnTotal = Math.round(scoreOnTotalScale(earned, max, totalPoints) * 100) / 100;
         const state = attemptState(
           {
             allowRetry: sub.assessment.allowRetry,
@@ -986,7 +989,7 @@ async getPortalData(portalAccessKey: string) {
           {
             status: sub.status,
             attemptNumber: sub.attemptNumber,
-            earned: completed ? scoreOnTotalScale(earned, max, totalPoints) : null,
+            earned: completed ? earnedOnTotal : null,
           },
         );
         return {
@@ -1002,7 +1005,7 @@ async getPortalData(portalAccessKey: string) {
           submissionStatus: sub.status,
           submissionId: sub.id,
           submittedAt: sub.submittedAt,
-          earnedScore: completed ? earned : null,
+          earnedScore: completed ? earnedOnTotal : null,
           attempt: { number: state.attemptNumber, max: state.max, canRetry: state.canRetry },
         };
       }),

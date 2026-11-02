@@ -782,8 +782,30 @@ systemConfig: {
       const result: any = await service.getPortalData('abc-secret-key');
 
       expect(result.assessments[0].attempt).toEqual({ number: 2, max: 3, canRetry: true });
-      // The overall mark replaces the per-question rows rather than adding to them.
-      expect(result.assessments[0].earnedScore).toBe(4);
+      // The overall mark (4/10) replaces the per-question rows rather than adding to them,
+      // and is reported on the 100-point total scale.
+      expect(result.assessments[0].earnedScore).toBe(40);
+    });
+
+    it('leaves earnedScore unchanged when the mark is already out of totalPoints', async () => {
+      prisma.assessmentSubmission.findMany.mockResolvedValue([
+        portalSub({}, {}, [{ questionId: null, score: 45, maxScore: 100 }]),
+      ]);
+
+      const result: any = await service.getPortalData('abc-secret-key');
+
+      expect(result.assessments[0].earnedScore).toBe(45);
+    });
+
+    it('reports earnedScore on the total scale when the student passed on a smaller max', async () => {
+      prisma.assessmentSubmission.findMany.mockResolvedValue([
+        portalSub({}, {}, [{ questionId: null, score: 8, maxScore: 10 }]),
+      ]);
+
+      const result: any = await service.getPortalData('abc-secret-key');
+
+      expect(result.assessments[0].earnedScore).toBe(80);
+      expect(result.assessments[0].attempt.canRetry).toBe(false);
     });
 
     it('reports canRetry false once the student passed on the total scale', async () => {
