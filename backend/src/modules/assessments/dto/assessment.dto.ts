@@ -117,6 +117,11 @@ export class CreateAssessmentDto {
   @IsBoolean()
   requireRecording?: boolean;
 
+  /** Whether students may attach a voice recording at all. Forced on when requireRecording is on. */
+  @IsOptional()
+  @IsBoolean()
+  allowRecording?: boolean;
+
   @IsOptional()
   @IsBoolean()
   allowRetry?: boolean;
@@ -224,6 +229,11 @@ export class UpdateAssessmentDto {
   @IsOptional()
   @IsBoolean()
   requireRecording?: boolean;
+
+  /** Whether students may attach a voice recording at all. Forced on when requireRecording is on. */
+  @IsOptional()
+  @IsBoolean()
+  allowRecording?: boolean;
 
   @IsOptional()
   @IsBoolean()
