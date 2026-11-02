@@ -34,8 +34,8 @@ interface SubmissionData {
     percentage: number | null
     passed: boolean | null
   }
-  /** The student's LIVE attempt, not necessarily the submission being viewed. */
-  attempt: {
+  /** The student's LIVE attempt, not necessarily the submission being viewed. Absent from older backends. */
+  attempt?: {
     number: number
     max: number
     remaining: number
@@ -57,6 +57,8 @@ interface SubmissionData {
     feedbackAr?: string
   }>
 }
+
+const LEGACY_ATTEMPT: NonNullable<SubmissionData['attempt']> = { number: 1, max: 1, remaining: 0, canRetry: false, answerKeyOpen: true }
 
 export default function SubmissionReview() {
   const params = useParams()
@@ -112,7 +114,10 @@ export default function SubmissionReview() {
   if (error) return <div className="text-center py-20"><p className="text-red-600">{error}</p></div>
   if (!data) return null
 
-  const { submission, assessment, grade, attempt, questions } = data
+  const { submission, assessment, grade, questions } = data
+  // An older backend (deploys are separate) sends no `attempt`: behave as before the
+  // feature, with the answer key open and no retake button.
+  const attempt = data.attempt ?? LEGACY_ATTEMPT
   const failed = grade.gradingComplete && grade.passed === false
   const noAttemptsLeft = failed && attempt.max > 1 && attempt.remaining === 0
 

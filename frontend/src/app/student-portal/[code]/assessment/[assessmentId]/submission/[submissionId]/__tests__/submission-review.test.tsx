@@ -105,6 +105,29 @@ describe('SubmissionReview result page', () => {
     expect(await screen.findByText('Which tone is used on Sundays?')).toBeTruthy()
     expect(screen.getByText('Question Review')).toBeTruthy()
     expect(screen.queryByText(/unlock after you pass/i)).toBeNull()
+    expect(screen.queryByRole('button', { name: /try again/i })).toBeNull()
+  })
+
+  it('falls back to pre-feature behaviour when an older backend sends no attempt (graded)', async () => {
+    const { attempt: _omit, ...legacy } = payload({ questions: [baseQuestion] })
+    mocks.get.mockResolvedValue(legacy)
+    const { container } = render(<SubmissionReview />)
+    expect(await screen.findByText('Which tone is used on Sundays?')).toBeTruthy()
+    expect(screen.getByText('Question Review')).toBeTruthy()
+    expect(screen.queryByRole('button', { name: /try again/i })).toBeNull()
+    expect(screen.queryByText(/attempt \d of \d/i)).toBeNull()
+    expect(screen.queryByText(/no attempts left/i)).toBeNull()
+    expect(container.textContent).not.toMatch(/unlock after you pass/i)
+  })
+
+  it('falls back to pre-feature behaviour when an older backend sends no attempt (awaiting marking)', async () => {
+    const { attempt: _omit, ...legacy } = payload({ grade: { gradingComplete: false, earned: null, percentage: null, passed: null } })
+    mocks.get.mockResolvedValue(legacy)
+    render(<SubmissionReview />)
+    expect(await screen.findByText('Awaiting marking')).toBeTruthy()
+    expect(screen.queryByRole('button', { name: /try again/i })).toBeNull()
+    expect(screen.queryByText(/attempt \d of \d/i)).toBeNull()
+    expect(screen.getByRole('link', { name: /back to dashboard/i })).toBeTruthy()
   })
 
   it('shows the attempt label near the score when the assessment allows several attempts', async () => {
