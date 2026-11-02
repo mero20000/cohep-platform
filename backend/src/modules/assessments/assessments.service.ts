@@ -427,9 +427,19 @@ export class AssessmentsService {
       throw new BadRequestException('A voice recording is required for this assessment');
     }
 
-    // Only a strict `false` auto-completes, and never when a question needs a human to mark it.
+    // One answer per question, the last one given: a repeated answer must not score twice.
+    const answers = Array.from(
+      new Map((dto.answers ?? []).map((a) => [a.questionId, a] as const)).values(),
+    );
+
+    // Only a strict `false` auto-completes, and only when nothing needs a human: no essay, at
+    // least one auto-graded question, and no recording (someone should listen to it). Anything
+    // else follows the pending-review flow.
     const autoComplete =
-      assessment.requireReview === false && !assessment.questions.some((q) => q.type === 'essay');
+      assessment.requireReview === false &&
+      assessment.questions.length > 0 &&
+      !assessment.questions.some((q) => q.type === 'essay') &&
+      !dto.fileUrl;
     const totalPoints = Number(assessment.totalPoints);
     let earned: number | null = null;
 
@@ -440,7 +450,7 @@ export class AssessmentsService {
         where: { id: assignment.id },
         data: {
           submissionType: 'online',
-          submissionContent: JSON.stringify(dto.answers),
+          submissionContent: JSON.stringify(answers),
           fileUrl: dto.fileUrl || null,
           fileType: dto.fileType || null,
           durationSeconds: dto.durationSeconds ?? null,
@@ -454,7 +464,7 @@ export class AssessmentsService {
       // A re-submission on a reused row must not accumulate stale auto-grades.
       await tx.grade.deleteMany({ where: { submissionId: sub.id, questionId: { not: null } } });
 
-      const gradeData = dto.answers
+      const gradeData = answers
         .map((answer) => {
           const question = assessment.questions.find(q => q.id === answer.questionId);
           if (!question) return null;
@@ -480,6 +490,14 @@ export class AssessmentsService {
       if (!autoComplete) return sub;
 
       earned = submissionScore(gradeData as any, totalPoints).earned;
+      if (earned > totalPoints) {
+        throw new BadRequestException('The automatic mark cannot exceed the assessment total');
+      }
+      // The overall row, as a servant's mark would leave, so every report that reads the
+      // overall grade sees this mark. gradedBy null tells it apart from a mark someone gave.
+      await tx.grade.create({
+        data: { submissionId: sub.id, questionId: null, score: earned, maxScore: totalPoints, feedback: null, gradedBy: null },
+      });
       const completed = await tx.assessmentSubmission.update({
         where: { id: sub.id },
         data: { status: 'completed' },
@@ -704,6 +722,8 @@ export class AssessmentsService {
       this.prisma.grade.findMany({
         where: {
           questionId: null,
+          // A mark someone gave; an auto-completed submission's overall row has no grader.
+          gradedBy: { not: null },
           gradedAt: { gte: since },
           submission: {
             status: 'completed',
@@ -1029,13 +1049,14 @@ export class AssessmentsService {
           status: 'completed',
           submissionType: 'online',
           assessment: { schoolId, deletedAt: null },
-          grades: { some: { questionId: null, gradedAt: { gte: since } } },
+          // Marking turnaround is for marks someone gave, not auto-completed work.
+          grades: { some: { questionId: null, gradedBy: { not: null }, gradedAt: { gte: since } } },
         },
         select: {
           submittedAt: true,
           student: { select: { group: { select: { id: true, name: true } } } },
           grades: {
-            where: { questionId: null },
+            where: { questionId: null, gradedBy: { not: null } },
             select: {
               gradedAt: true,
               grader: { select: { id: true, firstName: true, lastName: true } },
@@ -1495,11 +1516,11 @@ export class AssessmentsService {
 
   async unassignStudent(assessmentId: string, studentId: string, user: any) {
     await this.access.assertAssessmentAndStudent(await this.access.loadActor(user), assessmentId, studentId);
-    // Every attempt goes, superseded ones included, so neither a legacy duplicate nor an old
-    // attempt is left behind to reappear. A parent's home-practice report is evidence, not the
-    // assignment, and stays.
+    // Every live record for the pair, so a legacy duplicate cannot be left behind to reappear.
+    // Archived rows (earlier attempts, merged or discarded work) and parent reports are history
+    // and are never hard-deleted.
     const attempts = await this.prisma.assessmentSubmission.findMany({
-      where: { assessmentId, studentId, submissionType: { not: 'parent_report' } },
+      where: { assessmentId, studentId, ...LIFECYCLE_WHERE },
       select: { id: true },
     });
     if (attempts.length === 0) {

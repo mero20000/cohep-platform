@@ -541,6 +541,14 @@ describe('AttendanceService', () => {
       );
     });
 
+    it('creates the draft quiz with review on, so a system draft never auto-completes', async () => {
+      await service.markSubjectItemStatus('sess-1', 'completed');
+      expect(assessmentsMock.create).toHaveBeenCalledWith(
+        expect.objectContaining({ type: 'quiz', requireReview: true }),
+        schoolId,
+      );
+    });
+
     it('on completed twice reuses the same draft instead of creating duplicates', async () => {
       prisma.assessment.findFirst.mockResolvedValueOnce(null).mockResolvedValueOnce({ id: 'ass-1', title: 'Assessment: The Trinity', status: 'draft' });
       await service.markSubjectItemStatus('sess-1', 'completed');

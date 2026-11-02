@@ -346,6 +346,8 @@ export class AttendanceService {
             totalPoints: 0,
             passingPoints: 0,
             type: 'quiz',
+            // A system-made draft keeps servant review; a servant can switch it off in the form.
+            requireReview: true,
             status: 'draft',
           },
           session.schoolId,

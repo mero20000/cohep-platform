@@ -8,6 +8,7 @@ import {
   IsDateString,
   IsEnum,
   IsArray,
+  ArrayMaxSize,
   ValidateNested,
   Min,
   Max,
@@ -263,6 +264,8 @@ export class AnswerDto {
 
 export class SubmitAssessmentDto {
   @IsArray()
+  // Well above any real assessment; bounds the work a crafted request can cause.
+  @ArrayMaxSize(200)
   @ValidateNested({ each: true })
   @Type(() => AnswerDto)
   answers: AnswerDto[];

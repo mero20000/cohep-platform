@@ -8,7 +8,8 @@ import { AccessScopeService } from '../../common/access-scope.service';
 import { RolesGuard } from '../../modules/auth/guards/roles.guard';
 import { Reflector } from '@nestjs/core';
 import { STAFF_ROLES } from '../../common/decorators/roles.decorator';
-import { CreateAssessmentDto, CreateQuestionDto } from './dto/assessment.dto';
+import { CreateAssessmentDto, CreateQuestionDto, SubmitAssessmentDto } from './dto/assessment.dto';
+import { plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';
 import { StudentNotificationsService } from '../student-notifications/student-notifications.service';
 
@@ -682,7 +683,7 @@ describe('AssessmentsService', () => {
     beforeEach(() => {
       tx = {
         assessmentSubmission: { update: jest.fn().mockResolvedValue({ id: 's1' }) },
-        grade: { deleteMany: jest.fn(), createMany: jest.fn() },
+        grade: { deleteMany: jest.fn(), createMany: jest.fn(), create: jest.fn() },
         xPTransaction: {
           findFirst: jest.fn().mockResolvedValue(null),
           aggregate: jest.fn().mockResolvedValue({ _sum: { amount: 0 } }),
@@ -792,6 +793,93 @@ describe('AssessmentsService', () => {
       await service.submit('a1', 'stu-1', right, { source: 'portal' });
       await service.submit('a1', 'stu-1', right);
       expect(access.assertAssessmentAndStudent).not.toHaveBeenCalled();
+    });
+
+    describe('answer array hardening', () => {
+      it('scores a question answered many times once, so the mark and XP cannot be inflated', async () => {
+        prisma.assessment.findUnique.mockResolvedValue(quiz());
+        const repeated = { answers: Array.from({ length: 5 }, () => ({ questionId: 'q1', answer: 'A' })) };
+
+        const res: any = await service.submit('a1', 'stu-1', repeated, { source: 'portal' });
+
+        expect(tx.grade.createMany.mock.calls[0][0].data).toHaveLength(1);
+        expect(res.result.earned).toBe(10);
+        expect(tx.xPTransaction.create).toHaveBeenCalledWith(
+          expect.objectContaining({ data: expect.objectContaining({ amount: 100 }) }),
+        );
+      });
+
+      it('keeps the last answer when a question is answered twice', async () => {
+        prisma.assessment.findUnique.mockResolvedValue(quiz());
+
+        const res: any = await service.submit('a1', 'stu-1', {
+          answers: [{ questionId: 'q1', answer: 'A' }, { questionId: 'q1', answer: 'B' }],
+        });
+
+        expect(res.result.earned).toBe(0);
+        expect(tx.grade.createMany.mock.calls[0][0].data).toEqual([expect.objectContaining({ questionId: 'q1', score: 0 })]);
+      });
+
+      it('refuses to auto-complete a mark above the assessment total', async () => {
+        // Legacy data: question points summing past the total (validateQuestions now prevents it).
+        prisma.assessment.findUnique.mockResolvedValue(quiz({
+          questions: [
+            { id: 'q1', type: 'multiple_choice', correctAnswer: 'A', points: 10 },
+            { id: 'q2', type: 'multiple_choice', correctAnswer: 'A', points: 10 },
+          ],
+        }));
+
+        await expect(service.submit('a1', 'stu-1', {
+          answers: [{ questionId: 'q1', answer: 'A' }, { questionId: 'q2', answer: 'A' }],
+        })).rejects.toThrow(/cannot exceed the assessment total/);
+        expect(tx.xPTransaction.create).not.toHaveBeenCalled();
+      });
+    });
+
+    describe('what auto-completes', () => {
+      it('sends a submission with a recording to review even when review is off', async () => {
+        prisma.assessment.findUnique.mockResolvedValue(quiz());
+        const reviewers = jest.spyOn(service as any, 'notifyReviewers').mockResolvedValue(undefined);
+
+        const res: any = await service.submit('a1', 'stu-1', { ...right, fileUrl: 'https://cdn/rec.webm' });
+
+        expect(tx.assessmentSubmission.update).not.toHaveBeenCalledWith(
+          expect.objectContaining({ data: expect.objectContaining({ status: 'completed' }) }),
+        );
+        expect(tx.xPTransaction.create).not.toHaveBeenCalled();
+        expect(reviewers).toHaveBeenCalled();
+        // The student sees the normal "awaiting marking" state.
+        expect(res.result).toEqual(expect.objectContaining({ gradingComplete: false, earned: null, passed: null }));
+      });
+
+      it('does not auto-complete an assessment with no questions', async () => {
+        prisma.assessment.findUnique.mockResolvedValue(quiz({ questions: [] }));
+
+        const res: any = await service.submit('a1', 'stu-1', { answers: [] });
+
+        expect(tx.assessmentSubmission.update).not.toHaveBeenCalledWith(
+          expect.objectContaining({ data: expect.objectContaining({ status: 'completed' }) }),
+        );
+        expect(res.result.gradingComplete).toBe(false);
+      });
+
+      it('writes the overall grade row on auto-complete, unmarked by anyone', async () => {
+        prisma.assessment.findUnique.mockResolvedValue(quiz());
+
+        await service.submit('a1', 'stu-1', right);
+
+        expect(tx.grade.create).toHaveBeenCalledWith({
+          data: { submissionId: 's1', questionId: null, score: 10, maxScore: 10, feedback: null, gradedBy: null },
+        });
+      });
+
+      it('writes no overall grade row when the submission waits for review', async () => {
+        prisma.assessment.findUnique.mockResolvedValue(quiz({ requireReview: true }));
+
+        await service.submit('a1', 'stu-1', right);
+
+        expect(tx.grade.create).not.toHaveBeenCalled();
+      });
     });
 
     it('reports attempt 1 of 3 and canRetry true for a failed no-review quiz with retry on', async () => {
@@ -991,6 +1079,21 @@ describe('AssessmentsService', () => {
         expect.objectContaining({ data: expect.objectContaining({ amount: 40, referenceId: 's1' }) }),
       );
       expect(prisma.xPTransaction.deleteMany).not.toHaveBeenCalled();
+    });
+
+    it('updates the auto-complete overall row when a servant re-marks it, never adding a second', async () => {
+      prisma.assessment.findUnique.mockResolvedValue(markable({ allowRetry: false }));
+      prisma.assessmentSubmission.findFirst.mockResolvedValue({ id: 's1', status: 'completed', attemptNumber: 1 });
+      prisma.grade.findFirst.mockResolvedValue({ id: 'g-auto', questionId: null, score: 60, maxScore: 100, gradedBy: null });
+      prisma.xPTransaction.findFirst.mockResolvedValue({ id: 'x1' });
+
+      await service.markStudent('a1', 'stu-1', 70, 100, 'adjusted', 'u1');
+
+      expect(prisma.grade.update).toHaveBeenCalledWith({
+        where: { id: 'g-auto' },
+        data: { score: 70, maxScore: 100, feedback: 'adjusted', gradedBy: 'u1' },
+      });
+      expect(prisma.grade.create).not.toHaveBeenCalled();
     });
 
     it('updates rather than duplicates XP on a second passing re-mark', async () => {
@@ -1504,6 +1607,12 @@ describe('AssessmentsService', () => {
         prisma.user.findMany.mockResolvedValue([]);
       });
 
+      it('leaves out auto-completed work: only a mark someone gave is listed', async () => {
+        await service.getMarked('school-1', admin);
+
+        expect(prisma.grade.findMany.mock.calls[0][0].where.gradedBy).toEqual({ not: null });
+      });
+
       it('lists marked work with who marked it, whether that was an admin, and keeps the recording and notes', async () => {
         prisma.grade.findMany.mockResolvedValue([
           gradeRow(),
@@ -1672,6 +1781,16 @@ describe('AssessmentsService', () => {
     });
 
     describe('getReviewStats', () => {
+      it('leaves auto-completed work out of the marking turnaround', async () => {
+        prisma.assessmentSubmission.findMany.mockResolvedValueOnce([]).mockResolvedValueOnce([]);
+
+        await service.getReviewStats('school-1');
+
+        const completed = prisma.assessmentSubmission.findMany.mock.calls[1][0];
+        expect(completed.where.grades.some.gradedBy).toEqual({ not: null });
+        expect(completed.select.grades.where.gradedBy).toEqual({ not: null });
+      });
+
       it('summarises backlog and turnaround per group and per marker', async () => {
         const g = { id: 'g1', name: 'Group 1B' };
         prisma.assessmentSubmission.findMany
@@ -2479,20 +2598,25 @@ describe('AssessmentsService', () => {
       await expect(service.reassessStudent('a1', 'stu-1', staff)).rejects.toThrow('not assigned');
     });
 
-    it('unassign removes grades and rows for every attempt, superseded included', async () => {
+    it('unassign removes the live row and its grades, and leaves archived attempts alone', async () => {
       prisma.assessmentSubmission.findMany.mockResolvedValue([{ id: 's1' }, { id: 's2' }]);
 
       await service.unassignStudent('a1', 'stu-1', staff);
 
+      // Only live rows: superseded attempts and parent reports are history and stay.
       expect(prisma.assessmentSubmission.findMany).toHaveBeenCalledWith(
-        // Every attempt, superseded included; only a parent's home-practice report is kept.
-        expect.objectContaining({ where: { assessmentId: 'a1', studentId: 'stu-1', submissionType: { not: 'parent_report' } } }),
+        expect.objectContaining({
+          where: {
+            assessmentId: 'a1', studentId: 'stu-1',
+            status: { not: 'superseded' }, submissionType: { not: 'parent_report' },
+          },
+        }),
       );
       expect(prisma.grade.deleteMany).toHaveBeenCalledWith({ where: { submissionId: { in: ['s1', 's2'] } } });
       expect(prisma.assessmentSubmission.deleteMany).toHaveBeenCalledWith({ where: { id: { in: ['s1', 's2'] } } });
     });
 
-    it('unassign throws NotFoundException when the student has no attempts', async () => {
+    it('unassign throws NotFoundException when the student has no live attempt', async () => {
       prisma.assessmentSubmission.findMany.mockResolvedValue([]);
 
       await expect(service.unassignStudent('a1', 'stu-1', staff)).rejects.toThrow('not assigned');
@@ -2544,6 +2668,22 @@ describe('DTO validation', () => {
     it.each(['boys', 'MALE', 'other', ''])('rejects %p', async (g) => {
       const errors = await validate(make(g));
       expect(errors.some((e) => e.property === 'gender')).toBe(true);
+    });
+  });
+
+  describe('submit answers', () => {
+    const answers = (n: number) => Array.from({ length: n }, (_, i) => ({
+      questionId: `550e8400-e29b-41d4-a716-${String(i).padStart(12, '0')}`, answer: 'A',
+    }));
+    const make = (n: number) => plainToInstance(SubmitAssessmentDto, { answers: answers(n) });
+
+    it('accepts up to 200 answers', async () => {
+      expect(await validate(make(200))).toHaveLength(0);
+    });
+
+    it('rejects an oversized answer array', async () => {
+      const errors = await validate(make(201));
+      expect(errors.some((e) => e.property === 'answers')).toBe(true);
     });
   });
 
