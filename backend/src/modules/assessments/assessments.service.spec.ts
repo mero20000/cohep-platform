@@ -479,12 +479,29 @@ describe('AssessmentsService', () => {
     const right = { answers: [{ questionId: 'q1', answer: 'A' }] };
     const wrong = { answers: [{ questionId: 'q1', answer: 'B' }] };
 
+    // A distinct client for the transaction, so a write that bypasses it is visible.
+    let tx: any;
+
     beforeEach(() => {
+      tx = {
+        assessmentSubmission: { update: jest.fn().mockResolvedValue({ id: 's1' }) },
+        grade: { deleteMany: jest.fn(), createMany: jest.fn() },
+        xPTransaction: {
+          findFirst: jest.fn().mockResolvedValue(null),
+          aggregate: jest.fn().mockResolvedValue({ _sum: { amount: 0 } }),
+          create: jest.fn(),
+          update: jest.fn(),
+          deleteMany: jest.fn(),
+        },
+        lesson: { findUnique: jest.fn() },
+      };
+      prisma.$transaction.mockImplementation(async (fn: any) => fn(tx));
       prisma.assessmentSubmission.findFirst.mockResolvedValue({ id: 's1', status: 'assigned', attemptNumber: 1 });
-      prisma.assessmentSubmission.update.mockResolvedValue({ id: 's1' });
       prisma.assessmentSubmission.findUnique.mockResolvedValue({ id: 's1', grades: [], student: null });
-      prisma.xPTransaction.findFirst.mockResolvedValue(null);
-      prisma.xPTransaction.aggregate.mockResolvedValue({ _sum: { amount: 0 } });
+    });
+
+    afterEach(() => {
+      prisma.$transaction.mockImplementation(async (fn: any) => fn(prismaMock));
     });
 
     it('rejects a portal submit without fileUrl when requireRecording is on', async () => {
@@ -511,7 +528,7 @@ describe('AssessmentsService', () => {
 
       const res: any = await service.submit('a1', 'stu-1', right);
 
-      expect(prisma.assessmentSubmission.update).toHaveBeenCalledWith(
+      expect(tx.assessmentSubmission.update).toHaveBeenCalledWith(
         expect.objectContaining({ data: expect.objectContaining({ status: 'completed' }) }),
       );
       expect(notifications.notifyOrRefresh).toHaveBeenCalledTimes(1);
@@ -525,11 +542,11 @@ describe('AssessmentsService', () => {
 
       const res: any = await service.submit('a1', 'stu-1', right);
 
-      expect(prisma.assessmentSubmission.update).not.toHaveBeenCalledWith(
+      expect(tx.assessmentSubmission.update).not.toHaveBeenCalledWith(
         expect.objectContaining({ data: expect.objectContaining({ status: 'completed' }) }),
       );
       expect(notifications.notifyOrRefresh).not.toHaveBeenCalled();
-      expect(prisma.xPTransaction.create).not.toHaveBeenCalled();
+      expect(tx.xPTransaction.create).not.toHaveBeenCalled();
       expect(res.result).toEqual(expect.objectContaining({ gradingComplete: false, earned: null, passed: null }));
     });
 
@@ -543,7 +560,7 @@ describe('AssessmentsService', () => {
 
       const res: any = await service.submit('a1', 'stu-1', right);
 
-      expect(prisma.assessmentSubmission.update).not.toHaveBeenCalledWith(
+      expect(tx.assessmentSubmission.update).not.toHaveBeenCalledWith(
         expect.objectContaining({ data: expect.objectContaining({ status: 'completed' }) }),
       );
       expect(res.result.gradingComplete).toBe(false);
@@ -565,7 +582,9 @@ describe('AssessmentsService', () => {
 
       await service.submit('a1', 'stu-1', wrong);
 
-      expect(prisma.xPTransaction.create).not.toHaveBeenCalled();
+      expect(tx.xPTransaction.create).not.toHaveBeenCalled();
+      expect(tx.xPTransaction.deleteMany).toHaveBeenCalled();
+      expect(prisma.xPTransaction.deleteMany).not.toHaveBeenCalled();
     });
 
     it('credits one XP row for the passing attempt when retry is on', async () => {
@@ -573,8 +592,11 @@ describe('AssessmentsService', () => {
 
       await service.submit('a1', 'stu-1', right);
 
-      expect(prisma.xPTransaction.create).toHaveBeenCalledTimes(1);
-      expect(prisma.xPTransaction.create).toHaveBeenCalledWith(
+      expect(tx.xPTransaction.create).toHaveBeenCalledTimes(1);
+      // The XP write must ride the transaction client, not the outer prisma.
+      expect(prisma.xPTransaction.create).not.toHaveBeenCalled();
+      expect(prisma.xPTransaction.findFirst).not.toHaveBeenCalled();
+      expect(tx.xPTransaction.create).toHaveBeenCalledWith(
         expect.objectContaining({
           data: expect.objectContaining({ studentId: 'stu-1', amount: 100, referenceId: 's1' }),
         }),
@@ -593,7 +615,7 @@ describe('AssessmentsService', () => {
         answers: [{ questionId: 'q1', answer: 'A' }, { questionId: 'q2', answer: 'B' }],
       });
 
-      expect(prisma.xPTransaction.create).toHaveBeenCalledWith(
+      expect(tx.xPTransaction.create).toHaveBeenCalledWith(
         expect.objectContaining({ data: expect.objectContaining({ amount: 50 }) }),
       );
     });
@@ -635,6 +657,28 @@ describe('AssessmentsService', () => {
       expect(prisma.xPTransaction.deleteMany).toHaveBeenCalledWith({
         where: { referenceType: 'submission', referenceId: 's1' },
       });
+      expect(prisma.xPTransaction.create).not.toHaveBeenCalled();
+    });
+
+    it('credits XP for 8/10 on a 100-point assessment with pass mark 60 when retry is on', async () => {
+      prisma.assessment.findUnique.mockResolvedValue(markable());
+      prisma.xPTransaction.findFirst.mockResolvedValue(null);
+
+      await service.markStudent('a1', 'stu-1', 8, 10, undefined, 'u1');
+
+      expect(prisma.xPTransaction.create).toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({ amount: 80 }) }),
+      );
+      expect(prisma.xPTransaction.deleteMany).not.toHaveBeenCalled();
+    });
+
+    it('credits no XP for 5/10 on a 100-point assessment with pass mark 60 when retry is on', async () => {
+      prisma.assessment.findUnique.mockResolvedValue(markable());
+      prisma.xPTransaction.findFirst.mockResolvedValue({ id: 'x1' });
+
+      await service.markStudent('a1', 'stu-1', 5, 10, undefined, 'u1');
+
+      expect(prisma.xPTransaction.deleteMany).toHaveBeenCalled();
       expect(prisma.xPTransaction.create).not.toHaveBeenCalled();
     });
 

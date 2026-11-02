@@ -4,6 +4,7 @@ import {
   LiveAttempt,
   attemptState,
   effectiveMaxAttempts,
+  scoreOnTotalScale,
   submissionScore,
 } from './assessment-attempts';
 
@@ -64,6 +65,20 @@ describe('assessment-attempts', () => {
         20,
       );
       expect(result).toEqual({ earned: 6, max: 20 });
+    });
+  });
+
+  describe('scoreOnTotalScale', () => {
+    it('scales a mark recorded against a smaller max up to the total', () => {
+      expect(scoreOnTotalScale(8, 10, 100)).toBe(80);
+    });
+
+    it('is the identity when max equals the total', () => {
+      expect(scoreOnTotalScale(6, 6, 6)).toBe(6);
+    });
+
+    it('returns 0 when max is 0', () => {
+      expect(scoreOnTotalScale(0, 0, 100)).toBe(0);
     });
   });
 

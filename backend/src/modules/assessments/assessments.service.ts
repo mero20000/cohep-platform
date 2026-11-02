@@ -1,10 +1,11 @@
+import { Prisma } from '@prisma/client';
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 import { SchoolResolver } from '../../common/utils/school-resolver';
 import { AuditService } from '../audit/audit.service';
 import { StudentNotificationsService } from '../student-notifications/student-notifications.service';
 import { CreateAssessmentDto, UpdateAssessmentDto, SubmitAssessmentDto, CreateQuestionDto } from './dto/assessment.dto';
-import { attemptState, effectiveMaxAttempts, submissionScore } from './assessment-attempts';
+import { attemptState, effectiveMaxAttempts, scoreOnTotalScale, submissionScore } from './assessment-attempts';
 
 export interface SubmitResult {
   gradingComplete: boolean;
@@ -412,7 +413,8 @@ export class AssessmentsService {
         maxScore: totalPoints,
         passRequired: assessment.allowRetry,
         passingScore: Number(assessment.passingScore),
-      });
+        totalPoints,
+      }, tx);
       return completed;
     });
 
@@ -674,6 +676,7 @@ export class AssessmentsService {
       maxScore,
       passRequired: assessment.allowRetry,
       passingScore: Number(assessment.passingScore),
+      totalPoints: total,
     });
 
     await this.notifyGraded({
@@ -707,40 +710,41 @@ export class AssessmentsService {
     maxScore: number;
     passRequired: boolean;
     passingScore: number;
-  }): Promise<void> {
-    const { studentId, submissionId, lessonId, score, maxScore, passRequired, passingScore } = args;
+    totalPoints: number;
+  }, db: Prisma.TransactionClient | PrismaService = this.prisma): Promise<void> {
+    const { studentId, submissionId, lessonId, score, maxScore, passRequired, passingScore, totalPoints } = args;
 
-    if (passRequired && score < passingScore) {
-      await this.prisma.xPTransaction.deleteMany({
+    if (passRequired && scoreOnTotalScale(score, maxScore, totalPoints) < passingScore) {
+      await db.xPTransaction.deleteMany({
         where: { referenceType: 'submission', referenceId: submissionId },
       });
       return;
     }
 
     const xpAmount = Math.round((Number(score) / Number(maxScore)) * 100);
-    const existingXp = await this.prisma.xPTransaction.findFirst({
+    const existingXp = await db.xPTransaction.findFirst({
       where: { referenceType: 'submission', referenceId: submissionId },
     });
     const xpWhere: any = { studentId };
     if (existingXp) xpWhere.id = { not: existingXp.id };
-    const currentBalance = await this.prisma.xPTransaction.aggregate({
+    const currentBalance = await db.xPTransaction.aggregate({
       where: xpWhere,
       _sum: { amount: true },
     });
     const balanceAfter = (currentBalance._sum.amount || 0) + xpAmount;
     let lessonLabel = '';
     if (lessonId) {
-      const lesson = await this.prisma.lesson.findUnique({ where: { id: lessonId }, select: { title: true } });
+      const lesson = await db.lesson.findUnique({ where: { id: lessonId }, select: { title: true } });
       if (lesson) lessonLabel = ` · ${lesson.title}`;
     }
     const xpDesc = `Assessment mark: ${score}/${maxScore}${lessonLabel}`;
     if (existingXp) {
-      await this.prisma.xPTransaction.update({
+      await db.xPTransaction.update({
         where: { id: existingXp.id },
         data: { amount: xpAmount, balanceAfter, description: xpDesc },
       });
     } else {
-      await this.prisma.xPTransaction.create({
+      await db.xPTransaction.create({
         data: {
           studentId,
           amount: xpAmount,

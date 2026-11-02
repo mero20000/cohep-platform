@@ -38,6 +38,15 @@ export function submissionScore(
   return { earned, max: totalPoints };
 }
 
+/**
+ * A pass mark is stored in points of the assessment's totalPoints, but a mark can be
+ * recorded against a smaller max (e.g. 8/10 on a 100-point assessment). Scale it up
+ * before comparing so every pass decision uses the same units.
+ */
+export function scoreOnTotalScale(earned: number, max: number, totalPoints: number): number {
+  return max > 0 ? (earned / max) * totalPoints : 0;
+}
+
 export function attemptState(policy: RetryPolicy, live: LiveAttempt, now: Date = new Date()) {
   const max = effectiveMaxAttempts(policy);
   const { attemptNumber } = live;
