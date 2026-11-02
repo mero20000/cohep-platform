@@ -34,6 +34,7 @@ describe('AssessmentsService', () => {
       findUnique: jest.fn(),
       findMany: jest.fn(),
       count: jest.fn(),
+      groupBy: jest.fn(),
       create: jest.fn(),
       update: jest.fn(),
       deleteMany: jest.fn(),
@@ -52,6 +53,7 @@ describe('AssessmentsService', () => {
       createMany: jest.fn(),
       update: jest.fn(),
       delete: jest.fn(),
+      deleteMany: jest.fn(),
       count: jest.fn(),
     },
     user: {
@@ -721,6 +723,19 @@ describe('AssessmentsService', () => {
       expect(prisma.xPTransaction.create).not.toHaveBeenCalled();
     });
 
+    // 57 / 100 * 100 is 56.99999999999999 in floating point; exactly on the pass mark passes.
+    it('keeps XP for 57/100 against a pass mark of 57 when retry is on', async () => {
+      prisma.assessment.findUnique.mockResolvedValue(markable({ passingScore: 57 }));
+      prisma.xPTransaction.findFirst.mockResolvedValue({ id: 'x1' });
+
+      await service.markStudent('a1', 'stu-1', 57, 100, undefined, 'u1');
+
+      expect(prisma.xPTransaction.deleteMany).not.toHaveBeenCalled();
+      expect(prisma.xPTransaction.update).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { id: 'x1' }, data: expect.objectContaining({ amount: 57 }) }),
+      );
+    });
+
     it('updates rather than duplicates XP on a second passing re-mark', async () => {
       prisma.assessment.findUnique.mockResolvedValue(markable());
       prisma.xPTransaction.findFirst.mockResolvedValue({ id: 'x1' });
@@ -1010,6 +1025,15 @@ describe('AssessmentsService', () => {
       expect(prisma.assessmentSubmission.create).not.toHaveBeenCalled();
     });
 
+    it('gives a neutral message when a new attempt is blocked for a reason other than the due date', async () => {
+      prisma.assessment.findUnique.mockResolvedValue(retakeable());
+      prisma.assessmentSubmission.findFirst.mockResolvedValue({ id: 's1', status: 'unknown', attemptNumber: 1 });
+
+      await expect(service.prepareRetake('a1', 'stu-1')).rejects.toThrow(
+        'A new attempt cannot be started right now',
+      );
+    });
+
     it('allows after the due date when late submission is allowed', async () => {
       prisma.assessment.findUnique.mockResolvedValue(
         retakeable({ dueDate: yesterday(), allowLateSubmission: true }),
@@ -1115,6 +1139,14 @@ describe('AssessmentsService', () => {
       expect(res.grade.percentage).toBe(100);
     });
 
+    it('reports passed for a mark exactly on the pass mark (57/100 against 57)', async () => {
+      open(review('completed', [g(57, null, 100)], {}, { totalPoints: 100, passingScore: 57 }));
+
+      const res: any = await service.getSubmissionReview('sub1', 'stu-1', 'a1');
+
+      expect(res.grade.passed).toBe(true);
+    });
+
     it('decides passed on the total scale', async () => {
       // 8/10 on a 100-point assessment is 80 points against a pass mark of 60.
       open(review('completed', [g(8, null)], {}, { totalPoints: 100, passingScore: 60 }));
@@ -1216,6 +1248,144 @@ describe('AssessmentsService', () => {
         expect(res.attempt).toEqual({
           number: 1, max: 3, remaining: 2, canRetry: true, answerKeyOpen: false,
         });
+      });
+    });
+  });
+
+  // An auto-completed submission has per-question grade rows and no overall row.
+  describe('marks for auto-completed submissions', () => {
+    const row = (status: string, grades: any[]) => ({ studentId: 'stu-1', status, grades });
+    const g = (questionId: string | null, score: number, maxScore: number) => ({ questionId, score, maxScore });
+
+    describe('getStudentsForAssessment', () => {
+      beforeEach(() => {
+        prisma.assessment.findUnique.mockResolvedValue({
+          id: 'a1', schoolId: 'school-1', deletedAt: null, levelId: 'l1', groupId: null, totalPoints: 10,
+        });
+        prisma.student.findMany.mockResolvedValue([
+          { id: 'stu-1', firstName: 'A', lastName: 'B', studentCode: 'S1', grade: null, status: 'active' },
+        ]);
+      });
+
+      it('returns the summed per-question mark for an auto-completed submission', async () => {
+        prisma.assessmentSubmission.findMany.mockResolvedValue([
+          row('completed', [g('q1', 3, 5), g('q2', 4, 5)]),
+        ]);
+
+        const res: any = await service.getStudentsForAssessment('a1');
+
+        expect(res[0].mark).toBe(7);
+        expect(res[0].maxMark).toBe(10);
+      });
+
+      it('keeps the overall mark authoritative when one exists', async () => {
+        prisma.assessmentSubmission.findMany.mockResolvedValue([
+          row('completed', [g('q1', 10, 10), g(null, 8, 10)]),
+        ]);
+
+        const res: any = await service.getStudentsForAssessment('a1');
+
+        expect(res[0].mark).toBe(8);
+        expect(res[0].maxMark).toBe(10);
+      });
+
+      it('shows no mark while a submission is still waiting for review', async () => {
+        prisma.assessmentSubmission.findMany.mockResolvedValue([
+          row('submitted', [g('q1', 3, 5)]),
+        ]);
+
+        const res: any = await service.getStudentsForAssessment('a1');
+
+        expect(res[0].mark).toBeNull();
+      });
+    });
+
+    describe('getStats', () => {
+      const completed = (assessment: any, grades: any[]) => ({ grades, assessment });
+
+      beforeEach(() => {
+        prisma.assessment.count.mockResolvedValue(1);
+        prisma.assessment.groupBy.mockResolvedValue([]);
+      });
+
+      it('counts a passing auto-completed submission in passCount', async () => {
+        prisma.assessmentSubmission.findMany.mockResolvedValue([
+          completed({ passingScore: 5, totalPoints: 10 }, [g('q1', 3, 5), g('q2', 3, 5)]),
+          completed({ passingScore: 5, totalPoints: 10 }, [g('q1', 1, 5), g('q2', 1, 5)]),
+        ]);
+
+        const res: any = await service.getStats('school-1');
+
+        expect(res.grading).toEqual({ gradedCount: 2, passCount: 1, passRate: 50, avgScore: 4 });
+      });
+
+      it('compares an overall mark on the total scale', async () => {
+        // 8/10 on a 100-point assessment is 80 points against a pass mark of 60.
+        prisma.assessmentSubmission.findMany.mockResolvedValue([
+          completed({ passingScore: 60, totalPoints: 100 }, [g(null, 8, 10)]),
+        ]);
+
+        const res: any = await service.getStats('school-1');
+
+        expect(res.grading.passCount).toBe(1);
+      });
+    });
+  });
+
+  describe('reassessStudent, unassignStudent and re-assign with retry attempts', () => {
+    const open = { id: 'a1', deletedAt: null, schoolId: 'school-1' };
+
+    beforeEach(() => {
+      prisma.assessment.findUnique.mockResolvedValue(open);
+      prisma.assessmentSubmission.update.mockResolvedValue({ id: 's2' });
+    });
+
+    it('reassess targets the live attempt, never a superseded one', async () => {
+      // liveSubmission filters out superseded rows; an unfiltered lookup would not.
+      prisma.assessmentSubmission.findFirst.mockImplementation(async (args: any) =>
+        args.where.status?.not === 'superseded' ? { id: 's2', status: 'completed', attemptNumber: 2 } : { id: 's1', status: 'superseded' },
+      );
+
+      await service.reassessStudent('a1', 'stu-1');
+
+      expect(prisma.grade.deleteMany).toHaveBeenCalledWith({ where: { submissionId: 's2' } });
+      expect(prisma.assessmentSubmission.update).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { id: 's2' }, data: { status: 'assigned' } }),
+      );
+    });
+
+    it('reassess throws NotFoundException when the student has no live attempt', async () => {
+      prisma.assessmentSubmission.findFirst.mockResolvedValue(null);
+
+      await expect(service.reassessStudent('a1', 'stu-1')).rejects.toThrow('not assigned');
+    });
+
+    it('unassign removes grades and rows for every attempt, superseded included', async () => {
+      prisma.assessmentSubmission.findMany.mockResolvedValue([{ id: 's1' }, { id: 's2' }]);
+
+      await service.unassignStudent('a1', 'stu-1');
+
+      expect(prisma.assessmentSubmission.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { assessmentId: 'a1', studentId: 'stu-1' } }),
+      );
+      expect(prisma.grade.deleteMany).toHaveBeenCalledWith({ where: { submissionId: { in: ['s1', 's2'] } } });
+      expect(prisma.assessmentSubmission.deleteMany).toHaveBeenCalledWith({ where: { id: { in: ['s1', 's2'] } } });
+    });
+
+    it('unassign throws NotFoundException when the student has no attempts', async () => {
+      prisma.assessmentSubmission.findMany.mockResolvedValue([]);
+
+      await expect(service.unassignStudent('a1', 'stu-1')).rejects.toThrow('not assigned');
+    });
+
+    it('assigns the student again after an unassign', async () => {
+      prisma.assessmentSubmission.findMany.mockResolvedValue([]);
+
+      const res = await service.assignStudents('a1', ['stu-1']);
+
+      expect(res).toEqual({ assigned: 1, skipped: 0 });
+      expect(prisma.assessmentSubmission.createMany).toHaveBeenCalledWith({
+        data: [expect.objectContaining({ assessmentId: 'a1', studentId: 'stu-1', status: 'assigned' })],
       });
     });
   });

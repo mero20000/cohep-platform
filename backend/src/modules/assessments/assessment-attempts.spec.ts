@@ -80,6 +80,17 @@ describe('assessment-attempts', () => {
     it('returns 0 when max is 0', () => {
       expect(scoreOnTotalScale(0, 0, 100)).toBe(0);
     });
+
+    // (earned / max) * total lands just below the integer at these points (e.g. 0.29 * 100),
+    // which marked a student exactly on the pass mark as failing.
+    it.each([
+      [29, 100, 100],
+      [57, 100, 100],
+      [47, 70, 70],
+      [29, 50, 50],
+    ])('returns earned exactly when max equals total (%d/%d/%d)', (earned, max, total) => {
+      expect(scoreOnTotalScale(earned, max, total)).toBe(earned);
+    });
   });
 
   describe('attemptState', () => {

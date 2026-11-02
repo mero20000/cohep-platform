@@ -44,7 +44,8 @@ export function submissionScore(
  * before comparing so every pass decision uses the same units.
  */
 export function scoreOnTotalScale(earned: number, max: number, totalPoints: number): number {
-  return max > 0 ? (earned / max) * totalPoints : 0;
+  // Multiply first: (earned / max) * total misses the integer at e.g. 29/100/100.
+  return max > 0 ? (earned * totalPoints) / max : 0;
 }
 
 export function attemptState(policy: RetryPolicy, live: LiveAttempt, now: Date = new Date()) {

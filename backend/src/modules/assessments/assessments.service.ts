@@ -619,14 +619,18 @@ export class AssessmentsService {
     if (!assessment || assessment.deletedAt) {
       throw new NotFoundException('Assessment not found');
     }
-    const submission = await this.prisma.assessmentSubmission.findFirst({
+    // Every attempt goes, superseded ones included: a surviving row would make
+    // assignStudents skip this student on a later re-assign.
+    const attempts = await this.prisma.assessmentSubmission.findMany({
       where: { assessmentId, studentId },
+      select: { id: true },
     });
-    if (!submission) {
+    if (attempts.length === 0) {
       throw new NotFoundException('Student not assigned to this assessment');
     }
-    await this.prisma.grade.deleteMany({ where: { submissionId: submission.id } });
-    await this.prisma.assessmentSubmission.delete({ where: { id: submission.id } });
+    const ids = attempts.map(a => a.id);
+    await this.prisma.grade.deleteMany({ where: { submissionId: { in: ids } } });
+    await this.prisma.assessmentSubmission.deleteMany({ where: { id: { in: ids } } });
     return { message: 'Student unassigned' };
   }
 
@@ -635,9 +639,8 @@ export class AssessmentsService {
     if (!assessment || assessment.deletedAt) {
       throw new NotFoundException('Assessment not found');
     }
-    const submission = await this.prisma.assessmentSubmission.findFirst({
-      where: { assessmentId, studentId },
-    });
+    // The live attempt: an unordered lookup could pick a superseded row and reopen it.
+    const submission = await this.liveSubmission(assessmentId, studentId);
     if (!submission) {
       throw new NotFoundException('Student not assigned to this assessment');
     }
@@ -866,6 +869,11 @@ export class AssessmentsService {
       return students.map(s => {
         const sub = submissionByStudent.get(s.id);
         const overall = sub?.grades?.find(g => g.questionId === null);
+        // An auto-completed submission has per-question grades and no overall row; once
+        // completed, sum them. Before that the auto-grades are not a final mark.
+        const scored = sub && (overall || sub.status === 'completed')
+          ? submissionScore(sub.grades, toNum(assessment.totalPoints))
+          : null;
         return {
           id: s.id,
           firstName: s.firstName,
@@ -875,8 +883,8 @@ export class AssessmentsService {
           status: s.status,
           assigned: !!sub,
           submissionStatus: sub?.status || null,
-          mark: overall ? toNum(overall.score) : null,
-          maxMark: overall ? toNum(overall.maxScore) : toNum(assessment.totalPoints),
+          mark: scored ? scored.earned : null,
+          maxMark: scored ? scored.max : toNum(assessment.totalPoints),
         };
       });
     } catch (err) {
@@ -901,19 +909,22 @@ export class AssessmentsService {
     const submissions = await this.prisma.assessmentSubmission.findMany({
       where: { assessment: where, status: 'completed' },
       include: {
-        grades: { where: { questionId: null } },
-        assessment: { select: { passingScore: true, title: true, id: true } },
+        grades: { select: { questionId: true, score: true, maxScore: true } },
+        assessment: { select: { passingScore: true, totalPoints: true, title: true, id: true } },
       },
     });
 
     const gradedCount = submissions.length;
     let passCount = 0;
+    const scores: number[] = [];
     for (const sub of submissions) {
-      const grade = sub.grades[0];
-      if (grade && Number(grade.score) >= Number(sub.assessment.passingScore)) passCount++;
+      // Auto-completed submissions have per-question grades and no overall row.
+      const totalPoints = Number(sub.assessment.totalPoints);
+      const { earned, max } = submissionScore(sub.grades, totalPoints);
+      if (scoreOnTotalScale(earned, max, totalPoints) >= Number(sub.assessment.passingScore)) passCount++;
+      if (earned > 0) scores.push(earned);
     }
     const passRate = gradedCount > 0 ? Math.round((passCount / gradedCount) * 100) : 0;
-    const scores = submissions.map(s => (s.grades[0] ? Number(s.grades[0].score) : 0)).filter(s => s > 0);
     const avgScore = scores.length ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : 0;
 
     return {
@@ -1082,8 +1093,11 @@ export class AssessmentsService {
         `No attempts remaining — this assessment allows ${state.max}.`,
       );
     }
-    if (!state.canRetry) {
+    if (!state.moreAttemptsPossible) {
       throw new BadRequestException('The due date has passed and late submissions are not allowed');
+    }
+    if (!state.canRetry) {
+      throw new BadRequestException('A new attempt cannot be started right now');
     }
 
     // Archive the attempt being replaced and open the next one atomically, so a student

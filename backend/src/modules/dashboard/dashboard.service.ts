@@ -2,6 +2,7 @@ import { Injectable, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 import { SchoolResolver } from '../../common/utils/school-resolver';
 import { getCopticContext } from '../../common/utils/coptic-calendar';
+import { scoreOnTotalScale, submissionScore } from '../assessments/assessment-attempts';
 
 @Injectable()
 export class DashboardService {
@@ -103,31 +104,32 @@ export class DashboardService {
       count: g._count.id,
     }));
 
-    // Grading stats
+    // Grading stats. An auto-completed submission has per-question grades and no overall
+    // row, so every completed submission with any grade counts.
     const gradedSubmissions = await this.prisma.assessmentSubmission.findMany({
       where: {
         assessment: { schoolId: resolvedId, deletedAt: null },
         status: 'completed',
-        grades: { some: { questionId: null } },
+        grades: { some: {} },
       },
       include: {
-        grades: { where: { questionId: null } },
-        assessment: { select: { passingScore: true, title: true } },
+        grades: { select: { questionId: true, score: true, maxScore: true } },
+        assessment: { select: { passingScore: true, totalPoints: true, title: true } },
         student: { select: { id: true, firstName: true, lastName: true, photoUrl: true } },
       },
     });
     const gradedCount = gradedSubmissions.length;
     let passCount = 0;
+    const allScores: number[] = [];
     for (const sub of gradedSubmissions) {
-      const grade = sub.grades[0];
-      if (grade && Number(grade.score) >= Number(sub.assessment.passingScore)) {
+      const totalPoints = Number(sub.assessment.totalPoints);
+      const { earned, max } = submissionScore(sub.grades, totalPoints);
+      if (scoreOnTotalScale(earned, max, totalPoints) >= Number(sub.assessment.passingScore)) {
         passCount++;
       }
+      if (earned > 0) allScores.push(earned);
     }
     const passRate = gradedCount > 0 ? Math.round((passCount / gradedCount) * 100) : 0;
-    const allScores = gradedSubmissions
-      .map(s => (s.grades[0] ? Number(s.grades[0].score) : 0))
-      .filter(s => s > 0);
     const avgGradeScore = allScores.length
       ? Math.round(allScores.reduce((a, b) => a + b, 0) / allScores.length)
       : 0;
