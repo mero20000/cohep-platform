@@ -178,7 +178,9 @@ export class AssessmentsController {
     @Body(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true })) dto: SubmitAssessmentDto,
     @Req() req: any,
   ) {
-    return this.assessmentsService.submit(id, studentId, dto, req.user);
+    // The full user so the shared scope check can load it; `source` exempts the staff proxy
+    // submit from the recording requirement.
+    return this.assessmentsService.submit(id, studentId, dto, { ...req.user, source: 'staff' });
   }
 
   @Get(':id/submissions')

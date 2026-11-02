@@ -1,5 +1,6 @@
 import {
   IsString,
+  IsBoolean,
   IsOptional,
   IsUUID,
   IsInt,
@@ -7,6 +8,7 @@ import {
   IsDateString,
   IsEnum,
   IsArray,
+  ArrayMaxSize,
   ValidateNested,
   Min,
   Max,
@@ -108,6 +110,24 @@ export class CreateAssessmentDto {
   passingPoints: number;
 
   @IsOptional()
+  @IsBoolean()
+  requireReview?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  requireRecording?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  allowRetry?: boolean;
+
+  @IsOptional()
+  @IsInt()
+  @Min(2)
+  @Max(10)
+  maxAttempts?: number;
+
+  @IsOptional()
   @IsDateString()
   dueDate?: string;
 
@@ -198,6 +218,24 @@ export class UpdateAssessmentDto {
   passingPoints: number;
 
   @IsOptional()
+  @IsBoolean()
+  requireReview?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  requireRecording?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  allowRetry?: boolean;
+
+  @IsOptional()
+  @IsInt()
+  @Min(2)
+  @Max(10)
+  maxAttempts?: number;
+
+  @IsOptional()
   @IsDateString()
   dueDate?: string;
 
@@ -226,6 +264,8 @@ export class AnswerDto {
 
 export class SubmitAssessmentDto {
   @IsArray()
+  // Well above any real assessment; bounds the work a crafted request can cause.
+  @ArrayMaxSize(200)
   @ValidateNested({ each: true })
   @Type(() => AnswerDto)
   answers: AnswerDto[];

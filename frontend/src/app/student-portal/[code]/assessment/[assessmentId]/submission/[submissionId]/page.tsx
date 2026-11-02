@@ -8,6 +8,7 @@ import { useLanguage } from '@/lib/use-language'
 import { ArrowLeft, Play, Pause, RotateCcw, Volume2, Loader2, Clock } from 'lucide-react'
 import Link from 'next/link'
 import { useToast } from '@/components/ui/toast'
+import { AttemptChip } from '@/components/assessments/attempt-chip'
 
 interface SubmissionData {
   submission: {
@@ -33,6 +34,14 @@ interface SubmissionData {
     percentage: number | null
     passed: boolean | null
   }
+  /** The student's LIVE attempt, not necessarily the submission being viewed. Absent from older backends. */
+  attempt?: {
+    number: number
+    max: number
+    remaining: number
+    canRetry: boolean
+    answerKeyOpen: boolean
+  }
   questions: Array<{
     id: string
     text: string
@@ -48,6 +57,8 @@ interface SubmissionData {
     feedbackAr?: string
   }>
 }
+
+const LEGACY_ATTEMPT: NonNullable<SubmissionData['attempt']> = { number: 1, max: 1, remaining: 0, canRetry: false, answerKeyOpen: true }
 
 export default function SubmissionReview() {
   const params = useParams()
@@ -104,6 +115,13 @@ export default function SubmissionReview() {
   if (!data) return null
 
   const { submission, assessment, grade, questions } = data
+  // An older backend (deploys are separate) sends no `attempt`: behave as before the
+  // feature, with the answer key open and no retake button.
+  const attempt = data.attempt ?? LEGACY_ATTEMPT
+  const failed = grade.gradingComplete && grade.passed === false
+  const noAttemptsLeft = failed && attempt.max > 1 && attempt.remaining === 0
+  // Attempts remain but the server will not open one: the due date passed or another is open.
+  const retryBlocked = failed && attempt.max > 1 && attempt.remaining > 0 && !attempt.canRetry
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -115,7 +133,10 @@ export default function SubmissionReview() {
           </button>
           <div className="flex-1">
             <h1 className="text-lg font-bold text-gray-900">{assessment.titleAr || assessment.title}</h1>
-            <p className="text-sm text-gray-500">{t('Assessment Review', 'مراجعة التقييم')}</p>
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="text-sm text-gray-500">{t('Assessment Review', 'مراجعة التقييم')}</p>
+              <AttemptChip attempt={attempt} lang={lang} />
+            </div>
           </div>
         </div>
       </div>
@@ -206,7 +227,15 @@ export default function SubmissionReview() {
           </div>
         )}
 
-        {/* Questions Review */}
+        {/* Questions Review — the key stays shut until the student passes or uses the last attempt. */}
+        {grade.gradingComplete && !attempt.answerKeyOpen ? (
+          <div className="rounded-2xl border border-gray-200 bg-white p-5 text-sm text-gray-600">
+            {t(
+              'Detailed answers unlock after you pass or use your last attempt.',
+              'تظهر الإجابات التفصيلية بعد أن تنجح أو تستخدم محاولتك الأخيرة.',
+            )}
+          </div>
+        ) : (
         <div className="space-y-4">
           <h2 className="text-base font-bold text-gray-900">{t('Question Review', 'مراجعة الأسئلة')}</h2>
           {questions.map((q, idx) => (
@@ -279,16 +308,37 @@ export default function SubmissionReview() {
             </div>
           ))}
         </div>
+        )}
 
-        {/* Retake Button */}
+        {/* Retake Button — only while the server says another attempt is allowed. */}
         <div className="flex gap-3 pt-4">
-          <button
-            onClick={handleRetake}
-            disabled={retaking}
-            className="flex-1 flex items-center justify-center gap-2 rounded-lg bg-indigo-600 px-6 py-3 text-sm font-bold text-white hover:bg-indigo-700 disabled:opacity-50">
-            {retaking ? <Loader2 className="h-4 w-4 animate-spin" /> : <RotateCcw className="h-4 w-4" />}
-            {retaking ? t('Starting...', 'جاري البدء...') : t('Retake Assessment', 'أعد محاولتك')}
-          </button>
+          {attempt.canRetry && (
+            <button
+              onClick={handleRetake}
+              disabled={retaking}
+              className="flex-1 flex items-center justify-center gap-2 rounded-lg bg-indigo-600 px-6 py-3 text-sm font-bold text-white hover:bg-indigo-700 disabled:opacity-50">
+              {retaking ? <Loader2 className="h-4 w-4 animate-spin" /> : <RotateCcw className="h-4 w-4" />}
+              {retaking
+                ? t('Starting...', 'جاري البدء...')
+                : t(
+                    `Try again — attempt ${attempt.number + 1} of ${attempt.max}`,
+                    `حاول مرة أخرى — المحاولة ${attempt.number + 1} من ${attempt.max}`,
+                  )}
+            </button>
+          )}
+          {noAttemptsLeft && (
+            <p className="flex-1 flex items-center justify-center rounded-lg bg-amber-50 px-6 py-3 text-sm font-bold text-amber-700">
+              {t('No attempts left', 'لا توجد محاولات متبقية')}
+            </p>
+          )}
+          {retryBlocked && (
+            <p className="flex-1 flex items-center justify-center rounded-lg bg-amber-50 px-6 py-3 text-sm font-bold text-amber-700">
+              {t(
+                "You can't start another attempt right now — the due date has passed or another attempt is already open.",
+                'لا يمكنك بدء محاولة أخرى الآن — انتهى الموعد النهائي أو توجد محاولة مفتوحة بالفعل.',
+              )}
+            </p>
+          )}
           <Link href={`/student-portal/${code}`} className="flex items-center justify-center gap-2 rounded-lg border border-gray-300 px-6 py-3 text-sm font-bold text-gray-700 hover:bg-gray-50">
             {t('Back to Dashboard', 'العودة للوحة التحكم')}
           </Link>

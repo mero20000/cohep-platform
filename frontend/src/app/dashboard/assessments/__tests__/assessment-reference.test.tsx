@@ -155,6 +155,145 @@ describe('Assessment reference recording picker', () => {
     })
     expect(form.queryByText('Group B')).not.toBeInTheDocument()
   })
+  it('submits the four settings in the create body', async () => {
+    const user = userEvent.setup()
+    render(<AssessmentsPage />)
+
+    await user.click(await screen.findByText('New Assessment'))
+    const dialog = await screen.findByRole('dialog')
+    const form = within(dialog)
+
+    await user.type(form.getByLabelText(/Title/), 'Retry Quiz')
+    await user.selectOptions(form.getByLabelText(/Level/), 'l1')
+    await user.selectOptions(form.getByLabelText(/Subject/), 's1')
+    await user.type(form.getByLabelText(/Total Points/), '100')
+    await user.type(form.getByLabelText(/Passing Points/), '60')
+
+    // Max attempts is only offered once retry is on
+    expect(form.queryByLabelText(/Max attempts/)).not.toBeInTheDocument()
+    await user.click(form.getByLabelText(/Allow retry/))
+    const max = form.getByLabelText(/Max attempts/)
+    expect(max).toHaveAccessibleDescription(/Includes the first try: 3 means the first try plus 2 retries/)
+    await user.clear(max)
+    await user.type(max, '4')
+    await user.click(form.getByLabelText(/Require recording/))
+
+    await user.click(form.getByRole('button', { name: /Create Assessment/ }))
+
+    await waitFor(() => {
+      expect(mocks.post).toHaveBeenCalled()
+    })
+    const createCall = mocks.post.mock.calls.find((c) => c[0] === '/assessments')
+    expect(createCall![1]).toMatchObject({
+      requireReview: false,
+      requireRecording: true,
+      allowRetry: true,
+      maxAttempts: 4,
+    })
+    expect(createCall![1]).not.toHaveProperty('reviewTouched')
+    expect(createCall![1].durationMinutes).toBeUndefined()
+  })
+
+  it('disables Require review and Allow retry when an essay question exists', async () => {
+    const user = userEvent.setup()
+    render(<AssessmentsPage />)
+
+    await user.click(await screen.findByText('New Assessment'))
+    const dialog = await screen.findByRole('dialog')
+    const form = within(dialog)
+
+    expect(form.getByLabelText(/Require review/)).toBeEnabled()
+    expect(form.getByLabelText(/Allow retry/)).toBeEnabled()
+
+    await user.click(form.getByRole('button', { name: /Add Question/ }))
+    await user.selectOptions(form.getAllByLabelText('Type').at(-1)!, 'essay')
+
+    const review = form.getByLabelText(/Require review/)
+    const retry = form.getByLabelText(/Allow retry/)
+    expect(review).toBeDisabled()
+    expect(review).toBeChecked()
+    expect(retry).toBeDisabled()
+    expect(retry).not.toBeChecked()
+    const reviewHint = form.getByText('Essay questions always need a teacher review.')
+    const retryHint = form.getByText('Retries are not available when the assessment has an essay question.')
+    expect(review).toHaveAccessibleDescription(reviewHint.textContent!)
+    expect(retry).toHaveAccessibleDescription(retryHint.textContent!)
+    expect(review.getAttribute('aria-describedby')).toBe(reviewHint.id)
+    expect(retry.getAttribute('aria-describedby')).toBe(retryHint.id)
+  })
+
+  it('follows the type default for Require review until the user touches it', async () => {
+    const user = userEvent.setup()
+    render(<AssessmentsPage />)
+
+    await user.click(await screen.findByText('New Assessment'))
+    const form = within(await screen.findByRole('dialog'))
+
+    expect(form.getByLabelText(/Require review/)).not.toBeChecked()
+    await user.selectOptions(form.getByLabelText('Type'), 'exam')
+    expect(form.getByLabelText(/Require review/)).toBeChecked()
+
+    await user.click(form.getByLabelText(/Require review/))
+    await user.selectOptions(form.getByLabelText('Type'), 'quiz')
+    expect(form.getByLabelText(/Require review/)).not.toBeChecked()
+    await user.click(form.getByLabelText(/Require review/))
+    await user.selectOptions(form.getByLabelText('Type'), 'exam')
+    expect(form.getByLabelText(/Require review/)).toBeChecked()
+  })
+
+  it('Copy opens the create form prefilled and posts without ids', async () => {
+    const detail = {
+      id: 'a1',
+      title: 'Midterm',
+      description: '',
+      type: 'quiz',
+      status: 'published',
+      totalPoints: 10,
+      passingScore: 6,
+      dueDate: '2026-12-01T00:00:00.000Z',
+      levelId: 'l1',
+      groupId: null,
+      subjectId: 's1',
+      metadata: {},
+      level: { id: 'l1', name: 'Level 1', number: 1 },
+      subject: { id: 's1', name: 'Coptic Hymns' },
+      _count: { questions: 1, submissions: 3 },
+      questions: [
+        { id: 'q1', questionText: 'Pick one', type: 'multiple_choice', options: ['A', 'B'], correctAnswer: 'A', points: 10, orderIndex: 0 },
+      ],
+    }
+    const base = mocks.get.getMockImplementation()!
+    mocks.get.mockImplementation((path: string, params?: any) => {
+      if (path === '/assessments') {
+        return Promise.resolve({ data: [{ ...detail, questions: undefined }], pagination: { page: 1, limit: 20, total: 1, totalPages: 1 } })
+      }
+      if (path === '/assessments/a1') return Promise.resolve(detail)
+      return base(path, params)
+    })
+    const user = userEvent.setup()
+    render(<AssessmentsPage />)
+
+    await user.click(await screen.findByRole('button', { name: 'Copy Midterm' }))
+    const dialog = await screen.findByRole('dialog')
+    const form = within(dialog)
+    expect(form.getByLabelText(/Title/)).toHaveValue('Copy of Midterm')
+    expect(form.getByRole('button', { name: /Create Assessment/ })).toBeInTheDocument()
+
+    await user.click(form.getByRole('button', { name: /Create Assessment/ }))
+
+    await waitFor(() => {
+      expect(mocks.post).toHaveBeenCalled()
+    })
+    const createCall = mocks.post.mock.calls.find((c) => c[0] === '/assessments')
+    expect(createCall).toBeTruthy()
+    const body = createCall![1]
+    expect(body.title).toBe('Copy of Midterm')
+    expect(body.questions).toHaveLength(1)
+    expect(body.questions[0].id).toBeUndefined()
+    expect(body.dueDate).toBeUndefined()
+    expect(body.status).toBe('draft')
+    expect(mocks.put).not.toHaveBeenCalled()
+  })
 })
 
 describe('Assessment gender audience', () => {

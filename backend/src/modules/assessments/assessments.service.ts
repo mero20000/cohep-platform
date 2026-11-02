@@ -7,6 +7,22 @@ import { AuditService } from '../audit/audit.service';
 import { StudentNotificationsService } from '../student-notifications/student-notifications.service';
 import { LIFECYCLE_WHERE, assessmentGender, isEligible, liveByKey, pickLive, ineligibleReason, scoreOf } from './assessment-lifecycle';
 import { CreateAssessmentDto, UpdateAssessmentDto, SubmitAssessmentDto, CreateQuestionDto } from './dto/assessment.dto';
+import {
+  attemptState, effectiveMaxAttempts, scoreOnTotalScale, submissionScore,
+  LiveAttempt, RetryPolicy,
+} from './assessment-attempts';
+
+export interface SubmitResult {
+  gradingComplete: boolean;
+  earned: number | null;
+  max: number;
+  passed: boolean | null;
+  attemptNumber: number;
+  maxAttempts: number;
+  attemptsRemaining: number;
+  canRetry: boolean;
+  revealDetail: boolean;
+}
 
 type Actor = { id?: string; roles?: string[]; schoolId?: string };
 type QuestionScore = { questionId: string; score: number };
@@ -104,6 +120,12 @@ export class AssessmentsService {
       select: { id: true },
     });
 
+    const type = dto.type || 'quiz';
+    const hasEssay = (dto.questions ?? []).some(q => q.type === 'essay');
+    const requireReview = dto.requireReview ?? (hasEssay || type !== 'quiz');
+    const allowRetry = dto.allowRetry ?? false;
+    this.assertReviewRetryCompatible(dto.questions ?? [], { requireReview, allowRetry });
+
     const data: any = {
       schoolId,
       levelId: dto.levelId,
@@ -114,7 +136,11 @@ export class AssessmentsService {
       description: dto.description,
       referenceRecordingUrl: dto.referenceRecordingUrl || null,
       referenceRecordingName: dto.referenceRecordingName || null,
-      type: dto.type || 'quiz',
+      type,
+      requireReview,
+      requireRecording: dto.requireRecording ?? false,
+      allowRetry,
+      maxAttempts: allowRetry ? (dto.maxAttempts ?? 3) : null,
       totalPoints: dto.totalPoints,
       passingScore: dto.passingPoints,
       dueDate: dto.dueDate ? new Date(dto.dueDate) : undefined,
@@ -175,6 +201,24 @@ export class AssessmentsService {
     if (dto.dueDate !== undefined) data.dueDate = dto.dueDate ? new Date(dto.dueDate) : null;
     if (dto.status !== undefined) data.status = dto.status;
     if (dto.type !== undefined) data.type = dto.type;
+    if (dto.requireReview !== undefined) data.requireReview = dto.requireReview;
+    if (dto.requireRecording !== undefined) data.requireRecording = dto.requireRecording;
+
+    // The column defaults (review on, retry off) when a row predates them.
+    const requireReview = dto.requireReview ?? existing.requireReview ?? true;
+    const allowRetry = dto.allowRetry ?? existing.allowRetry ?? false;
+    if (dto.allowRetry !== undefined || dto.maxAttempts !== undefined) {
+      data.allowRetry = allowRetry;
+      data.maxAttempts = allowRetry ? (dto.maxAttempts ?? existing.maxAttempts ?? 3) : null;
+    }
+    // Only the restrictive flag combinations can conflict with an essay question
+    if (dto.questions !== undefined || !requireReview || allowRetry) {
+      const questions = dto.questions ?? await this.prisma.assessmentQuestion.findMany({
+        where: { assessmentId: id },
+        select: { type: true },
+      });
+      this.assertReviewRetryCompatible(questions, { requireReview, allowRetry });
+    }
 
     if (dto.academicYearId !== undefined || dto.term !== undefined || dto.grade !== undefined || dto.gender !== undefined || dto.durationMinutes !== undefined) {
       const metadata = (existing.metadata as any) || {};
@@ -311,12 +355,49 @@ export class AssessmentsService {
     });
   }
 
+  /** Prisma Decimals become numbers here so the pure helpers never see them. */
+  private retryPolicy(a: {
+    allowRetry: boolean; maxAttempts: number | null; passingScore: unknown;
+    dueDate: Date | null; allowLateSubmission: boolean;
+  }): RetryPolicy {
+    return {
+      allowRetry: a.allowRetry,
+      maxAttempts: a.maxAttempts,
+      passingScore: Number(a.passingScore),
+      dueDate: a.dueDate,
+      allowLateSubmission: a.allowLateSubmission,
+    };
+  }
+
+  /**
+   * The live submission as attemptState wants it. `earned` is only known once marking
+   * is complete, and is put on the assessment's total scale so a servant's 8/10 mark on
+   * a 100-point assessment compares against the pass mark as 80.
+   */
+  private async liveAttempt(
+    assessment: { totalPoints: unknown },
+    live: { id: string; status: string; attemptNumber: number },
+    knownGrades?: Array<{ questionId: string | null; score: unknown; maxScore: unknown }>,
+  ): Promise<LiveAttempt> {
+    const { status, attemptNumber } = live;
+    if (status !== 'completed') return { status, attemptNumber, earned: null };
+
+    const grades = knownGrades ?? await this.prisma.grade.findMany({
+      where: { submissionId: live.id },
+      select: { questionId: true, score: true, maxScore: true },
+    });
+    const totalPoints = Number(assessment.totalPoints);
+    const { earned, max } = submissionScore(grades, totalPoints);
+    return { status, attemptNumber, earned: scoreOnTotalScale(earned, max, totalPoints) };
+  }
+
   /**
    * `actor` is the staff member submitting on a student's behalf (`req.user`); it is absent when the
    * student submits for themselves through the portal, whose key already identifies the student.
+   * `source: 'staff'` marks the staff proxy submit, which is exempt from the recording requirement.
    */
-  async submit(assessmentId: string, studentId: string, dto: SubmitAssessmentDto, actor?: { id?: string; schoolId?: string }) {
-    if (actor) {
+  async submit(assessmentId: string, studentId: string, dto: SubmitAssessmentDto, actor?: { id?: string; roles?: string[]; schoolId?: string; source?: 'staff' | 'portal' }) {
+    if (actor && actor.source !== 'portal') {
       await this.access.assertAssessmentAndStudent(await this.access.loadActor(actor), assessmentId, studentId);
     }
     const assessment = await this.prisma.assessment.findUnique({
@@ -341,6 +422,27 @@ export class AssessmentsService {
     // Past-due submissions are always accepted; they are only flagged as late.
     const isLate = !!(assessment.dueDate && new Date() > assessment.dueDate);
 
+    // Staff proxy-submitting on a student's behalf is exempt: they have no recording to attach.
+    if (actor?.source !== 'staff' && assessment.requireRecording && !dto.fileUrl) {
+      throw new BadRequestException('A voice recording is required for this assessment');
+    }
+
+    // One answer per question, the last one given: a repeated answer must not score twice.
+    const answers = Array.from(
+      new Map((dto.answers ?? []).map((a) => [a.questionId, a] as const)).values(),
+    );
+
+    // Only a strict `false` auto-completes, and only when nothing needs a human: no essay, at
+    // least one auto-graded question, and no recording (someone should listen to it). Anything
+    // else follows the pending-review flow.
+    const autoComplete =
+      assessment.requireReview === false &&
+      assessment.questions.length > 0 &&
+      !assessment.questions.some((q) => q.type === 'essay') &&
+      !dto.fileUrl;
+    const totalPoints = Number(assessment.totalPoints);
+    let earned: number | null = null;
+
     const submission = await this.prisma.$transaction(async (tx) => {
       // Fill in the attempt row itself rather than inserting a second row beside it.
       // Two live rows per attempt is what made the findFirst lookups undefined.
@@ -348,7 +450,7 @@ export class AssessmentsService {
         where: { id: assignment.id },
         data: {
           submissionType: 'online',
-          submissionContent: JSON.stringify(dto.answers),
+          submissionContent: JSON.stringify(answers),
           fileUrl: dto.fileUrl || null,
           fileType: dto.fileType || null,
           durationSeconds: dto.durationSeconds ?? null,
@@ -362,7 +464,7 @@ export class AssessmentsService {
       // A re-submission on a reused row must not accumulate stale auto-grades.
       await tx.grade.deleteMany({ where: { submissionId: sub.id, questionId: { not: null } } });
 
-      const gradeData = dto.answers
+      const gradeData = answers
         .map((answer) => {
           const question = assessment.questions.find(q => q.id === answer.questionId);
           if (!question) return null;
@@ -385,8 +487,44 @@ export class AssessmentsService {
         await tx.grade.createMany({ data: gradeData as any });
       }
 
-      return sub;
+      if (!autoComplete) return sub;
+
+      earned = submissionScore(gradeData as any, totalPoints).earned;
+      if (earned > totalPoints) {
+        throw new BadRequestException('The automatic mark cannot exceed the assessment total');
+      }
+      // The overall row, as a servant's mark would leave, so every report that reads the
+      // overall grade sees this mark. gradedBy null tells it apart from a mark someone gave.
+      await tx.grade.create({
+        data: { submissionId: sub.id, questionId: null, score: earned, maxScore: totalPoints, feedback: null, gradedBy: null },
+      });
+      const completed = await tx.assessmentSubmission.update({
+        where: { id: sub.id },
+        data: { status: 'completed' },
+      });
+      await this.creditXp({
+        studentId,
+        submissionId: sub.id,
+        lessonId: assessment.lessonId,
+        score: earned,
+        maxScore: totalPoints,
+        passRequired: assessment.allowRetry,
+        passingScore: Number(assessment.passingScore),
+        totalPoints,
+      }, tx);
+      return completed;
     });
+
+    if (autoComplete) {
+      await this.notifyGraded({
+        studentId,
+        submissionId: submission.id,
+        title: assessment.title,
+        titleAr: assessment.titleAr,
+        score: earned ?? 0,
+        maxScore: totalPoints,
+      });
+    }
 
     await this.audit.log({
       schoolId: actor?.schoolId || assessment.schoolId,
@@ -397,15 +535,47 @@ export class AssessmentsService {
       newValues: { studentId, assessmentId },
     });
 
-    await this.notifyReviewers(assessment, studentId, submission.id, actor?.id);
+    const state = attemptState(
+      {
+        allowRetry: assessment.allowRetry,
+        maxAttempts: assessment.maxAttempts,
+        passingScore: Number(assessment.passingScore),
+        dueDate: assessment.dueDate,
+        allowLateSubmission: assessment.allowLateSubmission,
+      },
+      {
+        status: autoComplete ? 'completed' : 'submitted',
+        attemptNumber: assignment.attemptNumber,
+        earned,
+      },
+    );
+    const result: SubmitResult = {
+      gradingComplete: autoComplete,
+      earned,
+      max: totalPoints,
+      passed: state.passed,
+      attemptNumber: state.attemptNumber,
+      maxAttempts: effectiveMaxAttempts(assessment),
+      attemptsRemaining: state.remaining,
+      canRetry: state.canRetry,
+      revealDetail: !assessment.allowRetry || (autoComplete && state.answerKeyOpen),
+    };
 
-    return this.prisma.assessmentSubmission.findUnique({
+    // An auto-completed submission is already marked; only work left at 'submitted' waits for a reviewer.
+    if (!autoComplete) {
+      await this.notifyReviewers(assessment, studentId, submission.id, actor?.id);
+    }
+
+    const saved = await this.prisma.assessmentSubmission.findUnique({
       where: { id: submission.id },
       include: {
         grades: true,
         student: { select: { id: true, firstName: true, lastName: true } },
       },
     });
+    // Per-question scores double as the answer key for true/false and multiple choice, so
+    // they must not leak while the student can still retry.
+    return { ...saved, ...(result.revealDetail ? {} : { grades: [] }), result };
   }
 
   private isAdminActor(actor?: Actor) {
@@ -552,6 +722,8 @@ export class AssessmentsService {
       this.prisma.grade.findMany({
         where: {
           questionId: null,
+          // A mark someone gave; an auto-completed submission's overall row has no grader.
+          gradedBy: { not: null },
           gradedAt: { gte: since },
           submission: {
             status: 'completed',
@@ -877,13 +1049,14 @@ export class AssessmentsService {
           status: 'completed',
           submissionType: 'online',
           assessment: { schoolId, deletedAt: null },
-          grades: { some: { questionId: null, gradedAt: { gte: since } } },
+          // Marking turnaround is for marks someone gave, not auto-completed work.
+          grades: { some: { questionId: null, gradedBy: { not: null }, gradedAt: { gte: since } } },
         },
         select: {
           submittedAt: true,
           student: { select: { group: { select: { id: true, name: true } } } },
           grades: {
-            where: { questionId: null },
+            where: { questionId: null, gradedBy: { not: null } },
             select: {
               gradedAt: true,
               grader: { select: { id: true, firstName: true, lastName: true } },
@@ -1263,6 +1436,9 @@ export class AssessmentsService {
         passingScore: Number(assessment.passingScore),
         dueDate: assessment.dueDate,
         durationMinutes: metadata.durationMinutes ?? null,
+        requireRecording: assessment.requireRecording,
+        attemptNumber: submission.attemptNumber,
+        maxAttempts: effectiveMaxAttempts(assessment),
         referenceRecordingUrl: assessment.referenceRecordingUrl ?? null,
         referenceRecordingName: assessment.referenceRecordingName ?? null,
         hazzat: assessment.lesson?.subjectItem?.hazzat ?? null,
@@ -1341,14 +1517,16 @@ export class AssessmentsService {
   async unassignStudent(assessmentId: string, studentId: string, user: any) {
     await this.access.assertAssessmentAndStudent(await this.access.loadActor(user), assessmentId, studentId);
     // Every live record for the pair, so a legacy duplicate cannot be left behind to reappear.
-    const rows = await this.prisma.assessmentSubmission.findMany({
+    // Archived rows (earlier attempts, merged or discarded work) and parent reports are history
+    // and are never hard-deleted.
+    const attempts = await this.prisma.assessmentSubmission.findMany({
       where: { assessmentId, studentId, ...LIFECYCLE_WHERE },
       select: { id: true },
     });
-    if (rows.length === 0) {
+    if (attempts.length === 0) {
       throw new NotFoundException('Student not assigned to this assessment');
     }
-    const ids = rows.map((r) => r.id);
+    const ids = attempts.map((a) => a.id);
     await this.prisma.grade.deleteMany({ where: { submissionId: { in: ids } } });
     await this.prisma.assessmentSubmission.deleteMany({ where: { id: { in: ids } } });
     return { message: 'Student unassigned' };
@@ -1356,6 +1534,7 @@ export class AssessmentsService {
 
   async reassessStudent(assessmentId: string, studentId: string, user: any) {
     await this.access.assertAssessmentAndStudent(await this.access.loadActor(user), assessmentId, studentId);
+    // The live attempt: an unordered lookup could pick a superseded row and reopen it.
     const submission = await this.liveSubmission(assessmentId, studentId);
     if (!submission) {
       throw new NotFoundException('Student not assigned to this assessment');
@@ -1514,42 +1693,17 @@ export class AssessmentsService {
       });
     }
 
-    // Credit XP for the scored mark (update existing or create new)
-    const xpAmount = Math.round((Number(score) / Number(maxScore)) * 100);
-    const existingXp = await this.prisma.xPTransaction.findFirst({
-      where: { referenceType: 'submission', referenceId: submission.id },
+    // One XP rule for every mark (servant, admin on behalf, bulk accept, auto-complete).
+    await this.creditXp({
+      studentId,
+      submissionId: submission.id,
+      lessonId: assessment.lessonId,
+      score,
+      maxScore,
+      passRequired: assessment.allowRetry,
+      passingScore: Number(assessment.passingScore),
+      totalPoints: total,
     });
-    const xpWhere: any = { studentId };
-    if (existingXp) xpWhere.id = { not: existingXp.id };
-    const currentBalance = await this.prisma.xPTransaction.aggregate({
-      where: xpWhere,
-      _sum: { amount: true },
-    });
-    const balanceAfter = (currentBalance._sum.amount || 0) + xpAmount;
-    let lessonLabel = '';
-    if (assessment.lessonId) {
-      const lesson = await this.prisma.lesson.findUnique({ where: { id: assessment.lessonId }, select: { title: true } });
-      if (lesson) lessonLabel = ` · ${lesson.title}`;
-    }
-    const xpDesc = `Assessment mark: ${score}/${maxScore}${lessonLabel}`;
-    if (existingXp) {
-      await this.prisma.xPTransaction.update({
-        where: { id: existingXp.id },
-        data: { amount: xpAmount, balanceAfter, description: xpDesc },
-      });
-    } else {
-      await this.prisma.xPTransaction.create({
-        data: {
-          studentId,
-          amount: xpAmount,
-          balanceAfter,
-          type: 'assessment',
-          referenceType: 'submission',
-          referenceId: submission.id,
-          description: xpDesc,
-        },
-      });
-    }
 
     // Who marked, and whether an admin did it in place of the servant, must be traceable.
     await this.audit.log({
@@ -1565,19 +1719,13 @@ export class AssessmentsService {
       },
     }).catch(() => undefined);
 
-    // Grading was pull-only: a student had to reopen the assessment to discover a mark.
-    // notifyOrRefresh rather than notify, so a re-grade updates the message and shows as
-    // unread again instead of being silently swallowed as a duplicate.
-    await this.studentNotifications.notifyOrRefresh({
+    await this.notifyGraded({
       studentId,
-      type: 'assessment_graded',
-      title: 'Your assessment was marked',
-      titleAr: 'تم تصحيح تقييمك',
-      body: `${assessment.title} — ${score}/${maxScore}`,
-      bodyAr: `${assessment.titleAr ?? assessment.title} — ${score}/${maxScore}`,
-      linkPath: '?tab=assessments',
-      referenceType: 'assessment_submission',
-      referenceId: submission.id,
+      submissionId: submission.id,
+      title: assessment.title,
+      titleAr: assessment.titleAr,
+      score,
+      maxScore,
     });
 
     return this.prisma.assessmentSubmission.findUnique({
@@ -1586,6 +1734,92 @@ export class AssessmentsService {
         student: { select: { id: true, firstName: true, lastName: true, studentCode: true } },
         grades: true,
       },
+    });
+  }
+
+  /**
+   * Credit XP for the scored mark (update existing or create new). With retry on, a
+   * failing attempt earns nothing, and a previously credited row is removed so a
+   * re-mark below the pass mark cannot leave stale XP behind.
+   */
+  private async creditXp(args: {
+    studentId: string;
+    submissionId: string;
+    lessonId: string | null;
+    score: number;
+    maxScore: number;
+    passRequired: boolean;
+    passingScore: number;
+    totalPoints: number;
+  }, db: Prisma.TransactionClient | PrismaService = this.prisma): Promise<void> {
+    const { studentId, submissionId, lessonId, score, maxScore, passRequired, passingScore, totalPoints } = args;
+
+    if (passRequired && scoreOnTotalScale(score, maxScore, totalPoints) < passingScore) {
+      await db.xPTransaction.deleteMany({
+        where: { referenceType: 'submission', referenceId: submissionId },
+      });
+      return;
+    }
+
+    const xpAmount = Math.round((Number(score) / Number(maxScore)) * 100);
+    const existingXp = await db.xPTransaction.findFirst({
+      where: { referenceType: 'submission', referenceId: submissionId },
+    });
+    const xpWhere: any = { studentId };
+    if (existingXp) xpWhere.id = { not: existingXp.id };
+    const currentBalance = await db.xPTransaction.aggregate({
+      where: xpWhere,
+      _sum: { amount: true },
+    });
+    const balanceAfter = (currentBalance._sum.amount || 0) + xpAmount;
+    let lessonLabel = '';
+    if (lessonId) {
+      const lesson = await db.lesson.findUnique({ where: { id: lessonId }, select: { title: true } });
+      if (lesson) lessonLabel = ` · ${lesson.title}`;
+    }
+    const xpDesc = `Assessment mark: ${score}/${maxScore}${lessonLabel}`;
+    if (existingXp) {
+      await db.xPTransaction.update({
+        where: { id: existingXp.id },
+        data: { amount: xpAmount, balanceAfter, description: xpDesc },
+      });
+    } else {
+      await db.xPTransaction.create({
+        data: {
+          studentId,
+          amount: xpAmount,
+          balanceAfter,
+          type: 'assessment',
+          referenceType: 'submission',
+          referenceId: submissionId,
+          description: xpDesc,
+        },
+      });
+    }
+  }
+
+  private async notifyGraded(args: {
+    studentId: string;
+    submissionId: string;
+    title: string;
+    titleAr: string | null;
+    score: number;
+    maxScore: number;
+  }): Promise<void> {
+    const { studentId, submissionId, title, titleAr, score, maxScore } = args;
+    // Grading was pull-only: a student had to reopen the assessment to discover a mark.
+    // notifyOrRefresh rather than notify, so a re-grade updates the message and shows as
+    // unread again instead of being silently swallowed as a duplicate.
+    await this.studentNotifications.notifyOrRefresh({
+      studentId,
+      type: 'assessment_graded',
+      title: 'Your assessment was marked',
+      titleAr: 'تم تصحيح تقييمك',
+      body: `${title} — ${score}/${maxScore}`,
+      bodyAr: `${titleAr ?? title} — ${score}/${maxScore}`,
+      linkPath: '?tab=assessments',
+      referenceType: 'assessment_submission',
+      referenceId: submissionId,
     });
   }
 
@@ -1628,6 +1862,11 @@ export class AssessmentsService {
       return students.map(s => {
         const sub = submissionByStudent.get(s.id);
         const overall = sub?.grades?.find(g => g.questionId === null);
+        // An auto-completed submission has per-question grades and no overall row; once
+        // completed, sum them. Before that the auto-grades are not a final mark.
+        const scored = sub && (overall || sub.status === 'completed')
+          ? submissionScore(sub.grades, toNum(assessment.totalPoints))
+          : null;
         return {
           id: s.id,
           firstName: s.firstName,
@@ -1637,8 +1876,8 @@ export class AssessmentsService {
           status: s.status,
           assigned: !!sub,
           submissionStatus: sub?.status || null,
-          mark: overall ? toNum(overall.score) : null,
-          maxMark: overall ? toNum(overall.maxScore) : toNum(assessment.totalPoints),
+          mark: scored ? scored.earned : null,
+          maxMark: scored ? scored.max : toNum(assessment.totalPoints),
           submittedAt: sub && sub.status !== 'assigned' ? sub.submittedAt : null,
           markedBy: overall?.grader ? `${overall.grader.firstName} ${overall.grader.lastName}`.trim() : null,
           markedAt: overall ? overall.gradedAt : null,
@@ -1666,19 +1905,22 @@ export class AssessmentsService {
     const submissions = await this.prisma.assessmentSubmission.findMany({
       where: { assessment: where, status: 'completed' },
       include: {
-        grades: { where: { questionId: null } },
-        assessment: { select: { passingScore: true, title: true, id: true } },
+        grades: { select: { questionId: true, score: true, maxScore: true } },
+        assessment: { select: { passingScore: true, totalPoints: true, title: true, id: true } },
       },
     });
 
     const gradedCount = submissions.length;
     let passCount = 0;
+    const scores: number[] = [];
     for (const sub of submissions) {
-      const grade = sub.grades[0];
-      if (grade && Number(grade.score) >= Number(sub.assessment.passingScore)) passCount++;
+      // Auto-completed submissions have per-question grades and no overall row.
+      const totalPoints = Number(sub.assessment.totalPoints);
+      const { earned, max } = submissionScore(sub.grades, totalPoints);
+      if (scoreOnTotalScale(earned, max, totalPoints) >= Number(sub.assessment.passingScore)) passCount++;
+      if (earned > 0) scores.push(earned);
     }
     const passRate = gradedCount > 0 ? Math.round((passCount / gradedCount) * 100) : 0;
-    const scores = submissions.map(s => (s.grades[0] ? Number(s.grades[0].score) : 0)).filter(s => s > 0);
     const avgScore = scores.length ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : 0;
 
     return {
@@ -1695,6 +1937,7 @@ export class AssessmentsService {
         assessment: {
           select: {
             id: true, title: true, titleAr: true, type: true, totalPoints: true, passingScore: true,
+            allowRetry: true, maxAttempts: true, dueDate: true, allowLateSubmission: true,
             questions: { orderBy: { orderIndex: 'asc' } },
           },
         },
@@ -1723,6 +1966,27 @@ export class AssessmentsService {
     // otherwise read the answers off a previous attempt and then re-take.
     const gradingComplete = submission.status === 'completed';
 
+    // Whether the key may open depends on where the student stands now (live attempt),
+    // not on the row being viewed. The viewed row still has to be 'completed' itself, so
+    // a superseded attempt opened by id never shows its key.
+    const live = (await this.liveSubmission(assessmentId, studentId)) ?? submission;
+    const state = attemptState(
+      this.retryPolicy(submission.assessment),
+      await this.liveAttempt(
+        submission.assessment,
+        live,
+        live.id === submission.id ? submission.grades : undefined,
+      ),
+    );
+    const attempt = {
+      number: state.attemptNumber,
+      max: state.max,
+      remaining: state.remaining,
+      canRetry: state.canRetry,
+      answerKeyOpen: state.answerKeyOpen,
+    };
+    const showKey = gradingComplete && attempt.answerKeyOpen;
+
     return {
       submission: {
         id: submission.id,
@@ -1748,9 +2012,11 @@ export class AssessmentsService {
           ? Math.min(100, Math.round((totalScore / maxScore) * 100))
           : null,
         passed: gradingComplete
-          ? totalScore >= Number(submission.assessment.passingScore)
+          ? scoreOnTotalScale(totalScore, maxScore, Number(submission.assessment.totalPoints))
+              >= Number(submission.assessment.passingScore)
           : null,
       },
+      attempt,
       questions: submission.assessment.questions.map((q: any) => {
         const grade = submission.grades.find(g => g.questionId === q.id);
         const answer = answers.find(a => a.questionId === q.id);
@@ -1761,9 +2027,9 @@ export class AssessmentsService {
           options: q.options || null,
           points: Number(q.points),
           studentAnswer: answer?.answer || null,
-          correctAnswer: gradingComplete && q.type !== 'essay' ? q.correctAnswer : null,
-          isCorrect: gradingComplete && grade ? Number(grade.score) === Number(grade.maxScore) : null,
-          score: gradingComplete && grade ? Number(grade.score) : null,
+          correctAnswer: showKey && q.type !== 'essay' ? q.correctAnswer : null,
+          isCorrect: showKey && grade ? Number(grade.score) === Number(grade.maxScore) : null,
+          score: showKey && grade ? Number(grade.score) : null,
           maxScore: grade ? Number(grade.maxScore) : null,
           feedback: grade?.feedback || null,
           feedbackAr: grade?.feedbackAr || null,
@@ -1797,26 +2063,39 @@ export class AssessmentsService {
 
     // An untaken attempt is already open; handing back a second one would strand a row.
     if (existing.status === 'assigned') {
+      const max = effectiveMaxAttempts(assessment);
       return {
         newSubmissionId: existing.id,
         attemptNumber: existing.attemptNumber,
-        attemptsRemaining: assessment.maxAttempts === null
-          ? null
-          : Math.max(0, assessment.maxAttempts - existing.attemptNumber),
+        attemptsRemaining: Math.max(0, max - existing.attemptNumber),
         message: 'Ready to retake. You can now access the assessment again.',
       };
     }
 
-    // An attempt an admin discarded was never the student's to use, so it must not count.
-    const priorAttempts = await this.prisma.assessmentSubmission.findMany({
-      where: { assessmentId, studentId },
-      select: { metadata: true },
-    });
-    const attemptsUsed = priorAttempts.filter((a) => !((a.metadata as any) || {}).discardedByAdmin).length;
-    if (assessment.maxAttempts !== null && attemptsUsed >= assessment.maxAttempts) {
+    // Every retry decision goes through allowRetry (via attemptState): a legacy row can
+    // keep a stored maxAttempts after retry was switched off. Attempts used are the live
+    // attempt's number, so an attempt an admin discarded (resetPendingSubmission reopens the
+    // same attempt number) was never the student's to use and does not count.
+    const state = attemptState(
+      this.retryPolicy(assessment),
+      await this.liveAttempt(assessment, existing),
+    );
+    if (!assessment.allowRetry) {
+      throw new BadRequestException('Retakes are not enabled for this assessment');
+    }
+    if (state.passed === true) {
+      throw new BadRequestException('You have already passed this assessment');
+    }
+    if (state.attemptNumber >= state.max) {
       throw new BadRequestException(
-        `No attempts remaining — this assessment allows ${assessment.maxAttempts}.`,
+        `No attempts remaining — this assessment allows ${state.max}.`,
       );
+    }
+    if (!state.moreAttemptsPossible) {
+      throw new BadRequestException('The due date has passed and late submissions are not allowed');
+    }
+    if (!state.canRetry) {
+      throw new BadRequestException('A new attempt cannot be started right now');
     }
 
     // Archive the attempt being replaced and open the next one atomically, so a student
@@ -1840,11 +2119,22 @@ export class AssessmentsService {
     return {
       newSubmissionId: newSubmission.id,
       attemptNumber: newSubmission.attemptNumber,
-      attemptsRemaining: assessment.maxAttempts === null
-        ? null
-        : Math.max(0, assessment.maxAttempts - newSubmission.attemptNumber),
+      attemptsRemaining: Math.max(0, state.max - newSubmission.attemptNumber),
       message: 'Ready to retake. You can now access the assessment again.',
     };
+  }
+
+  private assertReviewRetryCompatible(
+    questions: Array<{ type: string }>,
+    flags: { requireReview: boolean; allowRetry: boolean },
+  ) {
+    if (!questions.some(q => q.type === 'essay')) return;
+    if (!flags.requireReview) {
+      throw new BadRequestException('Essay questions require staff review');
+    }
+    if (flags.allowRetry) {
+      throw new BadRequestException('Essay questions cannot be retried');
+    }
   }
 
   private validateQuestions(questions: CreateQuestionDto[], totalPoints: number) {

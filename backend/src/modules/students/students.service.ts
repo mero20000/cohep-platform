@@ -8,12 +8,13 @@ import { buildStudentSearchClauses } from '../../common/utils/search';
 import { localToday, studentBirthdayWindow } from '../../common/utils/birthday';
 import { birthdayBadgeName } from '../gamification/gamification.constants';
 import { AnalyticsService } from '../analytics/analytics.service';
-import { LIFECYCLE_WHERE, assessmentGender, isEligible, liveByKey, scoreOf } from '../assessments/assessment-lifecycle';
+import { LIFECYCLE_WHERE, assessmentGender, isEligible, liveByKey } from '../assessments/assessment-lifecycle';
 import { CreateStudentDto } from './dto/create-student.dto';
 import { UpdateStudentDto } from './dto/update-student.dto';
 import { QueryStudentDto } from './dto/query-student.dto';
 import { BulkImportStudentDto } from './dto/bulk-import-student.dto';
 import { v4 as uuidv4 } from 'uuid';
+import { attemptState, scoreOnTotalScale, submissionScore } from '../assessments/assessment-attempts';
 
 /**
  * NOTE: The `student` User role is currently orphaned — it exists in the role seed
@@ -975,6 +976,7 @@ async getPortalData(portalAccessKey: string) {
               id: true, title: true, titleAr: true, type: true, totalPoints: true,
               passingScore: true, dueDate: true, status: true, deletedAt: true,
               levelId: true, groupId: true, metadata: true,
+              allowRetry: true, maxAttempts: true, allowLateSubmission: true,
               level: { select: { id: true, name: true } },
               subject: { select: { id: true, name: true, nameAr: true } },
             },
@@ -1144,7 +1146,27 @@ async getPortalData(portalAccessKey: string) {
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
       .slice(0, 20)
       .map((sub) => {
-        const mark = scoreOf(sub.grades ?? []);
+        // A servant's overall mark replaces the per-question rows rather than adding to them.
+        const totalPoints = Number(sub.assessment.totalPoints);
+        const { earned, max } = submissionScore(sub.grades ?? [], totalPoints);
+        const completed = sub.status === 'completed';
+        // Shown and compared against totalPoints, so it must be on that scale (8/10 on a
+        // 100-point assessment is 80).
+        const earnedOnTotal = Math.round(scoreOnTotalScale(earned, max, totalPoints) * 100) / 100;
+        const state = attemptState(
+          {
+            allowRetry: sub.assessment.allowRetry,
+            maxAttempts: sub.assessment.maxAttempts,
+            passingScore: Number(sub.assessment.passingScore),
+            dueDate: sub.assessment.dueDate,
+            allowLateSubmission: sub.assessment.allowLateSubmission,
+          },
+          {
+            status: sub.status,
+            attemptNumber: sub.attemptNumber,
+            earned: completed ? earnedOnTotal : null,
+          },
+        );
         return {
           id: sub.assessment.id,
           title: sub.assessment.title,
@@ -1158,7 +1180,8 @@ async getPortalData(portalAccessKey: string) {
           submissionStatus: sub.status,
           submissionId: sub.id,
           submittedAt: sub.submittedAt,
-          earnedScore: sub.status === 'completed' ? (mark?.score ?? 0) : null,
+          earnedScore: completed ? earnedOnTotal : null,
+          attempt: { number: state.attemptNumber, max: state.max, canRetry: state.canRetry },
         };
       });
   }

@@ -5,8 +5,10 @@ import { useLanguage } from '@/lib/use-language'
 import { usePermission } from '@/lib/use-permission'
 import { usePendingReviewCount } from '@/lib/use-pending-review-count'
 import { validateQuestions } from './validation'
+import { emptyForm, assessmentToForm, toCopyForm, type QuestionDraft } from './assessment-form'
+import { defaultRequireReview, hasEssay, reviewPayload, needsShortAnswerWarning } from './review-settings'
 import {
-  ClipboardCheck, Plus, Pencil, Trash2, Loader2, ChevronRight, Zap,
+  ClipboardCheck, Plus, Pencil, Copy, Trash2, Loader2, ChevronRight, Zap,
   Calendar, FileText, Clock, Eye, Users, Check, Download, Printer, X, UserX, CheckCircle, XCircle,
   FileSpreadsheet, ChevronDown,
 } from 'lucide-react'
@@ -78,7 +80,7 @@ interface Assessment {
   lessonId?: string
   subjectId: string
   academicYearId?: string
-  metadata?: { term?: number; academicYearId?: string; grade?: string; gender?: 'all' | 'male' | 'female' }
+  metadata?: { term?: number; academicYearId?: string; grade?: string; gender?: 'all' | 'male' | 'female'; durationMinutes?: number }
   level: { id: string; name: string; number: number }
   group?: { id: string; name: string }
   lesson?: { id: string; title: string }
@@ -87,20 +89,15 @@ interface Assessment {
   _count: { questions: number; submissions: number }
   referenceRecordingUrl?: string
   referenceRecordingName?: string
+  requireReview?: boolean
+  requireRecording?: boolean
+  allowRetry?: boolean
+  maxAttempts?: number | null
 }
 
 interface PaginatedResponse {
   data: Assessment[]
   pagination: { page: number; limit: number; total: number; totalPages: number }
-}
-
-interface QuestionDraft {
-  id?: string
-  text: string
-  type: 'multiple_choice' | 'true_false' | 'short_answer' | 'essay'
-  options: string
-  correctAnswer: string
-  points: string
 }
 
 const STATUS_BADGE: Record<string, 'success' | 'warning' | 'default' | 'info' | 'danger'> = {
@@ -116,27 +113,6 @@ function termLabel(t: number, lang: 'en' | 'ar'): string {
     return labels[t] || `${lang === 'ar' ? 'الفصل' : 'Term'} ${t}`
   }
   return ['', 'Term 1', 'Term 2', 'Term 3'][t] || `Term ${t}`
-}
-
-const emptyForm = {
-  title: '',
-  description: '',
-  levelId: '',
-  groupId: '',
-  grade: '',
-  // Who the assessment is for within the level/group/grade: everyone unless narrowed.
-  gender: 'all' as 'all' | 'male' | 'female',
-  lessonId: '',
-  subjectId: '',
-  totalPoints: '',
-  passingPoints: '',
-  dueDate: '',
-  term: '',
-  status: 'draft',
-  type: 'quiz',
-  questions: [] as QuestionDraft[],
-  referenceRecordingUrl: '',
-  referenceRecordingName: '',
 }
 
 export default function AssessmentsPage() {
@@ -170,6 +146,7 @@ export default function AssessmentsPage() {
   const [selectedAssessment, setSelectedAssessment] = useState<Assessment | null>(null)
   const [form, setForm] = useState(emptyForm)
   const formIssues = useMemo(() => validateQuestions(form.questions, parseInt(form.totalPoints, 10) || 0), [form.questions, form.totalPoints])
+  const essayLocked = hasEssay(form.questions)
   const [recordingOptions, setRecordingOptions] = useState<{ url: string; name: string }[]>([])
   const [formError, setFormError] = useState('')
   const [saving, setSaving] = useState(false)
@@ -335,33 +312,7 @@ export default function AssessmentsPage() {
       if (!a.questions || a.questions.length === 0) {
         detail = await http.get<Assessment>(`/assessments/${a.id}`)
       }
-      const meta = (detail.metadata || {}) as { term?: number; academicYearId?: string; grade?: string; gender?: string }
-      setForm({
-        title: detail.title,
-        description: detail.description || '',
-        levelId: detail.levelId,
-        groupId: detail.groupId || '',
-        grade: meta.grade || detail.grade || '',
-        gender: meta.gender === 'male' || meta.gender === 'female' ? meta.gender : 'all',
-        lessonId: detail.lessonId || '',
-        subjectId: detail.subjectId,
-        totalPoints: String(detail.totalPoints),
-        passingPoints: String(detail.passingScore),
-        dueDate: detail.dueDate ? detail.dueDate.split('T')[0] : '',
-        term: meta.term ? String(meta.term) : '',
-        status: detail.status,
-        type: detail.type || 'quiz',
-          questions: (detail.questions || []).map(q => ({
-            id: q.id,
-            text: q.questionText,
-            type: q.type as QuestionDraft['type'],
-            options: Array.isArray(q.options) ? q.options.join('\n') : (q.options || ''),
-            correctAnswer: q.correctAnswer,
-            points: String(q.points),
-          })),
-          referenceRecordingUrl: detail.referenceRecordingUrl || '',
-          referenceRecordingName: detail.referenceRecordingName || '',
-        })
+      setForm(assessmentToForm(detail))
       setFormDirty(false)
       setSelectedAssessment(detail)
     } catch (err) {
@@ -369,6 +320,21 @@ export default function AssessmentsPage() {
       toast('error', lang === 'ar' ? 'فشل تحميل تفاصيل التقييم' : 'Failed to load assessment details')
       return
     }
+    setFormError('')
+    setShowForm(true)
+  }
+
+  const openCopy = async (a: Assessment) => {
+    try {
+      const detail = await http.get<Assessment>(`/assessments/${a.id}`)
+      setForm(toCopyForm(assessmentToForm(detail), lang))
+    } catch (err) {
+      console.error('Failed to load assessment', err)
+      toast('error', lang === 'ar' ? 'فشل تحميل تفاصيل التقييم' : 'Failed to load assessment details')
+      return
+    }
+    setFormDirty(true)
+    setSelectedAssessment(null)
     setFormError('')
     setShowForm(true)
   }
@@ -606,6 +572,8 @@ export default function AssessmentsPage() {
         academicYearId: currentYear?.id || undefined,
         referenceRecordingUrl: form.referenceRecordingUrl || undefined,
         referenceRecordingName: form.referenceRecordingName || undefined,
+        durationMinutes: form.durationMinutes ? parseInt(form.durationMinutes, 10) : undefined,
+        ...reviewPayload(form),
         questions: form.questions.map((q, i) => ({
           id: q.id || undefined,
           text: q.text,
@@ -753,6 +721,11 @@ export default function AssessmentsPage() {
             aria-label={lang === 'ar' ? `طلاب ${a.title}` : `Students for ${a.title}`}
             className="text-gray-500 hover:bg-indigo-50 hover:text-indigo-600">
             <Users className="h-4 w-4" />
+          </Button>
+          <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); openCopy(a) }}
+            aria-label={lang === 'ar' ? `نسخ ${a.title}` : `Copy ${a.title}`}
+            className="text-gray-500 hover:bg-sky-50 hover:text-sky-600">
+            <Copy className="h-4 w-4" />
           </Button>
           <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); openEdit(a) }}
             aria-label={lang === 'ar' ? `تعديل ${a.title}` : `Edit ${a.title}`}
@@ -1071,6 +1044,69 @@ export default function AssessmentsPage() {
             </div>
           </div>
 
+          <fieldset className="border-t border-gray-100 pt-4">
+            <legend className="text-sm font-medium text-gray-700">{lang === 'ar' ? 'المراجعة والمحاولات' : 'Review & attempts'}</legend>
+            <div className="mt-3 space-y-3">
+              <div className="flex items-start gap-3">
+                <input id="require-review" type="checkbox" className="mt-0.5 h-4 w-4 rounded border-gray-300"
+                  checked={essayLocked || form.requireReview} disabled={essayLocked}
+                  aria-describedby="require-review-hint"
+                  onChange={e => updateForm({ requireReview: e.target.checked, reviewTouched: true })} />
+                <div>
+                  <label htmlFor="require-review" className="block text-sm font-medium text-gray-700">{lang === 'ar' ? 'يتطلب مراجعة المعلم' : 'Require review'}</label>
+                  <p id="require-review-hint" className="text-xs text-gray-500">
+                    {essayLocked
+                      ? (lang === 'ar' ? 'أسئلة المقال تتطلب دائماً مراجعة المعلم.' : 'Essay questions always need a teacher review.')
+                      : (lang === 'ar' ? 'يراجع المعلم الإجابات قبل ظهور النتيجة للطالب.' : 'A teacher reviews answers before the student sees a result.')}
+                  </p>
+                </div>
+              </div>
+
+              {needsShortAnswerWarning({ requireReview: form.requireReview, questions: form.questions }) && (
+                <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700" role="note">
+                  {lang === 'ar'
+                    ? 'الإجابات القصيرة تُصحح بالمطابقة التامة فقط. فعّل المراجعة ليتمكن المعلم من تصحيح الإجابات المختلفة.'
+                    : 'Short answers are only auto-marked on an exact match. Turn on Require review so a teacher can mark answers that differ.'}
+                </div>
+              )}
+
+              <div className="flex items-start gap-3">
+                <input id="require-recording" type="checkbox" className="mt-0.5 h-4 w-4 rounded border-gray-300"
+                  checked={form.requireRecording} aria-describedby="require-recording-hint"
+                  onChange={e => updateForm({ requireRecording: e.target.checked })} />
+                <div>
+                  <label htmlFor="require-recording" className="block text-sm font-medium text-gray-700">{lang === 'ar' ? 'يتطلب تسجيلاً صوتياً' : 'Require recording'}</label>
+                  <p id="require-recording-hint" className="text-xs text-gray-500">
+                    {lang === 'ar' ? 'يجب على الطالب إرفاق تسجيل صوتي عند التسليم.' : 'Students must attach an audio recording when they submit.'}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-3">
+                <input id="allow-retry" type="checkbox" className="mt-0.5 h-4 w-4 rounded border-gray-300"
+                  checked={!essayLocked && form.allowRetry} disabled={essayLocked}
+                  aria-describedby="allow-retry-hint"
+                  onChange={e => updateForm({ allowRetry: e.target.checked })} />
+                <div>
+                  <label htmlFor="allow-retry" className="block text-sm font-medium text-gray-700">{lang === 'ar' ? 'السماح بإعادة المحاولة' : 'Allow retry'}</label>
+                  <p id="allow-retry-hint" className="text-xs text-gray-500">
+                    {essayLocked
+                      ? (lang === 'ar' ? 'لا يمكن إعادة المحاولة في التقييمات التي تحتوي على أسئلة مقال.' : 'Retries are not available when the assessment has an essay question.')
+                      : (lang === 'ar' ? 'يمكن للطالب المحاولة مرة أخرى حتى الحد الأقصى للمحاولات.' : 'Students can try again, up to the maximum number of attempts.')}
+                  </p>
+                </div>
+              </div>
+
+              {!essayLocked && form.allowRetry && (
+                <div className="sm:max-w-[12rem]">
+                  <FormField label={lang === 'ar' ? 'الحد الأقصى للمحاولات' : 'Max attempts'} type="number" min="2" max="10"
+                    value={form.maxAttempts} onChange={e => updateForm({ maxAttempts: e.target.value })}
+                    hint={lang === 'ar' ? 'تشمل المحاولة الأولى: 3 تعني المحاولة الأولى ومحاولتين إضافيتين. من 2 إلى 10.' : 'Includes the first try: 3 means the first try plus 2 retries. Between 2 and 10.'} />
+                </div>
+              )}
+            </div>
+          </fieldset>
+
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <FormField label={lang === 'ar' ? 'الفصل' : 'Term'} as="select" value={form.term} onChange={e => updateForm({ term: e.target.value })}>
               <option value="">{lang === 'ar' ? 'اختر الفصل' : 'Select term'}</option>
@@ -1078,7 +1114,10 @@ export default function AssessmentsPage() {
               <option value="2">{lang === 'ar' ? 'الفصل الثاني (يناير-مارس)' : 'Term 2 (Jan-Mar)'}</option>
               <option value="3">{lang === 'ar' ? 'الفصل الثالث (أبريل-يونيو)' : 'Term 3 (Apr-Jun)'}</option>
             </FormField>
-            <FormField label={lang === 'ar' ? 'النوع' : 'Type'} as="select" value={form.type} onChange={e => updateForm({ type: e.target.value })}>
+            <FormField label={lang === 'ar' ? 'النوع' : 'Type'} as="select" value={form.type} onChange={e => {
+              const type = e.target.value
+              updateForm(form.reviewTouched ? { type } : { type, requireReview: defaultRequireReview(type) })
+            }}>
               <option value="quiz">{lang === 'ar' ? 'مسابقة' : 'Quiz'}</option>
               <option value="test">{lang === 'ar' ? 'اختبار' : 'Test'}</option>
               <option value="exam">{lang === 'ar' ? 'امتحان' : 'Exam'}</option>

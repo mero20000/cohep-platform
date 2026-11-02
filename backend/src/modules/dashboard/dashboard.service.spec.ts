@@ -66,8 +66,8 @@ describe('DashboardService', () => {
     return d;
   }
 
-  describe('getStats — church count', () => {
-    it('counts only active, non-deleted churches', async () => {
+  describe('getStats', () => {
+    const stubStats = (gradedSubmissions: any[] = []) => {
       prisma.student.count.mockResolvedValue(0);
       prisma.attendanceSession.count.mockResolvedValue(0);
       prisma.attendanceRecord.findMany.mockResolvedValue([]);
@@ -79,11 +79,15 @@ describe('DashboardService', () => {
       (prisma as any).assessment = { count: jest.fn().mockResolvedValue(0), groupBy: jest.fn().mockResolvedValue([]) };
       (prisma as any).schoolGrade = { findMany: jest.fn().mockResolvedValue([]) };
       prisma.student.groupBy = jest.fn().mockResolvedValue([]);
-      (prisma as any).assessmentSubmission = { findMany: jest.fn().mockResolvedValue([]) };
+      (prisma as any).assessmentSubmission = { findMany: jest.fn().mockResolvedValue(gradedSubmissions) };
       prisma.curriculumAllocation.count = jest.fn().mockResolvedValue(0);
       (prisma as any).grade = { findMany: jest.fn().mockResolvedValue([]) };
       (prisma as any).auditLog = { findMany: jest.fn().mockResolvedValue([]) };
       (prisma as any).xPTransaction = { groupBy: jest.fn().mockResolvedValue([]) };
+    };
+
+    it('counts only active, non-deleted churches', async () => {
+      stubStats();
 
       const result: any = await (service as any).getStats(schoolId);
 
@@ -91,6 +95,38 @@ describe('DashboardService', () => {
         expect.objectContaining({ where: expect.objectContaining({ deletedAt: null, isActive: true }) }),
       );
       expect(result.totalChurches).toBe(3);
+    });
+
+    // An auto-completed submission has per-question grade rows and no overall row.
+    const autoCompleted = (perQuestion: number) => ({
+      id: 'sub1',
+      grades: [
+        { questionId: 'q1', score: perQuestion, maxScore: 5, createdAt: new Date() },
+        { questionId: 'q2', score: perQuestion, maxScore: 5, createdAt: new Date() },
+      ],
+      assessment: { passingScore: 5, totalPoints: 10, title: 'Quiz' },
+      student: { id: 'stu1', firstName: 'A', lastName: 'B', photoUrl: null },
+    });
+
+    it('selects completed submissions that have any grade, not only an overall row', async () => {
+      stubStats();
+
+      await (service as any).getStats(schoolId);
+
+      const args = (prisma as any).assessmentSubmission.findMany.mock.calls[0][0];
+      expect(args.where.grades).toEqual({ some: {} });
+    });
+
+    it('counts a passing auto-completed submission in passCount and the average', async () => {
+      stubStats([autoCompleted(3), autoCompleted(1)]);
+
+      const result: any = await (service as any).getStats(schoolId);
+
+      expect(result.assessmentStats).toEqual({
+        gradedCount: 2, passCount: 1, passRate: 50, avgGradeScore: 4,
+        // Dated by their auto-grades, written on completion.
+        recent: { windowDays: 90, gradedCount: 2, passRate: 50 },
+      });
     });
   });
 
@@ -189,8 +225,9 @@ describe('DashboardService', () => {
       mockStatsBaseline();
       mockAttendance();
       const submission = (score: number, gradedDaysAgo: number) => ({
-        grades: [{ score, createdAt: day(gradedDaysAgo) }],
-        assessment: { passingScore: 10, title: 'Quiz' },
+        // The servant's overall mark (questionId null), out of the assessment's total.
+        grades: [{ questionId: null, score, maxScore: 20, createdAt: day(gradedDaysAgo) }],
+        assessment: { passingScore: 10, totalPoints: 20, title: 'Quiz' },
         student: { id: 's', firstName: 'A', lastName: 'B', photoUrl: null },
       });
       (prisma as any).assessmentSubmission.findMany.mockResolvedValue([
@@ -208,7 +245,7 @@ describe('DashboardService', () => {
       mockStatsBaseline();
       mockAttendance();
       (prisma as any).assessmentSubmission.findMany.mockResolvedValue([
-        { grades: [{ score: 15, createdAt: day(200) }], assessment: { passingScore: 10, title: 'Q' }, student: { id: 's', firstName: 'A', lastName: 'B', photoUrl: null } },
+        { grades: [{ questionId: null, score: 15, maxScore: 20, createdAt: day(200) }], assessment: { passingScore: 10, totalPoints: 20, title: 'Q' }, student: { id: 's', firstName: 'A', lastName: 'B', photoUrl: null } },
       ]);
       const result: any = await (service as any).getStats(schoolId);
       expect(result.assessmentStats.recent.passRate).toBeNull();
