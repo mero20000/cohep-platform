@@ -86,6 +86,45 @@ describe('SubmissionReview result page', () => {
     expect(screen.queryByText(/no attempts left/i)).toBeNull()
   })
 
+  describe('cannot start another attempt note', () => {
+    const NOTE = /can't start another attempt right now/i
+
+    it('shows when failed with attempts left but canRetry is false', async () => {
+      mocks.get.mockResolvedValue(payload({ attempt: { number: 1, remaining: 2, canRetry: false } }))
+      render(<SubmissionReview />)
+      expect(await screen.findByText(NOTE)).toBeTruthy()
+      expect(screen.queryByRole('button', { name: /try again/i })).toBeNull()
+    })
+
+    it('does not show when a retry is available', async () => {
+      mocks.get.mockResolvedValue(payload({ attempt: { remaining: 2, canRetry: true } }))
+      render(<SubmissionReview />)
+      await screen.findByText('Hymns quiz')
+      expect(screen.queryByText(NOTE)).toBeNull()
+    })
+
+    it('does not show when no attempts are left', async () => {
+      mocks.get.mockResolvedValue(payload({ attempt: { number: 3, remaining: 0, canRetry: false, answerKeyOpen: true } }))
+      render(<SubmissionReview />)
+      await screen.findByText(/no attempts left/i)
+      expect(screen.queryByText(NOTE)).toBeNull()
+    })
+
+    it('does not show when the student passed', async () => {
+      mocks.get.mockResolvedValue(payload({ grade: { passed: true, earned: 9, percentage: 90 }, attempt: { remaining: 2, canRetry: false, answerKeyOpen: true } }))
+      render(<SubmissionReview />)
+      await screen.findByText('Hymns quiz')
+      expect(screen.queryByText(NOTE)).toBeNull()
+    })
+
+    it('does not show for a single-attempt assessment', async () => {
+      mocks.get.mockResolvedValue(payload({ attempt: { number: 1, max: 1, remaining: 0, canRetry: false, answerKeyOpen: true } }))
+      render(<SubmissionReview />)
+      await screen.findByText('Hymns quiz')
+      expect(screen.queryByText(NOTE)).toBeNull()
+    })
+  })
+
   it('replaces the question list with an unlock note while the answer key is closed', async () => {
     mocks.get.mockResolvedValue(payload({ attempt: { answerKeyOpen: false } }))
     render(<SubmissionReview />)

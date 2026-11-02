@@ -120,6 +120,8 @@ export default function SubmissionReview() {
   const attempt = data.attempt ?? LEGACY_ATTEMPT
   const failed = grade.gradingComplete && grade.passed === false
   const noAttemptsLeft = failed && attempt.max > 1 && attempt.remaining === 0
+  // Attempts remain but the server will not open one: the due date passed or another is open.
+  const retryBlocked = failed && attempt.max > 1 && attempt.remaining > 0 && !attempt.canRetry
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -327,6 +329,14 @@ export default function SubmissionReview() {
           {noAttemptsLeft && (
             <p className="flex-1 flex items-center justify-center rounded-lg bg-amber-50 px-6 py-3 text-sm font-bold text-amber-700">
               {t('No attempts left', 'لا توجد محاولات متبقية')}
+            </p>
+          )}
+          {retryBlocked && (
+            <p className="flex-1 flex items-center justify-center rounded-lg bg-amber-50 px-6 py-3 text-sm font-bold text-amber-700">
+              {t(
+                "You can't start another attempt right now — the due date has passed or another attempt is already open.",
+                'لا يمكنك بدء محاولة أخرى الآن — انتهى الموعد النهائي أو توجد محاولة مفتوحة بالفعل.',
+              )}
             </p>
           )}
           <Link href={`/student-portal/${code}`} className="flex items-center justify-center gap-2 rounded-lg border border-gray-300 px-6 py-3 text-sm font-bold text-gray-700 hover:bg-gray-50">
