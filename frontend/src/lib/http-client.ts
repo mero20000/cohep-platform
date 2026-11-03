@@ -53,33 +53,65 @@ class HttpClient {
     window.location.href = wasDemo ? '/auth/login?demoExpired=1' : '/auth/login'
   }
 
-  private async refreshAuth(): Promise<boolean> {
+  /**
+   * 'ok' — new tokens stored. 'rejected' — the server refused the refresh token, the session
+   * is over. 'unavailable' — the refresh call never got a verdict (429, 5xx, network): the
+   * session may be fine, so it must not be ended over it.
+   */
+  private refreshInFlight: Promise<'ok' | 'rejected' | 'unavailable'> | null = null
+
+  /**
+   * One refresh at a time. A dashboard fires many requests at once, and when the access token
+   * expires they all 401 together. The server rotates the refresh token on use, so only the
+   * first call can win — every other one would be refused and, treated as a dead session,
+   * log the user out right after the winner stored fresh tokens. Callers share one attempt.
+   */
+  private refreshAuth(): Promise<'ok' | 'rejected' | 'unavailable'> {
+    if (!this.refreshInFlight) {
+      this.refreshInFlight = this.performRefresh(false)
+        .then((outcome) => {
+          if (outcome === 'rejected') this.redirectToLogin()
+          return outcome
+        })
+        .finally(() => {
+          this.refreshInFlight = null
+        })
+    }
+    return this.refreshInFlight
+  }
+
+  private async performRefresh(retriedAfterOtherTab: boolean): Promise<'ok' | 'rejected' | 'unavailable'> {
+    const sentToken = typeof window !== 'undefined' ? localStorage.getItem('niangelos_refresh_token') : null
+    if (!sentToken) return 'rejected'
     try {
-      const refreshToken = typeof window !== 'undefined' ? localStorage.getItem('niangelos_refresh_token') : null
-      if (!refreshToken) {
-        this.redirectToLogin()
-        return false
-      }
       const res = await fetch(`${this.baseUrl}/auth/refresh`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ refreshToken }),
+        body: JSON.stringify({ refreshToken: sentToken }),
       })
-      if (!res.ok) {
-        this.redirectToLogin()
-        return false
+      if (res.ok) {
+        const data = await res.json()
+        if (data.accessToken) {
+          localStorage.setItem('niangelos_token', data.accessToken)
+        }
+        if (data.refreshToken) {
+          localStorage.setItem('niangelos_refresh_token', data.refreshToken)
+        }
+        return 'ok'
       }
-      const data = await res.json()
-      if (data.accessToken) {
-        localStorage.setItem('niangelos_token', data.accessToken)
+      if (res.status === 401 || res.status === 403) {
+        // Another tab can rotate the token while this call is in flight, leaving the one we
+        // sent used-up even though the session lives on. Try the token that replaced it once.
+        const current = localStorage.getItem('niangelos_refresh_token')
+        if (!retriedAfterOtherTab && current && current !== sentToken) {
+          return this.performRefresh(true)
+        }
+        return 'rejected'
       }
-      if (data.refreshToken) {
-        localStorage.setItem('niangelos_refresh_token', data.refreshToken)
-      }
-      return true
+      return 'unavailable'
     } catch {
-      return false
+      return 'unavailable'
     }
   }
 
@@ -170,9 +202,10 @@ class HttpClient {
       throw new PortalUnauthorizedError()
     }
 
+    let signedOut = false
     if (res.status === 401 && path !== '/auth/refresh') {
-      const refreshed = await this.refreshAuth()
-      if (refreshed) {
+      const outcome = await this.refreshAuth()
+      if (outcome === 'ok') {
         // Re-attach the (freshly refreshed) token on the retry — refreshAuth stores
         // the new access token in localStorage, so authHeaders picks it up.
         const retryHeaders: Record<string, string> = { ...this.authHeaders }
@@ -183,11 +216,15 @@ class HttpClient {
           timedOut(e)
           throw e
         }
+      } else if (outcome === 'unavailable') {
+        throw new Error('Could not refresh your session. Please check your connection and retry.')
+      } else {
+        signedOut = true
       }
     }
 
     if (!res.ok) {
-      if (res.status === 401) {
+      if (res.status === 401 && !signedOut) {
         this.redirectToLogin()
       }
       const error = await res.json().catch<ApiError>(() => ({
