@@ -51,3 +51,108 @@ describe('http-client timeouts', () => {
     expect(seen.body).toBe(fd)
   })
 })
+
+describe('http-client token refresh', () => {
+  const json = (status: number, body: unknown = {}) =>
+    ({ ok: status >= 200 && status < 300, status, json: async () => body }) as any
+
+  const realLocation = window.location
+  let hrefSet: string[]
+
+  beforeEach(() => {
+    hrefSet = []
+    // jsdom cannot navigate; record assignments so a redirect to login is observable.
+    Object.defineProperty(window, 'location', {
+      configurable: true,
+      value: { get href() { return 'http://localhost/dashboard' }, set href(v: string) { hrefSet.push(v) } },
+    })
+    localStorage.setItem('user', '{"id":"u1"}')
+    localStorage.setItem('niangelos_refresh_token', 'r1')
+  })
+
+  afterEach(() => {
+    Object.defineProperty(window, 'location', { configurable: true, value: realLocation })
+  })
+
+  const refreshBody = (init: any) => JSON.parse(init.body).refreshToken
+
+  it('makes one refresh call for a burst of parallel 401s and keeps every caller signed in', async () => {
+    let refreshCalls = 0
+    mockFetch(async (url: any, init: any) => {
+      if (String(url).includes('/auth/refresh')) {
+        refreshCalls++
+        // The server rotates: only the first presentation of r1 wins, reuse of r1 is a 401.
+        return refreshCalls === 1 && refreshBody(init) === 'r1'
+          ? json(200, { accessToken: 'tok2', refreshToken: 'r2' })
+          : json(401, { message: 'Refresh token has been revoked' })
+      }
+      return init.headers.Authorization === 'Bearer tok2' ? json(200, { ok: true }) : json(401)
+    })
+
+    const results = await Promise.all(Array.from({ length: 16 }, () => http.get('/students')))
+
+    expect(refreshCalls).toBe(1)
+    expect(results).toHaveLength(16)
+    expect(hrefSet).toEqual([])
+    expect(localStorage.getItem('user')).not.toBeNull()
+    expect(localStorage.getItem('niangelos_refresh_token')).toBe('r2')
+  })
+
+  it('retries with the newer refresh token when another tab rotated it mid-flight', async () => {
+    const sent: string[] = []
+    mockFetch(async (url: any, init: any) => {
+      if (String(url).includes('/auth/refresh')) {
+        sent.push(refreshBody(init))
+        if (refreshBody(init) === 'r1') {
+          localStorage.setItem('niangelos_refresh_token', 'r-other-tab')
+          return json(401, { message: 'Refresh token has been revoked' })
+        }
+        return json(200, { accessToken: 'tok2', refreshToken: 'r3' })
+      }
+      return init.headers.Authorization === 'Bearer tok2' ? json(200, { ok: true }) : json(401)
+    })
+
+    await expect(http.get('/students')).resolves.toEqual({ ok: true })
+
+    expect(sent).toEqual(['r1', 'r-other-tab'])
+    expect(hrefSet).toEqual([])
+    expect(localStorage.getItem('user')).not.toBeNull()
+  })
+
+  it.each([
+    ['a 429 rate limit', () => json(429, { message: 'Too Many Requests' })],
+    ['a 503 while the server wakes', () => json(503, { message: 'Service Unavailable' })],
+  ])('keeps the session when refresh fails with %s', async (_label, refreshReply) => {
+    mockFetch(async (url: any) => (String(url).includes('/auth/refresh') ? refreshReply() : json(401)))
+
+    await expect(http.get('/students')).rejects.toThrow()
+
+    expect(hrefSet).toEqual([])
+    expect(localStorage.getItem('user')).not.toBeNull()
+    expect(localStorage.getItem('niangelos_refresh_token')).toBe('r1')
+  })
+
+  it('keeps the session when the refresh request itself fails to connect', async () => {
+    mockFetch(async (url: any) => {
+      if (String(url).includes('/auth/refresh')) throw new TypeError('Failed to fetch')
+      return json(401)
+    })
+
+    await expect(http.get('/students')).rejects.toThrow()
+
+    expect(hrefSet).toEqual([])
+    expect(localStorage.getItem('user')).not.toBeNull()
+  })
+
+  it('signs out when the refresh token is genuinely rejected', async () => {
+    mockFetch(async (url: any) =>
+      String(url).includes('/auth/refresh') ? json(401, { message: 'Invalid refresh token' }) : json(401),
+    )
+
+    await expect(http.get('/students')).rejects.toThrow()
+
+    expect(hrefSet).toEqual(['/auth/login'])
+    expect(localStorage.getItem('user')).toBeNull()
+    expect(localStorage.getItem('niangelos_refresh_token')).toBeNull()
+  })
+})
