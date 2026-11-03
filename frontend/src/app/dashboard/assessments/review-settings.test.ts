@@ -4,6 +4,7 @@ import { defaultRequireReview, hasEssay, reviewPayload, needsShortAnswerWarning 
 const base = {
   requireReview: false,
   requireRecording: false,
+  allowRecording: true,
   allowRetry: false,
   maxAttempts: '3',
   questions: [] as Array<{ type: string }>,
@@ -28,13 +29,21 @@ describe('hasEssay', () => {
 describe('reviewPayload', () => {
   it('forces review on and retry off when an essay question exists, with no maxAttempts', () => {
     const out = reviewPayload({ ...base, allowRetry: true, maxAttempts: '4', questions: [{ type: 'essay' }] })
-    expect(out).toEqual({ requireReview: true, requireRecording: false, allowRetry: false })
+    expect(out).toEqual({ requireReview: true, requireRecording: false, allowRecording: true, allowRetry: false })
     expect(out).not.toHaveProperty('maxAttempts')
   })
 
   it('sends maxAttempts as a number when retry is on', () => {
     const out = reviewPayload({ ...base, allowRetry: true, maxAttempts: '4', requireRecording: true })
-    expect(out).toEqual({ requireReview: false, requireRecording: true, allowRetry: true, maxAttempts: 4 })
+    expect(out).toEqual({ requireReview: false, requireRecording: true, allowRecording: true, allowRetry: true, maxAttempts: 4 })
+  })
+
+  it('sends allowRecording false when recording is off and not required', () => {
+    expect(reviewPayload({ ...base, allowRecording: false }).allowRecording).toBe(false)
+  })
+
+  it('sends allowRecording true whenever recording is required, whatever the form says', () => {
+    expect(reviewPayload({ ...base, requireRecording: true, allowRecording: false }).allowRecording).toBe(true)
   })
 
   it('omits maxAttempts when retry is off', () => {
