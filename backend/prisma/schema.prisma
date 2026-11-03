@@ -975,6 +975,8 @@ model Assessment {
   requireReview          Boolean   @default(true) @map("require_review")
   /// Student must attach an audio/video recording to submit.
   requireRecording       Boolean   @default(false) @map("require_recording")
+  /// Students may attach a voice recording. Off hides recording entirely; forced on when requireRecording is on.
+  allowRecording         Boolean   @default(true) @map("allow_recording")
   /// Student may retry; maxAttempts is then the total attempts including the first.
   allowRetry             Boolean   @default(false) @map("allow_retry")
   /// XP awarded for a full-score attempt; a partial score earns a proportional share.

@@ -139,6 +139,8 @@ export class AssessmentsService {
       type,
       requireReview,
       requireRecording: dto.requireRecording ?? false,
+      // Required wins: a required recording must be allowed.
+      allowRecording: dto.requireRecording ? true : (dto.allowRecording ?? true),
       allowRetry,
       maxAttempts: allowRetry ? (dto.maxAttempts ?? 3) : null,
       totalPoints: dto.totalPoints,
@@ -205,6 +207,10 @@ export class AssessmentsService {
     if (dto.type !== undefined) data.type = dto.type;
     if (dto.requireReview !== undefined) data.requireReview = dto.requireReview;
     if (dto.requireRecording !== undefined) data.requireRecording = dto.requireRecording;
+    // Required wins silently: a required recording is always allowed.
+    const requireRecording = dto.requireRecording ?? existing.requireRecording ?? false;
+    if (requireRecording) data.allowRecording = true;
+    else if (dto.allowRecording != null) data.allowRecording = dto.allowRecording;
 
     // The column defaults (review on, retry off) when a row predates them.
     const requireReview = dto.requireReview ?? existing.requireReview ?? true;
@@ -423,6 +429,12 @@ export class AssessmentsService {
 
     // Past-due submissions are always accepted; they are only flagged as late.
     const isLate = !!(assessment.dueDate && new Date() > assessment.dueDate);
+
+    // Recording switched off: no caller (staff proxy included) may attach one. Strict `false` so
+    // a row or fixture without the field keeps accepting it.
+    if (assessment.allowRecording === false && dto.fileUrl) {
+      throw new BadRequestException('Voice recording is not enabled for this assessment');
+    }
 
     // Staff proxy-submitting on a student's behalf is exempt: they have no recording to attach.
     if (actor?.source !== 'staff' && assessment.requireRecording && !dto.fileUrl) {
@@ -1440,6 +1452,7 @@ export class AssessmentsService {
         dueDate: assessment.dueDate,
         durationMinutes: metadata.durationMinutes ?? null,
         requireRecording: assessment.requireRecording,
+        allowRecording: assessment.allowRecording,
         attemptNumber: submission.attemptNumber,
         maxAttempts: effectiveMaxAttempts(assessment),
         referenceRecordingUrl: assessment.referenceRecordingUrl ?? null,

@@ -169,3 +169,12 @@ Backend errors are 400 `BadRequestException` with human-readable messages (exist
 - Wording of AR/EN labels and hints.
 - What the timer does at 0:00 when a required recording is missing. The server must never accept a missing required recording; the client should keep the page open and say why rather than loop on a rejected auto-submit.
 - Whether the portal card chip and result-page label share one helper.
+
+## Addendum: allowRecording
+
+- New `assessments.allow_recording BOOLEAN NOT NULL DEFAULT true` (Prisma `allowRecording`), additive, so every existing assessment keeps showing the optional recording UI.
+- When OFF the student portal hides the "Voice recording" block entirely; when ON (default) and `requireRecording` is off it stays optional, as before.
+- Required wins silently: `create()` stores `allowRecording = true` whenever `requireRecording` is true; `update()` does the same using the merged value (incoming else stored). Otherwise the incoming value is stored, or the stored one is left untouched when omitted. No 400.
+- `submit()` rejects a `fileUrl` with `BadRequestException('Voice recording is not enabled for this assessment')` when `allowRecording === false` (strict check), for every caller including the staff proxy. The recording-required rule is unchanged.
+- `getTakeQuestions()` adds `allowRecording` to the assessment header; the take page treats a missing field (older backend) as allowed.
+- Form: "Allow voice recording" checkbox under "Require recording"; shown checked and disabled (display-only) while recording is required. Copy and Edit carry the value.

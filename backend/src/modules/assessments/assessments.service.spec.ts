@@ -8,7 +8,7 @@ import { AccessScopeService } from '../../common/access-scope.service';
 import { RolesGuard } from '../../modules/auth/guards/roles.guard';
 import { Reflector } from '@nestjs/core';
 import { STAFF_ROLES } from '../../common/decorators/roles.decorator';
-import { CreateAssessmentDto, CreateQuestionDto, SubmitAssessmentDto } from './dto/assessment.dto';
+import { CreateAssessmentDto, CreateQuestionDto, SubmitAssessmentDto, UpdateAssessmentDto } from './dto/assessment.dto';
 import { plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';
 import { StudentNotificationsService } from '../student-notifications/student-notifications.service';
@@ -325,6 +325,29 @@ describe('AssessmentsService', () => {
       expect(data.metadata.durationMinutes).toBe(45);
     });
 
+    describe('allowRecording', () => {
+      const created = async (extra: any) => {
+        prisma.user.findFirst.mockResolvedValue({ id: 'user-1' });
+        prisma.assessment.create.mockResolvedValue({ id: 'a1' });
+        await service.create({ ...baseDto, ...extra }, 'school-1');
+        return prisma.assessment.create.mock.calls[0][0].data;
+      };
+
+      it('defaults allowRecording to true when omitted', async () => {
+        expect((await created({})).allowRecording).toBe(true);
+      });
+
+      it('stores allowRecording false when it is turned off', async () => {
+        expect((await created({ allowRecording: false })).allowRecording).toBe(false);
+      });
+
+      it('forces allowRecording true when recording is required', async () => {
+        const data = await created({ requireRecording: true, allowRecording: false });
+        expect(data.requireRecording).toBe(true);
+        expect(data.allowRecording).toBe(true);
+      });
+    });
+
     it('defaults requireReview to false for quiz', async () => {
       prisma.user.findFirst.mockResolvedValue({ id: 'user-1' });
       prisma.assessment.create.mockResolvedValue({ id: 'a1' });
@@ -457,6 +480,45 @@ describe('AssessmentsService', () => {
 
       const data = prisma.assessment.update.mock.calls[0][0].data;
       expect(data.type).toBe('exam');
+    });
+
+    describe('allowRecording', () => {
+      const stored = (over: any = {}) => ({
+        id: 'a1', metadata: {}, deletedAt: null, requireReview: true, allowRetry: false,
+        requireRecording: false, allowRecording: true, ...over,
+      });
+      const updated = async (existing: any, dto: any) => {
+        prisma.assessment.findUnique.mockResolvedValue(existing);
+        prisma.assessment.update.mockResolvedValue({ id: 'a1' });
+        await service.update('a1', { totalPoints: 100, passingPoints: 60, ...dto }, staff);
+        return prisma.assessment.update.mock.calls[0][0].data;
+      };
+
+      it('forces allowRecording true when requireRecording is turned on', async () => {
+        const data = await updated(stored({ allowRecording: false }), { requireRecording: true });
+        expect(data.requireRecording).toBe(true);
+        expect(data.allowRecording).toBe(true);
+      });
+
+      it('forces allowRecording true when the stored requireRecording is already on', async () => {
+        const data = await updated(stored({ requireRecording: true }), { allowRecording: false });
+        expect(data.allowRecording).toBe(true);
+      });
+
+      it('stores allowRecording false when recording is not required', async () => {
+        const data = await updated(stored(), { allowRecording: false });
+        expect(data.allowRecording).toBe(false);
+      });
+
+      it('leaves allowRecording unchanged when it is not provided', async () => {
+        const data = await updated(stored({ allowRecording: false }), { title: 'New' });
+        expect('allowRecording' in data).toBe(false);
+      });
+
+      it('stores the incoming value when requireRecording is turned off in the same update', async () => {
+        const data = await updated(stored({ requireRecording: true }), { requireRecording: false, allowRecording: false });
+        expect(data.allowRecording).toBe(false);
+      });
     });
 
     it('throws NotFoundException for unknown assessment', async () => {
@@ -711,6 +773,47 @@ describe('AssessmentsService', () => {
       await expect(service.submit('a1', 'stu-1', { answers: [] }, undefined)).rejects.toThrow(
         'A voice recording is required for this assessment',
       );
+    });
+
+    describe('allowRecording off', () => {
+      const withFile = { answers: [], fileUrl: 'https://x/rec.webm' };
+
+      it.each([
+        ['portal', { source: 'portal' as const }],
+        ['staff', { source: 'staff' as const }],
+        ['anonymous', undefined],
+      ])('rejects a %s submit that carries a fileUrl', async (_n, actor) => {
+        prisma.assessment.findUnique.mockResolvedValue(quiz({ allowRecording: false }));
+
+        await expect(service.submit('a1', 'stu-1', withFile, actor as any)).rejects.toThrow(
+          'Voice recording is not enabled for this assessment',
+        );
+        expect(tx.assessmentSubmission.update).not.toHaveBeenCalled();
+      });
+
+      it('accepts a submit without a fileUrl', async () => {
+        prisma.assessment.findUnique.mockResolvedValue(quiz({ allowRecording: false }));
+
+        await expect(
+          service.submit('a1', 'stu-1', { answers: [] }, { source: 'portal' }),
+        ).resolves.toBeDefined();
+      });
+
+      it('accepts a fileUrl when allowRecording is true', async () => {
+        prisma.assessment.findUnique.mockResolvedValue(quiz({ allowRecording: true }));
+
+        await expect(
+          service.submit('a1', 'stu-1', withFile, { source: 'portal' }),
+        ).resolves.toBeDefined();
+      });
+
+      it('accepts a fileUrl when the field is missing (strict check)', async () => {
+        prisma.assessment.findUnique.mockResolvedValue(quiz());
+
+        await expect(
+          service.submit('a1', 'stu-1', withFile, { source: 'portal' }),
+        ).resolves.toBeDefined();
+      });
     });
 
     it('allows a staff submit without fileUrl when requireRecording is on', async () => {
@@ -1168,6 +1271,15 @@ describe('AssessmentsService', () => {
       expect(res.assessment.requireRecording).toBe(true);
       expect(res.assessment.attemptNumber).toBe(2);
       expect(res.assessment.maxAttempts).toBe(3);
+    });
+
+    it.each([[true], [false]])('returns allowRecording %s in the header', async (flag) => {
+      prisma.assessment.findUnique.mockResolvedValue(pubAssess({ allowRecording: flag }));
+      prisma.assessmentSubmission.findFirst.mockResolvedValue({ id: 's1', status: 'assigned', attemptNumber: 1 });
+
+      const res: any = await service.getTakeQuestions('a1', 'stu-1');
+
+      expect(res.assessment.allowRecording).toBe(flag);
     });
 
     it('reports a single attempt when retry is off, whatever maxAttempts is stored', async () => {
@@ -2706,6 +2818,34 @@ describe('DTO validation', () => {
     it('rejects an oversized answer array', async () => {
       const errors = await validate(make(201));
       expect(errors.some((e) => e.property === 'answers')).toBe(true);
+    });
+  });
+
+  describe('allowRecording', () => {
+    const create = (v?: any) => Object.assign(new CreateAssessmentDto(), {
+      title: 'Quiz', levelId: '550e8400-e29b-41d4-a716-446655440000', subjectId: '550e8400-e29b-41d4-a716-446655440001',
+      totalPoints: 10, passingPoints: 6, ...(v === undefined ? {} : { allowRecording: v }),
+    });
+    const update = (v?: any) => Object.assign(new UpdateAssessmentDto(), {
+      totalPoints: 10, passingPoints: 6, ...(v === undefined ? {} : { allowRecording: v }),
+    });
+
+    it.each([undefined, true, false])('create accepts %p', async (v) => {
+      expect(await validate(create(v))).toHaveLength(0);
+    });
+
+    it.each(['false', 0, 'yes'])('create rejects %p', async (v) => {
+      const errors = await validate(create(v));
+      expect(errors.some((e) => e.property === 'allowRecording')).toBe(true);
+    });
+
+    it.each([undefined, true, false])('update accepts %p', async (v) => {
+      expect(await validate(update(v))).toHaveLength(0);
+    });
+
+    it.each(['false', 1])('update rejects %p', async (v) => {
+      const errors = await validate(update(v));
+      expect(errors.some((e) => e.property === 'allowRecording')).toBe(true);
     });
   });
 
