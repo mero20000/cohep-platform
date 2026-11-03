@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { http } from '@/lib/http-client'
 import { assetUrl } from '@/lib/asset-url'
 import { attemptLabel, computeResult, formatCountdown, recordingBlocksSubmit, type TakeQuestion } from '../../app/dashboard/assessments/take-helpers'
-import { Loader2, AlertCircle, CheckCircle2, XCircle, Clock, ClipboardCheck, Music, FileText, Presentation, StickyNote, Mic, Square, Trash2, ArrowLeft } from 'lucide-react'
+import { Loader2, AlertCircle, CheckCircle2, XCircle, Clock, ClipboardCheck, Music, FileText, Presentation, StickyNote, Mic, Square, Trash2, ArrowLeft, RotateCcw } from 'lucide-react'
 import { AudioPlayer } from '@/components/audio-player'
 
 interface TakePayload {
@@ -51,6 +51,47 @@ interface TakeProps {
 }
 
 type AnswerMap = Record<string, string>
+
+// Score against the pass mark. The fill grows from empty once, on first paint; the tick
+// marks where passing starts so the student sees how far they were from it.
+function ScoreBar({ percent, passMarkPercent, fillClass, passMarkLabel }: {
+  percent: number
+  passMarkPercent: number
+  fillClass: string
+  passMarkLabel: string
+}) {
+  const [filled, setFilled] = useState(false)
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setFilled(true))
+    return () => cancelAnimationFrame(id)
+  }, [])
+  return (
+    <div className="mx-auto mt-5 w-full max-w-xs">
+      <div
+        role="progressbar"
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={percent}
+        aria-label={passMarkLabel}
+        className="relative h-2.5 rounded-full bg-white ring-1 ring-black/10"
+      >
+        <div
+          className={`h-full rounded-full motion-safe:transition-[width] motion-safe:duration-700 motion-safe:ease-out ${fillClass}`}
+          style={{ width: filled ? `${percent}%` : '0%' }}
+        />
+        <div
+          className="absolute -top-1 -bottom-1 w-0.5 rounded bg-gray-700"
+          style={{ insetInlineStart: `${passMarkPercent}%` }}
+          aria-hidden="true"
+        />
+      </div>
+      <div className="mt-2 flex items-center justify-between text-xs text-gray-600">
+        <span className="tabular-nums">{percent}%</span>
+        <span>{passMarkLabel}</span>
+      </div>
+    </div>
+  )
+}
 
 // A retake keeps the same route, so router.push would not remount anything. The wrapper
 // remounts the body with a new key instead, which refetches the take payload (fresh
@@ -322,78 +363,99 @@ function TakeAssessmentBody({ assessmentId, mode, accessKey, studentId, lang = '
       }
     }
 
+    const ar = lang === 'ar'
+    const { totalPoints, passingScore } = payload.assessment
+    const percent = shownMax > 0 ? Math.min(100, Math.round((shownEarned / shownMax) * 100)) : 0
+    const passMarkPercent = totalPoints > 0 ? Math.min(100, Math.round((passingScore / totalPoints) * 100)) : 0
+    const pointsNeeded = Math.max(0, Math.ceil((passingScore / (totalPoints || 1)) * shownMax - shownEarned))
+    const attemptsLeft = result?.canRetry ? result.attemptsRemaining : 0
+    const correctCount = res.items.filter((i) => i.status === 'correct').length
+    const backHref = mode === 'portal' && accessKey ? `/student-portal/${accessKey}` : '/dashboard/assessments'
+    const plural = (n: number, one: string, many: string) => (n === 1 ? one : many)
+
+    // One tone per outcome: green only for a pass, amber for "not yet" and "waiting", so
+    // a failed attempt reads as a next step rather than a verdict.
+    type Tone = { card: string; icon: string; text: string; fill: string }
+    const green: Tone = { card: 'border-green-200 bg-green-50', icon: 'text-green-600', text: 'text-green-800', fill: 'bg-green-600' }
+    const amber: Tone = { card: 'border-amber-200 bg-amber-50', icon: 'text-amber-600', text: 'text-amber-800', fill: 'bg-amber-500' }
+    const tone = awaitingMarking || !isPassing ? amber : green
+
+    let title: string
+    let subtitle: string
+    if (awaitingMarking) {
+      title = ar ? 'تم التسليم' : 'Submitted'
+      subtitle = ar
+        ? 'تسليمك بانتظار التصحيح. ستظهر النتيجة بعد التصحيح.'
+        : 'Your submission is awaiting marking. Your score will appear once it is marked.'
+    } else if (isPassing) {
+      title = ar ? 'نجحت!' : 'You passed!'
+      subtitle = ar ? 'ممتاز! لقد أكملت التقييم.' : "Great job! You've completed the assessment."
+    } else if (attemptsLeft > 0) {
+      title = ar ? 'لم تنجح بعد' : 'Not quite yet'
+      const need = ar
+        ? `تحتاج إلى ${pointsNeeded} نقطة إضافية للنجاح.`
+        : `You need ${pointsNeeded} more ${plural(pointsNeeded, 'point', 'points')} to pass.`
+      const left = ar
+        ? `تبقّت ${attemptsLeft} ${attemptsLeft === 1 ? 'محاولة' : 'محاولات'}.`
+        : `${attemptsLeft} ${plural(attemptsLeft, 'attempt', 'attempts')} left.`
+      subtitle = `${need} ${left}`
+    } else {
+      title = ar ? 'لم تنجح هذه المرة' : 'Not passed this time'
+      subtitle = showDetail
+        ? (ar ? 'راجع إجاباتك أدناه لتعرف أين تتحسن.' : 'Review your answers below to see where to improve.')
+        : (ar ? 'شكراً لتسليمك.' : 'Thank you for your submission.')
+    }
+    const StatusIcon = awaitingMarking ? Clock : isPassing ? CheckCircle2 : RotateCcw
+
     return (
       <div className="mx-auto max-w-2xl px-4 py-8">
-        {/* Success Card */}
-        <div className="rounded-2xl border border-green-200 bg-linear-to-br from-green-50 to-emerald-50 p-8 text-center">
-          <div className="flex justify-center">
-            <div className="relative">
-              <div className="absolute inset-0 animate-pulse rounded-full bg-green-200 opacity-75 blur-sm"></div>
-              <CheckCircle2 className="relative h-12 w-12 text-green-600" />
-            </div>
-          </div>
+        <div className={`rounded-2xl border p-6 text-center sm:p-8 ${tone.card}`}>
+          <StatusIcon className={`mx-auto h-12 w-12 ${tone.icon}`} aria-hidden="true" />
 
-          <h2 className="mt-4 text-2xl font-bold text-gray-900">
-            {lang === 'ar' ? '✓ تم التسليم بنجاح' : '✓ Assessment Submitted'}
-          </h2>
+          <h2 className="mt-4 text-balance text-2xl font-bold text-gray-900">{title}</h2>
+          <p className={`mx-auto mt-2 max-w-sm text-sm ${tone.text}`}>{subtitle}</p>
 
-          <p className="mt-2 text-sm text-gray-600">
-            {isPassing
-              ? (lang === 'ar' ? 'ممتاز! لقد أكملت التقييم.' : 'Great job! You\'ve completed the assessment.')
-              : (lang === 'ar' ? 'شكراً لتسليمك. تحقق من النتائج أدناه.' : 'Thank you for your submission. Check your results below.')}
-          </p>
-
-          {awaitingMarking ? (
-            <p className="mt-6 text-sm font-medium text-amber-700">
-              {lang === 'ar'
-                ? 'تسليمك بانتظار التصحيح. ستظهر النتيجة بعد التصحيح.'
-                : 'Your submission is awaiting marking. Your score will appear once it is marked.'}
-            </p>
-          ) : (
+          {!awaitingMarking && (
             <>
-              {/* Score Display */}
-              <div className="mt-6 flex items-center justify-center gap-4">
-                <div>
-                  <p className="text-4xl font-bold text-gray-900">{shownEarned}</p>
-                  <p className="text-sm text-gray-500">{lang === 'ar' ? 'نقاط' : 'points'}</p>
-                </div>
-                <div className="text-2xl text-gray-400">/</div>
-                <div>
-                  <p className="text-4xl font-bold text-gray-400">{shownMax}</p>
-                  <p className="text-sm text-gray-500">{lang === 'ar' ? 'من' : 'total'}</p>
-                </div>
-              </div>
+              <p className="mt-6 flex items-baseline justify-center gap-2" dir="ltr">
+                <span className="text-6xl font-bold tabular-nums text-gray-900">{shownEarned}</span>
+                <span className="text-2xl font-semibold tabular-nums text-gray-500">/ {shownMax}</span>
+                <span className="sr-only">{ar ? 'نقاط' : 'points'}</span>
+              </p>
+              <p className="mt-1 text-sm text-gray-600">{ar ? 'نقاط' : 'points'}</p>
 
-              {gradingComplete ? (
-                result.passed != null && (
-                  <p className={`mt-3 text-sm font-semibold ${result.passed ? 'text-green-700' : 'text-red-600'}`}>
-                    {result.passed
-                      ? (lang === 'ar' ? 'ناجح' : 'Passed')
-                      : (lang === 'ar' ? 'لم تنجح' : 'Not passed')}
-                  </p>
-                )
-              ) : (
+              <ScoreBar percent={percent} passMarkPercent={passMarkPercent} fillClass={tone.fill}
+                passMarkLabel={`${ar ? 'حد النجاح' : 'Pass mark'}: ${passingScore}`} />
+
+              {!gradingComplete && (
                 <p className="mt-3 text-xs text-gray-500">
-                  {lang === 'ar' ? 'بناءً على الأسئلة المصححة تلقائيًا' : 'Based on auto-graded questions'}
+                  {ar ? 'بناءً على الأسئلة المصححة تلقائيًا' : 'Based on auto-graded questions'}
                 </p>
               )}
             </>
           )}
 
-          {resultAttemptLabel && (
-            <p className="mt-2 text-xs font-medium text-gray-500">{resultAttemptLabel}</p>
+          {result && result.maxAttempts > 1 && (
+            <div className="mt-5 flex items-center justify-center gap-2">
+              <span className="flex gap-1" aria-hidden="true">
+                {Array.from({ length: result.maxAttempts }, (_, i) => (
+                  <span key={i} className={`h-2 w-2 rounded-full ${i < result.attemptNumber ? tone.fill : 'bg-gray-300'}`} />
+                ))}
+              </span>
+              <span className="text-xs font-medium text-gray-600">{resultAttemptLabel}</span>
+            </div>
           )}
 
           {canTryAgain && (
-            <div className="mt-5">
+            <div className="mt-6">
               <button
                 type="button"
                 onClick={tryAgain}
                 disabled={retaking}
-                className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-60"
+                className="inline-flex items-center justify-center gap-2 rounded-lg bg-indigo-600 px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-indigo-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 disabled:opacity-60"
               >
-                {retaking && <Loader2 className="h-4 w-4 animate-spin" />}
-                {lang === 'ar'
+                {retaking ? <Loader2 className="h-4 w-4 animate-spin" /> : <RotateCcw className="h-4 w-4" aria-hidden="true" />}
+                {ar
                   ? `حاول مرة أخرى — المحاولة ${result.attemptNumber + 1} من ${result.maxAttempts}`
                   : `Try again — attempt ${result.attemptNumber + 1} of ${result.maxAttempts}`}
               </button>
@@ -402,54 +464,59 @@ function TakeAssessmentBody({ assessmentId, mode, accessKey, studentId, lang = '
           )}
         </div>
 
-        {/* Action Buttons */}
-        <div className="mt-8 grid grid-cols-1 gap-3 sm:grid-cols-3">
+        {/* A single way out. The portal has no staff dashboard or public home to send a student to. */}
+        <div className="mt-4 flex justify-center">
           <button
-            onClick={() => router.back()}
-            className="rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+            type="button"
+            onClick={() => router.push(backHref)}
+            className={`inline-flex items-center justify-center gap-2 rounded-lg px-6 py-3 text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 ${
+              canTryAgain
+                ? 'border border-gray-300 bg-white text-gray-700 hover:bg-gray-50'
+                : 'bg-indigo-600 text-white hover:bg-indigo-700'
+            }`}
           >
-            {lang === 'ar' ? '← العودة للتقييم' : '← Back to Assessment'}
-          </button>
-          <button
-            onClick={() => router.push('/dashboard')}
-            className="rounded-lg border border-blue-300 bg-blue-50 px-4 py-2.5 text-sm font-medium text-blue-700 hover:bg-blue-100 transition-colors"
-          >
-            {lang === 'ar' ? 'لوحة التحكم' : 'Dashboard'}
-          </button>
-          <button
-            onClick={() => router.push('/')}
-            className="rounded-lg border border-indigo-300 bg-indigo-50 px-4 py-2.5 text-sm font-medium text-indigo-700 hover:bg-indigo-100 transition-colors"
-          >
-            {lang === 'ar' ? 'الرئيسية' : 'Home'}
+            <ArrowLeft className="h-4 w-4 rtl:rotate-180" aria-hidden="true" />
+            {mode === 'portal'
+              ? (ar ? 'رجوع إلى تقييماتي' : 'Back to my assessments')
+              : (ar ? 'رجوع إلى التقييمات' : 'Back to assessments')}
           </button>
         </div>
 
         {/* Detailed Results (hidden when they would reveal the answer key) */}
         {showDetail && (
-        <div className="mt-8">
-          <h3 className="text-sm font-semibold text-gray-900 mb-4">
-            {lang === 'ar' ? 'تفاصيل الإجابات' : 'Your Answers'}
-          </h3>
-          <div className="space-y-3">
+        <div className="mt-10">
+          <div className="mb-3 flex items-baseline justify-between gap-3">
+            <h3 className="text-sm font-semibold text-gray-900">{ar ? 'تفاصيل الإجابات' : 'Your Answers'}</h3>
+            {!awaitingMarking && (
+              <p className="text-xs text-gray-500">
+                {ar
+                  ? `${correctCount} من ${payload.questions.length} صحيحة`
+                  : `${correctCount} of ${payload.questions.length} correct`}
+              </p>
+            )}
+          </div>
+          <ol className="space-y-3">
             {payload.questions.map((q, i) => {
               const r = res.items[i]
               return (
-                <div key={q.id} className="rounded-lg border border-gray-200 bg-white p-4 hover:shadow-xs transition-shadow">
+                <li key={q.id} className={`rounded-lg border p-4 ${r.status === 'incorrect' ? 'border-red-200 bg-red-50' : 'border-gray-200 bg-white'}`}>
                   <div className="flex items-start justify-between gap-3">
-                    <p className="text-sm font-medium text-gray-900">{q.text}</p>
+                    <p className="text-sm font-medium text-gray-900">
+                      <span className="me-2 text-gray-400 tabular-nums">{i + 1}.</span>{q.text}
+                    </p>
                     <div className="shrink-0">
-                      {r.status === 'correct' && <CheckCircle2 className="h-5 w-5 text-green-600" />}
-                      {r.status === 'incorrect' && <XCircle className="h-5 w-5 text-red-500" />}
-                      {r.status === 'pending' && <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">{lang === 'ar' ? 'بانتظار' : 'Pending'}</span>}
+                      {r.status === 'correct' && <CheckCircle2 className="h-5 w-5 text-green-600" aria-label={ar ? 'صحيحة' : 'Correct'} role="img" />}
+                      {r.status === 'incorrect' && <XCircle className="h-5 w-5 text-red-500" aria-label={ar ? 'خاطئة' : 'Incorrect'} role="img" />}
+                      {r.status === 'pending' && <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">{ar ? 'بانتظار' : 'Pending'}</span>}
                     </div>
                   </div>
                   {r.status !== 'pending' && (
-                    <p className="mt-2 text-xs text-gray-600">{lang === 'ar' ? 'إجابتك:' : 'Your answer:'} <span className="font-medium text-gray-900">{answers[q.id]}</span></p>
+                    <p className="mt-2 text-xs text-gray-600">{ar ? 'إجابتك:' : 'Your answer:'} <span className="font-medium text-gray-900">{answers[q.id]}</span></p>
                   )}
-                </div>
+                </li>
               )
             })}
-          </div>
+          </ol>
         </div>
         )}
       </div>
