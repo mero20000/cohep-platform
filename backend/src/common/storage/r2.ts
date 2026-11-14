@@ -34,6 +34,16 @@ const IMAGE_CONTENT_TYPES: Record<string, string> = {
   '.webp': 'image/webp',
 };
 
+const DOCUMENT_CONTENT_TYPES: Record<string, string> = {
+  '.pdf': 'application/pdf',
+};
+
+/** Content type for a hazzat score (image or PDF), or undefined when it may not be stored as one. */
+export function scoreContentTypeForKey(key: string): string | undefined {
+  const ext = extname(key).toLowerCase();
+  return IMAGE_CONTENT_TYPES[ext] ?? DOCUMENT_CONTENT_TYPES[ext];
+}
+
 /** Audio content type for a key or URL path, or undefined when it is not a known audio extension. */
 export function audioContentTypeForKey(key: string): string | undefined {
   return AUDIO_CONTENT_TYPES[extname(key).toLowerCase()];
@@ -108,4 +118,38 @@ export async function uploadRecording(
     }),
   );
   return `${PUBLIC_URL!.replace(/\/$/, '')}/${key}`;
+}
+
+/**
+ * Store a hazzat score (image or PDF). Same storage as recordings, but with its own
+ * allowlist so PDFs cannot be smuggled in through the audio/photo upload paths.
+ */
+export async function uploadScore(buffer: Buffer, key: string): Promise<string> {
+  const contentType = scoreContentTypeForKey(key);
+  if (!contentType) {
+    throw new BadRequestException('Unsupported file type');
+  }
+  if (!isR2Configured) {
+    const dir = join(process.cwd(), 'uploads', 'audio');
+    await mkdir(dir, { recursive: true });
+    const filename = key.split('/').pop()!;
+    await writeFile(join(dir, filename), buffer);
+    return `/uploads/audio/${filename}`;
+  }
+  await getClient().send(
+    new PutObjectCommand({ Bucket: BUCKET, Key: key, Body: buffer, ContentType: contentType }),
+  );
+  return `${PUBLIC_URL!.replace(/\/$/, '')}/${key}`;
+}
+
+/** True when the buffer's leading bytes match the score's declared extension. */
+export function scoreMagicMatches(buf: Buffer, ext: string): boolean {
+  const head = buf.subarray(0, 12).toString('hex');
+  switch (ext.toLowerCase()) {
+    case '.jpg': case '.jpeg': return head.startsWith('ffd8ff');
+    case '.png': return head.startsWith('89504e470d0a1a0a');
+    case '.webp': return head.startsWith('52494646') && buf.subarray(8, 12).toString('ascii') === 'WEBP';
+    case '.pdf': return buf.subarray(0, 5).toString('ascii') === '%PDF-';
+    default: return false;
+  }
 }

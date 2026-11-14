@@ -382,7 +382,7 @@ export class HymnLearningService {
           orderBy: { orderIndex: 'asc' },
         },
         subjectItem: {
-          select: { id: true, name: true, recordingUrl: true, recordingMeta: true, isAssessmentItem: true, passRequired: true },
+          select: { id: true, name: true, recordingUrl: true, recordingMeta: true, isAssessmentItem: true, passRequired: true, hazzat: true, hazzatFileUrl: true, presentationData: true },
         },
       },
       orderBy: [{ level: { number: 'asc' } }, { orderIndex: 'asc' }],
@@ -436,6 +436,11 @@ export class HymnLearningService {
       progress: (l.lessonProgress as any[])[0] ?? null,
       referenceRecordingUrl: (l as any).subjectItem?.recordingUrl ?? null,
       referenceRecordingName: (l as any).subjectItem?.recordingMeta?.originalName ?? null,
+      // What the student reads and follows while recording: pasted hazzat text, an optional
+      // image/PDF score, and the Coptic/English/Arabic verses.
+      hazzat: (l as any).subjectItem?.hazzat ?? null,
+      hazzatFileUrl: (l as any).subjectItem?.hazzatFileUrl ?? null,
+      presentationData: (l as any).subjectItem?.presentationData ?? null,
       passRequired: (l as any).subjectItem?.passRequired ?? false,
       passed: (l as any).subjectItem ? passedItemIds.has((l as any).subjectItem.id) : false,
     }))

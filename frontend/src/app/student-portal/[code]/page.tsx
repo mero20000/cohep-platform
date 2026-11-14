@@ -28,6 +28,7 @@ import { ThisSundayPanel } from '@/components/hymn-learning/this-sunday'
 import { PracticeRecorder } from '@/components/hymn-learning/practice-recorder'
 import { PracticeHistory } from '@/components/hymn-learning/practice-history'
 import { LessonText } from '@/components/hymn-learning/lesson-text'
+import { readerShowsWords } from '@/components/hymn-learning/hymn-reader'
 import { NotificationBell } from '@/components/hymn-learning/notification-bell'
 import { AttemptChip } from '@/components/assessments/attempt-chip'
 import { MASTERY_META, type HymnMapItem } from '@/components/hymn-learning/hooks'
@@ -1633,7 +1634,7 @@ export default function StudentDashboard() {
             )}
             {/* The words first — a student cannot practise what they cannot read. */}
             <div className="mt-3">
-              <LessonText hymn={practiceLesson} lang={lang} />
+              <LessonText hymn={practiceLesson} lang={lang} hideWords={readerShowsWords(practiceLesson, lang)} />
             </div>
             <PracticeRecorder
               // Remounting is what actually starts a fresh take: it returns the recorder
@@ -1642,6 +1643,7 @@ export default function StudentDashboard() {
               lessonId={practiceLesson.id}
               lessonTitle={practiceLesson.title}
               referenceAudioUrl={getAudioUrl(practiceLesson)}
+              hymn={practiceLesson}
               onSubmit={handleSubmitPractice}
               onCancel={() => setPracticeLesson(null)}
               lang={lang}

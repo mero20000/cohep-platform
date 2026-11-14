@@ -43,6 +43,10 @@ export interface HymnMapItem {
   objectives?: unknown
   objectivesAr?: unknown
   presentationUrl?: string | null
+  /** Pasted hazzat text, an optional image/PDF score, and the Coptic/English/Arabic verses. */
+  hazzat?: string | null
+  hazzatFileUrl?: string | null
+  presentationData?: { format?: string; verses?: { en?: string; cop?: string; ar?: string }[] } | null
   /** The lesson-level audio column the frontend type never declared. */
   audioUrl?: string | null
 }

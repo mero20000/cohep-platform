@@ -3,7 +3,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage, memoryStorage } from 'multer';
 import { extname } from 'path';
 import { v4 as uuidv4 } from 'uuid';
-import { uploadRecording } from '../../common/storage/r2';
+import { uploadRecording, uploadScore, scoreMagicMatches } from '../../common/storage/r2';
 import { ApiTags, ApiOperation, ApiConsumes } from '@nestjs/swagger';
 import { Roles, STAFF_ROLES } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
@@ -272,6 +272,37 @@ export class CurriculumController {
         sizeBytes: file.size,
         contentType: file.mimetype,
       }, ownSchoolOnly(user));
+    }
+
+    @Post('subjects/items/:id/hazzat-file')
+    @ApiOperation({ summary: 'Upload an image or PDF score (hazzat) for a subject item' })
+    @ApiConsumes('multipart/form-data')
+    @UseInterceptors(FileInterceptor('file', {
+      storage: memoryStorage(),
+      fileFilter: (_req, file, cb) => {
+        const allowed = ['.jpg', '.jpeg', '.png', '.webp', '.pdf'];
+        const ext = extname(file.originalname).toLowerCase();
+        if (allowed.includes(ext)) cb(null, true);
+        else cb(new BadRequestException(`Invalid file type. Allowed: ${allowed.join(', ')}`), false);
+      },
+      limits: { fileSize: 15 * 1024 * 1024 },
+    }))
+    async uploadItemHazzatFile(@Param('id') id: string, @UploadedFile() file: Express.Multer.File, @CurrentUser() user: any) {
+      if (!file) throw new BadRequestException('No file uploaded');
+      const ext = extname(file.originalname).toLowerCase();
+      if (!scoreMagicMatches(file.buffer, ext)) {
+        throw new BadRequestException('File content does not match its declared type');
+      }
+      await this.curriculumService.assertItemInSchool(id, ownSchoolOnly(user));
+      const key = `scores/subject-items/${id}-${uuidv4()}${ext}`;
+      const url = await uploadScore(file.buffer, key);
+      return this.curriculumService.setItemHazzatFile(id, url, ownSchoolOnly(user));
+    }
+
+    @Delete('subjects/items/:id/hazzat-file')
+    @ApiOperation({ summary: 'Remove the image/PDF score from a subject item' })
+    async removeItemHazzatFile(@Param('id') id: string, @CurrentUser() user: any) {
+      return this.curriculumService.setItemHazzatFile(id, null, ownSchoolOnly(user));
     }
 
     @Delete('subjects/items/:id/recording')

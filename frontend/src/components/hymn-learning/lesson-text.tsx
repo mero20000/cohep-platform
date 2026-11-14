@@ -12,12 +12,13 @@ import type { HymnMapItem } from './hooks'
  * lyrics or notation was filtered out of the response by type. A student was asked to
  * learn liturgical Coptic chant from a single audio file.
  */
-export function LessonText({ hymn, lang }: { hymn: HymnMapItem; lang: 'en' | 'ar' }) {
+export function LessonText({ hymn, lang, hideWords = false }: { hymn: HymnMapItem; lang: 'en' | 'ar'; hideWords?: boolean }) {
   const t = (en: string, ar: string) => (lang === 'ar' ? ar : en)
   const pick = (en?: string | null, ar?: string | null) =>
     (lang === 'ar' ? ar || en : en || ar) || null
 
-  const memorization = pick(hymn.requiredMemorization, hymn.requiredMemorizationAr)
+  // hideWords: the sticky HymnReader beside the recorder already shows them.
+  const memorization = hideWords ? null : pick(hymn.requiredMemorization, hymn.requiredMemorizationAr)
   const description = pick(hymn.description, hymn.descriptionAr)
   const objectives = normaliseObjectives(lang === 'ar' ? hymn.objectivesAr ?? hymn.objectives : hymn.objectives ?? hymn.objectivesAr)
   const documents = (hymn.resources ?? []).filter(r => r.type !== 'audio' && r.type !== 'video')

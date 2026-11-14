@@ -36,6 +36,7 @@ interface SubjectItem {
   _count?: { lessons: number };
   levels?: Array<{ levelNumber: number }>;
   active?: boolean;
+  hazzatFileUrl?: string | null;
   recordingUrl?: string;
   recordingMeta?: { originalName?: string; sizeBytes?: number; contentType?: string }
 }
@@ -130,6 +131,7 @@ export function SubjectsTab() {
   const [showPresentation, setShowPresentation] = useState(false)
   const presentingRef = useRef<SubjectItem | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const scoreInputRef = useRef<HTMLInputElement>(null)
 
   const [filterWhen, setFilterWhen] = useState('')
   const [filterLevel, setFilterLevel] = useState('')
@@ -343,6 +345,33 @@ export function SubjectsTab() {
       toast('success', lang === 'ar' ? 'تم رفع التسجيل' : 'Recording uploaded')
     } catch {
       toast('error', lang === 'ar' ? 'فشل رفع التسجيل' : 'Failed to upload recording')
+    }
+  }
+
+  const setScoreUrl = (id: string, hazzatFileUrl: string | null) => {
+    setItems(prev => prev.map(it => it.id === id ? { ...it, hazzatFileUrl } : it))
+    setEditingItem(prev => (prev && prev.id === id ? { ...prev, hazzatFileUrl } : prev))
+  }
+  const onUploadScore = async (file: File) => {
+    if (!editingItem) return
+    const fd = new FormData()
+    fd.append('file', file)
+    try {
+      const res: any = await http.upload(`/curriculum/subjects/items/${editingItem.id}/hazzat-file`, fd)
+      setScoreUrl(editingItem.id, res.hazzatFileUrl ?? null)
+      toast('success', lang === 'ar' ? 'تم رفع ملف الحزّات' : 'Score uploaded')
+    } catch {
+      toast('error', lang === 'ar' ? 'فشل رفع الملف (صورة أو PDF حتى 15 ميجابايت)' : 'Failed to upload (image or PDF, up to 15 MB)')
+    }
+  }
+  const onRemoveScore = async () => {
+    if (!editingItem) return
+    try {
+      await http.delete(`/curriculum/subjects/items/${editingItem.id}/hazzat-file`, { schoolId: getSchoolId() })
+      setScoreUrl(editingItem.id, null)
+      toast('success', lang === 'ar' ? 'تم الحذف' : 'Removed')
+    } catch {
+      toast('error', lang === 'ar' ? 'فشل الحذف' : 'Failed to remove')
     }
   }
 
@@ -846,6 +875,33 @@ export function SubjectsTab() {
                   rows={4} placeholder={lang === 'ar' ? 'الصق النص (قبطي + حزات)' : 'Paste text (Coptic + Hazzat)'}
                   className="w-full rounded-lg border border-amber-200 bg-white px-3 py-2 text-sm focus:border-gold-500 focus:outline-hidden font-mono" />
                 <p className="text-xs text-amber-600 mt-1">{lang === 'ar' ? 'CS→Unicode يتحول تلقائياً. معاينة الخط في الدرج' : 'CS→Unicode auto-converted on paste. Preview Hazzat font in drawer'}</p>
+                {/* Image or PDF of the score: students see it beside the recorder. */}
+                <div className="mt-3 border-t border-amber-200 pt-3">
+                  <label className="block text-sm font-semibold text-amber-800 mb-1">
+                    {lang === 'ar' ? 'صورة أو PDF للحزّات' : 'Score image or PDF'}
+                  </label>
+                  {editingItem ? (
+                    <div className="flex flex-wrap items-center gap-3">
+                      {editingItem.hazzatFileUrl && (
+                        <a href={assetUrl(editingItem.hazzatFileUrl)} target="_blank" rel="noopener noreferrer"
+                          className="text-sm text-blue-700 hover:underline">
+                          {lang === 'ar' ? 'عرض الملف الحالي' : 'View current file'}
+                        </a>
+                      )}
+                      <input ref={scoreInputRef} type="file" accept="image/png,image/jpeg,image/webp,application/pdf,.pdf" className="hidden"
+                        onChange={e => { const f = e.target.files?.[0]; if (f) onUploadScore(f); e.target.value = '' }} />
+                      <button type="button" onClick={() => scoreInputRef.current?.click()} className="text-sm text-blue-600">
+                        {editingItem.hazzatFileUrl ? (lang === 'ar' ? 'استبدال' : 'Replace') : (lang === 'ar' ? 'رفع ملف' : 'Upload file')}
+                      </button>
+                      {editingItem.hazzatFileUrl && (
+                        <button type="button" onClick={onRemoveScore} className="text-sm text-red-600">{lang === 'ar' ? 'حذف' : 'Remove'}</button>
+                      )}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-amber-600">{lang === 'ar' ? 'احفظ العنصر أولاً ثم ارفع الملف' : 'Save the item first, then upload the file.'}</p>
+                  )}
+                  <p className="text-xs text-amber-600 mt-1">{lang === 'ar' ? 'PNG أو JPG أو WebP أو PDF — حتى 15 ميجابايت' : 'PNG, JPG, WebP or PDF — up to 15 MB'}</p>
+                </div>
               </div>
             </div>
             <div className="col-span-2">
