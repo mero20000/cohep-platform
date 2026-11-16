@@ -248,6 +248,11 @@ export class CurriculumService {
     return this.prisma.subjectItem.update({ where: { id }, data: { recordingUrl, recordingMeta } });
   }
 
+  async setItemHazzatFile(id: string, hazzatFileUrl: string | null, schoolId?: string) {
+    await this.assertItemInSchool(id, schoolId);
+    return this.prisma.subjectItem.update({ where: { id }, data: { hazzatFileUrl } });
+  }
+
   async clearItemRecording(id: string, schoolId?: string) {
     await this.assertItemInSchool(id, schoolId);
     return this.prisma.subjectItem.update({ where: { id }, data: { recordingUrl: null, recordingMeta: Prisma.JsonNull } });

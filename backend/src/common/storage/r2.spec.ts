@@ -1,5 +1,5 @@
 import { BadRequestException } from '@nestjs/common';
-import { audioContentTypeForKey, isOwnedRecordingUrl, storableContentTypeForKey, uploadRecording } from './r2';
+import { audioContentTypeForKey, isOwnedRecordingUrl, scoreContentTypeForKey, scoreMagicMatches, storableContentTypeForKey, uploadRecording, uploadScore } from './r2';
 
 jest.mock('fs/promises', () => ({
   mkdir: jest.fn().mockResolvedValue(undefined),
@@ -108,5 +108,33 @@ describe('uploadRecording', () => {
       expect(url).toBe('https://r2.example.com/recordings/take.m4a');
       expect(send).toHaveBeenCalledWith({ input: expect.objectContaining({ Key: 'recordings/take.m4a', ContentType: 'audio/mp4' }) });
     });
+  });
+});
+
+describe('hazzat score uploads', () => {
+  it.each([
+    ['s.pdf', 'application/pdf'],
+    ['s.PNG', 'image/png'],
+    ['s.jpg', 'image/jpeg'],
+    ['s.webp', 'image/webp'],
+  ])('%s is stored as %s', (key, type) => {
+    expect(scoreContentTypeForKey(key)).toBe(type);
+  });
+
+  it('keeps PDFs out of the general recording/photo allowlist', () => {
+    expect(storableContentTypeForKey('s.pdf')).toBeUndefined();
+  });
+
+  it.each(['s.html', 's.svg', 's.mp3', 's.exe', 's'])('refuses %s', async (key) => {
+    expect(scoreContentTypeForKey(key)).toBeUndefined();
+    await expect(uploadScore(Buffer.from('x'), key)).rejects.toThrow(BadRequestException);
+  });
+
+  it('checks magic bytes against the declared extension', () => {
+    expect(scoreMagicMatches(Buffer.from('%PDF-1.7 ...'), '.pdf')).toBe(true);
+    expect(scoreMagicMatches(Buffer.from('<html>'), '.pdf')).toBe(false);
+    expect(scoreMagicMatches(Buffer.from('ffd8ffe000', 'hex'), '.jpg')).toBe(true);
+    expect(scoreMagicMatches(Buffer.from('ffd8ffe000', 'hex'), '.png')).toBe(false);
+    expect(scoreMagicMatches(Buffer.from('<svg>'), '.svg')).toBe(false);
   });
 });

@@ -703,6 +703,7 @@ model SubjectItem {
   presentationUrl    String?  @map("presentation_url")
   presentationData   Json?    @map("presentation_data")
   hazzat             String?  @map("hazzat")
+  hazzatFileUrl      String?  @map("hazzat_file_url")
   educationLanguages Json?    @map("education_languages")
   metadata           Json?
   recordingUrl       String?  @map("recording_url")

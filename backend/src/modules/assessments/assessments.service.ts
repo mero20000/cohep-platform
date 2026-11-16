@@ -1421,7 +1421,7 @@ export class AssessmentsService {
       include: {
         questions: { orderBy: { orderIndex: 'asc' } },
         subject: { select: { id: true, name: true, nameAr: true } },
-        lesson: { select: { subjectItem: { select: { hazzat: true, presentationUrl: true } } } },
+        lesson: { select: { subjectItem: { select: { hazzat: true, hazzatFileUrl: true, presentationUrl: true, presentationData: true } } } },
       },
     });
     if (!assessment || assessment.deletedAt) {
@@ -1458,6 +1458,8 @@ export class AssessmentsService {
         referenceRecordingUrl: assessment.referenceRecordingUrl ?? null,
         referenceRecordingName: assessment.referenceRecordingName ?? null,
         hazzat: assessment.lesson?.subjectItem?.hazzat ?? null,
+        hazzatFileUrl: assessment.lesson?.subjectItem?.hazzatFileUrl ?? null,
+        presentationData: assessment.lesson?.subjectItem?.presentationData ?? null,
         presentationUrl: assessment.lesson?.subjectItem?.presentationUrl ?? null,
       },
       questions: assessment.questions.map((q: any) => ({

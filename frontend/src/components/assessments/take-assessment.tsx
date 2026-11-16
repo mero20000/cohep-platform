@@ -5,8 +5,9 @@ import { useRouter } from 'next/navigation'
 import { http } from '@/lib/http-client'
 import { assetUrl } from '@/lib/asset-url'
 import { attemptLabel, computeResult, formatCountdown, recordingBlocksSubmit, type TakeQuestion } from '../../app/dashboard/assessments/take-helpers'
-import { Loader2, AlertCircle, CheckCircle2, XCircle, Clock, ClipboardCheck, Music, FileText, Presentation, StickyNote, Mic, Square, Trash2, ArrowLeft, RotateCcw } from 'lucide-react'
+import { Loader2, AlertCircle, CheckCircle2, XCircle, Clock, ClipboardCheck, Music, Presentation, StickyNote, Mic, Square, Trash2, ArrowLeft, RotateCcw } from 'lucide-react'
 import { AudioPlayer } from '@/components/audio-player'
+import { HymnReader } from '@/components/hymn-learning/hymn-reader'
 
 interface TakePayload {
   assessment: {
@@ -20,6 +21,8 @@ interface TakePayload {
     referenceRecordingUrl?: string | null
     referenceRecordingName?: string | null
     hazzat?: string | null
+    hazzatFileUrl?: string | null
+    presentationData?: { format?: string; verses?: { en?: string; cop?: string; ar?: string }[] } | null
     presentationUrl?: string | null
     requireRecording?: boolean
     // Absent on an older backend: treated as allowed.
@@ -555,7 +558,7 @@ function TakeAssessmentBody({ assessmentId, mode, accessKey, studentId, lang = '
 
       <div className="mt-6 space-y-4">
         {/* Reference materials */}
-        {(payload.assessment.referenceRecordingUrl || payload.assessment.hazzat || payload.assessment.presentationUrl) && (
+        {(payload.assessment.referenceRecordingUrl || payload.assessment.presentationUrl) && (
           <div className="rounded-xl border border-gold-200 bg-gold-50/60 p-4">
             <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-gray-400">
               <Music className="h-4 w-4" /> {lang === 'ar' ? 'مراجع للمراجعة قبل التسليم' : 'Reference materials'}
@@ -569,14 +572,8 @@ function TakeAssessmentBody({ assessmentId, mode, accessKey, studentId, lang = '
                   <AudioPlayer src={assetUrl(payload.assessment.referenceRecordingUrl)} compact />
                 </div>
               )}
-              {(payload.assessment.hazzat || payload.assessment.presentationUrl) && (
+              {payload.assessment.presentationUrl && (
                 <div className="flex flex-wrap gap-2">
-                  {payload.assessment.hazzat && (
-                    <a href={assetUrl(payload.assessment.hazzat)} target="_blank" rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50">
-                      <FileText className="h-4 w-4" /> {lang === 'ar' ? 'الحزّات' : 'Hazzat'}
-                    </a>
-                  )}
                   {payload.assessment.presentationUrl && (
                     <a href={assetUrl(payload.assessment.presentationUrl)} target="_blank" rel="noopener noreferrer"
                       className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50">
@@ -588,6 +585,19 @@ function TakeAssessmentBody({ assessmentId, mode, accessKey, studentId, lang = '
             </div>
           </div>
         )}
+
+        {/* Words, hazzat and score stay visible (sticky) while the student records. The wrapper
+            bounds the sticky panel to this section so it does not follow them down the questions. */}
+        <div className="space-y-4">
+        <HymnReader
+          source={{
+            hazzat: payload.assessment.hazzat,
+            hazzatFileUrl: payload.assessment.hazzatFileUrl,
+            presentationData: payload.assessment.presentationData,
+          }}
+          lang={lang}
+          title={lang === 'ar' ? payload.assessment.titleAr || payload.assessment.title : payload.assessment.title}
+        />
 
         {/* Voice recording */}
         {showRecording && (
@@ -629,6 +639,7 @@ function TakeAssessmentBody({ assessmentId, mode, accessKey, studentId, lang = '
           )}
         </div>
         )}
+        </div>
 
         {/* Notes */}
         <div className="rounded-xl border border-gray-200 bg-white p-4">

@@ -38,4 +38,20 @@ describe('PracticeRecorder reference-audio controls', () => {
     expect(screen.queryByRole('group', { name: 'Reference speed' })).toBeNull()
     expect(screen.queryByLabelText('Loop')).toBeNull()
   })
+
+  it('keeps the hymn text panel mounted while recording (sticky above the recorder)', async () => {
+    render(
+      <PracticeRecorder
+        lessonId="l1"
+        lessonTitle="Alleluia"
+        hymn={{ hazzat: 'HAZZAT-TEXT' }}
+        onSubmit={vi.fn().mockResolvedValue(undefined)}
+        onCancel={() => {}}
+        lang="en"
+      />,
+    )
+    const panel = screen.getByRole('region', { name: 'Hymn text' })
+    expect(panel.className).toContain('sticky')
+    expect(screen.getByRole('tab', { name: 'Hazzat' })).toBeTruthy()
+  })
 })

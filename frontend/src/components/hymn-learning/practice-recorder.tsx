@@ -3,6 +3,7 @@ import { useState, useRef, useCallback, useEffect } from 'react'
 import { Mic, Square, Play, Pause, RotateCcw, Send, Loader2 } from 'lucide-react'
 import { useToast } from '@/components/ui/toast'
 import { pickRecorderMime, extensionForMime, canRecordAudio } from '@/lib/recorder-mime'
+import { HymnReader, type HymnReaderSource } from './hymn-reader'
 
 /** Distinguishes "the recording never reached the server" from a failed practice log. */
 class UploadFailed extends Error {
@@ -16,6 +17,8 @@ interface Props {
   lessonId: string
   lessonTitle: string
   referenceAudioUrl?: string
+  /** Words, hazzat and score shown in a sticky panel above the recorder, so they stay readable while recording. */
+  hymn?: HymnReaderSource & { titleCoptic?: string | null }
   onSubmit: (selfRating: number, recordingUrl?: string, durationSec?: number) => Promise<void>
   onCancel: () => void
   lang: 'en' | 'ar'
@@ -33,7 +36,7 @@ const STAR_LABELS: Record<number, { en: string; ar: string }> = {
   5: { en: "I know it perfectly", ar: "أتقنته تماماً" },
 }
 
-export function PracticeRecorder({ lessonId, lessonTitle, referenceAudioUrl, onSubmit, onCancel, lang, code }: Props) {
+export function PracticeRecorder({ lessonId, lessonTitle, referenceAudioUrl, hymn, onSubmit, onCancel, lang, code }: Props) {
   const { toast } = useToast()
   const t = (en: string, ar: string) => lang === 'ar' ? ar : en
 
@@ -213,6 +216,8 @@ export function PracticeRecorder({ lessonId, lessonTitle, referenceAudioUrl, onS
         <p className="text-xs text-gray-400 mb-1">{t('Practising', 'تدريب على')}</p>
         <h3 className="text-base font-medium text-gray-900">{lessonTitle}</h3>
       </div>
+
+      {hymn && <HymnReader source={hymn} lang={lang} title={lessonTitle} titleCoptic={hymn.titleCoptic} />}
 
       {/* Reference audio */}
       {referenceAudioUrl && (
