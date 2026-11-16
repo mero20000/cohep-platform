@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
-import { HymnReader, looksLikeFileUrl, readerShowsWords, resolveReaderContent } from './hymn-reader'
+import { HymnReader, looksLikeFileUrl, readerShowsWords, resolveReaderContent, splitHazzatRuns } from './hymn-reader'
 
 // pdf.js needs a real canvas/worker; the PDF path is covered by the browser check.
 vi.mock('./score-pdf', () => ({ default: ({ src }: { src: string }) => <div data-testid="pdf" data-src={src} /> }))
@@ -31,7 +31,7 @@ describe('HymnReader', () => {
     render(<HymnReader source={{ presentationData: { verses }, hazzat: 'xyz', hazzatFileUrl: 'https://cdn.example.com/s.png' }} lang="en" />)
     expect(screen.getAllByRole('tab').map(t => t.textContent)).toEqual(['Words', 'Hazzat', 'Score'])
     fireEvent.click(screen.getByRole('tab', { name: 'Hazzat' }))
-    expect(screen.getByText('xyz').className).toContain('hazzat-text')
+    expect(screen.getByText('xyz').parentElement?.className).toContain('hazzat-text')
     fireEvent.click(screen.getByRole('tab', { name: 'Score' }))
     expect((screen.getByAltText('Hazzat score') as HTMLImageElement).src).toContain('s.png')
   })
@@ -86,5 +86,24 @@ describe('HymnReader fonts and encoding', () => {
     expect(el.className).toContain('whitespace-pre')
     expect(el.className).not.toContain('whitespace-pre-wrap')
     expect(el.className).not.toContain('text-center')
+  })
+})
+
+describe('hazzat colours', () => {
+  it('splits Coptic letters from hazzat marks, keeping spaces and overlines with their run', () => {
+    expect(splitHazzatRuns('`= ⲥⲩ̅ⲁ _=.\nⲡⲱ')).toEqual([
+      { text: '`= ', coptic: false },
+      { text: 'ⲥⲩ̅ⲁ ', coptic: true },
+      { text: '_=.\n', coptic: false },
+      { text: 'ⲡⲱ', coptic: true },
+    ])
+    expect(splitHazzatRuns('')).toEqual([])
+  })
+
+  it('renders Coptic letters blue and hazzat marks red', () => {
+    render(<HymnReader source={{ hazzat: '`=ⲥⲩⲁ_=' }} lang="en" />)
+    fireEvent.click(screen.getByRole('tab', { name: 'Hazzat' }))
+    expect(screen.getByText('ⲥⲩⲁ').className).toContain('text-blue-700')
+    expect(screen.getByText('`=').className).toContain('text-red-600')
   })
 })

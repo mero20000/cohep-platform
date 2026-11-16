@@ -46,6 +46,28 @@ export function resolveReaderContent(src: HymnReaderSource, lang: 'en' | 'ar') {
 }
 
 /** True when the reader would show the words, so callers can avoid printing them twice. */
+/**
+ * Splits stored hazzat into runs of Coptic letters and of everything else (the Hazzat marks), so
+ * each can be coloured. Coptic letters are stored as Unicode; the marks are plain ASCII keystrokes.
+ * Spaces and line breaks stay with the run they follow, and a combining overline stays with its letter.
+ */
+export function splitHazzatRuns(text: string): { text: string; coptic: boolean }[] {
+  const isCoptic = (cp: number) =>
+    (cp >= 0x2c80 && cp <= 0x2cff) || (cp >= 0x3e2 && cp <= 0x3ef) || cp === 0x305 || cp === 0x33f
+  const runs: { text: string; coptic: boolean }[] = []
+  let current: { text: string; coptic: boolean } | undefined
+  let last = false // colour of the previous run, used for spaces and line breaks
+  for (const ch of text) {
+    const cp = ch.codePointAt(0)!
+    const neutral = /\s/.test(ch)
+    const coptic: boolean = neutral ? last : isCoptic(cp)
+    last = coptic
+    if (current && current.coptic === coptic) current.text += ch
+    else { current = { text: ch, coptic }; runs.push(current) }
+  }
+  return runs
+}
+
 export function readerShowsWords(src: HymnReaderSource, lang: 'en' | 'ar'): boolean {
   const c = resolveReaderContent(src, lang)
   return c.verses.length > 0 || !!c.plainWords
@@ -195,8 +217,13 @@ export function HymnReader({
             {active === 'hazzat' && (
               // Shown exactly as stored: left-aligned, spaces and line breaks kept, never re-wrapped (a wrapped
               // line would pull notation marks away from the letters they belong to). Wide lines scroll sideways.
-              <p className="hazzat-text whitespace-pre text-gray-900"
-                style={{ fontSize: `${1.15 * fs}rem`, lineHeight: 2.1 }}>{hazzatText}</p>
+              <p className="hazzat-text whitespace-pre"
+                style={{ fontSize: `${1.15 * fs}rem`, lineHeight: 2.1 }}>
+                {/* Coptic letters blue, hazzat marks red, so a student can tell the words from the notation. */}
+                {splitHazzatRuns(hazzatText).map((r, i) => (
+                  <span key={i} className={r.coptic ? 'text-blue-700' : 'text-red-600'}>{r.text}</span>
+                ))}
+              </p>
             )}
 
             {active === 'score' && fileUrl && (
