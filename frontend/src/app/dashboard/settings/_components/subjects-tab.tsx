@@ -15,7 +15,8 @@ import { useLanguage } from '@/lib/use-language'
 import { SlideEditor } from '@/components/curriculum/slide-editor'
 import { PresentationViewer } from '@/components/curriculum/presentation-viewer'
 import type { PresentationData } from '@/components/curriculum/types'
-import { csToUnicode, isLikelyCsEncoded } from '@/lib/coptic-converter'
+import { csToUnicode, isLikelyCsEncoded, toDisplayCoptic } from '@/lib/coptic-converter'
+import { hazzatFromHtml } from '@/lib/hazzat-paste'
 import { DetailDrawer, DetailSection, DetailRow } from '@/components/ui/detail-drawer'
 import { track } from '@/lib/analytics'
 import { assetUrl } from '@/lib/asset-url'
@@ -860,21 +861,22 @@ export function SubjectsTab() {
                   {lang === 'ar' ? 'الحزّات (النوتات الموسيقية)' : 'Hazzat (Musical Notation)'}
                 </label>
                 <textarea value={itemForm.hazzat} onChange={e => setItemForm({ ...itemForm, hazzat: e.target.value })}
+                  // Never run the Coptic-name conversion here: the Hazzat font stores its marks as plain keystrokes.
+                  // Text copied from Word keeps its per-run fonts (Coptic letters vs Hazzat marks); anything else
+                  // is pasted exactly as typed.
                   onPaste={e => {
-                    const pasted = e.clipboardData.getData('text')
-                    if (isLikelyCsEncoded(pasted)) {
-                      e.preventDefault()
-                      const el = e.currentTarget
-                      const start = el.selectionStart ?? 0
-                      const end = el.selectionEnd ?? 0
-                      const before = itemForm.hazzat.slice(0, start)
-                      const after = itemForm.hazzat.slice(end)
-                      setItemForm({ ...itemForm, hazzat: before + csToUnicode(pasted) + after })
-                    }
+                    const converted = hazzatFromHtml(e.clipboardData.getData('text/html'))
+                    if (converted === null) return
+                    e.preventDefault()
+                    const el = e.currentTarget
+                    const start = el.selectionStart ?? itemForm.hazzat.length
+                    const end = el.selectionEnd ?? start
+                    setItemForm({ ...itemForm, hazzat: itemForm.hazzat.slice(0, start) + converted + itemForm.hazzat.slice(end) })
                   }}
-                  rows={4} placeholder={lang === 'ar' ? 'الصق النص (قبطي + حزات)' : 'Paste text (Coptic + Hazzat)'}
-                  className="w-full rounded-lg border border-amber-200 bg-white px-3 py-2 text-sm focus:border-gold-500 focus:outline-hidden font-mono" />
-                <p className="text-xs text-amber-600 mt-1">{lang === 'ar' ? 'CS→Unicode يتحول تلقائياً. معاينة الخط في الدرج' : 'CS→Unicode auto-converted on paste. Preview Hazzat font in drawer'}</p>
+                  spellCheck={false} dir="ltr" rows={6}
+                  placeholder={lang === 'ar' ? 'الصق النص كما هو (قبطي + حزات)' : 'Paste the hazzat text exactly as typed (Coptic + Hazzat)'}
+                  className="hazzat-text w-full rounded-lg border border-amber-200 bg-white px-3 py-2 focus:border-gold-500 focus:outline-hidden" />
+                <p className="text-xs text-amber-600 mt-1">{lang === 'ar' ? 'الصق مباشرة من Word ليحتفظ بخط الحروف القبطية وخط الحزّات. أي نص آخر يُحفظ كما هو.' : 'Paste straight from Word to keep both fonts (Coptic letters + Hazzat marks). Any other text is saved exactly as pasted.'}</p>
                 {/* Image or PDF of the score: students see it beside the recorder. */}
                 <div className="mt-3 border-t border-amber-200 pt-3">
                   <label className="block text-sm font-semibold text-amber-800 mb-1">
@@ -1062,7 +1064,7 @@ export function SubjectsTab() {
                       {drawerItem.presentationData.verses.slice(0, 10).map((v, i) => (
                         <div key={i} className="text-xs text-gray-600 border-b border-gray-100 pb-1 last:border-0">
                           <span className="text-gray-500 mr-1">{i + 1}.</span>
-                          {v.cop && <span className="coptic-text mr-2">{v.cop}</span>}
+                          {v.cop && <span className="coptic-text mr-2">{toDisplayCoptic(v.cop)}</span>}
                           {v.en && <span className="text-gray-500">{v.en}</span>}
                         </div>
                       ))}

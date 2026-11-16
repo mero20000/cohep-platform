@@ -35,6 +35,16 @@ export function csToUnicode(text: string): string {
   return out.join('')
 }
 
+/**
+ * Coptic text for display. Verses pasted before the editor converted on paste may still be raw
+ * CS keystrokes (Latin letters), which no Coptic font can show as Coptic, so convert those at
+ * display time. Text that is already Unicode Coptic is returned unchanged.
+ */
+export function toDisplayCoptic(text: string | null | undefined): string {
+  if (!text) return ''
+  return isLikelyCsEncoded(text) ? csToUnicode(text) : text
+}
+
 export function isLikelyCsEncoded(text: string): boolean {
   if (!text) return false
   let count = 0

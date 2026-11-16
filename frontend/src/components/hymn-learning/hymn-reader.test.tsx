@@ -65,3 +65,26 @@ describe('HymnReader', () => {
     expect(readerShowsWords({ hazzat: 'only hazzat' }, 'en')).toBe(false)
   })
 })
+
+describe('HymnReader fonts and encoding', () => {
+  it('shows Coptic verses with the same class as the Coptic name, converting raw CS keystrokes', () => {
+    render(<HymnReader source={{ presentationData: { verses: [{ cop: 'ouo`w', en: '' }] } }} lang="en" />)
+    const el = screen.getByText('ⲟⲩⲟ`ⲱ')
+    expect(el.className).toContain('coptic-text')
+  })
+
+  it('leaves text that is already Unicode Coptic untouched', () => {
+    render(<HymnReader source={{ presentationData: { verses: [{ cop: 'Ⲁⲗⲗⲏⲗⲟⲩⲓⲁ' }] } }} lang="en" />)
+    expect(screen.getByText('Ⲁⲗⲗⲏⲗⲟⲩⲓⲁ').className).toContain('coptic-text')
+  })
+
+  it('shows hazzat exactly as stored: no conversion, spacing and line breaks kept, no re-wrap', () => {
+    const raw = 'K `= cua_=.== pwoY__\n= lH_= = .= qw_=.'
+    render(<HymnReader source={{ hazzat: raw }} lang="en" />)
+    fireEvent.click(screen.getByRole('tab', { name: 'Hazzat' }))
+    const el = screen.getByText((_, n) => n?.textContent === raw && n.className.includes('hazzat-text'))
+    expect(el.className).toContain('whitespace-pre')
+    expect(el.className).not.toContain('whitespace-pre-wrap')
+    expect(el.className).not.toContain('text-center')
+  })
+})
