@@ -362,7 +362,7 @@
   --font-coptic: 'CS Avva Shenouda', 'Noto Sans Coptic', 'Antinoou', serif;
   --font-arabic: 'Noto Naskh Arabic', 'Traditional Arabic', serif;
   --font-english: Georgia, 'Times New Roman', serif;
-  --font-hazzat: 'Hazzat', monospace;
+  --font-hazzat: 'Hazzat', 'CS Avva Shenouda', monospace;
 }
 
 /* Coptic text styling */
@@ -383,6 +383,12 @@
   font-family: var(--font-hazzat) !important;
   font-size: 1.15rem;
   line-height: 1.8;
+  /* The Hazzat font is ASCII-mapped: letters, marks and spacing are all keystrokes, so the text
+     must be shown exactly as typed — no ligatures, tracking or kerning that would shift marks. */
+  letter-spacing: normal;
+  font-variant-ligatures: none;
+  font-kerning: none;
+  direction: ltr;
 }
 
 /* RTL overrides for common utility patterns */

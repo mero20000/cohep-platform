@@ -1,5 +1,6 @@
 'use client'
 
+import { csToUnicode, isLikelyCsEncoded } from '@/lib/coptic-converter'
 import { useState, useCallback } from 'react'
 import { Plus, Trash2, ClipboardPaste, Loader2 } from 'lucide-react'
 import { useLanguage } from '@/lib/use-language'
@@ -120,7 +121,18 @@ export function SlideEditor({ value, onChange, schoolApiBase }: SlideEditorProps
               <div>
                 <label htmlFor={`se-verse-cop-${idx}`} className="block text-[11px] font-medium text-gray-500 mb-0.5">Coptic</label>
                 <textarea id={`se-verse-cop-${idx}`} value={verse.cop} onChange={e => updateVerse(idx, 'cop', e.target.value)} rows={3}
-                  className="block w-full rounded-md border border-gray-200 px-2.5 py-1.5 text-xs focus:border-gold-500 focus:outline-hidden focus:ring-1 focus:ring-blue-500 resize-none" />
+                  // Same handling as the Coptic name field: pasted CS-encoded text becomes Unicode Coptic.
+                  onPaste={e => {
+                    const pasted = e.clipboardData.getData('text')
+                    if (isLikelyCsEncoded(pasted)) {
+                      e.preventDefault()
+                      const el = e.currentTarget
+                      const start = el.selectionStart ?? 0
+                      const end = el.selectionEnd ?? 0
+                      updateVerse(idx, 'cop', verse.cop.slice(0, start) + csToUnicode(pasted) + verse.cop.slice(end))
+                    }
+                  }}
+                  className="coptic-text block w-full rounded-md border border-gray-200 px-2.5 py-1.5 text-sm focus:border-gold-500 focus:outline-hidden focus:ring-1 focus:ring-blue-500 resize-none" />
               </div>
               <div>
                 <label htmlFor={`se-verse-ar-${idx}`} className="block text-[11px] font-medium text-gray-500 mb-0.5">{lang === 'ar' ? 'عربي' : 'Arabic'}</label>

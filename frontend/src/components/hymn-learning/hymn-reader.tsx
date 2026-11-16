@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react'
 import dynamic from 'next/dynamic'
 import { BookOpen, ChevronDown, ChevronUp, Maximize2, Minimize2, Minus, Plus, ExternalLink } from 'lucide-react'
 import { assetUrl } from '@/lib/asset-url'
+import { toDisplayCoptic } from '@/lib/coptic-converter'
 
 const ScorePdf = dynamic(() => import('./score-pdf'), { ssr: false })
 
@@ -173,11 +174,14 @@ export function HymnReader({
               verses.length > 0 ? (
                 <div className="space-y-4" style={{ fontSize: `${fs}rem` }}>
                   {(titleCoptic || title) && (
-                    <p className="text-center text-xs text-gray-400" style={{ fontSize: '0.75rem' }}>{[titleCoptic, title].filter(Boolean).join(' · ')}</p>
+                    <p className="text-center text-xs text-gray-400" style={{ fontSize: '0.75rem' }}>{[toDisplayCoptic(titleCoptic), title].filter(Boolean).join(' · ')}</p>
                   )}
                   {verses.map((v, i) => (
                     <div key={i} className="space-y-1 border-b border-gray-100 pb-3 last:border-0">
-                      {show('cop') && v.cop && <p className="font-coptic leading-loose text-gold-800 whitespace-pre-wrap">{v.cop}</p>}
+                      {show('cop') && v.cop && (
+                        // Same class as the Coptic name in Subject items; size set here so the A-/A+ control still applies.
+                        <p className="coptic-text leading-loose text-gold-800 whitespace-pre-wrap" style={{ fontSize: `${fs}rem` }}>{toDisplayCoptic(v.cop)}</p>
+                      )}
                       {show('en') && v.en && <p className="leading-relaxed text-gray-800 whitespace-pre-wrap" style={{ fontFamily: 'Georgia, serif' }}>{v.en}</p>}
                       {show('ar') && v.ar && <p dir="rtl" className="leading-loose text-teal-800 whitespace-pre-wrap" style={{ fontFamily: "'Noto Naskh Arabic', 'Traditional Arabic', serif" }}>{v.ar}</p>}
                     </div>
@@ -189,8 +193,10 @@ export function HymnReader({
             )}
 
             {active === 'hazzat' && (
-              <p className="hazzat-text whitespace-pre-wrap break-words text-center text-gray-900"
-                style={{ fontSize: `${1.15 * fs}rem`, lineHeight: 2 }}>{hazzatText}</p>
+              // Shown exactly as stored: left-aligned, spaces and line breaks kept, never re-wrapped (a wrapped
+              // line would pull notation marks away from the letters they belong to). Wide lines scroll sideways.
+              <p className="hazzat-text whitespace-pre text-gray-900"
+                style={{ fontSize: `${1.15 * fs}rem`, lineHeight: 2.1 }}>{hazzatText}</p>
             )}
 
             {active === 'score' && fileUrl && (

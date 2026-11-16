@@ -1,5 +1,6 @@
 'use client'
 
+import { toDisplayCoptic } from '@/lib/coptic-converter'
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { ChevronLeft, ChevronRight, X, Columns3, Languages, Maximize, Minimize, ExternalLink } from 'lucide-react'
@@ -308,13 +309,13 @@ function VerseSlide({ verse, mode, speaker }: {
       {mode === 'both' ? (
         <div className="flex gap-6 md:gap-10 justify-center items-start w-full" style={{ maxWidth: '90vw', margin: '0 auto' }}>
           <Column text={verse.en} color="rgba(255,248,235,0.88)" font="english" />
-          <Column text={verse.cop} color="#d4af37" font="coptic" />
+          <Column text={toDisplayCoptic(verse.cop)} color="#d4af37" font="coptic" />
           <Column text={verse.ar} color="#45b7a0" dir="rtl" font="arabic" />
         </div>
       ) : (
         <div style={{ maxWidth: '80vw', margin: '0 auto' }}>
           {mode === 'en' && <Column text={verse.en} color="rgba(255,248,235,0.88)" font="english" large />}
-          {mode === 'cop' && <Column text={verse.cop} color="#d4af37" font="coptic" large />}
+          {mode === 'cop' && <Column text={toDisplayCoptic(verse.cop)} color="#d4af37" font="coptic" large />}
           {mode === 'ar' && <Column text={verse.ar} color="#45b7a0" font="arabic" large dir="rtl" />}
         </div>
       )}
