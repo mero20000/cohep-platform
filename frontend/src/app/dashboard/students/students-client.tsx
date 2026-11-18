@@ -134,11 +134,12 @@ export default function StudentsClient() {
   },[])
 
   const incompleteRowsRef = useRef<Student[]|null>(null)
-  const fetchStudents = useCallback(async(page=1, reusePages=false)=>{
+  const fetchStudents = useCallback(async(page=1, reusePages=false):Promise<Student[]|null>=>{
     setLoading(true)
+    let loaded:Student[]|null=null
     try{
       if(showFavoritesOnly&&!activeFavoritesKey){
-        setStudents([]); setPagination({page:1,limit:pageSize,total:0,totalPages:0}); setFetchError(false); setLoading(false); return
+        setStudents([]); setPagination({page:1,limit:pageSize,total:0,totalPages:0}); setFetchError(false); setLoading(false); return null
       }
       const params=filterParams()
       if(showIncompleteOnly){
@@ -146,16 +147,45 @@ export default function StudentsClient() {
         const rows=incompleteRowsRef.current
         const totalPages=Math.max(1,Math.ceil(rows.length/pageSize))
         const safePage=Math.min(page,totalPages)
-        setStudents(rows.slice((safePage-1)*pageSize,safePage*pageSize))
+        loaded=rows.slice((safePage-1)*pageSize,safePage*pageSize)
+        setStudents(loaded)
         setPagination({page:safePage,limit:pageSize,total:rows.length,totalPages:rows.length?totalPages:0})
       }else{
         const data=await http.get<PaginatedResponse>('/students',{page:String(page),limit:String(pageSize),...params})
+        loaded=data.data
         setStudents(data.data); setPagination(data.pagination)
       }
       setFetchError(false)
     }catch{setFetchError(true)}
     setLoading(false)
+    return loaded
   },[filterParams,pageSize,showIncompleteOnly,showFavoritesOnly,activeFavoritesKey,fetchEveryPage])
+
+  const detailIndex      = useMemo(()=>selectedStudent?sortedStudents.findIndex(s=>s.id===selectedStudent.id):-1,[sortedStudents,selectedStudent])
+  // Prev/next in the detail dialog. Walks the visible list; at a page edge it loads the adjacent page.
+  // Every list (filters, favorites, incomplete) is paged, so position and edges come from `pagination`.
+  const [navBusy, setNavBusy]  = useState(false)
+  const lastNavRef             = useRef<{index:number;total:number;canPrev:boolean;canNext:boolean}|null>(null)
+  if(detailIndex>=0&&!navBusy){
+    lastNavRef.current={
+      index:(pagination.page-1)*pagination.limit+detailIndex+1, total:pagination.total,
+      canPrev:detailIndex>0||pagination.page>1,
+      canNext:detailIndex<sortedStudents.length-1||pagination.page<pagination.totalPages,
+    }
+  }
+  else if(detailIndex<0&&!navBusy)lastNavRef.current=null
+  const detailNav=lastNavRef.current
+  const goAdjacent=async(dir:1|-1)=>{
+    if(navBusy||detailIndex<0)return
+    const target=sortedStudents[detailIndex+dir]
+    if(target){setSelectedStudent(target);return}
+    const nextPage=pagination.page+dir
+    if(nextPage<1||nextPage>pagination.totalPages)return
+    setNavBusy(true)
+    const rows=await fetchStudents(nextPage,true)
+    setNavBusy(false)
+    if(rows&&rows.length)setSelectedStudent(dir===1?rows[0]:rows[rows.length-1])
+  }
 
   // M10: stats are refetched whenever the roster changes (add/edit/delete/import) or filters change
   const fetchStats = useCallback(()=>{
@@ -385,7 +415,12 @@ export default function StudentsClient() {
         onSuccess={(page:number)=>{fetchStudents(page);fetchStats()}} currentPage={pagination.page}
         onOptimisticAdd={s=>startTransition(()=>addOptimisticStudent({type:'add',student:s}))} lang={lang} defaultChurch={defaultChurch} schoolChurch={schoolChurch}/>}
 
-      {showDetail&&selectedStudent&&<StudentDetailModal student={selectedStudent} onClose={()=>setShowDetail(false)} onEdit={()=>{setShowDetail(false);openEdit(selectedStudent)}} onPreviewPhoto={setPreviewPhotoUrl} lang={lang}/>}
+      {showDetail&&selectedStudent&&<StudentDetailModal key={selectedStudent.id} student={selectedStudent}
+        position={detailNav?{index:detailNav.index,total:detailNav.total}:undefined}
+        onPrev={detailNav?.canPrev?()=>goAdjacent(-1):undefined}
+        onNext={detailNav?.canNext?()=>goAdjacent(1):undefined}
+        navBusy={navBusy}
+        onClose={()=>setShowDetail(false)} onEdit={()=>{setShowDetail(false);openEdit(selectedStudent)}} onPreviewPhoto={setPreviewPhotoUrl} lang={lang}/>}
 
       {showDelete&&selectedStudent&&<StudentDeleteModal student={selectedStudent} onClose={()=>setShowDelete(false)} onConfirm={handleDelete} lang={lang}/>}
 

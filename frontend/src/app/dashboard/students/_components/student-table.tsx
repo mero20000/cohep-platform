@@ -33,8 +33,10 @@ interface Props {
 const COLS = [
   ['name','Student','الطالب'],['code','Student Code','رمز الطالب'],['gender','Gender','الجنس'],
   ['phone','Parent Phone','هاتف ولي الأمر'],['level','Level','المستوى'],['group','Group','المجموعة'],
-  ['age','Age','العمر'],['church','Church','الكنيسة'],['grade','Grade','المرحلة'],['status','Status','الحالة'],
+  ['age','Age','العمر'],['studentPhone','Student Phone','هاتف الطالب'],['grade','Grade','المرحلة'],['status','Status','الحالة'],
 ] as const
+// The student's own phone lives in metadata JSON, which the API can't sort on.
+const NOT_SORTABLE: ReadonlySet<string> = new Set(['studentPhone'])
 
 export function StudentTable({ students, loading, fetchError, selectedIds, allSelected, toggleId, toggleAll, sortKey, sortDir, toggleSort, onView, onEdit, onDelete, onRetry, hasActiveFilters, onClearFilters, onOpenCreate, pagination, onPageChange, pageSize, onPageSizeChange, onPreviewPhoto, lang, favorites = [], onToggleFavorite, onStudentUpdated }: Props) {
   const [updatingId, setUpdatingId] = useState<string | null>(null)
@@ -134,7 +136,7 @@ export function StudentTable({ students, loading, fetchError, selectedIds, allSe
               onChange={e => { if (e.target.value && e.target.value !== sortKey) toggleSort(e.target.value) }}
               className="h-11 rounded-lg border border-gray-200 bg-white px-2 text-xs text-gray-700 focus:outline-hidden focus:ring-2 focus:ring-gold-500">
               <option value="">{t('Sort: newest','الترتيب: الأحدث')}</option>
-              {COLS.filter(([k]) => k !== 'phone').map(([k, en, ar]) => <option key={k} value={k}>{lang === 'ar' ? ar : en}</option>)}
+              {COLS.filter(([k]) => k !== 'phone' && !NOT_SORTABLE.has(k)).map(([k, en, ar]) => <option key={k} value={k}>{lang === 'ar' ? ar : en}</option>)}
             </select>
             <button type="button" disabled={!sortKey} onClick={() => toggleSort(sortKey)}
               aria-label={sortDir === 'asc' ? t('Ascending','تصاعدي') : t('Descending','تنازلي')}
@@ -146,6 +148,7 @@ export function StudentTable({ students, loading, fetchError, selectedIds, allSe
         <div className="divide-y divide-gray-100">
         {students.map(s => {
           const parentPhone = s.metadata?.phone?.trim()
+          const studentPhone = s.metadata?.studentPhone?.trim()
           const age = calcAge(s.dateOfBirth)
           const facts = [
             s.level?.name ? `${s.level.name}${s.group?.name ? ` · ${s.group.name}` : ''}` : '',
@@ -173,7 +176,11 @@ export function StudentTable({ students, loading, fetchError, selectedIds, allSe
                   {favorites.includes(s.id) && <Star className="h-3.5 w-3.5 fill-amber-500 text-amber-500" aria-label={t('Favorite','مفضل')} />}
                 </div>
                 {facts.length > 0 && <p className="mt-1 text-xs leading-relaxed text-gray-500">{facts.join(' • ')}</p>}
-                {s.churchName && <p className="text-xs text-gray-400 wrap-break-word">{s.churchName}</p>}
+                {studentPhone && (
+                  <p className="mt-1 text-xs text-gray-500" onClick={e => e.stopPropagation()}>
+                    {t('Student','الطالب')}: <a href={toTelHref(studentPhone)} className="font-medium text-blue-600 underline decoration-dotted underline-offset-2"><span dir="ltr">{studentPhone}</span></a>
+                  </p>
+                )}
                 {(parentPhone || s.portalAccessKey) && (
                   <div className="mt-2 flex flex-wrap gap-2" onClick={e => e.stopPropagation()}>
                     {parentPhone && (
@@ -221,7 +228,9 @@ export function StudentTable({ students, loading, fetchError, selectedIds, allSe
               <th className="px-2 py-3 w-10">
                 <input type="checkbox" checked={allSelected} onChange={toggleAll} className="h-4 w-4 rounded border-gray-300 accent-gold-600" />
               </th>
-              {COLS.map(([key, en, ar]) => (
+              {COLS.map(([key, en, ar]) => NOT_SORTABLE.has(key) ? (
+                <th key={key} scope="col" className="hidden md:table-cell px-4 py-3 text-start text-xs font-medium uppercase tracking-wider text-gray-500">{lang==='ar'?ar:en}</th>
+              ) : (
                 <th key={key} scope="col" onClick={() => toggleSort(key)}
                   onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleSort(key) } }}
                   role="button" tabIndex={0}
@@ -264,7 +273,7 @@ export function StudentTable({ students, loading, fetchError, selectedIds, allSe
                 <td className="hidden md:table-cell px-4 py-3 text-sm text-gray-900">{s.level?.name||'—'}</td>
                 <td className="hidden md:table-cell px-4 py-3 text-sm text-gray-900">{s.group?.name||'—'}</td>
                 <td className="hidden md:table-cell px-4 py-3 text-sm text-gray-600">{calcAge(s.dateOfBirth)}</td>
-                <td className="hidden md:table-cell px-4 py-3 text-sm text-gray-600 max-w-[120px] truncate">{s.churchName||'—'}</td>
+                <td className="hidden md:table-cell px-4 py-3"><PhoneLink phone={s.metadata?.studentPhone||''} lang={lang} /></td>
                 <td className="hidden md:table-cell px-4 py-3 text-sm text-gray-900">{s.grade?.name||'—'}</td>
                 <td className="px-4 py-3"><StatusBadge status={s.status} lang={lang} student={s} onUpdated={handleStudentUpdated} onUpdating={setUpdatingId} isUpdating={updatingId === s.id} /></td>
                 <td className="px-4 py-3 text-end" onClick={e => e.stopPropagation()}>

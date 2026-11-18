@@ -1,7 +1,7 @@
 'use client'
 import Image from 'next/image'
 import { useState, useEffect, useRef } from 'react'
-import { X, Loader2, Pencil, Calendar, User, MapPin, Phone, Layers, Users, Church, GraduationCap, Mail, UserCheck, Copy, Check, QrCode, MessageSquare, MessageCircle, Award, Plus, Trash2, Zap, History, Key, Send } from 'lucide-react'
+import { X, ChevronLeft, ChevronRight, Loader2, Pencil, Calendar, User, MapPin, Phone, Layers, Users, Church, GraduationCap, Mail, UserCheck, Copy, Check, QrCode, MessageSquare, MessageCircle, Award, Plus, Trash2, Zap, History, Key, Send } from 'lucide-react'
 import { Badge as UIBadge } from '@/components/ui/badge'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -18,7 +18,15 @@ import { StudentTagEditor } from './student-tags'
 import { CollapsibleSection } from './collapsible-section'
 
 interface Activity { id: string; action: string; createdAt: string; user?: { firstName: string; lastName: string } }
-interface Props { student: Student; onClose: () => void; onEdit: () => void; onPreviewPhoto: (url: string) => void; lang: 'en'|'ar' }
+interface Props {
+  student: Student; onClose: () => void; onEdit: () => void; onPreviewPhoto: (url: string) => void; lang: 'en'|'ar'
+  /** Navigate to the previous/next student in the grid. Omit (or leave undefined) at the ends of the list to disable. */
+  onPrev?: () => void; onNext?: () => void
+  /** 1-based position within the current list, shown as "3 / 20". */
+  position?: { index: number; total: number }
+  /** True while the adjacent page is loading; disables both buttons. */
+  navBusy?: boolean
+}
 
 function formatRelativeTime(dateStr: string, lang: 'en'|'ar'): string {
   const date = new Date(dateStr)
@@ -35,7 +43,7 @@ function formatRelativeTime(dateStr: string, lang: 'en'|'ar'): string {
   return date.toLocaleDateString(lang === 'ar' ? 'ar-EG' : 'en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
 }
 
-export function StudentDetailModal({ student:s, onClose, onEdit, onPreviewPhoto, lang }: Props) {
+export function StudentDetailModal({ student:s, onClose, onEdit, onPreviewPhoto, lang, onPrev, onNext, position, navBusy }: Props) {
   const [log, setLog] = useState<Activity[]>([])
   const [logLoading, setLogLoading] = useState(false)
   const [copied, setCopied] = useState(false)
@@ -59,6 +67,26 @@ export function StudentDetailModal({ student:s, onClose, onEdit, onPreviewPhoto,
   useEffect(() => {
     dialogRef.current?.focus()
   }, [])
+
+  // Arrow keys move between students. The arrow that points toward "next" flips in RTL (Arabic).
+  // Ignored while typing, with modifiers held, or while a nested popup (QR / contact parent) is open.
+  const overlayOpen = showQr || showContactParent
+  useEffect(() => {
+    if (!onPrev && !onNext) return
+    const nextKey = lang === 'ar' ? 'ArrowLeft' : 'ArrowRight'
+    const prevKey = lang === 'ar' ? 'ArrowRight' : 'ArrowLeft'
+    const handler = (e: KeyboardEvent) => {
+      if (navBusy || overlayOpen || e.defaultPrevented) return
+      if (e.key !== nextKey && e.key !== prevKey) return
+      if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return
+      const el = e.target as HTMLElement | null
+      if (el && (el.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(el.tagName))) return
+      const go = e.key === nextKey ? onNext : onPrev
+      if (go) { e.preventDefault(); go() }
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [onPrev, onNext, lang, navBusy, overlayOpen])
 
   useEffect(() => {
     setLogLoading(true)
@@ -106,7 +134,22 @@ export function StudentDetailModal({ student:s, onClose, onEdit, onPreviewPhoto,
         <div className="sm:hidden mx-auto mt-2 h-1 w-10 rounded-full bg-gray-300 shrink-0" aria-hidden="true" />
         <div className="flex items-center justify-between border-b border-gray-100 px-4 sm:px-6 py-3 sm:py-4 shrink-0">
           <h2 className="text-lg font-semibold">{t('Student Details','تفاصيل الطالب')}</h2>
-          <Button variant="ghost" size="icon" onClick={onClose} aria-label={t('Close','إغلاق')}><X className="h-5 w-5" /></Button>
+          <div className="flex items-center gap-1">
+            {(onPrev || onNext) && (
+              <div className="flex items-center gap-1 me-2">
+                <Button variant="ghost" size="icon" onClick={onPrev} disabled={!onPrev || navBusy}
+                  aria-label={t('Previous student','الطالب السابق')} title={t('Previous student','الطالب السابق')}>
+                  {lang==='ar' ? <ChevronRight className="h-5 w-5" /> : <ChevronLeft className="h-5 w-5" />}
+                </Button>
+                {position && <span className="text-xs text-gray-500 tabular-nums min-w-[3.5rem] text-center" aria-live="polite">{position.index} / {position.total}</span>}
+                <Button variant="ghost" size="icon" onClick={onNext} disabled={!onNext || navBusy}
+                  aria-label={t('Next student','الطالب التالي')} title={t('Next student','الطالب التالي')}>
+                  {lang==='ar' ? <ChevronLeft className="h-5 w-5" /> : <ChevronRight className="h-5 w-5" />}
+                </Button>
+              </div>
+            )}
+            <Button variant="ghost" size="icon" onClick={onClose} aria-label={t('Close','إغلاق')}><X className="h-5 w-5" /></Button>
+          </div>
         </div>
         <div className="px-4 sm:px-6 py-5 overflow-y-auto overscroll-contain flex-1 space-y-2">
           {/* Header: Photo, Name, Code */}
