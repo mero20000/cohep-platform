@@ -5,6 +5,8 @@ import { describe, it, expect, vi } from 'vitest'
 import { StudentDetailModal } from '../student-detail-modal'
 
 vi.mock('next/image', () => ({
+  // Test double for next/image: a plain <img> is intentional here.
+  // eslint-disable-next-line @next/next/no-img-element, jsx-a11y/alt-text
   default: ({ unoptimized, ...rest }: any) => <img {...rest} />,
 }))
 vi.mock('lucide-react', async () => (await import('@/test/lucide-mock')).lucideMock())
