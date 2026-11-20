@@ -377,6 +377,17 @@ describe('AttendanceService', () => {
       expect(await service.getMissedSessions({ id: 'u1' })).toEqual([]);
     });
 
+    it('does not infer a day the servant already taught another of their groups', async () => {
+      // Group 1 taught 14 and 7 days ago (completed); the latest class is group 2, 13 days ago.
+      mockQueries(
+        [mine(14, { groupId: 'group-1' }), mine(13, { groupId: 'group-2', group: { name: 'Group B' } })],
+        [mine(7, { groupId: 'group-1', status: 'completed' })],
+      );
+      const out = await service.getMissedSessions({ id: 'u1' });
+      expect(out.map(o => o.date)).not.toContain(ymd(dayAt(7)));
+      expect(out.every(o => o.groupId === 'group-2')).toBe(true);
+    });
+
     it('returns an empty list for a servant with no history', async () => {
       mockQueries([], []);
       expect(await service.getMissedSessions({ id: 'u1' })).toEqual([]);

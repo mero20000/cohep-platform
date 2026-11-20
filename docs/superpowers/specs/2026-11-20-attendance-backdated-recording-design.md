@@ -34,3 +34,7 @@ Approval workflow for >7 days (privileged roles bypass instead); changing re-ope
 - Inferred missed days come from the servant's own recent weekday pattern, since no schedule exists.
 - Privileged roles are not capped at 7 days.
 - The 7-day window is a constant (`BACKFILL_WINDOW_DAYS`), not a setting.
+
+## Known limits (from the final review)
+- The 7-day cap guards the Mark-page flow (`start-class`) only. `POST /attendance/sessions` and `PUT /attendance/sessions/:id` already let any staff role set a class's `scheduledDate`; they were left unchanged because the Sessions page needs them for scheduling. Finalizing such a session is still labelled `lateEntry`.
+- Day boundaries use the server's local time, like the existing "today" logic. In Cairo between 00:00 and 02:00, "yesterday" is treated as today. A school-timezone fix (`School.timezone`, `localToday`) is a follow-up.

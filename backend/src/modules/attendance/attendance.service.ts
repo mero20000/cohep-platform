@@ -1542,8 +1542,9 @@ export class AttendanceService {
       }));
 
     if (latest && baseGroupId) {
-      const weekdays = new Set(history.map((h: any) => new Date(h.scheduledDate).getDay()));
-      const busyDays = new Set(windowSessions.filter(s => s.groupId === baseGroupId).map(s => ymd(new Date(s.scheduledDate))));
+      // Pattern of the base group only; a day is taken if that group, or this servant in any group, already has a class.
+      const weekdays = new Set(history.filter((h: any) => h.groupId === baseGroupId).map((h: any) => new Date(h.scheduledDate).getDay()));
+      const busyDays = new Set(windowSessions.filter(s => s.groupId === baseGroupId || s.servantId === user.id).map(s => ymd(new Date(s.scheduledDate))));
       for (let n = 1; n <= BACKFILL_WINDOW_DAYS; n++) {
         const day = shiftDays(todayStart, n);
         if (!weekdays.has(day.getDay()) || busyDays.has(ymd(day))) continue;
