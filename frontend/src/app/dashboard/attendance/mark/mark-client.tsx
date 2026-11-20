@@ -26,7 +26,6 @@ type MissedItem =
   | { kind: 'session'; sessionId: string; date: string; groupId: string | null; groupName: string; levelId: string | null; status: string }
   | { kind: 'inferred'; date: string; groupId: string; groupName: string; levelId: string | null }
 
-const BACKFILL_WINDOW_DAYS = 7
 const toYmd = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 const ymdDaysAgo = (n: number) => { const d = new Date(); d.setDate(d.getDate() - n); return toYmd(d) }
 /** Scheduled day is before today (a class recorded after the day). */
@@ -342,7 +341,6 @@ export function MarkClient() {
                 type="date"
                 value={pastDate}
                 max={ymdDaysAgo(1)}
-                min={canMulti ? undefined : ymdDaysAgo(BACKFILL_WINDOW_DAYS)}
                 onChange={(e) => setPastDate(e.target.value)}
                 className="min-h-[44px] rounded-lg border border-gray-300 px-3 text-sm focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-gold-500"
               />

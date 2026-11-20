@@ -363,23 +363,23 @@ describe('MarkClient — recording a past class', () => {
     await waitFor(() => expect(mockPost).toHaveBeenCalledWith('/attendance/start-class?groupId=g1&levelId=l1&date=2026-11-14'))
   })
 
-  it('limits the date picker to yesterday back 7 days for a servant', async () => {
+  it('lets any servant pick any past date: the picker stops at yesterday and has no lower limit', async () => {
     emptyState()
     localStorage.setItem('user', JSON.stringify({ id: 'u1', roles: ['servant'] }))
     render(<MarkClient />)
     fireEvent.click(await screen.findByRole('button', { name: /Record a past class/i }))
     const input = (await screen.findByLabelText(/Class date/i)) as HTMLInputElement
     expect(input.max).toBe(ymd(daysAgo(1)))
-    expect(input.min).toBe(ymd(daysAgo(7)))
+    expect(input.min).toBe('')
   })
 
-  it('has no lower limit for a level leader', async () => {
+  it('starts a class for a date far in the past', async () => {
     emptyState()
-    localStorage.setItem('user', JSON.stringify({ id: 'u1', roles: ['level_leader'] }))
     render(<MarkClient />)
     fireEvent.click(await screen.findByRole('button', { name: /Record a past class/i }))
-    const input = (await screen.findByLabelText(/Class date/i)) as HTMLInputElement
-    expect(input.min).toBe('')
+    fireEvent.change(await screen.findByLabelText(/Class date/i), { target: { value: '2025-03-14' } })
+    fireEvent.click(screen.getByRole('button', { name: /^Continue$/i }))
+    await waitFor(() => expect(mockPost).toHaveBeenCalledWith('/attendance/start-class?date=2025-03-14'))
   })
 
   it('starts a class for the chosen past date', async () => {
