@@ -95,6 +95,12 @@ export class AttendanceController {
     return this.attendanceService.getGroupStats(schoolId, { from, to });
   }
 
+  @Get('missed')
+  @ApiOperation({ summary: 'Classes the current servant can still record (unfinished past sessions and usual teaching days with none)' })
+  async missed(@Req() req: any) {
+    return this.attendanceService.getMissedSessions(req.user);
+  }
+
   @Get('sessions/:id')
   @ApiOperation({ summary: 'Get an attendance session by ID' })
   async getSessionById(@Param('id') id: string) {

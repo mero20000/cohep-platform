@@ -23,6 +23,10 @@ function addTally(into: StatusTally, from?: StatusTally) {
   into.excused += from.excused; into.unmarked += from.unmarked;
 }
 
+export type MissedItem =
+  | { kind: 'session'; sessionId: string; date: string; groupId: string | null; groupName: string; levelId: string | null; status: string }
+  | { kind: 'inferred'; date: string; groupId: string; groupName: string; levelId: string | null };
+
 /** How many days late a plain servant may record a class on their own. */
 export const BACKFILL_WINDOW_DAYS = 7;
 
@@ -1495,6 +1499,58 @@ export class AttendanceService {
 
     const full = await this.getSessionById(session.id);
     return { session: full, created: true };
+  }
+
+  /**
+   * Classes the servant may still record: unfinished past sessions of the last
+   * BACKFILL_WINDOW_DAYS days, plus days they usually teach (weekday pattern of
+   * the last 8 weeks) on which their group has no class at all.
+   */
+  async getMissedSessions(user: { id: string }): Promise<MissedItem[]> {
+    const me = await this.prisma.user.findUnique({ where: { id: user.id }, select: { schoolId: true, metadata: true } });
+    if (!me) throw new NotFoundException('User not found');
+
+    const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
+    const shiftDays = (d: Date, n: number) => { const x = new Date(d); x.setDate(x.getDate() - n); return x; };
+    const ymd = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    const windowStart = shiftDays(todayStart, BACKFILL_WINDOW_DAYS);
+
+    const history = await this.prisma.attendanceSession.findMany({
+      where: { servantId: user.id, type: 'class', deletedAt: null, status: { not: 'cancelled' }, scheduledDate: { gte: shiftDays(todayStart, 56), lt: todayStart } },
+      select: { groupId: true, levelId: true, scheduledDate: true, group: { select: { name: true } } },
+    });
+    const latest = [...history].sort((a: any, b: any) => +new Date(b.scheduledDate) - +new Date(a.scheduledDate))[0] as any;
+    const baseGroupId: string | undefined = latest?.groupId ?? undefined;
+
+    const assignedGroupIds = await this.resolveServantSessionGroupIds((me.metadata as any) || {}, me.schoolId);
+    const scopeGroupIds = [...new Set([...assignedGroupIds, ...(baseGroupId ? [baseGroupId] : [])])];
+    const windowSessions: any[] = await this.prisma.attendanceSession.findMany({
+      where: {
+        schoolId: me.schoolId, type: 'class', deletedAt: null, status: { not: 'cancelled' },
+        scheduledDate: { gte: windowStart, lt: todayStart },
+        OR: [{ servantId: user.id }, ...(scopeGroupIds.length ? [{ groupId: { in: scopeGroupIds } }] : [])],
+      },
+      include: { group: { select: { name: true } } },
+    });
+
+    const mineScope = (s: any) => s.servantId === user.id || (assignedGroupIds.length > 0 && assignedGroupIds.includes(s.groupId));
+    const out: MissedItem[] = windowSessions
+      .filter(s => ['scheduled', 'in_progress'].includes(s.status) && mineScope(s) && new Date(s.scheduledDate) < todayStart)
+      .map(s => ({
+        kind: 'session' as const, sessionId: s.id, date: ymd(new Date(s.scheduledDate)), groupId: s.groupId,
+        groupName: s.group?.name ?? '', levelId: s.levelId ?? null, status: s.status,
+      }));
+
+    if (latest && baseGroupId) {
+      const weekdays = new Set(history.map((h: any) => new Date(h.scheduledDate).getDay()));
+      const busyDays = new Set(windowSessions.filter(s => s.groupId === baseGroupId).map(s => ymd(new Date(s.scheduledDate))));
+      for (let n = 1; n <= BACKFILL_WINDOW_DAYS; n++) {
+        const day = shiftDays(todayStart, n);
+        if (!weekdays.has(day.getDay()) || busyDays.has(ymd(day))) continue;
+        out.push({ kind: 'inferred', date: ymd(day), groupId: baseGroupId, groupName: latest.group?.name ?? '', levelId: latest.levelId ?? null });
+      }
+    }
+    return out.sort((a, b) => b.date.localeCompare(a.date));
   }
 
   async startSession(sessionId: string, servantId: string, roles?: string[]) {

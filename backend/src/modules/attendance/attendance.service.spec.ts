@@ -322,6 +322,73 @@ describe('AttendanceService', () => {
     });
   });
 
+  describe('getMissedSessions', () => {
+    const dayAt = (n: number) => { const d = new Date(); d.setDate(d.getDate() - n); d.setHours(12, 0, 0, 0); return d; };
+    const ymd = (d: Date) =>
+      `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    const mine = (n: number, over: any = {}) => ({
+      id: `s${n}`, servantId: 'u1', groupId: 'group-1', levelId: 'level-1', type: 'class',
+      status: 'completed', scheduledDate: dayAt(n), group: { name: 'Group A' }, ...over,
+    });
+
+    // 1st findMany = the servant's own recent history; 2nd = the last 7 days for their group(s).
+    const mockQueries = (history: any[], windowSessions: any[]) => {
+      prisma.attendanceSession.findMany.mockReset();
+      prisma.attendanceSession.findMany.mockResolvedValueOnce(history).mockResolvedValueOnce(windowSessions);
+    };
+
+    beforeEach(() => {
+      prisma.user.findUnique.mockResolvedValue({ id: 'u1', schoolId, metadata: { groupId: 'group-1' } });
+    });
+
+    it('lists unfinished past class sessions as kind "session"', async () => {
+      mockQueries([], [mine(2, { status: 'scheduled' }), mine(3, { status: 'in_progress' })]);
+      const out = await service.getMissedSessions({ id: 'u1' });
+      expect(out.map(o => [o.kind, o.date])).toEqual([['session', ymd(dayAt(2))], ['session', ymd(dayAt(3))]]);
+      expect((out[0] as any).sessionId).toBe('s2');
+      expect(out[0].groupName).toBe('Group A');
+    });
+
+    it('does not list completed sessions or today\'s session', async () => {
+      mockQueries([], [mine(0, { status: 'scheduled' }), mine(1, { status: 'completed' })]);
+      expect(await service.getMissedSessions({ id: 'u1' })).toEqual([]);
+    });
+
+    it('asks only for class sessions of the last 7 days, before today, non-cancelled', async () => {
+      mockQueries([], []);
+      await service.getMissedSessions({ id: 'u1' });
+      const where = prisma.attendanceSession.findMany.mock.calls[1][0].where;
+      expect(where.type).toBe('class');
+      expect(where.deletedAt).toBeNull();
+      expect(where.status).toEqual({ not: 'cancelled' });
+      expect(where.scheduledDate.lt.getHours()).toBe(0);
+      expect(where.scheduledDate.gte.getDate()).toBe(dayAt(7).getDate());
+    });
+
+    it('infers a usual teaching weekday that has no class for the group', async () => {
+      // Taught 7 and 14 days ago (same weekday). The one 7 days ago is in the window and has no session now.
+      mockQueries([mine(14), mine(7)], []);
+      const out = await service.getMissedSessions({ id: 'u1' });
+      expect(out).toEqual([{ kind: 'inferred', date: ymd(dayAt(7)), groupId: 'group-1', groupName: 'Group A', levelId: 'level-1' }]);
+    });
+
+    it('does not infer a day that already has a class for the group, whoever ran it', async () => {
+      mockQueries([mine(14), mine(7)], [mine(7, { id: 'other', servantId: 'someone-else', status: 'completed' })]);
+      expect(await service.getMissedSessions({ id: 'u1' })).toEqual([]);
+    });
+
+    it('returns an empty list for a servant with no history', async () => {
+      mockQueries([], []);
+      expect(await service.getMissedSessions({ id: 'u1' })).toEqual([]);
+    });
+
+    it('returns the newest day first', async () => {
+      mockQueries([mine(14), mine(13)], [mine(3, { status: 'scheduled' }), mine(5, { status: 'scheduled' })]);
+      const dates = (await service.getMissedSessions({ id: 'u1' })).map(o => o.date);
+      expect(dates).toEqual([...dates].sort().reverse());
+    });
+  });
+
   describe('startSession', () => {
     const classSession = { id: 'sess-1', schoolId, servantId: 'owner', groupId: 'group-1', levelId: 'level-1', type: 'class', status: 'scheduled', actualStartTime: null, deletedAt: null };
 
