@@ -1475,6 +1475,58 @@ describe('AttendanceService', () => {
       expect(cascade).not.toHaveBeenCalled();
     });
 
+    describe('late-entry label and past-day rosters', () => {
+      const daysAgoDate = (n: number) => { const d = new Date(); d.setDate(d.getDate() - n); d.setHours(12, 0, 0, 0); return d; };
+      const finalize = async (session: any) => {
+        prisma.attendanceSession.findUnique.mockResolvedValue(session);
+        prisma.attendanceRecord.findMany.mockResolvedValue([{ studentId: 's1', status: 'present' }]);
+        await service.finalizeSession('c1', { recordedBy: 'u1', records: [{ studentId: 's1', status: 'present' }] } as any);
+        return prisma.attendanceSession.updateMany.mock.calls[0][0].data;
+      };
+
+      it('finalizing a past-day class stamps lateEntry and keeps other metadata', async () => {
+        const data = await finalize({ ...classSession, scheduledDate: daysAgoDate(2), metadata: { genderFilter: 'male' } });
+        expect(data.metadata.genderFilter).toBe('male');
+        expect(data.metadata.lateEntry.daysLate).toBe(2);
+        expect(typeof data.metadata.lateEntry.recordedAt).toBe('string');
+      });
+
+      it('finalizing today\'s class adds no lateEntry', async () => {
+        const data = await finalize({ ...classSession, scheduledDate: new Date() });
+        expect(data.metadata).toBeUndefined();
+      });
+
+      it('finalizing keeps an existing lateEntry untouched', async () => {
+        const lateEntry = { daysLate: 3, recordedAt: '2026-11-17T10:00:00.000Z' };
+        const data = await finalize({ ...classSession, scheduledDate: daysAgoDate(5), metadata: { lateEntry } });
+        expect(data.metadata?.lateEntry ?? lateEntry).toEqual(lateEntry);
+      });
+
+      it('roster sync for a past-day session only includes students who existed that day', async () => {
+        (service as any).syncSessionStudents.mockRestore();
+        const when = daysAgoDate(3);
+        prisma.attendanceSession.findUnique.mockResolvedValue({ ...classSession, scheduledDate: when, status: 'in_progress', allGroups: false });
+        prisma.user.findUnique.mockResolvedValue({ metadata: {} });
+        prisma.student.findMany.mockResolvedValue([]);
+        prisma.attendanceRecord.findMany.mockResolvedValue([]);
+        prisma.attendanceRecord.deleteMany.mockResolvedValue({ count: 0 });
+        await (service as any).syncSessionStudents('c1', 'u1');
+        const where = prisma.student.findMany.mock.calls[0][0].where;
+        expect(where.createdAt.lte.getDate()).toBe(when.getDate());
+      });
+
+      it('roster sync for today\'s session adds no createdAt filter', async () => {
+        (service as any).syncSessionStudents.mockRestore();
+        prisma.attendanceSession.findUnique.mockResolvedValue({ ...classSession, scheduledDate: new Date(), status: 'in_progress', allGroups: false });
+        prisma.user.findUnique.mockResolvedValue({ metadata: {} });
+        prisma.student.findMany.mockResolvedValue([]);
+        prisma.attendanceRecord.findMany.mockResolvedValue([]);
+        prisma.attendanceRecord.deleteMany.mockResolvedValue({ count: 0 });
+        await (service as any).syncSessionStudents('c1', 'u1');
+        expect(prisma.student.findMany.mock.calls[0][0].where.createdAt).toBeUndefined();
+      });
+    });
+
     it('completing a session through a plain status update also saves unmarked students as absent', async () => {
       prisma.attendanceSession.findUnique.mockResolvedValue({ ...classSession, status: 'in_progress' });
       prisma.attendanceSession.update.mockResolvedValue({ ...classSession, status: 'completed', metadata: null });

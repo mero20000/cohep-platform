@@ -552,6 +552,11 @@ export class AttendanceService {
       ...(session.allGroups ? { schoolId: session.schoolId } : {}),
       ...(fragments.length === 1 ? fragments[0] : { OR: fragments }),
     };
+    // A past-day session's roster is who existed that day, not who exists now.
+    if (this.daysLateFor(session.scheduledDate) >= 1) {
+      const lastMoment = new Date(session.scheduledDate); lastMoment.setHours(23, 59, 59, 999);
+      studentWhere.createdAt = { lte: lastMoment };
+    }
     const sessionGenderFilter = (session.metadata as any)?.genderFilter;
     if (sessionGenderFilter && sessionGenderFilter !== 'both') {
       studentWhere.gender = sessionGenderFilter;
@@ -1077,6 +1082,12 @@ export class AttendanceService {
     const unmarkedCount = autoAbsentIds.length;
 
     const now = new Date();
+    // A class finalized on a later day is labelled; an existing label is never overwritten.
+    const existingMeta = (session.metadata as any) || {};
+    const daysLate = this.daysLateFor(session.scheduledDate, now);
+    const lateEntryMeta = isClass && daysLate >= 1 && !existingMeta.lateEntry
+      ? { ...existingMeta, lateEntry: { daysLate, recordedAt: now.toISOString() } }
+      : null;
     await this.prisma.$transaction([
       ...records.map(record => this.buildRecordUpsert(sessionId, record, recordedBy)),
       // Whoever is still unmarked is absent (after the explicit marks above are written).
@@ -1090,6 +1101,7 @@ export class AttendanceService {
           status: 'completed',
           actualEndTime: now,
           ...(!session.actualStartTime && { actualStartTime: now }),
+          ...(lateEntryMeta && { metadata: lateEntryMeta }),
         },
       }),
     ]);
@@ -1287,6 +1299,13 @@ export class AttendanceService {
     return { record, message: `${record.student.firstName} ${record.student.lastName} checked in!` };
   }
 
+  /** Whole local-calendar days between a session's day and now (never negative). */
+  private daysLateFor(scheduledDate: Date, now: Date = new Date()): number {
+    const a = new Date(scheduledDate); a.setHours(0, 0, 0, 0);
+    const b = new Date(now); b.setHours(0, 0, 0, 0);
+    return Math.max(0, Math.round((b.getTime() - a.getTime()) / 86_400_000));
+  }
+
   /**
    * Parse and authorise the optional `date` of start-class. Returns null for "today"
    * (no backfill). Plain servants may only go back BACKFILL_WINDOW_DAYS; privileged
@@ -1301,7 +1320,7 @@ export class AttendanceService {
     }
     const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
     if (dayStart.getTime() > todayStart.getTime()) throw new BadRequestException('A class cannot be recorded for a future date.');
-    const daysLate = Math.round((todayStart.getTime() - dayStart.getTime()) / 86_400_000);
+    const daysLate = this.daysLateFor(dayStart);
     if (daysLate === 0) return null;
     const privileged = roles.some(r => ['super_admin', 'admin', 'principal', 'level_leader'].includes(r));
     if (!privileged && daysLate > BACKFILL_WINDOW_DAYS) {
