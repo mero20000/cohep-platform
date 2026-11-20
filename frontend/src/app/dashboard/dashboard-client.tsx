@@ -2061,84 +2061,6 @@ function RecurringSessionsButton({ lang }: { lang: string }) {
   )
 }
 
-function LiturgyHeatmapCard({ lang }: { lang: string }) {
-  const [data, setData] = useState<any>(null)
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    (async () => {
-      try {
-        const res = await http.get('/attendance/liturgy-heatmap', { schoolId: getSchoolId() }) as any
-        setData(res)
-      } catch { /* ignore */ }
-      setLoading(false)
-    })()
-  }, [])
-
-  if (loading) return null
-  if (!data || data.students?.length === 0) return null
-
-  const heatClass = (status: string, liturgy: boolean) => {
-    if (status === 'present' && liturgy) return 'bg-green-500'
-    if (status === 'present' || status === 'late') return 'bg-amber-400'
-    if (status === 'absent') return 'bg-red-300'
-    return 'bg-gray-100'
-  }
-
-  const regular = data.students.filter((s: any) => s.liturgyCount >= Math.ceil(data.weeks.length * 0.5)).length
-  const classOnly = data.students.filter((s: any) => s.liturgyCount === 0 && s.classCount > 0).length
-
-  return (
-    <div className="rounded-xl border border-gray-200/60 bg-white overflow-hidden">
-      <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4">
-        <div className="flex items-center gap-2">
-          <div className="flex h-7 w-7 items-center justify-center rounded-full bg-amber-50 text-amber-700"><Church className="h-4 w-4" /></div>
-          <h2 className="font-semibold text-gray-900">{lang === 'ar' ? 'خريطة القداسات الحرارية' : 'Liturgy Heatmap'}</h2>
-        </div>
-        <div className="flex items-center gap-3 text-xs">
-          <span className="flex items-center gap-1"><span className="h-2.5 w-2.5 rounded bg-green-500" />{lang === 'ar' ? 'قداس+حضور' : 'Liturgy+Class'}</span>
-          <span className="flex items-center gap-1"><span className="h-2.5 w-2.5 rounded bg-amber-400" />{lang === 'ar' ? 'حضور فقط' : 'Class only'}</span>
-          <span className="flex items-center gap-1"><span className="h-2.5 w-2.5 rounded bg-red-300" />{lang === 'ar' ? 'غائب' : 'Absent'}</span>
-        </div>
-      </div>
-      <div className="p-4">
-        <div className="flex gap-4 mb-4 text-sm">
-          <span className="text-green-700 font-medium">🕊 {regular} {lang === 'ar' ? 'يقدس بانتظام' : 'regularly attend liturgy'}</span>
-          <span className="text-amber-700 font-medium">📖 {classOnly} {lang === 'ar' ? 'يحضرون الفصل فقط' : 'class only'}</span>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-xs">
-            <thead>
-              <tr>
-                <th className="text-left text-gray-500 font-medium pr-3 pb-2 sticky left-0 bg-white">{lang === 'ar' ? 'الطالب' : 'Student'}</th>
-                {data.weeks.map((w: string) => (
-                  <th key={w} className="text-center text-gray-400 font-normal pb-2 px-1">{w.slice(-5)}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {data.students.map((s: any) => (
-                <tr key={s.name}>
-                  <td className="text-gray-700 pr-3 py-1 sticky left-0 bg-white whitespace-nowrap">{lang === 'ar' && s.nameAr ? s.nameAr : s.name}</td>
-                  {data.weeks.map((w: string) => {
-                    const cell = s.weeks[w]
-                    return (
-                      <td key={w} className="px-1 py-1">
-                        <div className={`h-4 w-4 rounded ${cell ? heatClass(cell.classStatus, cell.liturgy) : 'bg-gray-100'}`} title={cell ? `${s.name}: ${cell.classStatus}${cell.liturgy ? ' + liturgy' : ''}` : ''} />
-                      </td>
-                    )
-                  })}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-
 // ── Servant Wellbeing Panel ────────────────────────────────────────────────
 
 interface DigestData {
@@ -2665,10 +2587,6 @@ export function MinistryDashboard({ data, loading, error, onRetry }: { data: any
        </div>
       ))}
      </div>
-     </motion.div>
-
-     <motion.div variants={fadeUp}>
-       <LiturgyHeatmapCard lang={lang} />
      </motion.div>
 
      {/* Servant Digest */}

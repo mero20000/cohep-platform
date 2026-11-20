@@ -96,3 +96,9 @@ it('lists group mates with their names and phone links', async () => {
     expect(screen.getByText('My Group · Servants')).toBeTruthy()
   })
 })
+it('does not show the Liturgy Heatmap on the servant dashboard, and does not fetch its data', async () => {
+  renderDashboard()
+  await screen.findByText('My Group · Servants')
+  expect(screen.queryByText('Liturgy Heatmap')).toBeNull()
+  expect(mockGet.mock.calls.map((c) => c[0])).not.toContain('/attendance/liturgy-heatmap')
+})
