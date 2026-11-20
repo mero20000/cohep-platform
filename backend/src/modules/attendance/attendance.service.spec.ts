@@ -73,6 +73,9 @@ describe('AttendanceService', () => {
     userRole: {
       findMany: jest.fn(),
     },
+    school: {
+      findUnique: jest.fn().mockResolvedValue({ timezone: 'UTC' }),
+    },
     attendanceSessionTarget: {
       findMany: jest.fn().mockResolvedValue([]),
       create: jest.fn().mockResolvedValue({}),
@@ -245,6 +248,211 @@ describe('AttendanceService', () => {
       expect(existingCall?.[0]?.where?.status).toEqual({ not: 'cancelled' });
       expect(prisma.attendanceSession.create).toHaveBeenCalled();
       expect(result.created).toBe(true);
+    });
+
+    describe('with a past date (backfill)', () => {
+      const ymd = (d: Date) => d.toISOString().slice(0, 10);
+      const daysAgo = (n: number) => { const d = new Date(); d.setUTCDate(d.getUTCDate() - n); return d; };
+      const start = (date: string) => service.startClass('u1', undefined, undefined, undefined, undefined, date);
+
+      beforeEach(() => {
+        prisma.student.findMany.mockResolvedValue([{ id: 'stu-1' }]);
+      });
+      afterEach(() => { jest.useRealTimers(); prisma.school.findUnique.mockResolvedValue({ timezone: 'UTC' }); });
+
+      it('creates a session at noon of that day with a lateEntry label', async () => {
+        await start(ymd(daysAgo(1)));
+
+        const data = prisma.attendanceSession.create.mock.calls[0][0].data;
+        expect(data.scheduledDate.toISOString()).toBe(`${ymd(daysAgo(1))}T12:00:00.000Z`);
+        expect(data.metadata.lateEntry.daysLate).toBe(1);
+        expect(typeof data.metadata.lateEntry.recordedAt).toBe('string');
+      });
+
+      it('treats today as a normal start (no lateEntry)', async () => {
+        await start(ymd(new Date()));
+
+        const data = prisma.attendanceSession.create.mock.calls[0][0].data;
+        expect(data.metadata?.lateEntry).toBeUndefined();
+      });
+
+      it('rejects a future date', async () => {
+        await expect(start(ymd(daysAgo(-1)))).rejects.toBeInstanceOf(BadRequestException);
+      });
+
+      it.each(['2026-13-40', 'abc', '2026-02-30'])('rejects the malformed date %s', async (bad) => {
+        await expect(start(bad)).rejects.toBeInstanceOf(BadRequestException);
+      });
+
+      it.each([8, 30, 400])('lets a plain servant record a class %i days back (no cap)', async (n) => {
+        await start(ymd(daysAgo(n)));
+        const data = prisma.attendanceSession.create.mock.calls[0][0].data;
+        expect(data.metadata.lateEntry.daysLate).toBe(n);
+      });
+
+      it('joins an existing non-cancelled session for that day instead of creating one', async () => {
+        prisma.attendanceSession.findMany.mockResolvedValue([
+          { id: 'sess-old', status: 'in_progress', servantId: 'other', groupId: 'group-1', levelId: 'level-1', gradeId: null, metadata: null },
+        ]);
+
+        const result: any = await start(ymd(daysAgo(2)));
+
+        expect(prisma.attendanceSession.create).not.toHaveBeenCalled();
+        expect(result.created).toBe(false);
+        const where = prisma.attendanceSession.findMany.mock.calls.find((c: any) => c[0]?.where?.scheduledDate)?.[0].where;
+        expect(where.scheduledDate.gte.toISOString()).toBe(`${ymd(daysAgo(2))}T00:00:00.000Z`);
+        expect(where.status).toEqual({ not: 'cancelled' });
+      });
+
+      it('leaves out students who joined after that day', async () => {
+        await start(ymd(daysAgo(3)));
+
+        const where = prisma.student.findMany.mock.calls[0][0].where;
+        expect(where.createdAt.lte.toISOString()).toBe(`${ymd(daysAgo(3))}T23:59:59.999Z`);
+      });
+
+      it('refuses to create an empty session when nobody was enrolled on that day', async () => {
+        prisma.student.findMany.mockResolvedValue([]);
+        await expect(start(ymd(daysAgo(40)))).rejects.toBeInstanceOf(BadRequestException);
+        expect(prisma.attendanceSession.create).not.toHaveBeenCalled();
+      });
+
+      describe('uses the school timezone, not the server clock', () => {
+        it('Cairo just after midnight: yesterday is one day late, with local-day boundaries', async () => {
+          prisma.school.findUnique.mockResolvedValue({ timezone: 'Africa/Cairo' });
+          jest.useFakeTimers({ now: new Date('2026-11-20T22:30:00Z') }); // Nov 21, 00:30 in Cairo
+
+          await start('2026-11-20');
+
+          const data = prisma.attendanceSession.create.mock.calls[0][0].data;
+          expect(data.metadata.lateEntry.daysLate).toBe(1);
+          expect(data.scheduledDate.toISOString()).toBe('2026-11-20T10:00:00.000Z'); // noon in Cairo
+          const where = prisma.attendanceSession.findMany.mock.calls.find((c: any) => c[0]?.where?.scheduledDate)?.[0].where;
+          expect(where.scheduledDate.gte.toISOString()).toBe('2026-11-19T22:00:00.000Z');
+          expect(where.scheduledDate.lt.toISOString()).toBe('2026-11-20T22:00:00.000Z');
+        });
+
+        it('Cairo just after midnight: the local date is today, not a backfill, and uses the local day window', async () => {
+          prisma.school.findUnique.mockResolvedValue({ timezone: 'Africa/Cairo' });
+          jest.useFakeTimers({ now: new Date('2026-11-20T22:30:00Z') });
+
+          await start('2026-11-21');
+
+          const data = prisma.attendanceSession.create.mock.calls[0][0].data;
+          expect(data.metadata?.lateEntry).toBeUndefined();
+          const where = prisma.attendanceSession.findMany.mock.calls.find((c: any) => c[0]?.where?.scheduledDate)?.[0].where;
+          expect(where.scheduledDate.gte.toISOString()).toBe('2026-11-20T22:00:00.000Z');
+        });
+
+        it('Los Angeles evening: a date the server (UTC) already calls tomorrow is still today', async () => {
+          prisma.school.findUnique.mockResolvedValue({ timezone: 'America/Los_Angeles' });
+          jest.useFakeTimers({ now: new Date('2026-11-21T02:00:00Z') }); // Nov 20, 18:00 in LA
+
+          await start('2026-11-20');
+
+          const data = prisma.attendanceSession.create.mock.calls[0][0].data;
+          expect(data.metadata?.lateEntry).toBeUndefined();
+        });
+
+        it('rejects a date that is still in the future where the school is', async () => {
+          prisma.school.findUnique.mockResolvedValue({ timezone: 'America/Los_Angeles' });
+          jest.useFakeTimers({ now: new Date('2026-11-21T02:00:00Z') });
+
+          await expect(start('2026-11-21')).rejects.toBeInstanceOf(BadRequestException);
+        });
+      });
+    });
+  });
+
+  describe('getMissedSessions', () => {
+    const dayAt = (n: number) => { const d = new Date(); d.setUTCDate(d.getUTCDate() - n); d.setUTCHours(12, 0, 0, 0); return d; };
+    const ymd = (d: Date) => d.toISOString().slice(0, 10);
+    const mine = (n: number, over: any = {}) => ({
+      id: `s${n}`, servantId: 'u1', groupId: 'group-1', levelId: 'level-1', type: 'class',
+      status: 'completed', scheduledDate: dayAt(n), group: { name: 'Group A' }, ...over,
+    });
+
+    // 1st findMany = the servant's own recent history; 2nd = the last 7 days for their group(s).
+    const mockQueries = (history: any[], windowSessions: any[]) => {
+      prisma.attendanceSession.findMany.mockReset();
+      prisma.attendanceSession.findMany.mockResolvedValueOnce(history).mockResolvedValueOnce(windowSessions);
+    };
+
+    beforeEach(() => {
+      prisma.user.findUnique.mockResolvedValue({ id: 'u1', schoolId, metadata: { groupId: 'group-1' } });
+    });
+
+    it('lists unfinished past class sessions as kind "session"', async () => {
+      mockQueries([], [mine(2, { status: 'scheduled' }), mine(3, { status: 'in_progress' })]);
+      const out = await service.getMissedSessions({ id: 'u1' });
+      expect(out.map(o => [o.kind, o.date])).toEqual([['session', ymd(dayAt(2))], ['session', ymd(dayAt(3))]]);
+      expect((out[0] as any).sessionId).toBe('s2');
+      expect(out[0].groupName).toBe('Group A');
+    });
+
+    it('does not list completed sessions or today\'s session', async () => {
+      mockQueries([], [mine(0, { status: 'scheduled' }), mine(1, { status: 'completed' })]);
+      expect(await service.getMissedSessions({ id: 'u1' })).toEqual([]);
+    });
+
+    it('asks only for class sessions of the last 7 days, before today, non-cancelled', async () => {
+      mockQueries([], []);
+      await service.getMissedSessions({ id: 'u1' });
+      const where = prisma.attendanceSession.findMany.mock.calls[1][0].where;
+      expect(where.type).toBe('class');
+      expect(where.deletedAt).toBeNull();
+      expect(where.status).toEqual({ not: 'cancelled' });
+      expect(where.scheduledDate.lt.getUTCHours()).toBe(0);
+      expect(where.scheduledDate.gte.toISOString()).toBe(`${ymd(dayAt(7))}T00:00:00.000Z`);
+    });
+
+    it('infers a usual teaching weekday that has no class for the group', async () => {
+      // Taught 7 and 14 days ago (same weekday). The one 7 days ago is in the window and has no session now.
+      mockQueries([mine(14), mine(7)], []);
+      const out = await service.getMissedSessions({ id: 'u1' });
+      expect(out).toEqual([{ kind: 'inferred', date: ymd(dayAt(7)), groupId: 'group-1', groupName: 'Group A', levelId: 'level-1' }]);
+    });
+
+    it('does not infer a day that already has a class for the group, whoever ran it', async () => {
+      mockQueries([mine(14), mine(7)], [mine(7, { id: 'other', servantId: 'someone-else', status: 'completed' })]);
+      expect(await service.getMissedSessions({ id: 'u1' })).toEqual([]);
+    });
+
+    it('does not infer a day the servant already taught another of their groups', async () => {
+      // Group 1 taught 14 and 7 days ago (completed); the latest class is group 2, 13 days ago.
+      mockQueries(
+        [mine(14, { groupId: 'group-1' }), mine(13, { groupId: 'group-2', group: { name: 'Group B' } })],
+        [mine(7, { groupId: 'group-1', status: 'completed' })],
+      );
+      const out = await service.getMissedSessions({ id: 'u1' });
+      expect(out.map(o => o.date)).not.toContain(ymd(dayAt(7)));
+      expect(out.every(o => o.groupId === 'group-2')).toBe(true);
+    });
+
+    it('uses the school timezone: just after local midnight, yesterday\'s unfinished class is listed', async () => {
+      prisma.school.findUnique.mockResolvedValue({ timezone: 'Africa/Cairo' });
+      jest.useFakeTimers({ now: new Date('2026-11-20T22:30:00Z') }); // Nov 21, 00:30 in Cairo
+      try {
+        mockQueries([], [mine(0, { status: 'scheduled', scheduledDate: new Date('2026-11-20T10:00:00Z') })]);
+        const out = await service.getMissedSessions({ id: 'u1' });
+        expect(out.map(o => o.date)).toEqual(['2026-11-20']);
+        const where = prisma.attendanceSession.findMany.mock.calls[1][0].where;
+        expect(where.scheduledDate.lt.toISOString()).toBe('2026-11-20T22:00:00.000Z');
+      } finally {
+        jest.useRealTimers();
+        prisma.school.findUnique.mockResolvedValue({ timezone: 'UTC' });
+      }
+    });
+
+    it('returns an empty list for a servant with no history', async () => {
+      mockQueries([], []);
+      expect(await service.getMissedSessions({ id: 'u1' })).toEqual([]);
+    });
+
+    it('returns the newest day first', async () => {
+      mockQueries([mine(14), mine(13)], [mine(3, { status: 'scheduled' }), mine(5, { status: 'scheduled' })]);
+      const dates = (await service.getMissedSessions({ id: 'u1' })).map(o => o.date);
+      expect(dates).toEqual([...dates].sort().reverse());
     });
   });
 
@@ -1399,6 +1607,86 @@ describe('AttendanceService', () => {
       prisma.attendanceRecord.findMany.mockResolvedValue([{ studentId: 's1', status: 'absent' }]);
       await service.finalizeSession('c1', { recordedBy: 'u1', records: [{ studentId: 's1', status: 'absent' }] } as any);
       expect(cascade).not.toHaveBeenCalled();
+    });
+
+    describe('late-entry label and past-day rosters', () => {
+      const daysAgoDate = (n: number) => { const d = new Date(); d.setUTCDate(d.getUTCDate() - n); d.setUTCHours(12, 0, 0, 0); return d; };
+      const finalize = async (session: any) => {
+        prisma.attendanceSession.findUnique.mockResolvedValue(session);
+        prisma.attendanceRecord.findMany.mockResolvedValue([{ studentId: 's1', status: 'present' }]);
+        await service.finalizeSession('c1', { recordedBy: 'u1', records: [{ studentId: 's1', status: 'present' }] } as any);
+        return prisma.attendanceSession.updateMany.mock.calls[0][0].data;
+      };
+
+      it('finalizing a past-day class stamps lateEntry and keeps other metadata', async () => {
+        const data = await finalize({ ...classSession, scheduledDate: daysAgoDate(2), metadata: { genderFilter: 'male' } });
+        expect(data.metadata.genderFilter).toBe('male');
+        expect(data.metadata.lateEntry.daysLate).toBe(2);
+        expect(typeof data.metadata.lateEntry.recordedAt).toBe('string');
+      });
+
+      it('finalizing today\'s class adds no lateEntry', async () => {
+        const data = await finalize({ ...classSession, scheduledDate: new Date() });
+        expect(data.metadata).toBeUndefined();
+      });
+
+      it('finalizing keeps an existing lateEntry untouched', async () => {
+        const lateEntry = { daysLate: 3, recordedAt: '2026-11-17T10:00:00.000Z' };
+        const data = await finalize({ ...classSession, scheduledDate: daysAgoDate(5), metadata: { lateEntry } });
+        expect(data.metadata?.lateEntry ?? lateEntry).toEqual(lateEntry);
+      });
+
+      it('roster sync for a past-day session only includes students who existed that day', async () => {
+        (service as any).syncSessionStudents.mockRestore();
+        const when = daysAgoDate(3);
+        prisma.attendanceSession.findUnique.mockResolvedValue({ ...classSession, scheduledDate: when, status: 'in_progress', allGroups: false });
+        prisma.user.findUnique.mockResolvedValue({ metadata: {} });
+        prisma.student.findMany.mockResolvedValue([]);
+        prisma.attendanceRecord.findMany.mockResolvedValue([]);
+        prisma.attendanceRecord.deleteMany.mockResolvedValue({ count: 0 });
+        await (service as any).syncSessionStudents('c1', 'u1');
+        const where = prisma.student.findMany.mock.calls[0][0].where;
+        expect(where.createdAt.lte.toISOString()).toBe(`${when.toISOString().slice(0, 10)}T23:59:59.999Z`);
+      });
+
+      describe('uses the school timezone', () => {
+        const cairoNight = () => {
+          prisma.school.findUnique.mockResolvedValue({ timezone: 'Africa/Cairo' });
+          jest.useFakeTimers({ now: new Date('2026-11-20T22:30:00Z') }); // Nov 21, 00:30 in Cairo
+        };
+        const noonYesterdayCairo = new Date('2026-11-20T10:00:00Z');
+        afterEach(() => { jest.useRealTimers(); prisma.school.findUnique.mockResolvedValue({ timezone: 'UTC' }); });
+
+        it('finalizing after local midnight labels yesterday\'s class as one day late', async () => {
+          cairoNight();
+          const data = await finalize({ ...classSession, scheduledDate: noonYesterdayCairo });
+          expect(data.metadata.lateEntry.daysLate).toBe(1);
+        });
+
+        it('roster sync cuts off at the end of the session\'s local day', async () => {
+          cairoNight();
+          (service as any).syncSessionStudents.mockRestore();
+          prisma.attendanceSession.findUnique.mockResolvedValue({ ...classSession, scheduledDate: noonYesterdayCairo, status: 'in_progress', allGroups: false });
+          prisma.user.findUnique.mockResolvedValue({ metadata: {} });
+          prisma.student.findMany.mockResolvedValue([]);
+          prisma.attendanceRecord.findMany.mockResolvedValue([]);
+          prisma.attendanceRecord.deleteMany.mockResolvedValue({ count: 0 });
+          await (service as any).syncSessionStudents('c1', 'u1');
+          const where = prisma.student.findMany.mock.calls[0][0].where;
+          expect(where.createdAt.lte.toISOString()).toBe('2026-11-20T21:59:59.999Z');
+        });
+      });
+
+      it('roster sync for today\'s session adds no createdAt filter', async () => {
+        (service as any).syncSessionStudents.mockRestore();
+        prisma.attendanceSession.findUnique.mockResolvedValue({ ...classSession, scheduledDate: new Date(), status: 'in_progress', allGroups: false });
+        prisma.user.findUnique.mockResolvedValue({ metadata: {} });
+        prisma.student.findMany.mockResolvedValue([]);
+        prisma.attendanceRecord.findMany.mockResolvedValue([]);
+        prisma.attendanceRecord.deleteMany.mockResolvedValue({ count: 0 });
+        await (service as any).syncSessionStudents('c1', 'u1');
+        expect(prisma.student.findMany.mock.calls[0][0].where.createdAt).toBeUndefined();
+      });
     });
 
     it('completing a session through a plain status update also saves unmarked students as absent', async () => {

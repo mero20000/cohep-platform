@@ -1,5 +1,7 @@
 import { Injectable, NotFoundException, BadRequestException, ConflictException, ForbiddenException, Inject, forwardRef } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
+import { localToday } from '../../common/utils/birthday';
+import { zonedTimeToUtc } from '../../common/utils/timezone';
 import { SchoolResolver } from '../../common/utils/school-resolver';
 import { AuditService } from '../audit/audit.service';
 import { GamificationService } from '../gamification/gamification.service';
@@ -22,6 +24,13 @@ function addTally(into: StatusTally, from?: StatusTally) {
   into.present += from.present; into.late += from.late; into.absent += from.absent;
   into.excused += from.excused; into.unmarked += from.unmarked;
 }
+
+export type MissedItem =
+  | { kind: 'session'; sessionId: string; date: string; groupId: string | null; groupName: string; levelId: string | null; status: string }
+  | { kind: 'inferred'; date: string; groupId: string; groupName: string; levelId: string | null };
+
+/** How many days back the "Missed" list looks. Picking a date by hand has no limit. */
+export const MISSED_LOOKBACK_DAYS = 7;
 
 @Injectable()
 export class AttendanceService {
@@ -549,6 +558,13 @@ export class AttendanceService {
       ...(session.allGroups ? { schoolId: session.schoolId } : {}),
       ...(fragments.length === 1 ? fragments[0] : { OR: fragments }),
     };
+    // A past-day session's roster is who existed that day, not who exists now.
+    const timeZone = await this.schoolTimezone(session.schoolId);
+    if (this.daysLateFor(session.scheduledDate, timeZone) >= 1) {
+      const day = localToday(new Date(session.scheduledDate), timeZone);
+      const nextDayStart = zonedTimeToUtc(new Date(day.getTime() + 86_400_000), 0, timeZone);
+      studentWhere.createdAt = { lte: new Date(nextDayStart.getTime() - 1) };
+    }
     const sessionGenderFilter = (session.metadata as any)?.genderFilter;
     if (sessionGenderFilter && sessionGenderFilter !== 'both') {
       studentWhere.gender = sessionGenderFilter;
@@ -1074,6 +1090,12 @@ export class AttendanceService {
     const unmarkedCount = autoAbsentIds.length;
 
     const now = new Date();
+    // A class finalized on a later day is labelled; an existing label is never overwritten.
+    const existingMeta = (session.metadata as any) || {};
+    const daysLate = this.daysLateFor(session.scheduledDate, await this.schoolTimezone(session.schoolId), now);
+    const lateEntryMeta = isClass && daysLate >= 1 && !existingMeta.lateEntry
+      ? { ...existingMeta, lateEntry: { daysLate, recordedAt: now.toISOString() } }
+      : null;
     await this.prisma.$transaction([
       ...records.map(record => this.buildRecordUpsert(sessionId, record, recordedBy)),
       // Whoever is still unmarked is absent (after the explicit marks above are written).
@@ -1087,6 +1109,7 @@ export class AttendanceService {
           status: 'completed',
           actualEndTime: now,
           ...(!session.actualStartTime && { actualStartTime: now }),
+          ...(lateEntryMeta && { metadata: lateEntryMeta }),
         },
       }),
     ]);
@@ -1284,14 +1307,63 @@ export class AttendanceService {
     return { record, message: `${record.student.firstName} ${record.student.lastName} checked in!` };
   }
 
-  async startClass(servantId: string, selectedGroupId?: string, selectedLevelId?: string, selectedGradeId?: string, selectedGender?: string) {
+  /** The school's IANA timezone (UTC if unset), used for every "which day is it" decision. */
+  private async schoolTimezone(schoolId: string): Promise<string> {
+    const school = await this.prisma.school.findUnique({ where: { id: schoolId }, select: { timezone: true } });
+    return school?.timezone || 'UTC';
+  }
+
+  /** Whole calendar days, in the school's timezone, between a session's day and now (never negative). */
+  private daysLateFor(scheduledDate: Date, timeZone: string, now: Date = new Date()): number {
+    const when = new Date(scheduledDate);
+    if (Number.isNaN(when.getTime())) return 0;
+    const diff = localToday(now, timeZone).getTime() - localToday(when, timeZone).getTime();
+    return Math.max(0, Math.round(diff / 86_400_000));
+  }
+
+  /**
+   * The class day for start-class, in the school's timezone: today when `date` is
+   * omitted or equals today, otherwise that past day. Future or malformed dates are
+   * rejected; there is no limit on how far back a day may be.
+   * `daysLate` is 0 for today; a backfilled day is stored at local noon.
+   */
+  private resolveClassDay(date: string | undefined, timeZone: string) {
+    const today = localToday(new Date(), timeZone); // UTC-midnight stand-in for the local date
+    let day = today;
+    if (date) {
+      const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date);
+      const parsed = m ? new Date(Date.UTC(+m[1], +m[2] - 1, +m[3])) : null;
+      if (!m || !parsed || parsed.getUTCFullYear() !== +m[1] || parsed.getUTCMonth() !== +m[2] - 1 || parsed.getUTCDate() !== +m[3]) {
+        throw new BadRequestException('date must be a valid YYYY-MM-DD');
+      }
+      if (parsed.getTime() > today.getTime()) throw new BadRequestException('A class cannot be recorded for a future date.');
+      day = parsed;
+    }
+    const daysLate = Math.round((today.getTime() - day.getTime()) / 86_400_000);
+    const dayStart = zonedTimeToUtc(day, 0, timeZone);
+    const dayEnd = zonedTimeToUtc(new Date(day.getTime() + 86_400_000), 0, timeZone);
+    return {
+      dayStart,
+      dayEnd,
+      lastMoment: new Date(dayEnd.getTime() - 1),
+      scheduledDate: daysLate >= 1 ? zonedTimeToUtc(day, 12, timeZone) : new Date(),
+      daysLate,
+    };
+  }
+
+  async startClass(servantId: string, selectedGroupId?: string, selectedLevelId?: string, selectedGradeId?: string, selectedGender?: string, date?: string) {
     const servant = await this.prisma.user.findUnique({ where: { id: servantId }, select: { schoolId: true, metadata: true } });
     if (!servant) throw new NotFoundException('Servant not found');
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
+    const servantRoles = await this.prisma.userRole.findMany({
+      where: { userId: servantId },
+      include: { role: { select: { name: true } } },
+    });
+    const timeZone = await this.schoolTimezone(servant.schoolId);
+    const classDay = this.resolveClassDay(date, timeZone);
+    const backfill = classDay.daysLate >= 1 ? classDay : null;
+    const today = classDay.dayStart;
+    const tomorrow = classDay.dayEnd;
 
     // Check user metadata for assigned group/level
     const meta = (servant.metadata as any) || {};
@@ -1311,10 +1383,6 @@ export class AttendanceService {
     const gradeId: string | undefined = selectedGradeId;
 
     // If no metadata assignment, try to get from recent sessions (only for non-admin servants)
-    const servantRoles = await this.prisma.userRole.findMany({
-      where: { userId: servantId },
-      include: { role: { select: { name: true } } },
-    });
     const isAdmin = servantRoles.some(ur => ['super_admin', 'admin'].includes(ur.role?.name));
     if (!groupId && !isAdmin && recentSessions.length > 0) {
       groupId = recentSessions[0].groupId || undefined;
@@ -1396,26 +1464,14 @@ export class AttendanceService {
 
     const sessionMeta: Record<string, any> = {};
     if (selectedGender) sessionMeta.genderFilter = selectedGender;
+    if (backfill) sessionMeta.lateEntry = { daysLate: backfill.daysLate, recordedAt: new Date().toISOString() };
 
-    const session = await this.prisma.attendanceSession.create({
-      data: {
-        schoolId: servant.schoolId,
-        servantId,
-        levelId: levelId || null,
-        groupId,
-        gradeId: gradeId || null,
-        scheduledDate: new Date(),
-        scheduledTime: '12:00',
-        status: 'scheduled',
-        ...(Object.keys(sessionMeta).length > 0 && { metadata: sessionMeta }),
-        targets: this.targetsCreate(classTargetFor({ groupId, levelId, gradeId }, selectedGender)),
-      },
-    });
-
-    // Seed the roster as unmarked — the servant marks each student explicitly.
+    // The roster, seeded below as unmarked — the servant marks each student explicitly.
     const studentWhere: any = { groupId, schoolId: servant.schoolId, deletedAt: null, status: 'active' };
     if (levelId) studentWhere.levelId = levelId;
     if (gradeId) studentWhere.gradeId = gradeId;
+    // A past-day roster only has students who already existed on that day.
+    if (backfill) studentWhere.createdAt = { lte: backfill.lastMoment };
     if (selectedGender && selectedGender !== 'both') {
       studentWhere.gender = selectedGender;
     } else {
@@ -1428,6 +1484,26 @@ export class AttendanceService {
       where: studentWhere,
       select: { id: true },
     });
+    // A past day nobody was enrolled on would only leave an empty, unfinishable session behind.
+    if (backfill && students.length === 0) {
+      throw new BadRequestException('No students were enrolled in this class on that date.');
+    }
+
+    const session = await this.prisma.attendanceSession.create({
+      data: {
+        schoolId: servant.schoolId,
+        servantId,
+        levelId: levelId || null,
+        groupId,
+        gradeId: gradeId || null,
+        scheduledDate: backfill ? backfill.scheduledDate : new Date(),
+        scheduledTime: '12:00',
+        status: 'scheduled',
+        ...(Object.keys(sessionMeta).length > 0 && { metadata: sessionMeta }),
+        targets: this.targetsCreate(classTargetFor({ groupId, levelId, gradeId }, selectedGender)),
+      },
+    });
+
     if (students.length > 0) {
       await this.prisma.attendanceRecord.createMany({
         data: students.map(s => ({
@@ -1442,6 +1518,65 @@ export class AttendanceService {
 
     const full = await this.getSessionById(session.id);
     return { session: full, created: true };
+  }
+
+  /**
+   * Classes the servant may still record: unfinished past sessions of the last
+   * MISSED_LOOKBACK_DAYS days, plus days they usually teach (weekday pattern of
+   * the last 8 weeks) on which their group has no class at all.
+   */
+  async getMissedSessions(user: { id: string }): Promise<MissedItem[]> {
+    const me = await this.prisma.user.findUnique({ where: { id: user.id }, select: { schoolId: true, metadata: true } });
+    if (!me) throw new NotFoundException('User not found');
+
+    // Work in the school's calendar: a "day" is a UTC-midnight stand-in for the local date.
+    const timeZone = await this.schoolTimezone(me.schoolId);
+    const today = localToday(new Date(), timeZone);
+    const shiftDays = (d: Date, n: number) => new Date(d.getTime() - n * 86_400_000);
+    const dayOf = (instant: Date) => localToday(new Date(instant), timeZone);
+    const ymd = (instant: Date) => dayOf(instant).toISOString().slice(0, 10);
+    const startOf = (day: Date) => zonedTimeToUtc(day, 0, timeZone);
+    const todayStart = startOf(today);
+    const windowStart = startOf(shiftDays(today, MISSED_LOOKBACK_DAYS));
+
+    const history = await this.prisma.attendanceSession.findMany({
+      where: { servantId: user.id, type: 'class', deletedAt: null, status: { not: 'cancelled' }, scheduledDate: { gte: startOf(shiftDays(today, 56)), lt: todayStart } },
+      select: { groupId: true, levelId: true, scheduledDate: true, group: { select: { name: true } } },
+    });
+    const latest = [...history].sort((a: any, b: any) => +new Date(b.scheduledDate) - +new Date(a.scheduledDate))[0] as any;
+    const baseGroupId: string | undefined = latest?.groupId ?? undefined;
+
+    const assignedGroupIds = await this.resolveServantSessionGroupIds((me.metadata as any) || {}, me.schoolId);
+    const scopeGroupIds = [...new Set([...assignedGroupIds, ...(baseGroupId ? [baseGroupId] : [])])];
+    const windowSessions: any[] = await this.prisma.attendanceSession.findMany({
+      where: {
+        schoolId: me.schoolId, type: 'class', deletedAt: null, status: { not: 'cancelled' },
+        scheduledDate: { gte: windowStart, lt: todayStart },
+        OR: [{ servantId: user.id }, ...(scopeGroupIds.length ? [{ groupId: { in: scopeGroupIds } }] : [])],
+      },
+      include: { group: { select: { name: true } } },
+    });
+
+    const mineScope = (s: any) => s.servantId === user.id || (assignedGroupIds.length > 0 && assignedGroupIds.includes(s.groupId));
+    const out: MissedItem[] = windowSessions
+      .filter(s => ['scheduled', 'in_progress'].includes(s.status) && mineScope(s) && new Date(s.scheduledDate) < todayStart)
+      .map(s => ({
+        kind: 'session' as const, sessionId: s.id, date: ymd(new Date(s.scheduledDate)), groupId: s.groupId,
+        groupName: s.group?.name ?? '', levelId: s.levelId ?? null, status: s.status,
+      }));
+
+    if (latest && baseGroupId) {
+      // Pattern of the base group only; a day is taken if that group, or this servant in any group, already has a class.
+      const weekdays = new Set(history.filter((h: any) => h.groupId === baseGroupId).map((h: any) => dayOf(h.scheduledDate).getUTCDay()));
+      const busyDays = new Set(windowSessions.filter(s => s.groupId === baseGroupId || s.servantId === user.id).map(s => ymd(new Date(s.scheduledDate))));
+      for (let n = 1; n <= MISSED_LOOKBACK_DAYS; n++) {
+        const day = shiftDays(today, n);
+        const label = day.toISOString().slice(0, 10);
+        if (!weekdays.has(day.getUTCDay()) || busyDays.has(label)) continue;
+        out.push({ kind: 'inferred', date: label, groupId: baseGroupId, groupName: latest.group?.name ?? '', levelId: latest.levelId ?? null });
+      }
+    }
+    return out.sort((a, b) => b.date.localeCompare(a.date));
   }
 
   async startSession(sessionId: string, servantId: string, roles?: string[]) {

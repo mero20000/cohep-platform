@@ -9,6 +9,8 @@ const state = vi.hoisted(() => ({
   status: 'in_progress' as string,
   extra: {} as Record<string, any>,
   records: null as any[] | null,
+  missed: [] as any[],
+  missedFails: false,
 }))
 
 const TWO = [
@@ -18,6 +20,10 @@ const TWO = [
 const ONE = [TWO[0]]
 
 const mockGet = vi.fn(async (url: string) => {
+  if (url === '/attendance/missed') {
+    if (state.missedFails) throw new Error('boom')
+    return state.missed
+  }
   if (url.startsWith('/attendance/sessions/')) {
     if (state.saved) return { id: 'sess-1', status: state.status, ...state.extra, attendanceRecords: state.saved }
     return { id: 'sess-1', status: state.status, ...state.extra, attendanceRecords: state.records ?? (state.twoStudents ? TWO : ONE) }
@@ -48,6 +54,9 @@ beforeEach(() => {
   state.status = 'in_progress'
   state.extra = {}
   state.records = null
+  state.missed = []
+  state.missedFails = false
+  localStorage.removeItem('user')
   mockGet.mockClear()
   mockPost.mockClear()
   mockPut.mockClear()
@@ -318,5 +327,95 @@ describe('MarkClient', () => {
       await screen.findByRole('button', { name: /Re-open/i })
       expect(screen.getByText(/finalized|read-only/i)).toBeInTheDocument()
     })
+  })
+})
+
+
+describe('MarkClient — recording a past class', () => {
+  const ymd = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  const daysAgo = (n: number) => { const d = new Date(); d.setDate(d.getDate() - n); return d }
+  const emptyState = () => { state.params.sessionId = null }
+
+  it('offers Start Class, Record a past class and the missed list', async () => {
+    emptyState()
+    state.missed = [{ kind: 'session', sessionId: 'sess-9', date: '2026-11-14', groupId: 'g1', groupName: 'Group A', levelId: null, status: 'scheduled' }]
+    render(<MarkClient />)
+    expect(await screen.findByRole('button', { name: /^Start Class$/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Record a past class/i })).toBeInTheDocument()
+    expect(await screen.findByText(/Nov 14/)).toBeInTheDocument()
+    expect(screen.getByText(/Group A/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Record now/i })).toBeInTheDocument()
+  })
+
+  it('Record now on an unfinished session opens that session', async () => {
+    emptyState()
+    state.missed = [{ kind: 'session', sessionId: 'sess-9', date: '2026-11-14', groupId: 'g1', groupName: 'Group A', levelId: null, status: 'scheduled' }]
+    render(<MarkClient />)
+    fireEvent.click(await screen.findByRole('button', { name: /Record now/i }))
+    await waitFor(() => expect(mockGet).toHaveBeenCalledWith('/attendance/sessions/sess-9'))
+  })
+
+  it('Record now on an inferred day starts a class for that date and group', async () => {
+    emptyState()
+    state.missed = [{ kind: 'inferred', date: '2026-11-14', groupId: 'g1', groupName: 'Group A', levelId: 'l1' }]
+    render(<MarkClient />)
+    fireEvent.click(await screen.findByRole('button', { name: /Record now/i }))
+    await waitFor(() => expect(mockPost).toHaveBeenCalledWith('/attendance/start-class?groupId=g1&levelId=l1&date=2026-11-14'))
+  })
+
+  it('lets any servant pick any past date: the picker stops at yesterday and has no lower limit', async () => {
+    emptyState()
+    localStorage.setItem('user', JSON.stringify({ id: 'u1', roles: ['servant'] }))
+    render(<MarkClient />)
+    fireEvent.click(await screen.findByRole('button', { name: /Record a past class/i }))
+    const input = (await screen.findByLabelText(/Class date/i)) as HTMLInputElement
+    expect(input.max).toBe(ymd(daysAgo(1)))
+    expect(input.min).toBe('')
+  })
+
+  it('starts a class for a date far in the past', async () => {
+    emptyState()
+    render(<MarkClient />)
+    fireEvent.click(await screen.findByRole('button', { name: /Record a past class/i }))
+    fireEvent.change(await screen.findByLabelText(/Class date/i), { target: { value: '2025-03-14' } })
+    fireEvent.click(screen.getByRole('button', { name: /^Continue$/i }))
+    await waitFor(() => expect(mockPost).toHaveBeenCalledWith('/attendance/start-class?date=2025-03-14'))
+  })
+
+  it('starts a class for the chosen past date', async () => {
+    emptyState()
+    render(<MarkClient />)
+    fireEvent.click(await screen.findByRole('button', { name: /Record a past class/i }))
+    fireEvent.change(await screen.findByLabelText(/Class date/i), { target: { value: ymd(daysAgo(2)) } })
+    fireEvent.click(screen.getByRole('button', { name: /^Continue$/i }))
+    await waitFor(() => expect(mockPost).toHaveBeenCalledWith(`/attendance/start-class?date=${ymd(daysAgo(2))}`))
+  })
+
+  it('still shows Start Class when the missed list fails to load', async () => {
+    emptyState()
+    state.missedFails = true
+    render(<MarkClient />)
+    expect(await screen.findByRole('button', { name: /^Start Class$/i })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Record now/i })).toBeNull()
+  })
+
+  it('shows "Recorded 3 days late" on a late-entry session', async () => {
+    state.extra = { type: 'class', scheduledDate: ymd(daysAgo(3)), metadata: { lateEntry: { daysLate: 3, recordedAt: new Date().toISOString() } } }
+    render(<MarkClient />)
+    expect(await screen.findByText(/Recorded 3 days late/i)).toBeInTheDocument()
+  })
+
+  it('warns on Mark All Present for a past-day session only', async () => {
+    state.extra = { type: 'class', scheduledDate: ymd(daysAgo(2)) }
+    const { unmount } = render(<MarkClient />)
+    fireEvent.click(await screen.findByRole('button', { name: /All Present/i }))
+    expect(await screen.findByText(/earlier day/i)).toBeInTheDocument()
+    unmount()
+
+    state.extra = { type: 'class', scheduledDate: ymd(new Date()) }
+    render(<MarkClient />)
+    fireEvent.click(await screen.findByRole('button', { name: /All Present/i }))
+    await screen.findByRole('dialog')
+    expect(screen.queryByText(/earlier day/i)).toBeNull()
   })
 })

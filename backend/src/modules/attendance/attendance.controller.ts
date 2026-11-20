@@ -95,6 +95,12 @@ export class AttendanceController {
     return this.attendanceService.getGroupStats(schoolId, { from, to });
   }
 
+  @Get('missed')
+  @ApiOperation({ summary: 'Classes the current servant can still record (unfinished past sessions and usual teaching days with none)' })
+  async missed(@Req() req: any) {
+    return this.attendanceService.getMissedSessions(req.user);
+  }
+
   @Get('sessions/:id')
   @ApiOperation({ summary: 'Get an attendance session by ID' })
   async getSessionById(@Param('id') id: string) {
@@ -252,9 +258,9 @@ export class AttendanceController {
   }
 
   @Post('start-class')
-  @ApiOperation({ summary: 'Start class for today — auto-detect group, or use specified groupId/levelId/gradeId/gender' })
-  async startClass(@Req() req: any, @Query('groupId') groupId?: string, @Query('levelId') levelId?: string, @Query('gradeId') gradeId?: string, @Query('gender') gender?: string) {
-    return this.attendanceService.startClass(req.user.id, groupId, levelId, gradeId, gender);
+  @ApiOperation({ summary: 'Start class for today (or a past day via date=YYYY-MM-DD) — auto-detect group, or use specified groupId/levelId/gradeId/gender' })
+  async startClass(@Req() req: any, @Query('groupId') groupId?: string, @Query('levelId') levelId?: string, @Query('gradeId') gradeId?: string, @Query('gender') gender?: string, @Query('date') date?: string) {
+    return this.attendanceService.startClass(req.user.id, groupId, levelId, gradeId, gender, date);
   }
 
   @Post('sessions/:id/start')
