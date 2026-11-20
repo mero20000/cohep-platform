@@ -22,6 +22,22 @@ function sessionLocked(s: any): boolean {
   return isFinalStatus(s.status) || s.status === 'cancelled' || (sessionType(s) !== 'class' && isFutureDay(s.scheduledDate))
 }
 
+type MissedItem =
+  | { kind: 'session'; sessionId: string; date: string; groupId: string | null; groupName: string; levelId: string | null; status: string }
+  | { kind: 'inferred'; date: string; groupId: string; groupName: string; levelId: string | null }
+
+const BACKFILL_WINDOW_DAYS = 7
+const toYmd = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+const ymdDaysAgo = (n: number) => { const d = new Date(); d.setDate(d.getDate() - n); return toYmd(d) }
+/** Scheduled day is before today (a class recorded after the day). */
+function isPastDay(scheduledDate?: string | null): boolean {
+  if (!scheduledDate) return false
+  const d = new Date(scheduledDate)
+  if (Number.isNaN(d.getTime())) return false
+  const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0)
+  return d.getTime() < todayStart.getTime()
+}
+
 const FALLBACK_USER_ID = '00000000-0000-0000-0000-000000000000'
 
 // Read-only chips mirror the legacy completed-session pattern (static status
@@ -70,6 +86,11 @@ export function MarkClient() {
   const [groupFilter, setGroupFilter] = useState('')
   const [gradeFilter, setGradeFilter] = useState('')
   const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({})
+  const [missed, setMissed] = useState<MissedItem[]>([])
+  const [pastOpen, setPastOpen] = useState(false)
+  const [pastDate, setPastDate] = useState('')
+  // The date a class is being started for (''= today); kept across the group-picker steps.
+  const startDateRef = useRef('')
   const marking = useMarkingState([])
 
   useEffect(() => {
@@ -95,7 +116,8 @@ export function MarkClient() {
     } finally { setLoading(false) }
   }
 
-  const startClassManually = async (groupId?: string, levelId?: string, gradeId?: string, gender?: string) => {
+  const startClassManually = async (groupId?: string, levelId?: string, gradeId?: string, gender?: string, date?: string) => {
+    if (date !== undefined) startDateRef.current = date
     setStarting(true)
     setLoadError('')
     try {
@@ -104,6 +126,7 @@ export function MarkClient() {
       if (levelId) qs.set('levelId', levelId)
       if (gradeId) qs.set('gradeId', gradeId)
       if (gender) qs.set('gender', gender)
+      if (startDateRef.current) qs.set('date', startDateRef.current)
       const url = `/attendance/start-class${qs.toString() ? `?${qs}` : ''}`
       const started = await http.post<any>(url)
 
@@ -161,6 +184,21 @@ export function MarkClient() {
   }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { load() }, [])
+
+  // Classes the servant can still record; a failure just hides the list.
+  useEffect(() => {
+    if (!needsManualStart) return
+    let cancelled = false
+    http.get<MissedItem[]>('/attendance/missed')
+      .then(list => { if (!cancelled) setMissed(Array.isArray(list) ? list : []) })
+      .catch(() => { if (!cancelled) setMissed([]) })
+    return () => { cancelled = true }
+  }, [needsManualStart])
+
+  const recordMissed = (item: MissedItem) => {
+    if (item.kind === 'session') { setNeedsManualStart(false); void load(item.sessionId); return }
+    void startClassManually(item.groupId, item.levelId ?? undefined, undefined, undefined, item.date)
+  }
 
   const save = async (finalize = false) => {
     if (!session || saving || sessionLocked(session)) return
@@ -288,9 +326,44 @@ export function MarkClient() {
       description={lang === 'ar' ? 'اضغط "بدء الحصة" لإنشاء جلسة حضور جديدة' : 'Press "Start Class" to create a new attendance session'}
       action={
         <div className="flex flex-col items-center gap-2">
-          <Button onClick={() => { void startClassManually() }} disabled={starting} className="min-h-[44px]">
-            {starting ? (lang === 'ar' ? 'جاري البدء…' : 'Starting…') : (lang === 'ar' ? 'بدء الحصة' : 'Start Class')}
-          </Button>
+          <div className="flex flex-wrap justify-center gap-2">
+            <Button onClick={() => { void startClassManually(undefined, undefined, undefined, undefined, '') }} disabled={starting} className="min-h-[44px]">
+              {starting ? (lang === 'ar' ? 'جاري البدء…' : 'Starting…') : (lang === 'ar' ? 'بدء الحصة' : 'Start Class')}
+            </Button>
+            <Button variant="outline" onClick={() => setPastOpen(o => !o)} aria-expanded={pastOpen} className="min-h-[44px]">
+              {lang === 'ar' ? 'تسجيل حصة سابقة' : 'Record a past class'}
+            </Button>
+          </div>
+          {pastOpen && (
+            <div className="flex flex-wrap items-center justify-center gap-2 rounded-xl border border-gray-200 bg-gray-50 p-3">
+              <label className="text-sm text-gray-700" htmlFor="past-class-date">{lang === 'ar' ? 'تاريخ الحصة' : 'Class date'}</label>
+              <input
+                id="past-class-date"
+                type="date"
+                value={pastDate}
+                max={ymdDaysAgo(1)}
+                min={canMulti ? undefined : ymdDaysAgo(BACKFILL_WINDOW_DAYS)}
+                onChange={(e) => setPastDate(e.target.value)}
+                className="min-h-[44px] rounded-lg border border-gray-300 px-3 text-sm focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-gold-500"
+              />
+              <Button onClick={() => { void startClassManually(undefined, undefined, undefined, undefined, pastDate) }} disabled={starting || !pastDate} className="min-h-[44px]">
+                {lang === 'ar' ? 'متابعة' : 'Continue'}
+              </Button>
+            </div>
+          )}
+          {missed.length > 0 && (
+            <div className="w-full max-w-sm space-y-2 text-start" aria-label={lang === 'ar' ? 'حصص لم تُسجَّل' : 'Missed classes'}>
+              <p className="text-xs font-medium text-gray-500">{lang === 'ar' ? 'لم تُسجَّل بعد' : 'Not recorded yet'}</p>
+              {missed.map(m => (
+                <div key={`${m.kind}-${m.kind === 'session' ? m.sessionId : `${m.groupId}-${m.date}`}`} className="flex items-center justify-between gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2">
+                  <span className="text-sm text-gray-800">{formatSessionDate(m.date, lang)} · {m.groupName}</span>
+                  <Button size="sm" variant="outline" onClick={() => recordMissed(m)} disabled={starting} className="min-h-[44px] shrink-0">
+                    {lang === 'ar' ? 'سجّل الآن' : 'Record now'}
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
           <div className="flex flex-wrap justify-center gap-2">
             <Link href="/dashboard/attendance/sessions?new=liturgy"
               className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-gold-500 min-h-[40px]">
@@ -591,6 +664,13 @@ export function MarkClient() {
               {isBinary && <SessionTypeBadge type={type} lang={lang} />}
               <span>{[titleText, isBinary ? '' : '', formatSessionDate(session.scheduledDate, lang), isFinalStatus(session.status) ? 'completed' : session.status].filter(Boolean).join(' · ')}</span>
             </p>
+            {session.metadata?.lateEntry?.daysLate >= 1 && (
+              <p className="text-xs font-medium text-amber-700">
+                {lang === 'ar'
+                  ? `سُجّلت بعد ${session.metadata.lateEntry.daysLate} ${session.metadata.lateEntry.daysLate === 1 ? 'يوم' : 'أيام'}`
+                  : `Recorded ${session.metadata.lateEntry.daysLate} ${session.metadata.lateEntry.daysLate === 1 ? 'day' : 'days'} late`}
+              </p>
+            )}
             {isBinary && (session.location || audienceSummary(session, lang)) && (
               <p className="text-xs text-gray-500">{[audienceSummary(session, lang), session.location].filter(Boolean).join(' · ')}</p>
             )}
@@ -861,6 +941,13 @@ export function MarkClient() {
               {lang === 'ar'
                 ? `هذا سيحدد جميع الطلاب (${visibleIds.length}) في هذه الجلسة كـ${markAllTarget === 'present' ? ' حاضر' : markAllTarget === 'late' ? ' متأخر' : ' غائب'}`
                 : `This will mark all ${visibleIds.length} students in this session as ${markAllTarget}`}
+              {markAllTarget === 'present' && !isBinary && isPastDay(session.scheduledDate) && (
+                <span className="mt-2 block font-medium text-amber-700">
+                  {lang === 'ar'
+                    ? 'هذه الحصة كانت في يوم سابق — تأكد من حضور كل طالب فعلاً.'
+                    : 'This class was on an earlier day — make sure every student really attended.'}
+                </span>
+              )}
             </p>
             <div className="flex items-center justify-center gap-3">
               <Button variant="outline" onClick={() => setMarkAllTarget(null)}>{lang === 'ar' ? 'إلغاء' : 'Cancel'}</Button>
