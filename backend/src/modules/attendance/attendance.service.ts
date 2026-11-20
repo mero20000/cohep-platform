@@ -23,6 +23,9 @@ function addTally(into: StatusTally, from?: StatusTally) {
   into.excused += from.excused; into.unmarked += from.unmarked;
 }
 
+/** How many days late a plain servant may record a class on their own. */
+export const BACKFILL_WINDOW_DAYS = 7;
+
 @Injectable()
 export class AttendanceService {
   constructor(
@@ -1284,14 +1287,46 @@ export class AttendanceService {
     return { record, message: `${record.student.firstName} ${record.student.lastName} checked in!` };
   }
 
-  async startClass(servantId: string, selectedGroupId?: string, selectedLevelId?: string, selectedGradeId?: string, selectedGender?: string) {
+  /**
+   * Parse and authorise the optional `date` of start-class. Returns null for "today"
+   * (no backfill). Plain servants may only go back BACKFILL_WINDOW_DAYS; privileged
+   * roles are uncapped. Future or malformed dates are rejected.
+   */
+  private resolveBackfillDate(date: string | undefined, roles: string[]) {
+    if (!date) return null;
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date);
+    const dayStart = m ? new Date(+m[1], +m[2] - 1, +m[3], 0, 0, 0, 0) : null;
+    if (!m || !dayStart || dayStart.getFullYear() !== +m[1] || dayStart.getMonth() !== +m[2] - 1 || dayStart.getDate() !== +m[3]) {
+      throw new BadRequestException('date must be a valid YYYY-MM-DD');
+    }
+    const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
+    if (dayStart.getTime() > todayStart.getTime()) throw new BadRequestException('A class cannot be recorded for a future date.');
+    const daysLate = Math.round((todayStart.getTime() - dayStart.getTime()) / 86_400_000);
+    if (daysLate === 0) return null;
+    const privileged = roles.some(r => ['super_admin', 'admin', 'principal', 'level_leader'].includes(r));
+    if (!privileged && daysLate > BACKFILL_WINDOW_DAYS) {
+      throw new ForbiddenException(`Attendance can only be recorded up to ${BACKFILL_WINDOW_DAYS} days late. Ask a level leader or admin.`);
+    }
+    const dayEnd = new Date(dayStart); dayEnd.setDate(dayEnd.getDate() + 1);
+    const scheduledDate = new Date(dayStart); scheduledDate.setHours(12, 0, 0, 0);
+    const lastMoment = new Date(dayStart); lastMoment.setHours(23, 59, 59, 999);
+    return { dayStart, dayEnd, scheduledDate, lastMoment, daysLate };
+  }
+
+  async startClass(servantId: string, selectedGroupId?: string, selectedLevelId?: string, selectedGradeId?: string, selectedGender?: string, date?: string) {
     const servant = await this.prisma.user.findUnique({ where: { id: servantId }, select: { schoolId: true, metadata: true } });
     if (!servant) throw new NotFoundException('Servant not found');
 
-    const today = new Date();
+    const servantRoles = await this.prisma.userRole.findMany({
+      where: { userId: servantId },
+      include: { role: { select: { name: true } } },
+    });
+    const backfill = this.resolveBackfillDate(date, servantRoles.map(ur => ur.role?.name).filter(Boolean) as string[]);
+
+    const today = backfill ? backfill.dayStart : new Date();
     today.setHours(0, 0, 0, 0);
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
+    const tomorrow = backfill ? backfill.dayEnd : new Date(today);
+    if (!backfill) tomorrow.setDate(tomorrow.getDate() + 1);
 
     // Check user metadata for assigned group/level
     const meta = (servant.metadata as any) || {};
@@ -1311,10 +1346,6 @@ export class AttendanceService {
     const gradeId: string | undefined = selectedGradeId;
 
     // If no metadata assignment, try to get from recent sessions (only for non-admin servants)
-    const servantRoles = await this.prisma.userRole.findMany({
-      where: { userId: servantId },
-      include: { role: { select: { name: true } } },
-    });
     const isAdmin = servantRoles.some(ur => ['super_admin', 'admin'].includes(ur.role?.name));
     if (!groupId && !isAdmin && recentSessions.length > 0) {
       groupId = recentSessions[0].groupId || undefined;
@@ -1396,6 +1427,7 @@ export class AttendanceService {
 
     const sessionMeta: Record<string, any> = {};
     if (selectedGender) sessionMeta.genderFilter = selectedGender;
+    if (backfill) sessionMeta.lateEntry = { daysLate: backfill.daysLate, recordedAt: new Date().toISOString() };
 
     const session = await this.prisma.attendanceSession.create({
       data: {
@@ -1404,7 +1436,7 @@ export class AttendanceService {
         levelId: levelId || null,
         groupId,
         gradeId: gradeId || null,
-        scheduledDate: new Date(),
+        scheduledDate: backfill ? backfill.scheduledDate : new Date(),
         scheduledTime: '12:00',
         status: 'scheduled',
         ...(Object.keys(sessionMeta).length > 0 && { metadata: sessionMeta }),
@@ -1416,6 +1448,8 @@ export class AttendanceService {
     const studentWhere: any = { groupId, schoolId: servant.schoolId, deletedAt: null, status: 'active' };
     if (levelId) studentWhere.levelId = levelId;
     if (gradeId) studentWhere.gradeId = gradeId;
+    // A past-day roster only has students who already existed on that day.
+    if (backfill) studentWhere.createdAt = { lte: backfill.lastMoment };
     if (selectedGender && selectedGender !== 'both') {
       studentWhere.gender = selectedGender;
     } else {

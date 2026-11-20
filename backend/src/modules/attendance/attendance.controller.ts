@@ -252,9 +252,9 @@ export class AttendanceController {
   }
 
   @Post('start-class')
-  @ApiOperation({ summary: 'Start class for today — auto-detect group, or use specified groupId/levelId/gradeId/gender' })
-  async startClass(@Req() req: any, @Query('groupId') groupId?: string, @Query('levelId') levelId?: string, @Query('gradeId') gradeId?: string, @Query('gender') gender?: string) {
-    return this.attendanceService.startClass(req.user.id, groupId, levelId, gradeId, gender);
+  @ApiOperation({ summary: 'Start class for today (or a past day via date=YYYY-MM-DD) — auto-detect group, or use specified groupId/levelId/gradeId/gender' })
+  async startClass(@Req() req: any, @Query('groupId') groupId?: string, @Query('levelId') levelId?: string, @Query('gradeId') gradeId?: string, @Query('gender') gender?: string, @Query('date') date?: string) {
+    return this.attendanceService.startClass(req.user.id, groupId, levelId, gradeId, gender, date);
   }
 
   @Post('sessions/:id/start')

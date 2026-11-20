@@ -246,6 +246,80 @@ describe('AttendanceService', () => {
       expect(prisma.attendanceSession.create).toHaveBeenCalled();
       expect(result.created).toBe(true);
     });
+
+    describe('with a past date (backfill)', () => {
+      const ymd = (d: Date) =>
+        `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      const daysAgo = (n: number) => { const d = new Date(); d.setDate(d.getDate() - n); return d; };
+
+      it('creates a session at noon of that day with a lateEntry label', async () => {
+        await service.startClass('u1', undefined, undefined, undefined, undefined, ymd(daysAgo(1)));
+
+        const data = prisma.attendanceSession.create.mock.calls[0][0].data;
+        const y = daysAgo(1);
+        expect(data.scheduledDate.getFullYear()).toBe(y.getFullYear());
+        expect(data.scheduledDate.getMonth()).toBe(y.getMonth());
+        expect(data.scheduledDate.getDate()).toBe(y.getDate());
+        expect(data.scheduledDate.getHours()).toBe(12);
+        expect(data.metadata.lateEntry.daysLate).toBe(1);
+        expect(typeof data.metadata.lateEntry.recordedAt).toBe('string');
+      });
+
+      it('treats today as a normal start (no lateEntry)', async () => {
+        await service.startClass('u1', undefined, undefined, undefined, undefined, ymd(new Date()));
+
+        const data = prisma.attendanceSession.create.mock.calls[0][0].data;
+        expect(data.metadata?.lateEntry).toBeUndefined();
+      });
+
+      it('rejects a future date', async () => {
+        await expect(service.startClass('u1', undefined, undefined, undefined, undefined, ymd(daysAgo(-1))))
+          .rejects.toBeInstanceOf(BadRequestException);
+      });
+
+      it.each(['2026-13-40', 'abc', '2026-02-30'])('rejects the malformed date %s', async (bad) => {
+        await expect(service.startClass('u1', undefined, undefined, undefined, undefined, bad))
+          .rejects.toBeInstanceOf(BadRequestException);
+      });
+
+      it('rejects a date older than the window for a plain servant', async () => {
+        await expect(service.startClass('u1', undefined, undefined, undefined, undefined, ymd(daysAgo(8))))
+          .rejects.toBeInstanceOf(ForbiddenException);
+      });
+
+      it('allows a date at the window edge for a plain servant', async () => {
+        await service.startClass('u1', undefined, undefined, undefined, undefined, ymd(daysAgo(7)));
+        expect(prisma.attendanceSession.create).toHaveBeenCalled();
+      });
+
+      it('lets a level leader go beyond the window', async () => {
+        prisma.userRole.findMany.mockResolvedValue([{ role: { name: 'level_leader' } }]);
+        await service.startClass('u1', undefined, undefined, undefined, undefined, ymd(daysAgo(30)));
+        expect(prisma.attendanceSession.create).toHaveBeenCalled();
+      });
+
+      it('joins an existing non-cancelled session for that day instead of creating one', async () => {
+        prisma.attendanceSession.findMany.mockResolvedValue([
+          { id: 'sess-old', status: 'in_progress', servantId: 'other', groupId: 'group-1', levelId: 'level-1', gradeId: null, metadata: null },
+        ]);
+
+        const result: any = await service.startClass('u1', undefined, undefined, undefined, undefined, ymd(daysAgo(2)));
+
+        expect(prisma.attendanceSession.create).not.toHaveBeenCalled();
+        expect(result.created).toBe(false);
+        const where = prisma.attendanceSession.findMany.mock.calls.find((c: any) => c[0]?.where?.scheduledDate)?.[0].where;
+        expect(where.scheduledDate.gte.getDate()).toBe(daysAgo(2).getDate());
+        expect(where.status).toEqual({ not: 'cancelled' });
+      });
+
+      it('leaves out students who joined after that day', async () => {
+        await service.startClass('u1', undefined, undefined, undefined, undefined, ymd(daysAgo(3)));
+
+        const where = prisma.student.findMany.mock.calls[0][0].where;
+        expect(where.createdAt.lte.getDate()).toBe(daysAgo(3).getDate());
+        expect(where.createdAt.lte.getHours()).toBe(23);
+      });
+    });
   });
 
   describe('startSession', () => {
