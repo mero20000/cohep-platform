@@ -11,6 +11,7 @@ const state = vi.hoisted(() => ({
   records: null as any[] | null,
   missed: [] as any[],
   missedFails: false,
+  lang: 'en' as 'en' | 'ar',
 }))
 
 const TWO = [
@@ -43,7 +44,7 @@ const mockPost = vi.fn(async (url: string, body?: any) => {
 const mockPut = vi.fn(async () => ({ ok: true }))
 vi.mock('@/lib/http-client', () => ({ http: { get: (...a: any[]) => mockGet(...a), post: (...a: any[]) => mockPost(...a), put: (...a: any[]) => mockPut(...a) } }))
 vi.mock('@/lib/school', () => ({ getSchoolId: () => 'school-1' }))
-vi.mock('@/lib/use-language', () => ({ useLanguage: () => 'en' }))
+vi.mock('@/lib/use-language', () => ({ useLanguage: () => state.lang }))
 vi.mock('@/components/ui/toast', () => ({ useToast: () => ({ toast: vi.fn() }) }))
 vi.mock('next/navigation', () => ({ useSearchParams: () => ({ get: (k: string) => (state.params as any)[k] ?? null }) }))
 
@@ -56,6 +57,7 @@ beforeEach(() => {
   state.records = null
   state.missed = []
   state.missedFails = false
+  state.lang = 'en'
   localStorage.removeItem('user')
   mockGet.mockClear()
   mockPost.mockClear()
@@ -417,5 +419,79 @@ describe('MarkClient — recording a past class', () => {
     fireEvent.click(await screen.findByRole('button', { name: /All Present/i }))
     await screen.findByRole('dialog')
     expect(screen.queryByText(/earlier day/i)).toBeNull()
+  })
+})
+
+
+describe('MarkClient — finding students by name', () => {
+  const rec = (id: string, first: string, last: string, firstAr?: string, lastAr?: string, code?: string) => ({
+    student: { id, firstName: first, lastName: last, firstNameAr: firstAr, lastNameAr: lastAr, studentCode: code },
+    status: 'unmarked', behavior: 0, participation: 0, attendedLiturgy: false, note: '',
+  })
+  const roster = () => [
+    rec('s1', 'Mina', 'Gerges', 'مينا', 'جرجس', 'STU-0042'),
+    rec('s2', 'Ahmed', 'Samir', 'أحمد', 'سمير', 'STU-0043'),
+    rec('s3', 'José', 'Núñez', undefined, undefined, 'STU-0044'),
+  ]
+  const searchFor = async (q: string) => {
+    state.records = roster()
+    render(<MarkClient />)
+    await screen.findByRole('searchbox', { name: /Search student name|بحث باسم الطالب/i })
+    fireEvent.change(screen.getByRole('searchbox'), { target: { value: q } })
+  }
+  const shown = () => Array.from(document.querySelectorAll('[data-student-id]')).map((c) => c.getAttribute('data-student-id'))
+
+  it.each([
+    ['MINA', ['s1']],
+    ['ina', ['s1']],
+    ['Mina Gerges', ['s1']],
+    ['gerges mina', ['s1']],
+    ['mina ge', ['s1']],
+    ['Mina    Gerges', ['s1']],
+    ['jose nunez', ['s3']],
+    ['مينا جرجس', ['s1']],
+    ['احمد', ['s2']],
+    ['أحمد سمير', ['s2']],
+    ['stu-0043', ['s2']],
+    ['nobody here', []],
+  ])('typing "%s" shows the right students', async (q, ids) => {
+    await searchFor(q as string)
+    expect(shown()).toEqual(ids)
+  })
+
+  it('Mark All applies only to the students the search is showing', async () => {
+    await searchFor('mina')
+    fireEvent.click(screen.getByRole('button', { name: /All Present/i }))
+    const dialog = await screen.findByRole('dialog')
+    expect(dialog.textContent).toMatch(/1 students currently shown \(of 3\)/i)
+    fireEvent.click(screen.getByRole('button', { name: /^Confirm/i }))
+    fireEvent.click(screen.getByRole('button', { name: /Clear search/i }))
+    expect(screen.getByRole('button', { name: /Present - Mina Gerges/i }).getAttribute('aria-pressed')).toBe('true')
+    expect(screen.getByRole('button', { name: /Present - Ahmed Samir/i }).getAttribute('aria-pressed')).toBe('false')
+  })
+
+  it('Mark All with no search still says it marks everyone in the session', async () => {
+    state.records = roster()
+    render(<MarkClient />)
+    fireEvent.click(await screen.findByRole('button', { name: /All Present/i }))
+    expect((await screen.findByRole('dialog')).textContent).toMatch(/all 3 students in this session/i)
+  })
+
+  it('in the Arabic UI the roster shows and sorts by Arabic names (falling back to English)', async () => {
+    state.lang = 'ar'
+    state.records = roster()
+    render(<MarkClient />)
+    await screen.findByText('مينا جرجس')
+    expect(screen.getByText('أحمد سمير')).toBeInTheDocument()
+    expect(screen.getByText('José Núñez')).toBeInTheDocument() // no Arabic name: English is shown
+    // Arabic alphabetical order: أحمد (alef) before مينا (meem); the English-only student sorts by its English name.
+    expect(shown().indexOf('s2')).toBeLessThan(shown().indexOf('s1'))
+  })
+
+  it('in the English UI the roster still shows English names', async () => {
+    state.records = roster()
+    render(<MarkClient />)
+    expect(await screen.findByText('Mina Gerges')).toBeInTheDocument()
+    expect(screen.queryByText('مينا جرجس')).toBeNull()
   })
 })

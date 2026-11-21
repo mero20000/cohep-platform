@@ -456,6 +456,17 @@ describe('AttendanceService', () => {
     });
   });
 
+  describe('getSessionById', () => {
+    it('returns each student with Arabic names and code, so the roster can be searched and shown in either language', async () => {
+      prisma.attendanceSession.findUnique.mockResolvedValue({ id: 'sess-1', type: 'liturgy', attendanceRecords: [] });
+
+      await service.getSessionById('sess-1');
+
+      const select = prisma.attendanceSession.findUnique.mock.calls[0][0].include.attendanceRecords.include.student.select;
+      expect(select).toEqual(expect.objectContaining({ firstName: true, lastName: true, firstNameAr: true, lastNameAr: true, studentCode: true }));
+    });
+  });
+
   describe('startSession', () => {
     const classSession = { id: 'sess-1', schoolId, servantId: 'owner', groupId: 'group-1', levelId: 'level-1', type: 'class', status: 'scheduled', actualStartTime: null, deletedAt: null };
 
