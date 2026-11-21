@@ -8,6 +8,7 @@ import { useToast } from '@/components/ui/toast'
 import { Button } from '@/components/ui/button'
 import { StudentAvatar } from '@/components/ui/student-avatar'
 import { http } from '@/lib/http-client'
+import { matchesNameQuery } from '@/lib/name-search'
 import { EmptyState } from '@/components/ui/empty-state'
 import { useMarkingState } from '../lib/use-marking-state'
 import { StatusSegment } from '../components/status-segment'
@@ -35,6 +36,13 @@ function isPastDay(scheduledDate?: string | null): boolean {
   if (Number.isNaN(d.getTime())) return false
   const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0)
   return d.getTime() < todayStart.getTime()
+}
+
+/** The name to show: Arabic in the Arabic UI (English if there is none), English otherwise (Arabic if there is none). */
+function displayName(student: any, lang: 'en' | 'ar'): string {
+  const en = `${student?.firstName || ''} ${student?.lastName || ''}`.trim()
+  const ar = `${student?.firstNameAr || ''} ${student?.lastNameAr || ''}`.trim()
+  return (lang === 'ar' ? ar || en : en || ar)
 }
 
 const FALLBACK_USER_ID = '00000000-0000-0000-0000-000000000000'
@@ -583,16 +591,12 @@ export function MarkClient() {
 
   const recs = session.attendanceRecords || []
   const isUnmarked = (r: any) => { const s = marking.marks[r.student?.id]; return !s || s === 'unmarked' }
+  // Any part of the first/last name (English or Arabic) or the student code, in any order, ignoring case and spelling variants.
   const matchesQuery = (r: any) => {
-    const q = query.trim().toLowerCase()
-    if (!q) return true
     const s = r.student || {}
-    return [s.firstName, s.lastName, s.firstNameAr, s.lastNameAr].some(v => (v || '').toLowerCase().includes(q))
+    return matchesNameQuery([s.firstName, s.lastName, s.firstNameAr, s.lastNameAr, s.studentCode], query)
   }
-  const studentSortName = (r: any) => {
-    const s = r.student || {}
-    return `${s.firstName || ''} ${s.lastName || ''}`.trim() || `${s.firstNameAr || ''} ${s.lastNameAr || ''}`.trim()
-  }
+  const studentSortName = (r: any) => displayName(r.student, lang)
   const type = sessionType(session)
   const isBinary = type !== 'class'
   const isCompleted = isFinalStatus(session.status)
@@ -644,8 +648,8 @@ export function MarkClient() {
     total: recs.length,
   }
   const titleText = sessionTitle(session, lang)
-  const scopeIds = recs.filter(matchesScope).map((r: any) => r.student?.id).filter(Boolean)
-  const visibleIds = scopeIds
+  // Mark All acts on exactly the students on screen, so a search or filter narrows it too.
+  const visibleIds = visibleRecs.map((r: any) => r.student?.id).filter(Boolean)
   const markAllLabel = markAllTarget === 'present'
     ? (lang === 'ar' ? 'تحديد الكل حاضر؟' : 'Mark all as Present?')
     : markAllTarget === 'late'
@@ -825,7 +829,7 @@ export function MarkClient() {
       {(() => {
         const readonlyStatuses = isBinary ? READONLY_STATUSES.filter(x => x.key === 'present' || x.key === 'absent') : READONLY_STATUSES
         const renderRecord = (r: any) => {
-          const studentName = `${r.student?.firstName} ${r.student?.lastName}`
+          const studentName = displayName(r.student, lang)
           const current = marking.marks[r.student?.id] || 'unmarked'
           return (
             <div
@@ -837,7 +841,7 @@ export function MarkClient() {
             >
               <div className="mb-1.5 flex items-center gap-2.5">
                 <StudentAvatar name={studentName} photoUrl={r.student?.photoUrl} size={36} />
-                <div className="min-w-0 truncate text-[15px] font-medium">{r.student?.firstName} {r.student?.lastName}</div>
+                <div className="min-w-0 truncate text-[15px] font-medium">{studentName}</div>
               </div>
               {readOnly ? (
                 <div role="group" aria-label={lang === 'ar' ? `الحالة - ${studentName} (نهائية)` : `Status - ${studentName} (finalized)`} className="grid grid-cols-2 gap-2">
@@ -937,8 +941,12 @@ export function MarkClient() {
             <h3 id="mark-all-title" className="mb-2 font-semibold text-gray-900">{markAllLabel}</h3>
             <p className="mb-6 text-sm text-gray-500">
               {lang === 'ar'
-                ? `هذا سيحدد جميع الطلاب (${visibleIds.length}) في هذه الجلسة كـ${markAllTarget === 'present' ? ' حاضر' : markAllTarget === 'late' ? ' متأخر' : ' غائب'}`
-                : `This will mark all ${visibleIds.length} students in this session as ${markAllTarget}`}
+                ? (isFiltering
+                    ? `هذا سيحدد الطلاب المعروضين حاليًا (${visibleIds.length} من ${counts.total}) كـ${markAllTarget === 'present' ? ' حاضر' : markAllTarget === 'late' ? ' متأخر' : ' غائب'}`
+                    : `هذا سيحدد جميع الطلاب (${visibleIds.length}) في هذه الجلسة كـ${markAllTarget === 'present' ? ' حاضر' : markAllTarget === 'late' ? ' متأخر' : ' غائب'}`)
+                : (isFiltering
+                    ? `This will mark the ${visibleIds.length} students currently shown (of ${counts.total}) as ${markAllTarget}`
+                    : `This will mark all ${visibleIds.length} students in this session as ${markAllTarget}`)}
               {markAllTarget === 'present' && !isBinary && isPastDay(session.scheduledDate) && (
                 <span className="mt-2 block font-medium text-amber-700">
                   {lang === 'ar'

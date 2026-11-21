@@ -194,7 +194,7 @@ export class AttendanceService {
         attendanceRecords: {
           include: {
             student: {
-              select: { id: true, firstName: true, lastName: true, studentCode: true, photoUrl: true, levelId: true, groupId: true, gradeId: true, deletedAt: true, grade: { select: { id: true, name: true, nameAr: true } }, group: { select: { id: true, name: true } } },
+              select: { id: true, firstName: true, lastName: true, firstNameAr: true, lastNameAr: true, studentCode: true, photoUrl: true, levelId: true, groupId: true, gradeId: true, deletedAt: true, grade: { select: { id: true, name: true, nameAr: true } }, group: { select: { id: true, name: true } } },
             },
           },
           orderBy: { recordedAt: 'desc' },
